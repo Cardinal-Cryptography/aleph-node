@@ -151,7 +151,7 @@ async fn setup_test_validators_and_nominator_stashes(
     for (validator_index, validator) in validators.into_iter().enumerate() {
         let (nominator_controller_accounts, nominator_stash_accounts) =
             generate_nominator_accounts_with_minimal_bond(
-                &connection.as_signed(),
+                connection.as_signed(),
                 validator_index as u32,
                 validators_len as u32,
             )

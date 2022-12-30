@@ -40,7 +40,7 @@ pub trait AsConnection: Sync {
 }
 
 pub trait AsSigned: Sync {
-    fn as_signed(&self) -> SignedConnection;
+    fn as_signed(&self) -> &SignedConnection;
 }
 
 #[async_trait::async_trait]
@@ -74,9 +74,9 @@ pub struct SignedConnection {
     signer: KeyPair,
 }
 
+#[derive(Clone)]
 pub struct RootConnection {
-    connection: Connection,
-    root: KeyPair,
+    connection: SignedConnection,
 }
 
 #[async_trait::async_trait]
@@ -117,16 +117,13 @@ impl Clone for SignedConnection {
     }
 }
 
-impl Clone for RootConnection {
-    fn clone(&self) -> Self {
-        RootConnection {
-            connection: self.connection.clone(),
-            root: KeyPair::new(self.root.signer().clone()),
-        }
+impl AsConnection for Connection {
+    fn as_connection(&self) -> &Connection {
+        self
     }
 }
 
-impl AsConnection for Connection {
+impl AsConnection for &Connection {
     fn as_connection(&self) -> &Connection {
         self
     }
@@ -138,24 +135,45 @@ impl AsConnection for SignedConnection {
     }
 }
 
-impl AsConnection for RootConnection {
+impl AsConnection for &SignedConnection {
     fn as_connection(&self) -> &Connection {
         &self.connection
     }
 }
 
+impl AsConnection for RootConnection {
+    fn as_connection(&self) -> &Connection {
+        self.connection.as_connection()
+    }
+}
+
+impl AsConnection for &RootConnection {
+    fn as_connection(&self) -> &Connection {
+        self.connection.as_connection()
+    }
+}
+
 impl AsSigned for SignedConnection {
-    fn as_signed(&self) -> SignedConnection {
-        self.clone()
+    fn as_signed(&self) -> &SignedConnection {
+        self
+    }
+}
+
+impl AsSigned for &SignedConnection {
+    fn as_signed(&self) -> &SignedConnection {
+        self
     }
 }
 
 impl AsSigned for RootConnection {
-    fn as_signed(&self) -> SignedConnection {
-        SignedConnection {
-            connection: self.connection.clone(),
-            signer: KeyPair::new(self.root.signer().clone()),
-        }
+    fn as_signed(&self) -> &SignedConnection {
+        &self.connection
+    }
+}
+
+impl AsSigned for &RootConnection {
+    fn as_signed(&self) -> &SignedConnection {
+        &self.connection
     }
 }
 
@@ -297,8 +315,7 @@ impl RootConnection {
         }
 
         Ok(Self {
-            connection,
-            root: signer,
+            connection: SignedConnection { connection, signer },
         })
     }
 }

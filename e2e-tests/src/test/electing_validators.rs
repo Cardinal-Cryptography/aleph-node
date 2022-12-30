@@ -179,7 +179,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
 
     let desired_validator_count = reserved_seats + non_reserved_seats;
     let accounts = setup_accounts(desired_validator_count);
-    prepare_validators(&root_connection.as_signed(), node, &accounts).await?;
+    prepare_validators(root_connection.as_signed(), node, &accounts).await?;
     info!("New validators are set up");
 
     let reserved_validators = accounts.get_stash_accounts()[..reserved_seats as usize].to_vec();
