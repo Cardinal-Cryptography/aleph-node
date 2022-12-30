@@ -30,19 +30,17 @@ impl Display for Error {
 }
 
 /// Substrate specific implementation of `ChainStatusNotifier`.
-pub struct SubstrateChainStatusNotifier<H, B>
+pub struct SubstrateChainStatusNotifier<B>
 where
-    H: SubstrateHeader<Number = BlockNumber>,
-    B: BlockT<Header = H>,
+    B: BlockT,
 {
     finality_notifications: FinalityNotifications<B>,
     import_notifications: ImportNotifications<B>,
 }
 
-impl<H, B> SubstrateChainStatusNotifier<H, B>
+impl<B> SubstrateChainStatusNotifier<B>
 where
-    H: SubstrateHeader<Number = BlockNumber>,
-    B: BlockT<Header = H>,
+    B: BlockT,
 {
     fn new(
         finality_notifications: FinalityNotifications<B>,
@@ -56,15 +54,15 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, B> ChainStatusNotifier<BlockId<H>> for SubstrateChainStatusNotifier<H, B>
+impl<B> ChainStatusNotifier<BlockId<B::Header>> for SubstrateChainStatusNotifier<B>
 where
-    H: SubstrateHeader<Number = BlockNumber>,
-    B: BlockT<Header = H>,
+    B: BlockT,
+    B::Header: SubstrateHeader<Number = BlockNumber>,
 {
     type Error = Error;
 
-    /// Returns next chain status notification.
-    async fn next(&mut self) -> Result<ChainStatusNotification<BlockId<H>>, Self::Error> {
+    /// Returns next chain tatus notification.
+    async fn next(&mut self) -> Result<ChainStatusNotification<BlockId<B::Header>>, Self::Error> {
         select! {
             maybe_block = self.finality_notifications.next() => {
                 maybe_block
