@@ -183,7 +183,7 @@ impl<C: ConnectionExt> StakingApi for C {
 
     async fn get_session_per_era(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().staking().sessions_per_era();
-        self.as_connection()
+        self.as_client()
             .constants()
             .at(&addrs)
             .map_err(|e| e.into())
@@ -306,7 +306,7 @@ impl<C: ConnectionExt> StakingRawApi for C {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
         StorageMapKey::new(era, StorageHasher::Twox64Concat).to_bytes(&mut key);
-        self.as_connection()
+        self.as_client()
             .storage()
             .fetch_keys(&key, 10, None, at)
             .await

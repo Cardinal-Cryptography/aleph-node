@@ -14,7 +14,16 @@ use subxt::{
 
 use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, Client, KeyPair, TxStatus};
 
-pub type Connection = Client;
+#[derive(Clone)]
+pub struct Connection {
+    client: Client,
+}
+
+impl Connection {
+    pub(crate) fn as_client(&self) -> &Client {
+        &self.client
+    }
+}
 
 const DEFAULT_RETRIES: u32 = 10;
 const RETRY_WAIT_SECS: u64 = 1;
@@ -27,7 +36,7 @@ async fn create_connection_with_retries(address: &str, mut retries: u32) -> Conn
     loop {
         let client = Client::from_url(&address).await;
         match (retries, client) {
-            (_, Ok(client)) => return client,
+            (_, Ok(client)) => return Connection { client },
             (0, Err(e)) => panic!("{:?}", e),
             _ => {
                 sleep(Duration::from_secs(RETRY_WAIT_SECS));
@@ -141,7 +150,7 @@ impl<C: AsConnection> ConnectionExt for C {
         at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.as_connection()
+        self.as_client()
             .storage()
             .fetch(addrs, at)
             .await
@@ -150,11 +159,7 @@ impl<C: AsConnection> ConnectionExt for C {
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
-        let bytes: Bytes = self
-            .as_connection()
-            .rpc()
-            .request(&func_name, params)
-            .await?;
+        let bytes: Bytes = self.as_client().rpc().request(&func_name, params).await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
     }
@@ -193,6 +198,7 @@ impl SignedConnection {
         }
         let progress = self
             .connection
+            .as_client()
             .tx()
             .sign_and_submit_then_watch(&tx, &self.signer, params)
             .await?;
@@ -214,10 +220,18 @@ impl RootConnection {
         RootConnection::try_from_connection(create_connection(address).await, root).await
     }
 
-    pub async fn try_from_connection(connection: Client, signer: KeyPair) -> anyhow::Result<Self> {
+    pub async fn try_from_connection(
+        connection: Connection,
+        signer: KeyPair,
+    ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
-        let root = match connection.storage().fetch(&root_address, None).await {
+        let root = match connection
+            .as_client()
+            .storage()
+            .fetch(&root_address, None)
+            .await
+        {
             Ok(Some(account)) => account,
             _ => return Err(anyhow!("Could not read sudo key from chain")),
         };

@@ -10,7 +10,7 @@ pub trait AuthorRpc {
 #[async_trait::async_trait]
 impl<C: ConnectionExt> AuthorRpc for C {
     async fn author_rotate_keys(&self) -> anyhow::Result<SessionKeys> {
-        let bytes = self.as_connection().rpc().rotate_keys().await?;
+        let bytes = self.as_client().rpc().rotate_keys().await?;
         SessionKeys::decode(&mut bytes.0.as_slice()).map_err(|e| e.into())
     }
 }

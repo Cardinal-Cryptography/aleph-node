@@ -166,7 +166,7 @@ impl<C: ConnectionExt> ElectionsApi for C {
 
     async fn get_session_period(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().elections().session_period();
-        self.as_connection()
+        self.as_client()
             .constants()
             .at(&addrs)
             .map_err(|e| e.into())

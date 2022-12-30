@@ -41,7 +41,7 @@ impl<C: ConnectionExt> BlocksApi for C {
 
     async fn get_block_hash(&self, block: BlockNumber) -> anyhow::Result<Option<BlockHash>> {
         info!(target: "aleph-client", "querying block hash for number #{}", block);
-        self.as_connection()
+        self.as_client()
             .rpc()
             .block_hash(Some(block.into()))
             .await
@@ -53,7 +53,7 @@ impl<C: ConnectionExt> BlocksApi for C {
     }
 
     async fn get_finalized_block_hash(&self) -> anyhow::Result<BlockHash> {
-        self.as_connection()
+        self.as_client()
             .rpc()
             .finalized_head()
             .await
@@ -64,7 +64,7 @@ impl<C: ConnectionExt> BlocksApi for C {
         &self,
         block: Option<BlockHash>,
     ) -> anyhow::Result<Option<BlockNumber>> {
-        self.as_connection()
+        self.as_client()
             .rpc()
             .header(block)
             .await
