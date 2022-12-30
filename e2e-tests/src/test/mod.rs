@@ -19,12 +19,14 @@ pub use version_upgrade::{
     schedule_doomed_version_change_and_verify_finalization_stopped, schedule_version_change,
 };
 
+mod adder;
 mod ban;
 mod electing_validators;
 mod era_payout;
 mod era_validators;
 mod fee;
 mod finalization;
+mod helpers;
 mod high_latency;
 mod rewards;
 mod staking;

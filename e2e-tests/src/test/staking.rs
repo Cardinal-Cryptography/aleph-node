@@ -178,7 +178,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = root_connection.connection.author_rotate_keys().await;
+    let validator_keys = root_connection.connection.author_rotate_keys().await?;
     let controller_connection =
         SignedConnection::new(node.to_string(), KeyPair::new(controller.signer().clone())).await;
     controller_connection
@@ -198,7 +198,9 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
             total: MIN_VALIDATOR_BOND,
             active: MIN_VALIDATOR_BOND,
             unlocking: BoundedVec(vec![]),
-            claimed_rewards: BoundedVec(vec![]),
+            // since era is 3 sessions, validate is done in the first block of 2nd session,
+            // that is already after elections has been done for 1st era
+            claimed_rewards: BoundedVec(vec![0]),
         }
     );
 

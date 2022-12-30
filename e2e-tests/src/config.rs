@@ -8,17 +8,11 @@ use crate::accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, N
 
 static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
     let node = get_env("NODE_URL").unwrap_or_else(|| "ws://127.0.0.1:9943".to_string());
-    let validator_count = get_env("VALIDATOR_COUNT").unwrap_or_else(|| 5);
+    let validator_count = get_env("VALIDATOR_COUNT").unwrap_or(5);
     let validators_seeds = env::var("VALIDATORS_SEEDS")
         .ok()
         .map(|s| s.split(',').map(|s| s.to_string()).collect());
     let sudo_seed = get_env("SUDO_SEED").unwrap_or_else(|| "//Alice".to_string());
-    let reserved_seats = get_env("RESERVED_SEATS");
-    let non_reserved_seats = get_env("NON_RESERVED_SEATS");
-    let upgrade_to_version = get_env("UPGRADE_VERSION");
-    let upgrade_session = get_env("UPGRADE_SESSION");
-    let upgrade_finalization_wait_sessions = get_env("UPGRADE_FINALIZATION_WAIT_SESSIONS");
-    let out_latency = get_env("OUT_LATENCY").unwrap_or(500);
 
     Config {
         node,
@@ -26,12 +20,13 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
         validators_seeds,
         sudo_seed,
         test_case_params: TestCaseParams {
-            reserved_seats,
-            non_reserved_seats,
-            upgrade_to_version,
-            upgrade_session,
-            upgrade_finalization_wait_sessions,
-            out_latency,
+            reserved_seats: get_env("RESERVED_SEATS"),
+            non_reserved_seats: get_env("NON_RESERVED_SEATS"),
+            upgrade_to_version: get_env("UPGRADE_VERSION"),
+            upgrade_session: get_env("UPGRADE_SESSION"),
+            upgrade_finalization_wait_sessions: get_env("UPGRADE_FINALIZATION_WAIT_SESSIONS"),
+            adder: get_env("ADDER"),
+            adder_metadata: get_env("ADDER_METADATA"),
         },
     }
 });
@@ -43,7 +38,7 @@ where
 {
     env::var(name).ok().map(|v| {
         v.parse()
-            .expect(&format!("Failed to parse env var {}", name))
+            .unwrap_or_else(|_| panic!("Failed to parse env var {}", name))
     })
 }
 
@@ -131,6 +126,12 @@ pub struct TestCaseParams {
 
     /// How many sessions we should wait after upgrade in VersionUpgrade test.
     pub upgrade_finalization_wait_sessions: Option<u32>,
+
+    /// Adder contract address.
+    pub adder: Option<String>,
+
+    /// Adder contract metadata.
+    pub adder_metadata: Option<String>,
 
     /// Milliseconds of network latency
     pub out_latency: u64,
