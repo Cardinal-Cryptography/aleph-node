@@ -6,6 +6,7 @@ mod merkle_tree;
 mod relation;
 mod serialization;
 mod shielder;
+mod temp;
 mod utils;
 mod xor;
 
