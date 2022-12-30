@@ -6,6 +6,8 @@ use std::{
 mod substrate;
 mod ticker;
 
+const LOG_TARGET: &str = "aleph-block-sync";
+
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {
     /// The block number, useful when reasoning about hopeless forks.
@@ -70,8 +72,10 @@ pub enum ChainStateNotification<BI: BlockIdentifier> {
 /// A stream of notifications about the chain state in the database changing.
 #[async_trait::async_trait]
 pub trait ChainStateNotifier<BI: BlockIdentifier> {
+    type Error: Display;
+
     /// Returns a chain state notification when it is available.
-    async fn next(&self) -> ChainStateNotification<BI>;
+    async fn next(&mut self) -> Result<ChainStateNotification<BI>, Self::Error>;
 }
 
 /// The state of a block in the database.

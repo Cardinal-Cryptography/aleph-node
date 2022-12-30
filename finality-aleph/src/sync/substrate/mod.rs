@@ -5,6 +5,8 @@ use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::sync::{BlockIdentifier, Header};
 
+mod state_notifier;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
     hash: H::Hash,
