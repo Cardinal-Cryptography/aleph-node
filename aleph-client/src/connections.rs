@@ -104,6 +104,24 @@ impl SudoCall for RootConnection {
     }
 }
 
+impl Clone for SignedConnection {
+    fn clone(&self) -> Self {
+        SignedConnection {
+            connection: self.connection.clone(),
+            signer: KeyPair::new(self.signer.signer().clone()),
+        }
+    }
+}
+
+impl Clone for RootConnection {
+    fn clone(&self) -> Self {
+        RootConnection {
+            connection: self.connection.clone(),
+            root: KeyPair::new(self.root.signer().clone()),
+        }
+    }
+}
+
 impl AsConnection for Connection {
     fn as_connection(&self) -> &Connection {
         self
@@ -219,6 +237,11 @@ impl SignedConnection {
         info!(target: "aleph-client", "tx included in block {:?}", hash);
 
         Ok(hash)
+    }
+
+    pub async fn try_as_root(&self) -> anyhow::Result<RootConnection> {
+        let temp = self.clone();
+        RootConnection::try_from_connection(temp.connection, temp.signer).await
     }
 }
 
