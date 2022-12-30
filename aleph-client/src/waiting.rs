@@ -38,12 +38,14 @@ impl<C: ConnectionExt> AlephWaiting for C {
     async fn wait_for_block<P: Fn(u32) -> bool + Send>(&self, predicate: P, status: BlockStatus) {
         let mut block_sub = match status {
             BlockStatus::Best => self
+                .as_connection()
                 .as_client()
                 .blocks()
                 .subscribe_best()
                 .await
                 .expect("Failed to subscribe to the best block stream!"),
             BlockStatus::Finalized => self
+                .as_connection()
                 .as_client()
                 .blocks()
                 .subscribe_finalized()
@@ -65,12 +67,14 @@ impl<C: ConnectionExt> AlephWaiting for C {
     ) -> T {
         let mut block_sub = match status {
             BlockStatus::Best => self
+                .as_connection()
                 .as_client()
                 .blocks()
                 .subscribe_best()
                 .await
                 .expect("Failed to subscribe to the best block stream!"),
             BlockStatus::Finalized => self
+                .as_connection()
                 .as_client()
                 .blocks()
                 .subscribe_finalized()
@@ -102,6 +106,7 @@ impl<C: ConnectionExt> AlephWaiting for C {
     async fn wait_for_era(&self, era: EraIndex, status: BlockStatus) {
         let addrs = aleph_zero::api::constants().staking().sessions_per_era();
         let sessions_per_era = self
+            .as_connection()
             .as_client()
             .constants()
             .at(&addrs)

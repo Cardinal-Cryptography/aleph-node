@@ -150,7 +150,8 @@ impl<C: AsConnection> ConnectionExt for C {
         at: Option<BlockHash>,
     ) -> Option<T::Target> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.as_client()
+        self.as_connection()
+            .as_client()
             .storage()
             .fetch(addrs, at)
             .await
@@ -159,7 +160,12 @@ impl<C: AsConnection> ConnectionExt for C {
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
-        let bytes: Bytes = self.as_client().rpc().request(&func_name, params).await?;
+        let bytes: Bytes = self
+            .as_connection()
+            .as_client()
+            .rpc()
+            .request(&func_name, params)
+            .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
     }
@@ -198,6 +204,7 @@ impl SignedConnection {
         }
         let progress = self
             .connection
+            .as_connection()
             .as_client()
             .tx()
             .sign_and_submit_then_watch(&tx, &self.signer, params)
@@ -227,6 +234,7 @@ impl RootConnection {
         let root_address = api::storage().sudo().key();
 
         let root = match connection
+            .as_connection()
             .as_client()
             .storage()
             .fetch(&root_address, None)

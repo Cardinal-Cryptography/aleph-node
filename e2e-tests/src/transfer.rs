@@ -1,8 +1,8 @@
-use aleph_client::{create_connection, AccountId, Client, KeyPair, Pair, SignedConnection};
+use aleph_client::{create_connection, AccountId, Connection, KeyPair, Pair, SignedConnection};
 
 use crate::{accounts::get_validators_raw_keys, config::Config};
 
-async fn setup(config: &Config) -> (Client, KeyPair, AccountId) {
+async fn setup(config: &Config) -> (Connection, KeyPair, AccountId) {
     let accounts = get_validators_raw_keys(config);
     let (from, to) = (
         KeyPair::new(accounts[0].clone()),
