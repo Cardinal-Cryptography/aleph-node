@@ -7,6 +7,8 @@ use std::{
 use log::warn;
 use tokio::time::{sleep, Duration, Instant};
 
+use crate::sync::LOG_TARGET;
+
 #[derive(Clone, Eq, PartialEq)]
 struct ScheduledTask<T: Eq> {
     task: T,
@@ -53,7 +55,10 @@ impl<T: Eq> TaskQueue<T> {
         let scheduled_time = match Instant::now().checked_add(delay) {
             Some(time) => time,
             None => {
-                warn!(target: "aleph-sync", "Could not schedule task in {:?}. Instant out of bound.", delay);
+                warn!(
+                    target: LOG_TARGET,
+                    "Could not schedule task in {:?}. Instant out of bound.", delay
+                );
                 return;
             }
         };
