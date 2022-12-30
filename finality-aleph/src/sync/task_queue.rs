@@ -50,7 +50,7 @@ impl<T> Debug for TaskQueue<T> {
 }
 
 /// Implements a queue allowing for scheduling tasks for some time in the future.
-/// 
+///
 /// Does not actually execute any tasks, is used for ordering in time only.
 impl<T> TaskQueue<T> {
     /// Creates an empty queue.
