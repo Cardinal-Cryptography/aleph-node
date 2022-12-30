@@ -4,6 +4,7 @@ use std::{
 };
 
 mod substrate;
+mod ticker;
 
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {

@@ -44,6 +44,7 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
+// TODO: remove when module is used
 #[allow(dead_code)]
 mod sync;
 #[cfg(test)]
