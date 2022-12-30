@@ -50,6 +50,7 @@ impl<T> Debug for TaskQueue<T> {
 }
 
 /// Implements a queue allowing for scheduling tasks for some time in the future.
+/// 
 /// Does not actually execute any tasks, is used for ordering in time only.
 impl<T> TaskQueue<T> {
     /// Creates an empty queue.
@@ -110,7 +111,7 @@ mod tests {
         );
         assert!(timeout(Duration::from_millis(10), q.pop()).await.is_err());
         assert_eq!(
-            timeout(Duration::from_millis(20), q.pop()).await,
+            timeout(Duration::from_millis(50), q.pop()).await,
             Ok(Some(2))
         );
     }
