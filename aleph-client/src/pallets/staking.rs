@@ -20,9 +20,9 @@ use crate::{
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
     sp_arithmetic::per_things::Perbill,
-    AccountId, BlockHash,
+    AccountId, AsSigned, BlockHash,
     Call::{Staking, Sudo},
-    ConnectionExt, RootConnection, SignedConnection, SudoCall, TxStatus,
+    ConnectionExt, RootConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -192,7 +192,7 @@ impl<C: ConnectionExt> StakingApi for C {
 }
 
 #[async_trait::async_trait]
-impl StakingUserApi for SignedConnection {
+impl<S: AsSigned> StakingUserApi for S {
     async fn bond(
         &self,
         initial_stake: Balance,
@@ -205,7 +205,7 @@ impl StakingUserApi for SignedConnection {
             RewardDestination::Staked,
         );
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn validate(
@@ -220,7 +220,7 @@ impl StakingUserApi for SignedConnection {
             blocked: false,
         });
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn payout_stakers(
@@ -231,7 +231,7 @@ impl StakingUserApi for SignedConnection {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().payout_stakers(stash_account, era);
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn nominate(
@@ -243,13 +243,13 @@ impl StakingUserApi for SignedConnection {
             .staking()
             .nominate(vec![MultiAddress::Id(nominee_account_id)]);
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().chill();
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn bond_extra_stake(
@@ -259,7 +259,7 @@ impl StakingUserApi for SignedConnection {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().bond_extra(extra_stake);
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 }
 

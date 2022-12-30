@@ -12,7 +12,7 @@ use aleph_client::{
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, SignedConnection, TxStatus,
+    AccountId, AsSigned, SignedConnection, TxStatus,
 };
 use anyhow::anyhow;
 use log::{debug, info};

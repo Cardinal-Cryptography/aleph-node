@@ -5,7 +5,7 @@ use aleph_client::{
         session::{SessionApi, SessionUserApi},
         staking::StakingUserApi,
     },
-    AccountId, Connection, RootConnection, SignedConnection, TxStatus,
+    AccountId, AsSigned, Connection, RootConnection, SignedConnection, TxStatus,
 };
 use hex::ToHex;
 use log::{error, info};

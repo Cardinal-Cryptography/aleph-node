@@ -7,7 +7,7 @@ use aleph_client::{
         treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
     },
     waiting::{AlephWaiting, BlockStatus},
-    AsConnection, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AsConnection, AsSigned, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;

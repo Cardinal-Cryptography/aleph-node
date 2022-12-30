@@ -39,6 +39,10 @@ pub trait AsConnection: Sync {
     fn as_connection(&self) -> &Connection;
 }
 
+pub trait AsSigned: Sync {
+    fn as_signed(&self) -> SignedConnection;
+}
+
 #[async_trait::async_trait]
 pub trait ConnectionExt: AsConnection {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
@@ -137,6 +141,21 @@ impl AsConnection for SignedConnection {
 impl AsConnection for RootConnection {
     fn as_connection(&self) -> &Connection {
         &self.connection
+    }
+}
+
+impl AsSigned for SignedConnection {
+    fn as_signed(&self) -> SignedConnection {
+        self.clone()
+    }
+}
+
+impl AsSigned for RootConnection {
+    fn as_signed(&self) -> SignedConnection {
+        SignedConnection {
+            connection: self.connection.clone(),
+            signer: KeyPair::new(self.root.signer().clone()),
+        }
     }
 }
 
@@ -281,12 +300,5 @@ impl RootConnection {
             connection,
             root: signer,
         })
-    }
-
-    pub fn as_signed(&self) -> SignedConnection {
-        SignedConnection {
-            connection: self.connection.clone(),
-            signer: KeyPair::new(self.root.signer().clone()),
-        }
     }
 }

@@ -8,7 +8,7 @@ use aleph_client::{
     },
     primitives::CommitteeSeats,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, ConnectionExt, KeyPair, Pair, SignedConnection, TxStatus,
+    AccountId, AsSigned, ConnectionExt, KeyPair, Pair, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::EraIndex;

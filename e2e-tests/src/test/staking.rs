@@ -11,7 +11,7 @@ use aleph_client::{
     primitives::CommitteeSeats,
     sp_core::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, KeyPair, Pair, SignedConnection, TxStatus,
+    AccountId, AsSigned, KeyPair, Pair, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::{

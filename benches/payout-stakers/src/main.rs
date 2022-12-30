@@ -7,7 +7,7 @@ use aleph_client::{
         staking::{StakingApi, StakingApiExt, StakingUserApi},
     },
     waiting::{BlockStatus, WaitingExt},
-    AccountId, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AccountId, AsSigned, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
