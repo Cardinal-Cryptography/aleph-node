@@ -31,16 +31,16 @@ pub struct RootConnection {
     connection: SignedConnection,
 }
 
-pub trait AsConnection: Sync {
+pub trait AsConnection {
     fn as_connection(&self) -> &Connection;
 }
 
-pub trait AsSigned: Sync {
+pub trait AsSigned {
     fn as_signed(&self) -> &SignedConnection;
 }
 
 #[async_trait::async_trait]
-pub trait ConnectionApi: AsConnection {
+pub trait ConnectionApi: AsConnection + Sync {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -61,7 +61,7 @@ pub trait ConnectionApi: AsConnection {
 }
 
 #[async_trait::async_trait]
-pub trait SignedConnectionApi: AsSigned {
+pub trait SignedConnectionApi: AsSigned + Sync {
     async fn send_tx<Call: TxPayload + Send + Sync>(
         &self,
         tx: Call,
@@ -124,12 +124,6 @@ impl AsConnection for Connection {
     }
 }
 
-impl AsConnection for &Connection {
-    fn as_connection(&self) -> &Connection {
-        self
-    }
-}
-
 impl<S: AsSigned> AsConnection for S {
     fn as_connection(&self) -> &Connection {
         &self.as_signed().connection
@@ -142,26 +136,14 @@ impl AsSigned for SignedConnection {
     }
 }
 
-impl AsSigned for &SignedConnection {
-    fn as_signed(&self) -> &SignedConnection {
-        self
-    }
-}
-
 impl AsSigned for RootConnection {
     fn as_signed(&self) -> &SignedConnection {
         &self.connection
     }
 }
 
-impl AsSigned for &RootConnection {
-    fn as_signed(&self) -> &SignedConnection {
-        &self.connection
-    }
-}
-
 #[async_trait::async_trait]
-impl<C: AsConnection> ConnectionApi for C {
+impl<C: AsConnection + Sync> ConnectionApi for C {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -204,7 +186,7 @@ impl<C: AsConnection> ConnectionApi for C {
 }
 
 #[async_trait::async_trait]
-impl<S: AsSigned> SignedConnectionApi for S {
+impl<S: AsSigned + Sync> SignedConnectionApi for S {
     async fn send_tx<Call: TxPayload + Send + Sync>(
         &self,
         tx: Call,
@@ -306,7 +288,6 @@ impl RootConnection {
         let root_address = api::storage().sudo().key();
 
         let root = match connection
-            .as_connection()
             .as_client()
             .storage()
             .fetch(&root_address, None)
