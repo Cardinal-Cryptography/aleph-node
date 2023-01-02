@@ -104,7 +104,7 @@ impl<S: SignedConnectionApi> ContractsUserApi for S {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().upload_code(code, storage_limit);
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn instantiate(
@@ -126,7 +126,7 @@ impl<S: SignedConnectionApi> ContractsUserApi for S {
             salt,
         );
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn instantiate_with_code(
@@ -148,7 +148,7 @@ impl<S: SignedConnectionApi> ContractsUserApi for S {
             salt,
         );
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn call(
@@ -164,7 +164,7 @@ impl<S: SignedConnectionApi> ContractsUserApi for S {
             api::tx()
                 .contracts()
                 .call(destination.into(), balance, gas_limit, storage_limit, data);
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn remove_code(
@@ -174,7 +174,7 @@ impl<S: SignedConnectionApi> ContractsUserApi for S {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().remove_code(code_hash);
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 }
 

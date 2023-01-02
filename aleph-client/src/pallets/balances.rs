@@ -132,6 +132,6 @@ impl<S: SignedConnectionApi> BalanceUserBatchExtApi for S {
                 })
             })
             .collect();
-        self.as_signed().batch_call(calls, status).await
+        self.batch_call(calls, status).await
     }
 }
