@@ -84,8 +84,8 @@ jobs:
         env:
           AWS_REGION: us-east-1
         with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_TESTUSR_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_TESTUSR_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: S3 CI | Download release runtime from S3 bucket
