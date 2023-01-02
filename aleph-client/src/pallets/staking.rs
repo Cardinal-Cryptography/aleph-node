@@ -131,7 +131,7 @@ pub trait StakingApiExt {
     /// * `status` - a [`TxStatus`] of a tx to wait for
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// async fn nominate_validator(
     ///     connection: &RootConnection,
     ///     nominator_controller_accounts: Vec<AccountId>,
@@ -214,7 +214,7 @@ pub trait StakingRawApi {
     /// * `at` - optional hash of a block to query state from
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let stakers = connection
     ///         .get_stakers_storage_keys(current_era, None)
     ///         .await

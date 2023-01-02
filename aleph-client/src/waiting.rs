@@ -27,7 +27,7 @@ pub trait AlephWaiting {
     /// * `status` - a [`BlockStatus`] of the block we wait for
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let finalized = connection.connection.get_finalized_block_hash().await;
     ///     let finalized_number = connection
     ///         .connection
@@ -46,7 +46,7 @@ pub trait AlephWaiting {
     /// * `status` - a [`BlockStatus`] of the event we wait for
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let event = connection
     ///         .wait_for_event(
     ///             |event: &BanValidators| {

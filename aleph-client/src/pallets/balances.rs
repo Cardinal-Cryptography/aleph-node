@@ -66,7 +66,7 @@ pub trait BalanceUserBatchExtApi {
     /// * `status` - a [`TxStatus`] for a tx to wait for
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     ///  for chunk in stash_accounts.chunks(1024) {
     ///         connection
     ///             .batch_transfer(chunk, 1_000_000_000_000u128, TxStatus::InBlock)

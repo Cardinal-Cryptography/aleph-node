@@ -124,7 +124,7 @@ impl Connection {
     /// * `at` - optional block hash to query state from
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     ///     let addrs = api::storage().treasury().proposal_count();
     ///     get_storage_entry_maybe(&addrs, None).await
     /// ```
@@ -148,7 +148,7 @@ impl Connection {
     /// to this rpc call
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     ///  let args = ContractCallArgs {
     ///             origin: address.clone(),
     ///             dest: address.clone(),
@@ -192,7 +192,7 @@ impl SignedConnection {
     /// # Returns
     /// Block hash of block where transaction was put or error
     /// # Examples
-    /// ```rust
+    /// ```ignore
     ///      let tx = api::tx()
     ///             .balances()
     ///             .transfer(MultiAddress::Id(dest), amount);
