@@ -4,9 +4,12 @@ use std::{
 };
 
 mod substrate;
+mod task_queue;
 mod ticker;
 
 pub use substrate::SessionVerifier;
+
+const LOG_TARGET: &str = "aleph-block-sync";
 
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {
@@ -44,7 +47,6 @@ pub trait Justification: Clone {
 }
 
 /// A verifier of justifications.
-#[async_trait::async_trait]
 pub trait Verifier<J: Justification> {
     type Error: Display;
 
