@@ -35,8 +35,8 @@ pub type BlockHash = H256;
 pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
 
 pub use connections::{
-    AsConnection, Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi,
-    SudoCall,
+    AsConnection, AsSigned, Connection, ConnectionApi, RootConnection, SignedConnection,
+    SignedConnectionApi, SudoCall,
 };
 
 #[derive(Copy, Clone)]

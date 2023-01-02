@@ -5,7 +5,7 @@ use aleph_client::{
         session::{SessionApi, SessionUserApi},
         staking::StakingUserApi,
     },
-    AccountId, AsSigned, Connection, RootConnection, SignedConnection, TxStatus,
+    AccountId, Connection, RootConnection, SignedConnection, TxStatus,
 };
 use hex::ToHex;
 use log::{error, info};
@@ -26,9 +26,7 @@ pub async fn prepare_keys(
         .await
         .unwrap();
     let new_keys = connection.author_rotate_keys().await?;
-    connection
-        .set_keys(new_keys, TxStatus::Finalized)
-        .await?;
+    connection.set_keys(new_keys, TxStatus::Finalized).await?;
     Ok(())
 }
 

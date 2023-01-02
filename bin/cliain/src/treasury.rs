@@ -19,7 +19,7 @@ pub async fn propose(connection: SignedConnection, amount_in_tokens: u64, benefi
 /// Delegates to `aleph_client::approve_treasury_proposal`.
 pub async fn approve(connection: RootConnection, proposal_id: u32) {
     connection
-        .approve(proposal_id, TxStatus::Finalized)
+        .sudo_approve(proposal_id, TxStatus::Finalized)
         .await
         .unwrap();
 }
@@ -27,7 +27,7 @@ pub async fn approve(connection: RootConnection, proposal_id: u32) {
 /// Delegates to `aleph_client::reject_treasury_proposal`.
 pub async fn reject(connection: RootConnection, proposal_id: u32) {
     connection
-        .reject(proposal_id, TxStatus::Finalized)
+        .sudo_reject(proposal_id, TxStatus::Finalized)
         .await
         .unwrap();
 }

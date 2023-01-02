@@ -9,7 +9,7 @@ use crate::{
     pallets::{elections::ElectionsApi, staking::StakingApi},
     AccountId, BlockHash,
     Call::Treasury,
-    ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -62,7 +62,7 @@ impl<C: ConnectionApi> TreasuryApi for C {
 }
 
 #[async_trait::async_trait]
-impl TreasuryUserApi for SignedConnection {
+impl<S: SignedConnectionApi> TreasuryUserApi for S {
     async fn propose_spend(
         &self,
         amount: Balance,

@@ -133,7 +133,7 @@ pub async fn treasury_access() -> anyhow::Result<()> {
 }
 
 async fn approve_treasury_proposal(connection: &RootConnection, id: u32) -> anyhow::Result<()> {
-    connection.sudo_approve(id, TxStatus::Finalized).await?;
+    connection.approve(id, TxStatus::Finalized).await?;
     let approvals = connection.approvals(None).await;
     assert!(approvals.contains(&id));
 
@@ -150,7 +150,7 @@ async fn reject_treasury_proposal(connection: &RootConnection, id: u32) -> anyho
             )
             .await;
     });
-    connection.sudo_reject(id, TxStatus::Finalized).await?;
+    connection.reject(id, TxStatus::Finalized).await?;
     handle.await?;
 
     Ok(())
