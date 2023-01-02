@@ -154,7 +154,6 @@ impl FullVerifier {
     }
 }
 
-#[async_trait::async_trait]
 impl<H: SubstrateHeader<Number = BlockNumber>> Verifier<Justification<H>> for FullVerifier {
     type Error = VerificationError;
 
