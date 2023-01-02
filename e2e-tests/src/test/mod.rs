@@ -19,6 +19,7 @@ pub use treasury::{channeling_fee_and_tip, treasury_access};
 pub use utility::batch_transactions;
 pub use validators_rotate::validators_rotate;
 
+mod adder;
 mod ban;
 mod electing_validators;
 mod era_payout;
@@ -26,6 +27,7 @@ mod era_validators;
 mod fee;
 mod finality_version;
 mod finalization;
+mod helpers;
 mod rewards;
 mod staking;
 mod transfer;

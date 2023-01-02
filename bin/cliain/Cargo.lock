@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "cliain"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "aleph_client",
  "anyhow",
