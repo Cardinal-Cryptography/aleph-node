@@ -76,6 +76,8 @@ pub trait SignedConnectionApi: AsSigned {
     ) -> anyhow::Result<BlockHash>;
 
     fn account_id(&self) -> &AccountId;
+    fn signer(&self) -> &KeyPair;
+    async fn try_as_root(&self) -> anyhow::Result<RootConnection>;
 }
 
 #[async_trait::async_trait]
@@ -244,6 +246,15 @@ impl<S: AsSigned> SignedConnectionApi for S {
     fn account_id(&self) -> &AccountId {
         self.as_signed().signer().account_id()
     }
+
+    fn signer(&self) -> &KeyPair {
+        &self.as_signed().signer
+    }
+
+    async fn try_as_root(&self) -> anyhow::Result<RootConnection> {
+        let temp = self.as_signed().clone();
+        RootConnection::try_from_connection(temp.connection, temp.signer).await
+    }
 }
 
 impl Connection {
@@ -280,15 +291,6 @@ impl SignedConnection {
 
     pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
         Self { connection, signer }
-    }
-
-    pub fn signer(&self) -> &KeyPair {
-        &self.signer
-    }
-
-    pub async fn try_as_root(&self) -> anyhow::Result<RootConnection> {
-        let temp = self.clone();
-        RootConnection::try_from_connection(temp.connection, temp.signer).await
     }
 }
 
