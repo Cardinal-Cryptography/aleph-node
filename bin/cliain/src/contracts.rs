@@ -9,7 +9,7 @@ use aleph_client::{
     pallets::contract::{ContractsApi, ContractsUserApi},
     sp_weights::weight_v2::Weight,
     waiting::{AlephWaiting, BlockStatus},
-    AccountId, AsConnection, Connection, SignedConnection, TxStatus,
+    AccountId, AsConnection, Connection, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;

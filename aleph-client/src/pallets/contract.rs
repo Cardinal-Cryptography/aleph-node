@@ -5,7 +5,7 @@ use subxt::{ext::sp_core::Bytes, rpc_params};
 
 use crate::{
     api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
-    ConnectionExt, SignedConnection, TxStatus,
+    ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
 #[derive(Encode)]
@@ -82,7 +82,7 @@ pub trait ContractRpc {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> ContractsApi for C {
+impl<C: ConnectionApi> ContractsApi for C {
     async fn get_owner_info(
         &self,
         code_hash: BlockHash,
@@ -95,7 +95,7 @@ impl<C: ConnectionExt> ContractsApi for C {
 }
 
 #[async_trait::async_trait]
-impl ContractsUserApi for SignedConnection {
+impl<S: SignedConnectionApi> ContractsUserApi for S {
     async fn upload_code(
         &self,
         code: Vec<u8>,
@@ -104,7 +104,7 @@ impl ContractsUserApi for SignedConnection {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().upload_code(code, storage_limit);
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn instantiate(
@@ -126,7 +126,7 @@ impl ContractsUserApi for SignedConnection {
             salt,
         );
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn instantiate_with_code(
@@ -148,7 +148,7 @@ impl ContractsUserApi for SignedConnection {
             salt,
         );
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn call(
@@ -164,7 +164,7 @@ impl ContractsUserApi for SignedConnection {
             api::tx()
                 .contracts()
                 .call(destination.into(), balance, gas_limit, storage_limit, data);
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 
     async fn remove_code(
@@ -174,12 +174,12 @@ impl ContractsUserApi for SignedConnection {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().contracts().remove_code(code_hash);
 
-        self.send_tx(tx, status).await
+        self.as_signed().send_tx(tx, status).await
     }
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> ContractRpc for C {
+impl<C: ConnectionApi> ContractRpc for C {
     async fn call_and_get(
         &self,
         args: ContractCallArgs,

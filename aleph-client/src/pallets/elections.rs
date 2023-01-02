@@ -12,7 +12,7 @@ use crate::{
     primitives::{BanConfig, BanInfo, ElectionOpenness},
     AccountId, BlockHash,
     Call::Elections,
-    ConnectionExt, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -78,7 +78,7 @@ pub trait ElectionsSudoApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> ElectionsApi for C {
+impl<C: ConnectionApi> ElectionsApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig {
         let addrs = api::storage().elections().ban_config();
 

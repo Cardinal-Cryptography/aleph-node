@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use aleph_client::{
     account_from_keypair, pallets::balances::BalanceUserApi, raw_keypair_from_string, AccountId,
-    KeyPair, SignedConnection, TxStatus,
+    KeyPair, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use clap::Parser;
 use config::Config;

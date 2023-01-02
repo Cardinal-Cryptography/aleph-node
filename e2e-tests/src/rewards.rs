@@ -12,7 +12,7 @@ use aleph_client::{
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, AsSigned, SignedConnection, TxStatus,
+    AccountId, SignedConnection, TxStatus,
 };
 use anyhow::anyhow;
 use log::{debug, info};
@@ -358,7 +358,6 @@ pub async fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[
 
     // funds to cover fees
     root_connection
-        .as_signed()
         .batch_transfer(&controller_accounts, TOKEN, TxStatus::Finalized)
         .await
         .unwrap();
@@ -369,7 +368,6 @@ pub async fn validators_bond_extra_stakes(config: &Config, additional_stakes: &[
 
         // Additional TOKEN to cover fees
         root_connection
-            .as_signed()
             .transfer(validator_id, *additional_stake + TOKEN, TxStatus::Finalized)
             .await
             .unwrap();

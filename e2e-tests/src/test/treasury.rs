@@ -7,7 +7,7 @@ use aleph_client::{
         treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
     },
     waiting::{AlephWaiting, BlockStatus},
-    AsConnection, AsSigned, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AsConnection, ConnectionApi, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;
@@ -20,7 +20,7 @@ use crate::{
 /// Returns current treasury free funds and total issuance.
 ///
 /// Takes two storage reads.
-async fn balance_info<C: ConnectionExt>(connection: &C) -> (Balance, Balance) {
+async fn balance_info<C: ConnectionApi>(connection: &C) -> (Balance, Balance) {
     let treasury_balance = connection
         .get_free_balance(connection.treasury_account().await, None)
         .await;
@@ -133,10 +133,7 @@ pub async fn treasury_access() -> anyhow::Result<()> {
 }
 
 async fn approve_treasury_proposal(connection: &RootConnection, id: u32) -> anyhow::Result<()> {
-    connection
-        .as_signed()
-        .approve(id, TxStatus::Finalized)
-        .await?;
+    connection.sudo_approve(id, TxStatus::Finalized).await?;
     let approvals = connection.approvals(None).await;
     assert!(approvals.contains(&id));
 
@@ -153,10 +150,7 @@ async fn reject_treasury_proposal(connection: &RootConnection, id: u32) -> anyho
             )
             .await;
     });
-    connection
-        .as_signed()
-        .reject(id, TxStatus::Finalized)
-        .await?;
+    connection.sudo_reject(id, TxStatus::Finalized).await?;
     handle.await?;
 
     Ok(())

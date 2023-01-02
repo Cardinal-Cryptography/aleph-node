@@ -12,27 +12,23 @@ use subxt::{
     SubstrateConfig,
 };
 
-use crate::{api, sp_weights::weight_v2::Weight, BlockHash, Call, KeyPair, SubxtClient, TxStatus};
+use crate::{
+    api, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair, SubxtClient, TxStatus,
+};
 
-const DEFAULT_RETRIES: u32 = 10;
-const RETRY_WAIT_SECS: u64 = 1;
-
-pub async fn create_connection(address: &str) -> Connection {
-    create_connection_with_retries(address, DEFAULT_RETRIES).await
+#[derive(Clone)]
+pub struct Connection {
+    client: SubxtClient,
 }
 
-async fn create_connection_with_retries(address: &str, mut retries: u32) -> Connection {
-    loop {
-        let client = SubxtClient::from_url(&address).await;
-        match (retries, client) {
-            (_, Ok(client)) => return Connection { client },
-            (0, Err(e)) => panic!("{:?}", e),
-            _ => {
-                sleep(Duration::from_secs(RETRY_WAIT_SECS));
-                retries -= 1;
-            }
-        }
-    }
+pub struct SignedConnection {
+    connection: Connection,
+    signer: KeyPair,
+}
+
+#[derive(Clone)]
+pub struct RootConnection {
+    connection: SignedConnection,
 }
 
 pub trait AsConnection: Sync {
@@ -44,7 +40,7 @@ pub trait AsSigned: Sync {
 }
 
 #[async_trait::async_trait]
-pub trait ConnectionExt: AsConnection {
+pub trait ConnectionApi: AsConnection {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -64,19 +60,22 @@ pub trait ConnectionExt: AsConnection {
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
 }
 
-#[derive(Clone)]
-pub struct Connection {
-    client: SubxtClient,
-}
+#[async_trait::async_trait]
+pub trait SignedConnectionApi: AsSigned {
+    async fn send_tx<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash>;
 
-pub struct SignedConnection {
-    connection: Connection,
-    signer: KeyPair,
-}
+    async fn send_tx_with_params<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash>;
 
-#[derive(Clone)]
-pub struct RootConnection {
-    connection: SignedConnection,
+    fn account_id(&self) -> &AccountId;
 }
 
 #[async_trait::async_trait]
@@ -129,27 +128,9 @@ impl AsConnection for &Connection {
     }
 }
 
-impl AsConnection for SignedConnection {
+impl<S: AsSigned> AsConnection for S {
     fn as_connection(&self) -> &Connection {
-        &self.connection
-    }
-}
-
-impl AsConnection for &SignedConnection {
-    fn as_connection(&self) -> &Connection {
-        &self.connection
-    }
-}
-
-impl AsConnection for RootConnection {
-    fn as_connection(&self) -> &Connection {
-        self.connection.as_connection()
-    }
-}
-
-impl AsConnection for &RootConnection {
-    fn as_connection(&self) -> &Connection {
-        self.connection.as_connection()
+        &self.as_signed().connection
     }
 }
 
@@ -178,7 +159,7 @@ impl AsSigned for &RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: AsConnection> ConnectionExt for C {
+impl<C: AsConnection> ConnectionApi for C {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -220,26 +201,9 @@ impl<C: AsConnection> ConnectionExt for C {
     }
 }
 
-impl Connection {
-    pub(crate) fn as_client(&self) -> &SubxtClient {
-        &self.client
-    }
-}
-
-impl SignedConnection {
-    pub async fn new(address: &str, signer: KeyPair) -> Self {
-        Self::from_connection(create_connection(address).await, signer)
-    }
-
-    pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
-        Self { connection, signer }
-    }
-
-    pub fn account_id(&self) -> &subxt::ext::sp_runtime::AccountId32 {
-        self.signer.account_id()
-    }
-
-    pub async fn send_tx<Call: TxPayload>(
+#[async_trait::async_trait]
+impl<S: AsSigned> SignedConnectionApi for S {
+    async fn send_tx<Call: TxPayload + Send + Sync>(
         &self,
         tx: Call,
         status: TxStatus,
@@ -248,7 +212,7 @@ impl SignedConnection {
             .await
     }
 
-    pub async fn send_tx_with_params<Call: TxPayload>(
+    async fn send_tx_with_params<Call: TxPayload + Send + Sync>(
         &self,
         tx: Call,
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
@@ -259,11 +223,10 @@ impl SignedConnection {
         }
 
         let progress = self
-            .connection
             .as_connection()
             .as_client()
             .tx()
-            .sign_and_submit_then_watch(&tx, &self.signer, params)
+            .sign_and_submit_then_watch(&tx, self.as_signed().signer(), params)
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
@@ -278,6 +241,51 @@ impl SignedConnection {
         Ok(hash)
     }
 
+    fn account_id(&self) -> &AccountId {
+        self.as_signed().signer().account_id()
+    }
+}
+
+impl Connection {
+    const DEFAULT_RETRIES: u32 = 10;
+    const RETRY_WAIT_SECS: u64 = 1;
+
+    pub async fn new(address: &str) -> Connection {
+        Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
+    }
+
+    async fn new_with_retries(address: &str, mut retries: u32) -> Connection {
+        loop {
+            let client = SubxtClient::from_url(&address).await;
+            match (retries, client) {
+                (_, Ok(client)) => return Connection { client },
+                (0, Err(e)) => panic!("{:?}", e),
+                _ => {
+                    sleep(Duration::from_secs(Self::RETRY_WAIT_SECS));
+                    retries -= 1;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn as_client(&self) -> &SubxtClient {
+        &self.client
+    }
+}
+
+impl SignedConnection {
+    pub async fn new(address: &str, signer: KeyPair) -> Self {
+        Self::from_connection(Connection::new(address).await, signer)
+    }
+
+    pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
+        Self { connection, signer }
+    }
+
+    pub fn signer(&self) -> &KeyPair {
+        &self.signer
+    }
+
     pub async fn try_as_root(&self) -> anyhow::Result<RootConnection> {
         let temp = self.clone();
         RootConnection::try_from_connection(temp.connection, temp.signer).await
@@ -286,7 +294,7 @@ impl SignedConnection {
 
 impl RootConnection {
     pub async fn new(address: &str, root: KeyPair) -> anyhow::Result<Self> {
-        RootConnection::try_from_connection(create_connection(address).await, root).await
+        RootConnection::try_from_connection(Connection::new(address).await, root).await
     }
 
     pub async fn try_from_connection(

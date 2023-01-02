@@ -5,7 +5,8 @@ use aleph_client::{
         staking::StakingUserApi,
     },
     primitives::EraValidators,
-    raw_keypair_from_string, AccountId, KeyPair, RawKeyPair, SignedConnection, TxStatus,
+    raw_keypair_from_string, AccountId, KeyPair, RawKeyPair, SignedConnection, SignedConnectionApi,
+    TxStatus,
 };
 use futures::future::join_all;
 use primitives::{staking::MIN_VALIDATOR_BOND, TOKEN};
@@ -103,8 +104,8 @@ pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
 /// Endow validators (stashes and controllers), bond and rotate keys.
 ///
 /// Signer of `connection` should have enough balance to endow new accounts.
-pub async fn prepare_validators(
-    connection: &SignedConnection,
+pub async fn prepare_validators<S: SignedConnectionApi>(
+    connection: &S,
     node: &str,
     accounts: &Accounts,
 ) -> anyhow::Result<()> {

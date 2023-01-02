@@ -3,7 +3,7 @@ use aleph_client::{
     primitives::CommitteeSeats,
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, ConnectionExt, KeyPair, TxStatus,
+    AccountId, ConnectionApi, KeyPair, TxStatus,
 };
 use anyhow::anyhow;
 
@@ -40,7 +40,7 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
         .collect()
 }
 
-async fn get_current_and_next_era_reserved_validators<C: ConnectionExt>(
+async fn get_current_and_next_era_reserved_validators<C: ConnectionApi>(
     connection: &C,
 ) -> (Vec<AccountId>, Vec<AccountId>) {
     let stored_reserved = connection.get_next_era_reserved_validators(None).await;
@@ -48,7 +48,7 @@ async fn get_current_and_next_era_reserved_validators<C: ConnectionExt>(
     (current_reserved, stored_reserved)
 }
 
-async fn get_current_and_next_era_non_reserved_validators<C: ConnectionExt>(
+async fn get_current_and_next_era_non_reserved_validators<C: ConnectionApi>(
     connection: &C,
 ) -> (Vec<AccountId>, Vec<AccountId>) {
     let stored_non_reserved = connection.get_next_era_non_reserved_validators(None).await;

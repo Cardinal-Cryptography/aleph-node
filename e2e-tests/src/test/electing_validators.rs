@@ -8,7 +8,7 @@ use aleph_client::{
     },
     primitives::CommitteeSeats,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, AsSigned, ConnectionExt, KeyPair, Pair, SignedConnection, TxStatus,
+    AccountId, ConnectionApi, KeyPair, Pair, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::EraIndex;
@@ -21,7 +21,7 @@ use crate::{
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
 /// We have to do it by comparing keys in storage trie.
-async fn assert_validators_are_elected_stakers<C: ConnectionExt>(
+async fn assert_validators_are_elected_stakers<C: ConnectionApi>(
     connection: &C,
     current_era: EraIndex,
     expected_validators_as_keys: Vec<Vec<u8>>,
@@ -61,7 +61,7 @@ fn min_num_sessions_to_see_all_non_reserved_validators(
 
 /// Verify that all target validators are included `pallet_session::Validators` across a few
 /// consecutive sessions.
-async fn assert_validators_are_used_as_authorities<C: ConnectionExt>(
+async fn assert_validators_are_used_as_authorities<C: ConnectionApi>(
     connection: &C,
     expected_authorities: &BTreeSet<AccountId>,
     min_num_sessions: u32,
@@ -87,7 +87,7 @@ async fn assert_validators_are_used_as_authorities<C: ConnectionExt>(
     );
 }
 
-async fn assert_enough_validators<C: ConnectionExt>(connection: &C, min_validator_count: u32) {
+async fn assert_enough_validators<C: ConnectionApi>(connection: &C, min_validator_count: u32) {
     let current_validator_count = connection.get_validators(None).await.len() as u32;
     assert!(
         current_validator_count >= min_validator_count,
@@ -179,7 +179,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
 
     let desired_validator_count = reserved_seats + non_reserved_seats;
     let accounts = setup_accounts(desired_validator_count);
-    prepare_validators(root_connection.as_signed(), node, &accounts).await?;
+    prepare_validators(&root_connection, node, &accounts).await?;
     info!("New validators are set up");
 
     let reserved_validators = accounts.get_stash_accounts()[..reserved_seats as usize].to_vec();
@@ -225,7 +225,7 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
     info!("Changed validators to a new set");
 
     // We need any signed connection.
-    let connection = root_connection.as_signed();
+    let connection = root_connection;
     connection.wait_for_n_eras(2, BlockStatus::Best).await;
     let current_era = connection.get_current_era(None).await;
     info!("New validators are in force (era: {})", current_era);

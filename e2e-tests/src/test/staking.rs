@@ -11,7 +11,7 @@ use aleph_client::{
     primitives::CommitteeSeats,
     sp_core::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, AsSigned, KeyPair, Pair, SignedConnection, TxStatus,
+    AccountId, KeyPair, Pair, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::{
@@ -139,7 +139,6 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
 
     // to cover tx fees as we need a bit more than VALIDATOR_STAKE
     root_connection
-        .as_signed()
         .transfer(
             stash_account.clone(),
             MIN_VALIDATOR_BOND + TOKEN,
@@ -148,7 +147,6 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
         .await?;
     // to cover txs fees
     root_connection
-        .as_signed()
         .transfer(controller_account.clone(), TOKEN, TxStatus::InBlock)
         .await?;
 

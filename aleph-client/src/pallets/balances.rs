@@ -7,7 +7,7 @@ use crate::{
     pallets::utility::UtilityApi,
     AccountId, BlockHash,
     Call::Balances,
-    ConnectionExt, SignedConnection, TxStatus,
+    ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -53,7 +53,7 @@ pub trait BalanceUserBatchExtApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> BalanceApi for C {
+impl<C: ConnectionApi> BalanceApi for C {
     async fn locks_for_account(
         &self,
         account: AccountId,
@@ -86,7 +86,7 @@ impl<C: ConnectionExt> BalanceApi for C {
 }
 
 #[async_trait::async_trait]
-impl BalanceUserApi for SignedConnection {
+impl<S: SignedConnectionApi> BalanceUserApi for S {
     async fn transfer(
         &self,
         dest: AccountId,
@@ -116,7 +116,7 @@ impl BalanceUserApi for SignedConnection {
 }
 
 #[async_trait::async_trait]
-impl BalanceUserBatchExtApi for SignedConnection {
+impl<S: SignedConnectionApi> BalanceUserBatchExtApi for S {
     async fn batch_transfer(
         &self,
         dests: &[AccountId],
@@ -132,6 +132,6 @@ impl BalanceUserBatchExtApi for SignedConnection {
                 })
             })
             .collect();
-        self.batch_call(calls, status).await
+        self.as_signed().batch_call(calls, status).await
     }
 }

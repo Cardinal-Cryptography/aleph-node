@@ -4,12 +4,12 @@ use aleph_client::{
     pallets::session::SessionApi,
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
-    AccountId, ConnectionExt,
+    AccountId, ConnectionApi,
 };
 use log::debug;
 use primitives::SessionIndex;
 
-pub async fn get_and_test_members_for_session<C: ConnectionExt>(
+pub async fn get_and_test_members_for_session<C: ConnectionApi>(
     connection: &C,
     seats: CommitteeSeats,
     era_validators: &EraValidators<AccountId>,

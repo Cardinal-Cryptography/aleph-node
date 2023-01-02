@@ -7,7 +7,8 @@ use aleph_client::{
         staking::{StakingApi, StakingApiExt, StakingUserApi},
     },
     waiting::{BlockStatus, WaitingExt},
-    AccountId, AsSigned, ConnectionExt, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AccountId, ConnectionApi, KeyPair, RootConnection, SignedConnection, SignedConnectionApi,
+    TxStatus,
 };
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
@@ -151,7 +152,7 @@ async fn setup_test_validators_and_nominator_stashes(
     for (validator_index, validator) in validators.into_iter().enumerate() {
         let (nominator_controller_accounts, nominator_stash_accounts) =
             generate_nominator_accounts_with_minimal_bond(
-                connection.as_signed(),
+                connection,
                 validator_index as u32,
                 validators_len as u32,
             )
@@ -180,7 +181,7 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
 }
 
 /// For a given number of eras, in each era check whether stash balances of a validator are locked.
-async fn wait_for_successive_eras<C: ConnectionExt>(
+async fn wait_for_successive_eras<C: ConnectionApi>(
     address: &str,
     connection: &C,
     validators_and_nominator_stashes: Vec<(KeyPair, Vec<AccountId>)>,
@@ -298,8 +299,8 @@ async fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
 
 /// For a specific validator given by index, generates a predetermined number of nominator accounts.
 /// Nominator accounts are produced as (controller, stash) tuples with initial endowments.
-async fn generate_nominator_accounts_with_minimal_bond(
-    connection: &SignedConnection,
+async fn generate_nominator_accounts_with_minimal_bond<S: SignedConnectionApi>(
+    connection: &S,
     validator_number: u32,
     validators_count: u32,
 ) -> (Vec<AccountId>, Vec<AccountId>) {

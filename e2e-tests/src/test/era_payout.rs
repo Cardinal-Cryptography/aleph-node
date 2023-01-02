@@ -1,7 +1,7 @@
 use aleph_client::{
     pallets::staking::{StakingApi, StakingSudoApi},
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    ConnectionExt, TxStatus,
+    ConnectionApi, TxStatus,
 };
 use primitives::{
     staking::era_payout, Balance, EraIndex, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
@@ -32,7 +32,7 @@ fn payout_within_two_block_delta(expected_payout: Balance, payout: Balance) {
     );
 }
 
-async fn wait_to_second_era<C: ConnectionExt>(connection: &C) -> EraIndex {
+async fn wait_to_second_era<C: ConnectionApi>(connection: &C) -> EraIndex {
     let active_era = connection.get_active_era(None).await;
     if active_era < 2 {
         connection.wait_for_n_eras(2, BlockStatus::Best).await;

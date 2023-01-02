@@ -9,7 +9,7 @@ use crate::{
     pallets::{elections::ElectionsApi, staking::StakingApi},
     AccountId, BlockHash,
     Call::Treasury,
-    ConnectionExt, RootConnection, SignedConnection, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -38,12 +38,12 @@ pub trait TreasureApiExt {
 
 #[async_trait::async_trait]
 pub trait TreasurySudoApi {
-    async fn approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
-    async fn reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn sudo_approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn sudo_reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> TreasuryApi for C {
+impl<C: ConnectionApi> TreasuryApi for C {
     async fn treasury_account(&self) -> AccountId {
         PalletId(*b"a0/trsry").into_account_truncating()
     }
@@ -91,13 +91,13 @@ impl TreasuryUserApi for SignedConnection {
 
 #[async_trait::async_trait]
 impl TreasurySudoApi for RootConnection {
-    async fn approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn sudo_approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
         let call = Treasury(approve_proposal { proposal_id });
 
         self.sudo_unchecked(call, status).await
     }
 
-    async fn reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn sudo_reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
         let call = Treasury(reject_proposal { proposal_id });
 
         self.sudo_unchecked(call, status).await
@@ -105,7 +105,7 @@ impl TreasurySudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> TreasureApiExt for C {
+impl<C: ConnectionApi> TreasureApiExt for C {
     async fn possible_treasury_payout(&self) -> anyhow::Result<Balance> {
         let session_period = self.get_session_period().await?;
         let sessions_per_era = self.get_session_per_era().await?;

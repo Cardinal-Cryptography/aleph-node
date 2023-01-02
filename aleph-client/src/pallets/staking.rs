@@ -20,9 +20,9 @@ use crate::{
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
     sp_arithmetic::per_things::Perbill,
-    AccountId, AsSigned, BlockHash,
+    AccountId, BlockHash,
     Call::{Staking, Sudo},
-    ConnectionExt, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -123,7 +123,7 @@ pub trait StakingRawApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> StakingApi for C {
+impl<C: ConnectionApi> StakingApi for C {
     async fn get_active_era(&self, at: Option<BlockHash>) -> EraIndex {
         let addrs = api::storage().staking().active_era();
 
@@ -192,7 +192,7 @@ impl<C: ConnectionExt> StakingApi for C {
 }
 
 #[async_trait::async_trait]
-impl<S: AsSigned> StakingUserApi for S {
+impl<S: SignedConnectionApi> StakingUserApi for S {
     async fn bond(
         &self,
         initial_stake: Balance,
@@ -205,7 +205,7 @@ impl<S: AsSigned> StakingUserApi for S {
             RewardDestination::Staked,
         );
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn validate(
@@ -220,7 +220,7 @@ impl<S: AsSigned> StakingUserApi for S {
             blocked: false,
         });
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn payout_stakers(
@@ -231,7 +231,7 @@ impl<S: AsSigned> StakingUserApi for S {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().payout_stakers(stash_account, era);
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn nominate(
@@ -243,13 +243,13 @@ impl<S: AsSigned> StakingUserApi for S {
             .staking()
             .nominate(vec![MultiAddress::Id(nominee_account_id)]);
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().chill();
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 
     async fn bond_extra_stake(
@@ -259,7 +259,7 @@ impl<S: AsSigned> StakingUserApi for S {
     ) -> anyhow::Result<BlockHash> {
         let tx = api::tx().staking().bond_extra(extra_stake);
 
-        self.as_signed().send_tx(tx, status).await
+        self.send_tx(tx, status).await
     }
 }
 
@@ -298,7 +298,7 @@ impl StakingSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> StakingRawApi for C {
+impl<C: ConnectionApi> StakingRawApi for C {
     async fn get_stakers_storage_keys(
         &self,
         era: EraIndex,
@@ -360,7 +360,7 @@ impl StakingApiExt for RootConnection {
             })
             .collect();
 
-        self.as_signed().batch_call(calls, status).await
+        self.batch_call(calls, status).await
     }
 
     async fn batch_nominate(
@@ -381,6 +381,6 @@ impl StakingApiExt for RootConnection {
             })
             .collect();
 
-        self.as_signed().batch_call(calls, status).await
+        self.batch_call(calls, status).await
     }
 }

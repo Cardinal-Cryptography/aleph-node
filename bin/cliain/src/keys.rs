@@ -18,7 +18,6 @@ pub async fn prepare_keys(
     controller_account_id: AccountId,
 ) -> anyhow::Result<()> {
     connection
-        .as_signed()
         .bond(
             MIN_VALIDATOR_BOND,
             controller_account_id,
@@ -28,7 +27,6 @@ pub async fn prepare_keys(
         .unwrap();
     let new_keys = connection.author_rotate_keys().await?;
     connection
-        .as_signed()
         .set_keys(new_keys, TxStatus::Finalized)
         .await?;
     Ok(())

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use aleph_client::{contract::ContractInstance, AccountId, ConnectionExt, SignedConnection};
+use aleph_client::{contract::ContractInstance, AccountId, ConnectionApi, SignedConnection};
 use anyhow::{Context, Result};
 use assert2::assert;
 
@@ -65,7 +65,7 @@ impl AdderInstance {
         Ok(Self { contract })
     }
 
-    pub async fn get<C: ConnectionExt>(&self, conn: &C) -> Result<u32> {
+    pub async fn get<C: ConnectionApi>(&self, conn: &C) -> Result<u32> {
         self.contract.contract_read0(conn, "get").await
     }
 
@@ -88,7 +88,7 @@ impl AdderInstance {
         self.contract.contract_exec(conn, "set_name", &[name]).await
     }
 
-    pub async fn get_name<C: ConnectionExt>(&self, conn: &C) -> Result<Option<String>> {
+    pub async fn get_name<C: ConnectionApi>(&self, conn: &C) -> Result<Option<String>> {
         let res: Option<String> = self.contract.contract_read0(conn, "get_name").await?;
         Ok(res.map(|name| name.replace('\0', "")))
     }

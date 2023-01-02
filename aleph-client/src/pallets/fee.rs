@@ -1,4 +1,4 @@
-use crate::{api, BlockHash, ConnectionExt};
+use crate::{api, BlockHash, ConnectionApi};
 
 pub type FeeMultiplier = u128;
 
@@ -8,7 +8,7 @@ pub trait TransactionPaymentApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionExt> TransactionPaymentApi for C {
+impl<C: ConnectionApi> TransactionPaymentApi for C {
     async fn get_next_fee_multiplier(&self, at: Option<BlockHash>) -> FeeMultiplier {
         let addrs = api::storage().transaction_payment().next_fee_multiplier();
 
