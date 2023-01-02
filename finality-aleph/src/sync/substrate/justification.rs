@@ -142,14 +142,13 @@ pub struct FullVerifier {
 }
 
 impl FullVerifier {
-    async fn session_verifier<H: SubstrateHeader<Number = BlockNumber>>(
+    fn session_verifier<H: SubstrateHeader<Number = BlockNumber>>(
         &self,
         header: &H,
     ) -> Result<SessionVerifier, VerificationError> {
         let session_id = session_id_from_num(*header.number(), self.period);
         self.sessions
             .get(session_id)
-            .await
             .map(|authority_data| authority_data.into())
             .ok_or(VerificationError::UnknownSession)
     }
@@ -159,12 +158,9 @@ impl FullVerifier {
 impl<H: SubstrateHeader<Number = BlockNumber>> Verifier<Justification<H>> for FullVerifier {
     type Error = VerificationError;
 
-    async fn verify(
-        &self,
-        justification: Justification<H>,
-    ) -> Result<Justification<H>, Self::Error> {
+    fn verify(&self, justification: Justification<H>) -> Result<Justification<H>, Self::Error> {
         let header = &justification.header;
-        let verifier = self.session_verifier(header).await?;
+        let verifier = self.session_verifier(header)?;
         verifier.verify_bytes(&justification.raw_justification, header.hash().encode())?;
         Ok(justification)
     }

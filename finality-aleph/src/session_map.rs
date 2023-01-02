@@ -3,6 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 use aleph_primitives::{AlephSessionApi, SessionAuthorityData};
 use futures::StreamExt;
 use log::{debug, error, trace};
+use parking_lot::RwLock;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_runtime::{
@@ -10,10 +11,7 @@ use sp_runtime::{
     traits::{Block, Header, NumberFor},
     SaturatedConversion,
 };
-use tokio::sync::{
-    oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
-    RwLock,
-};
+use tokio::sync::oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender};
 
 use crate::{
     first_block_of_session, session_id_from_block_num, ClientForAleph, SessionId, SessionPeriod,
@@ -167,12 +165,12 @@ impl SharedSessionMap {
         Self(Arc::new(RwLock::new((HashMap::new(), HashMap::new()))))
     }
 
-    pub async fn update(
+    pub fn update(
         &mut self,
         id: SessionId,
         authority_data: SessionAuthorityData,
     ) -> Option<SessionAuthorityData> {
-        let mut guard = self.0.write().await;
+        let mut guard = self.0.write();
 
         // notify all subscribers about insertion and remove them from subscription
         if let Some(senders) = guard.1.remove(&id) {
@@ -186,8 +184,8 @@ impl SharedSessionMap {
         guard.0.insert(id, authority_data)
     }
 
-    async fn prune_below(&mut self, id: SessionId) {
-        let mut guard = self.0.write().await;
+    fn prune_below(&mut self, id: SessionId) {
+        let mut guard = self.0.write();
 
         guard.0.retain(|&s, _| s >= id);
         guard.1.retain(|&s, _| s >= id);
@@ -201,19 +199,16 @@ impl SharedSessionMap {
 }
 
 impl ReadOnlySessionMap {
-    pub async fn get(&self, id: SessionId) -> Option<SessionAuthorityData> {
-        self.inner.read().await.0.get(&id).cloned()
+    pub fn get(&self, id: SessionId) -> Option<SessionAuthorityData> {
+        self.inner.read().0.get(&id).cloned()
     }
 
     /// returns an end of the oneshot channel that fires a message if either authority data is already
     /// known for the session with id = `id` or when the data is inserted for this session.
-    pub async fn subscribe_to_insertion(
-        &self,
-        id: SessionId,
-    ) -> OneShotReceiver<SessionAuthorityData> {
+    pub fn subscribe_to_insertion(&self, id: SessionId) -> OneShotReceiver<SessionAuthorityData> {
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
-        let mut guard = self.inner.write().await;
+        let mut guard = self.inner.write();
 
         if let Some(authority_data) = guard.0.get(&id) {
             // if the value is already present notify immediately
@@ -282,40 +277,34 @@ where
     }
 
     /// puts authority data for the next session into the session map
-    async fn handle_first_block_of_session(&mut self, num: NumberFor<B>, session_id: SessionId) {
+    fn handle_first_block_of_session(&mut self, num: NumberFor<B>, session_id: SessionId) {
         debug!(target: "aleph-session-updater", "Handling first block #{:?} of session {:?}", num, session_id.0);
         let next_session = SessionId(session_id.0 + 1);
         let authority_provider = &self.authority_provider;
-        self.session_map
-            .update(
-                next_session,
-                get_authority_data_for_session::<_, B>(authority_provider, next_session, num),
-            )
-            .await;
+        self.session_map.update(
+            next_session,
+            get_authority_data_for_session::<_, B>(authority_provider, next_session, num),
+        );
 
         // if this is the first session we also need to include starting authority data into the map
         if session_id.0 == 0 {
             let authority_provider = &self.authority_provider;
-            self.session_map
-                .update(
-                    session_id,
-                    get_authority_data_for_session::<_, B>(authority_provider, session_id, num),
-                )
-                .await;
+            self.session_map.update(
+                session_id,
+                get_authority_data_for_session::<_, B>(authority_provider, session_id, num),
+            );
         }
 
         if session_id.0 >= PRUNING_THRESHOLD && session_id.0 % PRUNING_THRESHOLD == 0 {
             debug!(target: "aleph-session-updater", "Pruning session map below session #{:?}", session_id.0 - PRUNING_THRESHOLD);
             self.session_map
-                .prune_below(SessionId(session_id.0 - PRUNING_THRESHOLD))
-                .await;
+                .prune_below(SessionId(session_id.0 - PRUNING_THRESHOLD));
         }
     }
 
-    async fn update_session(&mut self, session_id: SessionId, period: SessionPeriod) {
+    fn update_session(&mut self, session_id: SessionId, period: SessionPeriod) {
         let first_block = first_block_of_session::<B>(session_id, period);
-        self.handle_first_block_of_session(first_block, session_id)
-            .await;
+        self.handle_first_block_of_session(first_block, session_id);
     }
 
     fn catch_up_boundaries(&self, period: SessionPeriod) -> (SessionId, SessionId) {
@@ -334,7 +323,7 @@ where
 
         // lets catch up
         for session in starting_session.0..=current_session.0 {
-            self.update_session(SessionId(session), period).await;
+            self.update_session(SessionId(session), period);
         }
 
         let mut last_updated = current_session;
@@ -350,7 +339,7 @@ where
             }
 
             for session in (last_updated.0 + 1)..=session_id.0 {
-                self.update_session(SessionId(session), period).await;
+                self.update_session(SessionId(session), period);
             }
 
             last_updated = session_id;
@@ -504,22 +493,10 @@ mod tests {
         // wait a bit
         Delay::new(Duration::from_millis(50)).await;
 
-        assert_eq!(
-            session_map.get(SessionId(0)).await,
-            Some(authority_data(0, 4))
-        );
-        assert_eq!(
-            session_map.get(SessionId(1)).await,
-            Some(authority_data(4, 8))
-        );
-        assert_eq!(
-            session_map.get(SessionId(2)).await,
-            Some(authority_data(8, 12))
-        );
-        assert_eq!(
-            session_map.get(SessionId(3)).await,
-            Some(authority_data(12, 16))
-        );
+        assert_eq!(session_map.get(SessionId(0)), Some(authority_data(0, 4)));
+        assert_eq!(session_map.get(SessionId(1)), Some(authority_data(4, 8)));
+        assert_eq!(session_map.get(SessionId(2)), Some(authority_data(8, 12)));
+        assert_eq!(session_map.get(SessionId(3)), Some(authority_data(12, 16)));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -549,22 +526,10 @@ mod tests {
         // wait a bit
         Delay::new(Duration::from_millis(50)).await;
 
-        assert_eq!(
-            session_map.get(SessionId(0)).await,
-            Some(authority_data(0, 4))
-        );
-        assert_eq!(
-            session_map.get(SessionId(1)).await,
-            Some(authority_data(4, 8))
-        );
-        assert_eq!(
-            session_map.get(SessionId(2)).await,
-            Some(authority_data(8, 12))
-        );
-        assert_eq!(
-            session_map.get(SessionId(3)).await,
-            Some(authority_data(12, 16))
-        );
+        assert_eq!(session_map.get(SessionId(0)), Some(authority_data(0, 4)));
+        assert_eq!(session_map.get(SessionId(1)), Some(authority_data(4, 8)));
+        assert_eq!(session_map.get(SessionId(2)), Some(authority_data(8, 12)));
+        assert_eq!(session_map.get(SessionId(3)), Some(authority_data(12, 16)));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -598,7 +563,7 @@ mod tests {
         }
         for i in 0..=20 - PRUNING_THRESHOLD {
             assert_eq!(
-                session_map.get(SessionId(i)).await,
+                session_map.get(SessionId(i)),
                 None,
                 "Session {:?} should be pruned",
                 i
@@ -606,7 +571,7 @@ mod tests {
         }
         for i in 21 - PRUNING_THRESHOLD..=20 {
             assert_eq!(
-                session_map.get(SessionId(i)).await,
+                session_map.get(SessionId(i)),
                 Some(authority_data(4 * i as u64, 4 * (i + 1) as u64)),
                 "Session {:?} should not be pruned",
                 i
@@ -620,9 +585,9 @@ mod tests {
         let readonly = shared.read_only();
         let session = SessionId(0);
 
-        shared.update(session, authority_data(0, 2)).await;
+        shared.update(session, authority_data(0, 2));
 
-        let mut receiver = readonly.subscribe_to_insertion(session).await;
+        let mut receiver = readonly.subscribe_to_insertion(session);
 
         // we should have this immediately
         assert_eq!(Ok(authority_data(0, 2)), receiver.try_recv());
@@ -633,11 +598,11 @@ mod tests {
         let mut shared = SharedSessionMap::new();
         let readonly = shared.read_only();
         let session = SessionId(0);
-        let mut receiver = readonly.subscribe_to_insertion(session).await;
+        let mut receiver = readonly.subscribe_to_insertion(session);
 
         // does not yet have any value
         assert_eq!(Err(TryRecvError::Empty), receiver.try_recv());
-        shared.update(session, authority_data(0, 2)).await;
+        shared.update(session, authority_data(0, 2));
         assert_eq!(Ok(authority_data(0, 2)), receiver.await);
     }
 }

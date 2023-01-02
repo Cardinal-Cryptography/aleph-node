@@ -111,7 +111,6 @@ where
             .session_authorities
             .subscribe_to_insertion(session_id)
             .await
-            .await
         {
             Err(e) => panic!(
                 "Error while receiving the notification about current session {:?}",
@@ -162,8 +161,7 @@ where
         let next_session_id = SessionId(session_id.0 + 1);
         let mut start_next_session_network = Some(
             self.session_authorities
-                .subscribe_to_insertion(next_session_id)
-                .await,
+                .subscribe_to_insertion(next_session_id),
         );
         loop {
             tokio::select! {
@@ -181,7 +179,7 @@ where
                             match notification.await {
                                 Err(e) => {
                                     warn!(target: "aleph-party", "Error with subscription {:?}", e);
-                                    start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id).await);
+                                    start_next_session_network = Some(self.session_authorities.subscribe_to_insertion(next_session_id));
                                     None
                                 },
                                 Ok(next_session_authority_data) => {
@@ -424,8 +422,7 @@ mod tests {
             if let Some((session, authorities)) = session_authorities {
                 self.controller
                     .shared_session_map
-                    .update(session, SessionAuthorityData::new(authorities, None))
-                    .await;
+                    .update(session, SessionAuthorityData::new(authorities, None));
             }
 
             if let Some(id) = id {
@@ -486,8 +483,7 @@ mod tests {
             if let Some((session, authorities)) = session_authorities {
                 self.controller
                     .shared_session_map
-                    .update(session, SessionAuthorityData::new(authorities, None))
-                    .await;
+                    .update(session, SessionAuthorityData::new(authorities, None));
             }
 
             if let Some(id) = id {

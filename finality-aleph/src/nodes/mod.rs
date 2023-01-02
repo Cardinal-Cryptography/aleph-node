@@ -64,7 +64,6 @@ impl<B: Block> SessionInfoProvider<B, SessionVerifier> for SessionInfoProviderIm
         let verifier = self
             .session_authorities
             .get(current_session)
-            .await
             .map(|authority_data| authority_data.into());
 
         SessionInfo {
