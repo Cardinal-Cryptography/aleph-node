@@ -11,7 +11,7 @@ use aleph_client::{
     primitives::CommitteeSeats,
     sp_core::bounded::bounded_vec::BoundedVec,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, KeyPair, Pair, SignedConnection, TxStatus,
+    AccountId, KeyPair, Pair, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use log::info;
 use primitives::{
@@ -240,8 +240,8 @@ pub async fn multi_bond(node: &str, bonders: &[KeyPair], stake: Balance) {
     }
 }
 
-async fn payout_stakers_and_assert_locked_balance(
-    stash_connection: &SignedConnection,
+async fn payout_stakers_and_assert_locked_balance<S: SignedConnectionApi>(
+    stash_connection: &S,
     accounts_to_check_balance: &[AccountId],
     stash_account: &AccountId,
     era: BlockNumber,

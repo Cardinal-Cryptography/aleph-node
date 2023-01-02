@@ -38,8 +38,8 @@ pub trait TreasureApiExt {
 
 #[async_trait::async_trait]
 pub trait TreasurySudoApi {
-    async fn sudo_approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
-    async fn sudo_reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
 #[async_trait::async_trait]
@@ -91,13 +91,13 @@ impl<S: SignedConnectionApi> TreasuryUserApi for S {
 
 #[async_trait::async_trait]
 impl TreasurySudoApi for RootConnection {
-    async fn sudo_approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn approve(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
         let call = Treasury(approve_proposal { proposal_id });
 
         self.sudo_unchecked(call, status).await
     }
 
-    async fn sudo_reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash> {
         let call = Treasury(reject_proposal { proposal_id });
 
         self.sudo_unchecked(call, status).await

@@ -6,7 +6,7 @@ use aleph_client::{
     primitives::{CommitteeSeats, EraValidators},
     utility::SessionEraApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, SignedConnection, TxStatus,
+    AccountId, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
@@ -262,8 +262,8 @@ pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn check_points_after_force_new_era(
-    connection: &SignedConnection,
+async fn check_points_after_force_new_era<S: SignedConnectionApi>(
+    connection: &S,
     start_session: SessionIndex,
     start_era: EraIndex,
     era_validators: &EraValidators<AccountId>,
