@@ -2,7 +2,7 @@ use codec::Decode;
 
 use crate::{aleph_runtime::SessionKeys, Connection};
 
-/// Any object that implements `author` RPC.
+/// Implements RPC calls for  [`author`](https://paritytech.github.io/substrate/master/sc_rpc/author/struct.Author.html) pallet
 #[async_trait::async_trait]
 pub trait AuthorRpc {
     /// API for [`rotate_keys`](https://paritytech.github.io/substrate/master/sc_rpc/author/struct.Author.html#method.rotate_keys) call

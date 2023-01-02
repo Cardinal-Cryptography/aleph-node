@@ -28,9 +28,9 @@ pub mod contract;
 /// API for pallets.
 pub mod pallets;
 mod runtime_types;
-/// Block / session / era api.
+/// Block / session / era API.
 pub mod utility;
-/// Waiting for some events api.
+/// Waiting for some events API.
 pub mod waiting;
 
 pub use aleph_zero::api;

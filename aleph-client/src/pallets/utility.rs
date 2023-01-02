@@ -1,6 +1,6 @@
 use crate::{api, BlockHash, Call, SignedConnection, TxStatus};
 
-/// Any object that implements pallet utility api.
+/// Pallet utility api.
 #[async_trait::async_trait]
 pub trait UtilityApi {
     /// API for [`batch`](https://paritytech.github.io/substrate/master/pallet_utility/pallet/struct.Pallet.html#method.batch) call.

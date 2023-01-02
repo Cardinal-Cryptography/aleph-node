@@ -5,7 +5,7 @@ use crate::{
     SignedConnection, TxStatus,
 };
 
-/// Any object that implements pallet session read-only api.
+/// Pallet session read-only api.
 #[async_trait::async_trait]
 pub trait SessionApi {
     /// API for [`next_keys`](https://paritytech.github.io/substrate/master/pallet_session/pallet/type.NextKeys.html) call.

@@ -10,7 +10,7 @@ use crate::{
     Connection, SignedConnection, TxStatus,
 };
 
-/// Any object that implements pallet balances read-only API.
+/// Pallet balances read-only API.
 #[async_trait::async_trait]
 pub trait BalanceApi {
     /// API for [`locks`](https://paritytech.github.io/substrate/master/pallet_balances/pallet/struct.Pallet.html#method.locks) call.
@@ -35,7 +35,7 @@ pub trait BalanceApi {
     async fn total_issuance(&self, at: Option<BlockHash>) -> Balance;
 }
 
-/// Any object that implements pallet balances API
+/// Pallet balances API
 #[async_trait::async_trait]
 pub trait BalanceUserApi {
     /// API for [`transfer`](https://paritytech.github.io/substrate/master/pallet_balances/pallet/struct.Pallet.html#method.transfer) call.
@@ -57,7 +57,7 @@ pub trait BalanceUserApi {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements pallet balances logic not directly related to any pallet call.
+/// Pallet balances logic not directly related to any pallet call.
 #[async_trait::async_trait]
 pub trait BalanceUserBatchExtApi {
     /// Performs batch of `balances.transfer` calls.

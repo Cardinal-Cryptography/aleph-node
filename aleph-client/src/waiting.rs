@@ -18,7 +18,7 @@ pub enum BlockStatus {
     Finalized,
 }
 
-/// Any object that implements waiting _for_ various events.
+/// Waiting _for_ various events API
 #[async_trait::async_trait]
 pub trait AlephWaiting {
     /// Wait for a particular block to be in a [`BlockStatus`].
@@ -74,7 +74,7 @@ pub trait AlephWaiting {
     async fn wait_for_session(&self, session: SessionIndex, status: BlockStatus);
 }
 
-/// Any object that implements waiting _from_ the current time.
+/// nWaiting _from_ the current moment of time API
 #[async_trait::async_trait]
 pub trait WaitingExt {
     /// Wait for a given number of sessions to wait from a current session.

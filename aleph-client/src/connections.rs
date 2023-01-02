@@ -98,7 +98,7 @@ impl Connection {
         }
     }
 
-    /// Retrieves a decoded storage value stored under given storage key.
+    /// Retrieves a decoded storage value stored under given key.
     ///
     /// # Panic
     /// This method `panic`s, in case storage key is invalid, or in case value cannot be decoded,
@@ -115,7 +115,7 @@ impl Connection {
             .expect("There should be a value")
     }
 
-    /// Retrieves a decoded storage value stored under given storage key.
+    /// Retrieves a decoded storage value stored under given key.
     ///
     /// # Panic
     /// This method `panic`s, in case storage key is invalid, or in case value cannot be decoded,
@@ -149,12 +149,16 @@ impl Connection {
     ///
     /// # Examples
     /// ```rust
-    /// let func_name = "alephNode_emergencyFinalize";
-    /// let hash = BlockHash::from_str("0x37841c5a09db7d9f985f2306866f196365f1bb9372efc76086e07b882296e1cc").expect("Hash is properly hex encoded");
-    /// let signature = key_pair.sign(&hash.encode());
-    /// let raw_signature: &[u8] = signature.as_ref();
-    /// let params = rpc_params![raw_signature, hash, number];
-    /// let _: () = rpc_call(func_name.to_string(), params).await?;
+    ///  let args = ContractCallArgs {
+    ///             origin: address.clone(),
+    ///             dest: address.clone(),
+    ///             value: 0,
+    ///             gas_limit: None,
+    ///             input_data: payload,
+    ///             storage_deposit_limit: None,
+    ///         };
+    /// let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
+    /// rpc_call("state_call".to_string(), params).await;
     /// ```
     pub async fn rpc_call<R: Decode>(
         &self,
@@ -206,7 +210,7 @@ impl SignedConnection {
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
     /// * `params` - optional tx params e.g. tip
-    /// * `status` - tx status
+    /// * `status` - a [`TxStatus`] of a tx to wait for
     /// # Returns
     /// Block hash of block where transaction was put or error
     pub async fn send_tx_with_params<Call: TxPayload>(
@@ -241,7 +245,7 @@ impl SignedConnection {
 
 impl RootConnection {
     /// Creates new root connection from a given url.
-    /// By default, it tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
+    /// It tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
     /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
     /// * `root` - a [`KeyPair`] of the Sudo account
     pub async fn new(address: String, root: KeyPair) -> anyhow::Result<Self> {

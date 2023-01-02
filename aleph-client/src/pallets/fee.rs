@@ -3,7 +3,7 @@ use crate::{api, BlockHash, Connection};
 /// An alias for a fee multiplier.
 pub type FeeMultiplier = u128;
 
-/// Any object that implements transaction payment pallet api.
+/// Transaction payment pallet API.
 #[async_trait::async_trait]
 pub trait TransactionPaymentApi {
     /// API for [`next_fee_multiplier`](https://paritytech.github.io/substrate/master/pallet_transaction_payment/pallet/struct.Pallet.html#method.next_fee_multiplier) call.

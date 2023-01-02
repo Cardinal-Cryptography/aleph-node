@@ -25,7 +25,7 @@ pub struct ContractCallArgs {
     pub input_data: Vec<u8>,
 }
 
-/// Any object that implements pallet contracts read-only api.
+/// Pallet contracts read-only api.
 #[async_trait::async_trait]
 pub trait ContractsApi {
     /// Returns `contracts.owner_info_of` storage for a given code hash.
@@ -38,7 +38,7 @@ pub trait ContractsApi {
     ) -> Option<OwnerInfo>;
 }
 
-/// Any object that implements pallet contracts api.
+/// Pallet contracts api.
 #[async_trait::async_trait]
 pub trait ContractsUserApi {
     /// API for [`upload_code`](https://paritytech.github.io/substrate/master/pallet_contracts/pallet/struct.Pallet.html#method.upload_code) call.
@@ -94,7 +94,7 @@ pub trait ContractsUserApi {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements runtime ContractsApi
+/// RPC for runtime ContractsApi
 #[async_trait::async_trait]
 pub trait ContractRpc {
     /// API for [`call`](https://paritytech.github.io/substrate/master/pallet_contracts/trait.ContractsApi.html#method.call) call.

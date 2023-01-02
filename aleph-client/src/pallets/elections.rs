@@ -16,7 +16,7 @@ use crate::{
 };
 
 // TODO once pallet elections docs are published, replace api docs with links to public docs
-/// Any object that implements pallet elections read-only api.
+/// Pallet elections read-only api.
 #[async_trait::async_trait]
 pub trait ElectionsApi {
     /// Returns `elections.ban_config` storage of the elections pallet.

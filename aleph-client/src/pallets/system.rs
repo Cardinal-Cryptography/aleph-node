@@ -10,7 +10,7 @@ use crate::{
     Connection, RootConnection, SudoCall, TxStatus,
 };
 
-/// Any object that implements pallet system read-only api.
+/// Pallet system read-only api.
 #[async_trait::async_trait]
 pub trait SystemApi {
     /// returns free balance of a given account
@@ -21,7 +21,7 @@ pub trait SystemApi {
     async fn get_free_balance(&self, account: AccountId, at: Option<BlockHash>) -> Balance;
 }
 
-/// Any object that implements pallet system api.
+/// Pallet system api.
 #[async_trait::async_trait]
 pub trait SystemSudoApi {
     /// API for [`set_code`](https://paritytech.github.io/substrate/master/frame_system/pallet/struct.Pallet.html#method.set_code) call.

@@ -9,7 +9,7 @@ pub type Call = Vec<u8>;
 /// An alias for a timepoint.
 pub type Timepoint = api::runtime_types::pallet_multisig::Timepoint<BlockNumber>;
 
-/// Any object that implements pallet multisig api.
+/// Pallet multisig api.
 #[async_trait::async_trait]
 pub trait MultisigUserApi {
     /// API for [`approve_as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.approve_as_multi) call.

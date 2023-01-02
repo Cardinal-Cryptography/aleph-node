@@ -14,7 +14,7 @@ use crate::{
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
-/// Any object that implements pallet aleph API that requires sudo.
+/// Pallet aleph API that requires sudo.
 #[async_trait::async_trait]
 pub trait AlephSudoApi {
     /// Sets the emergency finalization key.
@@ -42,7 +42,7 @@ pub trait AlephSudoApi {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements pallet aleph RPC api.
+/// Pallet aleph RPC api.
 #[async_trait::async_trait]
 pub trait AlephRpc {
     /// Finalize the block with given hash and number using attached signature.

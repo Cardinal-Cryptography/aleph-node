@@ -78,7 +78,7 @@ pub trait StakingApi {
     async fn get_session_per_era(&self) -> anyhow::Result<u32>;
 }
 
-/// Any object that implements pallet staking api
+/// Pallet staking api
 #[async_trait::async_trait]
 pub trait StakingUserApi {
     /// API for [`bond`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.bond) call.
@@ -122,7 +122,7 @@ pub trait StakingUserApi {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements pallet staking logic, not directly related to any particular pallet call.
+/// Pallet staking logic, not directly related to any particular pallet call.
 #[async_trait::async_trait]
 pub trait StakingApiExt {
     /// Send batch of [`bond`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.bond) calls.
@@ -188,7 +188,7 @@ pub trait StakingApiExt {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements pallet staking api that requires sudo.
+/// Pallet staking api that requires sudo.
 #[async_trait::async_trait]
 pub trait StakingSudoApi {
     /// API for [`force_new_era`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.force_new_era) call.
@@ -205,7 +205,7 @@ pub trait StakingSudoApi {
     ) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements logic for retrieving raw storage keys or values from pallet staking storage.
+/// Logic for retrieving raw storage keys or values from a pallet staking.
 #[async_trait::async_trait]
 pub trait StakingRawApi {
     /// Returns all encoded [`eras_stakers`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.eras_stakers).

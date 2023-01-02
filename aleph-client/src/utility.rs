@@ -6,7 +6,7 @@ use crate::{
     BlockHash, Connection,
 };
 
-/// Any object that implements retrieving various info about blocks.
+/// Block info API.
 #[async_trait::async_trait]
 pub trait BlocksApi {
     /// Returns the first block of a session.
@@ -16,7 +16,7 @@ pub trait BlocksApi {
         session: SessionIndex,
     ) -> anyhow::Result<Option<BlockHash>>;
 
-    /// Returns hash of a given block.
+    /// Returns hash of a given block if the given block exists, otherwise `None`
     /// * `block` - number of the block
     async fn get_block_hash(&self, block: BlockNumber) -> anyhow::Result<Option<BlockHash>>;
 
@@ -26,12 +26,12 @@ pub trait BlocksApi {
     /// Returns the most recent block from the finalized chain.
     async fn get_finalized_block_hash(&self) -> anyhow::Result<BlockHash>;
 
-    /// Returns number of a given block hash.
+    /// Returns number of a given block hash, if the given block exists, otherwise `None`
     /// * `block` - hash of the block to query its number
     async fn get_block_number(&self, block: BlockHash) -> anyhow::Result<Option<BlockNumber>>;
 }
 
-/// Any object that implements interaction logic between session and staking.
+/// Interaction logic between pallet session and pallet staking.
 #[async_trait::async_trait]
 pub trait SessionEraApi {
     /// Returns which era given session is.

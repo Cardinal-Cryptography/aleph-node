@@ -5,7 +5,7 @@ use crate::{
     SignedConnection, TxStatus,
 };
 
-/// Any object that implements read only vesting api.
+/// Read only pallet vesting API.
 #[async_trait::async_trait]
 pub trait VestingApi {
     /// Returns [`VestingInfo`] of the given account.
@@ -18,7 +18,7 @@ pub trait VestingApi {
     ) -> Vec<VestingInfo<u128, u32>>;
 }
 
-/// Any object that implements pallet vesting api.
+/// Pallet vesting api.
 #[async_trait::async_trait]
 pub trait VestingUserApi {
     /// API for [`vest`](https://paritytech.github.io/substrate/master/pallet_vesting/pallet/enum.Call.html#variant.vest) call.

@@ -12,7 +12,7 @@ use crate::{
     Connection, RootConnection, SignedConnection, SudoCall, TxStatus,
 };
 
-/// Any object that implements pallet treasury read-only api.
+/// Pallet treasury read-only api.
 #[async_trait::async_trait]
 pub trait TreasuryApi {
     /// Returns an unique account id for all treasury transfers.
@@ -27,7 +27,7 @@ pub trait TreasuryApi {
     async fn approvals(&self, at: Option<BlockHash>) -> Vec<u32>;
 }
 
-/// Any object that implements pallet treasury api.
+/// Pallet treasury api.
 #[async_trait::async_trait]
 pub trait TreasuryUserApi {
     /// API for [`propose_spend`](https://paritytech.github.io/substrate/master/pallet_treasury/pallet/struct.Pallet.html#method.propose_spend) call.
@@ -45,7 +45,7 @@ pub trait TreasuryUserApi {
     async fn reject(&self, proposal_id: u32, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
-/// Any object that implements additional treasury logic, not directly related to any pallet call.
+/// Pallet treasury funcionality that is not directly related to any pallet call.
 #[async_trait::async_trait]
 pub trait TreasureApiExt {
     /// When `staking.payout_stakers` is done, what amount of AZERO is transferred to.
@@ -53,7 +53,7 @@ pub trait TreasureApiExt {
     async fn possible_treasury_payout(&self) -> anyhow::Result<Balance>;
 }
 
-/// Any object that implements pallet treasury api issued by the sudo account.
+/// Pallet treasury api issued by the sudo account.
 #[async_trait::async_trait]
 pub trait TreasurySudoApi {
     /// API for [`approve_proposal`](https://paritytech.github.io/substrate/master/pallet_treasury/pallet/struct.Pallet.html#method.approve_proposal) call.
