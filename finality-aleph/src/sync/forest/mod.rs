@@ -1,7 +1,5 @@
 use std::collections::HashSet;
-
-pub mod graph;
-use graph::{Error, Forest as Graph};
+use log::error;
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq, std::hash::Hash)]
 pub struct Hash;
@@ -12,52 +10,39 @@ pub struct HashNumber {
     number: u32,
 }
 
+pub struct Header;
+
+impl Header {
+    pub fn parent_hashnumber(&self) -> HashNumber {
+        HashNumber{ hash: Hash, number: 0 }
+    }
+}
+
+#[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+pub struct Justification;
+
+impl Justification {
+    pub fn header(&self) -> Header {
+        Header
+    }
+}
+
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq, std::hash::Hash)]
 pub struct PeerID;
 
-#[derive(Clone)]
-pub struct Justification;
+// TODO - merge graph with forest
+pub mod graph;
+pub mod vertex;
 
-struct Vertex {
-    body_imported: bool,
-    justification: Option<Justification>,
-    know_most: HashSet<PeerID>,
-    required: bool,
-}
+use graph::{Error, Forest as Graph};
+use vertex::{Vertex, Error as VertexError, Importance, Content};
 
-impl Vertex {
-    fn new(holder: Option<PeerID>, required: bool) -> Self {
-        let know_most = match holder {
-            Some(peer_id) => HashSet::from([peer_id]),
-            None => HashSet::new(),
-        };
-        Vertex {
-            body_imported: false,
-            justification: None,
-            know_most,
-            required,
-        }
-    }
-
-    fn add_holder(&mut self, holder: Option<PeerID>) {
-        if let Some(peer_id) = holder {
-            self.know_most.insert(peer_id);
-        };
-    }
-}
-
-#[derive(std::cmp::PartialEq, std::cmp::Eq)]
-enum State {
-    Unknown,
-    Empty,
-    EmptyRequired,
-    Header,
-    HeaderRequired,
-    Body,
-    JustifiedHeader,
-    Full,
-    HopelessFork,
-    BelowMinimal,
+pub enum VertexState {
+	Unknown,
+	HopelessFork,
+	BelowMinimal,
+	HighestFinalized,
+	Candidate(Content, Importance),
 }
 
 pub enum RequestType {
@@ -67,14 +52,30 @@ pub enum RequestType {
 }
 
 /// TODO: RETHINK
-impl From<State> for Option<RequestType> {
-    fn from(state: State) -> Self {
-        use State::*;
+impl From<VertexState> for Option<RequestType> {
+    fn from(state: VertexState) -> Self {
+        use VertexState::*;
+        use Content::*;
+        use Importance::*;
+        use RequestType::{Header as RHeader, Body, JustificationsBelow};
         match state {
-            Unknown | HopelessFork | BelowMinimal => None,
-            Empty => Some(RequestType::Header),
-            EmptyRequired | HeaderRequired | Header => Some(RequestType::Body),
-            Body | JustifiedHeader | Full => Some(RequestType::JustificationsBelow),
+            Unknown | HopelessFork | BelowMinimal | HighestFinalized => None,
+            Candidate(Empty, Auxiliary) => Some(RHeader),
+            Candidate(Empty, TopRequired) => Some(Body),
+            Candidate(Empty, Required) => Some(Body),
+            Candidate(Empty, Imported) => {
+                error!(target: "aleph-sync", "Forbidden state combination: (Empty, Imported), interpreting as (Header, Imported)");
+                Some(JustificationsBelow)
+            },
+            Candidate(Header, Auxiliary) => None,
+            Candidate(Header, TopRequired) => Some(Body),
+            Candidate(Header, Required) => Some(Body),
+            Candidate(Header, Imported) => Some(JustificationsBelow),
+            Candidate(Justification, Auxiliary) => {
+                error!(target: "aleph-sync", "Forbidden state combination: (Justification, Auxiliary), interpreting as (Justification, _)");
+                Some(JustificationsBelow)
+            },
+            Candidate(Justification, _) => Some(JustificationsBelow),
         }
     }
 }
