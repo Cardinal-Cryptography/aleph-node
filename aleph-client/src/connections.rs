@@ -188,7 +188,7 @@ impl SignedConnection {
     }
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
-    /// * `status` - tx status
+    /// * `status` - a [`TxStatus`] for a tx to wait for
     /// # Returns
     /// Block hash of block where transaction was put or error
     /// # Examples
