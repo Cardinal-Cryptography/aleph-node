@@ -90,6 +90,6 @@ impl AdderInstance {
 
     pub async fn get_name(&self, conn: &Connection) -> Result<Option<String>> {
         let res: Option<String> = self.contract.contract_read0(conn, "get_name").await?;
-        Ok(res.map(|name| name.replace("\0", "")))
+        Ok(res.map(|name| name.replace('\0', "")))
     }
 }

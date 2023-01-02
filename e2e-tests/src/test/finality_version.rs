@@ -4,6 +4,7 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus},
     TxStatus,
 };
+use anyhow::anyhow;
 use log::info;
 use primitives::{BlockNumber, SessionIndex, Version, DEFAULT_FINALITY_VERSION};
 
@@ -53,7 +54,11 @@ pub async fn schedule_version_change() -> anyhow::Result<()> {
         .wait_for_session(session_after_upgrade + 1, BlockStatus::Finalized)
         .await;
 
-    let block_number = connection.connection.get_best_block().await;
+    let block_number = connection
+        .connection
+        .get_best_block()
+        .await?
+        .ok_or(anyhow!("Failed to retrieve best block number!"))?;
     connection
         .connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)
@@ -95,11 +100,11 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped() ->
         .await;
 
     let last_finalized_block =
-        session_for_upgrade * connection.connection.get_session_period().await - 1;
+        session_for_upgrade * connection.connection.get_session_period().await? - 1;
 
     let connection = connection.connection;
-    let finalized_block_head = connection.get_finalized_block_hash().await;
-    let finalized_block = connection.get_block_number(finalized_block_head).await;
+    let finalized_block_head = connection.get_finalized_block_hash().await?;
+    let finalized_block = connection.get_block_number(finalized_block_head).await?;
 
     let finalized_block = match finalized_block {
         Some(block) => block,
@@ -125,7 +130,7 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped() ->
 pub async fn finality_version_change() -> anyhow::Result<()> {
     let config = setup_test();
     let root_connection = config.create_root_connection().await;
-    let session_period = root_connection.connection.get_session_period().await;
+    let session_period = root_connection.connection.get_session_period().await?;
 
     let start_point_in_sessions =
         SESSION_WITH_FINALITY_VERSION_CHANGE as f64 + SCHEDULING_OFFSET_SESSIONS;

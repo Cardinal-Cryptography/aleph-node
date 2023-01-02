@@ -67,7 +67,7 @@ pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
 
-pub const DEFAULT_FINALITY_VERSION: Version = 0;
+pub const DEFAULT_FINALITY_VERSION: Version = 1;
 
 /// Openness of the process of the elections
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
