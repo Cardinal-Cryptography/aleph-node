@@ -78,9 +78,8 @@ pub trait ElectionsApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
-
     /// Returns `elections.session_period` const of the elections pallet.
-    async fn get_session_period(&self) -> u32;
+    async fn get_session_period(&self) -> anyhow::Result<u32>;
 }
 
 /// any object that implements pallet elections api that requires sudo
@@ -222,10 +221,10 @@ impl ElectionsApi for Connection {
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
-    async fn get_session_period(&self) -> u32 {
+    async fn get_session_period(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().elections().session_period();
 
-        self.client.constants().at(&addrs).unwrap()
+        self.client.constants().at(&addrs).map_err(|e| e.into())
     }
 }
 
