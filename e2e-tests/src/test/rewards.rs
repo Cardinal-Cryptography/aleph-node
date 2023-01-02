@@ -12,12 +12,12 @@ use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
 
 use crate::{
+    config::setup_test,
     elections::get_and_test_members_for_session,
     rewards::{
         check_points, reset_validator_keys, set_invalid_keys_for_validator, setup_validators,
         validators_bond_extra_stakes,
     },
-    Config,
 };
 
 // Maximum difference between fractions of total reward that a validator gets.
@@ -25,7 +25,9 @@ use crate::{
 // retrieved from pallet Staking.
 const MAX_DIFFERENCE: f64 = 0.07;
 
-pub async fn points_basic(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn points_basic() -> anyhow::Result<()> {
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -46,14 +48,14 @@ pub async fn points_basic(config: &Config) -> anyhow::Result<()> {
         let era = connection
             .connection
             .get_active_era_for_session(session)
-            .await;
+            .await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection.connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &connection,
@@ -72,7 +74,9 @@ pub async fn points_basic(config: &Config) -> anyhow::Result<()> {
 
 /// Runs a chain, bonds extra stakes to validator accounts and checks that reward points
 /// are calculated correctly afterward.
-pub async fn points_stake_change(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn points_stake_change() -> anyhow::Result<()> {
+    let config = setup_test();
     let (era_validators, committee_size, _) = setup_validators(config).await?;
 
     validators_bond_extra_stakes(
@@ -105,14 +109,14 @@ pub async fn points_stake_change(config: &Config) -> anyhow::Result<()> {
         let era = connection
             .connection
             .get_active_era_for_session(session)
-            .await;
+            .await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &connection.connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &connection,
@@ -131,7 +135,9 @@ pub async fn points_stake_change(config: &Config) -> anyhow::Result<()> {
 
 /// Runs a chain, sets invalid session keys for one validator, re-sets the keys to valid ones
 /// and checks that reward points are calculated correctly afterward.
-pub async fn disable_node(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn disable_node() -> anyhow::Result<()> {
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let root_connection = config.create_root_connection().await;
@@ -159,14 +165,14 @@ pub async fn disable_node(config: &Config) -> anyhow::Result<()> {
         let era = root_connection
             .connection
             .get_active_era_for_session(session)
-            .await;
+            .await?;
         let (members_active, members_bench) = get_and_test_members_for_session(
             &controller_connection.connection,
             committee_size.clone(),
             &era_validators,
             session,
         )
-        .await;
+        .await?;
 
         check_points(
             &controller_connection,
@@ -187,7 +193,9 @@ pub async fn disable_node(config: &Config) -> anyhow::Result<()> {
 /// for 3 sessions: 1) immediately following the forcing call, 2) in the subsequent, interim
 /// session, when the new era has not yet started, 3) in the next session, second one after
 /// the call, when the new era has already begun.
-pub async fn force_new_era(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn force_new_era() -> anyhow::Result<()> {
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -195,7 +203,7 @@ pub async fn force_new_era(config: &Config) -> anyhow::Result<()> {
     let start_era = connection
         .connection
         .get_active_era_for_session(start_session)
-        .await;
+        .await?;
 
     info!("Start | era: {}, session: {}", start_era, start_session);
 
@@ -229,7 +237,9 @@ pub async fn force_new_era(config: &Config) -> anyhow::Result<()> {
 /// Expected behaviour: until the next (forced) era, rewards are calculated using old stakes,
 /// and after two sessions (required for a new era to be forced) they are adjusted to the new
 /// stakes.
-pub async fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
+    let config = setup_test();
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -238,7 +248,7 @@ pub async fn change_stake_and_force_new_era(config: &Config) -> anyhow::Result<(
     let start_era = connection
         .connection
         .get_active_era_for_session(start_session)
-        .await;
+        .await?;
     info!("Start | era: {}, session: {}", start_era, start_session);
 
     validators_bond_extra_stakes(
@@ -306,7 +316,7 @@ async fn check_points_after_force_new_era(
             era_validators,
             session_to_check,
         )
-        .await;
+        .await?;
 
         check_points(
             connection,

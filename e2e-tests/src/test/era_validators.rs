@@ -5,10 +5,11 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, Connection, KeyPair, TxStatus,
 };
+use anyhow::anyhow;
 
 use crate::{
     accounts::{account_ids_from_keys, get_validators_raw_keys},
-    Config,
+    config::{setup_test, Config},
 };
 
 fn get_initial_reserved_validators(config: &Config) -> Vec<KeyPair> {
@@ -58,7 +59,9 @@ async fn get_current_and_next_era_non_reserved_validators(
     (current_non_reserved, stored_non_reserved)
 }
 
-pub async fn era_validators(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn era_validators() -> anyhow::Result<()> {
+    let config = setup_test();
     let connection = config.get_first_signed_connection().await;
     let root_connection = config.create_root_connection().await;
 
@@ -158,7 +161,11 @@ pub async fn era_validators(config: &Config) -> anyhow::Result<()> {
         "Non-reserved validators set is not properly updated in the next era."
     );
 
-    let block_number = connection.connection.get_best_block().await;
+    let block_number = connection
+        .connection
+        .get_best_block()
+        .await?
+        .ok_or(anyhow!("Failed to retrieve best block number!"))?;
     connection
         .connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)

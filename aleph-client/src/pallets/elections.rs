@@ -6,8 +6,10 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
-    pallet_elections::pallet::Call::{ban_from_committee, change_validators},
-    primitives::{BanConfig, BanInfo},
+    pallet_elections::pallet::Call::{
+        ban_from_committee, change_validators, set_elections_openness,
+    },
+    primitives::{BanConfig, BanInfo, ElectionOpenness},
     AccountId, BlockHash,
     Call::Elections,
     Connection, RootConnection, SudoCall, TxStatus,
@@ -41,7 +43,7 @@ pub trait ElectionsApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
-    async fn get_session_period(&self) -> u32;
+    async fn get_session_period(&self) -> anyhow::Result<u32>;
 }
 
 #[async_trait::async_trait]
@@ -66,6 +68,11 @@ pub trait ElectionsSudoApi {
         &self,
         account: AccountId,
         ban_reason: Vec<u8>,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash>;
+    async fn set_election_openness(
+        &self,
+        mode: ElectionOpenness,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
 }
@@ -157,10 +164,10 @@ impl ElectionsApi for Connection {
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
-    async fn get_session_period(&self) -> u32 {
+    async fn get_session_period(&self) -> anyhow::Result<u32> {
         let addrs = api::constants().elections().session_period();
 
-        self.client.constants().at(&addrs).unwrap()
+        self.client.constants().at(&addrs).map_err(|e| e.into())
     }
 }
 
@@ -210,6 +217,16 @@ impl ElectionsSudoApi for RootConnection {
             banned: account,
             ban_reason,
         });
+        self.sudo_unchecked(call, status).await
+    }
+
+    async fn set_election_openness(
+        &self,
+        mode: ElectionOpenness,
+        status: TxStatus,
+    ) -> anyhow::Result<BlockHash> {
+        let call = Elections(set_elections_openness { openness: mode });
+
         self.sudo_unchecked(call, status).await
     }
 }

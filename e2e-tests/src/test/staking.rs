@@ -21,7 +21,7 @@ use primitives::{
 
 use crate::{
     accounts::{account_ids_from_keys, accounts_seeds_to_keys, get_validators_seeds},
-    config::Config,
+    config::{setup_test, Config},
 };
 
 fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPair>) {
@@ -41,7 +41,9 @@ fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPai
 // 3. bond controller account to stash account, stash = controller and set controller to StakerStatus::Nominate
 // 4. wait for new era
 // 5. send payout stakers tx
-pub async fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn staking_era_payouts() -> anyhow::Result<()> {
+    let config = setup_test();
     let (stashes_accounts_key_pairs, validator_accounts) = get_validator_stashes_key_pairs(config);
 
     let node = &config.node;
@@ -106,7 +108,9 @@ pub async fn staking_era_payouts(config: &Config) -> anyhow::Result<()> {
 // 7. add 4th validator which is the new stash account
 // 8. wait for next era
 // 9. claim rewards for the stash account
-pub async fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn staking_new_validator() -> anyhow::Result<()> {
+    let config = setup_test();
     let controller_seed = "//Controller";
     let controller = keypair_from_string(controller_seed);
     let controller_account = AccountId::from(controller.signer().public());
@@ -174,7 +178,7 @@ pub async fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
         &stash_account, &controller_account, &bonded_controller_account
     );
 
-    let validator_keys = root_connection.connection.author_rotate_keys().await;
+    let validator_keys = root_connection.connection.author_rotate_keys().await?;
     let controller_connection =
         SignedConnection::new(node.to_string(), KeyPair::new(controller.signer().clone())).await;
     controller_connection
@@ -194,7 +198,9 @@ pub async fn staking_new_validator(config: &Config) -> anyhow::Result<()> {
             total: MIN_VALIDATOR_BOND,
             active: MIN_VALIDATOR_BOND,
             unlocking: BoundedVec(vec![]),
-            claimed_rewards: BoundedVec(vec![]),
+            // since era is 3 sessions, validate is done in the first block of 2nd session,
+            // that is already after elections has been done for 1st era
+            claimed_rewards: BoundedVec(vec![0]),
         }
     );
 

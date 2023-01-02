@@ -10,7 +10,7 @@ use aleph_client::{
 use futures::future::join_all;
 use primitives::{staking::MIN_VALIDATOR_BOND, TOKEN};
 
-use crate::{accounts::get_validators_raw_keys, Config};
+use crate::{accounts::get_validators_raw_keys, config::Config};
 
 /// Get all validators assumed for test
 pub fn get_test_validators(config: &Config) -> EraValidators<KeyPair> {
@@ -103,7 +103,11 @@ pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
 /// Endow validators (stashes and controllers), bond and rotate keys.
 ///
 /// Signer of `connection` should have enough balance to endow new accounts.
-pub async fn prepare_validators(connection: &SignedConnection, node: &str, accounts: &Accounts) {
+pub async fn prepare_validators(
+    connection: &SignedConnection,
+    node: &str,
+    accounts: &Accounts,
+) -> anyhow::Result<()> {
     connection
         .batch_transfer(
             &accounts.stash_accounts,
@@ -134,7 +138,7 @@ pub async fn prepare_validators(connection: &SignedConnection, node: &str, accou
     }
 
     for controller in accounts.controller_raw_keys.iter() {
-        let keys = connection.connection.author_rotate_keys().await;
+        let keys = connection.connection.author_rotate_keys().await?;
         let connection =
             SignedConnection::new(node.to_string(), KeyPair::new(controller.clone())).await;
         handles.push(tokio::spawn(async move {
@@ -147,4 +151,5 @@ pub async fn prepare_validators(connection: &SignedConnection, node: &str, accou
     }
 
     join_all(handles).await;
+    Ok(())
 }

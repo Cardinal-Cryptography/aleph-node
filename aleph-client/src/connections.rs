@@ -39,9 +39,13 @@ pub trait SudoCall {
 impl SudoCall for RootConnection {
     async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<BlockHash> {
         info!(target: "aleph-client", "sending call as sudo_unchecked {:?}", call);
-        let sudo = api::tx()
-            .sudo()
-            .sudo_unchecked_weight(call, Weight { ref_time: 0 });
+        let sudo = api::tx().sudo().sudo_unchecked_weight(
+            call,
+            Weight {
+                ref_time: 0,
+                proof_size: 0,
+            },
+        );
 
         self.as_signed().send_tx(sudo, status).await
     }
@@ -138,12 +142,14 @@ impl SignedConnection {
         if let Some(details) = tx.validation_details() {
             info!(target:"aleph-client", "Sending extrinsic {}.{} with params: {:?}", details.pallet_name, details.call_name, params);
         }
+
         let progress = self
             .connection
             .client
             .tx()
             .sign_and_submit_then_watch(&tx, &self.signer, params)
-            .await?;
+            .await
+            .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
         // In case of Submitted hash does not mean anything
         let hash = match status {

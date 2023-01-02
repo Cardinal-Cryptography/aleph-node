@@ -12,8 +12,8 @@ use primitives::{SessionCount, SessionIndex};
 use sp_runtime::Perbill;
 
 use crate::{
-    accounts::account_ids_from_keys, elections::get_members_subset_for_session,
-    validators::get_test_validators, Config,
+    accounts::account_ids_from_keys, config::Config, elections::get_members_subset_for_session,
+    validators::get_test_validators,
 };
 
 const RESERVED_SEATS: u32 = 2;
@@ -186,7 +186,7 @@ pub async fn check_underperformed_count_for_sessions(
     end_session: SessionIndex,
     ban_session_threshold: SessionCount,
 ) -> anyhow::Result<()> {
-    let session_period = connection.get_session_period().await;
+    let session_period = connection.get_session_period().await?;
 
     let validators: Vec<_> = reserved_validators
         .iter()
@@ -195,11 +195,12 @@ pub async fn check_underperformed_count_for_sessions(
 
     for session in start_session..end_session {
         let session_end_block = (session + 1) * session_period;
-        let session_end_block_hash = connection.get_block_hash(session_end_block).await;
+        let session_end_block_hash = connection.get_block_hash(session_end_block).await?;
 
         let previous_session_end_block = session_end_block - session_period;
-        let previous_session_end_block_hash =
-            connection.get_block_hash(previous_session_end_block).await;
+        let previous_session_end_block_hash = connection
+            .get_block_hash(previous_session_end_block)
+            .await?;
 
         let members =
             get_members_for_session(reserved_validators, non_reserved_validators, seats, session);

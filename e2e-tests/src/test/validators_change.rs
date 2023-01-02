@@ -6,11 +6,15 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus},
     AccountId, Pair, TxStatus,
 };
+use anyhow::anyhow;
 use log::info;
 
-use crate::{accounts::get_validators_keys, config::Config};
+use crate::{accounts::get_validators_keys, config::setup_test};
 
-pub async fn change_validators(config: &Config) -> anyhow::Result<()> {
+#[tokio::test]
+pub async fn change_validators() -> anyhow::Result<()> {
+    let config = setup_test();
+
     let accounts = get_validators_keys(config);
     let connection = config.create_root_connection().await;
 
@@ -87,7 +91,11 @@ pub async fn change_validators(config: &Config) -> anyhow::Result<()> {
         },
         committee_size_after
     );
-    let block_number = connection.connection.get_best_block().await;
+    let block_number = connection
+        .connection
+        .get_best_block()
+        .await?
+        .ok_or(anyhow!("Failed to retrieve best block!"))?;
     connection
         .connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)

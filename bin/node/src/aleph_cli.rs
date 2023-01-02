@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use aleph_primitives::DEFAULT_UNIT_CREATION_DELAY;
-use clap::{ArgGroup, Parser};
 use finality_aleph::UnitCreationDelay;
 use log::warn;
+use sc_cli::clap::{self, ArgGroup, Parser};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(group(ArgGroup::new("backup")))]
@@ -40,6 +40,12 @@ pub struct AlephCli {
     /// BEHAVIOUR AND PUNISHED ACCORDINGLY!
     #[clap(long, default_value_t = 20)]
     max_nonfinalized_blocks: u32,
+
+    /// Experimental flag, allows pruning
+    ///
+    /// TURNING THIS FLAG ON, CAN LEAD TO MALICIOUS BEHAVIOUR AND CAN BE PUNISHED ACCORDINGLY!
+    #[clap(long, default_value_t = false)]
+    experimental_pruning: bool,
 }
 
 impl AlephCli {
@@ -68,5 +74,9 @@ impl AlephCli {
             warn!("Running block production with a value of max-nonfinalized-blocks {}, which is not the default of 20. THIS MIGHT BE CONSIDERED MALICIOUS BEHAVIOUR AND RESULT IN PENALTIES!", self.max_nonfinalized_blocks);
         }
         self.max_nonfinalized_blocks
+    }
+
+    pub fn experimental_pruning(&self) -> bool {
+        self.experimental_pruning
     }
 }
