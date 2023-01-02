@@ -6,6 +6,7 @@ use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 use crate::sync::{BlockIdentifier, Header};
 
 mod justification;
+mod status_notifier;
 
 // Probably can be removed after removal of legacy justification sync.
 pub use justification::SessionVerifier;
