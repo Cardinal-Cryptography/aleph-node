@@ -65,11 +65,6 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'        
-
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
@@ -144,11 +139,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'        
-
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
@@ -181,11 +171,6 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'        
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -905,11 +890,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'        
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
