@@ -27,6 +27,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             upgrade_finalization_wait_sessions: get_env("UPGRADE_FINALIZATION_WAIT_SESSIONS"),
             adder: get_env("ADDER"),
             adder_metadata: get_env("ADDER_METADATA"),
+            out_latency: get_env("OUT_LATENCY"),
         },
     }
 });
@@ -34,7 +35,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
 fn get_env<T>(name: &str) -> Option<T>
 where
     T: FromStr,
-    <T as FromStr>::Err: std::fmt::Debug,
+    T::Err: std::fmt::Debug,
 {
     env::var(name).ok().map(|v| {
         v.parse()
@@ -134,5 +135,5 @@ pub struct TestCaseParams {
     pub adder_metadata: Option<String>,
 
     /// Milliseconds of network latency
-    pub out_latency: u64,
+    pub out_latency: Option<u64>,
 }
