@@ -11,6 +11,8 @@ use crate::naming::{
     RELATION_OBJECT_DEF,
 };
 
+/// Returns the unique field attribute (either `#[constant]`, `#[public_input]` or
+/// `#[private_input]`).
 pub(super) fn get_field_attr(field: &Field) -> SynResult<&Attribute> {
     let attrs = field
         .attrs
@@ -34,11 +36,14 @@ pub(super) fn get_field_attr(field: &Field) -> SynResult<&Attribute> {
     }
 }
 
+/// Returns mapping from the modifier name to the literal value. Expects only common modifiers in
+/// `attr`.
 pub(super) fn get_relation_field_config(attr: &Attribute) -> SynResult<HashMap<String, String>> {
     let permissible_config = HashSet::from([FIELD_FRONTEND_TYPE, FIELD_PARSER]);
     get_field_config(attr, &permissible_config)
 }
 
+/// Returns mapping from the modifier name to the literal value. Accepts all modifiers.
 pub(super) fn get_public_input_field_config(
     attr: &Attribute,
 ) -> SynResult<HashMap<String, String>> {
@@ -51,6 +56,7 @@ pub(super) fn get_public_input_field_config(
     get_field_config(attr, &permissible_config)
 }
 
+/// Returns mapping from the modifier name to the literal value.
 fn get_field_config(
     attr: &Attribute,
     permissible_config: &HashSet<&str>,
@@ -85,6 +91,8 @@ fn get_field_config(
     }
 }
 
+/// Tries casting `item` to `ItemStruct` only when it is attributed with
+/// `#[relation_object_definition]`.
 pub(super) fn as_relation_object_def(item: &Item) -> Option<ItemStruct> {
     match item {
         Item::Struct(item_struct) => item_struct
@@ -96,6 +104,7 @@ pub(super) fn as_relation_object_def(item: &Item) -> Option<ItemStruct> {
     }
 }
 
+/// Tries casting `item` to `ItemFn` only when it is attributed with `#[circuit_definition]`.
 pub(super) fn as_circuit_def(item: &Item) -> Option<ItemFn> {
     match item {
         Item::Fn(item_fn) => item_fn
@@ -107,6 +116,7 @@ pub(super) fn as_circuit_def(item: &Item) -> Option<ItemFn> {
     }
 }
 
+/// Tries casting `item` to `ItemType` only when it is attributed with `#[circuit_field]`.
 pub(super) fn as_circuit_field_def(item: &Item) -> Option<ItemType> {
     match item {
         Item::Type(item_type) => item_type

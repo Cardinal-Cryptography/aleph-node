@@ -17,10 +17,14 @@ use crate::{
     },
 };
 
+/// Common data for constant, public and private inputs.
 #[derive(Clone)]
 pub(super) struct RelationField {
+    /// The source item AST.
     pub field: Field,
+    /// The value of the `frontend_type` modifier, if any.
     pub frontend_type: Option<String>,
+    /// The value of the `parse_with` modifier, if any.
     pub parse_with: Option<String>,
 }
 
@@ -39,10 +43,14 @@ impl TryFrom<Field> for RelationField {
     }
 }
 
+/// Full data for public inputs.
 #[derive(Clone)]
 pub(super) struct PublicInputField {
+    /// Common data for all inputs.
     pub inner: RelationField,
+    /// The value of the `serialize_with` modifier, if any.
     pub serialize_with: Option<String>,
+    /// The value of the `order` modifier, if any.
     pub order: Option<usize>,
 }
 
@@ -84,20 +92,29 @@ impl TryFrom<Field> for PublicInputField {
     }
 }
 
+/// Intermediate representation of the source code.
 pub(super) struct IR {
+    /// Prefix for the new structs.
     pub relation_base_name: Ident,
 
+    /// All constants fields with modifiers.
     pub constants: Vec<RelationField>,
+    /// All public input fields with modifiers.
     pub public_inputs: Vec<PublicInputField>,
+    /// All private input fields with modifiers.
     pub private_inputs: Vec<RelationField>,
 
+    /// Circuit field type alias.
     pub circuit_field: ItemType,
 
+    /// Circuit definition method.
     pub circuit_definition: ItemFn,
 
+    /// Imports to be inherited.
     pub imports: Vec<ItemUse>,
 }
 
+/// The only items that will be processed from the module.
 struct Items {
     struct_def: ItemStruct,
     circuit_def: ItemFn,
@@ -119,17 +136,22 @@ impl TryFrom<ItemMod> for IR {
         let relation_base_name = struct_def.ident.clone();
 
         // Warn about items visibility.
-        if !matches!(struct_def.vis, Visibility::Inherited) {
-            eprintln!("Warning: The `{relation_base_name}` struct is public, but will be erased.")
-        };
-        if !matches!(circuit_definition.vis, Visibility::Inherited) {
-            eprintln!("Warning: The circuit definition is public, but will be erased.")
-        }
-        if !matches!(circuit_field.vis, Visibility::Public(_)) {
-            eprintln!("Warning: The circuit field must be public. Visibility will be changed.");
-            circuit_field.vis = Visibility::Public(VisPublic {
-                pub_token: Default::default(),
-            });
+        #[cfg(feature = "std")]
+        {
+            if !matches!(struct_def.vis, Visibility::Inherited) {
+                eprintln!(
+                    "Warning: The `{relation_base_name}` struct is public, but will be erased."
+                )
+            };
+            if !matches!(circuit_definition.vis, Visibility::Inherited) {
+                eprintln!("Warning: The circuit definition is public, but will be erased.")
+            }
+            if !matches!(circuit_field.vis, Visibility::Public(_)) {
+                eprintln!("Warning: The circuit field must be public. Visibility will be changed.");
+                circuit_field.vis = Visibility::Public(VisPublic {
+                    pub_token: Default::default(),
+                });
+            }
         }
 
         circuit_field
@@ -150,6 +172,7 @@ impl TryFrom<ItemMod> for IR {
         let public_inputs = extract_relation_fields(&fields, PUBLIC_INPUT_FIELD)?;
         let private_inputs = extract_relation_fields(&fields, PRIVATE_INPUT_FIELD)?;
 
+        // Read field modifiers.
         let constants = cast_fields(constants)?;
         let public_inputs = cast_fields(public_inputs)?;
         let private_inputs = cast_fields(private_inputs)?;
@@ -166,6 +189,9 @@ impl TryFrom<ItemMod> for IR {
     }
 }
 
+/// Returns the unique element from `items` that satisfies `extractor`.
+///
+/// `outer_span` and `item_name` are used only for error raising.
 fn extract_item<I: Spanned + Clone, E: Fn(&Item) -> Option<I>>(
     items: &[Item],
     extractor: E,
@@ -186,6 +212,7 @@ fn extract_item<I: Spanned + Clone, E: Fn(&Item) -> Option<I>>(
     }
 }
 
+/// Analyze `item_mod` and return only essential data from there.
 fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
     let items = &item_mod
         .content
@@ -220,6 +247,11 @@ fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
     })
 }
 
+/// Returns all the elements of `fields` that are attributed with `field_name`, e.g.
+/// ```rust,no_run
+/// #[public_input]
+/// a: u8
+/// ```
 fn extract_relation_fields<FieldType: ?Sized>(
     fields: &FieldsNamed,
     field_type: &FieldType,
@@ -235,6 +267,7 @@ where
         .collect())
 }
 
+/// Tries casting every element in `fields` into `F`.
 fn cast_fields<F: TryFrom<Field, Error = SynError>>(fields: Vec<Field>) -> SynResult<Vec<F>> {
     fields
         .into_iter()

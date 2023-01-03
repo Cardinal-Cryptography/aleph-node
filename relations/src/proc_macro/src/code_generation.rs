@@ -13,6 +13,7 @@ use crate::{
     naming::{struct_name_with_full, struct_name_with_public, struct_name_without_input},
 };
 
+/// Generates the whole code based on the intermediate representation.
 pub(super) fn generate_code(ir: IR) -> SynResult<TokenStream2> {
     let imports = &ir.imports;
     let circuit_field = &ir.circuit_field;
@@ -29,6 +30,7 @@ pub(super) fn generate_code(ir: IR) -> SynResult<TokenStream2> {
     Ok(TokenStream2::from_iter(blocks))
 }
 
+/// Generates struct, constructor and getters for the relation object with constants only.
 fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
     let struct_name = struct_name_without_input(&ir.relation_base_name);
     let const_frontend_decls = field_frontend_decls(&ir.constants);
@@ -54,6 +56,7 @@ fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
     })
 }
 
+/// Returns reordered copies of the elements in `fields`.
 fn get_ordered_inputs(fields: &[PublicInputField]) -> SynResult<Vec<PublicInputField>> {
     #[derive(Copy, Clone)]
     enum Ordering {
@@ -107,6 +110,8 @@ fn generate_public_input_serialization(ir: &IR) -> SynResult<TokenStream2> {
     })
 }
 
+/// Generates struct, constructor, getters, public input serialization and downcasting for the
+/// relation object with constants and public input.
 fn generate_relation_with_public(ir: &IR) -> SynResult<TokenStream2> {
     let struct_name = struct_name_with_public(&ir.relation_base_name);
     let struct_name_without_input = struct_name_without_input(&ir.relation_base_name);
@@ -160,6 +165,7 @@ fn generate_relation_with_public(ir: &IR) -> SynResult<TokenStream2> {
     })
 }
 
+/// Generates struct, constructor, getters downcasting for the full relation object.
 fn generate_relation_with_full(ir: &IR) -> SynResult<TokenStream2> {
     let struct_name = struct_name_with_full(&ir.relation_base_name);
     let struct_name_with_public = struct_name_with_public(&ir.relation_base_name);
@@ -217,6 +223,7 @@ fn generate_relation_with_full(ir: &IR) -> SynResult<TokenStream2> {
     })
 }
 
+/// Generates `ConstraintSynthesizer` implementations.
 fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
     let struct_name_without_input = struct_name_without_input(&ir.relation_base_name);
     let struct_name_with_full = struct_name_with_full(&ir.relation_base_name);
@@ -232,7 +239,9 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
                 if cs.is_in_setup_mode() {
                     #(#body)*
                 } else {
-                    eprintln!("For proof generation, you should use relation object with full input.");
+                    #[cfg(feature = "std")] {
+                        eprintln!("For proof generation, you should use relation object with full input.");
+                    }
                     Err(ark_relations::r1cs::SynthesisError::AssignmentMissing)
                 }
             }
