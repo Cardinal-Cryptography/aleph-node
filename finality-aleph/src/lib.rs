@@ -22,7 +22,7 @@ use tokio::time::Duration;
 use crate::{
     abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
-    network::{data::split::Split, protocol_name},
+    network::data::split::Split,
     session::{
         first_block_of_session, last_block_of_session, session_id_from_block_num,
         SessionBoundaries, SessionId,
@@ -44,6 +44,8 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
+// TODO: remove when module is used
+#[allow(dead_code)]
 mod sync;
 #[cfg(test)]
 pub mod testing;
@@ -52,7 +54,7 @@ pub use abft::{Keychain, NodeCount, NodeIndex, Recipient, SignatureSet, SpawnHan
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
 pub use import::AlephBlockImport;
 pub use justification::{AlephJustification, JustificationNotification};
-pub use network::Protocol;
+pub use network::{Protocol, ProtocolNaming};
 pub use nodes::{run_nonvalidator_node, run_validator_node};
 pub use session::SessionPeriod;
 
@@ -68,11 +70,12 @@ enum Error {
 }
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
-pub fn peers_set_config(protocol: Protocol) -> sc_network_common::config::NonDefaultSetConfig {
-    let name = protocol_name(&protocol);
-
+pub fn peers_set_config(
+    naming: ProtocolNaming,
+    protocol: Protocol,
+) -> sc_network_common::config::NonDefaultSetConfig {
     let mut config = sc_network_common::config::NonDefaultSetConfig::new(
-        name,
+        naming.protocol_name(&protocol),
         // max_notification_size should be larger than the maximum possible honest message size (in bytes).
         // Max size of alert is UNIT_SIZE * MAX_UNITS_IN_ALERT ~ 100 * 5000 = 50000 bytes
         // Max size of parents response UNIT_SIZE * N_MEMBERS ~ 100 * N_MEMBERS
@@ -80,9 +83,8 @@ pub fn peers_set_config(protocol: Protocol) -> sc_network_common::config::NonDef
         1024 * 1024,
     );
 
-    config.set_config = match protocol {
-        Protocol::Authentication => sc_network_common::config::SetConfig::default(),
-    };
+    config.set_config = sc_network_common::config::SetConfig::default();
+    config.add_fallback_names(naming.fallback_protocol_names(&protocol));
     config
 }
 
@@ -255,6 +257,7 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub backup_saving_path: Option<PathBuf>,
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
+    pub protocol_naming: ProtocolNaming,
 }
 
 pub trait BlockchainBackend<B: Block> {
