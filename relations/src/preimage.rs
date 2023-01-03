@@ -16,7 +16,7 @@ use crate::{
     CircuitField, GetPublicInput,
 };
 
-pub type CircuitVar = FpVar<CircuitField>;
+pub type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
 // pub type CircuitField = ark_bls12_381::Fr;
 
 // Poseidon paper suggests using domain separation for this, concretely encoding the use case in the capacity element (which is fine as it is 256 bits large and has a lot of bits to fill)
@@ -70,19 +70,19 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         self,
         cs: ConstraintSystemRef<CircuitField>,
     ) -> Result<(), SynthesisError> {
-        let preimage = CircuitVar::new_witness(ns!(cs, "preimage"), || {
+        let preimage = FpVar::new_witness(ns!(cs, "preimage"), || {
             self.preimage.ok_or(AssignmentMissing)
         })?;
-        let hash = CircuitVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
+        let hash = FpVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
-        let hash_result = poseidon::one_to_one_hash(
-            &DOMAIN_SEPARATOR,
-            self.preimage.ok_or(SynthesisError::AssignmentMissing)?,
-        )?;
+        // let hash_result = poseidon::one_to_one_hash(
+        //     &DOMAIN_SEPARATOR,
+        //     self.preimage.ok_or(SynthesisError::AssignmentMissing)?,
+        // )?;
 
-        // let h = FpVar::Var(hash_result);
+        // // let h = FpVar::Var(hash_result);
 
-        hash.enforce_equal(&hash_result)?;
+        // hash.enforce_equal(&hash_result)?;
 
         Ok(())
     }

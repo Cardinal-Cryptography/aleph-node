@@ -14,7 +14,7 @@ ark-r1cs-std = {version = "0.3" }
 ark-relations = { version = "0.3" }
 ark-bls12-381 = { version = "^0.3.0" }
 # ark-snark = { version = "0.3", optional = true }
-# ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs" }
+ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs" }
 # decaf377 = {  version="0.1", features = ["r1cs"] }
 # num-bigint = "0.4.3"
 once_cell = "1.8"

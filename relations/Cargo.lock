@@ -275,6 +275,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-sponge"
+version = "0.3.0"
+source = "git+https://github.com/penumbra-zone/sponge?branch=r1cs#113469aef48a9c5f458dbf523a509d4769affbf2"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest",
+ "rand_chacha",
+ "tracing",
+]
+
+[[package]]
 name = "ark-std"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -527,6 +545,7 @@ dependencies = [
  "ark-ff",
  "ark-r1cs-std",
  "ark-relations",
+ "ark-sponge",
  "once_cell",
  "poseidon-paramgen",
  "poseidon-permutation",

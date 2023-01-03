@@ -74,6 +74,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-nonnative-field"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "440ad4569974910adbeb84422b7e622b79e08d27142afd113785b7fcfb446186"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-std",
+ "derivative",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "tracing",
+]
+
+[[package]]
 name = "ark-r1cs-std"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -109,6 +127,24 @@ checksum = "1d6c2b318ee6e10f8c2853e73a83adc0ccb88995aa978d8a3408d492ab2ee671"
 dependencies = [
  "ark-std",
  "digest",
+]
+
+[[package]]
+name = "ark-sponge"
+version = "0.3.0"
+source = "git+https://github.com/penumbra-zone/sponge?branch=r1cs#113469aef48a9c5f458dbf523a509d4769affbf2"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest",
+ "rand_chacha",
+ "tracing",
 ]
 
 [[package]]
@@ -328,6 +364,7 @@ dependencies = [
  "ark-ff",
  "ark-r1cs-std",
  "ark-relations",
+ "ark-sponge",
  "once_cell",
  "poseidon-paramgen",
  "poseidon-permutation",
