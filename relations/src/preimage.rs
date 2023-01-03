@@ -1,6 +1,6 @@
 // This relation showcases how to use Poseidon in r1cs circuits
 use ark_bls12_381::Fr;
-use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar, ToBytesGadget};
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
     ns,
     r1cs::{
@@ -75,14 +75,10 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         })?;
         let hash = FpVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
-        // let hash_result = poseidon::one_to_one_hash(
-        //     &DOMAIN_SEPARATOR,
-        //     self.preimage.ok_or(SynthesisError::AssignmentMissing)?,
-        // )?;
+        let domain_separator = FpVar::new_constant(cs.clone(), *DOMAIN_SEPARATOR)?;
+        let hash_result = poseidon::one_to_one_hash(cs, &domain_separator, preimage)?;
 
-        // // let h = FpVar::Var(hash_result);
-
-        // hash.enforce_equal(&hash_result)?;
+        hash.enforce_equal(&hash_result)?;
 
         Ok(())
     }

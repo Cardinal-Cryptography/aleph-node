@@ -6,7 +6,6 @@ use ark_sponge::{
 };
 use once_cell::sync::Lazy;
 use poseidon_paramgen::{Alpha, PoseidonParameters};
-use poseidon_permutation::Instance;
 
 pub mod parameters {
     include!(concat!(env!("OUT_DIR"), "/parameters.rs"));
@@ -39,6 +38,7 @@ fn convert_to_ark_sponge_parameters(params: PoseidonParameters<Fr>) -> ArkPoseid
     }
 }
 
+/// hashes one field value inside the circuit
 pub fn one_to_one_hash(
     cs: ConstraintSystemRef<Fr>,
     domain_separator: &FpVar,

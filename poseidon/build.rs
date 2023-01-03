@@ -5,7 +5,7 @@ use std::{
 };
 
 use ark_bls12_381::{Fr, FrParameters};
-use ark_ff::fields::{Fp256, Fp256Parameters, FpParameters};
+use ark_ff::fields::FpParameters;
 use poseidon_paramgen::poseidon_build;
 
 fn main() {
@@ -13,9 +13,6 @@ fn main() {
     // t = arity + 1, so t=2 is a 1:1 hash, t=3 is a 2:1 hash etc
     // see https://spec.filecoin.io/#section-algorithms.crypto.poseidon.filecoins-poseidon-instances for similar specification used by Filecoin
     let t_values = vec![2, 3];
-
-    // let params_codegen =
-    //     poseidon_build::compile::<Fq>(security_level, t_values, FqParameters::MODULUS, true);
 
     // Fr = Fp256
     let params_codegen =
