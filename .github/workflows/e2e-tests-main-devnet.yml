@@ -183,7 +183,7 @@ jobs:
           retention-days: 7
 
   run-aleph-client-subxt-codegen-check:
-    needs: [build-test-docker, build-test-client]
+    needs: [build-test-docker]
     name: Checks if runtime file in aleph-client is up-to-date
     runs-on: ubuntu-20.04
     steps:
@@ -200,7 +200,7 @@ jobs:
         run: |
           cd aleph-client/
           docker build --tag subxt:latest -f docker/Dockerfile .
-          docker run -it --rm --network host subxt:latest
+          docker run --rm --network host subxt:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
