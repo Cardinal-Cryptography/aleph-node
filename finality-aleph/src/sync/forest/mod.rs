@@ -60,6 +60,7 @@ pub enum Error {
     CriticalBug,
     JustificationPruned,
     HeaderMissingParentID,
+    ParentNotImported,
 }
 
 impl From<VertexError> for Error {
@@ -299,9 +300,21 @@ impl<I: PeerID, J: Justification> Forest<I, J> {
         header: &J::Header,
         holder: Option<I>,
     ) -> Result<HashSet<BlockIdFor<J>>, Error> {
-        use VertexState::Candidate;
+        use VertexState::*;
         let id = header.id();
         let mut modified = self.update_header(header, holder)?;
+        if let Candidate(vertex) = self.get_mut(&id)? {
+            let parent_id = vertex.parent().clone().ok_or(Error::MissingParent)?;
+            match self.get_mut(&parent_id)? {
+                Unknown | HopelessFork | BelowMinimal => return Err(Error::MissingVertex),
+                HighestFinalized => (),
+                Candidate(parent_vertex) => {
+                    if !parent_vertex.is_imported() {
+                        return Err(Error::ParentNotImported);
+                    }
+                }
+            };
+        }
         if let Candidate(vertex) = self.get_mut(&id)? {
             let summary = vertex.try_insert_body(header)?;
             self.process_transition(id, summary, &mut modified)?;

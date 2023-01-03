@@ -114,6 +114,10 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
         Ok(self.state()? == (Content::Justification, Importance::Imported))
     }
 
+    pub fn is_imported(&self) -> bool {
+        self.importance == Importance::Imported
+    }
+
     pub fn know_most(&self) -> &HashSet<I> {
         &self.know_most
     }
