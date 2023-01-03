@@ -68,7 +68,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.6.1'        
+          version: '3.6.1'
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -115,7 +115,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.6.1'        
+          version: '3.6.1'
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
@@ -153,7 +153,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.6.1'        
+          version: '3.6.1'
 
       - name: Restore cache
         uses: ./.github/actions/restore-cache
@@ -182,6 +182,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  run-aleph-client-subxt-codegen-check:
+    needs: [build-test-docker, build-test-client]
+    name: Checks if runtime file in aleph-client is up-to-date
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run one node in the background
+        uses: ./.github/actions/run-e2e-test
+        with:
+          node-count: 1
+          min-validator-count: 1
+
+      - name: check if runtime metadata matches
+        run: |
+          cd aleph-client/
+          docker build --tag subxt:latest -f docker/Dockerfile .
+          docker run -it --rm --network host subxt:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
@@ -839,7 +858,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.6.1'        
+          version: '3.6.1'
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown

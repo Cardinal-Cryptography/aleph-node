@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+subxt codegen --derive Clone --derive Debug --derive Eq --derive PartialEq | rustfmt --edition=2021 > aleph_zero.rs
+diff -y --suppress-common-lines aleph_zero.rs aleph_zero_current.rs
+diff_exit_code=$?
+if [[ ! $diff_exit_code -eq 0 ]]; then
+  echo "Current runtime metadata is different than versioned in git!"
+  echo "Run subxt codegen --derive Clone --derive Debug --derive Eq --derive PartialEq | rustfmt --edition=2021 >" \
+"src/aleph_zero.rs from aleph-client directory and commit to git."
+   exit 1
+fi
+echo "Current runtime metadata and versioned in git matches."
