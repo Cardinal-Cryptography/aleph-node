@@ -1,3 +1,9 @@
+use std::{
+    env, fs,
+    io::{BufWriter, Write},
+    path::PathBuf,
+};
+
 use ark_bls12_381::{Fq, FqParameters};
 use ark_ff::FpParameters;
 use poseidon_paramgen::poseidon_build;
@@ -11,5 +17,14 @@ fn main() {
     let params_codegen =
         poseidon_build::compile::<Fq>(security_level, t_values, FqParameters::MODULUS, true);
 
-    println!("@@@ {}", params_codegen);
+    let output_directory: PathBuf =
+        PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR environmental variable must be set"))
+            .join("parameters.rs");
+
+    let fh = fs::File::create(output_directory).expect("can't create source file");
+
+    let mut f = BufWriter::new(fh);
+
+    f.write_all(params_codegen.as_bytes())
+        .expect("can write parameters to file");
 }
