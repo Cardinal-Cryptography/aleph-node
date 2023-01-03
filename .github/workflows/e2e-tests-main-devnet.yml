@@ -99,6 +99,38 @@ jobs:
         uses: ./.github/actions/post-cache
 
 
+  build-synthetic-network-docker:
+    needs: [build-test-docker]
+    name: Build docker image with the test node artifact and support for synthetic-network
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download artifact with docker image for aleph-node
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-test-docker
+
+      - name: Load node docker image
+        shell: bash
+        run: docker load -i aleph-node.tar
+
+      - name: Build test docker image
+        id: build-image
+        run: |
+          scripts/synthetic-network/build_synthetic-network.sh
+          docker save -o aleph-node.tar aleph-node:syntheticnet
+
+      - name: Upload test docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: aleph-test-synthetic-docker
+          path: aleph-node.tar
+          if-no-files-found: error
+          retention-days: 7
+
+
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
@@ -658,6 +690,42 @@ jobs:
 #        run: |
 #          ./scripts/catchup_version_upgrade_test.sh
 
+
+  run-e2e-high-out-latency:
+    needs: [build-synthetic-network-docker, build-test-client]
+    name: Run high out-latency test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: high_out_latency
+          image-path: aleph-test-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network.yml
+        timeout-minutes: 30
+
+  no_quorum_without_high_out_latency:
+    needs: [build-synthetic-network-docker, build-test-client]
+    name: Run high out-latency for every quorum
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: no_quorum_without_high_out_latency
+          image-path: aleph-test-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network.yml
+        timeout-minutes: 15
+
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
@@ -687,6 +755,8 @@ jobs:
       run-e2e-adder-contract-test,
 #      run-e2e-failing-version-upgrade,
 #      run-e2e-version-upgrade-catchup,
+      run-e2e-high-out-latency,
+      no_quorum_without_high_out_latency,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
