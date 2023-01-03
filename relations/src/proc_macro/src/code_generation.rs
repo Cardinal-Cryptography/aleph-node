@@ -34,7 +34,12 @@ fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
     let const_frontend_decls = field_frontend_decls(&ir.constants);
     let const_backend_decls = field_backend_decls(&ir.constants);
     let const_castings = field_castings(&ir.constants)?;
-    let getters = plain_field_getters(&ir.constants);
+    let getters = [
+        plain_field_getters(&ir.constants),
+        failing_field_getters(&ir.public_inputs),
+        failing_field_getters(&ir.private_inputs),
+    ]
+    .concat();
 
     Ok(quote! {
         pub struct #struct_name {
@@ -62,7 +67,7 @@ fn get_ordered_inputs(fields: &[PublicInputField]) -> SynResult<Vec<PublicInputF
     let mut orders = HashSet::new();
 
     for (idx, f) in fields.iter().enumerate() {
-        let maybe_explicit_order = f.order.clone();
+        let maybe_explicit_order = f.order;
         if matches!(ordering, Ordering::Unknown) {
             ordering = maybe_explicit_order.map_or(Ordering::Implicit, |_| Ordering::Explicit);
         }
@@ -97,7 +102,7 @@ fn generate_public_input_serialization(ir: &IR) -> SynResult<TokenStream2> {
 
     Ok(quote! {
         pub fn serialize_public_input(&self) -> ark_std::vec::Vec<#circuit_field> {
-            vec![ #(#accesses),* ]
+            [ #(#accesses),* ].concat()
         }
     })
 }
@@ -223,7 +228,7 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
             fn generate_constraints(
                 self,
                 cs: ark_relations::r1cs::ConstraintSystemRef<Field>
-            ) -> Result<(), ark_relations::r1cs::SynthesisError> {
+            ) -> ark_relations::r1cs::Result<()> {
                 if cs.is_in_setup_mode() {
                     #(#body)*
                 } else {
@@ -237,7 +242,7 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
             fn generate_constraints(
                 self,
                 cs: ark_relations::r1cs::ConstraintSystemRef<Field>
-            ) -> Result<(), ark_relations::r1cs::SynthesisError> {
+            ) -> ark_relations::r1cs::Result<()> {
                     #(#body)*
             }
         }

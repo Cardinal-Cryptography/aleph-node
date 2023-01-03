@@ -3,7 +3,8 @@ use relations::{
     CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelation, FrontendAccount,
     FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
     FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput, LinearEquationRelation,
-    MerkleTreeRelation, Result as R1CsResult, Root, WithdrawRelation, XorRelation,
+    MerkleTreeRelation, Result as R1CsResult, Root, WithdrawRelation, XorRelationWithFullInput,
+    XorRelationWithPublicInput,
 };
 
 use crate::snark_relations::parsing::{
@@ -152,7 +153,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 public_xoree,
                 private_xoree,
                 result,
-            } => XorRelation::with_full_input(public_xoree, private_xoree, result)
+            } => XorRelationWithFullInput::new(result, public_xoree, private_xoree)
                 .generate_constraints(cs),
 
             RelationArgs::LinearEquation { a, x, b, y } => {
@@ -243,7 +244,7 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 public_xoree,
                 result,
                 ..
-            } => XorRelation::with_public_input(*public_xoree, *result).public_input(),
+            } => XorRelationWithPublicInput::new(*result, *public_xoree).serialize_public_input(),
 
             RelationArgs::LinearEquation { a, b, y, .. } => {
                 LinearEquationRelation::without_input(*a, *b, *y).public_input()

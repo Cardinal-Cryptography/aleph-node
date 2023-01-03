@@ -124,7 +124,7 @@ pub(super) fn successful_field_getters<F: Into<RelationField> + Clone>(
     map_fields_with_ident(fields, |rf, ident| {
         let backend_type = &rf.field.ty;
         quote! {
-            pub fn #ident(&self) -> Result<& #backend_type, ark_relations::r1cs::SynthesisError> {
+            pub fn #ident(&self) -> core::result::Result<& #backend_type, ark_relations::r1cs::SynthesisError> {
                 Ok(&self . #ident)
             }
         }
@@ -137,7 +137,7 @@ pub(super) fn failing_field_getters<F: Into<RelationField> + Clone>(
     map_fields_with_ident(fields, |rf, ident| {
         let backend_type = &rf.field.ty;
         quote! {
-            pub fn #ident(&self) -> Result<& #backend_type, ark_relations::r1cs::SynthesisError> {
+            pub fn #ident(&self) -> core::result::Result<& #backend_type, ark_relations::r1cs::SynthesisError> {
                 Err(ark_relations::r1cs::SynthesisError::AssignmentMissing)
             }
         }

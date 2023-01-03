@@ -6,7 +6,6 @@ mod merkle_tree;
 mod relation;
 mod serialization;
 mod shielder;
-mod temp;
 mod utils;
 mod xor;
 
@@ -25,4 +24,4 @@ pub use shielder::{
     WithdrawRelation,
 };
 pub use utils::*;
-pub use xor::XorRelation;
+pub use xor::{XorRelationWithFullInput, XorRelationWithPublicInput, XorRelationWithoutInput};
