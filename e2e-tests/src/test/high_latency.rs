@@ -10,6 +10,9 @@ use crate::{config::setup_test, synthetic_network::set_out_latency};
 
 const OUT_LATENCY: u64 = 500;
 
+/// Test if nodes are able to proceed despite high latency. More precisely, it first awaits predefined number of sessions, sets
+/// egress-latency for each node using same value (default is 500 milliseconds) and verifies if after it was able to proceed two
+/// more sessions.
 #[tokio::test]
 pub async fn high_out_latency() -> anyhow::Result<()> {
     let config = setup_test();
@@ -47,6 +50,9 @@ pub async fn high_out_latency() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Test if nodes are able to proceed despite high latency, but set only for a subset of nodes. More precisely, it first awaits
+/// predefined number of sessions, sets egress-latency for 1/3n of nodes using same value (default is 500 milliseconds) and
+/// verifies if after it was able to proceed two more sessions.
 #[tokio::test]
 pub async fn no_quorum_without_high_out_latency() -> anyhow::Result<()> {
     let config = setup_test();
