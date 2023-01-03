@@ -15,5 +15,6 @@ nixpkgs.mkShell.override { stdenv = env; }
   {
     inherit nativeBuildInputs;
     inherit (project) buildInputs shellHook;
+    # RUST_SRC_PATH might be needed by the `rust-analyzer`
     RUST_SRC_PATH = "${versions.rustToolchain.rust-src}/lib/rustlib/src/rust/library/";
   }
