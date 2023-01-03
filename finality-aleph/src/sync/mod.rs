@@ -10,6 +10,9 @@ mod ticker;
 
 const LOG_TARGET: &str = "aleph-block-sync";
 
+/// The identifier of a connected peer.
+pub trait PeerID: Clone + Hash + Eq {}
+
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {
     /// The block number, useful when reasoning about hopeless forks.
