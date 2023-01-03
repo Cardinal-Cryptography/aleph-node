@@ -12,9 +12,6 @@ OVERRIDE_DOCKER_COMPOSE=${OVERRIDE_DOCKER_COMPOSE:-""}
 # default minimum validator count
 MIN_VALIDATOR_COUNT=4
 
-# default minimum validator count
-MIN_VALIDATOR_COUNT=4
-
 export NODE_IMAGE=aleph-node:latest
 
 mkdir -p docker/data/

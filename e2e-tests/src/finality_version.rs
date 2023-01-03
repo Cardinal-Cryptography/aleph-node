@@ -1,5 +1,5 @@
 use aleph_client::{
-    pallets::aleph::{AlephApi, AlephRpc},
+    pallets::aleph::AlephApi,
     utility::BlocksApi,
     Connection,
 };
