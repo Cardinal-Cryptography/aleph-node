@@ -1,10 +1,11 @@
 use aleph_client::{
     pallets::{
+        elections::ElectionsApi,
         session::SessionApi,
         staking::{StakingApi, StakingSudoApi},
     },
     primitives::{CommitteeSeats, EraValidators},
-    utility::SessionEraApi,
+    utility::{BlocksApi, SessionEraApi},
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, SignedConnection, SignedConnectionApi, TxStatus,
 };
@@ -262,7 +263,9 @@ pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn check_points_after_force_new_era<S: SignedConnectionApi>(
+async fn check_points_after_force_new_era<
+    S: SignedConnectionApi + BlocksApi + ElectionsApi + AlephWaiting + StakingApi,
+>(
     connection: &S,
     start_session: SessionIndex,
     start_era: EraIndex,

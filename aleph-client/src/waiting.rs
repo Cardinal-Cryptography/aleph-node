@@ -6,6 +6,7 @@ use subxt::events::StaticEvent;
 use crate::{
     aleph_zero,
     api::session::events::NewSession,
+    connections::AsConnection,
     pallets::{session::SessionApi, staking::StakingApi},
     ConnectionApi,
 };
@@ -34,7 +35,7 @@ pub trait WaitingExt {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> AlephWaiting for C {
+impl<C: ConnectionApi + AsConnection> AlephWaiting for C {
     async fn wait_for_block<P: Fn(u32) -> bool + Send>(&self, predicate: P, status: BlockStatus) {
         let mut block_sub = match status {
             BlockStatus::Best => self
@@ -126,7 +127,7 @@ impl<C: ConnectionApi> AlephWaiting for C {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> WaitingExt for C {
+impl<C: ConnectionApi + AsConnection> WaitingExt for C {
     async fn wait_for_n_sessions(&self, n: SessionIndex, status: BlockStatus) {
         let current_session = self.get_session(None).await;
 

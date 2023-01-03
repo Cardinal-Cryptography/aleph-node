@@ -181,7 +181,7 @@ pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
 }
 
 /// For a given number of eras, in each era check whether stash balances of a validator are locked.
-async fn wait_for_successive_eras<C: ConnectionApi>(
+async fn wait_for_successive_eras<C: ConnectionApi + WaitingExt + StakingApi>(
     address: &str,
     connection: &C,
     validators_and_nominator_stashes: Vec<(KeyPair, Vec<AccountId>)>,

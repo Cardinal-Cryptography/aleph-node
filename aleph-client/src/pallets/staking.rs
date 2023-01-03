@@ -9,6 +9,7 @@ use subxt::{
 
 use crate::{
     api,
+    connections::AsConnection,
     pallet_staking::{
         pallet::pallet::{
             Call::{bond, force_new_era, nominate, set_staking_configs},
@@ -123,7 +124,7 @@ pub trait StakingRawApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> StakingApi for C {
+impl<C: ConnectionApi + AsConnection> StakingApi for C {
     async fn get_active_era(&self, at: Option<BlockHash>) -> EraIndex {
         let addrs = api::storage().staking().active_era();
 
@@ -298,7 +299,7 @@ impl StakingSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> StakingRawApi for C {
+impl<C: ConnectionApi + AsConnection> StakingRawApi for C {
     async fn get_stakers_storage_keys(
         &self,
         era: EraIndex,

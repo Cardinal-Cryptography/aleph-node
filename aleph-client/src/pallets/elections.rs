@@ -6,6 +6,7 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
+    connections::AsConnection,
     pallet_elections::pallet::Call::{
         ban_from_committee, change_validators, set_elections_openness,
     },
@@ -78,7 +79,7 @@ pub trait ElectionsSudoApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> ElectionsApi for C {
+impl<C: ConnectionApi + AsConnection> ElectionsApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig {
         let addrs = api::storage().elections().ban_config();
 

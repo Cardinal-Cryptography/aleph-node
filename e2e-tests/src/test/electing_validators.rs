@@ -21,7 +21,7 @@ use crate::{
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
 ///
 /// We have to do it by comparing keys in storage trie.
-async fn assert_validators_are_elected_stakers<C: ConnectionApi>(
+async fn assert_validators_are_elected_stakers<C: StakingRawApi>(
     connection: &C,
     current_era: EraIndex,
     expected_validators_as_keys: Vec<Vec<u8>>,
@@ -61,7 +61,7 @@ fn min_num_sessions_to_see_all_non_reserved_validators(
 
 /// Verify that all target validators are included `pallet_session::Validators` across a few
 /// consecutive sessions.
-async fn assert_validators_are_used_as_authorities<C: ConnectionApi>(
+async fn assert_validators_are_used_as_authorities<C: SessionApi + WaitingExt>(
     connection: &C,
     expected_authorities: &BTreeSet<AccountId>,
     min_num_sessions: u32,

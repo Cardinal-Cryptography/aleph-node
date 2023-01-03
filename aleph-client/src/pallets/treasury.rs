@@ -5,6 +5,7 @@ use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     api,
+    connections::AsConnection,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{elections::ElectionsApi, staking::StakingApi},
     AccountId, BlockHash,
@@ -105,7 +106,7 @@ impl TreasurySudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> TreasureApiExt for C {
+impl<C: ConnectionApi + AsConnection> TreasureApiExt for C {
     async fn possible_treasury_payout(&self) -> anyhow::Result<Balance> {
         let session_period = self.get_session_period().await?;
         let sessions_per_era = self.get_session_per_era().await?;

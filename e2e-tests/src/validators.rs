@@ -104,7 +104,7 @@ pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
 /// Endow validators (stashes and controllers), bond and rotate keys.
 ///
 /// Signer of `connection` should have enough balance to endow new accounts.
-pub async fn prepare_validators<S: SignedConnectionApi>(
+pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     connection: &S,
     node: &str,
     accounts: &Accounts,

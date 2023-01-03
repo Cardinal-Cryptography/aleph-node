@@ -12,7 +12,7 @@ use aleph_client::{
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, SignedConnection, SignedConnectionApi, TxStatus,
+    AccountId, SignedConnection, TxStatus,
 };
 use anyhow::anyhow;
 use log::{debug, info};
@@ -33,7 +33,7 @@ type RewardPoint = u32;
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
-pub async fn set_invalid_keys_for_validator<S: SignedConnectionApi>(
+pub async fn set_invalid_keys_for_validator<S: WaitingExt + SessionUserApi>(
     controller_connection: &S,
 ) -> anyhow::Result<()> {
     let zero_session_keys = [0; 64].to_vec().into();
@@ -51,7 +51,7 @@ pub async fn set_invalid_keys_for_validator<S: SignedConnectionApi>(
 }
 
 /// Rotates session_keys of a given `controller`, making it able to rejoin the `consensus`.
-pub(super) async fn reset_validator_keys<S: SignedConnectionApi>(
+pub(super) async fn reset_validator_keys<S: AuthorRpc + WaitingExt + SessionUserApi>(
     controller_connection: &S,
 ) -> anyhow::Result<()> {
     let validator_keys = controller_connection.author_rotate_keys().await?;
@@ -68,7 +68,7 @@ pub(super) async fn reset_validator_keys<S: SignedConnectionApi>(
     Ok(())
 }
 
-pub async fn download_exposure<S: SignedConnectionApi>(
+pub async fn download_exposure<S: StakingApi>(
     connection: &S,
     era: EraIndex,
     account_id: &AccountId,
@@ -124,7 +124,7 @@ fn check_rewards(
     Ok(())
 }
 
-async fn get_node_performance<S: SignedConnectionApi>(
+async fn get_node_performance<S: ElectionsApi>(
     connection: &S,
     account_id: &AccountId,
     before_end_of_session_block_hash: BlockHash,
@@ -152,7 +152,7 @@ async fn get_node_performance<S: SignedConnectionApi>(
     lenient_performance
 }
 
-pub async fn check_points<S: SignedConnectionApi>(
+pub async fn check_points<S: ElectionsApi + AlephWaiting + BlocksApi + StakingApi>(
     connection: &S,
     session: SessionIndex,
     era: EraIndex,

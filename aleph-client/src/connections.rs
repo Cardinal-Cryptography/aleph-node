@@ -31,16 +31,16 @@ pub struct RootConnection {
     connection: SignedConnection,
 }
 
-pub trait AsConnection {
+pub(crate) trait AsConnection {
     fn as_connection(&self) -> &Connection;
 }
 
-pub trait AsSigned {
+pub(crate) trait AsSigned {
     fn as_signed(&self) -> &SignedConnection;
 }
 
 #[async_trait::async_trait]
-pub trait ConnectionApi: AsConnection + Sync {
+pub trait ConnectionApi: Sync {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
         addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
@@ -61,7 +61,7 @@ pub trait ConnectionApi: AsConnection + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait SignedConnectionApi: AsSigned + Sync {
+pub trait SignedConnectionApi: ConnectionApi {
     async fn send_tx<Call: TxPayload + Send + Sync>(
         &self,
         tx: Call,
