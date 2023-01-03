@@ -163,7 +163,7 @@ pub enum Protocol {
     All = 0,
 }
 
-/// Simple wrapper for the `RangeInclusive<u16` type.
+/// Simple wrapper for the `RangeInclusive<u16>` type.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(try_from = "PortRangeSerde", into = "PortRangeSerde")]
 pub struct PortRange(RangeInclusive<u16>);
