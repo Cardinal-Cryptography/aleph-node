@@ -4,8 +4,8 @@ use std::{
     path::PathBuf,
 };
 
-use ark_bls12_381::{Fq, FqParameters};
-use ark_ff::FpParameters;
+use ark_bls12_381::{Fr, FrParameters};
+use ark_ff::fields::{Fp256, Fp256Parameters, FpParameters};
 use poseidon_paramgen::poseidon_build;
 
 fn main() {
@@ -14,8 +14,12 @@ fn main() {
     // see https://spec.filecoin.io/#section-algorithms.crypto.poseidon.filecoins-poseidon-instances for similar specification used by Filecoin
     let t_values = vec![2, 3];
 
+    // let params_codegen =
+    //     poseidon_build::compile::<Fq>(security_level, t_values, FqParameters::MODULUS, true);
+
+    // Fr = Fp256
     let params_codegen =
-        poseidon_build::compile::<Fq>(security_level, t_values, FqParameters::MODULUS, true);
+        poseidon_build::compile::<Fr>(security_level, t_values, FrParameters::MODULUS, true);
 
     let output_directory: PathBuf =
         PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR environmental variable must be set"))

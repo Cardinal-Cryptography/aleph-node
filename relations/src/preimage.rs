@@ -1,6 +1,6 @@
 // This relation showcases how to use Poseidon in r1cs circuits
-use ark_bls12_381::Fq;
-use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar};
+use ark_bls12_381::Fr;
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar, ToBytesGadget};
 use ark_relations::{
     ns,
     r1cs::{
@@ -20,7 +20,7 @@ pub type CircuitVar = FpVar<CircuitField>;
 // pub type CircuitField = ark_bls12_381::Fr;
 
 // Poseidon paper suggests using domain separation for this, concretely encoding the use case in the capacity element (which is fine as it is 256 bits large and has a lot of bits to fill)
-static DOMAIN_SEP: Lazy<Fq> = Lazy::new(|| Fq::from(2137));
+static DOMAIN_SEPARATOR: Lazy<Fr> = Lazy::new(|| Fr::from(2137));
 
 /// Preimage relation : H(preimage)=hash
 /// where:
@@ -75,7 +75,14 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         })?;
         let hash = CircuitVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
-        // let hash_result = poseidon::
+        let hash_result = poseidon::one_to_one_hash(
+            &DOMAIN_SEPARATOR,
+            self.preimage.ok_or(SynthesisError::AssignmentMissing)?,
+        )?;
+
+        // let h = FpVar::Var(hash_result);
+
+        hash.enforce_equal(&hash_result)?;
 
         Ok(())
     }

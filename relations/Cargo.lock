@@ -525,7 +525,11 @@ version = "0.1.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "once_cell",
  "poseidon-paramgen",
+ "poseidon-permutation",
 ]
 
 [[package]]
@@ -540,6 +544,16 @@ dependencies = [
  "num",
  "num-bigint",
  "rand_core",
+]
+
+[[package]]
+name = "poseidon-permutation"
+version = "0.1.0"
+source = "git+https://github.com/penumbra-zone/poseidon377#a2d8c7a3288e2e877ac88a4d8fd3cc4ff2b52c04"
+dependencies = [
+ "ark-ff",
+ "once_cell",
+ "poseidon-paramgen",
 ]
 
 [[package]]
