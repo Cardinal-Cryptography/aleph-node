@@ -1,4 +1,4 @@
-use std::{env, str::FromStr};
+use std::{env, iter, str::FromStr};
 
 use aleph_client::{RootConnection, SignedConnection};
 use once_cell::sync::Lazy;
@@ -85,11 +85,10 @@ impl Config {
             .unwrap()
     }
 
-    pub fn validator_names(&self) -> Vec<String> {
-        ["Node0", "Node1", "Node2", "Node3", "Node4"]
-            .into_iter()
-            .map(|n| n.to_string())
-            .collect()
+    pub fn validator_names<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
+        (0..)
+            .take_while(|id| *id < self.validator_count)
+            .map(|id| format!("Node{}", id))
     }
 
     /// Get a `SignedConnection` where the signer is the first validator.
