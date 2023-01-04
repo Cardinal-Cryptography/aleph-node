@@ -198,9 +198,9 @@ jobs:
 
       - name: check if runtime metadata matches
         run: |
-          cd aleph-client/
-          docker build --tag subxt:latest -f docker/Dockerfile .
-          docker run --rm --network host subxt:latest
+          # see Dockerfile in aleph-client/Dockerfile for reference
+          docker pull public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
+          docker run --rm --network host subxt-client-integration:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
