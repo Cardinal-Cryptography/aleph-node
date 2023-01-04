@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 subxt codegen --derive Clone --derive Debug --derive Eq --derive PartialEq | rustfmt --edition=2021 > aleph_zero.rs
 diff -y --suppress-common-lines aleph_zero.rs aleph_zero_current.rs
