@@ -1,11 +1,5 @@
 use primitives::{Balance, EraIndex};
-use subxt::{
-    ext::{
-        sp_core::storage::StorageKey,
-        sp_runtime::{MultiAddress, Perbill as SPerbill},
-    },
-    storage::address::{StorageHasher, StorageMapKey},
-};
+use subxt::storage::address::{StorageHasher, StorageMapKey};
 
 use crate::{
     api,
@@ -21,6 +15,8 @@ use crate::{
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
     sp_arithmetic::per_things::Perbill,
+    sp_core::storage::StorageKey,
+    sp_runtime::{MultiAddress, Perbill as SPerbill},
     AccountId, BlockHash,
     Call::{Staking, Sudo},
     ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,

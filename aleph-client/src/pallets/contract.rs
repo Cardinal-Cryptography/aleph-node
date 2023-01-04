@@ -1,11 +1,11 @@
 use codec::{Compact, Encode};
 use pallet_contracts_primitives::ContractExecResult;
 use primitives::Balance;
-use subxt::{ext::sp_core::Bytes, rpc_params};
+use subxt::rpc_params;
 
 use crate::{
-    api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
-    CodeHash, ConnectionApi, SignedConnectionApi, TxStatus,
+    api, pallet_contracts::wasm::OwnerInfo, sp_core::Bytes, sp_weights::weight_v2::Weight,
+    AccountId, BlockHash, CodeHash, ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
 #[derive(Encode)]

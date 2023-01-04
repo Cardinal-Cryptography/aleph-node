@@ -4,7 +4,6 @@ use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use subxt::{
-    ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
@@ -12,8 +11,8 @@ use subxt::{
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair, ParamsBuilder,
-    SubxtClient, TxStatus,
+    api, sp_core::Bytes, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair,
+    ParamsBuilder, SubxtClient, TxStatus,
 };
 
 #[derive(Clone)]

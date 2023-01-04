@@ -1,10 +1,10 @@
 use primitives::Balance;
-use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
+    sp_runtime::MultiAddress,
     AccountId, BlockHash,
     Call::Balances,
     ConnectionApi, ParamsBuilder, SignedConnectionApi, TxStatus,
