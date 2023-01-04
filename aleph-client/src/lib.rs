@@ -31,8 +31,7 @@ pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
 
-pub type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
-
+pub(crate) type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
