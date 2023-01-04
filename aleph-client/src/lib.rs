@@ -1,5 +1,9 @@
+#![feature(auto_traits)]
+#![feature(negative_impls)]
+
 extern crate core;
 
+pub use contract_transcode;
 pub use subxt::ext::sp_core::Pair;
 use subxt::{
     ext::sp_core::{ed25519, sr25519, H256},
@@ -26,13 +30,16 @@ pub type AlephKeyPair = ed25519::Pair;
 pub type RawKeyPair = sr25519::Pair;
 pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
-pub type Client = OnlineClient<AlephConfig>;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
 
 pub type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 
-pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
+pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
+
+pub use connections::{
+    Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall,
+};
 
 #[derive(Copy, Clone)]
 pub enum TxStatus {

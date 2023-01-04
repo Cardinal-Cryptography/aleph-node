@@ -9,7 +9,7 @@ use aleph_client::{
     pallets::contract::{ContractsApi, ContractsUserApi},
     sp_weights::weight_v2::Weight,
     waiting::{AlephWaiting, BlockStatus},
-    AccountId, CodeHash, Connection, SignedConnection, TxStatus,
+    AccountId, CodeHash, Connection, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
@@ -44,7 +44,7 @@ pub async fn upload_code(
     let wasm = fs::read(wasm_path).expect("WASM artifact not found");
     debug!(target: "contracts", "Found WASM contract code {:?}", wasm);
 
-    let connection = signed_connection.connection.clone();
+    let connection = signed_connection.clone();
     let event_handler = tokio::spawn(async move {
         connection
             .wait_for_event(
@@ -93,8 +93,8 @@ pub async fn instantiate(
 
     debug!("Encoded constructor data {:?}", data);
 
-    let connection = signed_connection.connection.clone();
-    let signer_id = signed_connection.signer.account_id().clone();
+    let connection = signed_connection.clone();
+    let signer_id = signed_connection.account_id().clone();
 
     let event_handler = tokio::spawn(async move {
         connection
@@ -152,9 +152,9 @@ pub async fn instantiate_with_code(
 
     debug!("Encoded constructor data {:?}", data);
 
-    let signer_id = signed_connection.signer.account_id().clone();
-    let connection_0 = signed_connection.connection.clone();
-    let connection_1 = signed_connection.connection.clone();
+    let signer_id = signed_connection.account_id().clone();
+    let connection_0 = signed_connection.clone();
+    let connection_1 = signed_connection.clone();
 
     let event_handler_0 = tokio::spawn(async move {
         connection_0
@@ -252,7 +252,7 @@ pub async fn remove_code(
 ) -> anyhow::Result<CodeRemoved> {
     let ContractRemoveCode { code_hash } = command;
 
-    let connection = signed_connection.connection.clone();
+    let connection = signed_connection.clone();
 
     let event_handler = tokio::spawn(async move {
         connection
