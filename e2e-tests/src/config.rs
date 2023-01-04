@@ -28,6 +28,9 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             adder: get_env("ADDER"),
             adder_metadata: get_env("ADDER_METADATA"),
             out_latency: get_env("OUT_LATENCY"),
+            synthetic_network_urls: env::var("SYNTHETIC_URLS")
+                .ok()
+                .map(|s| s.split(',').map(|s| s.to_string()).collect()),
         },
     }
 });
@@ -91,6 +94,24 @@ impl Config {
             .map(|id| format!("Node{}", id))
     }
 
+    pub fn synthetic_network_urls<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
+        enum Either<A: Iterator<Item = String>, B: Iterator<Item = String>> {
+            Left(A),
+            Right(B),
+        }
+        let mut either = match self.test_case_params.synthetic_network_urls {
+            Some(urls) => Either::Left(urls.into_iter()),
+            None => Either::Right(
+                self.validator_names()
+                    .map(|node_name| format!("http://{}:80/qos", node_name)),
+            ),
+        };
+        iter::from_fn(move || match &mut either {
+            Either::Left(a) => a.next(),
+            Either::Right(b) => b.next(),
+        })
+    }
+
     /// Get a `SignedConnection` where the signer is the first validator.
     pub async fn get_first_signed_connection(&self) -> SignedConnection {
         let node = &self.node;
@@ -135,4 +156,7 @@ pub struct TestCaseParams {
 
     /// Milliseconds of network latency
     pub out_latency: Option<u64>,
+
+    /// List of URLs for the configuration endpoints of the synthetic-network
+    pub synthetic_network_urls: Option<Vec<String>>,
 }
