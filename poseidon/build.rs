@@ -15,7 +15,7 @@ fn main() {
     let t_values = vec![2, 3];
 
     // Fr = Fp256
-    let params_codegen =
+    let parameters_codegen =
         poseidon_build::compile::<Fr>(security_level, t_values, FrParameters::MODULUS, true);
 
     let output_directory: PathBuf =
@@ -26,6 +26,6 @@ fn main() {
 
     let mut f = BufWriter::new(fh);
 
-    f.write_all(params_codegen.as_bytes())
+    f.write_all(parameters_codegen.as_bytes())
         .expect("can write parameters to file");
 }
