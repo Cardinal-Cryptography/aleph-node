@@ -12,12 +12,10 @@ use ark_std::{marker::PhantomData, vec::Vec};
 use once_cell::sync::Lazy;
 
 use crate::{
+    environment::FpVar,
     relation::state::{FullInput, NoInput, OnlyPublicInput, State, WithPublicInput},
     CircuitField, GetPublicInput,
 };
-
-pub type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
-// pub type CircuitField = ark_bls12_381::Fr;
 
 // Poseidon paper suggests using domain separation for this, concretely encoding the use case in the capacity element (which is fine as it is 256 bits large and has a lot of bits to fill)
 static DOMAIN_SEPARATOR: Lazy<Fr> = Lazy::new(|| Fr::from(2137));
@@ -89,3 +87,5 @@ impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
         todo!()
     }
 }
+
+// TODO : tests mod

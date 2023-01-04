@@ -5,8 +5,8 @@ use parameters::RATE_1_PARAMETERS;
 
 mod parameters;
 
-pub type CircuitField = ark_bls12_381::Fr;
-pub type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
+type CircuitField = ark_bls12_381::Fr;
+type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
 
 /// hashes one field value inside the circuit
 pub fn one_to_one_hash(
