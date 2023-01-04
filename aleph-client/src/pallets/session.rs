@@ -1,8 +1,8 @@
 use primitives::SessionIndex;
 
 use crate::{
-    api, api::runtime_types::aleph_runtime::SessionKeys, AccountId, BlockHash, Connection,
-    SignedConnection, TxStatus,
+    api, api::runtime_types::aleph_runtime::SessionKeys, AccountId, BlockHash, ConnectionApi,
+    SignedConnectionApi, TxStatus,
 };
 
 #[async_trait::async_trait]
@@ -22,7 +22,7 @@ pub trait SessionUserApi {
 }
 
 #[async_trait::async_trait]
-impl<C: AsRef<Connection> + Sync + ?Sized> SessionApi for C {
+impl<C: ConnectionApi> SessionApi for C {
     async fn get_next_session_keys(
         &self,
         account: AccountId,
@@ -30,14 +30,13 @@ impl<C: AsRef<Connection> + Sync + ?Sized> SessionApi for C {
     ) -> Option<SessionKeys> {
         let addrs = api::storage().session().next_keys(account);
 
-        self.as_ref().get_storage_entry_maybe(&addrs, at).await
+        self.get_storage_entry_maybe(&addrs, at).await
     }
 
     async fn get_session(&self, at: Option<BlockHash>) -> SessionIndex {
         let addrs = api::storage().session().current_index();
 
-        self.as_ref()
-            .get_storage_entry_maybe(&addrs, at)
+        self.get_storage_entry_maybe(&addrs, at)
             .await
             .unwrap_or_default()
     }
@@ -45,12 +44,12 @@ impl<C: AsRef<Connection> + Sync + ?Sized> SessionApi for C {
     async fn get_validators(&self, at: Option<BlockHash>) -> Vec<AccountId> {
         let addrs = api::storage().session().validators();
 
-        self.as_ref().get_storage_entry(&addrs, at).await
+        self.get_storage_entry(&addrs, at).await
     }
 }
 
 #[async_trait::async_trait]
-impl SessionUserApi for SignedConnection {
+impl<S: SignedConnectionApi> SessionUserApi for S {
     async fn set_keys(&self, new_keys: SessionKeys, status: TxStatus) -> anyhow::Result<BlockHash> {
         let tx = api::tx().session().set_keys(new_keys, vec![]);
 

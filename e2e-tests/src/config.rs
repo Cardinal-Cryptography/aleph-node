@@ -83,9 +83,7 @@ impl Config {
 
     pub async fn create_root_connection(&self) -> RootConnection {
         let sudo_keypair = get_sudo_key(self);
-        RootConnection::new(self.node.clone(), sudo_keypair)
-            .await
-            .unwrap()
+        RootConnection::new(&self.node, sudo_keypair).await.unwrap()
     }
 
     pub fn validator_names<'a>(&'a self) -> Vec<String> {
@@ -110,14 +108,14 @@ impl Config {
         let node = &self.node;
         let mut accounts = get_validators_keys(self);
         let sender = accounts.remove(0);
-        SignedConnection::new(node.clone(), sender).await
+        SignedConnection::new(node, sender).await
     }
 
     pub async fn create_signed_connections(&self) -> Vec<SignedConnection> {
         futures::future::join_all(
             get_validators_keys(self)
                 .into_iter()
-                .map(|account| async { SignedConnection::new(self.node.clone(), account).await }),
+                .map(|account| async { SignedConnection::new(&self.node, account).await }),
         )
         .await
     }
