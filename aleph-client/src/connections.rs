@@ -210,7 +210,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
             .as_connection()
             .as_client()
             .tx()
-            .sign_and_submit_then_watch(&tx, self.as_signed().signer(), params)
+            .sign_and_submit_then_watch(&tx, &self.as_signed().signer().inner, params)
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 

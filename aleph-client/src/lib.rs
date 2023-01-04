@@ -7,7 +7,6 @@ pub use contract_transcode;
 pub use subxt::ext::sp_core::Pair;
 use subxt::{
     ext::sp_core::{ed25519, sr25519, H256},
-    tx::PairSigner,
     OnlineClient, PolkadotConfig, SubstrateConfig,
 };
 
@@ -28,7 +27,6 @@ pub use runtime_types::*;
 pub type AlephConfig = PolkadotConfig;
 pub type AlephKeyPair = ed25519::Pair;
 pub type RawKeyPair = sr25519::Pair;
-pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
@@ -36,10 +34,31 @@ pub type CodeHash = H256;
 pub type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 
 pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
+type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 pub use connections::{
     Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall,
 };
+
+pub struct KeyPair {
+    inner: PairSigner,
+}
+
+impl KeyPair {
+    pub fn new(keypair: RawKeyPair) -> Self {
+        KeyPair {
+            inner: PairSigner::new(keypair),
+        }
+    }
+
+    pub fn signer(&self) -> &RawKeyPair {
+        self.inner.signer()
+    }
+
+    pub fn account_id(&self) -> &AccountId {
+        self.inner.account_id()
+    }
+}
 
 #[derive(Copy, Clone)]
 pub enum TxStatus {
@@ -50,7 +69,9 @@ pub enum TxStatus {
 
 pub fn keypair_from_string(seed: &str) -> KeyPair {
     let pair = sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value");
-    KeyPair::new(pair)
+    KeyPair {
+        inner: PairSigner::new(pair),
+    }
 }
 
 pub fn raw_keypair_from_string(seed: &str) -> RawKeyPair {
