@@ -184,13 +184,13 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: high_out_latency
+          test-case: high_out_latency_for_all
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
         timeout-minutes: 30
 
-  no_quorum_without_high_out_latency:
+  run-e2e-no_quorum_without_high_out_latency:
     needs: [build-synthetic-network-docker, build-test-client]
     name: Run high out-latency for every quorum
     runs-on: ubuntu-20.04
@@ -201,7 +201,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: no_quorum_without_high_out_latency
+          test-case: high_out_latency_for_each_quorum
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
@@ -211,7 +211,7 @@ jobs:
     needs: [
       run-e2e-authorities-are-staking,
       run-e2e-high-out-latency,
-      no_quorum_without_high_out_latency,
+      run-e2e-no_quorum_without_high_out_latency,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04

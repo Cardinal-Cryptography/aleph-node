@@ -14,7 +14,7 @@ const OUT_LATENCY: u64 = 500;
 /// egress-latency for each node using same value (default is 500 milliseconds) and verifies if after it was able to proceed two
 /// more sessions.
 #[tokio::test]
-pub async fn high_out_latency() -> anyhow::Result<()> {
+pub async fn high_out_latency_for_all() -> anyhow::Result<()> {
     let config = setup_test();
     let out_latency = config.test_case_params.out_latency.unwrap_or(OUT_LATENCY);
 
@@ -54,7 +54,7 @@ pub async fn high_out_latency() -> anyhow::Result<()> {
 /// predefined number of sessions, sets egress-latency for 1/3n of nodes using same value (default is 500 milliseconds) and
 /// verifies if after it was able to proceed two more sessions.
 #[tokio::test]
-pub async fn no_quorum_without_high_out_latency() -> anyhow::Result<()> {
+pub async fn high_out_latency_for_each_quorum() -> anyhow::Result<()> {
     let config = setup_test();
     let out_latency = config.test_case_params.out_latency.unwrap_or(OUT_LATENCY);
 

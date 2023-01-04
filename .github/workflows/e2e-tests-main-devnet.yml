@@ -705,7 +705,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: high_out_latency
+          test-case: high_out_latency_for_all
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
@@ -722,7 +722,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: no_quorum_without_high_out_latency
+          test-case: high_out_latency_for_each_quorum
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
