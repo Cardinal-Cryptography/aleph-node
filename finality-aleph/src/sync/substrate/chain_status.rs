@@ -18,7 +18,6 @@ use crate::{
 /// What can go wrong when checking chain status
 #[derive(Debug)]
 pub enum Error<B: BlockT> {
-    
     JustificationDecode(DecodeError),
     MissingHash(B::Hash),
     MissingJustification(B::Hash),
@@ -80,8 +79,7 @@ where
         self.client
             .justifications(id)
             .expect("substrate client must respond")
-            .map(|j| j.into_justification(ALEPH_ENGINE_ID))
-            .flatten()
+            .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
     }
 
     fn best_hash(&self) -> B::Hash {
