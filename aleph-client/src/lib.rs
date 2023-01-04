@@ -24,13 +24,13 @@ pub mod waiting;
 pub use aleph_zero::api;
 pub use runtime_types::*;
 
-pub type AlephConfig = PolkadotConfig;
 pub type AlephKeyPair = ed25519::Pair;
 pub type RawKeyPair = sr25519::Pair;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
 
+pub(crate) type AlephConfig = PolkadotConfig;
 pub(crate) type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
