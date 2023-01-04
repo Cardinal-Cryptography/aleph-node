@@ -85,19 +85,22 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
 
 impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
     fn public_input(&self) -> Vec<CircuitField> {
-        todo!()
+        vec![self
+            .hash
+            .expect("Circuit should have public input assigned")]
     }
 }
 
-// TODO
-// cargo test preimage::tests::preimage_constraints_correctness -- --exact
 #[cfg(test)]
 mod tests {
+    use ark_bls12_381::Bls12_381;
+    use ark_crypto_primitives::SNARK;
+    use ark_groth16::Groth16;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
     use poseidon::hash;
 
     use super::{PreimageRelation, DOMAIN_SEPARATOR};
-    use crate::CircuitField;
+    use crate::{CircuitField, GetPublicInput};
 
     #[test]
     fn preimage_constraints_correctness() {
@@ -115,5 +118,23 @@ mod tests {
         }
 
         assert!(is_satisfied);
+    }
+
+    #[test]
+    fn preimage_proving_and_verifying() {
+        let preimage = CircuitField::from(17u64);
+        let preimage_hash = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
+
+        let circuit = PreimageRelation::with_full_input(preimage, preimage_hash);
+
+        let mut rng = ark_std::test_rng();
+        let (pk, vk) =
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit.clone(), &mut rng).unwrap();
+
+        let input = circuit.public_input();
+
+        let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+        let is_valid = Groth16::verify(&vk, &input, &proof).unwrap();
+        assert!(is_valid);
     }
 }
