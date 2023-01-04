@@ -68,7 +68,7 @@ pub async fn no_quorum_without_high_out_latency() -> anyhow::Result<()> {
 
     info!("setting out-latency");
     for synthetic_url in config
-        .validator_names()
+        .synthetic_network_urls()
         .into_iter()
         .take(((config.validator_count - 1) / 3 + 1) as usize)
     {
