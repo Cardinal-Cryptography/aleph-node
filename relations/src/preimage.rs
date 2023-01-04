@@ -10,6 +10,7 @@ use ark_relations::{
 };
 use ark_std::{marker::PhantomData, vec::Vec};
 use once_cell::sync::Lazy;
+use poseidon::r1cs;
 
 use crate::{
     environment::FpVar,
@@ -74,7 +75,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         let hash = FpVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
         let domain_separator = FpVar::new_constant(cs.clone(), *DOMAIN_SEPARATOR)?;
-        let hash_result = poseidon::one_to_one_hash(cs, &domain_separator, preimage)?;
+        let hash_result = r1cs::one_to_one_hash(cs, &domain_separator, preimage)?;
 
         hash.enforce_equal(&hash_result)?;
 
@@ -88,4 +89,31 @@ impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
     }
 }
 
-// TODO : tests mod
+// TODO
+// cargo test preimage::tests::preimage_constraints_correctness -- --exact
+#[cfg(test)]
+mod tests {
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
+    use poseidon::hash;
+
+    use super::{PreimageRelation, DOMAIN_SEPARATOR};
+    use crate::CircuitField;
+
+    #[test]
+    fn preimage_constraints_correctness() {
+        let preimage = CircuitField::from(17u64);
+        let preimage_hash = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
+
+        let circuit = PreimageRelation::with_full_input(preimage, preimage_hash);
+
+        let cs = ConstraintSystem::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+
+        let is_satisfied = cs.is_satisfied().unwrap();
+        if !is_satisfied {
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
+
+        assert!(is_satisfied);
+    }
+}
