@@ -4,6 +4,7 @@ use std::{
 };
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
+use log::warn;
 use sp_blockchain::Backend;
 use sp_runtime::{
     generic::BlockId as SubstrateBlockId,
@@ -11,14 +12,14 @@ use sp_runtime::{
 };
 
 use crate::{
-    justification::{backwards_compatible_decode, DecodeError},
-    sync::{substrate::Justification, BlockStatus, ChainStatus, Header},
+    justification::backwards_compatible_decode,
+    sync::{substrate::Justification, BlockStatus, ChainStatus, Header, LOG_TARGET},
+    AlephJustification,
 };
 
 /// What can go wrong when checking chain status
 #[derive(Debug)]
 pub enum Error<B: BlockT> {
-    JustificationDecode(DecodeError),
     MissingHash(B::Hash),
     MissingJustification(B::Hash),
 }
@@ -27,9 +28,6 @@ impl<B: BlockT> Display for Error<B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            JustificationDecode(error) => {
-                write!(f, "could not decode the stored justification: {}", error)
-            }
             MissingHash(hash) => {
                 write!(f, "no block for hash {:?}", hash)
             }
@@ -41,12 +39,6 @@ impl<B: BlockT> Display for Error<B> {
                 )
             }
         }
-    }
-}
-
-impl<B: BlockT> From<DecodeError> for Error<B> {
-    fn from(value: DecodeError) -> Self {
-        Error::JustificationDecode(value)
     }
 }
 
@@ -74,12 +66,25 @@ where
             .expect("substrate client must respond")
     }
 
-    fn justification(&self, hash: B::Hash) -> Option<Vec<u8>> {
+    fn justification(&self, hash: B::Hash) -> Option<AlephJustification> {
         let id = SubstrateBlockId::<B>::Hash(hash);
-        self.client
+        let justification = self
+            .client
             .justifications(id)
             .expect("substrate client must respond")
-            .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
+            .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))?;
+
+        match backwards_compatible_decode(justification) {
+            Ok(justification) => Some(justification),
+            // This should not happen, as we only import correctly encoded justification.
+            Err(e) => {
+                warn!(
+                    target: LOG_TARGET,
+                    "Could not decode stored justification for block {:?}: {}", hash, e
+                );
+                None
+            }
+        }
     }
 
     fn best_hash(&self) -> B::Hash {
@@ -102,19 +107,19 @@ where
     fn status_of(
         &self,
         id: <B::Header as Header>::Identifier,
-    ) -> Result<BlockStatus<Justification<B::Header>>, Self::Error> {
+    ) -> BlockStatus<Justification<B::Header>> {
         let header = match self.header(id.hash) {
             Some(header) => header,
-            None => return Ok(BlockStatus::Unknown),
+            None => return BlockStatus::Unknown,
         };
 
-        if let Some(justification) = self.justification(id.hash) {
-            Ok(BlockStatus::Justified(Justification {
+        if let Some(raw_justification) = self.justification(id.hash) {
+            BlockStatus::Justified(Justification {
                 header,
-                raw_justification: backwards_compatible_decode(justification)?,
-            }))
+                raw_justification,
+            })
         } else {
-            Ok(BlockStatus::Present(header))
+            BlockStatus::Present(header)
         }
     }
 
@@ -130,13 +135,13 @@ where
         let header = self
             .header(finalized_hash)
             .ok_or(Error::MissingHash(finalized_hash))?;
-        let justification = self
+        let raw_justification = self
             .justification(finalized_hash)
             .ok_or(Error::MissingJustification(finalized_hash))?;
 
         Ok(Justification {
             header,
-            raw_justification: backwards_compatible_decode(justification)?,
+            raw_justification,
         })
     }
 }
