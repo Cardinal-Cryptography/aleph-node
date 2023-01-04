@@ -1,4 +1,4 @@
-use std::{env, iter, str::FromStr};
+use std::{env, str::FromStr};
 
 use aleph_client::{RootConnection, SignedConnection};
 use once_cell::sync::Lazy;
@@ -88,28 +88,21 @@ impl Config {
             .unwrap()
     }
 
-    pub fn validator_names<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
-        (0..)
-            .take_while(|id| *id < self.validator_count)
+    pub fn validator_names<'a>(&'a self) -> Vec<String> {
+        (0..self.validator_count)
             .map(|id| format!("Node{}", id))
+            .collect()
     }
 
-    pub fn synthetic_network_urls<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
-        enum Either<A: Iterator<Item = String>, B: Iterator<Item = String>> {
-            Left(A),
-            Right(B),
+    pub fn synthetic_network_urls(&self) -> Vec<String> {
+        match &self.test_case_params.synthetic_network_urls {
+            Some(urls) => urls.clone(),
+            None => self
+                .validator_names()
+                .into_iter()
+                .map(|node_name| format!("http://{}:80/qos", node_name))
+                .collect(),
         }
-        let mut either = match self.test_case_params.synthetic_network_urls {
-            Some(urls) => Either::Left(urls.into_iter()),
-            None => Either::Right(
-                self.validator_names()
-                    .map(|node_name| format!("http://{}:80/qos", node_name)),
-            ),
-        };
-        iter::from_fn(move || match &mut either {
-            Either::Left(a) => a.next(),
-            Either::Right(b) => b.next(),
-        })
     }
 
     /// Get a `SignedConnection` where the signer is the first validator.

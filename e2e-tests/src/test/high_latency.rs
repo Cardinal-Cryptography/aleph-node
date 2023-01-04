@@ -27,12 +27,12 @@ pub async fn high_out_latency() -> anyhow::Result<()> {
     }
 
     info!("setting out-latency");
-    for validator in config.validator_names() {
+    for synthetic_url in config.synthetic_network_urls() {
         info!(
             "setting out-latency of node {} to {}",
-            validator, out_latency
+            synthetic_url, out_latency
         );
-        set_out_latency(out_latency, &validator).await;
+        set_out_latency(out_latency, synthetic_url).await;
     }
 
     let mut max_session = 0;
@@ -67,15 +67,16 @@ pub async fn no_quorum_without_high_out_latency() -> anyhow::Result<()> {
     }
 
     info!("setting out-latency");
-    for validator in config
+    for synthetic_url in config
         .validator_names()
+        .into_iter()
         .take(((config.validator_count - 1) / 3 + 1) as usize)
     {
         info!(
             "setting out-latency of node {} to {}",
-            validator, out_latency
+            synthetic_url, out_latency
         );
-        set_out_latency(out_latency, &validator).await;
+        set_out_latency(out_latency, synthetic_url).await;
     }
 
     let mut max_session = 0;
