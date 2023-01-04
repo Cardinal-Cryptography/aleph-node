@@ -4,7 +4,7 @@ use primitives::{BlockNumber, EraIndex, SessionIndex};
 use crate::{
     connections::AsConnection,
     pallets::{elections::ElectionsApi, staking::StakingApi},
-    BlockHash, ConnectionApi,
+    BlockHash,
 };
 
 #[async_trait::async_trait]
@@ -29,7 +29,7 @@ pub trait SessionEraApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> BlocksApi for C {
+impl<C: AsConnection + Sync> BlocksApi for C {
     async fn first_block_of_session(
         &self,
         session: SessionIndex,
@@ -82,7 +82,7 @@ impl<C: ConnectionApi + AsConnection> BlocksApi for C {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> SessionEraApi for C {
+impl<C: AsConnection + Sync> SessionEraApi for C {
     async fn get_active_era_for_session(&self, session: SessionIndex) -> anyhow::Result<EraIndex> {
         let block = self.first_block_of_session(session).await?;
         Ok(self.get_active_era(block).await)

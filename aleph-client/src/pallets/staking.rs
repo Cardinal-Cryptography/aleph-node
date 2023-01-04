@@ -299,7 +299,7 @@ impl StakingSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> StakingRawApi for C {
+impl<C: AsConnection + Sync> StakingRawApi for C {
     async fn get_stakers_storage_keys(
         &self,
         era: EraIndex,

@@ -106,7 +106,7 @@ impl TreasurySudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> TreasureApiExt for C {
+impl<C: AsConnection + Sync> TreasureApiExt for C {
     async fn possible_treasury_payout(&self) -> anyhow::Result<Balance> {
         let session_period = self.get_session_period().await?;
         let sessions_per_era = self.get_session_per_era().await?;
