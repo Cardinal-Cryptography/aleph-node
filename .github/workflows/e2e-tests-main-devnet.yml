@@ -200,7 +200,7 @@ jobs:
         run: |
           # see Dockerfile in aleph-client/Dockerfile for reference
           docker pull public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
-          docker run --rm --network host subxt-client-integration:latest
+          docker run --rm --network host public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
