@@ -1,16 +1,6 @@
 use std::env;
 
-use aleph_client::{
-    account_from_keypair, aleph_keypair_from_string,
-    aleph_runtime::RuntimeCall,
-    keypair_from_string,
-    pallet_balances::pallet::Call,
-    pallets::multisig::{
-        compute_call_hash, MultisigContextualApi, MultisigParty, DEFAULT_MAX_WEIGHT,
-    },
-    Pair, SignedConnection,
-    TxStatus::Finalized,
-};
+use aleph_client::{account_from_keypair, aleph_keypair_from_string, keypair_from_string, Pair};
 use clap::Parser;
 use cliain::{
     bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
@@ -46,7 +36,6 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
             hash: _,
             finalizer_seed: _,
         }
-        | Command::Multisig
         | Command::NextSessionKeys { account_id: _ }
         | Command::RotateKeys
         | Command::SeedToSS58 { input: _ }
@@ -255,58 +244,6 @@ async fn main() -> anyhow::Result<()> {
             Ok(_) => {}
             Err(why) => error!("Unable to schedule an upgrade {:?}", why),
         },
-
-        Command::Multisig => {
-            let _0 = keypair_from_string("//0");
-            let _1 = keypair_from_string("//1");
-            let _2 = keypair_from_string("//2");
-
-            let keys = [
-                keypair_from_string("//0"),
-                keypair_from_string("//1"),
-                keypair_from_string("//2"),
-            ];
-            let accounts = keys
-                .iter()
-                .map(|k| account_from_keypair(k.signer()))
-                .collect::<Vec<_>>();
-
-            let threshold = 3;
-            let party =
-                MultisigParty::new(&accounts, threshold).expect("Failed to create multisig party");
-
-            let call = RuntimeCall::Balances(Call::transfer {
-                dest: accounts[1].clone().into(),
-                value: 0,
-            });
-
-            let conn_0 = SignedConnection::from_connection(cfg.get_connection().await, _0);
-            let (_, context) = conn_0
-                .initiate(
-                    &party,
-                    &DEFAULT_MAX_WEIGHT,
-                    compute_call_hash(&call),
-                    Finalized,
-                )
-                .await
-                .expect("failed to initiate multisig aggregation");
-
-            let conn_1 = SignedConnection::from_connection(cfg.get_connection().await, _1);
-            let (_, context) = conn_1
-                .approve(context, Finalized)
-                .await
-                .expect("failed to approve");
-
-            let context = context.expect("Failed to return context");
-
-            let conn_2 = SignedConnection::from_connection(cfg.get_connection().await, _2);
-            let (_, context) = conn_2
-                .approve_with_call(context, Some(call), Finalized)
-                .await
-                .expect("failed to execute");
-
-            assert!(context.is_none(), "Failed to conclude aggregation");
-        }
     }
     Ok(())
 }
