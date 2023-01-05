@@ -198,9 +198,9 @@ jobs:
 
       - name: check if runtime metadata matches
         run: |
-          # see Dockerfile in aleph-client/Dockerfile for reference
+          cd aleph-client
           docker pull public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
-          docker run --rm --network host public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
+          docker run --rm --network host --mount type=bind,source="$(pwd)/..",target=/subxt/aleph-node public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]

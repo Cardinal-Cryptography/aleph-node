@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-subxt codegen --derive Clone --derive Debug --derive Eq --derive PartialEq | rustfmt --edition=2021 > aleph_zero.rs
-diff -y --suppress-common-lines aleph_zero.rs aleph_zero_current.rs
+subxt codegen --derive Clone --derive Debug --derive Eq --derive PartialEq | rustfmt --edition=2021 --config-path aleph-node/rustfmt.toml > aleph_zero.rs
+diff -y -W 200 --suppress-common-lines aleph_zero.rs aleph-node/aleph-client/src/aleph_zero.rs
 diff_exit_code=$?
 if [[ ! $diff_exit_code -eq 0 ]]; then
   echo "Current runtime metadata is different than versioned in git!"
