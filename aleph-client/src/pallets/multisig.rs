@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{anyhow, ensure, Result as AnyResult};
+use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
 use primitives::{Balance, BlockNumber};
 use sp_core::blake2_256;
@@ -147,7 +147,7 @@ impl MultisigParty {
     ///
     /// `threshold` must be between 2 and number of unique accounts in `signatories`. For threshold
     /// 1, use special method `MultisigUserApi::as_multi_threshold_1`.
-    pub fn new(signatories: &[AccountId], threshold: MultisigThreshold) -> AnyResult<Self> {
+    pub fn new(signatories: &[AccountId], threshold: MultisigThreshold) -> anyhow::Result<Self> {
         let mut sorted_signatories = signatories.to_vec();
         sorted_signatories.sort();
         sorted_signatories.dedup();
@@ -211,6 +211,25 @@ pub struct Context {
 }
 
 impl Context {
+    fn new(
+        party: MultisigParty,
+        author: AccountId,
+        timepoint: Timepoint,
+        max_weight: Weight,
+        call: Option<Call>,
+        call_hash: CallHash,
+    ) -> Self {
+        Self {
+            party,
+            author: author.clone(),
+            timepoint,
+            max_weight,
+            call,
+            call_hash,
+            approvers: HashSet::from([author]),
+        }
+    }
+
     /// In case `Context` object has been passed somewhere, where this limit should be adjusted, we
     /// allow for that.
     ///
@@ -220,12 +239,12 @@ impl Context {
     }
 
     /// Set `call` only if `self.call_hash` is matching.
-    fn set_call(&mut self, call: &Call) -> anyhow::Result<()> {
+    fn set_call(&mut self, call: Call) -> anyhow::Result<()> {
         ensure!(
-            self.call_hash == compute_call_hash(call),
+            self.call_hash == compute_call_hash(&call),
             "Call doesn't match to the registered hash"
         );
-        self.call = Some(call.clone());
+        self.call = Some(call);
         Ok(())
     }
 
@@ -328,7 +347,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> AnyResult<(BlockHash, Context)> {
+    ) -> anyhow::Result<(BlockHash, Context)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let block_hash = self
@@ -351,19 +370,17 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         let timepoint = self
             .get_timepoint(&party.account(), &call_hash, Some(block_hash))
             .await;
-        let author = account_from_keypair(self.signer().signer());
 
         Ok((
             block_hash,
-            Context {
-                party: party.clone(),
-                author: author.clone(),
+            Context::new(
+                party.clone(),
+                self.account_id().clone(),
                 timepoint,
-                max_weight: max_weight.clone(),
-                call: None,
+                max_weight.clone(),
+                None,
                 call_hash,
-                approvers: HashSet::from([author]),
-            },
+            ),
         ))
     }
 
@@ -373,7 +390,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call: Call,
         status: TxStatus,
-    ) -> AnyResult<(BlockHash, Context)> {
+    ) -> anyhow::Result<(BlockHash, Context)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let block_hash = self
@@ -391,19 +408,17 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         let timepoint = self
             .get_timepoint(&party.account(), &call_hash, Some(block_hash))
             .await;
-        let author = account_from_keypair(self.signer().signer());
 
         Ok((
             block_hash,
-            Context {
-                party: party.clone(),
-                author: author.clone(),
+            Context::new(
+                party.clone(),
+                self.account_id().clone(),
                 timepoint,
-                max_weight: max_weight.clone(),
-                call: Some(call.clone()),
+                max_weight.clone(),
+                Some(call.clone()),
                 call_hash,
-                approvers: HashSet::from([author]),
-            },
+            ),
         ))
     }
 
@@ -411,7 +426,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         &self,
         context: Context,
         status: TxStatus,
-    ) -> AnyResult<(BlockHash, Option<Context>)> {
+    ) -> anyhow::Result<(BlockHash, Option<Context>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         self.approve_as_multi(
@@ -423,12 +438,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| {
-            (
-                block_hash,
-                context.add_approval(account_from_keypair(self.signer().signer())),
-            )
-        })
+        .map(|block_hash| (block_hash, context.add_approval(self.account_id().clone())))
     }
 
     async fn approve_with_call(
@@ -436,7 +446,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         mut context: Context,
         call: Option<Call>,
         status: TxStatus,
-    ) -> AnyResult<(BlockHash, Option<Context>)> {
+    ) -> anyhow::Result<(BlockHash, Option<Context>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         let call = match (call.as_ref(), context.call.as_ref()) {
@@ -445,7 +455,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             )),
             (None, Some(call)) => Ok(call),
             (Some(call), None) => {
-                context.set_call(call)?;
+                context.set_call(call.clone())?;
                 Ok(call)
             }
             (Some(saved_call), Some(new_call)) => {
@@ -466,20 +476,14 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| {
-            (
-                block_hash,
-                context.add_approval(account_from_keypair(self.signer().signer())),
-            )
-        })
+        .map(|block_hash| (block_hash, context.add_approval(self.account_id().clone())))
     }
 
-    async fn cancel(&self, context: Context, status: TxStatus) -> AnyResult<BlockHash> {
+    async fn cancel(&self, context: Context, status: TxStatus) -> anyhow::Result<BlockHash> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
-        let signer = account_from_keypair(self.signer().signer());
         ensure!(
-            signer == context.author,
+            *self.account_id() == context.author,
             "Only the author can cancel multisig aggregation"
         );
 
