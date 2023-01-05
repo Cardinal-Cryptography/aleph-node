@@ -73,7 +73,7 @@ pub async fn listen_contract_events(
     contracts: &[&ContractInstance],
     sender: UnboundedSender<Result<ContractEvent>>,
 ) -> Result<()> {
-    let mut block_subscription = conn.client.blocks().subscribe_finalized().await?;
+    let mut block_subscription = conn.as_client().blocks().subscribe_finalized().await?;
 
     while let Some(block) = block_subscription.next().await {
         if sender.is_closed() {

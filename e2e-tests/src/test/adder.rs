@@ -3,7 +3,7 @@ use std::{fmt::Debug, str::FromStr, sync::Arc};
 use aleph_client::{
     contract::{event::listen_contract_events, ContractInstance},
     contract_transcode::Value,
-    AccountId, Connection, SignedConnection,
+    AccountId, ConnectionApi, SignedConnectionApi,
 };
 use anyhow::{Context, Result};
 use assert2::assert;
@@ -91,17 +91,21 @@ impl AdderInstance {
         Ok(Self { contract })
     }
 
-    pub async fn get(&self, conn: &Connection) -> Result<u32> {
+    pub async fn get<C: ConnectionApi>(&self, conn: &C) -> Result<u32> {
         self.contract.contract_read0(conn, "get").await
     }
 
-    pub async fn add(&self, conn: &SignedConnection, value: u32) -> Result<()> {
+    pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<()> {
         self.contract
             .contract_exec(conn, "add", &[value.to_string()])
             .await
     }
 
-    pub async fn set_name(&self, conn: &SignedConnection, name: Option<&str>) -> Result<()> {
+    pub async fn set_name<S: SignedConnectionApi>(
+        &self,
+        conn: &S,
+        name: Option<&str>,
+    ) -> Result<()> {
         let name = name.map_or_else(
             || "None".to_string(),
             |name| {
@@ -114,8 +118,8 @@ impl AdderInstance {
         self.contract.contract_exec(conn, "set_name", &[name]).await
     }
 
-    pub async fn get_name(&self, conn: &Connection) -> Result<Option<String>> {
+    pub async fn get_name<C: ConnectionApi>(&self, conn: &C) -> Result<Option<String>> {
         let res: Option<String> = self.contract.contract_read0(conn, "get_name").await?;
-        Ok(res.map(|name| name.replace("\0", "")))
+        Ok(res.map(|name| name.replace('\0', "")))
     }
 }
