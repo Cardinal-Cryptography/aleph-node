@@ -29,7 +29,7 @@ impl<B: BlockT> Display for Error<B> {
         use Error::*;
         match self {
             MissingHash(hash) => {
-                write!(f, "no block for hash {:?}", hash)
+                write!(f, "no block for existing hash {:?}", hash)
             }
             MissingJustification(hash) => {
                 write!(
@@ -43,7 +43,7 @@ impl<B: BlockT> Display for Error<B> {
 }
 
 /// Substrate implementation of ChainStatus trait
-struct SubstrateChainStatus<B, BE>
+pub struct SubstrateChainStatus<B, BE>
 where
     BE: Backend<B>,
     B: BlockT,
