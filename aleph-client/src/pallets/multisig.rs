@@ -130,6 +130,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     }
 }
 
+/// A group of accounts together with a threshold.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MultisigParty {
     signatories: Vec<AccountId>,
@@ -137,7 +138,15 @@ pub struct MultisigParty {
 }
 
 impl MultisigParty {
-    // no upperbound check
+    /// Create new party from `signatories` and `threshold`.
+    ///
+    /// `signatories` can contain duplicates and doesn't have to be sorted. However, there must be
+    /// at least 2 unique accounts. There is also a virtual upper bound - `MaxSignatories` constant.
+    /// It isn't checked here (since it requires client), however, using too big party will fail
+    /// when performing any chain interaction.
+    ///
+    /// `threshold` must be between 2 and number of unique accounts in `signatories`. For threshold
+    /// 1, use special method `MultisigUserApi::as_multi_threshold_1`.
     pub fn new(signatories: &[AccountId], threshold: MultisigThreshold) -> AnyResult<Self> {
         let mut sorted_signatories = signatories.to_vec();
         sorted_signatories.sort();
@@ -162,6 +171,12 @@ impl MultisigParty {
         })
     }
 
+    /// The multisig account derived from signatories and threshold.
+    ///
+    /// This method is copied from the pallet, because:
+    ///  -  we don't want to add a new dependency
+    ///  -  we cannot instantiate pallet object here anyway (the corresponding functionality exists
+    ///     as pallet's method rather than standalone function)
     pub fn account(&self) -> AccountId {
         let entropy =
             (b"modlpy/utilisuba", &self.signatories, &self.threshold).using_encoded(blake2_256);
@@ -170,25 +185,41 @@ impl MultisigParty {
     }
 }
 
+/// A context in which ongoing signature aggregation is performed.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Context {
+    /// The entity for which aggregation is being made.
     party: MultisigParty,
+    /// Derived multisig account (the source of the target call).
     author: AccountId,
 
+    /// Pallet's coordinate for this aggregation.
     timepoint: Timepoint,
+    /// Weight limit when dispatching the call.
     max_weight: Weight,
 
+    /// The target dispatchable, if already provided.
     call: Option<Call>,
+    /// The hash of the target dispatchable.
     call_hash: CallHash,
 
+    /// The set of accounts, that already approved the call (via this context object), including the
+    /// author.
+    ///
+    /// `approvers.len() < party.threshold` always holds.
     approvers: HashSet<AccountId>,
 }
 
 impl Context {
+    /// In case `Context` object has been passed somewhere, where this limit should be adjusted, we
+    /// allow for that.
+    ///
+    /// Actually, this isn't used until threshold is met, so such changing is perfectly safe.
     pub fn change_max_weight(&mut self, max_weight: Weight) {
         self.max_weight = max_weight;
     }
 
+    /// Set `call` only if `self.call_hash` is matching.
     fn set_call(&mut self, call: &Call) -> anyhow::Result<()> {
         ensure!(
             self.call_hash == compute_call_hash(call),
@@ -198,9 +229,11 @@ impl Context {
         Ok(())
     }
 
+    /// Register another approval. Consume `self` if the threshold has been met and `call` is
+    /// already known.
     fn add_approval(mut self, approver: AccountId) -> Option<Self> {
         self.approvers.insert(approver);
-        if self.approvers.len() >= (self.party.threshold as usize) {
+        if self.call.is_some() && self.approvers.len() >= (self.party.threshold as usize) {
             None
         } else {
             Some(self)
@@ -208,8 +241,11 @@ impl Context {
     }
 }
 
+/// Pallet multisig functionality that is not directly related to any pallet call.
 #[async_trait::async_trait]
 pub trait MultisigApiExt {
+    /// Get the coordinate that corresponds to the ongoing signature aggregation for `party_account`
+    /// and `call_hash`.
     async fn get_timepoint(
         &self,
         party_account: &AccountId,
@@ -234,8 +270,14 @@ impl<C: ConnectionApi> MultisigApiExt for C {
     }
 }
 
+/// Pallet multisig API, but suited for cases when the whole scenario is performed in a single place
+/// - we keep data in a context object which helps in concise programming.
 #[async_trait::async_trait]
 pub trait MultisigContextualApi {
+    /// Start signature aggregation for `party` and `call_hash`. Get `Context` object as a result
+    /// (together with standard block hash).
+    ///
+    /// This is the recommended way of initialization.
     async fn initiate(
         &self,
         party: &MultisigParty,
@@ -243,6 +285,11 @@ pub trait MultisigContextualApi {
         call_hash: CallHash,
         status: TxStatus,
     ) -> anyhow::Result<(BlockHash, Context)>;
+    /// Start signature aggregation for `party` and `call`. Get `Context` object as a result
+    /// (together with standard block hash).
+    ///
+    /// Note: it is usually a better idea to pass `call` only with the final approval (so that it
+    /// isn't stored on-chain).
     async fn initiate_with_call(
         &self,
         party: &MultisigParty,
@@ -250,11 +297,20 @@ pub trait MultisigContextualApi {
         call: Call,
         status: TxStatus,
     ) -> anyhow::Result<(BlockHash, Context)>;
+    /// Express contextual approval for the call hash. Get `Context` object back if the target
+    /// dispatchable couldn't have been executed yet (either too less approvals or only hash is
+    /// known).
+    ///
+    /// This is the recommended way for every intermediate approval.
     async fn approve(
         &self,
         context: Context,
         status: TxStatus,
     ) -> anyhow::Result<(BlockHash, Option<Context>)>;
+    /// Express contextual approval for the `call`. Get `Context` object back if the threshold is
+    /// still not met.
+    ///
+    /// This is the recommended way only for the final approval.
     async fn approve_with_call(
         &self,
         context: Context,
@@ -286,6 +342,12 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             )
             .await?;
 
+        // Even though `subxt` allows us to get timepoint when waiting for the submission
+        // confirmation (see e.g. `ExtrinsicEvents` object that is returned from
+        // `wait_for_finalized_success`), we chose to perform one additional storage read.
+        // Firstly, because of brevity here (we would have to duplicate some lines from
+        // `connections` module. Secondly, if `Timepoint` struct change, this method (reading raw
+        // extrinsic position) might become incorrect.
         let timepoint = self
             .get_timepoint(&party.account(), &call_hash, Some(block_hash))
             .await;
@@ -432,10 +494,13 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
     }
 }
 
+/// Compute hash of `call`.
 pub fn compute_call_hash(call: &Call) -> CallHash {
     call.using_encoded(blake2_256)
 }
 
+/// Ensure that the signer of `conn` is present in `party.signatories`. If so, return all other
+/// signatories.
 fn ensure_signer_in_party<S: SignedConnectionApi>(
     conn: &S,
     party: &MultisigParty,
