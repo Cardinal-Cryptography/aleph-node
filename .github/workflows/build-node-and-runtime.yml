@@ -37,7 +37,6 @@ jobs:
         uses: arduino/setup-protoc@v1
         with:
           version: '3.6.1'
-          repo-token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
