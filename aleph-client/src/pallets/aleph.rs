@@ -10,7 +10,7 @@ use crate::{
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
-    Connection, Pair, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, Pair, RootConnection, SudoCall, TxStatus,
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
@@ -85,7 +85,7 @@ impl AlephSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl AlephRpc for Connection {
+impl<C: ConnectionApi> AlephRpc for C {
     async fn emergency_finalize(
         &self,
         number: BlockNumber,

@@ -1,4 +1,4 @@
-use crate::{api, BlockHash, Connection};
+use crate::{api, BlockHash, ConnectionApi};
 
 /// An alias for a fee multiplier.
 pub type FeeMultiplier = u128;
@@ -11,7 +11,7 @@ pub trait TransactionPaymentApi {
 }
 
 #[async_trait::async_trait]
-impl TransactionPaymentApi for Connection {
+impl<C: ConnectionApi> TransactionPaymentApi for C {
     async fn get_next_fee_multiplier(&self, at: Option<BlockHash>) -> FeeMultiplier {
         let addrs = api::storage().transaction_payment().next_fee_multiplier();
 

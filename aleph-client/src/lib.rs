@@ -9,6 +9,7 @@
 
 #![feature(auto_traits)]
 #![feature(negative_impls)]
+
 extern crate core;
 
 pub use contract_transcode;
@@ -51,7 +52,11 @@ pub type Client = OnlineClient<AlephConfig>;
 /// An alias for a hash type.
 pub type BlockHash = H256;
 
-pub use connections::{Connection, RootConnection, SignedConnection, SudoCall};
+pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
+
+pub use connections::{
+    Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall,
+};
 
 /// When submitting a transaction, wait for given status before proceeding.
 #[derive(Copy, Clone)]
