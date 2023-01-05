@@ -56,7 +56,7 @@ pub struct ContractEvent {
     /// The address of the contract that emitted the event.
     pub contract: AccountId,
     /// The name of the event.
-    pub ident: Option<String>,
+    pub name: Option<String>,
     /// Data contained in the event.
     pub data: HashMap<String, Value>,
 }
@@ -66,7 +66,8 @@ pub struct ContractEvent {
 /// Will send contract event and every error encountered while fetching through the provided [UnboundedSender].
 /// Only events coming from the address of one of the `contracts` will be decoded.
 ///
-/// The loop will terminate once `sender` is closed.
+/// The loop will terminate once `sender` is closed. The loop may also terminate in case of errors while fetching blocks
+/// or decoding events (pallet events, contract event decoding errors are sent over the channel).
 pub async fn listen_contract_events(
     conn: &Connection,
     contracts: &[&ContractInstance],
@@ -96,7 +97,9 @@ pub async fn listen_contract_events(
                         .transcoder
                         .decode_contract_event(&mut data.as_slice());
 
-                    sender.unbounded_send(build_event(contract.address().clone(), event))?;
+                    sender.unbounded_send(
+                        event.and_then(|event| build_event(contract.address().clone(), event)),
+                    )?;
                 }
             }
         }
@@ -113,13 +116,11 @@ fn zero_prefixed(data: &[u8]) -> Vec<u8> {
     result
 }
 
-fn build_event(address: AccountId, event_data: Result<Value>) -> Result<ContractEvent> {
-    let event_data = event_data?;
-
+fn build_event(address: AccountId, event_data: Value) -> Result<ContractEvent> {
     match event_data {
         Value::Map(map) => Ok(ContractEvent {
             contract: address,
-            ident: map.ident(),
+            name: map.ident(),
             data: map
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))

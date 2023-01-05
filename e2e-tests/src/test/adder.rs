@@ -39,7 +39,7 @@ pub async fn adder() -> Result<()> {
     contract.add(&account.sign(&conn), increment).await?;
 
     let event = rx.next().await.context("No event received")??;
-    assert!(event.ident == Some("ValueChanged".to_string()));
+    assert!(event.name == Some("ValueChanged".to_string()));
     assert!(event.contract == *contract.contract.address());
     assert!(event.data["new_value"] == Value::UInt(before as u128 + 10));
 
