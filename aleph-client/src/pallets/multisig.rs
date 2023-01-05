@@ -12,22 +12,38 @@ use crate::{
     TxStatus,
 };
 
+/// An alias for a call hash.
 pub type CallHash = [u8; 32];
+/// An alias for a call.
 pub type Call = RuntimeCall;
+/// An alias for a threshold.
 pub type MultisigThreshold = u16;
+/// An alias for a timepoint.
 pub type Timepoint = runtime_types::pallet_multisig::Timepoint<BlockNumber>;
+/// An alias for a multisig structure in the pallet storage.
 pub type Multisig = runtime_types::pallet_multisig::Multisig<BlockNumber, Balance, AccountId>;
 
+/// `MAX_WEIGHT` is the extrinsic parameter specifying upperbound for executing approved call.
+/// Unless the approval is final, it has no effect. However, if due to your approval the
+/// threshold is reached, you will be charged for execution process. By setting `max_weight`
+/// low enough, you can avoid paying and left it for another member.
+///
+/// However, passing such parameter everytime is cumbersome and introduces the need of either
+/// estimating call weight or setting very high universal bound at every caller side.
+/// Thus, we keep a fairly high limit, which should cover almost any call (0.05 token).
 pub const DEFAULT_MAX_WEIGHT: Weight = Weight::new(500_000_000, 0);
 
+/// Pallet multisig api.
 #[async_trait::async_trait]
 pub trait MultisigUserApi {
+    /// API for [`as_multi_threshold_1`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.as_multi_threshold_1) call.
     async fn as_multi_threshold_1(
         &self,
         other_signatories: Vec<AccountId>,
         call: Call,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
+    /// API for [`as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.as_multi) call.
     async fn as_multi(
         &self,
         threshold: MultisigThreshold,
@@ -37,6 +53,7 @@ pub trait MultisigUserApi {
         call: Call,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
+    /// API for [`approve_as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.approve_as_multi) call.
     async fn approve_as_multi(
         &self,
         threshold: MultisigThreshold,
@@ -46,6 +63,7 @@ pub trait MultisigUserApi {
         call_hash: CallHash,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
+    /// API for [`cancel_as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.cancel_as_multi) call.
     async fn cancel_as_multi(
         &self,
         threshold: MultisigThreshold,
@@ -259,7 +277,9 @@ pub struct Context<S: ContextState> {
 /// read only (`Closed`).
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ContextAfterUse {
+    /// Signature aggregation is in progress.
     Ongoing(Context<Ongoing>),
+    /// Signature aggregation was either successfully performed or was canceled.
     Closed(Context<Closed>),
 }
 
@@ -330,24 +350,31 @@ impl Context<Ongoing> {
 }
 
 impl Context<Closed> {
+    /// Read party.
     pub fn party(&self) -> &MultisigParty {
         &self.party
     }
+    /// Read author.
     pub fn author(&self) -> &AccountId {
         &self.author
     }
+    /// Read timepoint.
     pub fn timepoint(&self) -> &Timepoint {
         &self.timepoint
     }
+    /// Read max weight.
     pub fn max_weight(&self) -> &Weight {
         &self.max_weight
     }
+    /// Read call.
     pub fn call(&self) -> &Option<Call> {
         &self.call
     }
+    /// Read call hash.
     pub fn call_hash(&self) -> CallHash {
         self.call_hash
     }
+    /// Read approvers set.
     pub fn approvers(&self) -> &HashSet<AccountId> {
         &self.approvers
     }
