@@ -16,6 +16,8 @@ pub type MultisigThreshold = u16;
 pub type Timepoint = runtime_types::pallet_multisig::Timepoint<BlockNumber>;
 pub type Multisig = runtime_types::pallet_multisig::Multisig<BlockNumber, Balance, AccountId>;
 
+pub const DEFAULT_MAX_WEIGHT: Weight = Weight::new(500_000_000, 0);
+
 #[async_trait::async_trait]
 pub trait MultisigUserApi {
     async fn as_multi_threshold_1(
@@ -170,10 +172,14 @@ impl MultisigParty {
 pub struct Context {
     party: MultisigParty,
     author: AccountId,
+
     timepoint: Timepoint,
     max_weight: Weight,
+
     call: Option<Call>,
     call_hash: CallHash,
+
+    approvals: usize,
 }
 
 impl Context {
@@ -188,6 +194,17 @@ impl Context {
         );
         self.call = Some(call.clone());
         Ok(())
+    }
+
+    fn bump_approvals(self) -> Option<Self> {
+        if self.approvals + 1 >= (self.party.threshold as usize) {
+            None
+        } else {
+            Some(Context {
+                approvals: self.approvals + 1,
+                ..self
+            })
+        }
     }
 }
 
@@ -237,13 +254,13 @@ pub trait MultisigContextualApi {
         &self,
         context: Context,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)>;
+    ) -> anyhow::Result<(BlockHash, Option<Context>)>;
     async fn approve_with_call(
         &self,
         context: Context,
         call: Option<Call>,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)>;
+    ) -> anyhow::Result<(BlockHash, Option<Context>)>;
     async fn cancel(&self, context: Context, status: TxStatus) -> anyhow::Result<BlockHash>;
 }
 
@@ -282,6 +299,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
                 max_weight: max_weight.clone(),
                 call: None,
                 call_hash,
+                approvals: 1,
             },
         ))
     }
@@ -320,11 +338,16 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
                 max_weight: max_weight.clone(),
                 call: Some(call.clone()),
                 call_hash,
+                approvals: 1,
             },
         ))
     }
 
-    async fn approve(&self, context: Context, status: TxStatus) -> AnyResult<(BlockHash, Context)> {
+    async fn approve(
+        &self,
+        context: Context,
+        status: TxStatus,
+    ) -> AnyResult<(BlockHash, Option<Context>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         self.approve_as_multi(
@@ -336,7 +359,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| (block_hash, context))
+        .map(|block_hash| (block_hash, context.bump_approvals()))
     }
 
     async fn approve_with_call(
@@ -344,7 +367,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         mut context: Context,
         call: Option<Call>,
         status: TxStatus,
-    ) -> AnyResult<(BlockHash, Context)> {
+    ) -> AnyResult<(BlockHash, Option<Context>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         let call = match (call.as_ref(), context.call.as_ref()) {
@@ -374,7 +397,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| (block_hash, context))
+        .map(|block_hash| (block_hash, context.bump_approvals()))
     }
 
     async fn cancel(&self, context: Context, status: TxStatus) -> AnyResult<BlockHash> {
@@ -397,7 +420,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
     }
 }
 
-fn compute_call_hash(call: &Call) -> CallHash {
+pub fn compute_call_hash(call: &Call) -> CallHash {
     call.using_encoded(blake2_256)
 }
 
