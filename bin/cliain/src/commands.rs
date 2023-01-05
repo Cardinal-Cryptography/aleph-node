@@ -361,6 +361,4 @@ pub enum Command {
         #[clap(long, value_enum, default_value_t=ExtrinsicState::Finalized)]
         expected_state: ExtrinsicState,
     },
-
-    Multisig,
 }
