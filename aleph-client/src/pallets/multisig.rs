@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, marker::PhantomData};
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
@@ -214,9 +214,23 @@ impl<C: ConnectionApi> MultisigApiExt for C {
     }
 }
 
+/// We will mark context object as either ongoing procedure or a closed one. However, we put this
+/// distinction to the type level, so instead of enum, we use a trait.
+pub trait ContextState {}
+
+/// Context of the signature aggregation that is still in progress.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Ongoing {}
+impl ContextState for Ongoing {}
+
+/// Context of the signature aggregation that was either successfully performed or canceled.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Closed {}
+impl ContextState for Closed {}
+
 /// A context in which ongoing signature aggregation is performed.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Context {
+pub struct Context<S: ContextState> {
     /// The entity for which aggregation is being made.
     party: MultisigParty,
     /// Derived multisig account (the source of the target call).
@@ -237,9 +251,19 @@ pub struct Context {
     ///
     /// `approvers.len() < party.threshold` always holds.
     approvers: HashSet<AccountId>,
+
+    _phantom: PhantomData<S>,
 }
 
-impl Context {
+/// After approval action, our context can be in two modes - either for further use (`Ongoing`), or
+/// read only (`Closed`).
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum ContextAfterUse {
+    Ongoing(Context<Ongoing>),
+    Closed(Context<Closed>),
+}
+
+impl Context<Ongoing> {
     fn new(
         party: MultisigParty,
         author: AccountId,
@@ -256,6 +280,7 @@ impl Context {
             call,
             call_hash,
             approvers: HashSet::from([author]),
+            _phantom: PhantomData,
         }
     }
 
@@ -277,15 +302,54 @@ impl Context {
         Ok(())
     }
 
-    /// Register another approval. Consume `self` if the threshold has been met and `call` is
-    /// already known.
-    fn add_approval(mut self, approver: AccountId) -> Option<Self> {
+    /// Register another approval. Depending on the threshold meeting and `call` content, we treat
+    /// signature aggregation process as either still ongoing or closed.
+    fn add_approval(mut self, approver: AccountId) -> ContextAfterUse {
         self.approvers.insert(approver);
         if self.call.is_some() && self.approvers.len() >= (self.party.threshold as usize) {
-            None
+            ContextAfterUse::Closed(self.close())
         } else {
-            Some(self)
+            ContextAfterUse::Ongoing(self)
         }
+    }
+
+    /// Casting to the closed variant. Private, so that the user don't accidentally call `into()`
+    /// and close ongoing context.
+    fn close(self) -> Context<Closed> {
+        Context::<Closed> {
+            party: self.party,
+            author: self.author,
+            timepoint: self.timepoint,
+            max_weight: self.max_weight,
+            call: self.call,
+            call_hash: self.call_hash,
+            approvers: self.approvers,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl Context<Closed> {
+    pub fn party(&self) -> &MultisigParty {
+        &self.party
+    }
+    pub fn author(&self) -> &AccountId {
+        &self.author
+    }
+    pub fn timepoint(&self) -> &Timepoint {
+        &self.timepoint
+    }
+    pub fn max_weight(&self) -> &Weight {
+        &self.max_weight
+    }
+    pub fn call(&self) -> &Option<Call> {
+        &self.call
+    }
+    pub fn call_hash(&self) -> CallHash {
+        self.call_hash
+    }
+    pub fn approvers(&self) -> &HashSet<AccountId> {
+        &self.approvers
     }
 }
 
@@ -303,7 +367,7 @@ pub trait MultisigContextualApi {
         max_weight: &Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)>;
+    ) -> anyhow::Result<(BlockHash, Context<Ongoing>)>;
     /// Start signature aggregation for `party` and `call`. Get `Context` object as a result
     /// (together with standard block hash).
     ///
@@ -315,28 +379,30 @@ pub trait MultisigContextualApi {
         max_weight: &Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)>;
-    /// Express contextual approval for the call hash. Get `Context` object back if the target
-    /// dispatchable couldn't have been executed yet (either too less approvals or only hash is
-    /// known).
+    ) -> anyhow::Result<(BlockHash, Context<Ongoing>)>;
+    /// Express contextual approval for the call hash.
     ///
     /// This is the recommended way for every intermediate approval.
     async fn approve(
         &self,
-        context: Context,
+        context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Option<Context>)>;
-    /// Express contextual approval for the `call`. Get `Context` object back if the threshold is
-    /// still not met.
+    ) -> anyhow::Result<(BlockHash, ContextAfterUse)>;
+    /// Express contextual approval for the `call`.
     ///
     /// This is the recommended way only for the final approval.
     async fn approve_with_call(
         &self,
-        context: Context,
+        context: Context<Ongoing>,
         call: Option<Call>,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Option<Context>)>;
-    async fn cancel(&self, context: Context, status: TxStatus) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<(BlockHash, ContextAfterUse)>;
+    /// Cancel signature aggregation.
+    async fn cancel(
+        &self,
+        context: Context<Ongoing>,
+        status: TxStatus,
+    ) -> anyhow::Result<(BlockHash, Context<Closed>)>;
 }
 
 #[async_trait::async_trait]
@@ -347,7 +413,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)> {
+    ) -> anyhow::Result<(BlockHash, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let block_hash = self
@@ -390,7 +456,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Context)> {
+    ) -> anyhow::Result<(BlockHash, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let block_hash = self
@@ -424,9 +490,9 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
 
     async fn approve(
         &self,
-        context: Context,
+        context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Option<Context>)> {
+    ) -> anyhow::Result<(BlockHash, ContextAfterUse)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         self.approve_as_multi(
@@ -443,10 +509,10 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
 
     async fn approve_with_call(
         &self,
-        mut context: Context,
+        mut context: Context<Ongoing>,
         call: Option<Call>,
         status: TxStatus,
-    ) -> anyhow::Result<(BlockHash, Option<Context>)> {
+    ) -> anyhow::Result<(BlockHash, ContextAfterUse)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         let call = match (call.as_ref(), context.call.as_ref()) {
@@ -479,7 +545,11 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         .map(|block_hash| (block_hash, context.add_approval(self.account_id().clone())))
     }
 
-    async fn cancel(&self, context: Context, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn cancel(
+        &self,
+        context: Context<Ongoing>,
+        status: TxStatus,
+    ) -> anyhow::Result<(BlockHash, Context<Closed>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         ensure!(
@@ -487,14 +557,17 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             "Only the author can cancel multisig aggregation"
         );
 
-        self.cancel_as_multi(
-            context.party.threshold,
-            other_signatories,
-            context.timepoint,
-            context.call_hash,
-            status,
-        )
-        .await
+        let block_hash = self
+            .cancel_as_multi(
+                context.party.threshold,
+                other_signatories,
+                context.timepoint.clone(),
+                context.call_hash,
+                status,
+            )
+            .await?;
+
+        Ok((block_hash, context.close()))
     }
 }
 
