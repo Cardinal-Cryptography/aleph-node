@@ -46,6 +46,7 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
             hash: _,
             finalizer_seed: _,
         }
+        | Command::Multisig
         | Command::NextSessionKeys { account_id: _ }
         | Command::RotateKeys
         | Command::SeedToSS58 { input: _ }

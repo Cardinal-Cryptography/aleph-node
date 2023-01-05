@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{anyhow, ensure, Result as AnyResult};
 use codec::{Decode, Encode};
 use primitives::{Balance, BlockNumber};
@@ -179,7 +181,7 @@ pub struct Context {
     call: Option<Call>,
     call_hash: CallHash,
 
-    approvals: usize,
+    approvers: HashSet<AccountId>,
 }
 
 impl Context {
@@ -196,14 +198,12 @@ impl Context {
         Ok(())
     }
 
-    fn bump_approvals(self) -> Option<Self> {
-        if self.approvals + 1 >= (self.party.threshold as usize) {
+    fn add_approval(mut self, approver: AccountId) -> Option<Self> {
+        self.approvers.insert(approver);
+        if self.approvers.len() >= (self.party.threshold as usize) {
             None
         } else {
-            Some(Context {
-                approvals: self.approvals + 1,
-                ..self
-            })
+            Some(self)
         }
     }
 }
@@ -289,17 +289,18 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         let timepoint = self
             .get_timepoint(&party.account(), &call_hash, Some(block_hash))
             .await;
+        let author = account_from_keypair(self.signer().signer());
 
         Ok((
             block_hash,
             Context {
                 party: party.clone(),
-                author: account_from_keypair(self.signer().signer()),
+                author: author.clone(),
                 timepoint,
                 max_weight: max_weight.clone(),
                 call: None,
                 call_hash,
-                approvals: 1,
+                approvers: HashSet::from([author]),
             },
         ))
     }
@@ -328,17 +329,18 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         let timepoint = self
             .get_timepoint(&party.account(), &call_hash, Some(block_hash))
             .await;
+        let author = account_from_keypair(self.signer().signer());
 
         Ok((
             block_hash,
             Context {
                 party: party.clone(),
-                author: account_from_keypair(self.signer().signer()),
+                author: author.clone(),
                 timepoint,
                 max_weight: max_weight.clone(),
                 call: Some(call.clone()),
                 call_hash,
-                approvals: 1,
+                approvers: HashSet::from([author]),
             },
         ))
     }
@@ -359,7 +361,12 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| (block_hash, context.bump_approvals()))
+        .map(|block_hash| {
+            (
+                block_hash,
+                context.add_approval(account_from_keypair(self.signer().signer())),
+            )
+        })
     }
 
     async fn approve_with_call(
@@ -397,7 +404,12 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|block_hash| (block_hash, context.bump_approvals()))
+        .map(|block_hash| {
+            (
+                block_hash,
+                context.add_approval(account_from_keypair(self.signer().signer())),
+            )
+        })
     }
 
     async fn cancel(&self, context: Context, status: TxStatus) -> AnyResult<BlockHash> {
