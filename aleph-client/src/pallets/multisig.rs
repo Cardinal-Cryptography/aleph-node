@@ -185,6 +185,35 @@ impl MultisigParty {
     }
 }
 
+/// Pallet multisig functionality that is not directly related to any pallet call.
+#[async_trait::async_trait]
+pub trait MultisigApiExt {
+    /// Get the coordinate that corresponds to the ongoing signature aggregation for `party_account`
+    /// and `call_hash`.
+    async fn get_timepoint(
+        &self,
+        party_account: &AccountId,
+        call_hash: &CallHash,
+        block_hash: Option<BlockHash>,
+    ) -> Timepoint;
+}
+
+#[async_trait::async_trait]
+impl<C: ConnectionApi> MultisigApiExt for C {
+    async fn get_timepoint(
+        &self,
+        party_account: &AccountId,
+        call_hash: &CallHash,
+        block_hash: Option<BlockHash>,
+    ) -> Timepoint {
+        let multisigs = api::storage()
+            .multisig()
+            .multisigs(party_account, call_hash);
+        let Multisig { when, .. } = self.get_storage_entry(&multisigs, block_hash).await;
+        when
+    }
+}
+
 /// A context in which ongoing signature aggregation is performed.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Context {
@@ -257,35 +286,6 @@ impl Context {
         } else {
             Some(self)
         }
-    }
-}
-
-/// Pallet multisig functionality that is not directly related to any pallet call.
-#[async_trait::async_trait]
-pub trait MultisigApiExt {
-    /// Get the coordinate that corresponds to the ongoing signature aggregation for `party_account`
-    /// and `call_hash`.
-    async fn get_timepoint(
-        &self,
-        party_account: &AccountId,
-        call_hash: &CallHash,
-        block_hash: Option<BlockHash>,
-    ) -> Timepoint;
-}
-
-#[async_trait::async_trait]
-impl<C: ConnectionApi> MultisigApiExt for C {
-    async fn get_timepoint(
-        &self,
-        party_account: &AccountId,
-        call_hash: &CallHash,
-        block_hash: Option<BlockHash>,
-    ) -> Timepoint {
-        let multisigs = api::storage()
-            .multisig()
-            .multisigs(party_account, call_hash);
-        let Multisig { when, .. } = self.get_storage_entry(&multisigs, block_hash).await;
-        when
     }
 }
 
