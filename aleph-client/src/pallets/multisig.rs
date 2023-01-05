@@ -1,8 +1,7 @@
-use primitives::{Balance, BlockNumber};
+use primitives::BlockNumber;
 
 use crate::{
-    api, api::runtime_types, sp_weights::weight_v2::Weight, AccountId, BlockHash,
-    SignedConnectionApi, TxStatus,
+    api, sp_weights::weight_v2::Weight, AccountId, BlockHash, SignedConnectionApi, TxStatus,
 };
 
 /// An alias for a call hash.
@@ -11,7 +10,6 @@ pub type CallHash = [u8; 32];
 pub type Call = Vec<u8>;
 /// An alias for a timepoint.
 pub type Timepoint = api::runtime_types::pallet_multisig::Timepoint<BlockNumber>;
-pub type Multisig = runtime_types::pallet_multisig::Multisig<BlockNumber, Balance, AccountId>;
 
 /// Pallet multisig api.
 #[async_trait::async_trait]

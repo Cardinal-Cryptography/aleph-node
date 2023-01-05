@@ -103,11 +103,9 @@ pub trait ConnectionApi: Sync {
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
 }
 
-
 /// Signed connection should be able to sends transactions to chain
 #[async_trait::async_trait]
 pub trait SignedConnectionApi: ConnectionApi {
-
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
     /// * `status` - a [`TxStatus`] for a tx to wait for
@@ -126,7 +124,6 @@ pub trait SignedConnectionApi: ConnectionApi {
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
 
-
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
     /// * `params` - optional tx params e.g. tip
@@ -140,8 +137,13 @@ pub trait SignedConnectionApi: ConnectionApi {
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
 
+    /// Returns account id which signs this connection
     fn account_id(&self) -> &AccountId;
+
+    /// Returns a [`KeyPair`] which signs this connection
     fn signer(&self) -> &KeyPair;
+
+    /// Tries to convert [`SignedConnection`] as [`RootConnection`]
     async fn try_as_root(&self) -> anyhow::Result<RootConnection>;
 }
 
@@ -311,10 +313,16 @@ impl Connection {
     const DEFAULT_RETRIES: u32 = 10;
     const RETRY_WAIT_SECS: u64 = 1;
 
+    /// Creates new connection from a given url.
+    /// By default, it tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
     pub async fn new(address: &str) -> Connection {
         Self::new_with_retries(address, Self::DEFAULT_RETRIES).await
     }
 
+    /// Creates new connection from a given url and given number of connection attempts.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
+    /// * `retries` - number of connection attempts
     async fn new_with_retries(address: &str, mut retries: u32) -> Connection {
         loop {
             let client = SubxtClient::from_url(&address).await;
@@ -335,20 +343,34 @@ impl Connection {
 }
 
 impl SignedConnection {
+    /// Creates new signed connection from existing [`Connection`] object.
+    /// * `connection` - existing connection
+    /// * `signer` - a [`KeyPair`] of signing account
     pub async fn new(address: &str, signer: KeyPair) -> Self {
         Self::from_connection(Connection::new(address).await, signer)
     }
 
+    /// Creates new signed connection from existing [`Connection`] object.
+    /// * `connection` - existing connection
+    /// * `signer` - a [`KeyPair`] of signing account
     pub fn from_connection(connection: Connection, signer: KeyPair) -> Self {
         Self { connection, signer }
     }
 }
 
 impl RootConnection {
+    /// Creates new root connection from a given url.
+    /// It tries to connect 10 times, waiting 1 second between each unsuccessful attempt.
+    /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
+    /// * `root` - a [`KeyPair`] of the Sudo account
     pub async fn new(address: &str, root: KeyPair) -> anyhow::Result<Self> {
         RootConnection::try_from_connection(Connection::new(address).await, root).await
     }
 
+    /// Creates new root connection from a given [`Connection`] object. It validates whether given
+    /// key is really a sudo account
+    /// * `connection` - existing connection
+    /// * `signer` - a [`KeyPair`] of the Sudo account
     pub async fn try_from_connection(
         connection: Connection,
         signer: KeyPair,
@@ -376,12 +398,5 @@ impl RootConnection {
         Ok(Self {
             connection: SignedConnection { connection, signer },
         })
-    }
-
-    pub fn as_signed(&self) -> SignedConnection {
-        SignedConnection {
-            connection: self.connection.clone(),
-            signer: KeyPair::new(self.root.signer().clone()),
-        }
     }
 }

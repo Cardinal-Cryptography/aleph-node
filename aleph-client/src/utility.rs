@@ -28,8 +28,12 @@ pub trait BlocksApi {
     async fn get_finalized_block_hash(&self) -> anyhow::Result<BlockHash>;
 
     /// Returns number of a given block hash, if the given block exists, otherwise `None`
+    /// This is version that returns `Result`
     /// * `block` - hash of the block to query its number
     async fn get_block_number(&self, block: BlockHash) -> anyhow::Result<Option<BlockNumber>>;
+
+    /// Returns number of a given block hash, if the given block exists, otherwise `None`
+    /// * `block` - hash of the block to query its number
     async fn get_block_number_opt(
         &self,
         block: Option<BlockHash>,
