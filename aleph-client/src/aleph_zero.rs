@@ -1,10 +1,4 @@
-#[doc(hidden)]
-#[allow(
-    dead_code,
-    unused_imports,
-    non_camel_case_types,
-    rustdoc::broken_intra_doc_links
-)]
+#[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
     pub static PALLETS: [&str; 21usize] = [
