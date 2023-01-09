@@ -73,12 +73,12 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    fn header(&self, hash: B::Hash) -> Result<Option<B::Header>, Error<B>> {
+    fn header(&self, hash: B::Hash) -> Result<Option<B::Header>, ClientError> {
         let id = SubstrateBlockId::<B>::Hash(hash);
-        Ok(self.client.header(id)?)
+        self.client.header(id)
     }
 
-    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, Error<B>> {
+    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, ClientError> {
         let id = SubstrateBlockId::<B>::Hash(hash);
         let justification = match self
             .client
