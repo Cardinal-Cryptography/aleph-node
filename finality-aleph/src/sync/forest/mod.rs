@@ -8,6 +8,18 @@ mod vertex;
 
 type BlockIdFor<J> = <<J as Justification>::Header as Header>::Identifier;
 
+struct JustificationWithParent<J: Justification> {
+    pub justification: J,
+    pub parent: BlockIdFor<J>,
+}
+
+impl<J: Justification> JustificationWithParent<J> {
+    fn new(justification: J) -> Option<Self> {
+        justification.header().parent_id().map(|id| Self { justification, parent: id.clone() })
+    }
+}
+
+
 pub enum VertexState<'a, I: PeerID, J: Justification> {
     Unknown,
     HopelessFork,
@@ -22,34 +34,6 @@ pub enum RequestType {
     JustificationsBelow,
 }
 
-// /// TODO: RETHINK
-// impl From<VertexState> for Option<RequestType> {
-//     fn from(state: VertexState) -> Self {
-//         use VertexState::*;
-//         use Content::*;
-//         use Importance::*;
-//         use RequestType::{Header as RHeader, Body, JustificationsBelow};
-//         match state {
-//             Unknown | HopelessFork | BelowMinimal | HighestFinalized => None,
-//             Candidate(Empty, Auxiliary) => Some(RHeader),
-//             Candidate(Empty, TopRequired) => Some(Body),
-//             Candidate(Empty, Required) => Some(Body),
-//             Candidate(Empty, Imported) => {
-//                 error!(target: "aleph-sync", "Forbidden state combination: (Empty, Imported), interpreting as (Header, Imported)");
-//                 Some(JustificationsBelow)
-//             },
-//             Candidate(Header, Auxiliary) => None,
-//             Candidate(Header, TopRequired) => Some(Body),
-//             Candidate(Header, Required) => Some(Body),
-//             Candidate(Header, Imported) => Some(JustificationsBelow),
-//             Candidate(Justification, Auxiliary) => {
-//                 error!(target: "aleph-sync", "Forbidden state combination: (Justification, Auxiliary), interpreting as (Justification, _)");
-//                 Some(JustificationsBelow)
-//             },
-//             Candidate(Justification, _) => Some(JustificationsBelow),
-//         }
-//     }
-// }
 
 pub enum Error {
     Vertex(VertexError),
