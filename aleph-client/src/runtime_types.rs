@@ -51,7 +51,8 @@ impl TryFrom<String> for SessionKeys {
 }
 
 impl Weight {
-    pub fn new(ref_time: u64, proof_size: u64) -> Self {
+    /// Returns new instance of weight v2 object.
+    pub const fn new(ref_time: u64, proof_size: u64) -> Self {
         Self {
             ref_time,
             proof_size,
