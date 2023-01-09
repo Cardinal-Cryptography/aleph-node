@@ -87,10 +87,10 @@ instantiate_fee = find_fee(deploy_result['events'], suri_address)
 events = call(args.adder_dir, adder_address, 'add', '42')
 add_fee = find_fee(events, suri_address)
 
+headers = ['Operation', 'Fee']
 prices = [
-    ["Operation", "Fee"],
     ["Instantiate contract with single storage value",
         format_fee(instantiate_fee)],
     ["Call contract with single storage update", format_fee(add_fee)]
 ]
-print(tabulate(prices))
+print(tabulate(prices, headers=headers, tablefmt="github"))
