@@ -10,7 +10,7 @@ mod weights;
 use frame_support::pallet_prelude::StorageVersion;
 use frame_system::ensure_root;
 pub use pallet::*;
-pub use systems::ProvingSystem;
+pub use systems::{ProvingSystem, VerificationError};
 pub use weights::{AlephWeight, WeightInfo};
 
 /// The current storage version.
