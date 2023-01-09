@@ -3,9 +3,12 @@
 
 extern crate core;
 
+use anyhow::anyhow;
 pub use contract_transcode;
+use serde::Serialize;
+use serde_json::value::RawValue;
 pub use subxt::ext::{codec, sp_core, sp_runtime};
-use subxt::{OnlineClient, PolkadotConfig, SubstrateConfig};
+use subxt::{rpc::RpcParams, OnlineClient, PolkadotConfig, SubstrateConfig};
 
 pub use crate::sp_core::Pair;
 use crate::{
@@ -27,7 +30,7 @@ pub use runtime_types::*;
 
 pub type AlephKeyPair = ed25519::Pair;
 pub type RawKeyPair = sr25519::Pair;
-pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
+pub type AccountId = crate::sp_core::crypto::AccountId32;
 pub type BlockHash = H256;
 pub type CodeHash = H256;
 
@@ -57,6 +60,29 @@ impl KeyPair {
 
     pub fn account_id(&self) -> &AccountId {
         self.inner.account_id()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RpcCallParams {
+    inner: RpcParams,
+}
+
+impl RpcCallParams {
+    pub fn new() -> Self {
+        Self {
+            inner: RpcParams::new(),
+        }
+    }
+
+    pub fn push<P: Serialize>(&mut self, param: P) -> anyhow::Result<()> {
+        self.inner
+            .push(param)
+            .map_err(|e| anyhow!("Failed to push rpc param: {:?}", e))
+    }
+
+    pub fn build(self) -> Option<Box<RawValue>> {
+        self.inner.build()
     }
 }
 

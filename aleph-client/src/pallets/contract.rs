@@ -5,7 +5,7 @@ use subxt::rpc_params;
 
 use crate::{
     api, pallet_contracts::wasm::OwnerInfo, sp_core::Bytes, sp_weights::weight_v2::Weight,
-    AccountId, BlockHash, CodeHash, ConnectionApi, SignedConnectionApi, TxStatus,
+    AccountId, BlockHash, CodeHash, ConnectionApi, RpcCallParams, SignedConnectionApi, TxStatus,
 };
 
 #[derive(Encode)]
@@ -178,7 +178,9 @@ impl<C: ConnectionApi> ContractRpc for C {
         &self,
         args: ContractCallArgs,
     ) -> anyhow::Result<ContractExecResult<Balance>> {
-        let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
+        let params = RpcCallParams {
+            inner: rpc_params!["ContractsApi_call", Bytes(args.encode())],
+        };
         self.rpc_call("state_call".to_string(), params).await
     }
 }

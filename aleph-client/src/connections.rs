@@ -5,14 +5,13 @@ use codec::Decode;
 use log::info;
 use subxt::{
     metadata::DecodeWithMetadata,
-    rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
     tx::TxPayload,
 };
 
 use crate::{
     api, sp_core::Bytes, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair,
-    ParamsBuilder, SubxtClient, TxStatus,
+    ParamsBuilder, RpcCallParams, SubxtClient, TxStatus,
 };
 
 #[derive(Clone)]
@@ -56,7 +55,11 @@ pub trait ConnectionApi: Sync {
         at: Option<BlockHash>,
     ) -> Option<T::Target>;
 
-    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
+    async fn rpc_call<R: Decode>(
+        &self,
+        func_name: String,
+        params: RpcCallParams,
+    ) -> anyhow::Result<R>;
 }
 
 #[async_trait::async_trait]
@@ -171,13 +174,17 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
             .expect("Should access storage")
     }
 
-    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
+    async fn rpc_call<R: Decode>(
+        &self,
+        func_name: String,
+        params: RpcCallParams,
+    ) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
         let bytes: Bytes = self
             .as_connection()
             .as_client()
             .rpc()
-            .request(&func_name, params)
+            .request(&func_name, params.inner)
             .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
