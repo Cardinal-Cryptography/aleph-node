@@ -94,7 +94,10 @@ pub trait ChainStatus<J: Justification> {
     type Error: Display;
 
     /// The status of the block.
-    fn status_of(&self, id: <J::Header as Header>::Identifier) -> BlockStatus<J>;
+    fn status_of(
+        &self,
+        id: <J::Header as Header>::Identifier,
+    ) -> Result<BlockStatus<J>, Self::Error>;
 
     /// The header of the best block.
     fn best_block(&self) -> Result<J::Header, Self::Error>;

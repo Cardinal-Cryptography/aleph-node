@@ -5,7 +5,7 @@ use std::{
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
-use sp_blockchain::Backend;
+use sp_blockchain::{Backend, Error as ClientError};
 use sp_runtime::{
     generic::BlockId as SubstrateBlockId,
     traits::{Block as BlockT, Header as SubstrateHeader},
@@ -22,6 +22,7 @@ use crate::{
 pub enum Error<B: BlockT> {
     MissingHash(B::Hash),
     MissingJustification(B::Hash),
+    Client(ClientError),
 }
 
 impl<B: BlockT> Display for Error<B> {
@@ -29,16 +30,29 @@ impl<B: BlockT> Display for Error<B> {
         use Error::*;
         match self {
             MissingHash(hash) => {
-                write!(f, "no block for existing hash {:?}", hash)
+                write!(
+                    f,
+                    "data availability problem: no block for existing hash {:?}",
+                    hash
+                )
             }
             MissingJustification(hash) => {
                 write!(
                     f,
-                    "no justification for finalized block with hash {:?}",
+                    "data availability problem: no justification for finalized block with hash {:?}",
                     hash
                 )
             }
+            Client(e) => {
+                write!(f, "substrate client error {}", e)
+            }
         }
+    }
+}
+
+impl<B: BlockT> From<ClientError> for Error<B> {
+    fn from(value: ClientError) -> Self {
+        Error::Client(value)
     }
 }
 
@@ -59,30 +73,31 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    fn header(&self, hash: B::Hash) -> Option<B::Header> {
+    fn header(&self, hash: B::Hash) -> Result<Option<B::Header>, Error<B>> {
         let id = SubstrateBlockId::<B>::Hash(hash);
-        self.client
-            .header(id)
-            .expect("substrate client must respond")
+        Ok(self.client.header(id)?)
     }
 
-    fn justification(&self, hash: B::Hash) -> Option<AlephJustification> {
+    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, Error<B>> {
         let id = SubstrateBlockId::<B>::Hash(hash);
-        let justification = self
+        let justification = match self
             .client
-            .justifications(id)
-            .expect("substrate client must respond")
-            .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))?;
+            .justifications(id)?
+            .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
+        {
+            Some(justification) => justification,
+            None => return Ok(None),
+        };
 
         match backwards_compatible_decode(justification) {
-            Ok(justification) => Some(justification),
+            Ok(justification) => Ok(Some(justification)),
             // This should not happen, as we only import correctly encoded justification.
             Err(e) => {
                 warn!(
                     target: LOG_TARGET,
                     "Could not decode stored justification for block {:?}: {}", hash, e
                 );
-                None
+                Ok(None)
             }
         }
     }
@@ -107,36 +122,36 @@ where
     fn status_of(
         &self,
         id: <B::Header as Header>::Identifier,
-    ) -> BlockStatus<Justification<B::Header>> {
-        let header = match self.header(id.hash) {
+    ) -> Result<BlockStatus<Justification<B::Header>>, Self::Error> {
+        let header = match self.header(id.hash)? {
             Some(header) => header,
-            None => return BlockStatus::Unknown,
+            None => return Ok(BlockStatus::Unknown),
         };
 
-        if let Some(raw_justification) = self.justification(id.hash) {
-            BlockStatus::Justified(Justification {
+        if let Some(raw_justification) = self.justification(id.hash)? {
+            Ok(BlockStatus::Justified(Justification {
                 header,
                 raw_justification,
-            })
+            }))
         } else {
-            BlockStatus::Present(header)
+            Ok(BlockStatus::Present(header))
         }
     }
 
     fn best_block(&self) -> Result<B::Header, Self::Error> {
         let best_hash = self.best_hash();
 
-        self.header(best_hash).ok_or(Error::MissingHash(best_hash))
+        self.header(best_hash)?.ok_or(Error::MissingHash(best_hash))
     }
 
     fn top_finalized(&self) -> Result<Justification<B::Header>, Self::Error> {
         let finalized_hash = self.finalized_hash();
 
         let header = self
-            .header(finalized_hash)
+            .header(finalized_hash)?
             .ok_or(Error::MissingHash(finalized_hash))?;
         let raw_justification = self
-            .justification(finalized_hash)
+            .justification(finalized_hash)?
             .ok_or(Error::MissingJustification(finalized_hash))?;
 
         Ok(Justification {
