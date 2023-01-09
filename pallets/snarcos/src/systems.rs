@@ -6,11 +6,14 @@ use ark_snark::SNARK;
 use ark_std::rand::{prelude::StdRng, SeedableRng};
 use blake2::Blake2s;
 use codec::{Decode, Encode};
-use frame_support::log::{error, info};
+use frame_support::{
+    log::{error, info},
+    PalletError,
+};
 use scale_info::TypeInfo;
 
 /// Possible errors from the verification process.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo, PalletError)]
 pub enum VerificationError {
     /// The verifying key was malformed.
     ///
