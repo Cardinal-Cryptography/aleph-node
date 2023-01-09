@@ -52,8 +52,7 @@ pub type Client = OnlineClient<AlephConfig>;
 /// An alias for a hash type.
 pub type BlockHash = H256;
 
-/// An alias for an RPC client type.
-pub type SubxtClient = OnlineClient<AlephConfig>;
+type SubxtClient = OnlineClient<AlephConfig>;
 
 pub use connections::{
     Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall,

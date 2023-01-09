@@ -339,8 +339,7 @@ impl Connection {
         }
     }
 
-    /// Casts self to the underlying RPC client.
-    pub fn as_client(&self) -> &SubxtClient {
+    pub(super) fn as_client(&self) -> &SubxtClient {
         &self.client
     }
 }
