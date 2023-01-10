@@ -24,8 +24,8 @@ pub enum HeaderImportance {
     Imported,
 }
 
-impl From<EmptyImportance> for HeaderImportance {
-    fn from(importance: EmptyImportance) -> Self {
+impl From<&EmptyImportance> for HeaderImportance {
+    fn from(importance: &EmptyImportance) -> Self {
         match importance {
             EmptyImportance::Auxiliary => Self::Auxiliary,
             EmptyImportance::TopRequired => Self::TopRequired,
@@ -41,8 +41,8 @@ pub enum JustificationImportance {
     Imported,
 }
 
-impl From<HeaderImportance> for Option<JustificationImportance> {
-    fn from(importance: HeaderImportance) -> Self {
+impl From<&HeaderImportance> for Option<JustificationImportance> {
+    fn from(importance: &HeaderImportance) -> Self {
         match importance {
             HeaderImportance::Auxiliary => None,
             HeaderImportance::TopRequired => Some(JustificationImportance::TopRequired),
@@ -52,12 +52,51 @@ impl From<HeaderImportance> for Option<JustificationImportance> {
     }
 }
 
-struct EmptyVertex<I: PeerID> {
+#[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+pub enum Importance {
+    Auxiliary,
+    TopRequired,
+    Required,
+    Imported,
+}
+
+impl From<&EmptyImportance> for Importance {
+    fn from(importance: &EmptyImportance) -> Self {
+        match importance {
+            EmptyImportance::Auxiliary => Self::Auxiliary,
+            EmptyImportance::TopRequired => Self::TopRequired,
+            EmptyImportance::Required => Self::Required,
+        }
+    }
+}
+
+impl From<&HeaderImportance> for Importance {
+    fn from(importance: &HeaderImportance) -> Self {
+        match importance {
+            HeaderImportance::Auxiliary => Self::Auxiliary,
+            HeaderImportance::TopRequired => Self::TopRequired,
+            HeaderImportance::Required => Self::Required,
+            HeaderImportance::Imported => Self::Imported,
+        }
+    }
+}
+
+impl From<&JustificationImportance> for Importance {
+    fn from(importance: &JustificationImportance) -> Self {
+        match importance {
+            JustificationImportance::TopRequired => Self::TopRequired,
+            JustificationImportance::Required => Self::Required,
+            JustificationImportance::Imported => Self::Imported,
+        }
+    }
+}
+
+pub struct EmptyVertex<I: PeerID> {
     importance: EmptyImportance,
     know_most: HashSet<I>,
 }
 
-struct HeaderVertex<I: PeerID, J: Justification> {
+pub struct HeaderVertex<I: PeerID, J: Justification> {
     importance: HeaderImportance,
     parent: BlockIDFor<J>,
     know_most: HashSet<I>,
@@ -69,7 +108,7 @@ impl<I: PeerID, J: Justification> HeaderVertex<I, J> {
     }
 }
 
-struct JustificationVertex<I: PeerID, J: Justification> {
+pub struct JustificationVertex<I: PeerID, J: Justification> {
     importance: JustificationImportance,
     justification_with_parent: JustificationWithParent<J>,
     know_most: HashSet<I>,
@@ -81,12 +120,7 @@ impl<I: PeerID, J: Justification> JustificationVertex<I, J> {
     }
 }
 
-pub enum Vertex<I: PeerID, J: Justification> {
-    Empty(EmptyVertex<I>),
-    Header(HeaderVertex<I, J>),
-    Justification(JustificationVertex<I, J>),
-}
-
+#[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
 pub enum State {
     Empty(EmptyImportance),
     Header(HeaderImportance),
@@ -94,18 +128,28 @@ pub enum State {
 }
 
 impl State {
-    pub fn gained_parent(&self, new_state: &State) -> bool {
+    pub fn importance(&self) -> Importance {
         use State::*;
-        match (self, new_state) {
-            (Empty(_), Header(_)) | (Empty(_), Justification(_)) => true,
-            _ => false,
+        match self {
+            Empty(importance) => importance.into(),
+            Header(importance) => importance.into(),
+            Justification(importance) => importance.into(),
         }
     }
 }
 
+pub enum Vertex<I: PeerID, J: Justification> {
+    Empty(EmptyVertex<I>),
+    Header(HeaderVertex<I, J>),
+    Justification(JustificationVertex<I, J>),
+}
+
 impl<I: PeerID, J: Justification> Vertex<I, J> {
-    pub fn new() -> Self {
-        Self::Empty(EmptyVertex{ importance: EmptyImportance::Auxiliary, know_most: HashSet::new()})
+    pub fn new(holder: Option<I>) -> Self {
+        Self::Empty(EmptyVertex {
+            importance: EmptyImportance::Auxiliary,
+            know_most: HashSet::from_iter(holder.into_iter()),
+        })
     }
 
     pub fn state(&self) -> State {
@@ -134,7 +178,7 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
 
     pub fn parent(&self) -> Option<&BlockIDFor<J>> {
         match self {
-            Self::Empty(vertex) => None,
+            Self::Empty(_) => None,
             Self::Header(vertex) => Some(&vertex.parent),
             Self::Justification(vertex) => Some(&vertex.justification_with_parent.parent),
         }
@@ -157,57 +201,47 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
 
     pub fn try_set_top_required(&mut self) -> bool {
         match self {
-            Self::Empty(vertex) => {
-                match vertex.importance {
-                    EmptyImportance::Auxiliary => {
-                        vertex.importance = EmptyImportance::TopRequired;
-                        true
-                    },
-                    _ => false,
+            Self::Empty(vertex) => match vertex.importance {
+                EmptyImportance::Auxiliary => {
+                    vertex.importance = EmptyImportance::TopRequired;
+                    true
                 }
+                _ => false,
             },
-            Self::Header(vertex) => {
-                match vertex.importance {
-                    HeaderImportance::Auxiliary => {
-                        vertex.importance = HeaderImportance::TopRequired;
-                        true
-                    },
-                    _ => false,
+            Self::Header(vertex) => match vertex.importance {
+                HeaderImportance::Auxiliary => {
+                    vertex.importance = HeaderImportance::TopRequired;
+                    true
                 }
-            }
+                _ => false,
+            },
             Self::Justification(_) => false,
         }
     }
 
     pub fn try_set_required(&mut self) -> bool {
         match self {
-            Self::Empty(vertex) => {
-                match vertex.importance {
-                    EmptyImportance::Auxiliary | EmptyImportance::TopRequired => {
-                        vertex.importance = EmptyImportance::Required;
-                        true
-                    },
-                    _ => false,
+            Self::Empty(vertex) => match vertex.importance {
+                EmptyImportance::Auxiliary | EmptyImportance::TopRequired => {
+                    vertex.importance = EmptyImportance::Required;
+                    true
                 }
+                _ => false,
             },
-            Self::Header(vertex) => {
-                match vertex.importance {
-                    HeaderImportance::Auxiliary | HeaderImportance::TopRequired => {
-                        vertex.importance = HeaderImportance::Required;
-                        true
-                    },
-                    _ => false,
+            Self::Header(vertex) => match vertex.importance {
+                HeaderImportance::Auxiliary | HeaderImportance::TopRequired => {
+                    vertex.importance = HeaderImportance::Required;
+                    true
                 }
-            }
-            Self::Justification(vertex) => {
-                match vertex.importance {
-                    JustificationImportance::TopRequired => {
-                        vertex.importance = JustificationImportance::Required;
-                        true
-                    },
-                    _ => false,
+                _ => false,
+            },
+            Self::Justification(vertex) => match vertex.importance {
+                JustificationImportance::TopRequired => {
+                    vertex.importance = JustificationImportance::Required;
+                    true
                 }
-            }
+                _ => false,
+            },
         }
     }
 
@@ -218,20 +252,39 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
                 true => Ok(()),
                 false => Err(Error::InvalidParentID),
             },
-            Self::Justification(vertex) => match parent_id == &vertex.justification_with_parent.parent {
-                true => Ok(()),
-                false => Err(Error::InvalidParentID),
-            },
+            Self::Justification(vertex) => {
+                match parent_id == &vertex.justification_with_parent.parent {
+                    true => Ok(()),
+                    false => Err(Error::InvalidParentID),
+                }
+            }
         }
     }
 
-    pub fn try_insert_header(&mut self, parent_id: BlockIDFor<J>, holder: Option<I>) -> Result<bool, Error> {
+    pub fn add_empty_holder(&mut self, holder: Option<I>) -> bool {
+        if let Some(holder) = holder {
+            if let Self::Empty(vertex) = self {
+                return vertex.know_most.insert(holder);
+            }
+        }
+        false
+    }
+
+    pub fn try_insert_header(
+        &mut self,
+        parent_id: BlockIDFor<J>,
+        holder: Option<I>,
+    ) -> Result<bool, Error> {
         self.check_parent(&parent_id)?;
         let output = match self {
             Self::Empty(vertex) => {
-                *self = Self::Header(HeaderVertex { importance: vertex.importance.into(), parent: parent_id, know_most: vertex.know_most });
+                *self = Self::Header(HeaderVertex {
+                    importance: (&vertex.importance).into(),
+                    parent: parent_id,
+                    know_most: vertex.know_most.clone(),
+                });
                 Ok(true)
-            },
+            }
             _ => Ok(false),
         };
         if let Some(holder) = holder {
@@ -244,26 +297,34 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
         output
     }
 
-    pub fn try_insert_body(&mut self, parent_id: BlockIDFor<J>, holder: Option<I>) -> Result<bool, Error> {
+    pub fn try_insert_body(
+        &mut self,
+        parent_id: BlockIDFor<J>,
+        holder: Option<I>,
+    ) -> Result<bool, Error> {
         self.check_parent(&parent_id)?;
         let output = match self {
             Self::Empty(vertex) => {
-                *self = Self::Header(HeaderVertex { importance: HeaderImportance::Imported, parent: parent_id, know_most: vertex.know_most });
+                *self = Self::Header(HeaderVertex {
+                    importance: HeaderImportance::Imported,
+                    parent: parent_id,
+                    know_most: vertex.know_most.clone(),
+                });
                 Ok(true)
-            },
+            }
             Self::Header(vertex) => match vertex.importance {
                 HeaderImportance::Imported => Ok(false),
                 _ => {
                     vertex.importance = HeaderImportance::Imported;
                     Ok(true)
-                },
+                }
             },
             Self::Justification(vertex) => match vertex.importance {
                 JustificationImportance::Imported => Ok(false),
                 _ => {
                     vertex.importance = JustificationImportance::Imported;
                     Ok(true)
-                },
+                }
             },
         };
         if let Some(holder) = holder {
@@ -286,14 +347,18 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
             Self::Empty(_) | Self::Header(_) => {
                 *self = Self::Justification(JustificationVertex {
                     importance: match self {
-                        Self::Empty(vertex) => Into::<HeaderImportance>::into(vertex.importance).into(),
-                        Self::Header(vertex) => vertex.importance.into(),
+                        Self::Empty(vertex) => {
+                            (&Into::<HeaderImportance>::into(&vertex.importance)).into()
+                        }
+                        Self::Header(vertex) => (&vertex.importance).into(),
                         Self::Justification(vertex) => Some(vertex.importance.clone()),
-                    }.ok_or(Error::JustificationImportance)?,
+                    }
+                    .ok_or(Error::JustificationImportance)?,
                     justification_with_parent,
-                    know_most: HashSet::from_iter(holder.into_iter()) });
+                    know_most: HashSet::from_iter(holder.into_iter()),
+                });
                 Ok(true)
-            },
+            }
             Self::Justification(_) => Ok(false),
         }
     }
