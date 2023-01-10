@@ -3,16 +3,13 @@ use ark_sponge::poseidon::PoseidonParameters as ArkSpongePoseidonParameters;
 use once_cell::sync::Lazy;
 use poseidon_paramgen::{Alpha, PoseidonParameters};
 
+// Poseidon parameters generated for the Fr (Fp256) finite field
 pub mod fr_parameters {
     include!(concat!(env!("OUT_DIR"), "/parameters.rs"));
 }
 
 // Parameters for the 1:1 hash instance of Poseidon
 pub static RATE_1_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_1);
-
-// Parameters for the 1:1 in-circuit hash instance of Poseidon
-// pub static RATE_1_SPONGE_PARAMETERS: Lazy<ArkPoseidonParameters<Fr>> =
-//     Lazy::new(|| to_ark_poseidon_parameters(RATE_1_PARAMETERS.clone()));
 
 // taken from Penumbra (https://github.com/penumbra-zone/poseidon377/blob/a2d8c7a3288e2e877ac88a4d8fd3cc4ff2b52c04/poseidon377/src/r1cs.rs#L12)
 pub(crate) fn to_ark_sponge_poseidon_parameters(

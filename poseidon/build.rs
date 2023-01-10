@@ -1,5 +1,6 @@
 use std::{
-    env, fs,
+    env,
+    fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
 };
@@ -14,18 +15,17 @@ fn main() {
     // see https://spec.filecoin.io/#section-algorithms.crypto.poseidon.filecoins-poseidon-instances for similar specification used by Filecoin
     let t_values = vec![2];
 
-    // Fr = Fp256
-    let parameters_codegen =
+    // Fr => Fp256
+    let parameters =
         poseidon_build::compile::<Fr>(security_level, t_values, FrParameters::MODULUS, true);
 
-    let output_directory: PathBuf =
+    let output_directory =
         PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR environmental variable must be set"))
             .join("parameters.rs");
 
-    let fh = fs::File::create(output_directory).expect("can't create source file");
+    let mut file =
+        BufWriter::new(File::create(output_directory).expect("can't create source file"));
 
-    let mut f = BufWriter::new(fh);
-
-    f.write_all(parameters_codegen.as_bytes())
+    file.write_all(parameters.as_bytes())
         .expect("can write parameters to file");
 }
