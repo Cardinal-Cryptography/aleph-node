@@ -64,7 +64,7 @@ impl PreimageRelation<FullInput> {
     }
 }
 
-impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
+impl<S: State + std::fmt::Debug> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
     fn generate_constraints(
         self,
         cs: ConstraintSystemRef<CircuitField>,
@@ -72,7 +72,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         let preimage = FpVar::new_witness(ns!(cs, "preimage"), || {
             self.preimage.ok_or(AssignmentMissing)
         })?;
-        let hash = FpVar::new_witness(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
+        let hash = FpVar::new_input(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
         let domain_separator = FpVar::new_constant(cs.clone(), *DOMAIN_SEPARATOR)?;
         let hash_result = r1cs::one_to_one_hash(cs, &domain_separator, preimage)?;
@@ -83,7 +83,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
     }
 }
 
-impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
+impl<S: WithPublicInput + std::fmt::Debug> GetPublicInput<CircuitField> for PreimageRelation<S> {
     fn public_input(&self) -> Vec<CircuitField> {
         vec![self
             .hash
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn preimage_proving_and_verifying() {
-        let preimage = CircuitField::from(17u64);
+        let preimage = CircuitField::from(7u64);
         let preimage_hash = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
 
         let circuit = PreimageRelation::with_full_input(preimage, preimage_hash);
@@ -134,6 +134,7 @@ mod tests {
         let input = circuit.public_input();
 
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+
         let is_valid = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(is_valid);
     }
