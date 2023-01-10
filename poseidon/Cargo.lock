@@ -365,6 +365,7 @@ dependencies = [
  "ark-r1cs-std",
  "ark-relations",
  "ark-sponge",
+ "ark-std",
  "once_cell",
  "poseidon-paramgen",
  "poseidon-permutation",

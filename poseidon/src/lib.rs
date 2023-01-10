@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 mod parameters;
 
 type CircuitField = ark_bls12_381::Fr;
@@ -5,6 +6,7 @@ type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
 
 pub mod hash {
     use ark_bls12_381::Fr;
+    use ark_std::vec;
     use poseidon_permutation::Instance;
 
     use crate::parameters::RATE_1_PARAMETERS;
@@ -22,6 +24,7 @@ pub mod r1cs {
     use ark_sponge::{
         constraints::CryptographicSpongeVar, poseidon::constraints::PoseidonSpongeVar,
     };
+    use ark_std::vec;
 
     use super::FpVar;
     use crate::parameters::{to_ark_sponge_poseidon_parameters, RATE_1_PARAMETERS};

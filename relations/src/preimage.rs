@@ -8,7 +8,7 @@ use ark_relations::{
         SynthesisError::AssignmentMissing,
     },
 };
-use ark_std::{marker::PhantomData, vec::Vec};
+use ark_std::{marker::PhantomData, vec, vec::Vec};
 use once_cell::sync::Lazy;
 use poseidon::r1cs;
 
@@ -64,7 +64,7 @@ impl PreimageRelation<FullInput> {
     }
 }
 
-impl<S: State + std::fmt::Debug> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
+impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
     fn generate_constraints(
         self,
         cs: ConstraintSystemRef<CircuitField>,
@@ -83,7 +83,7 @@ impl<S: State + std::fmt::Debug> ConstraintSynthesizer<CircuitField> for Preimag
     }
 }
 
-impl<S: WithPublicInput + std::fmt::Debug> GetPublicInput<CircuitField> for PreimageRelation<S> {
+impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
     fn public_input(&self) -> Vec<CircuitField> {
         vec![self
             .hash
