@@ -139,7 +139,11 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     }
 
     for (port, controller) in accounts.controller_raw_keys.iter().enumerate() {
-        let connection = SignedConnection::new(format!("ws://127.0.0.1:{}", 9943 + port).as_str(), KeyPair::new(controller.clone())).await;
+        let connection = SignedConnection::new(
+            format!("ws://127.0.0.1:{}", 9943 + port).as_str(),
+            KeyPair::new(controller.clone()),
+        )
+        .await;
         let keys = connection.author_rotate_keys().await?;
         handles.push(tokio::spawn(async move {
             connection
