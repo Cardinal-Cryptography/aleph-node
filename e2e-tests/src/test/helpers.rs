@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use aleph_client::{
     pallets::balances::BalanceUserApi, AccountId, Connection, KeyPair, Pair, SignedConnection,
-    TxStatus,
+    SignedConnectionApi, TxStatus,
 };
 use anyhow::Result;
 use primitives::Balance;
@@ -55,7 +55,11 @@ pub fn random_account() -> KeyPairWrapper {
 }
 
 /// Transfer `amount` from `from` to `to`
-pub async fn transfer(conn: &SignedConnection, to: &KeyPair, amount: Balance) -> Result<()> {
+pub async fn transfer<S: SignedConnectionApi>(
+    conn: &S,
+    to: &KeyPair,
+    amount: Balance,
+) -> Result<()> {
     conn.transfer(to.signer().public().into(), amount, TxStatus::InBlock)
         .await
         .map(|_| ())
@@ -70,11 +74,11 @@ pub fn alephs(basic_unit_amount: Balance) -> Balance {
 pub async fn basic_test_context(
     config: &Config,
 ) -> Result<(Connection, KeyPairWrapper, KeyPairWrapper)> {
-    let conn = config.get_first_signed_connection().await;
+    let conn = Connection::new(&config.node).await;
     let authority = KeyPairWrapper(aleph_client::keypair_from_string(&config.sudo_seed));
     let account = random_account();
 
-    transfer(&conn, &account, alephs(100)).await?;
+    transfer(&authority.sign(&conn), &account, alephs(100)).await?;
 
-    Ok((conn.connection, authority, account))
+    Ok((conn, authority, account))
 }
