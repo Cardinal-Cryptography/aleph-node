@@ -4,23 +4,35 @@ use super::{Header, Justification, JustificationWithParent, PeerID};
 
 type BlockIDFor<J> = <<J as Justification>::Header as Header>::Identifier;
 
+/// Vertex Error.
 pub enum Error {
+    /// Known parent ID differs from the new one.
     InvalidParentID,
+    /// Vertex must not be Auxiliary while adding the justificaiton.
     JustificationImportance,
 }
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+/// Empty Vertex Importance.
 pub enum EmptyImportance {
+    /// Not required.
     Auxiliary,
+    /// Required, all children are Auxiliary.
     TopRequired,
+    /// Required.
     Required,
 }
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+/// Importance of Vertex with Header.
 pub enum HeaderImportance {
+    /// Not required.
     Auxiliary,
+    /// Required, all children are Auxiliary.
     TopRequired,
+    /// Required.
     Required,
+    /// Block has been imported.
     Imported,
 }
 
@@ -35,9 +47,13 @@ impl From<&EmptyImportance> for HeaderImportance {
 }
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+/// Importance of Vertex with Header and Justification.
 pub enum JustificationImportance {
+    /// Required, all children are Auxiliary.
     TopRequired,
+    /// Required.
     Required,
+    /// Block has been imported.
     Imported,
 }
 
@@ -53,10 +69,15 @@ impl From<&HeaderImportance> for Option<JustificationImportance> {
 }
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+/// Vertex Importance.
 pub enum Importance {
+    /// Not required.
     Auxiliary,
+    /// Required, all children are Auxiliary.
     TopRequired,
+    /// Required.
     Required,
+    /// Block has been imported.
     Imported,
 }
 
@@ -91,11 +112,13 @@ impl From<&JustificationImportance> for Importance {
     }
 }
 
+/// Empty Vertex.
 pub struct EmptyVertex<I: PeerID> {
     importance: EmptyImportance,
     know_most: HashSet<I>,
 }
 
+/// Vertex with added Header.
 pub struct HeaderVertex<I: PeerID, J: Justification> {
     importance: HeaderImportance,
     parent: BlockIDFor<J>,
@@ -108,6 +131,7 @@ impl<I: PeerID, J: Justification> HeaderVertex<I, J> {
     }
 }
 
+/// Vertex with added Header and Justification.
 pub struct JustificationVertex<I: PeerID, J: Justification> {
     importance: JustificationImportance,
     justification_with_parent: JustificationWithParent<J>,
@@ -121,13 +145,18 @@ impl<I: PeerID, J: Justification> JustificationVertex<I, J> {
 }
 
 #[derive(Clone, std::cmp::PartialEq, std::cmp::Eq)]
+/// Vertex state. Describes its content and importance.
 pub enum State {
+    /// Empty content.
     Empty(EmptyImportance),
+    /// Containing Header.
     Header(HeaderImportance),
+    /// Containing Header and Justification.
     Justification(JustificationImportance),
 }
 
 impl State {
+    /// Return the importance of the described Vertex.
     pub fn importance(&self) -> Importance {
         use State::*;
         match self {
@@ -161,10 +190,12 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
         }
     }
 
-    pub fn is_full(&self) -> bool {
+    pub fn is_full(&self) -> Option<J> {
         match self {
-            Self::Justification(vertex) => vertex.is_imported(),
-            _ => false,
+            Self::Justification(vertex) => {
+                Some(vertex.justification_with_parent.justification.clone())
+            }
+            _ => None,
         }
     }
 
@@ -181,13 +212,6 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
             Self::Empty(_) => None,
             Self::Header(vertex) => Some(&vertex.parent),
             Self::Justification(vertex) => Some(&vertex.justification_with_parent.parent),
-        }
-    }
-
-    pub fn justification(self) -> Option<J> {
-        match self {
-            Self::Justification(vertex) => Some(vertex.justification_with_parent.justification),
-            _ => None,
         }
     }
 
@@ -261,7 +285,7 @@ impl<I: PeerID, J: Justification> Vertex<I, J> {
         }
     }
 
-    pub fn add_empty_holder(&mut self, holder: Option<I>) -> bool {
+    pub fn add_block_id_holder(&mut self, holder: Option<I>) -> bool {
         if let Some(holder) = holder {
             if let Self::Empty(vertex) = self {
                 return vertex.know_most.insert(holder);
