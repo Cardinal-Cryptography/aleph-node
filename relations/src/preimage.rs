@@ -114,6 +114,20 @@ mod tests {
     }
 
     #[test]
+    fn unsatisfied_preimage_constraints() {
+        let true_preimage = CircuitField::from(17u64);
+        let fake_image = hash::one_to_one_hash(CircuitField::from(19u64));
+        let circuit = PreimageRelation::with_full_input(true_preimage, fake_image);
+
+        let cs = ConstraintSystem::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+
+        let is_satisfied = cs.is_satisfied().unwrap();
+
+        assert!(!is_satisfied);
+    }
+
+    #[test]
     fn preimage_proving_and_verifying() {
         let preimage = CircuitField::from(7u64);
         let image = hash::one_to_one_hash(preimage);
