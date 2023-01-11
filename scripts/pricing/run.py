@@ -44,8 +44,9 @@ def call(directory, contract, message, *args):
 
 
 def event_field(event, field):
-    for f in [f for f in event['fields'] if f['name'] == field]:
-        return f['value']
+    for f in event['fields']:
+        if f['name'] == field:
+            return f['value']
 
 
 def account_id(value):
@@ -93,4 +94,5 @@ prices = [
         format_fee(instantiate_fee)],
     ["Call contract with single storage update", format_fee(add_fee)]
 ]
+
 print(tabulate(prices, headers=headers, tablefmt="github"))
