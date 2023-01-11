@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build:
     name: Check excluded packages
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       CARGO_INCREMENTAL: 0
     steps:
@@ -52,13 +52,13 @@ jobs:
           echo "::set-output name=packages::$packages"
           echo "::set-output name=targets::$targets"
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: excluded
-          cargo-key: excluded
-          cache-version: v2
-          cargo-targets: "${{ steps.format_output.outputs.targets }}"
+      #- name: Restore cache
+      #  uses: ./.github/actions/restore-cache
+      #  with:
+      #    target-key: excluded
+      #    cargo-key: excluded
+      #    cache-version: v2
+      #    cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
         env:
@@ -77,5 +77,5 @@ jobs:
             popd
           done
 
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
+      #- name: Cleanup cache
+      #  uses: ./.github/actions/post-cache
