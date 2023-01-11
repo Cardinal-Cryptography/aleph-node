@@ -649,7 +649,6 @@ dependencies = [
  "ark-snark",
  "ark-std",
  "blake2",
- "once_cell",
  "poseidon",
 ]
 

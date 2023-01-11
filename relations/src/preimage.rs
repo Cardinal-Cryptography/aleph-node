@@ -1,5 +1,4 @@
 // This relation showcases how to use Poseidon in r1cs circuits
-use ark_bls12_381::Fr;
 use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
     ns,
@@ -9,7 +8,6 @@ use ark_relations::{
     },
 };
 use ark_std::{marker::PhantomData, vec, vec::Vec};
-use once_cell::sync::Lazy;
 use poseidon::circuit;
 
 use crate::{
@@ -17,9 +15,6 @@ use crate::{
     relation::state::{FullInput, NoInput, OnlyPublicInput, State, WithPublicInput},
     CircuitField, GetPublicInput,
 };
-
-// Poseidon paper suggests using domain separation for this, concretely encoding the use case in the capacity element (which is fine as it is 256 bits large and has a lot of bits to fill)
-static DOMAIN_SEPARATOR: Lazy<Fr> = Lazy::new(|| Fr::from(2137));
 
 /// Preimage relation : H(preimage)=hash
 /// where:
@@ -73,9 +68,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
             self.preimage.ok_or(AssignmentMissing)
         })?;
         let hash = FpVar::new_input(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
-
-        let domain_separator = FpVar::new_constant(cs.clone(), *DOMAIN_SEPARATOR)?;
-        let hash_result = circuit::one_to_one_hash(cs, &domain_separator, preimage)?;
+        let hash_result = circuit::one_to_one_hash(cs, preimage)?;
 
         hash.enforce_equal(&hash_result)?;
 
@@ -99,13 +92,13 @@ mod tests {
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
     use poseidon::hash;
 
-    use super::{PreimageRelation, DOMAIN_SEPARATOR};
+    use super::PreimageRelation;
     use crate::{CircuitField, GetPublicInput};
 
     #[test]
     fn preimage_constraints_correctness() {
         let preimage = CircuitField::from(17u64);
-        let image = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
+        let image = hash::one_to_one_hash(preimage);
 
         let circuit = PreimageRelation::with_full_input(preimage, image);
 
@@ -123,9 +116,9 @@ mod tests {
     #[test]
     fn preimage_proving_and_verifying() {
         let preimage = CircuitField::from(7u64);
-        let preimage_hash = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
+        let image = hash::one_to_one_hash(preimage);
 
-        let circuit = PreimageRelation::with_full_input(preimage, preimage_hash);
+        let circuit = PreimageRelation::with_full_input(preimage, image);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
