@@ -3,8 +3,7 @@
 set -euo pipefail
 
 # default node count
-# change when increasing the number of node containers
-NODE_COUNT=6
+NODE_COUNT=5
 # max node count that will not crash current GH machines
 MAX_NODE_COUNT=6
 # default minimum validator count

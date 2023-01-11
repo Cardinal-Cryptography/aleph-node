@@ -138,15 +138,16 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
         }));
     }
 
-    let address_tokens = node.split(":").collect::<Vec<_>>();
-    let ip_address = address_tokens[0];
-    let first_port = address_tokens[1];
+    let address_tokens = node.split(':').collect::<Vec<_>>();
+    let ws = address_tokens[0];
+    let ip_address = address_tokens[1];
+    let first_port = address_tokens[2].parse::<usize>()?;
 
     // Assumes the same ip address and consecutive ports for nodes, e.g. ws://127.0.0.1:9943,
     // ws://127.0.0.1:9944, etc.
     for (port, controller) in accounts.controller_raw_keys.iter().enumerate() {
         let connection = SignedConnection::new(
-            format!("{}:{}", ip_address, first_port + port).as_str(),
+            format!("{}:{}:{}", ws, ip_address, first_port + port).as_str(),
             KeyPair::new(controller.clone()),
         )
         .await;
