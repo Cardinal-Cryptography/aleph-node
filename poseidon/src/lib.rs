@@ -18,7 +18,7 @@ pub mod hash {
     }
 }
 
-pub mod r1cs {
+pub mod circuit {
     use ark_bls12_381::Fr;
     use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
     use ark_sponge::{

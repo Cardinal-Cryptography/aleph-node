@@ -10,7 +10,7 @@ use ark_relations::{
 };
 use ark_std::{marker::PhantomData, vec, vec::Vec};
 use once_cell::sync::Lazy;
-use poseidon::r1cs;
+use poseidon::circuit;
 
 use crate::{
     environment::FpVar,
@@ -75,7 +75,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
         let hash = FpVar::new_input(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
 
         let domain_separator = FpVar::new_constant(cs.clone(), *DOMAIN_SEPARATOR)?;
-        let hash_result = r1cs::one_to_one_hash(cs, &domain_separator, preimage)?;
+        let hash_result = circuit::one_to_one_hash(cs, &domain_separator, preimage)?;
 
         hash.enforce_equal(&hash_result)?;
 
@@ -105,9 +105,9 @@ mod tests {
     #[test]
     fn preimage_constraints_correctness() {
         let preimage = CircuitField::from(17u64);
-        let preimage_hash = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
+        let image = hash::one_to_one_hash(&DOMAIN_SEPARATOR, preimage);
 
-        let circuit = PreimageRelation::with_full_input(preimage, preimage_hash);
+        let circuit = PreimageRelation::with_full_input(preimage, image);
 
         let cs = ConstraintSystem::new_ref();
         circuit.generate_constraints(cs.clone()).unwrap();
