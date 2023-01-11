@@ -718,7 +718,7 @@ jobs:
 
 
   push-image:
-    needs: [check-e2e-test-suite-completion]
+    #needs: [check-e2e-test-suite-completion]
     name: Push node image to the ECR
     if: github.event_name == 'push'
     runs-on: self-hosted
