@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use subxt::{
+    blocks::ExtrinsicEvents,
     ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
@@ -13,7 +14,8 @@ use subxt::{
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair, SubxtClient, TxStatus,
+    api, sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call, KeyPair,
+    SubxtClient, TxStatus,
 };
 
 /// Capable of communicating with a live Aleph chain.
@@ -115,10 +117,10 @@ pub trait SignedConnectionApi: ConnectionApi {
     /// Block hash of block where transaction was put or error
     /// # Examples
     /// ```ignore
-    ///      let tx = api::tx()
-    ///             .balances()
-    ///             .transfer(MultiAddress::Id(dest), amount);
-    ///         send_tx(tx, status).await
+    ///     let tx = api::tx()
+    ///         .balances()
+    ///         .transfer(MultiAddress::Id(dest), amount);
+    ///     send_tx(tx, status).await
     /// ```
     async fn send_tx<Call: TxPayload + Send + Sync>(
         &self,
@@ -138,6 +140,42 @@ pub trait SignedConnectionApi: ConnectionApi {
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash>;
+
+    /// Send a transaction to a chain. It waits for a given tx `status`.
+    /// * `tx` - encoded transaction payload
+    /// * `status` - a [`TxStatus`] for a tx to wait for
+    /// # Returns
+    /// In case `status` was either `InBlock` or `Finalized`, returns `ExtrinsicEvents` that
+    /// corresponds to the submitted `tx`. Otherwise, `None` is returned.
+    /// # Examples
+    /// ```ignore
+    ///     let tx = api::tx()
+    ///         .balances()
+    ///         .transfer(MultiAddress::Id(dest), amount);
+    ///     send_tx_and_get_events(tx, status)
+    ///         .await?
+    ///         .unwrap()
+    ///         .find_first::<MultisigExecuted>()
+    /// ```
+    async fn send_tx_and_get_events<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        status: TxStatus,
+    ) -> anyhow::Result<Option<ExtrinsicEvents<AlephConfig>>>;
+
+    /// Send a transaction to a chain. It waits for a given tx `status`.
+    /// * `tx` - encoded transaction payload
+    /// * `params` - optional tx params e.g. tip
+    /// * `status` - a [`TxStatus`] of a tx to wait for
+    /// # Returns
+    /// In case `status` was either `InBlock` or `Finalized`, returns `ExtrinsicEvents` that
+    /// corresponds to the submitted `tx`. Otherwise, `None` is returned.
+    async fn send_tx_with_params_and_get_events<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
+        status: TxStatus,
+    ) -> anyhow::Result<Option<ExtrinsicEvents<AlephConfig>>>;
 
     /// Returns account id which signs this connection
     fn account_id(&self) -> &AccountId;
@@ -274,6 +312,29 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
         status: TxStatus,
     ) -> anyhow::Result<BlockHash> {
+        self.send_tx_with_params_and_get_events(tx, params, status)
+            .await
+            .map(|maybe_ee| {
+                // In case of Submitted hash does not mean anything
+                maybe_ee.map_or_else(|| BlockHash::from_low_u64_be(0), |ee| ee.block_hash())
+            })
+    }
+
+    async fn send_tx_and_get_events<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        status: TxStatus,
+    ) -> anyhow::Result<Option<ExtrinsicEvents<AlephConfig>>> {
+        self.send_tx_with_params_and_get_events(tx, Default::default(), status)
+            .await
+    }
+
+    async fn send_tx_with_params_and_get_events<Call: TxPayload + Send + Sync>(
+        &self,
+        tx: Call,
+        params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
+        status: TxStatus,
+    ) -> anyhow::Result<Option<ExtrinsicEvents<AlephConfig>>> {
         if let Some(details) = tx.validation_details() {
             info!(target:"aleph-client", "Sending extrinsic {}.{} with params: {:?}", details.pallet_name, details.call_name, params);
         }
@@ -286,15 +347,20 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
-        // In case of Submitted hash does not mean anything
-        let hash = match status {
-            TxStatus::InBlock => progress.wait_for_in_block().await?.block_hash(),
-            TxStatus::Finalized => progress.wait_for_finalized_success().await?.block_hash(),
-            TxStatus::Submitted => return Ok(BlockHash::from_low_u64_be(0)),
+        let ee = match status {
+            TxStatus::InBlock => {
+                progress
+                    .wait_for_in_block()
+                    .await?
+                    .wait_for_success()
+                    .await?
+            }
+            TxStatus::Finalized => progress.wait_for_finalized_success().await?,
+            TxStatus::Submitted => return Ok(None),
         };
-        info!(target: "aleph-client", "tx included in block {:?}", hash);
+        info!(target: "aleph-client", "tx included in block {:?}", ee.block_hash());
 
-        Ok(hash)
+        Ok(Some(ee))
     }
 
     fn account_id(&self) -> &AccountId {
