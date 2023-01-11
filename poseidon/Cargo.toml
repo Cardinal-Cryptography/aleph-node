@@ -21,6 +21,7 @@ ark-std = { version = "^0.3.0", default-features = false }
 ark-bls12-381 = { version = "^0.3.0" }
 ark-ff = { version = "^0.3.0" }
 poseidon-paramgen = { version = "0.1" }
+ark-std = { version = "^0.3.0" }
 
 [features]
 default = ["std"]

@@ -7,6 +7,7 @@ use std::{
 
 use ark_bls12_381::{Fr, FrParameters};
 use ark_ff::fields::FpParameters;
+use ark_std::vec;
 use poseidon_paramgen::poseidon_build;
 
 fn main() {
