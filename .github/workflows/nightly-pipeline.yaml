@@ -171,6 +171,7 @@ jobs:
         with:
           test-case: authorities_are_staking
           node-count: 6
+          follow-up-finalization-check: true
         timeout-minutes: 60
 
   run-e2e-high-out-latency:
