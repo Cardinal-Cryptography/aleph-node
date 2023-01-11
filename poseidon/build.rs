@@ -16,7 +16,7 @@ fn main() {
             "80" => 80,
             "128" => 128,
             "256" => 256,
-            _ => panic!("Unsupported security level"),
+            _ => panic!("Unsupported security level. Supported levels: 80, 128, 256"),
         },
         Err(_) => 128,
     };
