@@ -18,7 +18,7 @@ pub use environment::{
 };
 pub use linear::LinearEquationRelation;
 pub use merkle_tree::{MerkleTreeRelation, Root};
-pub use preimage::PreimageRelation;
+pub use preimage::{preimage_proving_and_verifying, PreimageRelation};
 pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{
