@@ -21,22 +21,22 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
     steps:
-      - name: Checkout Source code
+      - name: GIT | Checkout Source code
         uses: actions/checkout@v2
 
-      - name: Install Rust Toolchain
+      - name: RUST | Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
+      - name: DEPS | Install Protoc
         uses: arduino/setup-protoc@v1
         with:
           version: '3.6.1'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install clippy and fmt
+      - name: RUST | Install clippy and fmt
         run: rustup component add clippy rustfmt
 
-      - name: Install WASM target
+      - name: RUST | Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
       #- name: Restore cache
@@ -45,13 +45,13 @@ jobs:
       #    target-key: debug
       #    cache-version: v2
 
-      - name: Run Format Checks
+      - name: CARGO | Run Format Checks
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all
 
-      - name: Run Linter
+      - name: CARGO | Run Linter
         uses: actions-rs/cargo@v1
         env:
           # https://github.com/mozilla/sccache/issues/966
@@ -61,7 +61,7 @@ jobs:
           command: clippy
           args: --all-targets --all-features -- --no-deps -D warnings
 
-      - name: Run Unit Test Suite
+      - name: CARGO | Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test

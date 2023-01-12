@@ -1,4 +1,4 @@
-name: Build, send and deploy postsync hook image.
+name: Build, push and deploy postsync runtime hook image.
 
 on:
   workflow_dispatch:
@@ -15,48 +15,45 @@ concurrency:
 
 jobs:
   build:
-    name: Save cliain binary as an artifact
-    runs-on: ubuntu-20.04
+    name: Build and push runtime-hook docker image
+    runs-on: self-hosted
     env:
       CARGO_INCREMENTAL: 0
     steps:
-      - name: Checkout source code
+      - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
-      - name: GIT | Get branch info & current commit sha.
-        id: vars
-        shell: bash
-        run: |
-          echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
-          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - name: GIT | Get branch name and commit SHA
+        id: get_branch
+        uses: ./.github/actions/get-branch
 
-      - name: Install rust toolchain
+      - name: RUST | Install rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
+      - name: DEPS | Install Protoc
         uses: arduino/setup-protoc@v1
         with:
           version: '3.6.1'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build binary
+      - name: CARGO | Build binary
         run: |
           pushd bin/cliain/
           cargo build --release
           popd
 
-      - name: Build runtime-update-hook
+      - name: DOCKER | Build runtime-update-hook
         run: |
           docker build -f docker-runtime-hook/Dockerfile . -t runtime-update-hook:${{ steps.vars.outputs.sha_short }}
 
-      - name: Configure AWS credentials
+      - name: AWS | Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      - name: Login to Public Amazon ECR
+      - name: DOCKER | Login to Public Amazon ECR
         id: login-public-ecr
         uses: docker/login-action@v1
         with:
@@ -66,7 +63,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Push postsync hook current Image to Public ECR
+      - name: DOCKER | Push postsync hook current Image to Public ECR
         env:
           CURRENT_IMAGE: runtime-update-hook:${{ steps.vars.outputs.sha_short }}
           ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/runtime-update-hook:${{ steps.vars.outputs.sha_short }}
@@ -85,12 +82,12 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "aleph-apps"
 
-      - name: Init kustomize
+      - name: APPS | Init kustomize
         uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.6"
 
-      - name: Update postsync hook docker image
+      - name: APPS | Update postsync hook docker image
         env:
           RELEASE_IMAGE: public.ecr.aws/p6e8q1z1/runtime-update-hook:${{ steps.vars.outputs.sha_short }}
           REGIONS_AWS: 'eu-central-1'

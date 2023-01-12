@@ -7,15 +7,15 @@ on:
 jobs:
   build-aleph-client-docs:
     name: Build docs
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install Rust toolchain
+      - name: RUST | Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: rustdoc | Build aleph-client docs
+      - name: CARGO | Build aleph-client docs
         run: |
           cd aleph-client && cargo doc --no-deps
 

@@ -1,0 +1,62 @@
+name: Build cliain artifact
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'The `ref` argument for `actions/checkout@v2`'
+        required: false
+        type: string
+      artifact-prefix:
+        description: 'A string that will be prepended to the artifact names'
+        required: false
+        type: string
+
+jobs:
+  build-image:
+    name: Build binary
+    runs-on: self-hosted
+    env:
+      SECRETS_AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+      SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: GIT | Get branch name and commit SHA
+        id: get_branch
+        uses: ./.github/actions/get-branch
+
+      - name: RUST | Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: DEPS | Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: CARGO | Build release binary
+        run: |
+          cd ./bin/cliain && cargo build --release
+
+      - name: ARTIFACT | Upload release binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.artifact-prefix }}cliain
+          path: target/release/cliain
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: S3 CI | Copy artifact to S3 bucket
+        if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        uses: actions/copy-to-ci-s3-bucket
+        with:
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          binary-dir: target/release
+          binary-file: cliain
+          s3bucket-url: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/cliain/commits/${{ steps.get_branch.outputs.sha_short }}/cliain
+          s3bucket-file: cliain-${{ steps.get_branch.outputs.sha_short }}.tar.gz
