@@ -89,8 +89,11 @@ mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_crypto_primitives::SNARK;
     use ark_groth16::Groth16;
-    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
+    use ark_relations::r1cs::{
+        ConstraintLayer, ConstraintSynthesizer, ConstraintSystem, TracingMode,
+    };
     use poseidon::hash;
+    use tracing_subscriber::layer::SubscriberExt;
 
     use super::PreimageRelation;
     use crate::{CircuitField, GetPublicInput};
@@ -118,6 +121,12 @@ mod tests {
         let true_preimage = CircuitField::from(17u64);
         let fake_image = hash::one_to_one_hash(CircuitField::from(19u64));
         let circuit = PreimageRelation::with_full_input(true_preimage, fake_image);
+
+        // First, some boilerplat that helps with debugging
+        let mut layer = ConstraintLayer::default();
+        layer.mode = TracingMode::All;
+        let subscriber = tracing_subscriber::Registry::default().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
 
         let cs = ConstraintSystem::new_ref();
         circuit.generate_constraints(cs.clone()).unwrap();
