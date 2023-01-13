@@ -49,8 +49,10 @@ pub type KeyPair = PairSigner<AlephConfig, sr25519::Pair>;
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 /// An alias for a client type.
 pub type Client = OnlineClient<AlephConfig>;
-/// An alias for a hash type.
+/// An alias for a block hash type.
 pub type BlockHash = H256;
+/// An alias for a transaction hash type.
+pub type TxHash = H256;
 
 /// An alias for an RPC client type.
 pub type SubxtClient = OnlineClient<AlephConfig>;
