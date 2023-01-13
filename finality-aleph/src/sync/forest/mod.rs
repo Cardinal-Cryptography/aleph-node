@@ -3,108 +3,85 @@ use std::collections::{
     HashMap, HashSet,
 };
 
-use vertex::{Error as VertexError, Importance, State, Vertex as Vertex_};
-
-use super::{BlockIdentifier, Header, Justification, PeerID};
+use crate::sync::{BlockIdentifier, Header, Justification, PeerId};
 
 mod vertex;
 
-type BlockIDFor<J> = <<J as Justification>::Header as Header>::Identifier;
+use vertex::{JustificationAddResult, Vertex};
+
+type BlockIdFor<J> = <<J as Justification>::Header as Header>::Identifier;
 
 pub struct JustificationWithParent<J: Justification> {
     pub justification: J,
-    pub parent: BlockIDFor<J>,
+    pub parent: BlockIdFor<J>,
 }
 
-enum VertexHandle<'a, I: PeerID, J: Justification> {
+enum VertexHandle<'a, I: PeerId, J: Justification> {
     HopelessFork,
     BelowMinimal,
     HighestFinalized,
-    Unknown(VacantEntry<'a, BlockIDFor<J>, Vertex<I, J>>),
-    Candidate(OccupiedEntry<'a, BlockIDFor<J>, Vertex<I, J>>),
+    Unknown(VacantEntry<'a, BlockIdFor<J>, VertexWithChildren<I, J>>),
+    Candidate(OccupiedEntry<'a, BlockIdFor<J>, VertexWithChildren<I, J>>),
 }
 
-pub enum VertexState<I: PeerID> {
-    HopelessFork,
-    BelowMinimal,
-    HighestFinalized,
-    Unknown,
-    Candidate(State, HashSet<I>),
+/// Our interest in a block referred to by a vertex, including the information about whom we expect to have the block.
+#[derive(Clone, PartialEq, Eq)]
+pub enum Interest<I: PeerId> {
+    /// We are not interested in this block.
+    Uninterested,
+    /// We would like to have this block.
+    Required(HashSet<I>),
+    /// We would like to have this block and its the highest on its branch.
+    TopRequired(HashSet<I>),
 }
 
-impl<'a, I: PeerID, J: Justification> From<VertexHandle<'a, I, J>> for VertexState<I> {
-    fn from(handle: VertexHandle<'a, I, J>) -> Self {
-        match handle {
-            VertexHandle::HopelessFork => Self::HopelessFork,
-            VertexHandle::BelowMinimal => Self::BelowMinimal,
-            VertexHandle::HighestFinalized => Self::HighestFinalized,
-            VertexHandle::Unknown(_) => Self::Unknown,
-            VertexHandle::Candidate(entry) => Self::Candidate(
-                entry.get().vertex.state(),
-                entry.get().vertex.know_most().clone(),
-            ),
-        }
-    }
-}
-
-pub enum Critical {
-    Vertex(VertexError),
-    MissingVertex,
-    ShouldBePruned,
-    InfiniteLoop,
-}
-
+/// What can go wrong when inserting data into the forest.
+#[derive(Clone, PartialEq, Eq)]
 pub enum Error {
-    Critical(Critical),
-    HeaderMissingParentID,
+    HeaderMissingParentId,
     IncorrectParentState,
+    IncorrectVertexState,
     ParentNotImported,
 }
 
-impl From<VertexError> for Error {
-    fn from(err: VertexError) -> Self {
-        Self::Critical(Critical::Vertex(err))
-    }
+pub struct VertexWithChildren<I: PeerId, J: Justification> {
+    vertex: Vertex<I, J>,
+    children: HashSet<BlockIdFor<J>>,
 }
 
-impl From<Critical> for Error {
-    fn from(err: Critical) -> Self {
-        Self::Critical(err)
-    }
-}
-
-pub struct Vertex<I: PeerID, J: Justification> {
-    vertex: Vertex_<I, J>,
-    children: HashSet<BlockIDFor<J>>,
-}
-
-impl<I: PeerID, J: Justification> Vertex<I, J> {
-    fn new(holder: Option<I>) -> Self {
+impl<I: PeerId, J: Justification> VertexWithChildren<I, J> {
+    fn new() -> Self {
         Self {
-            vertex: Vertex_::new(holder),
+            vertex: Vertex::new(),
             children: HashSet::new(),
         }
     }
+
+    fn add_child(&mut self, child: BlockIdFor<J>) {
+        self.children.insert(child);
+    }
 }
 
-pub struct Forest<I: PeerID, J: Justification> {
-    vertices: HashMap<BlockIDFor<J>, Vertex<I, J>>,
-    root_id: BlockIDFor<J>,
-    root_children: HashSet<BlockIDFor<J>>,
-    compost_bin: HashSet<BlockIDFor<J>>,
+pub struct Forest<I: PeerId, J: Justification> {
+    vertices: HashMap<BlockIdFor<J>, VertexWithChildren<I, J>>,
+    top_required: HashSet<BlockIdFor<J>>,
+    root_id: BlockIdFor<J>,
+    root_children: HashSet<BlockIdFor<J>>,
+    compost_bin: HashSet<BlockIdFor<J>>,
 }
 
-impl<I: PeerID, J: Justification> Forest<I, J> {
-    pub fn new(highest_justified: BlockIDFor<J>) -> Self {
+impl<I: PeerId, J: Justification> Forest<I, J> {
+    pub fn new(highest_justified: BlockIdFor<J>) -> Self {
         Self {
             vertices: HashMap::new(),
+            top_required: HashSet::new(),
             root_id: highest_justified,
             root_children: HashSet::new(),
             compost_bin: HashSet::new(),
         }
     }
 
-    fn get_mut(&mut self, id: &BlockIDFor<J>) -> VertexHandle<I, J> {
+    fn get_mut(&mut self, id: &BlockIdFor<J>) -> VertexHandle<I, J> {
         use VertexHandle::*;
         if id == &self.root_id {
             HighestFinalized
@@ -120,301 +97,228 @@ impl<I: PeerID, J: Justification> Forest<I, J> {
         }
     }
 
-    fn prune(
-        &mut self,
-        id: &BlockIDFor<J>,
-        modified: &mut HashSet<BlockIDFor<J>>,
-    ) -> Result<(), Error> {
-        if !self.vertices.contains_key(id) {
-            return Ok(());
-        }
-        let cap = self.vertices.len();
-        let mut to_be_pruned = Vec::with_capacity(cap);
-        to_be_pruned.push(id.clone());
-        let mut index: usize = 0;
-        while let Some(id) = to_be_pruned.get(index) {
-            to_be_pruned.extend(
-                self.vertices
-                    .get(id)
-                    .ok_or(Critical::MissingVertex)?
-                    .children
-                    .iter()
-                    .cloned(),
-            );
-            index += 1;
-            if index > cap {
-                Err(Critical::InfiniteLoop)?;
+    fn prune(&mut self, id: &BlockIdFor<J>) {
+        self.top_required.remove(id);
+        if let Some(VertexWithChildren { children, .. }) = self.vertices.remove(id) {
+            self.compost_bin.insert(id.clone());
+            for child in children {
+                self.prune(&child);
             }
         }
-        for id in to_be_pruned.iter() {
-            self.vertices.remove(id).ok_or(Critical::MissingVertex)?;
-        }
-        self.compost_bin.extend(to_be_pruned.clone());
-        modified.extend(to_be_pruned.into_iter());
-        Ok(())
     }
 
-    fn try_add_parent(
-        &mut self,
-        id: &BlockIDFor<J>,
-        modified: &mut HashSet<BlockIDFor<J>>,
-    ) -> Result<(), Error> {
+    fn connect_parent(&mut self, id: &BlockIdFor<J>) {
         use VertexHandle::*;
         if let Candidate(mut entry) = self.get_mut(id) {
             let vertex = entry.get_mut();
-            let importance = vertex.vertex.state().importance();
+            let required = vertex.vertex.required();
             if let Some(parent_id) = vertex.vertex.parent().cloned() {
                 match self.get_mut(&parent_id) {
-                    Unknown(_) => (),
+                    Unknown(entry) => {
+                        entry
+                            .insert(VertexWithChildren::new())
+                            .add_child(id.clone());
+                        if required {
+                            self.set_required(&parent_id);
+                        }
+                    }
                     HighestFinalized => {
                         self.root_children.insert(id.clone());
                     }
                     Candidate(mut entry) => {
-                        entry.get_mut().children.insert(id.clone());
-                        match importance {
-                            Importance::Required | Importance::TopRequired => {
-                                self.set_required_with_ancestors(&parent_id, modified)?
-                            }
-                            Importance::Auxiliary | Importance::Imported => (),
-                        };
+                        entry.get_mut().add_child(id.clone());
+                        if required {
+                            self.set_required(&parent_id);
+                        }
                     }
-                    HopelessFork | BelowMinimal => self.prune(id, modified)?,
+                    HopelessFork | BelowMinimal => self.prune(id),
                 };
             };
         };
-        Ok(())
     }
 
-    fn set_required_with_ancestors(
-        &mut self,
-        id: &BlockIDFor<J>,
-        modified: &mut HashSet<BlockIDFor<J>>,
-    ) -> Result<(), Error> {
-        use VertexHandle::{Candidate, HighestFinalized};
-        let mut guard = id.number() as i64 - self.root_id.number() as i64;
-        let mut id = id.clone();
-        let mut vertex;
-        loop {
-            // check if we reached the root
-            match self.get_mut(&id) {
-                Candidate(mut entry) => {
-                    vertex = entry.get_mut();
-                    // check if already required
-                    match vertex.vertex.try_set_required() {
-                        true => modified.insert(id.clone()),
-                        false => break,
-                    };
-                    // check if has parent
-                    id = match vertex.vertex.parent() {
-                        Some(id) => id.clone(),
-                        None => break,
-                    };
-                }
-                HighestFinalized => break,
-                _ => Err(Critical::ShouldBePruned)?,
-            };
-            // avoid infinite loop
-            guard -= 1;
-            if guard < 0 {
-                Err(Critical::InfiniteLoop)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn bump_required(
-        &mut self,
-        id: &BlockIDFor<J>,
-        modified: &mut HashSet<BlockIDFor<J>>,
-    ) -> Result<(), Error> {
-        use VertexHandle::*;
-        if let Candidate(mut entry) = self.get_mut(id) {
-            if entry.get_mut().vertex.try_set_top_required() {
-                modified.insert(id.clone());
-                if let Some(parent_id) = entry.get_mut().vertex.parent().cloned() {
-                    self.set_required_with_ancestors(&parent_id, modified)?;
+    fn set_required(&mut self, id: &BlockIdFor<J>) {
+        self.top_required.remove(id);
+        if let VertexHandle::Candidate(mut entry) = self.get_mut(id) {
+            let vertex = entry.get_mut();
+            if vertex.vertex.set_required() {
+                if let Some(id) = vertex.vertex.parent().cloned() {
+                    self.set_required(&id);
                 }
             }
         }
-        Ok(())
     }
 
-    fn bump_vertex(
-        &mut self,
-        id: &BlockIDFor<J>,
-        holder: Option<I>,
-        modified: &mut HashSet<BlockIDFor<J>>,
-    ) {
+    fn set_top_required(&mut self, id: &BlockIdFor<J>) -> bool {
         match self.get_mut(id) {
-            VertexHandle::Unknown(entry) => {
-                entry.insert(Vertex::new(holder));
-                modified.insert(id.clone());
-            }
-            VertexHandle::Candidate(mut entry) => {
-                entry.get_mut().vertex.add_block_id_holder(holder);
-            }
-            _ => (),
+            VertexHandle::Candidate(mut entry) => match entry.get_mut().vertex.set_required() {
+                true => {
+                    if let Some(parent_id) = entry.get_mut().vertex.parent().cloned() {
+                        self.set_required(&parent_id);
+                    }
+                    self.top_required.insert(id.clone());
+                    true
+                }
+                false => false,
+            },
+            _ => false,
         }
+    }
+
+    fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) {
+        self.vertices
+            .entry(id)
+            .or_insert_with(VertexWithChildren::new)
+            .vertex
+            .add_block_holder(holder);
     }
 
     fn process_header(
         &mut self,
         header: &J::Header,
-    ) -> Result<(BlockIDFor<J>, BlockIDFor<J>), Error> {
+    ) -> Result<(BlockIdFor<J>, BlockIdFor<J>), Error> {
         Ok((
             header.id(),
-            header.parent_id().ok_or(Error::HeaderMissingParentID)?,
+            header.parent_id().ok_or(Error::HeaderMissingParentId)?,
         ))
     }
 
-    fn process_justification(
-        &mut self,
-        justification: J,
-    ) -> Result<(BlockIDFor<J>, JustificationWithParent<J>), Error> {
-        let (id, parent) = self.process_header(justification.header())?;
-        Ok((
-            id,
-            JustificationWithParent {
-                justification,
-                parent,
-            },
-        ))
-    }
-
+    /// Updates the provider block identifier, returns whether it became a new top required.
     pub fn update_block_identifier(
         &mut self,
-        id: BlockIDFor<J>,
+        id: &BlockIdFor<J>,
         holder: Option<I>,
         required: bool,
-    ) -> Result<HashSet<BlockIDFor<J>>, Error> {
-        let mut modified = HashSet::new();
-        self.bump_vertex(&id, holder.clone(), &mut modified);
-        if required {
-            self.bump_required(&id, &mut modified)?;
+    ) -> bool {
+        self.insert_id(id.clone(), holder);
+        match required {
+            true => self.set_top_required(id),
+            false => false,
         }
-        if let VertexHandle::Candidate(mut entry) = self.get_mut(&id) {
-            entry.get_mut().vertex.add_block_id_holder(holder);
-        }
-        Ok(modified)
     }
 
+    /// Updates the provided header, returns whether it became a new top required.
     pub fn update_header(
         &mut self,
         header: &J::Header,
         holder: Option<I>,
         required: bool,
-    ) -> Result<HashSet<BlockIDFor<J>>, Error> {
-        let mut modified = HashSet::new();
+    ) -> Result<bool, Error> {
         let (id, parent_id) = self.process_header(header)?;
-        self.bump_vertex(&parent_id, holder.clone(), &mut modified);
-        self.bump_vertex(&id, holder.clone(), &mut modified);
+        self.insert_id(id.clone(), holder.clone());
         if let VertexHandle::Candidate(mut entry) = self.get_mut(&id) {
-            if entry
-                .get_mut()
-                .vertex
-                .try_insert_header(parent_id.clone(), holder)?
-            {
-                modified.insert(id.clone());
-            }
-            self.try_add_parent(&id, &mut modified)?;
+            entry.get_mut().vertex.insert_header(parent_id, holder);
+            self.connect_parent(&id);
         }
-        if required {
-            self.bump_required(&id, &mut modified)?;
+        match required {
+            true => Ok(self.set_top_required(&id)),
+            false => Ok(false),
         }
-        Ok(modified)
     }
 
-    pub fn update_body(
-        &mut self,
-        header: &J::Header,
-        holder: Option<I>,
-    ) -> Result<HashSet<BlockIDFor<J>>, Error> {
+    /// Updates the vertex related to the provided header marking it as imported. Returns whether
+    /// it is now finalizable, or errors when it's impossible to do consistently.
+    pub fn update_body(&mut self, header: &J::Header) -> Result<bool, Error> {
         use VertexHandle::*;
-        let mut modified = HashSet::new();
         let (id, parent_id) = self.process_header(header)?;
-        self.bump_vertex(&parent_id, holder.clone(), &mut modified);
-        self.bump_vertex(&id, holder.clone(), &mut modified);
+        self.update_header(header, None, false)?;
         match self.get_mut(&parent_id) {
             Candidate(entry) => {
-                if !entry.get().vertex.is_imported() {
-                    Err(Error::ParentNotImported)?;
+                if !entry.get().vertex.imported() {
+                    return Err(Error::ParentNotImported);
                 }
             }
             HighestFinalized => (),
-            Unknown(_) | HopelessFork | BelowMinimal => Err(Error::IncorrectParentState)?,
+            Unknown(_) | HopelessFork | BelowMinimal => return Err(Error::IncorrectParentState),
         }
-        if let VertexHandle::Candidate(mut entry) = self.get_mut(&id) {
-            if entry
-                .get_mut()
-                .vertex
-                .try_insert_body(parent_id.clone(), holder)?
-            {
-                modified.insert(id.clone());
-            }
-            self.try_add_parent(&id, &mut modified)?;
+        match self.get_mut(&id) {
+            Candidate(mut entry) => Ok(entry.get_mut().vertex.insert_body(parent_id.clone())),
+            _ => Err(Error::IncorrectVertexState),
         }
-        Ok(modified)
     }
 
+    /// Updates the provided justification, returns whether either finalization is now possible or
+    /// the vertex became a new top required.
     pub fn update_justification(
         &mut self,
         justification: J,
         holder: Option<I>,
-    ) -> Result<HashSet<BlockIDFor<J>>, Error> {
-        let mut modified = HashSet::new();
-        let (id, justification_with_parent) = self.process_justification(justification)?;
-        self.bump_vertex(
-            &justification_with_parent.parent,
-            holder.clone(),
-            &mut modified,
-        );
-        self.bump_vertex(&id, holder.clone(), &mut modified);
-        self.bump_required(&id, &mut modified)?;
-        if let VertexHandle::Candidate(mut entry) = self.get_mut(&id) {
-            if entry
-                .get_mut()
-                .vertex
-                .try_insert_justification(justification_with_parent, holder)?
-            {
-                modified.insert(id.clone());
+    ) -> Result<JustificationAddResult, Error> {
+        use JustificationAddResult::*;
+        let (id, parent_id) = self.process_header(justification.header())?;
+        self.update_header(justification.header(), None, false)?;
+        match self.get_mut(&id) {
+            VertexHandle::Candidate(mut entry) => {
+                match entry.get_mut().vertex.insert_justification(
+                    parent_id.clone(),
+                    justification,
+                    holder,
+                ) {
+                    Noop => Ok(Noop),
+                    Required => {
+                        self.top_required.insert(id.clone());
+                        self.set_required(&parent_id);
+                        Ok(Required)
+                    }
+                    Finalizable => {
+                        self.top_required.remove(&id);
+                        Ok(Finalizable)
+                    }
+                }
             }
-            self.try_add_parent(&id, &mut modified)?;
+            _ => Ok(Noop),
         }
-        Ok(modified)
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn try_finalize(&mut self) -> Result<Option<(J, HashSet<BlockIDFor<J>>)>, Error> {
-        let mut modified = HashSet::new();
-        for child_id in self.root_children.clone().iter() {
-            if let VertexHandle::Candidate(entry) = self.get_mut(child_id) {
-                if let Some(justification) = entry.get().vertex.is_full() {
-                    let (new_root_id, vertex) = entry.remove_entry();
-                    modified.insert(new_root_id.clone());
-                    self.root_id = new_root_id;
-                    self.root_children = vertex.children;
-                    let to_be_pruned: Vec<BlockIDFor<J>> = self
-                        .vertices
-                        .keys()
-                        .filter(|k| k.number() <= self.root_id.number())
-                        .cloned()
-                        .collect();
-                    for id in to_be_pruned.iter() {
-                        self.prune(id, &mut modified)?;
+    fn prune_level(&mut self, level: u32) {
+        let to_prune: Vec<_> = self
+            .vertices
+            .keys()
+            .filter(|k| k.number() <= level)
+            .cloned()
+            .collect();
+        for id in to_prune.into_iter() {
+            self.prune(&id);
+        }
+        self.compost_bin.retain(|k| k.number() > level);
+    }
+
+    /// Attempt to finalize one block, returns the correct justification if successful.
+    pub fn try_finalize(&mut self) -> Option<J> {
+        for child_id in self.root_children.clone().into_iter() {
+            if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(&child_id) {
+                match vertex.ready() {
+                    Ok(justification) => {
+                        self.root_id = child_id;
+                        self.root_children = children;
+                        self.prune_level(self.root_id.number());
+                        return Some(justification);
                     }
-                    self.compost_bin = self
-                        .compost_bin
-                        .drain()
-                        .filter(|x| x.number() > self.root_id.number())
-                        .collect();
-                    return Ok(Some((justification, modified)));
+                    Err(vertex) => {
+                        self.vertices
+                            .insert(child_id, VertexWithChildren { vertex, children });
+                    }
                 }
             }
         }
-        Ok(None)
+        None
     }
 
-    pub fn state(&mut self, id: &BlockIDFor<J>) -> VertexState<I> {
-        self.get_mut(id).into()
+    /// How much interest we have for the block.
+    pub fn state(&mut self, id: &BlockIdFor<J>) -> Interest<I> {
+        match self.get_mut(id) {
+            VertexHandle::Candidate(entry) => {
+                let vertex = &entry.get().vertex;
+                let know_most = vertex.know_most().clone();
+                match vertex.required() {
+                    true => match self.top_required.contains(id) {
+                        true => Interest::TopRequired(know_most),
+                        false => Interest::Required(know_most),
+                    },
+                    false => Interest::Uninterested,
+                }
+            }
+            _ => Interest::Uninterested,
+        }
     }
 }
