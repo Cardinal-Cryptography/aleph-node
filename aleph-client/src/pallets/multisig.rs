@@ -443,7 +443,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
     ) -> anyhow::Result<(TxInfo, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
-        let tx_coords = self
+        let tx_info = self
             .approve_as_multi(
                 party.threshold,
                 other_signatories,
@@ -461,11 +461,11 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         // `connections` module. Secondly, if `Timepoint` struct change, this method (reading raw
         // extrinsic position) might become incorrect.
         let timepoint = self
-            .get_timepoint(&party.account(), &call_hash, Some(tx_coords.block_hash))
+            .get_timepoint(&party.account(), &call_hash, Some(tx_info.block_hash))
             .await;
 
         Ok((
-            tx_coords,
+            tx_info,
             Context::new(
                 party.clone(),
                 self.account_id().clone(),
@@ -486,7 +486,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
     ) -> anyhow::Result<(TxInfo, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
-        let tx_coords = self
+        let tx_info = self
             .as_multi(
                 party.threshold,
                 other_signatories,
@@ -499,11 +499,11 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
 
         let call_hash = compute_call_hash(&call);
         let timepoint = self
-            .get_timepoint(&party.account(), &call_hash, Some(tx_coords.block_hash))
+            .get_timepoint(&party.account(), &call_hash, Some(tx_info.block_hash))
             .await;
 
         Ok((
-            tx_coords,
+            tx_info,
             Context::new(
                 party.clone(),
                 self.account_id().clone(),
@@ -531,7 +531,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|tx_coords| (tx_coords, context.add_approval(self.account_id().clone())))
+        .map(|tx_info| (tx_info, context.add_approval(self.account_id().clone())))
     }
 
     async fn approve_with_call(
@@ -569,7 +569,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|tx_coords| (tx_coords, context.add_approval(self.account_id().clone())))
+        .map(|tx_info| (tx_info, context.add_approval(self.account_id().clone())))
     }
 
     async fn cancel(
@@ -584,7 +584,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             "Only the author can cancel multisig aggregation"
         );
 
-        let tx_coords = self
+        let tx_info = self
             .cancel_as_multi(
                 context.party.threshold,
                 other_signatories,
@@ -594,7 +594,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             )
             .await?;
 
-        Ok((tx_coords, context.close()))
+        Ok((tx_info, context.close()))
     }
 }
 

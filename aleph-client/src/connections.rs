@@ -305,7 +305,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
-        let coords: TxInfo = match status {
+        let info: TxInfo = match status {
             TxStatus::InBlock => progress
                 .wait_for_in_block()
                 .await?
@@ -316,9 +316,9 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
             // In case of Submitted coords do not mean anything
             TxStatus::Submitted => return Ok(Default::default()),
         };
-        info!(target: "aleph-client", "tx with hash {} included in block {}", coords.tx_hash, coords.block_hash);
+        info!(target: "aleph-client", "tx with hash {} included in block {}", info.tx_hash, info.block_hash);
 
-        Ok(coords)
+        Ok(info)
     }
 
     fn account_id(&self) -> &AccountId {
