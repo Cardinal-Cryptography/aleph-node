@@ -313,7 +313,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
                 .await?
                 .into(),
             TxStatus::Finalized => progress.wait_for_finalized_success().await?.into(),
-            // In case of Submitted block hash do not mean anything
+            // In case of Submitted block hash does not mean anything
             TxStatus::Submitted => {
                 return Ok(TxInfo {
                     block_hash: Default::default(),
