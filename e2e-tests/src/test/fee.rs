@@ -2,8 +2,7 @@ use aleph_client::{
     api::transaction_payment::events::TransactionFeePaid,
     pallets::{balances::BalanceUserApi, fee::TransactionPaymentApi, system::SystemSudoApi},
     utility::BlocksApi,
-    waiting::{AlephWaiting, BlockStatus},
-    AccountId, RootConnection, SignedConnection, SignedConnectionApi, TxStatus,
+    AccountId, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;
@@ -107,9 +106,6 @@ pub async fn current_fees(
     transfer_value: Balance,
 ) -> (Balance, u128) {
     let actual_multiplier = connection.get_next_fee_multiplier(None).await;
-
-    let waiting_connection = connection.clone();
-    let signer = connection.account_id().clone();
 
     let tx_info = match tip {
         None => connection.transfer(to, transfer_value, TxStatus::Finalized),

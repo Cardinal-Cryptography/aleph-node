@@ -118,8 +118,8 @@ pub struct TxInfo {
 impl From<ExtrinsicEvents<AlephConfig>> for TxInfo {
     fn from(ee: ExtrinsicEvents<AlephConfig>) -> Self {
         Self {
-            block_hash: ee.extrinsic_hash(),
-            tx_hash: ee.block_hash(),
+            block_hash: ee.block_hash(),
+            tx_hash: ee.extrinsic_hash(),
         }
     }
 }
@@ -321,7 +321,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
                 })
             }
         };
-        info!(target: "aleph-client", "tx with hash {} included in block {}", info.tx_hash, info.block_hash);
+        info!(target: "aleph-client", "tx with hash {:?} included in block {:?}", info.tx_hash, info.block_hash);
 
         Ok(info)
     }
