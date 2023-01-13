@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use log::info;
 use primitives::{BlockNumber, EraIndex, SessionIndex};
-use subxt::{blocks::ExtrinsicEvents, ext::sp_core::Hasher, Config};
+use subxt::{blocks::ExtrinsicEvents, ext::sp_runtime::traits::Hash, Config};
 
 use crate::{
     connections::{AsConnection, TxInfo},
@@ -117,7 +117,7 @@ impl<C: AsConnection + Sync> BlocksApi for C {
 
         let extrinsic_events = block_body
             .extrinsics()
-            .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hashing::hash(tx.bytes()))
+            .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hashing::hash_of(&tx.bytes()))
             .ok_or(anyhow!("Couldn't find the transaction in the block."))?
             .events()
             .await
