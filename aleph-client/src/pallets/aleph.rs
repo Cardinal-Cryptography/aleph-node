@@ -7,10 +7,11 @@ use crate::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
     },
+    connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
-    ConnectionApi, Pair, RootConnection, SudoCall, TxInfo, TxStatus,
+    ConnectionApi, Pair, RootConnection, SudoCall, TxStatus,
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published

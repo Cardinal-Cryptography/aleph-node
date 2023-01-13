@@ -6,14 +6,14 @@ use crate::{
         pallet_elections::pallet::Call::set_ban_config,
         primitives::{BanReason, CommitteeSeats, EraValidators},
     },
-    connections::AsConnection,
+    connections::{AsConnection, TxInfo},
     pallet_elections::pallet::Call::{
         ban_from_committee, change_validators, set_elections_openness,
     },
     primitives::{BanConfig, BanInfo, ElectionOpenness},
     AccountId, BlockHash,
     Call::Elections,
-    ConnectionApi, RootConnection, SudoCall, TxInfo, TxStatus,
+    ConnectionApi, RootConnection, SudoCall, TxStatus,
 };
 
 // TODO once pallet elections docs are published, replace api docs with links to public docs

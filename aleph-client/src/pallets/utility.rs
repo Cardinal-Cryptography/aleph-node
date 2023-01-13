@@ -1,4 +1,4 @@
-use crate::{api, Call, SignedConnectionApi, TxInfo, TxStatus};
+use crate::{api, connections::TxInfo, Call, SignedConnectionApi, TxStatus};
 
 /// Pallet utility api.
 #[async_trait::async_trait]
