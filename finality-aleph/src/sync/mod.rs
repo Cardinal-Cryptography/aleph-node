@@ -52,7 +52,7 @@ pub trait Verifier<J: Justification> {
 
     /// Verifies the raw justification and returns a full justification if successful, otherwise an
     /// error.
-    fn verify(&self, justification: J::Unverified) -> Result<J, Self::Error>;
+    fn verify(&mut self, justification: J::Unverified) -> Result<J, Self::Error>;
 }
 
 /// A facility for finalizing blocks using justifications.
