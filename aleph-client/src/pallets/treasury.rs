@@ -1,13 +1,13 @@
 use frame_support::PalletId;
 use primitives::{Balance, MILLISECS_PER_BLOCK};
 use sp_runtime::traits::AccountIdConversion;
+use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     api,
     connections::AsConnection,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{elections::ElectionsApi, staking::StakingApi},
-    sp_runtime::MultiAddress,
     AccountId, BlockHash,
     Call::Treasury,
     ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
