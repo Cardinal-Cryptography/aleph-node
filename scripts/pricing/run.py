@@ -4,7 +4,6 @@ import argparse
 import random
 import subprocess
 import json
-from subprocess import PIPE
 from tabulate import tabulate
 import urllib.request
 
@@ -31,22 +30,29 @@ def random_salt():
 
 
 def deploy(directory):
-    res = subprocess.run(['cargo', 'contract', 'instantiate', '--salt',
-                          random_salt()] + COMMON_ARGS, cwd=directory, check=True, stdout=PIPE)
-    return json.loads(res.stdout.decode('utf-8'))
+    res = subprocess.check_output(['cargo', 'contract', 'instantiate', '--salt',
+                                   random_salt()] + COMMON_ARGS, cwd=directory)
+    return json.loads(res.decode('utf-8'))
 
 
 def call(directory, contract, message, *args):
     args = [x for a in args for x in ['--args', a]]
-    res = subprocess.run(['cargo', 'contract', 'call', '--contract', contract,
-                          '--message', message] + args + COMMON_ARGS, cwd=directory, check=True, stdout=PIPE)
-    return json.loads(res.stdout.decode('utf-8'))
+    res = subprocess.check_output(['cargo', 'contract', 'call', '--contract', contract,
+                                   '--message', message] + args + COMMON_ARGS, cwd=directory)
+    return json.loads(res.decode('utf-8'))
 
 
 def event_field(event, field):
     for f in event['fields']:
         if f['name'] == field:
             return f['value']
+
+
+def deployer_account_id(deploy_result):
+    setup_event = next(filter(
+        lambda e: e['name'] == 'Transfer' and account_id(event_field(e, 'to')) == adder_address, deploy_result['events']), None)
+
+    return account_id(event_field(setup_event, 'from'))
 
 
 def account_id(value):
@@ -79,10 +85,7 @@ def format_fee(fee):
 deploy_result = deploy(args.adder_dir)
 
 adder_address = deploy_result['contract']
-setup_event = next(filter(
-    lambda e: e['name'] == 'Transfer' and account_id(event_field(e, 'to')) == adder_address, deploy_result['events']), None)
-
-suri_address = account_id(event_field(setup_event, 'from'))
+suri_address = deployer_account_id(deploy_result)
 instantiate_fee = find_fee(deploy_result['events'], suri_address)
 
 events = call(args.adder_dir, adder_address, 'add', '42')
