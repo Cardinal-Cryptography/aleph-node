@@ -189,7 +189,7 @@ mod tests {
                 .map(|s| {
                     (
                         SessionId(s.unique_saturated_into()),
-                        authority_data_for_session(s.into()),
+                        authority_data_for_session(s),
                     )
                 })
                 .collect();
@@ -217,10 +217,7 @@ mod tests {
         }
     }
 
-    fn setup_test<'a>(
-        max_session_n: u64,
-        finalized_number: &'a Cell<u32>,
-    ) -> TestVerifierCache<'a> {
+    fn setup_test(max_session_n: u64, finalized_number: &'_ Cell<u32>) -> TestVerifierCache<'_> {
         let finalization_status = MockFinalizationStatus { finalized_number };
         let authority_provider = MockAuthorityProvider::new(max_session_n);
 
