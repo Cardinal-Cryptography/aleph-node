@@ -107,7 +107,7 @@ where
 
     fn verify(&mut self, justification: Justification<H>) -> Result<Justification<H>, Self::Error> {
         let header = &justification.header;
-        let verifier = self.session_verifier_for_num(*header.number())?;
+        let verifier = self.get(*header.number())?;
         verifier.verify_bytes(&justification.raw_justification, header.hash().encode())?;
         Ok(justification)
     }

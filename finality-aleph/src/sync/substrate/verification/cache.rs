@@ -87,7 +87,7 @@ where
     /// Download authorities for session and store in cache. It needs to be first session,
     /// or first block from previous session needs to be finalized.
     /// Otherwise nothing is downloaded.
-    fn download_session(&mut self, session_id: SessionId) {
+    fn download(&mut self, session_id: SessionId) {
         let maybe_session = match session_id {
             SessionId(0) => self.authority_provider.authority_data(0),
             SessionId(id) => {
@@ -108,10 +108,7 @@ where
     }
 
     /// Returns session verifier for block number if available. Updates cache if necessary.
-    pub fn session_verifier_for_num(
-        &mut self,
-        number: BlockNumber,
-    ) -> Result<&SessionVerifier, CacheError> {
+    pub fn get(&mut self, number: BlockNumber) -> Result<&SessionVerifier, CacheError> {
         let session_id = session_id_from_block_num(number, self.session_period);
 
         if session_id < self.lower_bound {
@@ -137,7 +134,7 @@ where
         }
 
         if !self.sessions.contains_key(&session_id) {
-            self.download_session(session_id);
+            self.download(session_id);
         }
 
         self.sessions
@@ -243,9 +240,7 @@ mod tests {
         verifier: &mut TestVerifierCache,
         session_id: u32,
     ) -> Result<SessionVerifier, CacheError> {
-        verifier
-            .session_verifier_for_num((session_id + 1) * SESSION_PERIOD - 1)
-            .cloned()
+        verifier.get((session_id + 1) * SESSION_PERIOD - 1).cloned()
     }
 
     fn check_session_verifier(verifier: &mut TestVerifierCache, session_id: u32) {
