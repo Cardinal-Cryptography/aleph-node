@@ -1,6 +1,7 @@
 use aleph_client::{
     api::transaction_payment::events::TransactionFeePaid,
     pallets::{balances::BalanceUserApi, fee::TransactionPaymentApi, system::SystemSudoApi},
+    utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
     AccountId, RootConnection, SignedConnection, SignedConnectionApi, TxStatus,
 };
@@ -109,29 +110,17 @@ pub async fn current_fees(
 
     let waiting_connection = connection.clone();
     let signer = connection.account_id().clone();
-    let event_handle = tokio::spawn(async move {
-        waiting_connection
-            .wait_for_event(
-                |e: &TransactionFeePaid| e.who == signer,
-                BlockStatus::Finalized,
-            )
-            .await
-    });
-    match tip {
-        None => {
-            connection
-                .transfer(to, transfer_value, TxStatus::Finalized)
-                .await
-                .unwrap();
-        }
-        Some(tip) => {
-            connection
-                .transfer_with_tip(to, transfer_value, tip, TxStatus::Finalized)
-                .await
-                .unwrap();
-        }
+
+    let tx_info = match tip {
+        None => connection.transfer(to, transfer_value, TxStatus::Finalized),
+        Some(tip) => connection.transfer_with_tip(to, transfer_value, tip, TxStatus::Finalized),
     }
-    let event = event_handle.await.unwrap();
+    .await
+    .unwrap();
+
+    let events = connection.get_tx_events(tx_info).await.unwrap();
+    let event = events.find_first::<TransactionFeePaid>().unwrap().unwrap();
+
     let fee = event.actual_fee;
 
     info!("fee payed: {}", fee);
