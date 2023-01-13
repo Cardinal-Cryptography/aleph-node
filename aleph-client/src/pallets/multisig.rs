@@ -7,9 +7,9 @@ use sp_core::blake2_256;
 use sp_runtime::traits::TrailingZeroInput;
 
 use crate::{
-    account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
+    account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types,
     sp_weights::weight_v2::Weight, AccountId, BlockHash, ConnectionApi, SignedConnectionApi,
-    TxStatus,
+    TxInfo, TxStatus,
 };
 
 /// An alias for a call hash.

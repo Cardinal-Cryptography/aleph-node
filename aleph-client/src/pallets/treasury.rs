@@ -5,12 +5,12 @@ use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     api,
-    connections::{AsConnection, TxInfo},
+    connections::AsConnection,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{elections::ElectionsApi, staking::StakingApi},
     AccountId, BlockHash,
     Call::Treasury,
-    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxInfo, TxStatus,
 };
 
 /// Pallet treasury read-only api.

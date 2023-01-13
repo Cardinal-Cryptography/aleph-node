@@ -3,9 +3,7 @@ use std::{thread::sleep, time::Duration};
 use anyhow::anyhow;
 use codec::Decode;
 use log::info;
-use serde::{Deserialize, Serialize};
 use subxt::{
-    blocks::ExtrinsicEvents,
     ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
@@ -15,8 +13,8 @@ use subxt::{
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call, KeyPair,
-    SubxtClient, TxHash, TxStatus,
+    api, sp_weights::weight_v2::Weight, AccountId, BlockHash, Call, KeyPair, SubxtClient, TxInfo,
+    TxStatus,
 };
 
 /// Capable of communicating with a live Aleph chain.
@@ -106,22 +104,6 @@ pub trait ConnectionApi: Sync {
     /// rpc_call("state_call".to_string(), params).await;
     /// ```
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
-}
-
-/// Data regarding submitted transaction.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Deserialize, Serialize)]
-pub struct TxInfo {
-    pub block_hash: BlockHash,
-    pub tx_hash: TxHash,
-}
-
-impl From<ExtrinsicEvents<AlephConfig>> for TxInfo {
-    fn from(ee: ExtrinsicEvents<AlephConfig>) -> Self {
-        Self {
-            block_hash: ee.extrinsic_hash(),
-            tx_hash: ee.block_hash(),
-        }
-    }
 }
 
 /// Signed connection should be able to sends transactions to chain

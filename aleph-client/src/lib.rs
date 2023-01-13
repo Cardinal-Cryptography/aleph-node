@@ -13,8 +13,10 @@
 extern crate core;
 
 pub use contract_transcode;
+use serde::{Deserialize, Serialize};
 pub use subxt::ext::sp_core::Pair;
 use subxt::{
+    blocks::ExtrinsicEvents,
     ext::sp_core::{ed25519, sr25519, H256},
     tx::PairSigner,
     OnlineClient, PolkadotConfig,
@@ -99,4 +101,22 @@ where
     AccountId: From<<P as Pair>::Public>,
 {
     AccountId::from(keypair.public())
+}
+
+/// Data regarding submitted transaction.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Deserialize, Serialize)]
+pub struct TxInfo {
+    /// Hash of the block that contains the transaction.
+    pub block_hash: BlockHash,
+    /// The hash of the transaction.
+    pub tx_hash: TxHash,
+}
+
+impl From<ExtrinsicEvents<AlephConfig>> for TxInfo {
+    fn from(ee: ExtrinsicEvents<AlephConfig>) -> Self {
+        Self {
+            block_hash: ee.extrinsic_hash(),
+            tx_hash: ee.block_hash(),
+        }
+    }
 }

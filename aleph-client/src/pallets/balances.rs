@@ -3,12 +3,11 @@ use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
-    connections::TxInfo,
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
     AccountId, BlockHash,
     Call::Balances,
-    ConnectionApi, SignedConnectionApi, TxStatus,
+    ConnectionApi, SignedConnectionApi, TxInfo, TxStatus,
 };
 
 /// Pallet balances read-only API.

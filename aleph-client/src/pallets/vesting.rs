@@ -1,8 +1,8 @@
 use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
-    api, connections::TxInfo, pallet_vesting::vesting_info::VestingInfo, AccountId, BlockHash,
-    ConnectionApi, SignedConnectionApi, TxStatus,
+    api, pallet_vesting::vesting_info::VestingInfo, AccountId, BlockHash, ConnectionApi,
+    SignedConnectionApi, TxInfo, TxStatus,
 };
 
 /// Read only pallet vesting API.

@@ -9,7 +9,7 @@ use subxt::{
 
 use crate::{
     api,
-    connections::{AsConnection, TxInfo},
+    connections::AsConnection,
     pallet_staking::{
         pallet::pallet::{
             Call::{bond, force_new_era, nominate, set_staking_configs},
@@ -23,7 +23,7 @@ use crate::{
     sp_arithmetic::per_things::Perbill,
     AccountId, BlockHash,
     Call::{Staking, Sudo},
-    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxInfo, TxStatus,
 };
 
 /// Any object that implemnts pallet staking read-only api.

@@ -4,8 +4,8 @@ use primitives::Balance;
 use subxt::{ext::sp_core::Bytes, rpc_params};
 
 use crate::{
-    api, connections::TxInfo, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight,
-    AccountId, BlockHash, ConnectionApi, SignedConnectionApi, TxStatus,
+    api, pallet_contracts::wasm::OwnerInfo, sp_weights::weight_v2::Weight, AccountId, BlockHash,
+    ConnectionApi, SignedConnectionApi, TxInfo, TxStatus,
 };
 
 /// Arguments to [`ContractRpc::call_and_get`].

@@ -3,12 +3,11 @@ use subxt::ext::sp_runtime::Perbill as SPerbill;
 
 use crate::{
     api,
-    connections::TxInfo,
     frame_system::pallet::Call::{fill_block, set_code},
     sp_arithmetic::per_things::Perbill,
     AccountId, BlockHash,
     Call::System,
-    ConnectionApi, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, RootConnection, SudoCall, TxInfo, TxStatus,
 };
 
 /// Pallet system read-only api.
