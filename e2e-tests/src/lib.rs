@@ -1,16 +1,20 @@
 #![feature(pattern)]
 
-extern crate core;
-
-pub use cases::{possible_test_cases, PossibleTestCases};
-pub use config::Config;
-
+#[cfg(test)]
 mod accounts;
+#[cfg(test)]
 mod ban;
-mod cases;
+#[cfg(test)]
 mod config;
+#[cfg(test)]
 mod elections;
+#[cfg(test)]
 mod rewards;
+#[cfg(test)]
+mod synthetic_network;
+#[cfg(test)]
 mod test;
+#[cfg(test)]
 mod transfer;
+#[cfg(test)]
 mod validators;

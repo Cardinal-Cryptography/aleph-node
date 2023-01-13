@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use aleph_client::{
-    contract::ContractInstance, AnyConnection, Balance, Connection, SignedConnection,
+    contract::ContractInstance, AccountId, Connection, ConnectionApi, SignedConnection,
 };
 use anyhow::{Context, Result};
-use sp_core::crypto::{AccountId32 as AccountId, Ss58Codec};
+use primitives::Balance;
 
-use crate::Config;
+use crate::config::Config;
 
 /// A wrapper around the simple dex contract.
 ///
@@ -33,7 +35,9 @@ impl SimpleDexInstance {
             .simple_dex
             .clone()
             .context("Simple dex address not set.")?;
-        let dex_address = AccountId::from_string(&dex_address)?;
+        let dex_address = AccountId::from_str(&dex_address)
+            .ok()
+            .context("Invalid dex address.")?;
         let metadata_path = config
             .test_case_params
             .simple_dex_metadata
@@ -45,7 +49,7 @@ impl SimpleDexInstance {
         })
     }
 
-    pub fn add_swap_pair(
+    pub async fn add_swap_pair(
         &self,
         conn: &SignedConnection,
         from: AccountId,
@@ -53,22 +57,25 @@ impl SimpleDexInstance {
     ) -> Result<()> {
         self.contract
             .contract_exec(conn, "add_swap_pair", &[&from.to_string(), &to.to_string()])
+            .await
     }
 
-    pub fn remove_swap_pair(
+    pub async fn remove_swap_pair(
         &self,
         conn: &SignedConnection,
         from: AccountId,
         to: AccountId,
     ) -> Result<()> {
-        self.contract.contract_exec(
-            conn,
-            "remove_swap_pair",
-            &[&from.to_string(), &to.to_string()],
-        )
+        self.contract
+            .contract_exec(
+                conn,
+                "remove_swap_pair",
+                &[&from.to_string(), &to.to_string()],
+            )
+            .await
     }
 
-    pub fn deposit(
+    pub async fn deposit(
         &self,
         conn: &SignedConnection,
         amounts: &[(&PSP22TokenInstance, Balance)],
@@ -83,9 +90,10 @@ impl SimpleDexInstance {
 
         self.contract
             .contract_exec(conn, "deposit", &[format!("[{:}]", deposits.join(","))])
+            .await
     }
 
-    pub fn out_given_in<C: AnyConnection>(
+    pub async fn out_given_in<C: ConnectionApi>(
         &self,
         conn: &C,
         token_in: &PSP22TokenInstance,
@@ -104,11 +112,11 @@ impl SimpleDexInstance {
                     token_out.to_string(),
                     amount_token_in.to_string(),
                 ],
-            )?
-            .try_into()?
+            )
+            .await
     }
 
-    pub fn swap(
+    pub async fn swap(
         &self,
         conn: &SignedConnection,
         token_in: &PSP22TokenInstance,
@@ -119,16 +127,18 @@ impl SimpleDexInstance {
         let token_in: AccountId = token_in.into();
         let token_out: AccountId = token_out.into();
 
-        self.contract.contract_exec(
-            conn,
-            "swap",
-            &[
-                token_in.to_string(),
-                token_out.to_string(),
-                amount_token_in.to_string(),
-                min_amount_token_out.to_string(),
-            ],
-        )
+        self.contract
+            .contract_exec(
+                conn,
+                "swap",
+                &[
+                    token_in.to_string(),
+                    token_out.to_string(),
+                    amount_token_in.to_string(),
+                    min_amount_token_out.to_string(),
+                ],
+            )
+            .await
     }
 }
 
@@ -145,7 +155,9 @@ impl ButtonInstance {
         let button_address = button_address
             .clone()
             .context("Button game address not set.")?;
-        let button_address = AccountId::from_string(&button_address)?;
+        let button_address = AccountId::from_str(&button_address)
+            .ok()
+            .context("Invalid button game address")?;
         let metadata_path = config
             .test_case_params
             .button_game_metadata
@@ -156,38 +168,32 @@ impl ButtonInstance {
         })
     }
 
-    pub fn deadline<C: AnyConnection>(&self, conn: &C) -> Result<u128> {
-        self.contract.contract_read0(conn, "deadline")?.try_into()
+    pub async fn deadline<C: ConnectionApi>(&self, conn: &C) -> Result<u128> {
+        self.contract.contract_read0(conn, "deadline").await
     }
 
-    pub fn is_dead<C: AnyConnection>(&self, conn: &C) -> Result<bool> {
-        self.contract.contract_read0(conn, "is_dead")?.try_into()
+    pub async fn is_dead<C: ConnectionApi>(&self, conn: &C) -> Result<bool> {
+        self.contract.contract_read0(conn, "is_dead").await
     }
 
-    pub fn ticket_token<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
-        self.contract
-            .contract_read0(conn, "ticket_token")?
-            .try_into()
+    pub async fn ticket_token<C: ConnectionApi>(&self, conn: &C) -> Result<AccountId> {
+        self.contract.contract_read0(conn, "ticket_token").await
     }
 
-    pub fn reward_token<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
-        self.contract
-            .contract_read0(conn, "reward_token")?
-            .try_into()
+    pub async fn reward_token<C: ConnectionApi>(&self, conn: &C) -> Result<AccountId> {
+        self.contract.contract_read0(conn, "reward_token").await
     }
 
-    pub fn marketplace<C: AnyConnection>(&self, conn: &C) -> Result<AccountId> {
-        self.contract
-            .contract_read0(conn, "marketplace")?
-            .try_into()
+    pub async fn marketplace<C: ConnectionApi>(&self, conn: &C) -> Result<AccountId> {
+        self.contract.contract_read0(conn, "marketplace").await
     }
 
-    pub fn press(&self, conn: &SignedConnection) -> Result<()> {
-        self.contract.contract_exec0(conn, "press")
+    pub async fn press(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "press").await
     }
 
-    pub fn reset(&self, conn: &SignedConnection) -> Result<()> {
-        self.contract.contract_exec0(conn, "reset")
+    pub async fn reset(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "reset").await
     }
 }
 
@@ -221,39 +227,55 @@ impl PSP22TokenInstance {
         })
     }
 
-    pub fn transfer(&self, conn: &SignedConnection, to: &AccountId, amount: Balance) -> Result<()> {
-        self.contract.contract_exec(
-            conn,
-            "PSP22::transfer",
-            &[to.to_string(), amount.to_string(), "0x00".to_string()],
-        )
+    pub async fn transfer(
+        &self,
+        conn: &SignedConnection,
+        to: &AccountId,
+        amount: Balance,
+    ) -> Result<()> {
+        self.contract
+            .contract_exec(
+                conn,
+                "PSP22::transfer",
+                &[to.to_string(), amount.to_string(), "0x00".to_string()],
+            )
+            .await
     }
 
-    pub fn mint(&self, conn: &SignedConnection, to: &AccountId, amount: Balance) -> Result<()> {
-        self.contract.contract_exec(
-            conn,
-            "PSP22Mintable::mint",
-            &[to.to_string(), amount.to_string()],
-        )
+    pub async fn mint(
+        &self,
+        conn: &SignedConnection,
+        to: &AccountId,
+        amount: Balance,
+    ) -> Result<()> {
+        self.contract
+            .contract_exec(
+                conn,
+                "PSP22Mintable::mint",
+                &[to.to_string(), amount.to_string()],
+            )
+            .await
     }
 
-    pub fn approve(
+    pub async fn approve(
         &self,
         conn: &SignedConnection,
         spender: &AccountId,
         value: Balance,
     ) -> Result<()> {
-        self.contract.contract_exec(
-            conn,
-            "PSP22::approve",
-            &[spender.to_string(), value.to_string()],
-        )
+        self.contract
+            .contract_exec(
+                conn,
+                "PSP22::approve",
+                &[spender.to_string(), value.to_string()],
+            )
+            .await
     }
 
-    pub fn balance_of(&self, conn: &Connection, account: &AccountId) -> Result<Balance> {
+    pub async fn balance_of(&self, conn: &Connection, account: &AccountId) -> Result<Balance> {
         self.contract
-            .contract_read(conn, "PSP22::balance_of", &[account.to_string()])?
-            .try_into()
+            .contract_read(conn, "PSP22::balance_of", &[account.to_string()])
+            .await
     }
 }
 
@@ -289,19 +311,20 @@ impl MarketplaceInstance {
         })
     }
 
-    pub fn reset(&self, conn: &SignedConnection) -> Result<()> {
-        self.contract.contract_exec0(conn, "reset")
+    pub async fn reset(&self, conn: &SignedConnection) -> Result<()> {
+        self.contract.contract_exec0(conn, "reset").await
     }
 
-    pub fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
+    pub async fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
         let max_price = max_price.map_or_else(|| "None".to_string(), |x| format!("Some({})", x));
 
         self.contract
             .contract_exec(conn, "buy", &[max_price.as_str()])
+            .await
     }
 
-    pub fn price<C: AnyConnection>(&self, conn: &C) -> Result<Balance> {
-        self.contract.contract_read0(conn, "price")?.try_into()
+    pub async fn price<C: ConnectionApi>(&self, conn: &C) -> Result<Balance> {
+        self.contract.contract_read0(conn, "price").await
     }
 }
 
@@ -329,7 +352,9 @@ impl WAzeroInstance {
             .wrapped_azero
             .clone()
             .context("Wrapped AZERO address not set.")?;
-        let wazero_address = AccountId::from_string(&wazero_address)?;
+        let wazero_address = AccountId::from_str(&wazero_address)
+            .ok()
+            .context("Invalid address.")?;
         let metadata_path = config
             .test_case_params
             .wrapped_azero_metadata
@@ -341,19 +366,26 @@ impl WAzeroInstance {
         })
     }
 
-    pub fn wrap(&self, conn: &SignedConnection, value: Balance) -> Result<()> {
-        self.contract.contract_exec_value0(conn, "wrap", value)
+    pub async fn wrap(&self, conn: &SignedConnection, value: Balance) -> Result<()> {
+        self.contract
+            .contract_exec_value0(conn, "wrap", value)
+            .await
     }
 
-    pub fn unwrap(&self, conn: &SignedConnection, amount: Balance) -> Result<()> {
+    pub async fn unwrap(&self, conn: &SignedConnection, amount: Balance) -> Result<()> {
         self.contract
             .contract_exec(conn, "unwrap", &[amount.to_string()])
+            .await
     }
 
-    pub fn balance_of<C: AnyConnection>(&self, conn: &C, account: AccountId) -> Result<Balance> {
+    pub async fn balance_of<C: ConnectionApi>(
+        &self,
+        conn: &C,
+        account: &AccountId,
+    ) -> Result<Balance> {
         self.contract
-            .contract_read(conn, "PSP22::balance_of", &[account.to_string()])?
-            .try_into()
+            .contract_read(conn, "PSP22::balance_of", &[account.to_string()])
+            .await
     }
 }
 

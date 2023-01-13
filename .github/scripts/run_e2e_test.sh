@@ -59,7 +59,7 @@ function set_randomized_test_params {
 
 ARGS=(
   --network "container:Node0"
-  -e NODE_URL="127.0.0.1:9943"
+  -e NODE_URL="ws://127.0.0.1:9943"
   -e RUST_LOG=info
 )
 
@@ -111,6 +111,15 @@ if [[ -n "${ONLY_LEGACY:-}" ]]; then
     ARGS+=(-e ONLY_LEGACY)
 fi
 
-docker run -v $(pwd)/docker/data:/data "${ARGS[@]}" aleph-e2e-client:latest
+if [[ -n "${ADDER:-}" ]]; then
+    ARGS+=(-e "ADDER=${ADDER}")
+    ARGS+=(-e "ADDER_METADATA=/contracts/adder/target/ink/metadata.json")
+fi
+
+if [[ -n "${OUT_LATENCY:-}" ]]; then
+    ARGS+=(-e OUT_LATENCY)
+fi
+
+docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" "${ARGS[@]}" aleph-e2e-client:latest
 
 exit $?

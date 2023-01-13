@@ -1,13 +1,10 @@
-#[cfg(feature = "try-runtime")]
-use frame_support::ensure;
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
 #[cfg(feature = "try-runtime")]
-use pallets_support::ensure_storage_version;
-use pallets_support::StorageMigration;
+use {frame_support::ensure, pallets_support::ensure_storage_version, sp_std::vec::Vec};
 
 use crate::Config;
 
@@ -29,11 +26,6 @@ type Validators = StorageValue<Aleph, ()>;
 ///   - SessionPeriod
 ///   - Validators
 pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
-
-impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {
-    #[cfg(feature = "try-runtime")]
-    const MIGRATION_STORAGE_PREFIX: &'static [u8] = b"PALLET_ALEPH::V1_TO_V2_MIGRATION";
-}
 
 impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
     fn on_runtime_upgrade() -> Weight {
@@ -81,12 +73,13 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
     }
 
     #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<(), &'static str> {
-        ensure_storage_version::<P>(1)
+    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+        ensure_storage_version::<P>(1)?;
+        Ok(Vec::new())
     }
 
     #[cfg(feature = "try-runtime")]
-    fn post_upgrade() -> Result<(), &'static str> {
+    fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
         ensure_storage_version::<P>(2)?;
 
         ensure!(

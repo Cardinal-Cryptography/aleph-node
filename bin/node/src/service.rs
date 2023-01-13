@@ -9,12 +9,13 @@ use aleph_primitives::AlephSessionApi;
 use aleph_runtime::{self, opaque::Block, RuntimeApi, MAX_BLOCK_SIZE};
 use finality_aleph::{
     run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
-    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, SessionPeriod,
+    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::ExecutorProvider;
+use sc_client_api::{Backend, BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
 use sc_service::{
     error::Error as ServiceError, Configuration, KeystoreContainer, NetworkStarter, RpcHandlers,
@@ -22,7 +23,9 @@ use sc_service::{
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
+use sp_arithmetic::traits::BaseArithmetic;
+use sp_blockchain::Backend as _;
+use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
     traits::{Block as BlockT, Header as HeaderT, Zero},
@@ -34,7 +37,31 @@ type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
-fn get_backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
+struct LimitNonfinalized(u32);
+
+impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized {
+    fn should_backoff(
+        &self,
+        chain_head_number: N,
+        _chain_head_slot: Slot,
+        finalized_number: N,
+        _slow_now: Slot,
+        _logging_target: &str,
+    ) -> bool {
+        let nonfinalized_blocks: u32 = chain_head_number
+            .saturating_sub(finalized_number)
+            .unique_saturated_into();
+        match nonfinalized_blocks >= self.0 {
+            true => {
+                warn!("We have {} nonfinalized blocks, with the limit being {}, delaying block production.", nonfinalized_blocks, self.0);
+                true
+            }
+            false => false,
+        }
+    }
+}
+
+fn backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
     if aleph_config.no_backup() {
         return None;
     }
@@ -128,7 +155,7 @@ pub fn new_partial(
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
-    let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(
+    let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
         ImportQueueParams {
             block_import: aleph_block_import.clone(),
             justification_import: Some(Box::new(aleph_block_import.clone())),
@@ -142,13 +169,10 @@ pub fn new_partial(
                         slot_duration,
                     );
 
-                Ok((timestamp, slot))
+                Ok((slot, timestamp))
             },
             spawner: &task_manager.spawn_essential_handle(),
             registry: config.prometheus_registry(),
-            can_author_with: sp_consensus::CanAuthorWithNativeVersion::new(
-                client.executor().clone(),
-            ),
             check_for_equivocation: Default::default(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
         },
@@ -188,20 +212,37 @@ fn setup(
     (
         RpcHandlers,
         Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        ProtocolNaming,
         NetworkStarter,
     ),
     ServiceError,
 > {
+    let genesis_hash = client
+        .block_hash(0)
+        .ok()
+        .flatten()
+        .expect("we should have a hash");
+    let chain_prefix = match config.chain_spec.fork_id() {
+        Some(fork_id) => format!("/{}/{}", genesis_hash, fork_id),
+        None => format!("/{}", genesis_hash),
+    };
+    let protocol_naming = ProtocolNaming::new(chain_prefix);
     config
         .network
         .extra_sets
-        .push(finality_aleph::peers_set_config(Protocol::Generic));
+        .push(finality_aleph::peers_set_config(
+            protocol_naming.clone(),
+            Protocol::Authentication,
+        ));
     config
         .network
         .extra_sets
-        .push(finality_aleph::peers_set_config(Protocol::Authentication));
+        .push(finality_aleph::peers_set_config(
+            protocol_naming.clone(),
+            Protocol::BlockSync,
+        ));
 
-    let (network, system_rpc_tx, network_starter) =
+    let (network, system_rpc_tx, tx_handler_controller, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -237,16 +278,17 @@ fn setup(
         rpc_builder,
         backend,
         system_rpc_tx,
+        tx_handler_controller,
         config,
         telemetry: telemetry.as_mut(),
     })?;
 
-    Ok((rpc_handlers, network, network_starter))
+    Ok((rpc_handlers, network, protocol_naming, network_starter))
 }
 
 /// Builds a new service for a full client.
 pub fn new_authority(
-    mut config: Configuration,
+    config: Configuration,
     aleph_config: AlephCli,
 ) -> Result<TaskManager, ServiceError> {
     let sc_service::PartialComponents {
@@ -259,12 +301,8 @@ pub fn new_authority(
         transaction_pool,
         other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config(Protocol::Validator));
 
-    let backup_path = get_backup_path(
+    let backup_path = backup_path(
         &aleph_config,
         config
             .base_path
@@ -288,12 +326,12 @@ pub fn new_authority(
     );
 
     let force_authoring = config.force_authoring;
-    let backoff_authoring_blocks: Option<()> = None;
+    let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let (_rpc_handlers, network, network_starter) = setup(
+    let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -312,11 +350,9 @@ pub fn new_authority(
     );
     proposer_factory.set_default_block_size_limit(MAX_BLOCK_SIZE as usize);
 
-    let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
-
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
-    let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
+    let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
         StartAuraParams {
             slot_duration,
             client: client.clone(),
@@ -332,12 +368,11 @@ pub fn new_authority(
                         slot_duration,
                     );
 
-                Ok((timestamp, slot))
+                Ok((slot, timestamp))
             },
             force_authoring,
             backoff_authoring_blocks,
             keystore: keystore_container.sync_keystore(),
-            can_author_with,
             sync_oracle: network.clone(),
             justification_sync_link: network.clone(),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
@@ -353,9 +388,11 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
+    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -367,6 +404,7 @@ pub fn new_authority(
         backup_saving_path: backup_path,
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
+        protocol_naming,
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
@@ -393,7 +431,7 @@ pub fn new_full(
         other: (_, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = get_backup_path(
+    let backup_path = backup_path(
         &aleph_config,
         config
             .base_path
@@ -402,9 +440,9 @@ pub fn new_full(
             .path(),
     );
 
-    let (_rpc_handlers, network, network_starter) = setup(
+    let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
         config,
-        backend,
+        backend.clone(),
         &keystore_container,
         import_queue,
         transaction_pool,
@@ -428,9 +466,11 @@ pub fn new_full(
             .unwrap(),
     );
 
+    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
+        blockchain_backend,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -442,6 +482,7 @@ pub fn new_full(
         backup_saving_path: backup_path,
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
+        protocol_naming,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(
@@ -452,4 +493,25 @@ pub fn new_full(
 
     network_starter.start_network();
     Ok(task_manager)
+}
+
+struct BlockchainBackendImpl {
+    backend: Arc<FullBackend>,
+}
+impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
+    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
+        self.backend
+            .blockchain()
+            .children(parent_hash)
+            .unwrap_or_default()
+    }
+    fn info(&self) -> sp_blockchain::Info<Block> {
+        self.backend.blockchain().info()
+    }
+    fn header(
+        &self,
+        block_id: sp_api::BlockId<Block>,
+    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
+        self.backend.blockchain().header(block_id)
+    }
 }

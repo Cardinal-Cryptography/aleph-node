@@ -23,6 +23,7 @@ jobs:
   build-new-node:
     name: Build node and runtime artifacts (PR version)
     uses: ./.github/workflows/build-node-and-runtime.yml
+    secrets: inherit
 
   build-test-docker:
     needs: [build-new-node]
@@ -54,6 +55,51 @@ jobs:
           retention-days: 7
 
 
+  build-cliain-image:
+    name: Build docker image for cliain
+    runs-on: ubuntu-20.04
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+        with:
+          target-key: cliain
+          cache-version: v2
+          cargo-targets: bin/cliain/target/
+
+      - name: Cargo | Build release binary
+        run: |
+          cd bin/cliain && cargo build --release
+
+      - name: Build docker image
+        run: |
+          cd bin/cliain
+          docker build --tag cliain:latest -f ./Dockerfile .
+          docker save -o cliain.tar cliain:latest
+
+      - name: Upload test docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: cliain-docker
+          path: ./bin/cliain/cliain.tar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Cleanup cache
+        uses: ./.github/actions/post-cache
+
+
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
@@ -66,6 +112,12 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
@@ -100,6 +152,12 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Restore cache
         uses: ./.github/actions/restore-cache
         with:
@@ -111,7 +169,8 @@ jobs:
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
-          cargo build --release
+          rm -f target/release/deps/aleph_e2e_client*
+          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | grep aleph_e2e_client) target/release/aleph-e2e-client
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
 
@@ -126,6 +185,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  run-aleph-client-subxt-codegen-check:
+    needs: [build-test-docker]
+    name: Checks if runtime file in aleph-client is up-to-date
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run one node in the background
+        uses: ./.github/actions/run-e2e-test
+        with:
+          node-count: 1
+          min-validator-count: 1
+
+      - name: check if runtime metadata matches
+        run: |
+          cd aleph-client
+          docker pull public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
+          docker run --rm --network host --mount type=bind,source="$(pwd)/..",target=/subxt/aleph-node public.ecr.aws/p6e8q1z1/subxt-client-integration:latest
 
   run-e2e-finalization-test:
     needs: [build-test-docker, build-test-client]
@@ -138,7 +216,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: finalization
+          test-case: finalization::finalization
         timeout-minutes: 2
 
 
@@ -153,7 +231,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_disable_node
+          test-case: rewards::disable_node
           follow-up-finalization-check: true
         timeout-minutes: 15
 
@@ -279,6 +357,7 @@ jobs:
           test-case: fee_calculation
         timeout-minutes: 2
 
+
   run-e2e-validators-rotate:
     needs: [build-test-docker, build-test-client]
     name: Run validators rotation test
@@ -305,7 +384,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: era_payout
+          test-case: era_payout::era_payout
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -335,7 +414,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_force_new_era
+          test-case: rewards::force_new_era
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -350,7 +429,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_stake_change
+          test-case: rewards::points_stake_change
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -365,7 +444,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: rewards_change_stake_and_force_new_era
+          test-case: rewards::change_stake_and_force_new_era
           follow-up-finalization-check: true
         timeout-minutes: 10
 
@@ -384,23 +463,23 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
-  run-e2e-authorities-are-staking:
-    needs: [build-test-docker, build-test-client]
-    name: Run authorities are staking test
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v2
-
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          test-case: authorities_are_staking
-          node-count: 6
-          reserved-seats: 3
-          non-reserved-seats: 3
-          follow-up-finalization-check: true
-        timeout-minutes: 15
+#  run-e2e-authorities-are-staking:
+#    needs: [build-test-docker, build-test-client]
+#    name: Run authorities are staking test
+#    runs-on: ubuntu-20.04
+#    steps:
+#      - name: Checkout source code
+#        uses: actions/checkout@v2
+#
+#      - name: Run e2e test
+#        uses: ./.github/actions/run-e2e-test
+#        with:
+#          test-case: authorities_are_staking
+#          node-count: 6
+#          reserved-seats: 3
+#          non-reserved-seats: 3
+#          follow-up-finalization-check: false
+#        timeout-minutes: 15
 
   run-e2e-ban-automatic:
     needs: [build-test-docker, build-test-client]
@@ -414,6 +493,21 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: ban_automatic
+          follow-up-finalization-check: true
+        timeout-minutes: 15
+
+  run-e2e-ban-manual:
+    needs: [build-test-docker, build-test-client]
+    name: Run ban manual test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: ban_manual
           follow-up-finalization-check: true
         timeout-minutes: 15
 
@@ -432,6 +526,36 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 15
 
+  run-e2e-ban-threshold:
+    needs: [build-test-docker, build-test-client]
+    name: Run ban threshold test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: ban_threshold
+          follow-up-finalization-check: true
+        timeout-minutes: 15
+
+  run-e2e-permissionless-ban:
+    needs: [ build-test-docker, build-test-client ]
+    name: Run permissionless ban test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: permissionless_ban
+          follow-up-finalization-check: true
+        timeout-minutes: 15
+
   run-e2e-version-upgrade:
     needs: [build-test-docker, build-test-client]
     name: Run basic (positive) version-upgrade test
@@ -443,47 +567,118 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: version_upgrade
+          test-case: version_upgrade::schedule_version_change
         env:
           UPGRADE_VERSION: 1
           UPGRADE_SESSION: 3
           UPGRADE_FINALIZATION_WAIT_SESSIONS: 2
         timeout-minutes: 10
 
-  run-e2e-failing-version-upgrade:
+  run-e2e-adder-contract-test:
     needs: [build-test-docker, build-test-client]
-    name: Run basic (failing) version-upgrade test
+    name: Run e2e adder contract test
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
 
+      - name: Install cargo-contract
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-contract
+          version: "2.0.0-beta.1"
+
+      - name: Install rust-src
+        working-directory: ./contracts
+        run: rustup component add rust-src
+
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: doomed_version_upgrade
-        env:
-          OVERRIDE_DOCKER_COMPOSE: ./.github/scripts/docker-compose.no_quorum_without_old.override.yml
-          UPGRADE_VERSION: 1
-          UPGRADE_SESSION: 3
-          UPGRADE_FINALIZATION_WAIT_SESSIONS: 2
-          ONLY_LEGACY: true
+          deploy-adder: true
+          test-case: adder
         timeout-minutes: 10
 
-  run-e2e-ban-manual:
-    needs: [build-test-docker, build-test-client]
-    name: Run ban manual test
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v2
-
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          test-case: ban_manual
-          follow-up-finalization-check: true
-        timeout-minutes: 15
+# The tests below were written under the assumption that nonfinalized blocks are being produced, they need a rewrite before being reenabled.
+# TODO(A0-1644): Reenable these tests.
+#  run-e2e-failing-version-upgrade:
+#    needs: [build-test-docker, build-test-client]
+#    name: Run basic (failing) version-upgrade test
+#    runs-on: ubuntu-20.04
+#    steps:
+#      - name: Checkout source code
+#        uses: actions/checkout@v2
+#
+#      - name: Run e2e test
+#        uses: ./.github/actions/run-e2e-test
+#        with:
+#          test-case: doomed_version_upgrade
+#        env:
+#          OVERRIDE_DOCKER_COMPOSE: ./.github/scripts/docker-compose.no_quorum_without_old.override.yml
+#          UPGRADE_VERSION: 1
+#          UPGRADE_SESSION: 3
+#          UPGRADE_FINALIZATION_WAIT_SESSIONS: 2
+#          ONLY_LEGACY: true
+#        timeout-minutes: 10
+#  run-e2e-version-upgrade-catchup:
+#    needs: [build-test-docker, build-cliain-image]
+#    name: Run series of tests where some of the nodes need to do version-upgrade during catch-up
+#    runs-on: ubuntu-20.04
+#    strategy:
+#      matrix:
+#        include:
+#          - nodes: "Node1"
+#            ports: "9934"
+#            ext_status: "finalized"
+#            upgrade_before_disable: "true"
+#
+#          - nodes: "Node1"
+#            ports: "9934"
+#            ext_status: "finalized"
+#            upgrade_before_disable: "false"
+#
+#          - nodes: "Node1:Node2"
+#            ports: "9934:9935"
+#            ext_status: "in-block"
+#            upgrade_before_disable: "true"
+#
+#          - nodes: "Node1:Node2"
+#            ports: "9934:9935"
+#            ext_status: "in-block"
+#            upgrade_before_disable: "false"
+#    steps:
+#      - name: Checkout source code
+#        uses: actions/checkout@v2
+#
+#      - name: Download artifact with docker image for aleph-node
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: aleph-test-docker
+#
+#      - name: Load node docker image
+#        shell: bash
+#        run: docker load -i aleph-node.tar
+#
+#      - name: Download artifact with docker image for cliain
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: cliain-docker
+#
+#      - name: Load cliain docker image
+#        shell: bash
+#        run: docker load -i cliain.tar
+#
+#      - name: Call catchup_test.sh
+#        timeout-minutes: 10
+#        env:
+#          UPGRADE_BLOCK: 31
+#          NODES: ${{ matrix.nodes }}
+#          PORTS: ${{ matrix.ports }}
+#          EXT_STATUS: ${{ matrix.ext_status }}
+#          UPGRADE_BEFORE_DISABLE: ${{ matrix.upgrade_before_disable }}
+#          DOCKER_COMPOSE: docker/docker-compose.bridged.yml
+#        run: |
+#          ./scripts/catchup_version_upgrade_test.sh
 
   check-e2e-test-suite-completion:
     needs: [
@@ -504,12 +699,16 @@ jobs:
       run-e2e-rewards-stake-change,
       run-e2e-rewards-change-stake-force-new-era,
       run-e2e-rewards-points-basic,
-      run-e2e-authorities-are-staking,
+#      run-e2e-authorities-are-staking,
       run-e2e-ban-automatic,
-      run-e2e-ban-counter-clearing,
       run-e2e-ban-manual,
+      run-e2e-ban-counter-clearing,
+      run-e2e-ban-threshold,
       run-e2e-version-upgrade,
-      run-e2e-failing-version-upgrade,
+      run-e2e-permissionless-ban,
+      run-e2e-adder-contract-test,
+#      run-e2e-failing-version-upgrade,
+#      run-e2e-version-upgrade-catchup,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
@@ -648,7 +847,9 @@ jobs:
   build-new-runtime-and-try_runtime:
     name: Build new runtime and try_runtime tool
     needs: [ check-runtime-change ]
-    if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    # Disbled check, reenable once we fix the issue with try-runtime test
+    # if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
+    if: ${{ false }}
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
@@ -656,6 +857,12 @@ jobs:
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.6.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown

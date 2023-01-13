@@ -1,230 +1,126 @@
 //! Utilities for listening for contract events.
 //!
-//! To use the module you will need to first create a subscription (a glorified `Receiver<String>`),
-//! then run the listen loop. You might want to run the loop in a separate thread.
+//! To use the module you will need to pass a connection, some contracts and an `UnboundedSender` to the
+//! [listen_contract_events] function. You most likely want to `tokio::spawn` the resulting future, so that it runs
+//! concurrently.
 //!
 //! ```no_run
 //! # use std::sync::Arc;
 //! # use std::sync::mpsc::channel;
-//! # use std::thread;
 //! # use std::time::Duration;
-//! # use aleph_client::{Connection, SignedConnection};
+//! # use aleph_client::{AccountId, Connection, SignedConnection};
 //! # use aleph_client::contract::ContractInstance;
-//! # use aleph_client::contract::event::{listen_contract_events, subscribe_events};
+//! # use aleph_client::contract::event::{listen_contract_events};
 //! # use anyhow::Result;
-//! # use sp_core::crypto::AccountId32;
-//! # fn example(conn: SignedConnection, address1: AccountId32, address2: AccountId32, path1: &str, path2: &str) -> Result<()> {
-//!     let subscription = subscribe_events(&conn)?;
+//! use futures::{channel::mpsc::unbounded, StreamExt};
 //!
-//!     // The `Arc` makes it possible to pass a reference to the contract to another thread
-//!     let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
-//!     let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
-//!     let (cancel_tx, cancel_rx) = channel();
+//! # async fn example(conn: Connection, signed_conn: SignedConnection, address1: AccountId, address2: AccountId, path1: &str, path2: &str) -> Result<()> {
+//! // The `Arc` makes it possible to pass a reference to the contract to another thread
+//! let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
+//! let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
 //!
-//!     let contract1_copy = contract1.clone();
-//!     let contract2_copy = contract2.clone();
+//! let conn_copy = conn.clone();
+//! let contract1_copy = contract1.clone();
+//! let contract2_copy = contract2.clone();
 //!
-//!     thread::spawn(move || {
-//!         listen_contract_events(
-//!             subscription,
-//!             &[contract1_copy.as_ref(), &contract2_copy.as_ref()],
-//!             Some(cancel_rx),
-//!             |event_or_error| { println!("{:?}", event_or_error) }
-//!         );
-//!     });
+//! let (tx, mut rx) = unbounded();
+//! let listen = || async move {
+//!     listen_contract_events(&conn, &[contract1_copy.as_ref(), contract2_copy.as_ref()], tx).await?;
+//!     <Result<(), anyhow::Error>>::Ok(())
+//! };
+//! let join = tokio::spawn(listen());
 //!
-//!     thread::sleep(Duration::from_secs(20));
-//!     cancel_tx.send(()).unwrap();
+//! contract1.contract_exec0(&signed_conn, "some_method").await?;
+//! contract2.contract_exec0(&signed_conn, "some_other_method").await?;
 //!
-//!     contract1.contract_exec0(&conn, "some_method")?;
-//!     contract2.contract_exec0(&conn, "some_other_method")?;
+//! println!("Received event {:?}", rx.next().await);
+//!
+//! rx.close();
+//! join.await??;
 //!
 //! #   Ok(())
 //! # }
 //! ```
 
-use std::{
-    collections::HashMap,
-    sync::mpsc::{channel, Receiver},
-};
+use std::collections::HashMap;
 
-use ac_node_api::events::{EventsDecoder, Raw, RawEvent};
-use anyhow::{bail, Context, Result};
-use contract_transcode::{ContractMessageTranscoder, Transcoder, TranscoderBuilder, Value};
-use ink_metadata::InkProject;
-use sp_core::crypto::{AccountId32, Ss58Codec};
-use substrate_api_client::Metadata;
+use anyhow::{bail, Result};
+use contract_transcode::Value;
+use futures::{channel::mpsc::UnboundedSender, StreamExt};
 
-use crate::{contract::ContractInstance, AnyConnection};
+use crate::{contract::ContractInstance, AccountId, Connection};
 
 /// Represents a single event emitted by a contract.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ContractEvent {
     /// The address of the contract that emitted the event.
-    pub contract: AccountId32,
+    pub contract: AccountId,
     /// The name of the event.
-    pub ident: Option<String>,
+    pub name: Option<String>,
     /// Data contained in the event.
     pub data: HashMap<String, Value>,
 }
 
-/// An opaque wrapper around a `Receiver<String>` that can be used to listen for contract events.
-pub struct EventSubscription {
-    receiver: Receiver<String>,
-    metadata: Metadata,
-}
-
-/// Creates a subscription to all events that can be used to [listen_contract_events]
-pub fn subscribe_events<C: AnyConnection>(conn: &C) -> Result<EventSubscription> {
-    let conn = conn.as_connection();
-    let (sender, receiver) = channel();
-
-    conn.subscribe_events(sender)?;
-
-    Ok(EventSubscription {
-        metadata: conn.metadata,
-        receiver,
-    })
-}
-
 /// Starts an event listening loop.
 ///
-/// Will execute the handler for every contract event and every error encountered while fetching
-/// from `subscription`. Only events coming from the address of one of the `contracts` will be
-/// decoded.
+/// Will send contract event and every error encountered while fetching through the provided [UnboundedSender].
+/// Only events coming from the address of one of the `contracts` will be decoded.
 ///
-/// The loop will terminate once `subscription` is closed or once any message is received on
-/// `cancel` (if provided).
-pub fn listen_contract_events<F: Fn(Result<ContractEvent>)>(
-    subscription: EventSubscription,
+/// The loop will terminate once `sender` is closed. The loop may also terminate in case of errors while fetching blocks
+/// or decoding events (pallet events, contract event decoding errors are sent over the channel).
+pub async fn listen_contract_events(
+    conn: &Connection,
     contracts: &[&ContractInstance],
-    cancel: Option<Receiver<()>>,
-    handler: F,
-) {
-    let events_decoder = EventsDecoder::new(subscription.metadata.clone());
-    let events_transcoder = TranscoderBuilder::new(&subscription.metadata.runtime_metadata().types)
-        .with_default_custom_type_transcoders()
-        .done();
-    let contracts = contracts
-        .iter()
-        .map(|contract| (contract.address().clone(), contract.ink_project()))
-        .collect::<HashMap<_, _>>();
+    sender: UnboundedSender<Result<ContractEvent>>,
+) -> Result<()> {
+    let mut block_subscription = conn.as_client().blocks().subscribe_finalized().await?;
 
-    for batch in subscription.receiver.iter() {
-        match decode_contract_event_batch(
-            &subscription.metadata,
-            &events_decoder,
-            &events_transcoder,
-            &contracts,
-            batch,
-        ) {
-            Ok(events) => {
-                for event in events {
-                    handler(event);
-                }
-            }
-            Err(err) => handler(Err(err)),
-        }
-
-        if cancel
-            .as_ref()
-            .map(|cancel| cancel.try_recv().is_ok())
-            .unwrap_or(false)
-        {
+    while let Some(block) = block_subscription.next().await {
+        if sender.is_closed() {
             break;
         }
-    }
-}
 
-use crate::contract::anyhow;
+        let block = block?;
 
-/// Consumes a raw `batch` of chain events, and returns only those that are coming from `contracts`.
-///
-/// This function, somewhat confusingly, returns a `Result<Vec<Result<_>>>` - this is to represent
-/// the fact that an error might occur both while decoding the whole batch and for each event. This
-/// is unwrapped in [listen_contract_events] and doesn't leak outside this module.
-fn decode_contract_event_batch(
-    metadata: &Metadata,
-    events_decoder: &EventsDecoder,
-    events_transcoder: &Transcoder,
-    contracts: &HashMap<AccountId32, &InkProject>,
-    batch: String,
-) -> Result<Vec<Result<ContractEvent>>> {
-    let mut results = vec![];
+        for event in block.events().await?.iter() {
+            let event = event?;
 
-    let batch = batch.replacen("0x", "", 1);
-    let bytes = hex::decode(batch)?;
-    let events = events_decoder
-        .decode_events(&mut bytes.as_slice())
-        .map_err(|err| anyhow!("{:?}", err))?;
+            if let Some(event) =
+                event.as_event::<crate::api::contracts::events::ContractEmitted>()?
+            {
+                if let Some(contract) = contracts
+                    .iter()
+                    .find(|contract| contract.address() == &event.contract)
+                {
+                    let data = zero_prefixed(&event.data);
+                    let event = contract
+                        .transcoder
+                        .decode_contract_event(&mut data.as_slice());
 
-    for (_phase, raw_event) in events {
-        match raw_event {
-            Raw::Error(err) => results.push(Err(anyhow!("{:?}", err))),
-            Raw::Event(event) => {
-                if event.pallet == "Contracts" && event.variant == "ContractEmitted" {
-                    results.push(decode_contract_event(
-                        metadata,
-                        contracts,
-                        events_transcoder,
-                        event,
-                    ))
+                    sender.unbounded_send(
+                        event.and_then(|event| build_event(contract.address().clone(), event)),
+                    )?;
                 }
             }
         }
     }
 
-    Ok(results)
+    Ok(())
 }
 
-fn decode_contract_event(
-    metadata: &Metadata,
-    contracts: &HashMap<AccountId32, &InkProject>,
-    events_transcoder: &Transcoder,
-    event: RawEvent,
-) -> Result<ContractEvent> {
-    let event_metadata = metadata
-        .event(event.pallet_index, event.variant_index)
-        .map_err(|err| anyhow!("{:?}", err))?;
-
-    let parse_pointer = &mut event.data.0.as_slice();
-    let mut raw_data = None;
-    let mut contract_address = None;
-
-    for field in event_metadata.variant().fields() {
-        if field.name() == Some(&"data".to_string()) {
-            raw_data = Some(<&[u8]>::clone(parse_pointer));
-        } else {
-            let field_value = events_transcoder.decode(field.ty().id(), parse_pointer);
-
-            if field.name() == Some(&"contract".to_string()) {
-                contract_address = field_value.ok();
-            }
-        }
-    }
-
-    if let Some(Value::Literal(address)) = contract_address {
-        let address = AccountId32::from_string(&address)?;
-        let contract_metadata = contracts
-            .get(&address)
-            .context("Event from unknown contract")?;
-
-        let mut raw_data = raw_data.context("Event data field not found")?;
-        let event_data = ContractMessageTranscoder::new(contract_metadata)
-            .decode_contract_event(&mut raw_data)
-            .context("Failed to decode contract event")?;
-
-        build_event(address, event_data)
-    } else {
-        bail!("Contract event did not contain contract address");
-    }
+/// The contract transcoder assumes there is an extra byte (that it discards) indicating the size of the data. However,
+/// data arriving through the subscription as used in this file don't have this extra byte. This function adds it.
+fn zero_prefixed(data: &[u8]) -> Vec<u8> {
+    let mut result = vec![0];
+    result.extend_from_slice(data);
+    result
 }
 
-fn build_event(address: AccountId32, event_data: Value) -> Result<ContractEvent> {
+fn build_event(address: AccountId, event_data: Value) -> Result<ContractEvent> {
     match event_data {
         Value::Map(map) => Ok(ContractEvent {
             contract: address,
-            ident: map.ident(),
+            name: map.ident(),
             data: map
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))

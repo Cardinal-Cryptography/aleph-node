@@ -1,9 +1,27 @@
-use aleph_client::{create_connection, wait_for_finalized_block};
+use aleph_client::{
+    utility::BlocksApi,
+    waiting::{AlephWaiting, BlockStatus},
+};
+use anyhow::anyhow;
 
-use crate::config::Config;
+use crate::config::setup_test;
 
-pub fn finalization(config: &Config) -> anyhow::Result<()> {
-    let connection = create_connection(&config.node);
-    wait_for_finalized_block(&connection, 1)?;
+#[tokio::test]
+pub async fn finalization() -> anyhow::Result<()> {
+    let config = setup_test();
+    let connection = config.create_root_connection().await;
+
+    let finalized = connection.get_finalized_block_hash().await?;
+    let finalized_number = connection
+        .get_block_number(finalized)
+        .await?
+        .ok_or(anyhow!(
+            "Failed to retrieve block number for hash {finalized:?}"
+        ))?;
+
+    connection
+        .wait_for_block(|n| n > finalized_number, BlockStatus::Finalized)
+        .await;
+
     Ok(())
 }

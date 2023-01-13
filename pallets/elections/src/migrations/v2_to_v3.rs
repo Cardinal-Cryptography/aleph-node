@@ -1,14 +1,16 @@
-#[cfg(feature = "try-runtime")]
-use frame_support::ensure;
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
-#[cfg(feature = "try-runtime")]
-use pallets_support::ensure_storage_version;
-use pallets_support::StorageMigration;
 use primitives::CommitteeSeats;
+#[cfg(feature = "try-runtime")]
+use {
+    codec::{Decode, Encode},
+    frame_support::ensure,
+    pallets_support::ensure_storage_version,
+    sp_std::vec::Vec,
+};
 
 use crate::{migrations::Validators, Config, EraValidators};
 
@@ -29,9 +31,11 @@ type NextEraCommitteeSize = StorageValue<Elections, CommitteeSeats>;
 /// `CommitteeSeats`.
 pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
 
-impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {
-    #[cfg(feature = "try-runtime")]
-    const MIGRATION_STORAGE_PREFIX: &'static [u8] = b"PALLET_ELECTIONS::V2_TO_V3_MIGRATION";
+#[cfg(feature = "try-runtime")]
+#[derive(Decode, Encode)]
+struct MigrationChecksState {
+    committee_size: Option<u32>,
+    next_era_committee_size: Option<u32>,
 }
 
 impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
@@ -97,7 +101,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
     }
 
     #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<(), &'static str> {
+    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
         #[storage_alias]
         type CommitteeSize = StorageValue<Elections, u32>;
         #[storage_alias]
@@ -106,16 +110,17 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         ensure_storage_version::<P>(2)?;
 
         let committee_size = CommitteeSize::get();
-        Self::store_temp("committee_size", committee_size);
-
         let next_era_committee_size = NextEraCommitteeSize::get();
-        Self::store_temp("next_era_committee_size", next_era_committee_size);
 
-        Ok(())
+        Ok(MigrationChecksState {
+            committee_size,
+            next_era_committee_size,
+        }
+        .encode())
     }
 
     #[cfg(feature = "try-runtime")]
-    fn post_upgrade() -> Result<(), &'static str> {
+    fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
         ensure_storage_version::<P>(3)?;
 
         let new_committee_size = CommitteeSize::get().ok_or("No `CommitteeSize` in the storage")?;
@@ -127,10 +132,11 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         let next_era_reserved_validators = NextEraReservedValidators::<T>::get()
             .ok_or("No `NextEraReservedValidators` in the storage")?;
 
-        let old_committee_size =
-            Self::read_temp::<Option<u32>>("committee_size").unwrap_or_default();
-        let old_next_era_committee_size =
-            Self::read_temp::<Option<u32>>("next_era_committee_size").unwrap_or_default();
+        let MigrationChecksState {
+            committee_size: old_committee_size,
+            next_era_committee_size: old_next_era_committee_size,
+        } = <MigrationChecksState>::decode(&mut &*state)
+            .map_err(|_| "Failed to decode old state")?;
 
         let currently_reserved = current_era_validators.reserved.len();
         ensure!(
@@ -139,7 +145,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         );
         ensure!(
             new_committee_size.non_reserved_seats
-                == old_committee_size.saturating_sub(currently_reserved as u32),
+                == old_committee_size
+                    .unwrap_or_default()
+                    .saturating_sub(currently_reserved as u32),
             "Mismatch between `CurrentEraValidators` and `CommitteeSize`"
         );
 
@@ -150,7 +158,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         );
         ensure!(
             new_next_era_committee_size.non_reserved_seats
-                == old_next_era_committee_size.saturating_sub(next_reserved as u32),
+                == old_next_era_committee_size
+                    .unwrap_or_default()
+                    .saturating_sub(next_reserved as u32),
             "Mismatch between `NextEraReservedValidators` and `NextEraCommitteeSize`"
         );
 
