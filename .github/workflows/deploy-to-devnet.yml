@@ -90,8 +90,6 @@ jobs:
 
           cd aleph-apps/aleph-node-validators/overlays/devnet/eu-central-1
           kustomize edit set image "aleph-node-validator-image-placeholder=public.ecr.aws/p6e8q1z1/aleph-node:${RELEASE_TAG}"
-          # we start nodes from the scratch, so we don't need to update the runtime
-          kustomize edit remove resource send-runtime-hook.yaml
           kustomize build . | kubectl apply -f -
           sleep 2
           kubectl rollout status --watch --timeout=3600s statefulset/aleph-node-validator -n devnet
