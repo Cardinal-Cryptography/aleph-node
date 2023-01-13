@@ -112,8 +112,8 @@ impl SessionInfoProviderImpl {
 #[async_trait::async_trait]
 impl<B: Block> SessionInfoProvider<B, JustificationVerifier> for SessionInfoProviderImpl {
     async fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, JustificationVerifier> {
-        let current_session = session_id_from_block_num::<B>(number, self.session_period);
-        let last_block_height = last_block_of_session::<B>(current_session, self.session_period);
+        let current_session = session_id_from_block_num(number, self.session_period);
+        let last_block_height = last_block_of_session(current_session, self.session_period);
         let verifier = self
             .session_authorities
             .get(current_session)
