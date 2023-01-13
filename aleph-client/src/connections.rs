@@ -108,13 +108,14 @@ pub trait ConnectionApi: Sync {
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
 }
 
+/// Data regarding submitted transaction.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Deserialize, Serialize)]
-pub struct TxCoords {
+pub struct TxInfo {
     pub block_hash: BlockHash,
     pub tx_hash: TxHash,
 }
 
-impl From<ExtrinsicEvents<AlephConfig>> for TxCoords {
+impl From<ExtrinsicEvents<AlephConfig>> for TxInfo {
     fn from(ee: ExtrinsicEvents<AlephConfig>) -> Self {
         Self {
             block_hash: ee.extrinsic_hash(),
@@ -142,7 +143,7 @@ pub trait SignedConnectionApi: ConnectionApi {
         &self,
         tx: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
@@ -155,7 +156,7 @@ pub trait SignedConnectionApi: ConnectionApi {
         tx: Call,
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// Returns account id which signs this connection
     fn account_id(&self) -> &AccountId;
@@ -171,14 +172,14 @@ pub trait SignedConnectionApi: ConnectionApi {
 #[async_trait::async_trait]
 pub trait SudoCall {
     /// API for [`sudo_unchecked_weight`](https://paritytech.github.io/substrate/master/pallet_sudo/pallet/enum.Call.html#variant.sudo_unchecked_weight) call.
-    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<TxCoords>;
+    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<TxInfo>;
     /// API for [`sudo`](https://paritytech.github.io/substrate/master/pallet_sudo/pallet/enum.Call.html#variant.sudo) call.
-    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<TxCoords>;
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<TxInfo>;
 }
 
 #[async_trait::async_trait]
 impl SudoCall for RootConnection {
-    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<TxCoords> {
+    async fn sudo_unchecked(&self, call: Call, status: TxStatus) -> anyhow::Result<TxInfo> {
         info!(target: "aleph-client", "sending call as sudo_unchecked {:?}", call);
         let sudo = api::tx().sudo().sudo_unchecked_weight(
             call,
@@ -191,7 +192,7 @@ impl SudoCall for RootConnection {
         self.as_signed().send_tx(sudo, status).await
     }
 
-    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<TxCoords> {
+    async fn sudo(&self, call: Call, status: TxStatus) -> anyhow::Result<TxInfo> {
         info!(target: "aleph-client", "sending call as sudo {:?}", call);
         let sudo = api::tx().sudo().sudo(call);
 
@@ -281,7 +282,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
         &self,
         tx: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         self.send_tx_with_params(tx, Default::default(), status)
             .await
     }
@@ -291,7 +292,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
         tx: Call,
         params: BaseExtrinsicParamsBuilder<SubstrateConfig, PlainTip>,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         if let Some(details) = tx.validation_details() {
             info!(target:"aleph-client", "Sending extrinsic {}.{} with params: {:?}", details.pallet_name, details.call_name, params);
         }
@@ -304,7 +305,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
-        let coords: TxCoords = match status {
+        let coords: TxInfo = match status {
             TxStatus::InBlock => progress
                 .wait_for_in_block()
                 .await?

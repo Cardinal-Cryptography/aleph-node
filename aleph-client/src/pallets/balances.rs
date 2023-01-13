@@ -3,7 +3,7 @@ use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
-    connections::TxCoords,
+    connections::TxInfo,
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
     AccountId, BlockHash,
@@ -45,7 +45,7 @@ pub trait BalanceUserApi {
         dest: AccountId,
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// API for [`transfer`](https://paritytech.github.io/substrate/master/pallet_balances/pallet/struct.Pallet.html#method.transfer) call.
     /// Include tip in the tx.
@@ -55,7 +55,7 @@ pub trait BalanceUserApi {
         amount: Balance,
         tip: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 /// Pallet balances logic not directly related to any pallet call.
@@ -80,7 +80,7 @@ pub trait BalanceUserBatchExtApi {
         dest: &[AccountId],
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 #[async_trait::async_trait]
@@ -123,7 +123,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
         dest: AccountId,
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .balances()
             .transfer(MultiAddress::Id(dest), amount);
@@ -136,7 +136,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
         amount: Balance,
         tip: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .balances()
             .transfer(MultiAddress::Id(dest), amount);
@@ -153,7 +153,7 @@ impl<S: SignedConnectionApi> BalanceUserBatchExtApi for S {
         dests: &[AccountId],
         amount: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let calls = dests
             .iter()
             .map(|dest| {

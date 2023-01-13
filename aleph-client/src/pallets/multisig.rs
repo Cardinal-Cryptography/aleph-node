@@ -7,9 +7,9 @@ use sp_core::blake2_256;
 use sp_runtime::traits::TrailingZeroInput;
 
 use crate::{
-    account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types,
-    connections::TxCoords, sp_weights::weight_v2::Weight, AccountId, BlockHash, ConnectionApi,
-    SignedConnectionApi, TxStatus,
+    account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
+    sp_weights::weight_v2::Weight, AccountId, BlockHash, ConnectionApi, SignedConnectionApi,
+    TxStatus,
 };
 
 /// An alias for a call hash.
@@ -42,7 +42,7 @@ pub trait MultisigUserApi {
         other_signatories: Vec<AccountId>,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
     /// API for [`as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.as_multi) call.
     async fn as_multi(
         &self,
@@ -52,7 +52,7 @@ pub trait MultisigUserApi {
         max_weight: Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
     /// API for [`approve_as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.approve_as_multi) call.
     async fn approve_as_multi(
         &self,
@@ -62,7 +62,7 @@ pub trait MultisigUserApi {
         max_weight: Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
     /// API for [`cancel_as_multi`](https://paritytech.github.io/substrate/master/pallet_multisig/pallet/struct.Pallet.html#method.cancel_as_multi) call.
     async fn cancel_as_multi(
         &self,
@@ -71,7 +71,7 @@ pub trait MultisigUserApi {
         timepoint: Timepoint,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 #[async_trait::async_trait]
@@ -81,7 +81,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
         other_signatories: Vec<AccountId>,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .multisig()
             .as_multi_threshold_1(other_signatories, call);
@@ -97,7 +97,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
         max_weight: Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().as_multi(
             threshold,
             other_signatories,
@@ -117,7 +117,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
         max_weight: Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().approve_as_multi(
             threshold,
             other_signatories,
@@ -136,7 +136,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
         timepoint: Timepoint,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<TxCoords> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().cancel_as_multi(
             threshold,
             other_signatories,
@@ -394,7 +394,7 @@ pub trait MultisigContextualApi {
         max_weight: &Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Ongoing>)>;
+    ) -> anyhow::Result<(TxInfo, Context<Ongoing>)>;
     /// Start signature aggregation for `party` and `call`. Get `Context` object as a result
     /// (together with standard tx coordinates).
     ///
@@ -406,7 +406,7 @@ pub trait MultisigContextualApi {
         max_weight: &Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Ongoing>)>;
+    ) -> anyhow::Result<(TxInfo, Context<Ongoing>)>;
     /// Express contextual approval for the call hash.
     ///
     /// This is the recommended way for every intermediate approval.
@@ -414,7 +414,7 @@ pub trait MultisigContextualApi {
         &self,
         context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, ContextAfterUse)>;
+    ) -> anyhow::Result<(TxInfo, ContextAfterUse)>;
     /// Express contextual approval for the `call`.
     ///
     /// This is the recommended way only for the final approval.
@@ -423,13 +423,13 @@ pub trait MultisigContextualApi {
         context: Context<Ongoing>,
         call: Option<Call>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, ContextAfterUse)>;
+    ) -> anyhow::Result<(TxInfo, ContextAfterUse)>;
     /// Cancel signature aggregation.
     async fn cancel(
         &self,
         context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Closed>)>;
+    ) -> anyhow::Result<(TxInfo, Context<Closed>)>;
 }
 
 #[async_trait::async_trait]
@@ -440,7 +440,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call_hash: CallHash,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Ongoing>)> {
+    ) -> anyhow::Result<(TxInfo, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let tx_coords = self
@@ -483,7 +483,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         max_weight: &Weight,
         call: Call,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Ongoing>)> {
+    ) -> anyhow::Result<(TxInfo, Context<Ongoing>)> {
         let other_signatories = ensure_signer_in_party(self, party)?;
 
         let tx_coords = self
@@ -519,7 +519,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         &self,
         context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, ContextAfterUse)> {
+    ) -> anyhow::Result<(TxInfo, ContextAfterUse)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         self.approve_as_multi(
@@ -539,7 +539,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         mut context: Context<Ongoing>,
         call: Option<Call>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, ContextAfterUse)> {
+    ) -> anyhow::Result<(TxInfo, ContextAfterUse)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         let call = match (call.as_ref(), context.call.as_ref()) {
@@ -576,7 +576,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         &self,
         context: Context<Ongoing>,
         status: TxStatus,
-    ) -> anyhow::Result<(TxCoords, Context<Closed>)> {
+    ) -> anyhow::Result<(TxInfo, Context<Closed>)> {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         ensure!(
