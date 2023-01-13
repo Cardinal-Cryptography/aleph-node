@@ -109,7 +109,7 @@ pub trait ConnectionApi: Sync {
 }
 
 /// Data regarding submitted transaction.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Deserialize, Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Deserialize, Serialize)]
 pub struct TxInfo {
     pub block_hash: BlockHash,
     pub tx_hash: TxHash,
@@ -313,8 +313,13 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
                 .await?
                 .into(),
             TxStatus::Finalized => progress.wait_for_finalized_success().await?.into(),
-            // In case of Submitted coords do not mean anything
-            TxStatus::Submitted => return Ok(Default::default()),
+            // In case of Submitted block hash do not mean anything
+            TxStatus::Submitted => {
+                return Ok(TxInfo {
+                    block_hash: Default::default(),
+                    tx_hash: progress.extrinsic_hash(),
+                })
+            }
         };
         info!(target: "aleph-client", "tx with hash {} included in block {}", info.tx_hash, info.block_hash);
 
