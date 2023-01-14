@@ -17,7 +17,7 @@ jobs:
   build-test-docker:
     needs: [build-new-node]
     name: Build docker image with the test node artifact
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -46,7 +46,7 @@ jobs:
   build-synthetic-network-docker:
     needs: [build-test-docker]
     name: Build docker image with the test node artifact and support for synthetic-network
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -77,7 +77,7 @@ jobs:
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -115,7 +115,7 @@ jobs:
 
   build-test-client:
     name: Build e2e test client suite
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -161,7 +161,7 @@ jobs:
   run-e2e-authorities-are-staking:
     needs: [build-test-docker, build-test-client]
     name: Run authorities are staking test
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -177,7 +177,7 @@ jobs:
   run-e2e-high-out-latency:
     needs: [build-synthetic-network-docker, build-test-client]
     name: Run high out-latency test
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -194,7 +194,7 @@ jobs:
   run-e2e-no-quorum-without-high-out-latency:
     needs: [build-synthetic-network-docker, build-test-client]
     name: Run high out-latency for every quorum
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -215,14 +215,14 @@ jobs:
       run-e2e-no-quorum-without-high-out-latency,
     ]
     name: Check e2e test suite completion
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: All e2e tests completed
         run: echo "All e2e tests completed."
 
   slack:
     name: Slack notification
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: [check-e2e-test-suite-completion, check-determinism]
     if: always()
     steps:
