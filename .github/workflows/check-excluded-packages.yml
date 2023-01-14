@@ -52,14 +52,6 @@ jobs:
           echo "::set-output name=packages::$packages"
           echo "::set-output name=targets::$targets"
 
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: excluded
-          cargo-key: excluded
-          cache-version: v2
-          cargo-targets: "${{ steps.format_output.outputs.targets }}"
-
       - name: Check excluded packages
         env:
           RUSTC_WRAPPER: ""
