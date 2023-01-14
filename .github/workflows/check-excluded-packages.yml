@@ -68,6 +68,3 @@ jobs:
             cargo clippy --all-features -- --no-deps -D warnings
             popd
           done
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
