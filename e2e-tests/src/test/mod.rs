@@ -10,6 +10,7 @@ pub use finality_version::{
     schedule_version_change,
 };
 pub use finalization::finalization;
+pub use high_latency::{high_out_latency_for_all, high_out_latency_for_each_quorum};
 pub use rewards::{
     change_stake_and_force_new_era, disable_node, force_new_era, points_basic, points_stake_change,
 };
@@ -28,6 +29,7 @@ mod fee;
 mod finality_version;
 mod finalization;
 mod helpers;
+mod high_latency;
 mod rewards;
 mod staking;
 mod transfer;

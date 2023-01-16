@@ -8,12 +8,15 @@ use crate::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
     },
+    connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
-    Connection, Pair, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, Pair, RootConnection, SudoCall, TxStatus,
 };
 
+// TODO replace docs with link to pallet aleph docs, once they are published
+/// Pallet aleph API that requires sudo.
 #[async_trait::async_trait]
 pub trait AlephApi {
     async fn finality_version(&self, at: Option<BlockHash>) -> Version;
@@ -22,22 +25,37 @@ pub trait AlephApi {
 
 #[async_trait::async_trait]
 pub trait AlephSudoApi {
+    /// Sets the emergency finalization key.
+    /// * `finalizer` - a new finalizer key
+    /// * `status` - a [`TxStatus`] of a tx to wait for
+    /// # Returns
+    /// Block hash of block where transaction was put or error
     async fn set_emergency_finalizer(
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
+    /// Schedules a finality version change for a future session.
+    /// * `version` - next version of the finalizer
+    /// * `session` - from which session the next version applies
+    /// * `status` - a [`TxStatus`] of a tx to wait for
+    /// # Returns
+    /// Block hash of block where transaction was put or error
     async fn schedule_finality_version_change(
         &self,
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
+/// Pallet aleph RPC api.
 #[async_trait::async_trait]
 pub trait AlephRpc {
+    /// Finalize the block with given hash and number using attached signature.
+    /// # Returns
+    /// Block hash of block where transaction was put or error
     async fn emergency_finalize(
         &self,
         number: BlockNumber,
@@ -69,7 +87,7 @@ impl AlephSudoApi for RootConnection {
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let call = Aleph(set_emergency_finalizer {
             emergency_finalizer: Public(EdPublic(finalizer.into())),
         });
@@ -81,7 +99,7 @@ impl AlephSudoApi for RootConnection {
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let call = Aleph(schedule_finality_version_change {
             version_incoming: version,
             session,
@@ -92,7 +110,7 @@ impl AlephSudoApi for RootConnection {
 }
 
 #[async_trait::async_trait]
-impl AlephRpc for Connection {
+impl<C: ConnectionApi> AlephRpc for C {
     async fn emergency_finalize(
         &self,
         number: BlockNumber,
