@@ -2,14 +2,14 @@ use std::collections::HashSet;
 
 use crate::sync::{forest::BlockIdFor, Justification, PeerId};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 enum HeaderImportance {
     Auxiliary,
     Required,
     Imported,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum InnerVertex<J: Justification> {
     /// Empty Vertex.
     Empty { required: bool },
@@ -27,14 +27,14 @@ enum InnerVertex<J: Justification> {
 }
 
 /// The vomplete vertex, including metadata about peers that know most about the data it refers to.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Vertex<I: PeerId, J: Justification> {
     inner: InnerVertex<J>,
     know_most: HashSet<I>,
 }
 
 /// What can happen when we add a justification.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JustificationAddResult {
     Noop,
     Required,
@@ -234,5 +234,241 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
                 JustificationAddResult::Finalizable
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{JustificationAddResult, Vertex};
+    use crate::sync::{
+        mock::{MockHeader, MockIdentifier, MockJustification, MockPeerId},
+        Header,
+    };
+
+    type MockVertex = Vertex<MockPeerId, MockJustification>;
+
+    #[test]
+    fn initially_empty() {
+        let vertex = MockVertex::new();
+        assert!(!vertex.required());
+        assert!(!vertex.imported());
+        assert!(vertex.parent().is_none());
+        assert!(vertex.know_most().is_empty());
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn empty_remembers_block_holders() {
+        let mut vertex = MockVertex::new();
+        let peer_id = rand::random();
+        vertex.add_block_holder(Some(peer_id));
+        assert!(vertex.know_most().contains(&peer_id));
+    }
+
+    #[test]
+    fn empty_set_required() {
+        let mut vertex = MockVertex::new();
+        assert!(vertex.set_required());
+        assert!(vertex.required());
+        assert!(!vertex.set_required());
+        assert!(vertex.required());
+    }
+
+    #[test]
+    fn empty_to_header() {
+        let mut vertex = MockVertex::new();
+        let peer_id = rand::random();
+        let parent = MockIdentifier::new_random(43);
+        vertex.insert_header(parent.clone(), Some(peer_id));
+        assert!(!vertex.required());
+        assert!(!vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert!(vertex.know_most().contains(&peer_id));
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn header_remembers_block_holders() {
+        let mut vertex = MockVertex::new();
+        let peer_id = rand::random();
+        let parent = MockIdentifier::new_random(43);
+        vertex.insert_header(parent, Some(peer_id));
+        let other_peer_id = rand::random();
+        vertex.add_block_holder(Some(other_peer_id));
+        assert!(vertex.know_most().contains(&peer_id));
+        assert!(vertex.know_most().contains(&other_peer_id));
+    }
+
+    #[test]
+    fn header_set_required() {
+        let mut vertex = MockVertex::new();
+        let peer_id = rand::random();
+        let parent = MockIdentifier::new_random(43);
+        vertex.insert_header(parent, Some(peer_id));
+        assert!(vertex.set_required());
+        assert!(vertex.required());
+        assert!(!vertex.set_required());
+        assert!(vertex.required());
+    }
+
+    #[test]
+    fn header_still_required() {
+        let mut vertex = MockVertex::new();
+        assert!(vertex.set_required());
+        let peer_id = rand::random();
+        let parent = MockIdentifier::new_random(43);
+        vertex.insert_header(parent, Some(peer_id));
+        assert!(vertex.required());
+        assert!(!vertex.set_required());
+        assert!(vertex.required());
+    }
+
+    #[test]
+    fn empty_to_body() {
+        let mut vertex = MockVertex::new();
+        let parent = MockIdentifier::new_random(43);
+        assert!(!vertex.insert_body(parent.clone()));
+        assert!(!vertex.required());
+        assert!(vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn header_to_body() {
+        let mut vertex = MockVertex::new();
+        let peer_id = rand::random();
+        let parent = MockIdentifier::new_random(43);
+        vertex.insert_header(parent.clone(), Some(peer_id));
+        assert!(!vertex.insert_body(parent.clone()));
+        assert!(!vertex.required());
+        assert!(vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn body_set_required() {
+        let mut vertex = MockVertex::new();
+        let parent = MockIdentifier::new_random(43);
+        assert!(!vertex.insert_body(parent));
+        assert!(!vertex.set_required());
+        assert!(!vertex.required());
+    }
+
+    #[test]
+    fn body_no_longer_required() {
+        let mut vertex = MockVertex::new();
+        assert!(vertex.set_required());
+        let parent = MockIdentifier::new_random(43);
+        assert!(!vertex.insert_body(parent));
+        assert!(!vertex.required());
+    }
+
+    #[test]
+    fn empty_to_justification() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        let peer_id = rand::random();
+        assert_eq!(
+            vertex.insert_justification(parent.clone(), justification, Some(peer_id)),
+            JustificationAddResult::Required
+        );
+        assert!(vertex.required());
+        assert!(!vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert!(vertex.know_most().contains(&peer_id));
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn header_to_justification() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        let peer_id = rand::random();
+        vertex.insert_header(parent.clone(), Some(peer_id));
+        assert_eq!(
+            vertex.insert_justification(parent.clone(), justification, None),
+            JustificationAddResult::Required
+        );
+        assert!(vertex.required());
+        assert!(!vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert!(vertex.know_most().is_empty());
+        assert_eq!(vertex.clone().ready(), Err(vertex));
+    }
+
+    #[test]
+    fn body_to_justification() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        assert!(!vertex.insert_body(parent.clone()));
+        assert_eq!(
+            vertex.insert_justification(parent.clone(), justification.clone(), None),
+            JustificationAddResult::Finalizable
+        );
+        assert!(!vertex.required());
+        assert!(vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert_eq!(vertex.ready(), Ok(justification));
+    }
+
+    #[test]
+    fn justification_set_required() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        let peer_id = rand::random();
+        assert_eq!(
+            vertex.insert_justification(parent, justification, Some(peer_id)),
+            JustificationAddResult::Required
+        );
+        assert!(!vertex.set_required());
+        assert!(vertex.required());
+    }
+
+    #[test]
+    fn justification_still_required() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        let peer_id = rand::random();
+        assert!(vertex.set_required());
+        assert_eq!(
+            vertex.insert_justification(parent, justification, Some(peer_id)),
+            JustificationAddResult::Noop
+        );
+        assert!(vertex.required());
+    }
+
+    #[test]
+    fn my_body_is_ready() {
+        let mut vertex = MockVertex::new();
+        let parent_header = MockHeader::random_parentless(0);
+        let header = parent_header.random_child();
+        let parent = header.parent_id().expect("born of a parent");
+        let justification = MockJustification::for_header(header);
+        assert_eq!(
+            vertex.insert_justification(parent.clone(), justification.clone(), None),
+            JustificationAddResult::Required
+        );
+        assert!(vertex.insert_body(parent.clone()));
+        assert!(!vertex.required());
+        assert!(vertex.imported());
+        assert_eq!(vertex.parent(), Some(&parent));
+        assert_eq!(vertex.ready(), Ok(justification));
     }
 }

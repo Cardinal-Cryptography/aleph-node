@@ -25,7 +25,7 @@ enum VertexHandle<'a, I: PeerId, J: Justification> {
 }
 
 /// Our interest in a block referred to by a vertex, including the information about whom we expect to have the block.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Interest<I: PeerId> {
     /// We are not interested in this block.
     Uninterested,
@@ -36,7 +36,7 @@ pub enum Interest<I: PeerId> {
 }
 
 /// What can go wrong when inserting data into the forest.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Error {
     HeaderMissingParentId,
     IncorrectParentState,
@@ -319,6 +319,344 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                 }
             }
             _ => Interest::Uninterested,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, Forest, Interest::*, JustificationAddResult};
+    use crate::sync::{
+        mock::{MockHeader, MockJustification, MockPeerId},
+        Header, Justification,
+    };
+
+    type MockForest = Forest<MockPeerId, MockJustification>;
+
+    fn setup() -> (MockHeader, MockForest) {
+        let header = MockHeader::random_parentless(0);
+        let forest = Forest::new(header.id());
+        (header, forest)
+    }
+
+    #[test]
+    fn initially_empty() {
+        let (initial_header, mut forest) = setup();
+        assert!(forest.try_finalize().is_none());
+        assert_eq!(forest.state(&initial_header.id()), Uninterested);
+    }
+
+    #[test]
+    fn accepts_first_unimportant_id() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        let peer_id = rand::random();
+        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), false));
+        assert!(forest.try_finalize().is_none());
+        assert_eq!(forest.state(&child.id()), Uninterested);
+    }
+
+    #[test]
+    fn accepts_first_important_id() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        let peer_id = rand::random();
+        assert!(forest.update_block_identifier(&child.id(), Some(peer_id), true));
+        assert!(forest.try_finalize().is_none());
+        match forest.state(&child.id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), true));
+    }
+
+    #[test]
+    fn accepts_first_unimportant_header() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        let peer_id = rand::random();
+        assert!(!forest
+            .update_header(&child, Some(peer_id), false)
+            .expect("header was correct"));
+        assert!(forest.try_finalize().is_none());
+        assert_eq!(forest.state(&child.id()), Uninterested);
+    }
+
+    #[test]
+    fn accepts_first_important_header() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        let peer_id = rand::random();
+        assert!(forest
+            .update_header(&child, Some(peer_id), true)
+            .expect("header was correct"));
+        assert!(forest.try_finalize().is_none());
+        match forest.state(&child.id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), true));
+    }
+
+    #[test]
+    fn rejects_parentless_header() {
+        let (_, mut forest) = setup();
+        let parentless = MockHeader::random_parentless(43);
+        let peer_id = rand::random();
+        assert!(matches!(
+            forest.update_header(&parentless, Some(peer_id), true),
+            Err(Error::HeaderMissingParentId)
+        ));
+    }
+
+    #[test]
+    fn accepts_first_justification() {
+        let (initial_header, mut forest) = setup();
+        let child = MockJustification::for_header(initial_header.random_child());
+        let peer_id = rand::random();
+        assert_eq!(
+            forest
+                .update_justification(child.clone(), Some(peer_id))
+                .expect("header was correct"),
+            JustificationAddResult::Required
+        );
+        assert!(forest.try_finalize().is_none());
+        match forest.state(&child.header().id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+    }
+
+    #[test]
+    fn rejects_parentless_justification() {
+        let (_, mut forest) = setup();
+        let parentless = MockJustification::for_header(MockHeader::random_parentless(43));
+        let peer_id = rand::random();
+        assert!(matches!(
+            forest.update_justification(parentless, Some(peer_id)),
+            Err(Error::HeaderMissingParentId)
+        ));
+    }
+
+    #[test]
+    fn accepts_first_body() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        assert!(!forest.update_body(&child).expect("header was correct"));
+        assert!(forest.try_finalize().is_none());
+        assert_eq!(forest.state(&child.id()), Uninterested);
+    }
+
+    #[test]
+    fn finalizes_first_block() {
+        let (initial_header, mut forest) = setup();
+        let child = MockJustification::for_header(initial_header.random_child());
+        let peer_id = rand::random();
+        assert_eq!(
+            forest
+                .update_justification(child.clone(), Some(peer_id))
+                .expect("header was correct"),
+            JustificationAddResult::Required
+        );
+        assert!(forest.try_finalize().is_none());
+        match forest.state(&child.header().id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        assert!(forest
+            .update_body(child.header())
+            .expect("header was correct"));
+        assert_eq!(forest.try_finalize().expect("the block is ready"), child);
+    }
+
+    #[test]
+    fn prunes_forks() {
+        let (initial_header, mut forest) = setup();
+        let child = MockJustification::for_header(initial_header.random_child());
+        let fork_child = initial_header.random_child();
+        let peer_id = rand::random();
+        let fork_peer_id = rand::random();
+        assert!(forest
+            .update_header(&fork_child, Some(fork_peer_id), true)
+            .expect("header was correct"));
+        match forest.state(&fork_child.id()) {
+            TopRequired(holders) => assert!(holders.contains(&fork_peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        assert_eq!(
+            forest
+                .update_justification(child.clone(), Some(peer_id))
+                .expect("header was correct"),
+            JustificationAddResult::Required
+        );
+        assert!(forest
+            .update_body(child.header())
+            .expect("header was correct"));
+        assert_eq!(forest.try_finalize().expect("the block is ready"), child);
+        assert_eq!(forest.state(&fork_child.id()), Uninterested);
+        assert!(!forest
+            .update_header(&fork_child, Some(fork_peer_id), true)
+            .expect("header was correct"));
+    }
+
+    #[test]
+    fn uninterested_in_forks() {
+        let (initial_header, mut forest) = setup();
+        let fork_branch: Vec<_> = initial_header.random_branch().take(2).collect();
+        for header in &fork_branch {
+            let peer_id = rand::random();
+            assert!(forest
+                .update_header(header, Some(peer_id), true)
+                .expect("header was correct"));
+            match forest.state(&header.id()) {
+                TopRequired(holders) => assert!(holders.contains(&peer_id)),
+                other_state => panic!("Expected top required, got {:?}.", other_state),
+            }
+        }
+        let child = MockJustification::for_header(initial_header.random_child());
+        let peer_id = rand::random();
+        assert_eq!(
+            forest
+                .update_justification(child.clone(), Some(peer_id))
+                .expect("header was correct"),
+            JustificationAddResult::Required
+        );
+        assert!(forest
+            .update_body(child.header())
+            .expect("header was correct"));
+        assert_eq!(forest.try_finalize().expect("the block is ready"), child);
+        for header in fork_branch {
+            assert_eq!(forest.state(&header.id()), Uninterested);
+        }
+    }
+
+    #[test]
+    fn updates_interest_on_parent_connect() {
+        let (initial_header, mut forest) = setup();
+        let branch: Vec<_> = initial_header.random_branch().take(4).collect();
+        let header = &branch[0];
+        let peer_id = rand::random();
+        assert!(forest
+            .update_header(header, Some(peer_id), true)
+            .expect("header was correct"));
+        match forest.state(&header.id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        let header = &branch[1];
+        let peer_id = rand::random();
+        assert!(!forest
+            .update_header(header, Some(peer_id), false)
+            .expect("header was correct"));
+        assert_eq!(forest.state(&header.id()), Uninterested);
+        let header = &branch[3];
+        let peer_id = rand::random();
+        assert!(forest
+            .update_header(header, Some(peer_id), true)
+            .expect("header was correct"));
+        match forest.state(&header.id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        let header = &branch[2];
+        let peer_id = rand::random();
+        assert!(!forest
+            .update_header(header, Some(peer_id), false)
+            .expect("header was correct"));
+        for header in branch.iter().take(3) {
+            assert!(matches!(forest.state(&header.id()), Required(_)));
+        }
+        assert!(matches!(forest.state(&branch[3].id()), TopRequired(_)));
+    }
+
+    const HUGE_BRANCH_LENGTH: usize = 1800;
+
+    #[test]
+    fn finalizes_huge_branch() {
+        let (initial_header, mut forest) = setup();
+        let justifications: Vec<_> = initial_header
+            .random_branch()
+            .map(MockJustification::for_header)
+            .take(HUGE_BRANCH_LENGTH)
+            .collect();
+        for justification in &justifications {
+            let peer_id = rand::random();
+            assert_eq!(
+                forest
+                    .update_justification(justification.clone(), Some(peer_id))
+                    .expect("header was correct"),
+                JustificationAddResult::Required
+            );
+            match forest.state(&justification.header().id()) {
+                TopRequired(holders) => assert!(holders.contains(&peer_id)),
+                other_state => panic!("Expected top required, got {:?}.", other_state),
+            }
+            assert!(forest
+                .update_body(justification.header())
+                .expect("header was correct"));
+        }
+        for justification in justifications {
+            assert_eq!(
+                forest.try_finalize().expect("the block is ready"),
+                justification
+            );
+        }
+    }
+
+    #[test]
+    fn prunes_huge_branch() {
+        let (initial_header, mut forest) = setup();
+        for header in initial_header.random_branch().take(HUGE_BRANCH_LENGTH) {
+            let peer_id = rand::random();
+            assert!(!forest
+                .update_header(&header, Some(peer_id), false)
+                .expect("header was correct"));
+            assert!(forest.try_finalize().is_none());
+        }
+        let child = MockJustification::for_header(initial_header.random_child());
+        let peer_id = rand::random();
+        assert_eq!(
+            forest
+                .update_justification(child.clone(), Some(peer_id))
+                .expect("header was correct"),
+            JustificationAddResult::Required
+        );
+        assert!(forest.try_finalize().is_none());
+        match forest.state(&child.header().id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        assert!(forest
+            .update_body(child.header())
+            .expect("header was correct"));
+        assert_eq!(forest.try_finalize().expect("the block is ready"), child);
+    }
+
+    #[test]
+    fn updates_interest_on_huge_branch() {
+        let (initial_header, mut forest) = setup();
+        let branch: Vec<_> = initial_header
+            .random_branch()
+            .take(HUGE_BRANCH_LENGTH)
+            .collect();
+        for header in branch.iter().take(HUGE_BRANCH_LENGTH - 1) {
+            let peer_id = rand::random();
+            assert!(!forest
+                .update_header(header, Some(peer_id), false)
+                .expect("header was correct"));
+            assert_eq!(forest.state(&header.id()), Uninterested);
+        }
+        let header = &branch[HUGE_BRANCH_LENGTH - 1];
+        let peer_id = rand::random();
+        assert!(forest
+            .update_header(header, Some(peer_id), true)
+            .expect("header was correct"));
+        match forest.state(&header.id()) {
+            TopRequired(holders) => assert!(holders.contains(&peer_id)),
+            other_state => panic!("Expected top required, got {:?}.", other_state),
+        }
+        for header in branch.iter().take(HUGE_BRANCH_LENGTH - 1) {
+            assert!(matches!(forest.state(&header.id()), Required(_)));
         }
     }
 }
