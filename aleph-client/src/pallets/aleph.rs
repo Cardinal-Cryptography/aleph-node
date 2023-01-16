@@ -16,13 +16,16 @@ use crate::{
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
-/// Pallet aleph API that requires sudo.
+/// Pallet aleph API which does not require sudo.
 #[async_trait::async_trait]
 pub trait AlephApi {
+    /// Gets the current finality version.
     async fn finality_version(&self, at: Option<BlockHash>) -> Version;
+    /// Gets the finality version for the next session.
     async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
 }
 
+/// Pallet aleph API that requires sudo.
 #[async_trait::async_trait]
 pub trait AlephSudoApi {
     /// Sets the emergency finalization key.
@@ -65,7 +68,7 @@ pub trait AlephRpc {
 }
 
 #[async_trait::async_trait]
-impl AlephApi for Connection {
+impl<C: ConnectionApi> AlephApi for C {
     async fn finality_version(&self, at: Option<BlockHash>) -> Version {
         let addrs = api::storage().aleph().finality_version();
 
