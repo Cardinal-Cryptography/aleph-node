@@ -1,9 +1,4 @@
-use aleph_client::{
-    pallets::{aleph::AlephSudoApi, elections::ElectionsApi, session::SessionApi},
-    utility::BlocksApi,
-    waiting::{AlephWaiting, BlockStatus},
-    TxStatus,
-};
+use aleph_client::{pallets::{aleph::AlephSudoApi, elections::ElectionsApi, session::SessionApi}, utility::BlocksApi, waiting::{AlephWaiting, BlockStatus}, TxStatus, AsConnection};
 use anyhow::anyhow;
 use log::info;
 use primitives::{BlockNumber, SessionIndex, Version, DEFAULT_FINALITY_VERSION};
@@ -31,7 +26,7 @@ pub async fn schedule_version_change() -> anyhow::Result<()> {
     let connection = config.create_root_connection().await;
     let test_case_params = config.test_case_params.clone();
 
-    let current_session = connection.connection.get_session(None).await;
+    let current_session = connection.get_session(None).await;
     let version_for_upgrade = test_case_params
         .upgrade_to_version
         .unwrap_or(UPGRADE_TO_VERSION);
@@ -50,17 +45,14 @@ pub async fn schedule_version_change() -> anyhow::Result<()> {
         )
         .await?;
     connection
-        .connection
         .wait_for_session(session_after_upgrade + 1, BlockStatus::Finalized)
         .await;
 
     let block_number = connection
-        .connection
         .get_best_block()
         .await?
         .ok_or(anyhow!("Failed to retrieve best block number!"))?;
     connection
-        .connection
         .wait_for_block(|n| n >= block_number, BlockStatus::Finalized)
         .await;
 
@@ -76,7 +68,7 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped() ->
     let connection = config.create_root_connection().await;
     let test_case_params = config.test_case_params.clone();
 
-    let current_session = connection.connection.get_session(None).await;
+    let current_session = connection.get_session(None).await;
     let version_for_upgrade = test_case_params
         .upgrade_to_version
         .unwrap_or(UPGRADE_TO_VERSION);
@@ -95,14 +87,12 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped() ->
         )
         .await?;
     connection
-        .connection
         .wait_for_session(session_after_upgrade + 1, BlockStatus::Best)
         .await;
 
     let last_finalized_block =
-        session_for_upgrade * connection.connection.get_session_period().await? - 1;
+        session_for_upgrade * connection.get_session_period().await? - 1;
 
-    let connection = connection.connection;
     let finalized_block_head = connection.get_finalized_block_hash().await?;
     let finalized_block = connection.get_block_number(finalized_block_head).await?;
 
@@ -130,7 +120,7 @@ pub async fn schedule_doomed_version_change_and_verify_finalization_stopped() ->
 pub async fn finality_version_change() -> anyhow::Result<()> {
     let config = setup_test();
     let root_connection = config.create_root_connection().await;
-    let session_period = root_connection.connection.get_session_period().await?;
+    let session_period = root_connection.get_session_period().await?;
 
     let start_point_in_sessions =
         SESSION_WITH_FINALITY_VERSION_CHANGE as f64 + SCHEDULING_OFFSET_SESSIONS;
@@ -147,7 +137,6 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         SESSION_WITH_FINALITY_VERSION_CHANGE * session_period
     );
     root_connection
-        .connection
         .wait_for_block(|n| n >= scheduling_block, BlockStatus::Finalized)
         .await;
 
@@ -160,7 +149,6 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         .await?;
 
     root_connection
-        .connection
         .wait_for_block(|n| n >= end_block, BlockStatus::Finalized)
         .await;
 
@@ -174,13 +162,13 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
     );
     for block in CHECK_START_BLOCK..(last_block_with_default_next_session_finality_version + 1) {
         check_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             DEFAULT_FINALITY_VERSION,
         )
         .await;
         check_next_session_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             DEFAULT_FINALITY_VERSION,
         )
@@ -195,13 +183,13 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
     for block in (last_block_with_default_next_session_finality_version + 1)..finality_change_block
     {
         check_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             DEFAULT_FINALITY_VERSION,
         )
         .await;
         check_next_session_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             FIRST_INCOMING_FINALITY_VERSION,
         )
@@ -213,13 +201,13 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
     );
     for block in finality_change_block..(end_block + 1) {
         check_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             FIRST_INCOMING_FINALITY_VERSION,
         )
         .await;
         check_next_session_finality_version_at_block(
-            &root_connection.connection,
+            &root_connection.as_connection(),
             block,
             FIRST_INCOMING_FINALITY_VERSION,
         )
