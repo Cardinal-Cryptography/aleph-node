@@ -8,14 +8,14 @@ use aleph_primitives::BlockNumber;
 use crate::{
     session::{first_block_of_session, session_id_from_block_num, SessionId},
     session_map::AuthorityProvider,
-    sync::substrate::verification::{verifier::SessionVerifier, FinalizationStatus},
+    sync::substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
     SessionPeriod,
 };
 
 /// Ways in which a justification can fail verification.
 #[derive(Debug, PartialEq, Eq)]
 pub enum CacheError {
-    UnknownSession,
+    UnknownAuthorities(SessionId),
     SessionTooOld(SessionId, SessionId),
     SessionInFuture(SessionId, SessionId),
 }
@@ -26,15 +26,17 @@ impl Display for CacheError {
         match self {
             SessionTooOld(session, lower_bound) => write!(
                 f,
-                "justification from too old session {:?}. Should be at least {:?}",
+                "session {:?} is too old. Should be at least {:?}",
                 session, lower_bound
             ),
             SessionInFuture(session, upper_bound) => write!(
                 f,
-                "justification from session {:?} without known authorities. Should be at most {:?}",
+                "session {:?} without known authorities. Should be at most {:?}",
                 session, upper_bound
             ),
-            UnknownSession => write!(f, "justification from unknown session"),
+            UnknownAuthorities(session) => {
+                write!(f, "authorities for session {:?} are unknown", session)
+            }
         }
     }
 }
@@ -43,35 +45,35 @@ impl Display for CacheError {
 /// If the session is too new or ancient it will fail to return a SessionVerifier.
 /// Highest session verifier this cache returns is for the session after the current finalization session.
 /// Lowest session verifier this cache returns is for `top_returned_session` - `cache_size`.
-pub struct VerifierCache<AP, FS>
+pub struct VerifierCache<AP, FI>
 where
     AP: AuthorityProvider<BlockNumber>,
-    FS: FinalizationStatus,
+    FI: FinalizationInfo,
 {
     sessions: HashMap<SessionId, SessionVerifier>,
     session_period: SessionPeriod,
-    finalization_status: FS,
+    finalization_info: FI,
     authority_provider: AP,
     cache_size: SessionId,
-    /// Lowest curretnly available session.
+    /// Lowest currently available session.
     lower_bound: SessionId,
 }
 
-impl<AP, FS> VerifierCache<AP, FS>
+impl<AP, FI> VerifierCache<AP, FI>
 where
     AP: AuthorityProvider<BlockNumber>,
-    FS: FinalizationStatus,
+    FI: FinalizationInfo,
 {
     pub fn new(
         session_period: SessionPeriod,
-        finalization_status: FS,
+        finalization_info: FI,
         authority_provider: AP,
         cache_size: SessionId,
     ) -> Self {
         Self {
             sessions: HashMap::new(),
             session_period,
-            finalization_status,
+            finalization_info,
             authority_provider,
             cache_size,
             lower_bound: SessionId(0),
@@ -79,16 +81,16 @@ where
     }
 }
 
-impl<AP, FS> VerifierCache<AP, FS>
+impl<AP, FI> VerifierCache<AP, FI>
 where
     AP: AuthorityProvider<BlockNumber>,
-    FS: FinalizationStatus,
+    FI: FinalizationInfo,
 {
-    /// Download authorities for session and store in cache. It needs to be first session,
-    /// or first block from previous session needs to be finalized.
+    /// Download authorities for the session and store them in the cache.
+    /// It should be the first session, or the first block from the previous session should be finalized.
     /// Otherwise nothing is downloaded.
     fn download(&mut self, session_id: SessionId) {
-        let maybe_session = match session_id {
+        let maybe_authority_data = match session_id {
             SessionId(0) => self.authority_provider.authority_data(0),
             SessionId(id) => {
                 let prev_first = first_block_of_session(SessionId(id - 1), self.session_period);
@@ -96,12 +98,12 @@ where
             }
         };
 
-        if let Some(session) = maybe_session {
-            self.sessions.insert(session_id, session.into());
+        if let Some(authority_data) = maybe_authority_data {
+            self.sessions.insert(session_id, authority_data.into());
         };
     }
 
-    /// Prune all sessions with number smaller than `session_id`
+    /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
         self.sessions.retain(|&id, _| id >= session_id);
         self.lower_bound = session_id;
@@ -118,7 +120,7 @@ where
         // We are sure about authorities in all session that have first block from previous session finalized.
         let upper_bound = SessionId(
             session_id_from_block_num(
-                self.finalization_status.finalized_number(),
+                self.finalization_info.finalized_number(),
                 self.session_period,
             )
             .0 + 1,
@@ -139,7 +141,7 @@ where
 
         self.sessions
             .get(&session_id)
-            .ok_or(CacheError::UnknownSession)
+            .ok_or(CacheError::UnknownAuthorities(session_id))
     }
 }
 
@@ -151,7 +153,7 @@ mod tests {
     use sp_runtime::traits::UniqueSaturatedInto;
 
     use super::{
-        AuthorityProvider, BlockNumber, CacheError, FinalizationStatus, SessionVerifier,
+        AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,
         VerifierCache,
     };
     use crate::{
@@ -162,13 +164,13 @@ mod tests {
     const SESSION_PERIOD: u32 = 30;
     const CACHE_SIZE: u32 = 2;
 
-    type TestVerifierCache<'a> = VerifierCache<MockAuthorityProvider, MockFinalizationStatus<'a>>;
+    type TestVerifierCache<'a> = VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>>;
 
-    struct MockFinalizationStatus<'a> {
+    struct MockFinalizationInfo<'a> {
         finalized_number: &'a Cell<BlockNumber>,
     }
 
-    impl<'a> FinalizationStatus for MockFinalizationStatus<'a> {
+    impl<'a> FinalizationInfo for MockFinalizationInfo<'a> {
         fn finalized_number(&self) -> BlockNumber {
             self.finalized_number.get()
         }
@@ -218,12 +220,12 @@ mod tests {
     }
 
     fn setup_test(max_session_n: u64, finalized_number: &'_ Cell<u32>) -> TestVerifierCache<'_> {
-        let finalization_status = MockFinalizationStatus { finalized_number };
+        let finalization_info = MockFinalizationInfo { finalized_number };
         let authority_provider = MockAuthorityProvider::new(max_session_n);
 
         VerifierCache::new(
             SessionPeriod(SESSION_PERIOD),
-            finalization_status,
+            finalization_info,
             authority_provider,
             SessionId(CACHE_SIZE),
         )
@@ -327,14 +329,14 @@ mod tests {
 
         assert_eq!(
             session_verifier(&mut verifier, 1),
-            Err(CacheError::UnknownSession)
+            Err(CacheError::UnknownAuthorities(SessionId(1)))
         );
 
         finalize_first_in_session(&finalized_number, 1);
 
         assert_eq!(
             session_verifier(&mut verifier, 2),
-            Err(CacheError::UnknownSession)
+            Err(CacheError::UnknownAuthorities(SessionId(2)))
         );
     }
 }

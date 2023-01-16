@@ -29,12 +29,12 @@ mod verifier;
 pub use verifier::SessionVerifier;
 
 /// Supplies finalized number. Will be unified together with other traits we used in A0-1839.
-pub trait FinalizationStatus {
+pub trait FinalizationInfo {
     fn finalized_number(&self) -> BlockNumber;
 }
 
-/// Substrate specific implementation of `FinalizationStatus`
-pub struct SubstrateFinalizationStatus<B, BE>
+/// Substrate specific implementation of `FinalizationInfo`
+pub struct SubstrateFinalizationInfo<B, BE>
 where
     BE: HeaderBackend<B>,
     B: BlockT,
@@ -44,7 +44,7 @@ where
     _phantom: PhantomData<B>,
 }
 
-impl<B, BE> SubstrateFinalizationStatus<B, BE>
+impl<B, BE> SubstrateFinalizationInfo<B, BE>
 where
     BE: HeaderBackend<B>,
     B: BlockT,
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<B, BE> FinalizationStatus for SubstrateFinalizationStatus<B, BE>
+impl<B, BE> FinalizationInfo for SubstrateFinalizationInfo<B, BE>
 where
     BE: HeaderBackend<B>,
     B: BlockT,
@@ -101,7 +101,7 @@ impl<H, AP, FS> Verifier<Justification<H>> for VerifierCache<AP, FS>
 where
     H: SubstrateHeader<Number = BlockNumber>,
     AP: AuthorityProvider<BlockNumber>,
-    FS: FinalizationStatus,
+    FS: FinalizationInfo,
 {
     type Error = VerificationError;
 
