@@ -18,10 +18,13 @@ exclude = [
     "bin/cliain",
     "bin/runtime/src/chain_extension/snarcos-extension",
     "contracts/snarcos-contract",
+    "contracts/preimage",
     "e2e-tests",
     "flooder",
     "fork-off",
     "relations",
+    "paramgen",
+    "permutation",
     "poseidon",
 ]
 
