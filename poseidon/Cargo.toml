@@ -17,6 +17,7 @@ once_cell = { version = "1.8", default-features = false }
 poseidon-paramgen = { version = "0.1", default-features = false }
 poseidon-permutation = { version = "0.1", default-features = false }
 num-traits = { version = "0.2.15", default-features = false, features = ["i128"] }
+getrandom = { version = "0.2", default-features = false, features = ["js"] }
 
 [features]
 default = ["std"]
@@ -29,4 +30,5 @@ std = [
     "ark-std/std",
     "once_cell/std",
     "num-traits/std",
+    "getrandom/std",
 ]
