@@ -58,13 +58,13 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args:  --workspace --exclude finality-aleph --exclue aleph-node -- --no-deps -D warnings
+          args:  --workspace --exclude finality-aleph --exclude aleph-node -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --features "try-runtime runtime-benchmarks" --workspace --exclude finality-aleph --exclue aleph-node
+          args: --lib --features "try-runtime runtime-benchmarks" --workspace --exclude finality-aleph --exclude aleph-node
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
