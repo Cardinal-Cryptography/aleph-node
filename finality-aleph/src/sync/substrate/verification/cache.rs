@@ -4,6 +4,7 @@ use std::{
 };
 
 use aleph_primitives::BlockNumber;
+use sp_runtime::SaturatedConversion;
 
 use crate::{
     session::{first_block_of_session, session_id_from_block_num, SessionId},
@@ -58,7 +59,7 @@ where
     session_period: SessionPeriod,
     finalization_info: FI,
     authority_provider: AP,
-    cache_size: SessionId,
+    cache_size: usize,
     /// Lowest currently available session.
     lower_bound: SessionId,
 }
@@ -72,7 +73,7 @@ where
         session_period: SessionPeriod,
         finalization_info: FI,
         authority_provider: AP,
-        cache_size: SessionId,
+        cache_size: usize,
     ) -> Self {
         Self {
             sessions: HashMap::new(),
@@ -134,9 +135,17 @@ where
             return Err(CacheError::SessionInFuture(session_id, upper_bound));
         }
 
-        if session_id.0 >= self.cache_size.0 + self.lower_bound.0 {
+        if session_id.0
+            >= self
+                .lower_bound
+                .0
+                .saturating_add(self.cache_size.saturated_into())
+        {
             self.prune(SessionId(
-                session_id.0.saturating_sub(self.cache_size.0) + 1,
+                session_id
+                    .0
+                    .saturating_sub(self.cache_size.saturated_into())
+                    + 1,
             ));
         }
 
@@ -162,7 +171,7 @@ mod tests {
     use std::{cell::Cell, collections::HashMap};
 
     use aleph_primitives::SessionAuthorityData;
-    use sp_runtime::traits::UniqueSaturatedInto;
+    use sp_runtime::SaturatedConversion;
 
     use super::{
         AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,
@@ -174,7 +183,7 @@ mod tests {
     };
 
     const SESSION_PERIOD: u32 = 30;
-    const CACHE_SIZE: u32 = 2;
+    const CACHE_SIZE: usize = 2;
 
     type TestVerifierCache<'a> = VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>>;
 
@@ -200,12 +209,7 @@ mod tests {
     impl MockAuthorityProvider {
         fn new(session_n: u64) -> Self {
             let session_map = (0..session_n + 1)
-                .map(|s| {
-                    (
-                        SessionId(s.unique_saturated_into()),
-                        authority_data_for_session(s),
-                    )
-                })
+                .map(|s| (SessionId(s.saturated_into()), authority_data_for_session(s)))
                 .collect();
 
             Self {
@@ -239,7 +243,7 @@ mod tests {
             SessionPeriod(SESSION_PERIOD),
             finalization_info,
             authority_provider,
-            SessionId(CACHE_SIZE),
+            CACHE_SIZE,
         )
     }
 

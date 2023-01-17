@@ -1,5 +1,8 @@
 use codec::{Decode, Encode};
-use sp_runtime::traits::{AtLeast32BitUnsigned, Block, UniqueSaturatedInto};
+use sp_runtime::{
+    traits::{AtLeast32BitUnsigned, Block},
+    SaturatedConversion,
+};
 
 use crate::NumberFor;
 
@@ -44,9 +47,7 @@ pub fn session_id_from_block_num<N: AtLeast32BitUnsigned>(
     num: N,
     period: SessionPeriod,
 ) -> SessionId {
-    SessionId(UniqueSaturatedInto::<u32>::unique_saturated_into(
-        num / period.0.into(),
-    ))
+    SessionId((num / period.0.into()).saturated_into())
 }
 
 #[cfg(test)]
