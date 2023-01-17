@@ -1,4 +1,3 @@
-#[doc(hidden)]
 #[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
@@ -6718,10 +6717,9 @@ pub mod api {
                         "NextEraCommitteeSize",
                         vec![],
                         [
-                            51u8, 72u8, 222u8, 164u8, 205u8, 239u8, 174u8, 36u8, 111u8, 198u8,
-                            84u8, 161u8, 120u8, 69u8, 213u8, 20u8, 28u8, 255u8, 206u8, 215u8, 71u8,
-                            135u8, 203u8, 56u8, 163u8, 112u8, 188u8, 184u8, 61u8, 126u8, 195u8,
-                            26u8,
+                            1u8, 114u8, 197u8, 86u8, 178u8, 92u8, 167u8, 99u8, 96u8, 98u8, 65u8,
+                            149u8, 222u8, 39u8, 119u8, 24u8, 251u8, 65u8, 171u8, 126u8, 100u8,
+                            137u8, 50u8, 72u8, 108u8, 47u8, 95u8, 63u8, 202u8, 64u8, 120u8, 120u8,
                         ],
                     )
                 }
@@ -19535,9 +19533,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                156u8, 140u8, 244u8, 14u8, 38u8, 210u8, 228u8, 30u8, 223u8, 40u8, 215u8, 41u8,
-                162u8, 211u8, 125u8, 98u8, 240u8, 160u8, 93u8, 90u8, 16u8, 145u8, 7u8, 234u8,
-                240u8, 166u8, 81u8, 213u8, 197u8, 245u8, 155u8, 217u8,
+                155u8, 236u8, 207u8, 138u8, 149u8, 114u8, 96u8, 168u8, 143u8, 247u8, 148u8, 106u8,
+                148u8, 203u8, 48u8, 129u8, 14u8, 48u8, 155u8, 234u8, 78u8, 212u8, 73u8, 65u8,
+                212u8, 201u8, 174u8, 194u8, 72u8, 70u8, 240u8, 233u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
