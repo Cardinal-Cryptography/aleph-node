@@ -138,7 +138,10 @@ pub mod pallet {
         StorageValue<_, VersionChange, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
-        pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId], next_authorities: &[T::AuthorityId]) {
+        pub(crate) fn initialize_authorities(
+            authorities: &[T::AuthorityId],
+            next_authorities: &[T::AuthorityId],
+        ) {
             if !authorities.is_empty() {
                 assert!(
                     <Authorities<T>>::get().is_empty(),
