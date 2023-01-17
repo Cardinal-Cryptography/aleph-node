@@ -44,6 +44,13 @@ pub(crate) fn check_merkle_proof(
     max_path_len: u8,
     cs: ConstraintSystemRef<CircuitField>,
 ) -> Result<(), SynthesisError> {
+    let path = merkle_path.unwrap_or_default();
+    if path.len() > max_path_len as usize {
+        return Err(UnconstrainedVariable);
+    }
+
+    let zero = CircuitField::zero();
+
     let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || {
         merkle_root.ok_or(AssignmentMissing)
     })?;
@@ -53,13 +60,6 @@ pub(crate) fn check_merkle_proof(
 
     let mut current_hash_bytes = leaf_bytes;
     let mut hash_bytes = vec![current_hash_bytes.clone()];
-    let path = merkle_path.unwrap_or_default();
-
-    if path.len() > max_path_len as usize {
-        return Err(UnconstrainedVariable);
-    }
-
-    let zero = CircuitField::zero();
 
     for i in 0..max_path_len {
         let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {

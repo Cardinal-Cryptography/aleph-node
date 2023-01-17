@@ -181,9 +181,6 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositAndMergeRelation<S
         //------------------------------
         // Check the old note arguments.
         //------------------------------
-        let old_note = FpVar::new_witness(ns!(cs, "old note"), || {
-            self.old_note.ok_or(AssignmentMissing)
-        })?;
         let token_id = FpVar::new_input(ns!(cs, "token id"), || {
             self.token_id.ok_or(AssignmentMissing)
         })?;
@@ -195,6 +192,9 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositAndMergeRelation<S
         })?;
         let old_nullifier = FpVar::new_input(ns!(cs, "old nullifier"), || {
             self.old_nullifier.ok_or(AssignmentMissing)
+        })?;
+        let old_note = FpVar::new_witness(ns!(cs, "old note"), || {
+            self.old_note.ok_or(AssignmentMissing)
         })?;
 
         check_note(
@@ -208,9 +208,6 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositAndMergeRelation<S
         //------------------------------
         // Check the new note arguments.
         //------------------------------
-        let new_note = FpVar::new_input(ns!(cs, "new note"), || {
-            self.new_note.ok_or(AssignmentMissing)
-        })?;
         let new_token_amount = FpVar::new_witness(ns!(cs, "new token amount"), || {
             self.new_token_amount.ok_or(AssignmentMissing)
         })?;
@@ -219,6 +216,9 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositAndMergeRelation<S
         })?;
         let new_nullifier = FpVar::new_witness(ns!(cs, "new nullifier"), || {
             self.new_nullifier.ok_or(AssignmentMissing)
+        })?;
+        let new_note = FpVar::new_input(ns!(cs, "new note"), || {
+            self.new_note.ok_or(AssignmentMissing)
         })?;
 
         check_note(
