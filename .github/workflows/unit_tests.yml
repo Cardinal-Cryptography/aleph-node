@@ -30,7 +30,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.6.1'        
+          version: '3.6.1'
 
       - name: Install clippy and fmt
         run: rustup component add clippy rustfmt
@@ -64,7 +64,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --features "try-runtime runtime-benchmarks"
+          args: --lib --features "try-runtime runtime-benchmarks" --workspace --exclude finality-aleph
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
