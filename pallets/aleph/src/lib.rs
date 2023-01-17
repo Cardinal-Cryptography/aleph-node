@@ -110,6 +110,10 @@ pub mod pallet {
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn next_authorities)]
+    pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn emergency_finalizer)]
     pub(super) type EmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
@@ -134,7 +138,7 @@ pub mod pallet {
         StorageValue<_, VersionChange, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
-        pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
+        pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId], next_authorities: &[T::AuthorityId]) {
             if !authorities.is_empty() {
                 assert!(
                     <Authorities<T>>::get().is_empty(),
@@ -142,10 +146,21 @@ pub mod pallet {
                 );
                 <Authorities<T>>::put(authorities);
             }
+            if !next_authorities.is_empty() {
+                assert!(
+                    <NextAuthorities<T>>::get().is_empty(),
+                    "NextAuthorities are already initialized!"
+                );
+                <NextAuthorities<T>>::put(next_authorities);
+            }
         }
 
-        pub(crate) fn update_authorities(authorities: &[T::AuthorityId]) {
+        pub(crate) fn update_authorities(
+            authorities: &[T::AuthorityId],
+            next_authorities: &[T::AuthorityId],
+        ) {
             <Authorities<T>>::put(authorities);
+            <NextAuthorities<T>>::put(next_authorities);
         }
 
         pub(crate) fn update_emergency_finalizer() {
@@ -262,10 +277,11 @@ pub mod pallet {
             T::AccountId: 'a,
         {
             let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-            Self::initialize_authorities(authorities.as_slice());
+            // it is guaranteed that the first validator set will also be used in the next session
+            Self::initialize_authorities(authorities.as_slice(), authorities.as_slice());
         }
 
-        fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I)
+        fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
         where
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
@@ -273,7 +289,8 @@ pub mod pallet {
             Self::update_emergency_finalizer();
             if changed {
                 let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-                Self::update_authorities(authorities.as_slice());
+                let (_, next_authorities): (Vec<_>, Vec<_>) = queued_validators.unzip();
+                Self::update_authorities(authorities.as_slice(), next_authorities.as_slice());
             }
         }
 

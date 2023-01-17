@@ -164,7 +164,7 @@ impl<AccountId> Default for EraValidators<AccountId> {
 
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
 pub enum ApiError {
-    DecodeKey,
+    MissingAuthoritiesForNextSession,
 }
 
 /// All the data needed to verify block finalization justifications.

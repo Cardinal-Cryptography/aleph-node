@@ -47,7 +47,7 @@ use sp_runtime::{
         OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedU128, MultiSignature, RuntimeAppPublic,
+    ApplyExtrinsicResult, FixedU128, MultiSignature,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
@@ -104,7 +104,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 45,
+    spec_version: 46,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -220,7 +220,7 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = (Elections,);
+    type EventHandler = (Elections, );
 }
 
 parameter_types! {
@@ -247,7 +247,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub struct EverythingToTheTreasury;
 
 impl OnUnbalanced<NegativeImbalance> for EverythingToTheTreasury {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             Treasury::on_unbalanced(fees);
             if let Some(tips) = fees_then_tips.next() {
@@ -372,13 +372,17 @@ parameter_types! {
 }
 
 use sp_runtime::traits::Convert;
+
 pub struct BalanceToU256;
+
 impl Convert<Balance, sp_core::U256> for BalanceToU256 {
     fn convert(balance: Balance) -> sp_core::U256 {
         sp_core::U256::from(balance)
     }
 }
+
 pub struct U256ToBalance;
+
 impl Convert<sp_core::U256, Balance> for U256ToBalance {
     fn convert(n: sp_core::U256) -> Balance {
         n.try_into().unwrap_or(Balance::max_value())
@@ -423,6 +427,7 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
 type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>;
 
 pub struct PayoutStakersDecreasedWeightInfo;
+
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
     // To make possible to change nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {
@@ -493,6 +498,7 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
 }
 
 pub struct StakingBenchmarkingConfig;
+
 impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
     type MaxValidators = ConstU32<1000>;
     type MaxNominators = ConstU32<1000>;
@@ -542,8 +548,8 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    RuntimeCall: From<C>,
+    where
+        RuntimeCall: From<C>,
 {
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = RuntimeCall;
@@ -609,6 +615,7 @@ parameter_types! {
 }
 
 pub struct TreasuryGovernance;
+
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
         pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
@@ -757,7 +764,7 @@ pub type SignedExtra = (
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
@@ -884,10 +891,12 @@ impl_runtime_apis! {
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
-            Session::queued_keys()
-                .iter()
-                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<AlephId>, AlephApiError>>()
+            let next_authorities = Aleph::next_authorities();
+            if next_authorities.is_empty() {
+                return Err(AlephApiError::MissingAuthoritiesForNextSession)
+            }
+
+            Ok(next_authorities)
         }
 
         fn authority_data() -> SessionAuthorityData {
@@ -895,10 +904,8 @@ impl_runtime_apis! {
         }
 
         fn next_session_authority_data() -> Result<SessionAuthorityData, AlephApiError> {
-            Ok(SessionAuthorityData::new(Session::queued_keys()
-                .iter()
-                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
+            Ok(SessionAuthorityData::new(
+                Self::next_session_authorities()?,
                 Aleph::queued_emergency_finalizer(),
             ))
         }
