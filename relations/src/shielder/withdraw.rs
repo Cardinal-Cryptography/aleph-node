@@ -321,6 +321,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for WithdrawRelation<S> {
 }
 
 impl<S: WithPublicInput> GetPublicInput<CircuitField> for WithdrawRelation<S> {
+    // The order here should match the order of registation inputs in generate_constraints
     fn public_input(&self) -> Vec<CircuitField> {
         [
             self.fee.unwrap(),

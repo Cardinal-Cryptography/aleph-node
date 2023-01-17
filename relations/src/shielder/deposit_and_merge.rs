@@ -1,3 +1,5 @@
+use core::ops::{Add, Div};
+
 use ark_ff::{BigInteger, BigInteger256, Zero};
 use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::FieldVar, R1CSVar, ToBytesGadget};
 use ark_relations::{
@@ -8,7 +10,6 @@ use ark_relations::{
     },
 };
 use ark_std::{marker::PhantomData, vec, vec::Vec};
-use core::ops::{Add, Div};
 
 use super::{
     note::check_note,
@@ -30,26 +31,19 @@ use crate::{
 
 /// 'DepositAndMerge' relation for the Shielder application.
 ///
-/// It expresses the fact that `note` is a prefix of the result of tangling together `token_id`,
-/// `token_amount`, `trapdoor` and `nullifier`.
-/// 'deposit_and_merge' relation for the Shielder application.
-///
 /// It expresses the facts that:
-///  - `new_note` is a prefix of the result of tangling together `token_id`, `old_token_amount`,
+///  - `old_note` is a prefix of the result of tangling together `token_id`, `old_token_amount`,
 ///    `old_trapdoor` and `old_nullifier`,
-///  - `old_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
+///  - `new_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
 ///    `new_trapdoor` and `new_nullifier`,
-///  - `new_token_amount + token_amount_out = old_token_amount`
+///  - `new_token_amount = token_amount + old_token_amount`
 ///  - `merkle_path` is a valid Merkle proof for `old_note` being present at `leaf_index` in some
 ///    Merkle tree with `merkle_root` hash in the root
-/// It also includes two artificial inputs `fee` and `recipient` just to strengthen the application
-/// security by treating them as public inputs (and thus integral part of the SNARK).
 /// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
 /// for the length of the merkle path (which is ~the height of the tree, ±1).
 ///
 /// When providing a public input to proof verification, you should keep the order of variable
-/// declarations in circuit, i.e.: `fee`, `recipient`, `token_id`, `old_nullifier`, `new_note`,
-/// `token_amount_out`, `merkle_root`.
+/// declarations in circuit, i.e.: `token_id`, `old_nullifier`, `new_note`, `token_amount`, `merkle_root`.
 
 #[derive(Clone)]
 pub struct DepositAndMergeRelation<S: State> {
@@ -299,13 +293,14 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositAndMergeRelation<S
 }
 
 impl<S: WithPublicInput> GetPublicInput<CircuitField> for DepositAndMergeRelation<S> {
+    // The order here should match the order of registation inputs in generate_constraints
     fn public_input(&self) -> Vec<CircuitField> {
         vec![
             self.token_id.unwrap(),
-            self.token_amount.unwrap(),
             self.old_nullifier.unwrap(),
-            self.merkle_root.unwrap(),
             self.new_note.unwrap(),
+            self.token_amount.unwrap(),
+            self.merkle_root.unwrap(),
         ]
     }
 }
