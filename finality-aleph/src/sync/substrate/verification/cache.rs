@@ -83,7 +83,7 @@ where
 
 /// Download authorities for the session and return `SessionVerifier` for them. `session_id` should be the first session,
 /// or the first block from the session number `session_id - 1` should be finalized.
-fn download<AP: AuthorityProvider<BlockNumber>>(
+fn download_session_verifier<AP: AuthorityProvider<BlockNumber>>(
     authority_provider: &AP,
     session_id: SessionId,
     session_period: SessionPeriod,
@@ -139,8 +139,12 @@ where
         let verifier = match self.sessions.entry(session_id) {
             Entry::Occupied(occupied) => occupied.into_mut(),
             Entry::Vacant(vacant) => {
-                let verifier = download(&self.authority_provider, session_id, self.session_period)
-                    .ok_or(CacheError::UnknownAuthorities(session_id))?;
+                let verifier = download_session_verifier(
+                    &self.authority_provider,
+                    session_id,
+                    self.session_period,
+                )
+                .ok_or(CacheError::UnknownAuthorities(session_id))?;
                 vacant.insert(verifier)
             }
         };
