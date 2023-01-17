@@ -31,7 +31,9 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-use primitives::{SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION};
+use primitives::{
+    SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
+};
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -289,7 +291,7 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
-                finality_version: DEFAULT_FINALITY_VERSION,
+                finality_version: LEGACY_FINALITY_VERSION as u32,
                 _marker: Default::default(),
             }
         }
