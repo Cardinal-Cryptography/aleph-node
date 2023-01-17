@@ -1,4 +1,3 @@
-#[doc(hidden)]
 #[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
@@ -6410,9 +6409,10 @@ pub mod api {
                         "FinalityVersion",
                         vec![],
                         [
-                            99u8, 158u8, 103u8, 180u8, 128u8, 32u8, 84u8, 110u8, 229u8, 2u8, 3u8,
-                            114u8, 95u8, 125u8, 230u8, 210u8, 56u8, 85u8, 38u8, 136u8, 49u8, 206u8,
-                            6u8, 136u8, 193u8, 164u8, 251u8, 60u8, 125u8, 91u8, 205u8, 144u8,
+                            134u8, 19u8, 94u8, 247u8, 125u8, 18u8, 148u8, 160u8, 167u8, 235u8,
+                            174u8, 4u8, 107u8, 69u8, 55u8, 187u8, 249u8, 13u8, 129u8, 99u8, 116u8,
+                            158u8, 38u8, 29u8, 239u8, 112u8, 150u8, 92u8, 151u8, 197u8, 223u8,
+                            30u8,
                         ],
                     )
                 }
@@ -6717,9 +6717,10 @@ pub mod api {
                         "NextEraCommitteeSize",
                         vec![],
                         [
-                            1u8, 114u8, 197u8, 86u8, 178u8, 92u8, 167u8, 99u8, 96u8, 98u8, 65u8,
-                            149u8, 222u8, 39u8, 119u8, 24u8, 251u8, 65u8, 171u8, 126u8, 100u8,
-                            137u8, 50u8, 72u8, 108u8, 47u8, 95u8, 63u8, 202u8, 64u8, 120u8, 120u8,
+                            51u8, 72u8, 222u8, 164u8, 205u8, 239u8, 174u8, 36u8, 111u8, 198u8,
+                            84u8, 161u8, 120u8, 69u8, 213u8, 20u8, 28u8, 255u8, 206u8, 215u8, 71u8,
+                            135u8, 203u8, 56u8, 163u8, 112u8, 188u8, 184u8, 61u8, 126u8, 195u8,
+                            26u8,
                         ],
                     )
                 }
@@ -19533,9 +19534,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                10u8, 121u8, 157u8, 11u8, 147u8, 107u8, 235u8, 73u8, 90u8, 254u8, 82u8, 183u8,
-                112u8, 64u8, 213u8, 99u8, 23u8, 17u8, 10u8, 91u8, 124u8, 231u8, 209u8, 172u8, 59u8,
-                160u8, 15u8, 142u8, 149u8, 200u8, 95u8, 164u8,
+                156u8, 140u8, 244u8, 14u8, 38u8, 210u8, 228u8, 30u8, 223u8, 40u8, 215u8, 41u8,
+                162u8, 211u8, 125u8, 98u8, 240u8, 160u8, 93u8, 90u8, 16u8, 145u8, 7u8, 234u8,
+                240u8, 166u8, 81u8, 213u8, 197u8, 245u8, 155u8, 217u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
