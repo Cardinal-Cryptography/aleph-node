@@ -120,7 +120,7 @@ impl ContractInstance {
             .result
             .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
         let decoded = self.decode(message, result.data)?;
-        Ok(ConvertibleValue(decoded).try_into()?)
+        ConvertibleValue(decoded).try_into()
     }
 
     /// Executes a 0-argument contract call.
