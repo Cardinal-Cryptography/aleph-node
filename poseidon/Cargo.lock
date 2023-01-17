@@ -392,7 +392,6 @@ dependencies = [
  "ark-std",
  "getrandom",
  "num-traits",
- "once_cell",
  "poseidon-paramgen",
  "poseidon-permutation",
 ]
@@ -400,10 +399,12 @@ dependencies = [
 [[package]]
 name = "poseidon-paramgen"
 version = "0.1.0"
-source = "git+https://github.com/pmikolajczyk41/poseidon377#4c53fc25e21ee604fdd61b9f0ce304639c9150eb"
+source = "git+https://github.com/pmikolajczyk41/poseidon377#abfc79f66b37f8cc07d98007817dd515fb613850"
 dependencies = [
  "anyhow",
  "ark-ff",
+ "ark-std",
+ "getrandom",
  "merlin",
  "num",
  "num-bigint",
@@ -413,7 +414,7 @@ dependencies = [
 [[package]]
 name = "poseidon-permutation"
 version = "0.1.0"
-source = "git+https://github.com/pmikolajczyk41/poseidon377#4c53fc25e21ee604fdd61b9f0ce304639c9150eb"
+source = "git+https://github.com/pmikolajczyk41/poseidon377#abfc79f66b37f8cc07d98007817dd515fb613850"
 dependencies = [
  "ark-ff",
  "once_cell",

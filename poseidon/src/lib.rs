@@ -1,27 +1,28 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bls12_381::Fr;
-use once_cell::sync::Lazy;
 mod parameters;
 
 type CircuitField = ark_bls12_381::Fr;
 type FpVar = ark_r1cs_std::fields::fp::FpVar<CircuitField>;
 
 // Poseidon paper suggests using domain separation for concretely encoding the use case in the capacity element (which is fine as it is 256 bits large and has a lot of bits to fill)
-pub static DOMAIN_SEPARATOR: Lazy<Fr> = Lazy::new(|| Fr::from(2137));
+pub fn domain_separator() -> Fr {
+    Fr::from(2137)
+}
 
 pub mod hash {
     use ark_bls12_381::Fr;
     use ark_std::vec;
     use poseidon_permutation::Instance;
 
-    use super::DOMAIN_SEPARATOR;
-    use crate::parameters::RATE_1_PARAMETERS;
+    use super::domain_separator;
+    use crate::parameters::fr_parameters;
     /// hashes one field value, outputs a fixed length field value
     pub fn one_to_one_hash(value: Fr) -> Fr {
-        let parameters = RATE_1_PARAMETERS.clone();
+        let parameters = fr_parameters::rate_1();
         let mut state = Instance::new(&parameters);
-        state.n_to_1_fixed_hash(vec![*DOMAIN_SEPARATOR, value])
+        state.n_to_1_fixed_hash(vec![domain_separator(), value])
     }
 }
 
@@ -34,8 +35,8 @@ pub mod circuit {
     };
     use ark_std::vec;
 
-    use super::{FpVar, DOMAIN_SEPARATOR};
-    use crate::parameters::{to_ark_sponge_poseidon_parameters, RATE_1_PARAMETERS};
+    use super::{domain_separator, FpVar};
+    use crate::parameters::{fr_parameters, to_ark_sponge_poseidon_parameters};
 
     /// hashes one field value inside the circuit    
     pub fn one_to_one_hash(
@@ -44,9 +45,9 @@ pub mod circuit {
     ) -> Result<FpVar, SynthesisError> {
         let mut state: PoseidonSpongeVar<Fr> = PoseidonSpongeVar::new(
             cs.clone(),
-            &to_ark_sponge_poseidon_parameters(RATE_1_PARAMETERS.clone()),
+            &to_ark_sponge_poseidon_parameters(fr_parameters::rate_1()),
         );
-        let domain_separator = FpVar::new_constant(cs, *DOMAIN_SEPARATOR)?;
+        let domain_separator = FpVar::new_constant(cs, domain_separator())?;
         state.absorb(&vec![domain_separator, value])?;
         let result = state.squeeze_field_elements(1)?;
         Ok(result[0].clone())
