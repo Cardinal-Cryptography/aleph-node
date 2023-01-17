@@ -1,24 +1,23 @@
-use core::ops::{Add, Div};
+use core::ops::Add;
 
-use ark_ff::{BigInteger, BigInteger256, Zero};
-use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::FieldVar, R1CSVar, ToBytesGadget};
+use ark_ff::BigInteger256;
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, ToBytesGadget};
 use ark_relations::{
     ns,
     r1cs::{
         ConstraintSynthesizer, ConstraintSystemRef, SynthesisError,
-        SynthesisError::{AssignmentMissing, UnconstrainedVariable},
+        SynthesisError::AssignmentMissing,
     },
 };
-use ark_std::{marker::PhantomData, vec, vec::Vec};
+use ark_std::{marker::PhantomData, vec::Vec};
 
 use super::{
     note::check_note,
-    tangle::tangle_in_field,
     types::{
         BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
-        BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, ByteVar,
-        FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-        FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendAccount,
+        FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
+        FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     },
 };
 use crate::{
@@ -27,6 +26,7 @@ use crate::{
         state::{FullInput, NoInput, OnlyPublicInput, State, WithPublicInput},
         GetPublicInput,
     },
+    shielder::check_merkle_proof,
 };
 
 /// 'Withdraw' relation for the Shielder application.
@@ -270,53 +270,14 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for WithdrawRelation<S> {
         //------------------------
         // Check the merkle proof.
         //------------------------
-        let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || {
-            self.merkle_root.ok_or(AssignmentMissing)
-        })?;
-        let mut leaf_index = FpVar::new_witness(ns!(cs, "leaf index"), || {
-            self.leaf_index.ok_or(AssignmentMissing)
-        })?;
-
-        let mut current_hash_bytes = old_note.to_bytes()?;
-        let mut hash_bytes = vec![current_hash_bytes.clone()];
-        let path = self.merkle_path.unwrap_or_default();
-
-        if path.len() > self.max_path_len as usize {
-            return Err(UnconstrainedVariable);
-        }
-
-        let zero = CircuitField::zero();
-
-        for i in 0..self.max_path_len {
-            let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {
-                Ok(path.get(i as usize).unwrap_or(&zero))
-            })?;
-            let bytes: Vec<ByteVar> = if leaf_index.value().unwrap_or_default().0.is_even() {
-                [current_hash_bytes.clone(), sibling.to_bytes()?].concat()
-            } else {
-                [sibling.to_bytes()?, current_hash_bytes.clone()].concat()
-            };
-
-            current_hash_bytes = tangle_in_field::<2>(bytes)?;
-            hash_bytes.push(current_hash_bytes.clone());
-
-            leaf_index = FpVar::constant(
-                leaf_index
-                    .value()
-                    .unwrap_or_default()
-                    .div(CircuitField::from(2)),
-            );
-        }
-
-        for (a, b) in merkle_root
-            .to_bytes()?
-            .iter()
-            .zip(hash_bytes[path.len()].iter())
-        {
-            a.enforce_equal(b)?;
-        }
-
-        Ok(())
+        check_merkle_proof(
+            self.merkle_root,
+            self.leaf_index,
+            old_note.to_bytes()?,
+            self.merkle_path,
+            self.max_path_len,
+            cs,
+        )
     }
 }
 
