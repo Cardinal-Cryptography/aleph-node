@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     fmt::{Display, Error as FmtError, Formatter},
 };
 
@@ -81,28 +81,29 @@ where
     }
 }
 
+/// Download authorities for the session and return `SessionVerifier` for them. `session_id` should be the first session,
+/// or the first block from the session number `session_id - 1` should be finalized.
+fn download<AP: AuthorityProvider<BlockNumber>>(
+    authority_provider: &AP,
+    session_id: SessionId,
+    session_period: SessionPeriod,
+) -> Option<SessionVerifier> {
+    let maybe_authority_data = match session_id {
+        SessionId(0) => authority_provider.authority_data(0),
+        SessionId(id) => {
+            let prev_first = first_block_of_session(SessionId(id - 1), session_period);
+            authority_provider.next_authority_data(prev_first)
+        }
+    };
+
+    maybe_authority_data.map(|a| a.into())
+}
+
 impl<AP, FI> VerifierCache<AP, FI>
 where
     AP: AuthorityProvider<BlockNumber>,
     FI: FinalizationInfo,
 {
-    /// Download authorities for the session and store them in the cache.
-    /// It should be the first session, or the first block from the previous session should be finalized.
-    /// Otherwise nothing is downloaded.
-    fn download(&mut self, session_id: SessionId) {
-        let maybe_authority_data = match session_id {
-            SessionId(0) => self.authority_provider.authority_data(0),
-            SessionId(id) => {
-                let prev_first = first_block_of_session(SessionId(id - 1), self.session_period);
-                self.authority_provider.next_authority_data(prev_first)
-            }
-        };
-
-        if let Some(authority_data) = maybe_authority_data {
-            self.sessions.insert(session_id, authority_data.into());
-        };
-    }
-
     /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
         self.sessions.retain(|&id, _| id >= session_id);
@@ -135,13 +136,16 @@ where
             ));
         }
 
-        if !self.sessions.contains_key(&session_id) {
-            self.download(session_id);
-        }
+        let verifier = match self.sessions.entry(session_id) {
+            Entry::Occupied(occupied) => occupied.into_mut(),
+            Entry::Vacant(vacant) => {
+                let verifier = download(&self.authority_provider, session_id, self.session_period)
+                    .ok_or(CacheError::UnknownAuthorities(session_id))?;
+                vacant.insert(verifier)
+            }
+        };
 
-        self.sessions
-            .get(&session_id)
-            .ok_or(CacheError::UnknownAuthorities(session_id))
+        Ok(verifier)
     }
 }
 
