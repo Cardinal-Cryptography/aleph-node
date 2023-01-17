@@ -58,7 +58,7 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args: -- --no-deps -D warnings --workspace --exclude finality-aleph --exclue aleph-node
+          args:  --workspace --exclude finality-aleph --exclue aleph-node -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
