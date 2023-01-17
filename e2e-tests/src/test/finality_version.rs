@@ -6,7 +6,7 @@ use aleph_client::{
 };
 use anyhow::anyhow;
 use log::info;
-use primitives::{BlockNumber, SessionIndex, Version, DEFAULT_FINALITY_VERSION};
+use primitives::{BlockNumber, SessionIndex, Version, LEGACY_FINALITY_VERSION};
 
 use crate::{
     config::setup_test,
@@ -168,13 +168,13 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         check_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            DEFAULT_FINALITY_VERSION,
+            LEGACY_FINALITY_VERSION as Version,
         )
         .await;
         check_next_session_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            DEFAULT_FINALITY_VERSION,
+            LEGACY_FINALITY_VERSION as Version,
         )
         .await;
     }
@@ -189,7 +189,7 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         check_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            DEFAULT_FINALITY_VERSION,
+            LEGACY_FINALITY_VERSION as Version,
         )
         .await;
         check_next_session_finality_version_at_block(
