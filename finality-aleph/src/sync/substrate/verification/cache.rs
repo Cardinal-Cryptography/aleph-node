@@ -35,7 +35,11 @@ impl Display for CacheError {
                 session, upper_bound
             ),
             UnknownAuthorities(session) => {
-                write!(f, "authorities for session {:?} are unknown", session)
+                write!(
+                    f,
+                    "authorities for session {:?} not present on chain even though they should be",
+                    session
+                )
             }
         }
     }
