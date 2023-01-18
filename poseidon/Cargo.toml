@@ -13,9 +13,16 @@ ark-relations = { version = "^0.3.0", default-features = false }
 ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs", default-features = false, features = ["r1cs"] }
 ark-std = { version = "^0.3.0", default-features = false }
 ark-ff = { version = "^0.3.0", default-features = false }
-poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377", default-features = false }
-poseidon-permutation = { git = "https://github.com/pmikolajczyk41/poseidon377", default-features = false }
-getrandom = { version = "0.2", default-features = false, features = ["js"] }
+once_cell = { version = "1.17", default-features = false, features = ["critical-section"] }
+
+poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377", branch = "no-std", default-features = false }
+poseidon-permutation = { git = "https://github.com/pmikolajczyk41/poseidon377", branch = "no-std", default-features = false }
+
+[build-dependencies]
+ark-bls12-381 = { version = "^0.3.0" }
+ark-ff = { version = "^0.3.0" }
+ark-std = { version = "^0.3.0" }
+poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377", branch = "no-std" }
 
 [features]
 default = ["std"]
@@ -26,7 +33,8 @@ std = [
     "ark-relations/std",
     "ark-sponge/std",
     "ark-std/std",
-    "getrandom/std",
+    "once_cell/std",
+
     "poseidon-paramgen/std",
     "poseidon-permutation/std",
 ]
