@@ -71,11 +71,13 @@ fn test_initialize_authorities() {
 }
 
 #[test]
-#[should_panic]
 fn fails_to_initialize_again_authorities() {
     new_test_ext(&[(1u64, 1u64), (2u64, 2u64)]).execute_with(|| {
         let authorities = to_authorities(&[1, 2, 3]);
         Aleph::initialize_authorities(&authorities, &authorities);
+
+        // should not update storage
+        assert_eq!(Aleph::authorities(), to_authorities(&[1, 2]));
     });
 }
 
