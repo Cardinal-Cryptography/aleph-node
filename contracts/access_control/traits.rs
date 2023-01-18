@@ -1,9 +1,9 @@
-use ink_env::{
+use ink::env::{
     call::{build_call, Call, ExecutionInput, Selector},
-    AccountId, DefaultEnvironment, Error as InkEnvError,
+    DefaultEnvironment, Error as InkEnvError,
 };
 
-use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
+use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role, AccountId};
 
 /// Convenience trait for contracts that have methods that need to be under access control
 ///
@@ -11,6 +11,7 @@ use crate::{access_control::HAS_ROLE_SELECTOR, roles::Role};
 /// impl AccessControlled for MyContract {
 ///     type ContractError = MyContractError;
 /// }
+
 pub trait AccessControlled {
     type ContractError;
 

@@ -1,12 +1,9 @@
-use ink_env::{AccountId, Hash};
-use ink_storage::traits::{PackedLayout, SpreadLayout};
 use scale::{Decode, Encode};
 
-#[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "std",
-    derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-)]
+use crate::{AccountId, Hash};
+
+#[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum Role {
     /// Indicates a superuser.
     Admin(AccountId),
