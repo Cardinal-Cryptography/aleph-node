@@ -5,6 +5,7 @@ use ark_ff::Fp256;
 use ark_groth16::{Groth16, Proof, VerifyingKey};
 #[cfg(test)]
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
+use ark_std::vec::Vec;
 use poseidon::hash;
 
 use crate::{preimage::PreimageRelation, CircuitField, GetPublicInput};

@@ -3,22 +3,17 @@
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
 mod preimage {
 
-    use ink::{
-        codegen::EmitEvent,
-        prelude::{format, string::String, vec::Vec},
-        reflect::ContractEventBase,
-        storage::Mapping,
-        ToAccountId,
-    };
-    use snarcos_extension::VerificationKeyIdentifier;
+    use ink::{prelude::vec::Vec, reflect::ContractEventBase, storage::Mapping};
+    use relations::PreimageRelation;
+    use snarcos_extension::{ProvingSystem, VerificationKeyIdentifier};
 
-    const PREIMAGE_VK_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
+    const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum PreimageContractError {
         AlreadyCommited,
-        NotCommited, // InkEnvError(String),
+        NotCommited,
     }
 
     #[ink(storage)]
@@ -57,6 +52,8 @@ mod preimage {
             if !self.commitments.contains(caller) {
                 return Err(PreimageContractError::NotCommited);
             }
+
+            // let public_input = PreimageRelation::with_public_input(hash);
 
             // TODO : verify
 
