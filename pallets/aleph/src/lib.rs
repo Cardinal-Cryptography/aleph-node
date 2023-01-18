@@ -50,14 +50,15 @@ pub mod pallet {
     use pallets_support::StorageMigration;
 
     use super::*;
-    use crate::traits::SessionInfoProvider;
+    use crate::traits::{NextSessionAuthorityProvider, SessionInfoProvider};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        type SessionInfoProvider: SessionInfoProvider<Self>;
+        type SessionInfoProvider: SessionInfoProvider;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
+        type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
     }
 
     #[pallet::event]
@@ -105,13 +106,19 @@ pub mod pallet {
         DEFAULT_FINALITY_VERSION
     }
 
+    /// Default finality version. Relevant for sessions before the first version change occurs.
+    #[pallet::type_value]
+    pub(crate) fn DefaultNextAuthorities<T: Config>() -> Vec<T::AuthorityId> {
+        T::NextSessionAuthorityProvider::next_authorities()
+    }
+
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
-    pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
+    pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn emergency_finalizer)]
