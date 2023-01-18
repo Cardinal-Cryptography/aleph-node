@@ -3,7 +3,7 @@
 mod environment;
 mod linear;
 mod merkle_tree;
-mod preimage;
+// mod preimage;
 mod relation;
 mod serialization;
 mod shielder;
