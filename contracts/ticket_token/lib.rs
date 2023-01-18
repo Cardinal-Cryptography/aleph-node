@@ -7,13 +7,12 @@ pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANS
 #[openbrush::contract]
 pub mod ticket_token {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use ink_env::Error as InkEnvError;
-    use ink_lang::{
+    use ink::{
         codegen::{EmitEvent, Env},
+        env::Error as InkEnvError,
+        prelude::{format, string::String},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String};
-    use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
         traits::Storage,
@@ -24,7 +23,7 @@ pub mod ticket_token {
     pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[ink(storage)]
-    #[derive(Default, SpreadAllocate, Storage)]
+    #[derive(Default, Storage)]
     pub struct TicketToken {
         #[storage_field]
         psp22: psp22::Data,
@@ -124,7 +123,8 @@ pub mod ticket_token {
             );
 
             match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
+                Ok(_) => {
+                    let mut instance = Self::default();
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
                     instance.metadata.name = Some(name.into());
                     instance.metadata.symbol = Some(symbol.into());
@@ -133,7 +133,9 @@ pub mod ticket_token {
                     instance
                         ._mint_to(instance.env().caller(), total_supply)
                         .expect("Should mint");
-                }),
+
+                    instance
+                }
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
