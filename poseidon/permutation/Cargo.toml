@@ -1,5 +1,5 @@
 [package]
-name = "poseidon-paramgen"
+name = "poseidon-permutation"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,8 +7,8 @@ edition = "2021"
 members = []
 
 [lib]
-name = "poseidon_paramgen"
+name = "poseidon_permutation"
 path = "lib.rs"
 
 [dependencies]
-poseidon-paramgen = { version = "0.1" }
+poseidon-permutation = { version = "0.1" }

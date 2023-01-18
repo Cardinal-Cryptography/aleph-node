@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bls12_381::Fr;
 mod parameters;

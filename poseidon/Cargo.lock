@@ -393,8 +393,15 @@ dependencies = [
  "ark-sponge",
  "ark-std",
  "getrandom",
- "poseidon-paramgen",
- "poseidon-permutation",
+ "poseidon-paramgen 0.1.0",
+ "poseidon-permutation 0.1.0",
+]
+
+[[package]]
+name = "poseidon-paramgen"
+version = "0.1.0"
+dependencies = [
+ "poseidon-paramgen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -414,12 +421,19 @@ dependencies = [
 [[package]]
 name = "poseidon-permutation"
 version = "0.1.0"
+dependencies = [
+ "poseidon-permutation 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "poseidon-permutation"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e97b6e4e4c598be46fb53201f09fc1c255807f3721eb72edbe09beafd53453af"
 dependencies = [
  "ark-ff",
  "once_cell",
- "poseidon-paramgen",
+ "poseidon-paramgen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

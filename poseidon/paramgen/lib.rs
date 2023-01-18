@@ -1,4 +1,3 @@
-// #![no_std]
-// extern crate poseidon_paramgen;
-//
-// pub use poseidon_paramgen::*;
+#![no_std]
+
+pub use poseidon_paramgen::*;

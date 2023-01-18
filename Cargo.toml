@@ -22,6 +22,8 @@ exclude = [
     "fork-off",
     "relations",
     "poseidon",
+    "poseidon/paramgen",
+    "poseidon/permutation",
 ]
 
 [profile.release]

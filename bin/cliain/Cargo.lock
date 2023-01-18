@@ -2358,6 +2358,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43db66d1170d347f9a065114077f7dccb00c1b9478c89384490a3425279a4606"
 dependencies = [
+ "num-bigint",
  "num-complex",
  "num-integer",
  "num-iter",
@@ -2788,20 +2789,25 @@ dependencies = [
  "ark-sponge",
  "ark-std",
  "getrandom 0.2.8",
- "num-traits",
- "poseidon-paramgen",
- "poseidon-permutation",
+ "poseidon-paramgen 0.1.0",
+ "poseidon-permutation 0.1.0",
 ]
 
 [[package]]
 name = "poseidon-paramgen"
 version = "0.1.0"
-source = "git+https://github.com/pmikolajczyk41/poseidon377#abfc79f66b37f8cc07d98007817dd515fb613850"
+dependencies = [
+ "poseidon-paramgen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "poseidon-paramgen"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6aaee7da4206270e6530bc1ec1ff1d930f67239396412c2a1c13e200daf88eaa"
 dependencies = [
  "anyhow",
  "ark-ff",
- "ark-std",
- "getrandom 0.2.8",
  "merlin 3.0.0",
  "num",
  "num-bigint",
@@ -2811,11 +2817,19 @@ dependencies = [
 [[package]]
 name = "poseidon-permutation"
 version = "0.1.0"
-source = "git+https://github.com/pmikolajczyk41/poseidon377#abfc79f66b37f8cc07d98007817dd515fb613850"
+dependencies = [
+ "poseidon-permutation 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "poseidon-permutation"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e97b6e4e4c598be46fb53201f09fc1c255807f3721eb72edbe09beafd53453af"
 dependencies = [
  "ark-ff",
  "once_cell",
- "poseidon-paramgen",
+ "poseidon-paramgen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
