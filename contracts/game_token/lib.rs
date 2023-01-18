@@ -10,13 +10,12 @@ pub use crate::game_token::{
 #[openbrush::contract]
 pub mod game_token {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use ink_env::Error as InkEnvError;
-    use ink_lang::{
+    use ink::{
         codegen::{EmitEvent, Env},
+        env::Error as InkEnvError,
+        prelude::{format, string::String},
         reflect::ContractEventBase,
     };
-    use ink_prelude::{format, string::String};
-    use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{
             extensions::{burnable::*, metadata::*, mintable::*},
@@ -33,7 +32,7 @@ pub mod game_token {
     pub const BURN_SELECTOR: [u8; 4] = [0x7a, 0x9d, 0xa5, 0x10];
 
     #[ink(storage)]
-    #[derive(Default, SpreadAllocate, Storage)]
+    #[derive(Default, Storage)]
     pub struct GameToken {
         #[storage_field]
         psp22: psp22::Data,
@@ -162,12 +161,16 @@ pub mod game_token {
             );
 
             match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut GameToken| {
+                Ok(_) => {
+                    let mut instance = Self::default();
+
                     instance.metadata.name = Some(name.into());
                     instance.metadata.symbol = Some(symbol.into());
                     instance.metadata.decimals = 12;
                     instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-                }),
+
+                    instance
+                }
                 Err(why) => panic!("Could not initialize the contract {:?}", why),
             }
         }
