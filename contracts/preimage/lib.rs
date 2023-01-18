@@ -3,11 +3,15 @@
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
 mod preimage {
 
+    use ark_ff::BigInteger256;
+    use ark_serialize::CanonicalSerialize;
     use ink::{prelude::vec::Vec, reflect::ContractEventBase, storage::Mapping};
-    use relations::PreimageRelation;
+    // use relations::PreimageRelation;
     use snarcos_extension::{ProvingSystem, VerificationKeyIdentifier};
 
     const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
+
+    type CircuitField = ark_bls12_381::Fr;
 
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -41,10 +45,18 @@ mod preimage {
             Ok(())
         }
 
+        fn bytes_to_u64_little_endian(bytes: &[u8]) -> u64 {
+            let mut res = 0;
+            for i in 0..8 {
+                res |= (bytes[7 - i] as u64) << (8 * i);
+            }
+            res
+        }
+
         #[ink(message)]
         pub fn reveal(
             &mut self,
-            hash: Vec<u8>,
+            hash_bytes: Vec<u8>,
             proof: Vec<u8>,
         ) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
@@ -52,6 +64,10 @@ mod preimage {
             if !self.commitments.contains(caller) {
                 return Err(PreimageContractError::NotCommited);
             }
+
+            let hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
+                &hash_bytes,
+            )));
 
             // let public_input = PreimageRelation::with_public_input(hash);
 
