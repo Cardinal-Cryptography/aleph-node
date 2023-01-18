@@ -106,7 +106,7 @@ pub mod pallet {
         DEFAULT_FINALITY_VERSION
     }
 
-    /// Default finality version. Relevant for sessions before the first version change occurs.
+    /// Default value for `NextAuthorities` storage.
     #[pallet::type_value]
     pub(crate) fn DefaultNextAuthorities<T: Config>() -> Vec<T::AuthorityId> {
         T::NextSessionAuthorityProvider::next_authorities()
