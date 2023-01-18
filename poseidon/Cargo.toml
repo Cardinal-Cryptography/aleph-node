@@ -13,8 +13,8 @@ ark-relations = { version = "^0.3.0", default-features = false }
 ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs", default-features = false, features = ["r1cs"] }
 ark-std = { version = "^0.3.0", default-features = false }
 ark-ff = { version = "^0.3.0", default-features = false }
-poseidon-paramgen = { path = "paramgen" }
-poseidon-permutation = { path = "permutation" }
+poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377" }
+poseidon-permutation = { git = "https://github.com/pmikolajczyk41/poseidon377" }
 getrandom = { version = "0.2", default-features = false, features = ["js"] }
 
 [features]
