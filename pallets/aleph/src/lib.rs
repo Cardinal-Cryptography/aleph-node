@@ -62,7 +62,7 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleFinalityVersionChange(VersionChange),
@@ -151,17 +151,14 @@ pub mod pallet {
             next_authorities: &[T::AuthorityId],
         ) {
             if !authorities.is_empty() {
-                assert!(
-                    <Authorities<T>>::get().is_empty(),
-                    "Authorities are already initialized!"
-                );
-                <Authorities<T>>::put(authorities);
+                if !<Authorities<T>>::get().is_empty() {
+                    log::error!(target: "pallet_aleph","Authorities are already initialized!");
+                } else {
+                    <Authorities<T>>::put(authorities);
+                }
             }
             if !next_authorities.is_empty() {
-                assert!(
-                    <NextAuthorities<T>>::get().is_empty(),
-                    "NextAuthorities are already initialized!"
-                );
+                // Storage NextAuthorities has default value so should never be empty.
                 <NextAuthorities<T>>::put(next_authorities);
             }
         }
