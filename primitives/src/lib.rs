@@ -163,7 +163,12 @@ impl<AccountId> Default for EraValidators<AccountId> {
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
-pub enum ApiError {
+pub enum ApiErrorV1 {
+    DecodeKey,
+}
+
+#[derive(Encode, Decode, PartialEq, Eq, Debug)]
+pub enum ApiErrorV2 {
     MissingAuthoritiesForNextSession,
 }
 
@@ -204,14 +209,19 @@ sp_api::decl_runtime_apis! {
     #[api_version(2)]
     pub trait AlephSessionApi
     {
-        fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
+        fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiErrorV2>;
         fn authorities() -> Vec<AuthorityId>;
-        fn next_session_authority_data() -> Result<SessionAuthorityData, ApiError>;
+        fn next_session_authority_data() -> Result<SessionAuthorityData, ApiErrorV2>;
         fn authority_data() -> SessionAuthorityData;
         fn session_period() -> u32;
         fn millisecs_per_block() -> u64;
         fn finality_version() -> Version;
         fn next_session_finality_version() -> Version;
+
+        #[changed_in(2)]
+        fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiErrorV1>;
+        #[changed_in(2)]
+        fn next_session_authority_data() -> Result<SessionAuthorityData, ApiErrorV1>;
     }
 }
 

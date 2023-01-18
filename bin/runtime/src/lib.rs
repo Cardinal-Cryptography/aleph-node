@@ -30,7 +30,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 pub use primitives::Balance;
 use primitives::{
-    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiErrorV2 as AlephApiError,
     AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
     DEFAULT_BAN_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
     MILLISECS_PER_BLOCK, TOKEN,
