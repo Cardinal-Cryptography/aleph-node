@@ -187,8 +187,8 @@ where
     }
 }
 
-impl<T: TryFrom<ConvertibleValue, Error = anyhow::Error> + Debug> TryFrom<ConvertibleValue>
-    for Vec<T>
+impl<Elem: TryFrom<ConvertibleValue, Error = anyhow::Error>> TryFrom<ConvertibleValue>
+    for Vec<Elem>
 {
     type Error = anyhow::Error;
 
@@ -204,6 +204,18 @@ impl<T: TryFrom<ConvertibleValue, Error = anyhow::Error> + Debug> TryFrom<Conver
         }
 
         Ok(result)
+    }
+}
+
+impl<const N: usize, Elem: TryFrom<ConvertibleValue, Error = anyhow::Error> + Debug>
+    TryFrom<ConvertibleValue> for [Elem; N]
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> std::result::Result<Self, Self::Error> {
+        Vec::<Elem>::try_from(value)?
+            .try_into()
+            .map_err(|e| anyhow!("Failed to convert vector to an array: {e:?}"))
     }
 }
 
@@ -261,6 +273,13 @@ mod tests {
             .try_into()
             .expect("Should cast successfully");
         assert_eq!(-41, cast);
+    }
+
+    #[test]
+    fn converts_integer_array() {
+        let cv = ConvertibleValue(Seq(vec![UInt(4), UInt(1)].into()));
+        let cast: [u32; 2] = cv.try_into().expect("Should cast successfully");
+        assert_eq!([4u32, 1u32], cast);
     }
 
     #[test]
