@@ -1,19 +1,19 @@
-use primitives::{AuthorityId, SessionIndex};
-use crate::Config;
 use frame_support::{
     log,
-    sp_runtime::{RuntimeAppPublic, traits::OpaqueKeys},
+    sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
 };
-
+use primitives::{AuthorityId, SessionIndex};
 use sp_std::prelude::*;
+
+use crate::Config;
 
 /// Information provider from `pallet_session`. Loose pallet coupling via traits.
 pub trait SessionInfoProvider {
     fn current_session() -> SessionIndex;
 }
 
-/// Provider . Used only as default value in case of missing this information in our pallet. This can
-/// happen after for the session after runtime upgrade and older ones.
+/// Authorities provider, used only as default value in case of missing this information in our pallet. This can
+/// happen for the session after runtime upgraded.
 pub trait NextSessionAuthorityProvider<T: Config> {
     fn next_authorities() -> Vec<T::AuthorityId>;
 }
@@ -28,9 +28,12 @@ where
 }
 
 impl<T> NextSessionAuthorityProvider<T> for pallet_session::Pallet<T>
-where T: Config + pallet_session::Config {
+where
+    T: Config + pallet_session::Config,
+{
     fn next_authorities() -> Vec<T::AuthorityId> {
-        let next: Option<Vec<_>> = pallet_session::Pallet::<T>::queued_keys().iter()
+        let next: Option<Vec<_>> = pallet_session::Pallet::<T>::queued_keys()
+            .iter()
             .map(|(_, key)| key.get(AuthorityId::ID))
             .collect();
 

@@ -118,7 +118,8 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
-    pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
+    pub(super) type NextAuthorities<T: Config> =
+        StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn emergency_finalizer)]
