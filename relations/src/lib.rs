@@ -3,7 +3,8 @@
 mod environment;
 mod linear;
 mod merkle_tree;
-// mod preimage;
+#[cfg(any(feature = "preimage", feature = "preimage-std"))]
+mod preimage;
 mod relation;
 mod serialization;
 mod shielder;
@@ -18,7 +19,8 @@ pub use environment::{
 };
 pub use linear::LinearEquationRelation;
 pub use merkle_tree::{MerkleTreeRelation, Root};
-// pub use preimage::PreimageRelation;
+#[cfg(any(feature = "preimage", feature = "preimage-std"))]
+pub use preimage::PreimageRelation;
 pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{
