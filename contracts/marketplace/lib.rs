@@ -1,4 +1,4 @@
-//! Implement a Dutch auction of one token for another.
+//! Implements a Dutch auction of one token for another.
 //!
 //! This contract will auction off units of one token (referred to as `tickets`), accepting payment
 //! in another token (`reward token`). The auction keeps track of the average price over all sales
@@ -20,20 +20,21 @@
 #![feature(min_specialization)]
 #![allow(clippy::let_unit_value)]
 
-use ink_lang as ink;
-
 pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 
 #[ink::contract]
 pub mod marketplace {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags,
+    use ink::{
+        codegen::EmitEvent,
+        env::{
+            call::{build_call, Call, ExecutionInput, Selector},
+            CallFlags,
+        },
+        prelude::{format, string::String},
+        reflect::ContractEventBase,
     };
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{format, string::String};
     use openbrush::contracts::psp22::PSP22Error;
     use ticket_token::{
         BALANCE_OF_SELECTOR as TICKET_BALANCE_SELECTOR,
@@ -78,8 +79,8 @@ pub mod marketplace {
     #[derive(Clone, Eq, PartialEq, Debug)]
     pub struct Reset;
 
-    impl From<ink_env::Error> for Error {
-        fn from(inner: ink_env::Error) -> Self {
+    impl From<ink::env::Error> for Error {
+        fn from(inner: ink::env::Error) -> Self {
             Error::ContractCall(format!("{:?}", inner))
         }
     }
