@@ -200,6 +200,8 @@ pub struct VersionChange {
 }
 
 sp_api::decl_runtime_apis! {
+
+    #[api_version(2)]
     pub trait AlephSessionApi
     {
         fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
