@@ -13,14 +13,14 @@ ark-r1cs-std = {version = "^0.3.0" , default-features = false }
 ark-relations = { version = "^0.3.0", default-features = false }
 ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs", default-features = false, features = ["r1cs"] }
 once_cell = "1.8"
-poseidon-paramgen = { path = "../paramgen" }
-poseidon-permutation = { path = "../permutation" }
+poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377" }
+poseidon-permutation = { git = "https://github.com/pmikolajczyk41/poseidon377" }
 ark-std = { version = "^0.3.0", default-features = false }
 
 [build-dependencies]
 ark-bls12-381 = { version = "^0.3.0" }
 ark-ff = { version = "^0.3.0" }
-poseidon-paramgen = { path = "../paramgen" }
+poseidon-paramgen = { git = "https://github.com/pmikolajczyk41/poseidon377" }
 ark-std = { version = "^0.3.0" }
 
 [features]
