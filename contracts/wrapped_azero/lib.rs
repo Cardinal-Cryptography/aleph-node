@@ -8,14 +8,14 @@ pub use crate::wrapped_azero::{
 
 #[openbrush::contract]
 pub mod wrapped_azero {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use ink_env::Error as InkEnvError;
-    use ink_lang::{
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
+    use ink::{
         codegen::{EmitEvent, Env},
+        env::call::FromAccountId,
+        prelude::format,
         reflect::ContractEventBase,
+        ToAccountId,
     };
-    use ink_prelude::format;
-    use ink_storage::traits::SpreadAllocate;
     use num_traits::identities::Zero;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
@@ -28,14 +28,13 @@ pub mod wrapped_azero {
     pub const ALLOWANCE_SELECTOR: [u8; 4] = [0x4d, 0x47, 0xd9, 0x21];
 
     #[ink(storage)]
-    #[derive(Default, SpreadAllocate, Storage)]
+    #[derive(Storage)]
     pub struct WrappedAzero {
         #[storage_field]
         psp22: psp22::Data,
         #[storage_field]
         metadata: metadata::Data,
-        /// access control contract
-        access_control: AccountId,
+        access_control: AccessControlRef,
     }
 
     impl PSP22 for WrappedAzero {}
@@ -71,10 +70,6 @@ pub mod wrapped_azero {
                 }),
             );
         }
-    }
-
-    impl AccessControlled for WrappedAzero {
-        type ContractError = PSP22Error;
     }
 
     /// Result type
@@ -133,23 +128,21 @@ pub mod wrapped_azero {
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
 
-            let role_check = <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                caller,
-                Role::Initializer(code_hash),
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            );
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
+            if access_control.has_role(caller, Role::Initializer(code_hash)) {
+                let mut metadata = metadata::Data::default();
+                metadata.name = Some("wAzero".into());
+                metadata.symbol = Some("wA0".into());
+                metadata.decimals = 12; // same as AZERO
 
-            match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut WrappedAzero| {
-                    instance.metadata.name = Some("wAzero".into());
-                    instance.metadata.symbol = Some("wA0".into());
-                    instance.metadata.decimals = 12; // same as AZERO
-
-                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-                }),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+                Self {
+                    psp22: psp22::Data::default(),
+                    metadata,
+                    access_control,
+                }
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -203,7 +196,7 @@ pub mod wrapped_azero {
         /// Returns the contract's access control contract address
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         /// Sets new access control contract address
@@ -216,7 +209,7 @@ pub mod wrapped_azero {
 
             self.check_role(caller, Role::Owner(this))?;
 
-            self.access_control = access_control;
+            self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
 
@@ -232,22 +225,12 @@ pub mod wrapped_azero {
             emitter.emit_event(event);
         }
 
-        fn access_control_error_handler(role: Role) -> PSP22Error {
-            PSP22Error::Custom(format!("MissingRole:{:?}", role).into())
-        }
-
-        fn cross_contract_call_error_handler(why: InkEnvError) -> PSP22Error {
-            PSP22Error::Custom(format!("Calling access control has failed: {:?}", why).into())
-        }
-
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
-                role,
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )
+            if self.access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                Err(PSP22Error::Custom(format!("MissingRole:{:?}", role).into()))
+            }
         }
     }
 }
