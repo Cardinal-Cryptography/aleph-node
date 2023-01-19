@@ -19,7 +19,6 @@ const UPGRADE_TO_VERSION: u32 = 1;
 const UPGRADE_SESSION: SessionIndex = 3;
 const UPGRADE_FINALIZATION_WAIT_SESSIONS: u32 = 3;
 
-const FIRST_INCOMING_FINALITY_VERSION: Version = 1;
 const SESSION_WITH_FINALITY_VERSION_CHANGE: SessionIndex = 4;
 const SCHEDULING_OFFSET_SESSIONS: f64 = -2.5;
 const CHECK_START_BLOCK: BlockNumber = 0;
@@ -131,6 +130,8 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
     let scheduling_block = (start_point_in_sessions * session_period as f64) as u32;
     let end_block = (SESSION_WITH_FINALITY_VERSION_CHANGE + 1) * session_period - 1;
 
+    let first_incoming_finality_version = LEGACY_FINALITY_VERSION as Version + 1;
+
     info!(
         "Finality version check | start block: {} | end block: {}",
         CHECK_START_BLOCK, end_block,
@@ -146,7 +147,7 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
 
     root_connection
         .schedule_finality_version_change(
-            FIRST_INCOMING_FINALITY_VERSION,
+            first_incoming_finality_version,
             SESSION_WITH_FINALITY_VERSION_CHANGE,
             TxStatus::Finalized,
         )
@@ -195,7 +196,7 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         check_next_session_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            FIRST_INCOMING_FINALITY_VERSION,
+            first_incoming_finality_version,
         )
         .await;
     }
@@ -207,13 +208,13 @@ pub async fn finality_version_change() -> anyhow::Result<()> {
         check_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            FIRST_INCOMING_FINALITY_VERSION,
+            first_incoming_finality_version,
         )
         .await;
         check_next_session_finality_version_at_block(
             root_connection.as_connection(),
             block,
-            FIRST_INCOMING_FINALITY_VERSION,
+            first_incoming_finality_version,
         )
         .await;
     }
