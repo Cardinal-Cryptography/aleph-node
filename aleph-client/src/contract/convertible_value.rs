@@ -45,7 +45,7 @@ macro_rules! try_from_flat_value {
         impl TryFrom<ConvertibleValue> for $ty {
             type Error = anyhow::Error;
 
-            fn try_from(value: ConvertibleValue) -> Result<$ty, Self::Error> {
+            fn try_from(value: ConvertibleValue) -> anyhow::Result<$ty> {
                 match value.0 {
                     Value::$variant(value) => Ok(value.try_into()?),
                     _ => anyhow::bail!("Expected {:?} to be {}", value, $desc),
@@ -69,7 +69,7 @@ try_from_flat_value!(i128, Int, "signed integer");
 impl TryFrom<ConvertibleValue> for AccountId {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> Result<AccountId, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<AccountId> {
         match value.0 {
             Value::Literal(value) => {
                 AccountId::from_str(&value).map_err(|_| anyhow!("Invalid account id"))
@@ -85,7 +85,7 @@ where
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> Result<Result<T>, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<Result<T>> {
         if let Value::Tuple(tuple) = &value.0 {
             match tuple.ident() {
                 Some(x) if x == "Ok" => {
@@ -115,7 +115,7 @@ where
 impl TryFrom<ConvertibleValue> for String {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> std::result::Result<String, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<String> {
         let seq = match value.0 {
             Value::Seq(seq) => seq,
             _ =>  bail!("Failed parsing `ConvertibleValue` to `String`. Expected `Seq(Value::UInt)` but instead got: {:?}", value),
@@ -150,7 +150,7 @@ where
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> std::result::Result<Option<T>, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<Option<T>> {
         let tuple = match &value.0 {
             Value::Tuple(tuple) => tuple,
             _ => bail!("Expected {:?} to be a Some(_) or None Tuple.", &value),
@@ -192,7 +192,7 @@ impl<Elem: TryFrom<ConvertibleValue, Error = anyhow::Error>> TryFrom<Convertible
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<Self> {
         let seq = match value.0 {
             Value::Seq(seq) => seq,
             _ =>  bail!("Failed parsing `ConvertibleValue` to `Vec<T>`. Expected `Seq(_)` but instead got: {:?}", value),
@@ -212,7 +212,7 @@ impl<const N: usize, Elem: TryFrom<ConvertibleValue, Error = anyhow::Error> + De
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: ConvertibleValue) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: ConvertibleValue) -> Result<Self> {
         Vec::<Elem>::try_from(value)?
             .try_into()
             .map_err(|e| anyhow!("Failed to convert vector to an array: {e:?}"))
