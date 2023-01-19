@@ -5,17 +5,19 @@ mod errors;
 
 #[ink::contract]
 pub mod button_game {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use game_token::MINT_SELECTOR;
+    #[cfg(feature = "std")]
+    use ink::storage::traits::StorageLayout;
     use ink::{
         codegen::EmitEvent,
         env::{
-            call::{build_call, Call, ExecutionInput, Selector},
+            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
             CallFlags, DefaultEnvironment, Error as InkEnvError,
         },
-        prelude::{format, vec},
+        prelude::vec,
         reflect::ContractEventBase,
-        storage::traits::StorageLayout,
+        ToAccountId,
     };
     use marketplace::RESET_SELECTOR as MARKETPLACE_RESET_SELECTOR;
     use openbrush::contracts::psp22::PSP22Error;
@@ -89,17 +91,13 @@ pub mod button_game {
         /// Account ID of the ticket token
         pub ticket_token: AccountId,
         /// access control contract
-        pub access_control: AccountId,
+        pub access_control: AccessControlRef,
         /// ticket marketplace contract
         pub marketplace: AccountId,
         /// scoring strategy
         pub scoring: Scoring,
         /// current round number
         pub round: u64,
-    }
-
-    impl AccessControlled for ButtonGame {
-        type ContractError = GameError;
     }
 
     impl ButtonGame {
@@ -117,9 +115,11 @@ pub mod button_game {
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
 
-            match ButtonGame::check_role(access_control, caller, required_role) {
+            match ButtonGame::check_role(&access_control, caller, required_role) {
                 Ok(_) => Self::init(
+                    access_control,
                     ticket_token,
                     reward_token,
                     marketplace,
@@ -160,7 +160,7 @@ pub mod button_game {
         /// Returns the current access control contract address
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         /// Returns address of the game's reward token
@@ -253,8 +253,8 @@ pub mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            ButtonGame::check_role(self.access_control, caller, required_role)?;
-            self.access_control = new_access_control;
+            ButtonGame::check_role(&self.access_control, caller, required_role)?;
+            self.access_control = AccessControlRef::from_account_id(new_access_control);
             Ok(())
         }
 
@@ -266,13 +266,14 @@ pub mod button_game {
             let caller = self.env().caller();
             let this = self.env().account_id();
             let required_role = Role::Owner(this);
-            ButtonGame::check_role(self.access_control, caller, required_role)?;
+            ButtonGame::check_role(&self.access_control, caller, required_role)?;
             self.env().terminate_contract(caller)
         }
 
         //===================================================================================================
 
         fn init(
+            access_control: AccessControlRef,
             ticket_token: AccountId,
             reward_token: AccountId,
             marketplace: AccountId,
@@ -283,7 +284,7 @@ pub mod button_game {
             let deadline = now + button_lifetime;
 
             let contract = Self {
-                access_control: AccountId::from(ACCESS_CONTROL_PUBKEY),
+                access_control,
                 button_lifetime,
                 reward_token,
                 ticket_token,
@@ -380,19 +381,16 @@ pub mod button_game {
             Ok(())
         }
 
-        fn check_role(access_control: AccountId, account: AccountId, role: Role) -> ButtonResult<()>
-        where
-            Self: AccessControlled,
-        {
-            <Self as AccessControlled>::check_role(
-                access_control,
-                account,
-                role,
-                |why: InkEnvError| {
-                    GameError::InkEnvError(format!("Calling access control has failed: {:?}", why))
-                },
-                GameError::MissingRole,
-            )
+        fn check_role(
+            access_control: &AccessControlRef,
+            account: AccountId,
+            role: Role,
+        ) -> ButtonResult<()> {
+            if access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                Err(GameError::MissingRole(role))
+            }
         }
 
         fn score(&self, now: BlockNumber) -> Balance {

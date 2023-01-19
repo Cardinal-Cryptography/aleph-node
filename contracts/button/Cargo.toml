@@ -5,21 +5,17 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-ink_env = { version = "~3.3.0", default-features = false }
-ink_lang = { version = "~3.3.0", default-features = false }
-ink_metadata = { version = "~3.3.0", default-features = false, features = ["derive"], optional = true }
-ink_prelude = { version = "~3.3.0", default-features = false }
-ink_primitives = { version = "~3.3.0", default-features = false }
-ink_storage = { version = "~3.3.0", default-features = false }
+ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false}
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
-scale-info = { version = "2", default-features = false, features = ["derive"], optional = true }
+scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+
+openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts.git", rev = "3.0.0-beta", default-features = false, features = ["psp22"] }
 
 access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
 game_token = { path = "../game_token", default-features = false, features = ["ink-as-dependency"] }
 ticket_token = { path = "../ticket_token", default-features = false, features = ["ink-as-dependency"] }
 marketplace = { path = "../marketplace", default-features = false, features = ["ink-as-dependency"] }
-openbrush = { git = "https://github.com/Supercolony-net/openbrush-contracts.git", rev = "15e6366", default-features = false, features = ["psp22"] }
 
 [lib]
 name = "button"
@@ -32,12 +28,7 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
-    "ink_env/std",
-    "ink_lang/std",
-    "ink_metadata/std",
-    "ink_prelude/std",
-    "ink_primitives/std",
-    "ink_storage/std",
+    "ink/std",
     "scale-info/std",
     "scale/std",
     "access_control/std",
