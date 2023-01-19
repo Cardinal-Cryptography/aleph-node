@@ -600,7 +600,7 @@ dependencies = [
 [[package]]
 name = "poseidon-paramgen"
 version = "0.1.1"
-source = "git+https://github.com/pmikolajczyk41/poseidon377?branch=no-std#2a429a7bacef0b2d83c6453d86e282a16faaf874"
+source = "git+https://github.com/penumbra-zone/poseidon377#e6f1cb82a1e81dd208dcf813339192c468684d51"
 dependencies = [
  "anyhow",
  "ark-ff",
@@ -615,7 +615,7 @@ dependencies = [
 [[package]]
 name = "poseidon-permutation"
 version = "0.1.1"
-source = "git+https://github.com/pmikolajczyk41/poseidon377?branch=no-std#2a429a7bacef0b2d83c6453d86e282a16faaf874"
+source = "git+https://github.com/penumbra-zone/poseidon377#e6f1cb82a1e81dd208dcf813339192c468684d51"
 dependencies = [
  "ark-ff",
  "once_cell",
