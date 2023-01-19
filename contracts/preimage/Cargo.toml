@@ -5,38 +5,31 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-# getrandom = { version = "0.2", default-features = false, features = ["js"] }
-# num-traits = { version = "0.2", default-features = false }
+ark-bls12-381 = { version = "^0.3.0" }
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
+ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false }
+poseidon-paramgen = { path = "/home/filip/CloudStation/Rust/poseidon377/poseidon-paramgen", default-features = false}
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-ark-serialize = { version = "^0.3.0", default-features = false }
-ark-ff = { version = "^0.3.0", default-features = false }
-ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false }
-# poseidon = { path = "../../poseidon", default-features = false }
-# relations = { path = "../../relations", default-features = false }
 snarcos-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "liminal/migrate-to-ink4", package = "snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
-ark-bls12-381 = { version = "^0.3.0" }
 
 [lib]
 name = "preimage"
 path = "lib.rs"
 crate-type = [
-    # Used for normal contract Wasm blobs.
     "cdylib",
 ]
 
 [features]
 default = ["std"]
 std = [
-    # "getrandom/std",
-    # "num-traits/std",
-    "scale/std",
-    "scale-info/std",
+    "ark-ff/std",
     "ark-serialize/std",
     "ink/std",
-    # "poseidon/std",
+    "poseidon-paramgen/std",
+    "scale-info/std",
+    "scale/std",
     "snarcos-extension/std",
-    # "relations/std",
-    "ark-ff/std",
 ]
 ink-as-dependency = []

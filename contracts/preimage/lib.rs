@@ -4,12 +4,10 @@
 mod preimage {
 
     use ark_ff::BigInteger256;
-    use ark_serialize::CanonicalSerialize;
-    use ink::{prelude::vec::Vec, reflect::ContractEventBase, storage::Mapping};
-    // use relations::PreimageRelation;
-    use snarcos_extension::{ProvingSystem, VerificationKeyIdentifier};
+    use ink::{prelude::vec::Vec, storage::Mapping};
+    // use snarcos_extension::VerificationKeyIdentifier;
 
-    const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
+    // const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
 
     type CircuitField = ark_bls12_381::Fr;
 
@@ -57,7 +55,7 @@ mod preimage {
         pub fn reveal(
             &mut self,
             hash_bytes: Vec<u8>,
-            proof: Vec<u8>,
+            _proof: Vec<u8>,
         ) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
@@ -65,7 +63,7 @@ mod preimage {
                 return Err(PreimageContractError::NotCommited);
             }
 
-            let hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
+            let _hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
                 &hash_bytes,
             )));
 
