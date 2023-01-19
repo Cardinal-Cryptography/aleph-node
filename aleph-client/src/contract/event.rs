@@ -1,8 +1,8 @@
 //! Utilities for listening for contract events.
 //!
-//! To use the module you will need to pass a connection, some contracts and an `UnboundedSender` to the
-//! [listen_contract_events] function. You most likely want to `tokio::spawn` the resulting future, so that it runs
-//! concurrently.
+//! To use the listening feature you will need to pass a connection, some contracts and an
+//! `UnboundedSender` to the [listen_contract_events] function. You most likely want to
+//! `tokio::spawn` the resulting future, so that it runs concurrently.
 //!
 //! ```no_run
 //! # use std::sync::Arc;
@@ -41,14 +41,39 @@
 //! #   Ok(())
 //! # }
 //! ```
+//!
+//! To use the fetching feature you will need to pass a connection, transaction coordinates and
+//! a corresponding contract to the [get_contract_events] function.
+//!
+//! ```no_run
+//! # use aleph_client::{AccountId, Connection, SignedConnection};
+//! # use aleph_client::contract::ContractInstance;
+//! # use aleph_client::contract::event::{get_contract_events, listen_contract_events};
+//! # use anyhow::Result;
+//! use futures::{channel::mpsc::unbounded, StreamExt};
+//!
+//! # async fn example(conn: Connection, signed_conn: SignedConnection, address: AccountId, path: &str) -> Result<()> {
+//! let contract = ContractInstance::new(address, path)?;
+//!
+//! let tx_info = contract.contract_exec0(&signed_conn, "some_method").await?;
+//!
+//! println!("Received events {:?}", get_contract_events(&conn, &contract, tx_info).await);
+//!
+//! #   Ok(())
+//! # }
+//! ```
 
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use contract_transcode::Value;
 use futures::{channel::mpsc::UnboundedSender, StreamExt};
+use subxt::events::EventDetails;
 
-use crate::{contract::ContractInstance, AccountId, Connection};
+use crate::{
+    api::contracts::events::ContractEmitted, connections::TxInfo, contract::ContractInstance,
+    utility::BlocksApi, AccountId, Connection,
+};
 
 /// Represents a single event emitted by a contract.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -59,6 +84,18 @@ pub struct ContractEvent {
     pub name: Option<String>,
     /// Data contained in the event.
     pub data: HashMap<String, Value>,
+}
+
+/// Fetch all events that corresponds to the contract call identified by `tx_info`.
+pub async fn get_contract_events(
+    conn: &Connection,
+    contract: &ContractInstance,
+    tx_info: TxInfo,
+) -> Result<Vec<ContractEvent>> {
+    let events = conn.get_tx_events(tx_info).await?;
+    translate_events(events.iter(), &[contract])
+        .into_iter()
+        .collect()
 }
 
 /// Starts an event listening loop.
@@ -79,33 +116,54 @@ pub async fn listen_contract_events(
         if sender.is_closed() {
             break;
         }
-
-        let block = block?;
-
-        for event in block.events().await?.iter() {
-            let event = event?;
-
-            if let Some(event) =
-                event.as_event::<crate::api::contracts::events::ContractEmitted>()?
-            {
-                if let Some(contract) = contracts
-                    .iter()
-                    .find(|contract| contract.address() == &event.contract)
-                {
-                    let data = zero_prefixed(&event.data);
-                    let event = contract
-                        .transcoder
-                        .decode_contract_event(&mut data.as_slice());
-
-                    sender.unbounded_send(
-                        event.and_then(|event| build_event(contract.address().clone(), event)),
-                    )?;
-                }
-            }
+        let events = block?.events().await?;
+        for event in translate_events(events.iter(), contracts) {
+            sender.unbounded_send(event)?;
         }
     }
 
     Ok(())
+}
+
+/// Try to convert `events` to `ContractEvent` using matching contract from `contracts`.
+fn translate_events<
+    Err: Error + Into<anyhow::Error> + Send + Sync + 'static,
+    E: Iterator<Item = Result<EventDetails, Err>>,
+>(
+    events: E,
+    contracts: &[&ContractInstance],
+) -> Vec<Result<ContractEvent>> {
+    events
+        .filter_map(|maybe_event| {
+            maybe_event
+                .map(|e| e.as_event::<ContractEmitted>().ok().flatten())
+                .transpose()
+        })
+        .map(|maybe_event| match maybe_event {
+            Ok(e) => translate_event(&e, contracts),
+            Err(e) => Err(anyhow::Error::from(e)),
+        })
+        .collect()
+}
+
+/// Try to convert `event` to `ContractEvent` using matching contract from `contracts`.
+fn translate_event(
+    event: &ContractEmitted,
+    contracts: &[&ContractInstance],
+) -> Result<ContractEvent> {
+    let matching_contract = contracts
+        .iter()
+        .find(|contract| contract.address() == &event.contract)
+        .ok_or(anyhow!(
+            "The event wasn't emitted by any of the provided contracts"
+        ))?;
+
+    let data = zero_prefixed(&event.data);
+    let data = matching_contract
+        .transcoder
+        .decode_contract_event(&mut data.as_slice())?;
+
+    build_event(matching_contract.address.clone(), data)
 }
 
 /// The contract transcoder assumes there is an extra byte (that it discards) indicating the size of the data. However,

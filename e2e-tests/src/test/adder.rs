@@ -1,13 +1,12 @@
-use std::{fmt::Debug, str::FromStr, sync::Arc};
+use std::{fmt::Debug, str::FromStr};
 
 use aleph_client::{
-    contract::{event::listen_contract_events, ContractInstance},
+    contract::{event::get_contract_events, ContractInstance},
     contract_transcode::Value,
-    AccountId, ConnectionApi, SignedConnectionApi,
+    AccountId, ConnectionApi, SignedConnectionApi, TxInfo,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use assert2::assert;
-use futures::{channel::mpsc::unbounded, StreamExt};
 
 use crate::{config::setup_test, test::helpers::basic_test_context};
 
@@ -19,26 +18,22 @@ pub async fn adder() -> Result<()> {
 
     let (conn, _authority, account) = basic_test_context(config).await?;
 
-    let contract = Arc::new(AdderInstance::new(
+    let contract = AdderInstance::new(
         &config.test_case_params.adder,
         &config.test_case_params.adder_metadata,
-    )?);
-
-    let listen_conn = conn.clone();
-    let listen_contract = contract.clone();
-    let (tx, mut rx) = unbounded();
-    let listen = || async move {
-        listen_contract_events(&listen_conn, &[listen_contract.as_ref().into()], tx).await?;
-        <Result<(), anyhow::Error>>::Ok(())
-    };
-    let join = tokio::spawn(listen());
+    )?;
 
     let increment = 10;
     let before = contract.get(&conn).await?;
 
-    contract.add(&account.sign(&conn), increment).await?;
+    let tx_info = contract.add(&account.sign(&conn), increment).await?;
+    let events = get_contract_events(&conn, &contract.contract, tx_info).await?;
+    let event = match events.len() {
+        0 => return Err(anyhow!("No event received")),
+        1 => events[0].clone(),
+        _ => return Err(anyhow!("Too many events received")),
+    };
 
-    let event = rx.next().await.context("No event received")??;
     assert!(event.name == Some("ValueChanged".to_string()));
     assert!(event.contract == *contract.contract.address());
     assert!(event.data["new_value"] == Value::UInt(before as u128 + 10));
@@ -53,9 +48,6 @@ pub async fn adder() -> Result<()> {
         .set_name(&account.sign(&conn), Some(new_name))
         .await?;
     assert!(contract.get_name(&conn).await? == Some(new_name.to_string()));
-
-    rx.close();
-    join.await??;
 
     Ok(())
 }
@@ -95,7 +87,7 @@ impl AdderInstance {
         self.contract.contract_read0(conn, "get").await
     }
 
-    pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<()> {
+    pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<TxInfo> {
         self.contract
             .contract_exec(conn, "add", &[value.to_string()])
             .await
@@ -105,7 +97,7 @@ impl AdderInstance {
         &self,
         conn: &S,
         name: Option<&str>,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         let name = name.map_or_else(
             || "None".to_string(),
             |name| {
