@@ -24,12 +24,12 @@ pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 
 #[ink::contract]
 pub mod marketplace {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink::{
         codegen::EmitEvent,
         env::{
-            call::{build_call, Call, ExecutionInput, Selector},
+            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
             CallFlags,
         },
         prelude::{format, string::String},
@@ -55,6 +55,7 @@ pub mod marketplace {
         sale_multiplier: Balance,
         ticket_token: AccountId,
         reward_token: AccountId,
+        access_control: AccessControlRef,
     }
 
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
@@ -91,10 +92,6 @@ pub mod marketplace {
         }
     }
 
-    impl AccessControlled for Marketplace {
-        type ContractError = Error;
-    }
-
     impl Marketplace {
         #[ink(constructor)]
         pub fn new(
@@ -105,18 +102,22 @@ pub mod marketplace {
             sale_multiplier: Balance,
             auction_length: BlockNumber,
         ) -> Self {
-            Self::ensure_role(Self::initializer())
-                .unwrap_or_else(|e| panic!("Failed to initialize the contract {:?}", e));
-
-            Marketplace {
-                ticket_token,
-                reward_token,
-                min_price,
-                sale_multiplier,
-                auction_length,
-                current_start_block: Self::env().block_number(),
-                total_proceeds: starting_price.saturating_div(sale_multiplier),
-                tickets_sold: 1,
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
+            if access_control.has_role(Self::env().caller(), Self::initializer()) {
+                Marketplace {
+                    ticket_token,
+                    reward_token,
+                    min_price,
+                    sale_multiplier,
+                    auction_length,
+                    current_start_block: Self::env().block_number(),
+                    total_proceeds: starting_price.saturating_div(sale_multiplier),
+                    tickets_sold: 1,
+                    access_control,
+                }
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -174,7 +175,7 @@ pub mod marketplace {
         /// Update the minimal price.
         #[ink(message)]
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
-            Self::ensure_role(self.admin())?;
+            self.ensure_role(self.admin())?;
 
             self.min_price = value;
 
@@ -231,7 +232,7 @@ pub mod marketplace {
         /// Requires `Role::Admin`.
         #[ink(message, selector = 0x00000001)]
         pub fn reset(&mut self) -> Result<(), Error> {
-            Self::ensure_role(self.admin())?;
+            self.ensure_role(self.admin())?;
 
             self.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
@@ -246,7 +247,7 @@ pub mod marketplace {
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            Self::ensure_role(Role::Owner(this))?;
+            self.ensure_role(Role::Owner(this))?;
             self.env().terminate_contract(caller)
         }
 
@@ -308,14 +309,12 @@ pub mod marketplace {
             Ok(balance)
         }
 
-        fn ensure_role(role: Role) -> Result<(), Error> {
-            <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                Self::env().caller(),
-                role,
-                |reason| reason.into(),
-                Error::MissingRole,
-            )
+        fn ensure_role(&self, role: Role) -> Result<(), Error> {
+            if self.access_control.has_role(self.env().caller(), role) {
+                Ok(())
+            } else {
+                Err(Error::MissingRole(role))
+            }
         }
 
         fn initializer() -> Role {

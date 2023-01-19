@@ -3,19 +3,20 @@
 
 mod errors;
 
-use ink_lang as ink;
-
 #[ink::contract]
 pub mod button_game {
     use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
     use game_token::MINT_SELECTOR;
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags, DefaultEnvironment, Error as InkEnvError,
+    use ink::{
+        codegen::EmitEvent,
+        env::{
+            call::{build_call, Call, ExecutionInput, Selector},
+            CallFlags, DefaultEnvironment, Error as InkEnvError,
+        },
+        prelude::{format, vec},
+        reflect::ContractEventBase,
+        storage::traits::StorageLayout,
     };
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{format, vec};
-    use ink_storage::traits::{PackedLayout, SpreadLayout};
     use marketplace::RESET_SELECTOR as MARKETPLACE_RESET_SELECTOR;
     use openbrush::contracts::psp22::PSP22Error;
     use scale::{Decode, Encode};
@@ -59,11 +60,8 @@ pub mod button_game {
     }
 
     /// Scoring strategy indicating what kind of reward users get for pressing the button
-    #[derive(Debug, Encode, Decode, Clone, Copy, SpreadLayout, PackedLayout, PartialEq, Eq)]
-    #[cfg_attr(
-        feature = "std",
-        derive(scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
+    #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
     pub enum Scoring {
         /// Pressing the button as soon as possible gives the highest reward
         EarlyBirdSpecial,

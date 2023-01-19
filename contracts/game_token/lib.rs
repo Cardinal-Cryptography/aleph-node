@@ -9,12 +9,13 @@ pub use crate::game_token::{
 
 #[openbrush::contract]
 pub mod game_token {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::Error as InkEnvError,
+        env::call::FromAccountId,
         prelude::{format, string::String},
         reflect::ContractEventBase,
+        ToAccountId,
     };
     use openbrush::{
         contracts::psp22::{
@@ -32,14 +33,13 @@ pub mod game_token {
     pub const BURN_SELECTOR: [u8; 4] = [0x7a, 0x9d, 0xa5, 0x10];
 
     #[ink(storage)]
-    #[derive(Default, Storage)]
+    #[derive(Storage)]
     pub struct GameToken {
         #[storage_field]
         psp22: psp22::Data,
         #[storage_field]
         metadata: metadata::Data,
-        /// access control contract
-        access_control: AccountId,
+        access_control: AccessControlRef,
     }
 
     impl PSP22 for GameToken {}
@@ -101,10 +101,6 @@ pub mod game_token {
         }
     }
 
-    impl AccessControlled for GameToken {
-        type ContractError = PSP22Error;
-    }
-
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
     /// Event type
@@ -146,32 +142,24 @@ pub mod game_token {
             let code_hash = Self::env()
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
+
             let required_role = Role::Initializer(code_hash);
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
 
-            let role_check = <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                caller,
-                required_role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(
-                        format!("Calling access control has failed: {:?}", why).into(),
-                    )
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
-            );
+            if access_control.has_role(caller, required_role) {
+                let mut metadata = metadata::Data::default();
+                metadata.name = Some(name.into());
+                metadata.symbol = Some(symbol.into());
+                metadata.decimals = 12;
 
-            match role_check {
-                Ok(_) => {
-                    let mut instance = Self::default();
-
-                    instance.metadata.name = Some(name.into());
-                    instance.metadata.symbol = Some(symbol.into());
-                    instance.metadata.decimals = 12;
-                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-
-                    instance
+                Self {
+                    metadata,
+                    access_control,
+                    psp22: psp22::Data::default(),
                 }
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -195,21 +183,15 @@ pub mod game_token {
         /// Returns the contract's access control contract address
         #[ink(message, selector = 8)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
-                role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(
-                        format!("Calling access control has failed: {:?}", why).into(),
-                    )
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
-            )
+            if self.access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                Err(PSP22Error::Custom(format!("MissingRole:{:?}", role).into()))
+            }
         }
 
         /// Sets new access control contract address
@@ -222,7 +204,7 @@ pub mod game_token {
             let required_role = Role::Owner(this);
 
             self.check_role(caller, required_role)?;
-            self.access_control = access_control;
+            self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
 

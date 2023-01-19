@@ -2,10 +2,10 @@
 #![allow(clippy::let_unit_value)]
 
 pub use crate::access_control::{
-    AccessControlError, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
+    AccessControl, AccessControlError, AccessControlRef, ACCESS_CONTROL_PUBKEY,
+    CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
 };
 pub mod roles;
-pub mod traits;
 
 use ink::env::{DefaultEnvironment, Environment};
 
