@@ -2,7 +2,6 @@
 
 use ark_bls12_381::Fr;
 use once_cell::sync::Lazy;
-
 mod parameters;
 
 type CircuitField = ark_bls12_381::Fr;
