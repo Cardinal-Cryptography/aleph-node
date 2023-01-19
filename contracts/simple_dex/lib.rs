@@ -1,8 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
 
-use ink_lang as ink;
-
 /// Simple DEX contract
 ///
 /// This contract is based on Balancer multi asset LP design and all formulas are taken from the Balancer's whitepaper (https://balancer.fi/whitepaper.pdf)
@@ -13,26 +11,25 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod simple_dex {
-
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use game_token::{
         ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR,
     };
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags, DefaultEnvironment, Error as InkEnvError,
-    };
-    use ink_lang::{
-        codegen::{initialize_contract, EmitEvent},
+    use ink::{
+        codegen::EmitEvent,
+        env::{
+            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
+            CallFlags, DefaultEnvironment, Error as InkEnvError,
+        },
+        prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
+        ToAccountId,
     };
-    use ink_prelude::{format, string::String, vec, vec::Vec};
-    use ink_storage::traits::{PackedLayout, SpreadAllocate, SpreadLayout};
-    use openbrush::{contracts::traits::errors::PSP22Error, storage::Mapping};
+    use openbrush::{contracts::traits::errors::PSP22Error, storage::Mapping, traits::Storage};
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
-    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, PackedLayout)]
+    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub struct SwapPair {
         pub from: AccountId,
@@ -103,16 +100,12 @@ mod simple_dex {
     }
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
+    #[derive(Storage)]
     pub struct SimpleDex {
         pub swap_fee_percentage: u128,
-        pub access_control: AccountId,
+        pub access_control: AccessControlRef,
         // a set of pairs that are availiable for swapping between
         pub swap_pairs: Mapping<SwapPair, ()>,
-    }
-
-    impl AccessControlled for SimpleDex {
-        type ContractError = DexError;
     }
 
     impl SimpleDex {
@@ -124,18 +117,16 @@ mod simple_dex {
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
 
-            let role_check = <Self as AccessControlled>::check_role(
-                access_control,
-                caller,
-                required_role,
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            );
-
-            match role_check {
-                Ok(_) => initialize_contract(Self::new_init),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+            if access_control.has_role(caller, required_role) {
+                Self {
+                    swap_fee_percentage: 0,
+                    access_control,
+                    swap_pairs: Mapping::default(),
+                }
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -294,14 +285,14 @@ mod simple_dex {
 
             self.check_role(caller, Role::Owner(this))?;
 
-            self.access_control = access_control;
+            self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
 
         /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         /// Whitelists a token pair for swapping between
@@ -420,11 +411,6 @@ mod simple_dex {
                 .ok_or(DexError::Arithmethic)
         }
 
-        fn new_init(&mut self) {
-            self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.swap_fee_percentage = 0;
-        }
-
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
         fn transfer_tx(
             &self,
@@ -497,25 +483,12 @@ mod simple_dex {
                 .fire()
         }
 
-        fn access_control_error_handler(role: Role) -> DexError {
-            DexError::MissingRole(role)
-        }
-
-        fn cross_contract_call_error_handler(why: InkEnvError) -> DexError {
-            DexError::CrossContractCall(format!("Calling access control has failed: {:?}", why))
-        }
-
-        fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError>
-        where
-            Self: AccessControlled,
-        {
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
-                role,
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )
+        fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {
+            if self.access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                return Err(DexError::MissingRole(role));
+            }
         }
 
         fn emit_event<EE>(emitter: EE, event: Event)
