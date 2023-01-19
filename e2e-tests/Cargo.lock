@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-e2e-client"
-version = "0.11.0"
+version = "0.10.1"
 dependencies = [
  "aleph_client",
  "anyhow",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "2.9.0"
+version = "2.9.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2688,7 +2688,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.5.5"
+version = "0.5.4"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

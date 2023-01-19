@@ -6338,6 +6338,27 @@ pub mod api {
                         ],
                     )
                 }
+                pub fn next_authorities(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        ::std::vec::Vec<runtime_types::primitives::app::Public>,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Aleph",
+                        "NextAuthorities",
+                        vec![],
+                        [
+                            241u8, 145u8, 255u8, 235u8, 191u8, 220u8, 57u8, 89u8, 8u8, 134u8, 72u8,
+                            193u8, 247u8, 37u8, 54u8, 201u8, 136u8, 32u8, 11u8, 199u8, 134u8,
+                            207u8, 154u8, 107u8, 71u8, 121u8, 245u8, 153u8, 9u8, 33u8, 70u8, 3u8,
+                        ],
+                    )
+                }
                 pub fn emergency_finalizer(
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
@@ -6409,10 +6430,9 @@ pub mod api {
                         "FinalityVersion",
                         vec![],
                         [
-                            134u8, 19u8, 94u8, 247u8, 125u8, 18u8, 148u8, 160u8, 167u8, 235u8,
-                            174u8, 4u8, 107u8, 69u8, 55u8, 187u8, 249u8, 13u8, 129u8, 99u8, 116u8,
-                            158u8, 38u8, 29u8, 239u8, 112u8, 150u8, 92u8, 151u8, 197u8, 223u8,
-                            30u8,
+                            99u8, 158u8, 103u8, 180u8, 128u8, 32u8, 84u8, 110u8, 229u8, 2u8, 3u8,
+                            114u8, 95u8, 125u8, 230u8, 210u8, 56u8, 85u8, 38u8, 136u8, 49u8, 206u8,
+                            6u8, 136u8, 193u8, 164u8, 251u8, 60u8, 125u8, 91u8, 205u8, 144u8,
                         ],
                     )
                 }
@@ -19533,9 +19553,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                155u8, 236u8, 207u8, 138u8, 149u8, 114u8, 96u8, 168u8, 143u8, 247u8, 148u8, 106u8,
-                148u8, 203u8, 48u8, 129u8, 14u8, 48u8, 155u8, 234u8, 78u8, 212u8, 73u8, 65u8,
-                212u8, 201u8, 174u8, 194u8, 72u8, 70u8, 240u8, 233u8,
+                51u8, 153u8, 218u8, 203u8, 158u8, 62u8, 141u8, 96u8, 177u8, 177u8, 12u8, 204u8,
+                220u8, 53u8, 42u8, 155u8, 22u8, 96u8, 238u8, 212u8, 98u8, 225u8, 39u8, 241u8, 52u8,
+                28u8, 166u8, 99u8, 14u8, 192u8, 65u8, 67u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
