@@ -3,6 +3,7 @@ use ink::{
     env::Error as InkEnvError,
     prelude::{format, string::String},
 };
+use marketplace::marketplace::Error as MarketplaceError;
 use openbrush::contracts::psp22::PSP22Error;
 
 /// GameError types
@@ -23,6 +24,8 @@ pub enum GameError {
     CantRetrieveOwnCodeHash,
     /// Overflow error
     Arithmethic,
+    /// Error from the marketplace contract
+    MarketplaceError(MarketplaceError),
 }
 
 impl From<PSP22Error> for GameError {
@@ -34,5 +37,11 @@ impl From<PSP22Error> for GameError {
 impl From<InkEnvError> for GameError {
     fn from(e: InkEnvError) -> Self {
         GameError::InkEnvError(format!("{:?}", e))
+    }
+}
+
+impl From<MarketplaceError> for GameError {
+    fn from(e: MarketplaceError) -> Self {
+        GameError::MarketplaceError(e)
     }
 }

@@ -19,6 +19,6 @@ EARLY_BIRD_SPECIAL=$(jq --raw-output ".early_bird_special" < "$CONTRACTS_PATH"/a
   SIMPLE_DEX_METADATA=$CONTRACTS_PATH/simple_dex/target/ink/metadata.json \
   WRAPPED_AZERO_METADATA=$CONTRACTS_PATH/wrapped_azero/target/ink/metadata.json \
   RUST_LOG="aleph_e2e_client=info" \
-  cargo test button -- --nocapture
+  cargo test button -- --test-threads 1 --nocapture
 
 exit $?

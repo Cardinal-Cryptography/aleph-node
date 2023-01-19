@@ -25,25 +25,17 @@ pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 #[ink::contract]
 pub mod marketplace {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
-    use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
     use ink::{
         codegen::EmitEvent,
-        env::{
-            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
-            CallFlags,
-        },
-        prelude::{format, string::String},
+        env::call::FromAccountId,
+        prelude::{format, string::String, vec},
         reflect::ContractEventBase,
     };
-    use openbrush::contracts::psp22::PSP22Error;
-    use ticket_token::{
-        BALANCE_OF_SELECTOR as TICKET_BALANCE_SELECTOR,
-        TRANSFER_SELECTOR as TRANSFER_TICKET_SELECTOR,
+    use openbrush::contracts::psp22::{
+        extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
     };
 
     type Event = <Marketplace as ContractEventBase>::Type;
-
-    const DUMMY_DATA: &[u8] = &[0x0];
 
     #[ink(storage)]
     pub struct Marketplace {
@@ -162,7 +154,7 @@ pub mod marketplace {
         ///
         /// The tickets will be auctioned off one by one.
         #[ink(message)]
-        pub fn available_tickets(&self) -> Result<Balance, Error> {
+        pub fn available_tickets(&self) -> Balance {
             self.ticket_balance()
         }
 
@@ -201,7 +193,7 @@ pub mod marketplace {
         /// current price is greater than that.
         #[ink(message)]
         pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
-            if self.ticket_balance()? == 0 {
+            if self.ticket_balance() == 0 {
                 return Err(Error::MarketplaceEmpty);
             }
 
@@ -267,46 +259,19 @@ pub mod marketplace {
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
-            build_call::<Environment>()
-                .call_type(Call::new().callee(self.reward_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(REWARD_BURN_SELECTOR))
-                        .push_arg(from)
-                        .push_arg(amount),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+            PSP22BurnableRef::burn(&self.reward_token, from, amount)?;
 
             Ok(())
         }
 
         fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
-            build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_TICKET_SELECTOR))
-                        .push_arg(to)
-                        .push_arg(1u128)
-                        .push_arg(DUMMY_DATA),
-                )
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+            PSP22Ref::transfer(&self.ticket_token, to, 1, vec![])?;
 
             Ok(())
         }
 
-        fn ticket_balance(&self) -> Result<Balance, Error> {
-            let balance = build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TICKET_BALANCE_SELECTOR))
-                        .push_arg(self.env().account_id()),
-                )
-                .returns::<Balance>()
-                .fire()?;
-
-            Ok(balance)
+        fn ticket_balance(&self) -> Balance {
+            PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
         }
 
         fn ensure_role(&self, role: Role) -> Result<(), Error> {

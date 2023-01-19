@@ -12,20 +12,18 @@
 #[ink::contract]
 mod simple_dex {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
-    use game_token::{
-        ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR,
-    };
     use ink::{
         codegen::EmitEvent,
-        env::{
-            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
-            CallFlags, DefaultEnvironment, Error as InkEnvError,
-        },
+        env::{call::FromAccountId, Error as InkEnvError},
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
         ToAccountId,
     };
-    use openbrush::{contracts::traits::errors::PSP22Error, storage::Mapping, traits::Storage};
+    use openbrush::{
+        contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
+        storage::Mapping,
+        traits::Storage,
+    };
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
@@ -144,7 +142,7 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            let balance_token_out = self.balance_of(token_out, this)?;
+            let balance_token_out = self.balance_of(token_out, this);
             if balance_token_out < min_amount_token_out {
                 // throw early if we cannot support this swap anyway due to liquidity being too low
                 return Err(DexError::NotEnoughLiquidityOf(token_out));
@@ -156,7 +154,7 @@ mod simple_dex {
             }
 
             // check allowance
-            if self.allowance(token_in, caller, this)? < amount_token_in {
+            if self.allowance(token_in, caller, this) < amount_token_in {
                 return Err(DexError::InsufficientAllowanceOf(token_in));
             }
 
@@ -169,9 +167,9 @@ mod simple_dex {
             }
 
             // transfer token_in from user to the contract
-            self.transfer_from_tx(token_in, caller, this, amount_token_in)??;
+            self.transfer_from_tx(token_in, caller, this, amount_token_in)?;
             // transfer token_out from contract to user
-            self.transfer_tx(token_out, caller, amount_token_out)??;
+            self.transfer_tx(token_out, caller, amount_token_out)?;
 
             // emit event
             Self::emit_event(
@@ -207,7 +205,7 @@ mod simple_dex {
                     // transfer token_in from the caller to the contract
                     // will revert if the contract does not have enough allowance from the caller
                     // in which case the whole tx is reverted
-                    self.transfer_from_tx(token_in, caller, this, amount)??;
+                    self.transfer_from_tx(token_in, caller, this, amount)?;
                     Ok(())
                 })?;
 
@@ -228,7 +226,7 @@ mod simple_dex {
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
                     // transfer token_out from the contract to the caller
-                    self.transfer_tx(token_out, caller, amount)??;
+                    self.transfer_tx(token_out, caller, amount)?;
                     Ok(())
                 },
             )?;
@@ -369,8 +367,8 @@ mod simple_dex {
             amount_token_in: Balance,
         ) -> Result<Balance, DexError> {
             let this = self.env().account_id();
-            let balance_token_in = self.balance_of(token_in, this)?;
-            let balance_token_out = self.balance_of(token_out, this)?;
+            let balance_token_in = self.balance_of(token_in, this);
+            let balance_token_out = self.balance_of(token_out, this);
 
             Self::_out_given_in(
                 amount_token_in,
@@ -417,17 +415,10 @@ mod simple_dex {
             token: AccountId,
             to: AccountId,
             amount: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
-                        .push_arg(to)
-                        .push_arg(amount)
-                        .push_arg(vec![0x0]),
-                )
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        ) -> Result<(), PSP22Error> {
+            PSP22Ref::transfer(&token, to, amount, vec![])?;
+
+            Ok(())
         }
 
         /// Transfers a given amount of a PSP22 token on behalf of a specified account to another account
@@ -439,48 +430,20 @@ mod simple_dex {
             from: AccountId,
             to: AccountId,
             amount: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
-                        .push_arg(from)
-                        .push_arg(to)
-                        .push_arg(amount)
-                        .push_arg(vec![0x0]),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true)) // needed for checking allowance before the actual tx
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        ) -> Result<(), PSP22Error> {
+            PSP22Ref::transfer_from(&token, from, to, amount, vec![])?;
+
+            Ok(())
         }
 
         /// Returns the amount of unused allowance that the token owner has given to the spender
-        fn allowance(
-            &self,
-            token: AccountId,
-            owner: AccountId,
-            spender: AccountId,
-        ) -> Result<Balance, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(ALLOWANCE_SELECTOR))
-                        .push_arg(owner)
-                        .push_arg(spender),
-                )
-                .returns::<Balance>()
-                .fire()
+        fn allowance(&self, token: AccountId, owner: AccountId, spender: AccountId) -> Balance {
+            PSP22Ref::allowance(&token, owner, spender)
         }
 
         /// Returns DEX balance of a PSP22 token for an account
-        fn balance_of(&self, token: AccountId, account: AccountId) -> Result<Balance, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR)).push_arg(account),
-                )
-                .returns::<Balance>()
-                .fire()
+        fn balance_of(&self, token: AccountId, account: AccountId) -> Balance {
+            PSP22Ref::balance_of(&token, account)
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {

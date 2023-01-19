@@ -6,23 +6,15 @@ mod errors;
 #[ink::contract]
 pub mod button_game {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
-    use game_token::MINT_SELECTOR;
     #[cfg(feature = "std")]
     use ink::storage::traits::StorageLayout;
     use ink::{
-        codegen::EmitEvent,
-        env::{
-            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
-            CallFlags, DefaultEnvironment, Error as InkEnvError,
-        },
-        prelude::vec,
-        reflect::ContractEventBase,
+        codegen::EmitEvent, env::call::FromAccountId, prelude::vec, reflect::ContractEventBase,
         ToAccountId,
     };
-    use marketplace::RESET_SELECTOR as MARKETPLACE_RESET_SELECTOR;
-    use openbrush::contracts::psp22::PSP22Error;
+    use marketplace::marketplace::MarketplaceRef;
+    use openbrush::contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref};
     use scale::{Decode, Encode};
-    use ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR};
 
     use crate::errors::GameError;
 
@@ -93,7 +85,7 @@ pub mod button_game {
         /// access control contract
         pub access_control: AccessControlRef,
         /// ticket marketplace contract
-        pub marketplace: AccountId,
+        pub marketplace: MarketplaceRef,
         /// scoring strategy
         pub scoring: Scoring,
         /// current round number
@@ -178,7 +170,7 @@ pub mod button_game {
         /// Returns the address of the marketplace for exchanging this game's rewards for tickets.
         #[ink(message)]
         pub fn marketplace(&self) -> AccountId {
-            self.marketplace
+            self.marketplace.to_account_id()
         }
 
         /// Returns own code hash
@@ -205,13 +197,13 @@ pub mod button_game {
             // transfers 1 ticket token from the caller to self
             // tx will fail if user did not give allowance to the game contract
             // or does not have enough balance
-            self.transfer_ticket(caller, this, 1u128)??;
+            self.transfer_ticket(caller, this, 1u128)?;
 
             let score = self.score(now);
 
             // mints reward tokens to pay out the reward
             // contract needs to have a Minter role on the reward token contract
-            self.mint_reward(caller, score)??;
+            self.mint_reward(caller, score)?;
 
             self.presses += 1;
             self.last_presser = Some(caller);
@@ -288,7 +280,7 @@ pub mod button_game {
                 button_lifetime,
                 reward_token,
                 ticket_token,
-                marketplace,
+                marketplace: MarketplaceRef::from_account_id(marketplace),
                 last_press: now,
                 scoring,
                 last_presser: None,
@@ -326,7 +318,7 @@ pub mod button_game {
         fn reward_pressiah(&self) -> ButtonResult<()> {
             if let Some(pressiah) = self.last_presser {
                 let reward = self.pressiah_score();
-                self.mint_reward(pressiah, reward)??;
+                self.mint_reward(pressiah, reward)?;
             };
 
             Ok(())
@@ -341,42 +333,22 @@ pub mod button_game {
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
-                        .push_arg(self.marketplace)
-                        .push_arg(self.held_tickets()?)
-                        .push_arg::<vec::Vec<u8>>(vec![]),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+            PSP22Ref::transfer(
+                &self.ticket_token,
+                self.marketplace.to_account_id(),
+                self.held_tickets(),
+                vec![],
+            )?;
 
             Ok(())
         }
 
-        fn held_tickets(&self) -> ButtonResult<Balance> {
-            let result = build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR))
-                        .push_arg(self.env().account_id()),
-                )
-                .returns::<Balance>()
-                .fire()?;
-
-            Ok(result)
+        fn held_tickets(&self) -> Balance {
+            PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
         }
 
-        fn reset_marketplace(&self) -> ButtonResult<()> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(self.marketplace))
-                .exec_input(ExecutionInput::new(Selector::new(
-                    MARKETPLACE_RESET_SELECTOR,
-                )))
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+        fn reset_marketplace(&mut self) -> ButtonResult<()> {
+            self.marketplace.reset()?;
 
             Ok(())
         }
@@ -410,35 +382,16 @@ pub mod button_game {
             from: AccountId,
             to: AccountId,
             value: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
-                        .push_arg(from)
-                        .push_arg(to)
-                        .push_arg(value)
-                        .push_arg::<vec::Vec<u8>>(vec![]),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        ) -> ButtonResult<()> {
+            PSP22Ref::transfer_from(&self.ticket_token, from, to, value, vec![])?;
+
+            Ok(())
         }
 
-        fn mint_reward(
-            &self,
-            to: AccountId,
-            amount: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(self.reward_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(MINT_SELECTOR))
-                        .push_arg(to)
-                        .push_arg(amount),
-                )
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
+            PSP22MintableRef::mint(&self.reward_token, to, amount)?;
+
+            Ok(())
         }
 
         fn emit_event<EE>(emitter: EE, event: Event)
