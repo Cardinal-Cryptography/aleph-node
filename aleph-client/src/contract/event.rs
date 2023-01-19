@@ -1,67 +1,13 @@
-//! Utilities for listening for contract events.
+//! This module provides utilities corresponding to the events emitted by a contract.
 //!
-//! To use the listening feature you will need to pass a connection, some contracts and an
-//! `UnboundedSender` to the [listen_contract_events] function. You most likely want to
-//! `tokio::spawn` the resulting future, so that it runs concurrently.
-//!
-//! ```no_run
-//! # use std::sync::Arc;
-//! # use std::sync::mpsc::channel;
-//! # use std::time::Duration;
-//! # use aleph_client::{AccountId, Connection, SignedConnection};
-//! # use aleph_client::contract::ContractInstance;
-//! # use aleph_client::contract::event::{listen_contract_events};
-//! # use anyhow::Result;
-//! use futures::{channel::mpsc::unbounded, StreamExt};
-//!
-//! # async fn example(conn: Connection, signed_conn: SignedConnection, address1: AccountId, address2: AccountId, path1: &str, path2: &str) -> Result<()> {
-//! // The `Arc` makes it possible to pass a reference to the contract to another thread
-//! let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
-//! let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
-//!
-//! let conn_copy = conn.clone();
-//! let contract1_copy = contract1.clone();
-//! let contract2_copy = contract2.clone();
-//!
-//! let (tx, mut rx) = unbounded();
-//! let listen = || async move {
-//!     listen_contract_events(&conn, &[contract1_copy.as_ref(), contract2_copy.as_ref()], tx).await?;
-//!     <Result<(), anyhow::Error>>::Ok(())
-//! };
-//! let join = tokio::spawn(listen());
-//!
-//! contract1.contract_exec0(&signed_conn, "some_method").await?;
-//! contract2.contract_exec0(&signed_conn, "some_other_method").await?;
-//!
-//! println!("Received event {:?}", rx.next().await);
-//!
-//! rx.close();
-//! join.await??;
-//!
-//! #   Ok(())
-//! # }
-//! ```
-//!
-//! To use the fetching feature you will need to pass a connection, transaction coordinates and
-//! a corresponding contract to the [get_contract_events] function.
-//!
-//! ```no_run
-//! # use aleph_client::{AccountId, Connection, SignedConnection};
-//! # use aleph_client::contract::ContractInstance;
-//! # use aleph_client::contract::event::{get_contract_events, listen_contract_events};
-//! # use anyhow::Result;
-//! use futures::{channel::mpsc::unbounded, StreamExt};
-//!
-//! # async fn example(conn: Connection, signed_conn: SignedConnection, address: AccountId, path: &str) -> Result<()> {
-//! let contract = ContractInstance::new(address, path)?;
-//!
-//! let tx_info = contract.contract_exec0(&signed_conn, "some_method").await?;
-//!
-//! println!("Received events {:?}", get_contract_events(&conn, &contract, tx_info).await);
-//!
-//! #   Ok(())
-//! # }
-//! ```
+//! There are two ways that you can get contract events:
+//!  1. By fetching events corresponding to a particular transaction. For this, you will need to
+//!     provide a connection, contract instance and transaction coordinate to [get_contract_events]
+//!     function. Similarly to [crate::utility::BlocksApi::get_tx_events], it will fetch block
+//!     events, filter them and decode all relevant ones.
+//!  2. By listening to all contract events. For this, you will need to provide a connection, some
+//!     contracts and an `UnboundedSender` to the [listen_contract_events] function. In a loop,
+//!     it will inspect every finalized block and look for contract events.
 
 use std::{collections::HashMap, error::Error};
 
@@ -86,7 +32,26 @@ pub struct ContractEvent {
     pub data: HashMap<String, Value>,
 }
 
-/// Fetch all events that corresponds to the contract call identified by `tx_info`.
+/// Fetch and decode all events that correspond to the call identified by `tx_info` made to
+/// `contract`.
+///
+/// ```no_run
+/// # use aleph_client::{AccountId, Connection, SignedConnection};
+/// # use aleph_client::contract::ContractInstance;
+/// # use aleph_client::contract::event::{get_contract_events, listen_contract_events};
+/// # use anyhow::Result;
+/// use futures::{channel::mpsc::unbounded, StreamExt};
+///
+/// # async fn example(conn: Connection, signed_conn: SignedConnection, address: AccountId, path: &str) -> Result<()> {
+/// let contract = ContractInstance::new(address, path)?;
+///
+/// let tx_info = contract.contract_exec0(&signed_conn, "some_method").await?;
+///
+/// println!("Received events {:?}", get_contract_events(&conn, &contract, tx_info).await);
+///
+/// #   Ok(())
+/// # }
+/// ```
 pub async fn get_contract_events(
     conn: &Connection,
     contract: &ContractInstance,
@@ -98,13 +63,53 @@ pub async fn get_contract_events(
         .collect()
 }
 
-/// Starts an event listening loop.
+/// Starts an event listening loop. Will send contract event and every error encountered while
+/// fetching through the provided [UnboundedSender].
 ///
-/// Will send contract event and every error encountered while fetching through the provided [UnboundedSender].
 /// Only events coming from the address of one of the `contracts` will be decoded.
 ///
 /// The loop will terminate once `sender` is closed. The loop may also terminate in case of errors while fetching blocks
 /// or decoding events (pallet events, contract event decoding errors are sent over the channel).
+///
+/// You most likely want to `tokio::spawn` the resulting future, so that it runs concurrently.
+///
+/// ```no_run
+/// # use std::sync::Arc;
+/// # use std::sync::mpsc::channel;
+/// # use std::time::Duration;
+/// # use aleph_client::{AccountId, Connection, SignedConnection};
+/// # use aleph_client::contract::ContractInstance;
+/// # use aleph_client::contract::event::{listen_contract_events};
+/// # use anyhow::Result;
+/// use futures::{channel::mpsc::unbounded, StreamExt};
+///
+/// # async fn example(conn: Connection, signed_conn: SignedConnection, address1: AccountId, address2: AccountId, path1: &str, path2: &str) -> Result<()> {
+/// // The `Arc` makes it possible to pass a reference to the contract to another thread
+/// let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
+/// let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
+///
+/// let conn_copy = conn.clone();
+/// let contract1_copy = contract1.clone();
+/// let contract2_copy = contract2.clone();
+///
+/// let (tx, mut rx) = unbounded();
+/// let listen = || async move {
+///     listen_contract_events(&conn, &[contract1_copy.as_ref(), contract2_copy.as_ref()], tx).await?;
+///     <Result<(), anyhow::Error>>::Ok(())
+/// };
+/// let join = tokio::spawn(listen());
+///
+/// contract1.contract_exec0(&signed_conn, "some_method").await?;
+/// contract2.contract_exec0(&signed_conn, "some_other_method").await?;
+///
+/// println!("Received event {:?}", rx.next().await);
+///
+/// rx.close();
+/// join.await??;
+///
+/// #   Ok(())
+/// # }
+/// ```
 pub async fn listen_contract_events(
     conn: &Connection,
     contracts: &[&ContractInstance],
