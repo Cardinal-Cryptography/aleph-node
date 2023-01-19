@@ -26,7 +26,7 @@ enum InnerVertex<J: Justification> {
     },
 }
 
-/// The vomplete vertex, including metadata about peers that know most about the data it refers to.
+/// The complete vertex, including metadata about peers that know most about the data it refers to.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Vertex<I: PeerId, J: Justification> {
     inner: InnerVertex<J>,

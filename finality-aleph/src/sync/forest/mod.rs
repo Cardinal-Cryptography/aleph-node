@@ -448,6 +448,23 @@ mod tests {
     }
 
     #[test]
+    fn rejects_body_when_parent_unimported() {
+        let (initial_header, mut forest) = setup();
+        let child = initial_header.random_child();
+        let grandchild = child.random_child();
+        assert!(!forest
+            .update_header(&child, None, false)
+            .expect("header was correct"));
+        assert_eq!(
+            forest.update_body(&grandchild),
+            Err(Error::ParentNotImported)
+        );
+        assert!(forest.try_finalize().is_none());
+        assert_eq!(forest.state(&child.id()), Uninterested);
+        assert_eq!(forest.state(&grandchild.id()), Uninterested);
+    }
+
+    #[test]
     fn finalizes_first_block() {
         let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
@@ -606,12 +623,20 @@ mod tests {
     #[test]
     fn prunes_huge_branch() {
         let (initial_header, mut forest) = setup();
-        for header in initial_header.random_branch().take(HUGE_BRANCH_LENGTH) {
+        let fork: Vec<_> = initial_header
+            .random_branch()
+            .take(HUGE_BRANCH_LENGTH)
+            .collect();
+        for header in &fork {
             let peer_id = rand::random();
-            assert!(!forest
-                .update_header(&header, Some(peer_id), false)
+            assert!(forest
+                .update_header(header, Some(peer_id), true)
                 .expect("header was correct"));
             assert!(forest.try_finalize().is_none());
+            match forest.state(&header.id()) {
+                TopRequired(holders) => assert!(holders.contains(&peer_id)),
+                other_state => panic!("Expected top required, got {:?}.", other_state),
+            }
         }
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
@@ -630,6 +655,9 @@ mod tests {
             .update_body(child.header())
             .expect("header was correct"));
         assert_eq!(forest.try_finalize().expect("the block is ready"), child);
+        for header in &fork {
+            assert_eq!(forest.state(&header.id()), Uninterested);
+        }
     }
 
     #[test]
