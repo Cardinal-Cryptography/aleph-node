@@ -12,12 +12,12 @@ use ark_std::{marker::PhantomData, vec, vec::Vec};
 use super::{
     note::check_note,
     types::{
-        BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FpVar,
+        BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
         FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     },
 };
 use crate::{
-    environment::CircuitField,
+    environment::{CircuitField, FpVar},
     relation::{
         state::{FullInput, NoInput, OnlyPublicInput, State, WithPublicInput},
         GetPublicInput,
@@ -116,6 +116,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for DepositRelation<S> {
 }
 
 impl<S: WithPublicInput> GetPublicInput<CircuitField> for DepositRelation<S> {
+    // The order here should match the order of registation inputs in generate_constraints
     fn public_input(&self) -> Vec<CircuitField> {
         vec![
             self.note.unwrap(),

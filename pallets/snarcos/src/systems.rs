@@ -1,11 +1,69 @@
 use ark_poly::polynomial::univariate::DensePolynomial;
 use ark_poly_commit::marlin_pc::MarlinKZG10;
+use ark_relations::r1cs::SynthesisError;
 use ark_serialize::CanonicalDeserialize;
 use ark_snark::SNARK;
-use ark_std::rand::{prelude::StdRng, SeedableRng};
+use ark_std::{
+    rand::{prelude::StdRng, SeedableRng},
+    vec::Vec,
+};
 use blake2::Blake2s;
 use codec::{Decode, Encode};
+use frame_support::{
+    log::{error, info},
+    PalletError,
+};
 use scale_info::TypeInfo;
+
+/// Possible errors from the verification process.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo, PalletError)]
+pub enum VerificationError {
+    /// The verifying key was malformed.
+    ///
+    /// May occur only for some non-universal system.
+    MalformedVerifyingKey,
+    /// There was an error in the underlying holographic IOP. For details, consult your logs.
+    ///
+    /// May occur only for some universal system.
+    AHPError,
+    /// There was an error in the underlying polynomial commitment. For details, consult your logs.
+    ///
+    /// May occur only for some universal system.
+    PolynomialCommitmentError,
+    /// Unexpected error has occurred. Check your logs.
+    UnexpectedError,
+}
+
+impl From<SynthesisError> for VerificationError {
+    fn from(syn_err: SynthesisError) -> Self {
+        match syn_err {
+            SynthesisError::MalformedVerifyingKey => VerificationError::MalformedVerifyingKey,
+            _ => {
+                error!("Unexpected SynthesisError variant: {syn_err}");
+                VerificationError::UnexpectedError
+            }
+        }
+    }
+}
+
+impl From<ark_marlin::Error<ark_poly_commit::Error>> for VerificationError {
+    fn from(err: ark_marlin::Error<ark_poly_commit::Error>) -> Self {
+        match err {
+            ark_marlin::Error::AHPError(err) => {
+                info!("Encountered AHP error: {err:?}");
+                VerificationError::AHPError
+            }
+            ark_marlin::Error::PolynomialCommitmentError(err) => {
+                info!("Encountered polynomial commitment error: {err:?}");
+                VerificationError::PolynomialCommitmentError
+            }
+            _ => {
+                error!("Unexpected Marlin error variant: {err:?}");
+                VerificationError::UnexpectedError
+            }
+        }
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Decode, Encode, TypeInfo)]
 pub enum ProvingSystem {
@@ -23,7 +81,8 @@ pub(super) trait VerifyingSystem {
         key: &Self::VerifyingKey,
         input: &[Self::CircuitField],
         proof: &Self::Proof,
-    ) -> Result<bool, ()>;
+        randomness: &[u8],
+    ) -> Result<bool, VerificationError>;
 }
 
 /// Common pairing engine.
@@ -41,8 +100,9 @@ impl VerifyingSystem for Groth16 {
         key: &Self::VerifyingKey,
         input: &[Self::CircuitField],
         proof: &Self::Proof,
-    ) -> Result<bool, ()> {
-        ark_groth16::Groth16::verify(key, input, proof).map_err(|_| ())
+        _: &[u8],
+    ) -> Result<bool, VerificationError> {
+        ark_groth16::Groth16::verify(key, input, proof).map_err(Into::into)
     }
 }
 
@@ -56,8 +116,9 @@ impl VerifyingSystem for Gm17 {
         key: &Self::VerifyingKey,
         input: &[Self::CircuitField],
         proof: &Self::Proof,
-    ) -> Result<bool, ()> {
-        ark_gm17::GM17::verify(key, input, proof).map_err(|_| ())
+        _: &[u8],
+    ) -> Result<bool, VerificationError> {
+        ark_gm17::GM17::verify(key, input, proof).map_err(Into::into)
     }
 }
 
@@ -75,8 +136,17 @@ impl VerifyingSystem for Marlin {
         key: &Self::VerifyingKey,
         input: &[Self::CircuitField],
         proof: &Self::Proof,
-    ) -> Result<bool, ()> {
-        let mut rng = StdRng::from_seed([0u8; 32]);
-        ark_marlin::Marlin::<_, _, Blake2s>::verify(key, input, proof, &mut rng).map_err(|_| ())
+        randomness: &[u8],
+    ) -> Result<bool, VerificationError> {
+        let seed = randomness
+            .iter()
+            .cloned()
+            .cycle()
+            .take(32)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap_or_default();
+        let mut rng = StdRng::from_seed(seed);
+        ark_marlin::Marlin::<_, _, Blake2s>::verify(key, input, proof, &mut rng).map_err(Into::into)
     }
 }
