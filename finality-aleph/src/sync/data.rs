@@ -15,8 +15,13 @@ pub struct State<J: Justification> {
 
 /// Data to be sent over the network.
 #[derive(Clone, Debug, Encode, Decode)]
-pub struct NetworkData<J: Justification> {
-    state: State<J>,
+pub enum NetworkData<J: Justification> {
+    /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
+    /// send what we are missing, and sometines just use the justifications to update their own
+    /// state.
+    StateBroadcast(State<J>),
+    /// A series of justifications, sent to a node that is clearly behind.
+    Justifications(Vec<J::Unverified>, State<J>),
 }
 
 /// Version wrapper around the network data.
