@@ -30,7 +30,7 @@ mod relation {
     pub type CircuitField = crate::CircuitField;
 
     #[relation_object_definition]
-    pub struct DepositRelation {
+    struct DepositRelation {
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_note")]
         pub note: BackendNote,
         #[public_input(frontend_type = "FrontendTokenId")]

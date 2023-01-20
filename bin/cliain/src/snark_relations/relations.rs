@@ -1,6 +1,7 @@
 use clap::Subcommand;
 use relations::{
-    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelation, FrontendAccount,
+    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelationWithFullInput,
+    DepositRelationWithPublicInput, DepositRelationWithoutInput, FrontendAccount,
     FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
     FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput, LinearEquationRelation,
     MerkleTreeRelation, Result as R1CsResult, Root, WithdrawRelation, XorRelationWithFullInput,
@@ -177,10 +178,10 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 nullifier,
             } => {
                 if cs.is_in_setup_mode() {
-                    return DepositRelation::without_input().generate_constraints(cs);
+                    return DepositRelationWithoutInput::new().generate_constraints(cs);
                 }
 
-                DepositRelation::with_full_input(
+                DepositRelationWithFullInput::new(
                     note.unwrap_or_else(|| panic!("You must provide note")),
                     token_id.unwrap_or_else(|| panic!("You must provide token id")),
                     token_amount.unwrap_or_else(|| panic!("You must provide token amount")),
@@ -274,8 +275,8 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                 ..
             } => match (note, token_id, token_amount) {
                 (Some(note), Some(token_id), Some(token_amount)) => {
-                    DepositRelation::with_public_input(*note, *token_id, *token_amount)
-                        .public_input()
+                    DepositRelationWithPublicInput::new(*note, *token_id, *token_amount)
+                        .serialize_public_input()
                 }
                 _ => panic!("Provide at least public (note, token id and token amount)"),
             },
