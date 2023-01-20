@@ -12,6 +12,9 @@
 
 extern crate core;
 
+use std::str::FromStr;
+
+use anyhow::anyhow;
 pub use contract_transcode;
 pub use subxt::ext::{codec, sp_core, sp_core::Pair, sp_runtime};
 use subxt::{
@@ -75,6 +78,15 @@ impl Clone for KeyPair {
     }
 }
 
+impl FromStr for KeyPair {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let pair = sr25519::Pair::from_string(s, None)
+            .map_err(|e| anyhow!("Can't create pair from seed value: {:?}", e))?;
+        Ok(KeyPair::new(pair))
+    }
+}
+
 impl KeyPair {
     /// Constructs a new KeyPair from RawKeyPair
     pub fn new(keypair: RawKeyPair) -> Self {
@@ -109,9 +121,7 @@ pub enum TxStatus {
 /// * `seed` - a 12 or 24 word seed phrase
 pub fn keypair_from_string(seed: &str) -> KeyPair {
     let pair = sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value");
-    KeyPair {
-        inner: PairSigner::new(pair),
-    }
+    KeyPair::new(pair)
 }
 
 /// Converts given seed phrase to a sr25519 [`RawKeyPair`] object.
