@@ -229,12 +229,13 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
     let struct_name_with_full = struct_name_with_full(&ir.relation_base_name);
 
     let body = &ir.circuit_definition.block.stmts;
+    let cf = &ir.circuit_field.ident;
 
     quote! {
-        impl<Field: ark_ff::PrimeField> ark_relations::r1cs::ConstraintSynthesizer<Field> for #struct_name_without_input {
+        impl ark_relations::r1cs::ConstraintSynthesizer<#cf> for #struct_name_without_input {
             fn generate_constraints(
                 self,
-                cs: ark_relations::r1cs::ConstraintSystemRef<Field>
+                cs: ark_relations::r1cs::ConstraintSystemRef<#cf>
             ) -> ark_relations::r1cs::Result<()> {
                 if cs.is_in_setup_mode() {
                     #(#body)*
@@ -247,10 +248,10 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
             }
         }
 
-        impl<Field: ark_ff::PrimeField> ark_relations::r1cs::ConstraintSynthesizer<Field> for #struct_name_with_full {
+        impl ark_relations::r1cs::ConstraintSynthesizer<#cf> for #struct_name_with_full {
             fn generate_constraints(
                 self,
-                cs: ark_relations::r1cs::ConstraintSystemRef<Field>
+                cs: ark_relations::r1cs::ConstraintSystemRef<#cf>
             ) -> ark_relations::r1cs::Result<()> {
                     #(#body)*
             }
