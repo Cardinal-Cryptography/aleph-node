@@ -64,7 +64,7 @@ type AlephConfig = PolkadotConfig;
 type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
-/// Wrapped around subxt PairSigner
+/// Used for signing extrinsic payload
 pub struct KeyPair {
     inner: PairSigner,
 }

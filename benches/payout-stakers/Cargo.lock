@@ -65,7 +65,6 @@ dependencies = [
  "primitives",
  "serde",
  "serde_json",
- "sp-core 6.0.0",
  "sp-runtime 6.0.0",
  "subxt",
  "thiserror",
