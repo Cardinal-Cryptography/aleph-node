@@ -42,6 +42,7 @@ pub enum Error {
     IncorrectParentState,
     IncorrectVertexState,
     ParentNotImported,
+    TooNew,
 }
 
 pub struct VertexWithChildren<I: PeerId, J: Justification> {
@@ -61,6 +62,10 @@ impl<I: PeerId, J: Justification> VertexWithChildren<I, J> {
         self.children.insert(child);
     }
 }
+
+// How deep can the forest be, vaguely based on two sessions ahead, which is the most we expect to
+// ever need worst case scenario.
+const MAX_DEPTH: u32 = 1800;
 
 pub struct Forest<I: PeerId, J: Justification> {
     vertices: HashMap<BlockIdFor<J>, VertexWithChildren<I, J>>,
@@ -165,12 +170,16 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
     }
 
-    fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) {
+    fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) -> Result<(), Error> {
+        if id.number() > self.root_id.number() + MAX_DEPTH {
+            return Err(Error::TooNew);
+        }
         self.vertices
             .entry(id)
             .or_insert_with(VertexWithChildren::new)
             .vertex
             .add_block_holder(holder);
+        Ok(())
     }
 
     fn process_header(
@@ -189,11 +198,11 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         id: &BlockIdFor<J>,
         holder: Option<I>,
         required: bool,
-    ) -> bool {
-        self.insert_id(id.clone(), holder);
+    ) -> Result<bool, Error> {
+        self.insert_id(id.clone(), holder)?;
         match required {
-            true => self.set_top_required(id),
-            false => false,
+            true => Ok(self.set_top_required(id)),
+            false => Ok(false),
         }
     }
 
@@ -205,7 +214,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         required: bool,
     ) -> Result<bool, Error> {
         let (id, parent_id) = self.process_header(header)?;
-        self.insert_id(id.clone(), holder.clone());
+        self.insert_id(id.clone(), holder.clone())?;
         if let VertexHandle::Candidate(mut entry) = self.get_mut(&id) {
             entry.get_mut().vertex.insert_header(parent_id, holder);
             self.connect_parent(&id);
@@ -325,7 +334,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, Forest, Interest::*, JustificationAddResult};
+    use super::{Error, Forest, Interest::*, JustificationAddResult, MAX_DEPTH};
     use crate::sync::{
         mock::{MockHeader, MockJustification, MockPeerId},
         Header, Justification,
@@ -351,7 +360,9 @@ mod tests {
         let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
-        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), false));
+        assert!(!forest
+            .update_block_identifier(&child.id(), Some(peer_id), false)
+            .expect("it's not too high"));
         assert!(forest.try_finalize().is_none());
         assert_eq!(forest.state(&child.id()), Uninterested);
     }
@@ -361,13 +372,31 @@ mod tests {
         let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
-        assert!(forest.update_block_identifier(&child.id(), Some(peer_id), true));
+        assert!(forest
+            .update_block_identifier(&child.id(), Some(peer_id), true)
+            .expect("it's not too high"));
         assert!(forest.try_finalize().is_none());
         match forest.state(&child.id()) {
             TopRequired(holders) => assert!(holders.contains(&peer_id)),
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
-        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), true));
+        assert!(!forest
+            .update_block_identifier(&child.id(), Some(peer_id), true)
+            .expect("it's not too high"));
+    }
+
+    #[test]
+    fn rejects_too_high_id() {
+        let (initial_header, mut forest) = setup();
+        let too_high = initial_header
+            .random_branch()
+            .nth(MAX_DEPTH as usize)
+            .expect("the branch is infinite");
+        let peer_id = rand::random();
+        assert_eq!(
+            forest.update_block_identifier(&too_high.id(), Some(peer_id), true),
+            Err(Error::TooNew)
+        );
     }
 
     #[test]
@@ -395,7 +424,9 @@ mod tests {
             TopRequired(holders) => assert!(holders.contains(&peer_id)),
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
-        assert!(!forest.update_block_identifier(&child.id(), Some(peer_id), true));
+        assert!(!forest
+            .update_block_identifier(&child.id(), Some(peer_id), true)
+            .expect("it's not too high"));
     }
 
     #[test]
@@ -586,7 +617,7 @@ mod tests {
         assert!(matches!(forest.state(&branch[3].id()), TopRequired(_)));
     }
 
-    const HUGE_BRANCH_LENGTH: usize = 1800;
+    const HUGE_BRANCH_LENGTH: usize = MAX_DEPTH as usize;
 
     #[test]
     fn finalizes_huge_branch() {
