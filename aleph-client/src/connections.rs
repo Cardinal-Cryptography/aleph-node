@@ -8,13 +8,14 @@ use subxt::{
     blocks::ExtrinsicEvents,
     ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
+    rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
     tx::TxPayload,
 };
 
 use crate::{
     api, sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call, KeyPair,
-    ParamsBuilder, RpcCallParams, SubxtClient, TxHash, TxStatus,
+    ParamsBuilder, SubxtClient, TxHash, TxStatus,
 };
 
 /// Capable of communicating with a live Aleph chain.
@@ -106,11 +107,7 @@ pub trait ConnectionApi: Sync {
     /// let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
     /// rpc_call("state_call".to_string(), params).await;
     /// ```
-    async fn rpc_call<R: Decode>(
-        &self,
-        func_name: String,
-        params: RpcCallParams,
-    ) -> anyhow::Result<R>;
+    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
 }
 
 /// Data regarding submitted transaction.
@@ -261,17 +258,13 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
             .expect("Should access storage")
     }
 
-    async fn rpc_call<R: Decode>(
-        &self,
-        func_name: String,
-        params: RpcCallParams,
-    ) -> anyhow::Result<R> {
+    async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
         info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
         let bytes: Bytes = self
             .as_connection()
             .as_client()
             .rpc()
-            .request(&func_name, params.inner)
+            .request(&func_name, params)
             .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)

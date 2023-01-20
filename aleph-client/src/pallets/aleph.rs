@@ -11,7 +11,7 @@ use crate::{
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
-    ConnectionApi, Pair, RootConnection, RpcCallParams, SudoCall, TxStatus,
+    ConnectionApi, Pair, RootConnection, SudoCall, TxStatus,
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
@@ -96,9 +96,7 @@ impl<C: ConnectionApi> AlephRpc for C {
         let method = "alephNode_emergencyFinalize";
         let signature = key_pair.sign(&hash.encode());
         let raw_signature: &[u8] = signature.as_ref();
-        let params = RpcCallParams {
-            inner: rpc_params![raw_signature, hash, number],
-        };
+        let params = rpc_params![raw_signature, hash, number];
 
         let _: () = self.rpc_call(method.to_string(), params).await?;
 
