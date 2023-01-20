@@ -22,6 +22,7 @@ pub struct Connection {
 }
 
 /// Any connection that is signed by some key.
+#[derive(Clone)]
 pub struct SignedConnection {
     connection: Connection,
     signer: KeyPair,
@@ -179,15 +180,6 @@ impl SudoCall for RootConnection {
         let sudo = api::tx().sudo().sudo(call);
 
         self.as_signed().send_tx(sudo, status).await
-    }
-}
-
-impl Clone for SignedConnection {
-    fn clone(&self) -> Self {
-        SignedConnection {
-            connection: self.connection.clone(),
-            signer: KeyPair::new(self.signer.signer().clone()),
-        }
     }
 }
 

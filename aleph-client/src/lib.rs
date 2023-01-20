@@ -47,25 +47,31 @@ pub type RawKeyPair = sr25519::Pair;
 /// An alias for an account id type.
 pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 /// An alias for a client type.
-pub type Client = OnlineClient<AlephConfig>;
+pub type SubxtClient = OnlineClient<AlephConfig>;
 /// An alias for a hash type.
 pub type BlockHash = H256;
 /// An alias for a hash type.
 pub type CodeHash = H256;
 
-/// An alias for a configuration of live chain, e.g. block index type, hash type.
-pub(crate) type AlephConfig = PolkadotConfig;
-pub(crate) type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
-pub(crate) type SubxtClient = OnlineClient<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 pub use connections::{
     Connection, ConnectionApi, RootConnection, SignedConnection, SignedConnectionApi, SudoCall,
 };
 
+/// An alias for a configuration of live chain, e.g. block index type, hash type.
+type AlephConfig = PolkadotConfig;
+type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
+
 /// Wrapped around subxt PairSigner
 pub struct KeyPair {
     inner: PairSigner,
+}
+
+impl Clone for KeyPair {
+    fn clone(&self) -> Self {
+        KeyPair::new(self.inner.signer().clone())
+    }
 }
 
 impl KeyPair {
