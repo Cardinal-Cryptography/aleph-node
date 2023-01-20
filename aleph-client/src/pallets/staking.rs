@@ -9,7 +9,7 @@ use subxt::{
 
 use crate::{
     api,
-    connections::AsConnection,
+    connections::{AsConnection, TxInfo},
     pallet_staking::{
         pallet::pallet::{
             Call::{bond, force_new_era, nominate, set_staking_configs},
@@ -50,7 +50,7 @@ pub trait StakingApi {
     /// Returns [`eras_validator_reward`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.eras_validator_reward) for a given era.
     /// * `era` - an era index
     /// * `at` - optional hash of a block to query state from
-    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> u128;
+    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> Balance;
 
     /// Returns [`eras_stakers`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.eras_stakers) for a given era and account id.
     /// * `era` - an era index
@@ -61,7 +61,7 @@ pub trait StakingApi {
         era: EraIndex,
         account_id: &AccountId,
         at: Option<BlockHash>,
-    ) -> Exposure<AccountId, u128>;
+    ) -> Exposure<AccountId, Balance>;
 
     /// Returns [`eras_reward_points`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.eras_reward_points) for a given era.
     /// * `era` - an era index
@@ -88,14 +88,14 @@ pub trait StakingUserApi {
         initial_stake: Balance,
         controller_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// API for [`validate`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.validate) call.
     async fn validate(
         &self,
         validator_commission_percentage: u8,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// API for [`payout_stakers`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.payout_stakers) call.
     async fn payout_stakers(
@@ -103,24 +103,24 @@ pub trait StakingUserApi {
         stash_account: AccountId,
         era: EraIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// API for [`nominate`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.nominate) call.
     async fn nominate(
         &self,
         nominee_account_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// API for [`chill`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.chill) call.
-    async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn chill(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 
     /// API for [`bond_extra`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.bond_extra) call.
     async fn bond_extra_stake(
         &self,
         extra_stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 /// Pallet staking logic, not directly related to any particular pallet call.
@@ -174,7 +174,7 @@ pub trait StakingApiExt {
         accounts: &[(AccountId, AccountId)],
         stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// Send batch of [`nominate`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.nominate) calls.
     /// * `nominator_nominee_pairs` - a slice of account ids pairs (nominator, nominee)
@@ -186,24 +186,24 @@ pub trait StakingApiExt {
         &self,
         nominator_nominee_pairs: &[(AccountId, AccountId)],
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 /// Pallet staking api that requires sudo.
 #[async_trait::async_trait]
 pub trait StakingSudoApi {
     /// API for [`force_new_era`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.force_new_era) call.
-    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<BlockHash>;
+    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 
     /// API for [`set_staking_config`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.set_staking_configs) call.
     async fn set_staking_config(
         &self,
-        minimal_nominator_bond: Option<u128>,
-        minimal_validator_bond: Option<u128>,
+        minimal_nominator_bond: Option<Balance>,
+        minimal_validator_bond: Option<Balance>,
         max_nominators_count: Option<u32>,
         max_validators_count: Option<u32>,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 /// Logic for retrieving raw storage keys or values from a pallet staking.
@@ -267,7 +267,7 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
         self.get_storage_entry(&addrs, at).await
     }
 
-    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> u128 {
+    async fn get_payout_for_era(&self, era: EraIndex, at: Option<BlockHash>) -> Balance {
         let addrs = api::storage().staking().eras_validator_reward(era);
 
         self.get_storage_entry(&addrs, at).await
@@ -278,7 +278,7 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
         era: EraIndex,
         account_id: &AccountId,
         at: Option<BlockHash>,
-    ) -> Exposure<AccountId, u128> {
+    ) -> Exposure<AccountId, Balance> {
         let addrs = api::storage().staking().eras_stakers(era, account_id);
 
         self.get_storage_entry(&addrs, at).await
@@ -317,7 +317,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         initial_stake: Balance,
         controller_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().bond(
             MultiAddress::<AccountId, ()>::Id(controller_id),
             initial_stake,
@@ -331,7 +331,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         &self,
         validator_commission_percentage: u8,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().validate(ValidatorPrefs {
             commission: Perbill(
                 SPerbill::from_percent(validator_commission_percentage as u32).deconstruct(),
@@ -347,7 +347,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         stash_account: AccountId,
         era: EraIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().payout_stakers(stash_account, era);
 
         self.send_tx(tx, status).await
@@ -357,7 +357,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         &self,
         nominee_account_id: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .staking()
             .nominate(vec![MultiAddress::Id(nominee_account_id)]);
@@ -365,7 +365,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         self.send_tx(tx, status).await
     }
 
-    async fn chill(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn chill(&self, status: TxStatus) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().chill();
 
         self.send_tx(tx, status).await
@@ -375,7 +375,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         &self,
         extra_stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().bond_extra(extra_stake);
 
         self.send_tx(tx, status).await
@@ -384,7 +384,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
 
 #[async_trait::async_trait]
 impl StakingSudoApi for RootConnection {
-    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<BlockHash> {
+    async fn force_new_era(&self, status: TxStatus) -> anyhow::Result<TxInfo> {
         let call = Staking(force_new_era);
 
         self.sudo_unchecked(call, status).await
@@ -392,12 +392,12 @@ impl StakingSudoApi for RootConnection {
 
     async fn set_staking_config(
         &self,
-        min_nominator_bond: Option<u128>,
-        min_validator_bond: Option<u128>,
+        min_nominator_bond: Option<Balance>,
+        min_validator_bond: Option<Balance>,
         max_nominator_count: Option<u32>,
         max_validator_count: Option<u32>,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         fn convert<T>(arg: Option<T>) -> ConfigOp<T> {
             match arg {
                 Some(v) => Set(v),
@@ -462,7 +462,7 @@ impl StakingApiExt for RootConnection {
         accounts: &[(AccountId, AccountId)],
         stake: Balance,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let calls = accounts
             .iter()
             .map(|(s, c)| {
@@ -486,7 +486,7 @@ impl StakingApiExt for RootConnection {
         &self,
         nominator_nominee_pairs: &[(AccountId, AccountId)],
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let calls = nominator_nominee_pairs
             .iter()
             .map(|(nominator, nominee)| {
