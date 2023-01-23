@@ -6,10 +6,8 @@ use crate::{
     abft::NodeCount,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        session::{
-            compatibility::PeerAuthentications, AuthData, Authentication,
-        },
-        AddressingInformation
+        session::{compatibility::PeerAuthentications, AuthData, Authentication},
+        AddressingInformation,
     },
     NodeIndex, SessionId,
 };
@@ -49,9 +47,7 @@ pub enum HandlerError {
     TypeChange,
 }
 
-async fn construct_session_info<
-    A: AddressingInformation,
->(
+async fn construct_session_info<A: AddressingInformation>(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     address: A,
@@ -65,9 +61,7 @@ async fn construct_session_info<
                 session_id,
             };
             let signature = authority_pen.sign(&auth_data.encode()).await;
-            let authentications = PeerAuthentications::NewOnly(
-                (auth_data, signature),
-            );
+            let authentications = PeerAuthentications::NewOnly((auth_data, signature));
             (SessionInfo::OwnAuthentication(authentications), peer_id)
         }
         None => (SessionInfo::SessionId(session_id), peer_id),
@@ -227,7 +221,7 @@ pub mod tests {
         network::{
             clique::mock::{random_address, random_invalid_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::Authentication,
+            session::{Authentication, PeerAuthentications},
             AddressingInformation,
         },
         NodeIndex, SessionId,
@@ -240,7 +234,7 @@ pub mod tests {
             .authentication()
             .expect("this is a validator handler")
         {
-            _ => panic!("handler doesn't have both authentications"),
+            PeerAuthentications::NewOnly(authentication) => authentication,
         }
     }
 

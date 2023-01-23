@@ -24,9 +24,7 @@ mod handler;
 mod manager;
 mod service;
 
-pub use compatibility::{
-    DiscoveryMessage, PeerAuthentications, VersionedAuthentication,
-};
+pub use compatibility::{DiscoveryMessage, PeerAuthentications, VersionedAuthentication};
 use connections::Connections;
 #[cfg(test)]
 pub use data::DataInSession;

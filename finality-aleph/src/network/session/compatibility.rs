@@ -7,10 +7,7 @@ use codec::{Decode, Encode, Error as CodecError, Input as CodecInput};
 use log::warn;
 
 use crate::{
-    network::{
-        session::Authentication,
-        AddressingInformation
-    },
+    network::{session::Authentication, AddressingInformation},
     SessionId, Version,
 };
 
@@ -22,7 +19,7 @@ const MAX_AUTHENTICATION_SIZE: u16 = 16 * 1024;
 /// The possible forms of peer authentications we can have, either only new, only legacy or both.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PeerAuthentications<A: AddressingInformation> {
-    NewOnly(Authentication<A>)
+    NewOnly(Authentication<A>),
 }
 
 impl<A: AddressingInformation> PeerAuthentications<A> {
@@ -58,9 +55,7 @@ pub enum VersionedAuthentication<A: AddressingInformation> {
     V2(Authentication<A>),
 }
 
-impl<A: AddressingInformation>
-    From<PeerAuthentications<A>> for Vec<VersionedAuthentication<A>>
-{
+impl<A: AddressingInformation> From<PeerAuthentications<A>> for Vec<VersionedAuthentication<A>> {
     fn from(authentications: PeerAuthentications<A>) -> Self {
         use PeerAuthentications::*;
         use VersionedAuthentication::*;
@@ -88,9 +83,7 @@ impl<A: AddressingInformation> DiscoveryMessage<A> {
     }
 }
 
-impl<A: AddressingInformation>
-    TryInto<DiscoveryMessage<A>> for VersionedAuthentication<A>
-{
+impl<A: AddressingInformation> TryInto<DiscoveryMessage<A>> for VersionedAuthentication<A> {
     type Error = Error;
 
     fn try_into(self) -> Result<DiscoveryMessage<A>, Self::Error> {
@@ -132,9 +125,7 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     result
 }
 
-impl<A: AddressingInformation> Encode
-    for VersionedAuthentication<A>
-{
+impl<A: AddressingInformation> Encode for VersionedAuthentication<A> {
     fn size_hint(&self) -> usize {
         use VersionedAuthentication::*;
         let version_size = size_of::<Version>();
@@ -156,9 +147,7 @@ impl<A: AddressingInformation> Encode
     }
 }
 
-impl<A: AddressingInformation> Decode
-    for VersionedAuthentication<A>
-{
+impl<A: AddressingInformation> Decode for VersionedAuthentication<A> {
     fn decode<I: CodecInput>(input: &mut I) -> Result<Self, CodecError> {
         use VersionedAuthentication::*;
         let version = Version::decode(input)?;
@@ -200,14 +189,12 @@ mod test {
     use codec::{Decode, Encode};
     use sp_keystore::testing::KeyStore;
 
-    use super::VersionedAuthentication;
+    use super::{PeerAuthentications, VersionedAuthentication};
     use crate::{
         crypto::AuthorityVerifier,
         network::{
             clique::mock::MockAddressingInformation,
-            session::{
-                compatibility::MAX_AUTHENTICATION_SIZE, SessionHandler,
-            },
+            session::{compatibility::MAX_AUTHENTICATION_SIZE, SessionHandler},
             tcp::{testing::new_identity, SignedTcpAddressingInformation},
             NetworkIdentity,
         },
@@ -244,7 +231,9 @@ mod test {
             .authentication()
             .expect("should have authentication")
         {
-            _ => panic!("handler doesn't have both authentications"),
+            PeerAuthentications::NewOnly(authentication) => {
+                VersionedAuthentication::V2(authentication)
+            }
         }
     }
 
@@ -303,10 +292,7 @@ mod test {
     #[tokio::test]
     async fn correctly_decodes_other() {
         let other =
-            VersionedAuthentication::<MockAddressingInformation>::Other(
-                Version(42),
-                vec![21, 37],
-            );
+            VersionedAuthentication::<MockAddressingInformation>::Other(Version(42), vec![21, 37]);
         let encoded = other.encode();
         let decoded = VersionedAuthentication::decode(&mut encoded.as_slice());
         assert_eq!(decoded, Ok(other));
@@ -315,14 +301,13 @@ mod test {
         other_big.append(&mut (MAX_AUTHENTICATION_SIZE).encode());
         other_big.append(&mut vec![0u8; (MAX_AUTHENTICATION_SIZE).into()]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation>::decode(
-                &mut other_big.as_slice(),
-            );
+            VersionedAuthentication::<MockAddressingInformation>::decode(&mut other_big.as_slice());
         assert_eq!(
             decoded,
-            Ok(VersionedAuthentication::<
-                MockAddressingInformation,
-            >::Other(Version(42), other_big[4..].to_vec()))
+            Ok(VersionedAuthentication::<MockAddressingInformation>::Other(
+                Version(42),
+                other_big[4..].to_vec()
+            ))
         );
     }
 
@@ -333,21 +318,16 @@ mod test {
         other.append(&mut size.encode());
         other.append(&mut vec![0u8; size.into()]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation>::decode(
-                &mut other.as_slice(),
-            );
+            VersionedAuthentication::<MockAddressingInformation>::decode(&mut other.as_slice());
         assert!(decoded.is_err());
 
-        let other =
-            VersionedAuthentication::<MockAddressingInformation>::Other(
-                Version(42),
-                vec![0u8; size.into()],
-            );
+        let other = VersionedAuthentication::<MockAddressingInformation>::Other(
+            Version(42),
+            vec![0u8; size.into()],
+        );
         let encoded = other.encode();
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation>::decode(
-                &mut encoded.as_slice(),
-            );
+            VersionedAuthentication::<MockAddressingInformation>::decode(&mut encoded.as_slice());
         assert!(decoded.is_err());
     }
 
@@ -357,9 +337,7 @@ mod test {
         other.append(&mut MAX_AUTHENTICATION_SIZE.encode());
         other.append(&mut vec![21, 37]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation>::decode(
-                &mut other.as_slice(),
-            );
+            VersionedAuthentication::<MockAddressingInformation>::decode(&mut other.as_slice());
         assert!(decoded.is_err());
     }
 }

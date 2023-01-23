@@ -19,9 +19,8 @@ use crate::{
         data::Network,
         mock::{crypto_basics, MockData},
         session::{
-            authentication, ConnectionManager, ConnectionManagerConfig,
-            DataInSession, ManagerError, SessionHandler, SessionManager,
-            VersionedAuthentication,
+            authentication, ConnectionManager, ConnectionManagerConfig, DataInSession,
+            ManagerError, SessionHandler, SessionManager, VersionedAuthentication,
         },
         AddressingInformation, GossipService, MockEvent, MockRawNetwork, Protocol,
     },
@@ -258,9 +257,9 @@ impl TestData {
                 Some((data, peer_id, protocol)) => {
                     if protocol == Protocol::Authentication {
                         return Some((
-                            VersionedAuthentication::<
-                                MockAddressingInformation,
-                            >::decode(&mut data.as_slice())
+                            VersionedAuthentication::<MockAddressingInformation>::decode(
+                                &mut data.as_slice(),
+                            )
                             .expect("should decode"),
                             peer_id,
                             protocol,
@@ -357,8 +356,7 @@ async fn test_forwards_authentication_broadcast() {
     }
 
     let mut sent_authentication = HashMap::new();
-    while sent_authentication.len() < NODES_N - 1
-    {
+    while sent_authentication.len() < NODES_N - 1 {
         match test_data.next_sent_auth().await {
             Some((VersionedAuthentication::V2(auth), peer_id, _)) => {
                 if auth != authentication(&handler) {

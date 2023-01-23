@@ -78,8 +78,7 @@ impl<A: AddressingInformation> ManagerActions<A> {
 ///    1. In-session messages are forwarded to the user.
 ///    2. Authentication messages forwarded to session handlers.
 /// 4. Running periodic maintenance, mostly related to node discovery.
-pub struct Manager<NI: NetworkIdentity, D: Data>
-{
+pub struct Manager<NI: NetworkIdentity, D: Data> {
     network_identity: NI,
     connections: Connections<NI::PeerId>,
     sessions: HashMap<SessionId, Session<D, NI::AddressingInformation>>,
@@ -93,8 +92,7 @@ pub enum SendError {
     NoSession,
 }
 
-impl<NI: NetworkIdentity, D: Data> Manager<NI, D>
-{
+impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     /// Create a new connection manager.
     pub fn new(network_identity: NI, discovery_cooldown: Duration) -> Self {
         Manager {
@@ -578,7 +576,10 @@ mod tests {
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
         let (address, message) = match message {
-            message => panic!("Expected both authentications, got {:?}", message),
+            PeerAuthentications::NewOnly(authentication) => (
+                authentication.0.address(),
+                DiscoveryMessage::Authentication(authentication),
+            ),
         };
         let ManagerActions {
             maybe_command,
@@ -620,7 +621,9 @@ mod tests {
             .await
             .unwrap();
         let message = match maybe_message.expect("there should be a discovery message") {
-            message => panic!("Expected both authentications, got {:?}", message),
+            PeerAuthentications::NewOnly(authentication) => {
+                DiscoveryMessage::Authentication(authentication)
+            }
         };
         manager.on_discovery_message(message);
         let messages = manager.on_user_message(2137, session_id, Recipient::Everyone);

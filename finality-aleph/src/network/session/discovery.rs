@@ -8,10 +8,7 @@ use log::{debug, info, trace};
 
 use crate::{
     network::{
-        session::{
-            compatibility::PeerAuthentications, Authentication,
-            SessionHandler,
-        },
+        session::{compatibility::PeerAuthentications, Authentication, SessionHandler},
         AddressingInformation,
     },
     NodeIndex,
@@ -89,10 +86,7 @@ mod tests {
         network::{
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{
-                authentication, compatibility::PeerAuthentications,
-                SessionHandler,
-            },
+            session::{authentication, compatibility::PeerAuthentications, SessionHandler},
         },
         SessionId,
     };
