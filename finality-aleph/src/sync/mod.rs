@@ -3,6 +3,9 @@ use std::{
     hash::Hash,
 };
 
+use codec::Codec;
+
+mod data;
 mod forest;
 #[cfg(test)]
 mod mock;
@@ -45,7 +48,7 @@ pub trait Header: Clone {
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone {
     type Header: Header;
-    type Unverified;
+    type Unverified: Clone + Codec + Debug;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;

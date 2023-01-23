@@ -1,8 +1,10 @@
+use codec::{Decode, Encode};
+
 use crate::sync::{BlockIdentifier, Header, Justification};
 
 pub type MockPeerId = u32;
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MockIdentifier {
     number: u32,
     hash: u32,
@@ -24,7 +26,7 @@ impl BlockIdentifier for MockIdentifier {
     }
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MockHeader {
     id: MockIdentifier,
     parent: Option<MockIdentifier>,
@@ -79,7 +81,7 @@ impl Header for MockHeader {
     }
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MockJustification {
     header: MockHeader,
 }
