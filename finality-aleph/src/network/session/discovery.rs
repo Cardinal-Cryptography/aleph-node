@@ -21,7 +21,6 @@ use crate::{
 pub struct Discovery<A: AddressingInformation> {
     cooldown: Duration,
     last_broadcast: HashMap<NodeIndex, Instant>,
-    last_legacy_broadcast: HashMap<NodeIndex, Instant>,
     _phantom: PhantomData<A>,
 }
 
@@ -31,7 +30,6 @@ impl<A: AddressingInformation> Discovery<A> {
         Discovery {
             cooldown,
             last_broadcast: HashMap::new(),
-            last_legacy_broadcast: HashMap::new(),
             _phantom: PhantomData,
         }
     }
@@ -54,13 +52,6 @@ impl<A: AddressingInformation> Discovery<A> {
 
     fn should_rebroadcast(&self, node_id: &NodeIndex) -> bool {
         match self.last_broadcast.get(node_id) {
-            Some(instant) => Instant::now() > *instant + self.cooldown,
-            None => true,
-        }
-    }
-
-    fn should_legacy_rebroadcast(&self, node_id: &NodeIndex) -> bool {
-        match self.last_legacy_broadcast.get(node_id) {
             Some(instant) => Instant::now() > *instant + self.cooldown,
             None => true,
         }
@@ -198,16 +189,6 @@ mod tests {
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
                 PeerAuthentications::NewOnly(rebroadcast_authentication),
-            ) if rebroadcast_authentication == authentication));
-    }
-
-    #[tokio::test]
-    async fn legacy_non_validator_rebroadcasts() {
-        let (mut discovery, handlers, mut non_validator) = build().await;
-        let (_, command) =
-            discovery.handle_legacy_authentication(authentication.clone(), &mut non_validator);
-        assert!(matches!(command, Some(
-                PeerAuthentications::LegacyOnly(rebroadcast_authentication),
             ) if rebroadcast_authentication == authentication));
     }
 

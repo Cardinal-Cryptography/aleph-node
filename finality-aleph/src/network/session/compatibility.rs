@@ -8,7 +8,7 @@ use log::warn;
 
 use crate::{
     network::{
-        session::{AuthData, Authentication},
+        session::Authentication,
         AddressingInformation
     },
     SessionId, Version,
@@ -206,7 +206,7 @@ mod test {
         network::{
             clique::mock::MockAddressingInformation,
             session::{
-                compatibility::{PeerAuthentications, MAX_AUTHENTICATION_SIZE}, SessionHandler,
+                compatibility::MAX_AUTHENTICATION_SIZE, SessionHandler,
             },
             tcp::{testing::new_identity, SignedTcpAddressingInformation},
             NetworkIdentity,
@@ -244,9 +244,6 @@ mod test {
             .authentication()
             .expect("should have authentication")
         {
-            PeerAuthentications::Both(authentication, _) => {
-                VersionedAuthentication::V2(authentication)
-            }
             _ => panic!("handler doesn't have both authentications"),
         }
     }
@@ -306,7 +303,7 @@ mod test {
     #[tokio::test]
     async fn correctly_decodes_other() {
         let other =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::Other(
+            VersionedAuthentication::<MockAddressingInformation>::Other(
                 Version(42),
                 vec![21, 37],
             );
@@ -318,13 +315,12 @@ mod test {
         other_big.append(&mut (MAX_AUTHENTICATION_SIZE).encode());
         other_big.append(&mut vec![0u8; (MAX_AUTHENTICATION_SIZE).into()]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::decode(
+            VersionedAuthentication::<MockAddressingInformation>::decode(
                 &mut other_big.as_slice(),
             );
         assert_eq!(
             decoded,
             Ok(VersionedAuthentication::<
-                MockAddressingInformation,
                 MockAddressingInformation,
             >::Other(Version(42), other_big[4..].to_vec()))
         );
@@ -337,19 +333,19 @@ mod test {
         other.append(&mut size.encode());
         other.append(&mut vec![0u8; size.into()]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::decode(
+            VersionedAuthentication::<MockAddressingInformation>::decode(
                 &mut other.as_slice(),
             );
         assert!(decoded.is_err());
 
         let other =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::Other(
+            VersionedAuthentication::<MockAddressingInformation>::Other(
                 Version(42),
                 vec![0u8; size.into()],
             );
         let encoded = other.encode();
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::decode(
+            VersionedAuthentication::<MockAddressingInformation>::decode(
                 &mut encoded.as_slice(),
             );
         assert!(decoded.is_err());
@@ -361,7 +357,7 @@ mod test {
         other.append(&mut MAX_AUTHENTICATION_SIZE.encode());
         other.append(&mut vec![21, 37]);
         let decoded =
-            VersionedAuthentication::<MockAddressingInformation, MockAddressingInformation>::decode(
+            VersionedAuthentication::<MockAddressingInformation>::decode(
                 &mut other.as_slice(),
             );
         assert!(decoded.is_err());

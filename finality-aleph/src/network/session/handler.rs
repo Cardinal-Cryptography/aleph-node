@@ -9,7 +9,7 @@ use crate::{
         session::{
             compatibility::PeerAuthentications, AuthData, Authentication,
         },
-        AddressingInformation, Data,
+        AddressingInformation
     },
     NodeIndex, SessionId,
 };
@@ -50,8 +50,7 @@ pub enum HandlerError {
 }
 
 async fn construct_session_info<
-    M: Data,
-    A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>,
+    A: AddressingInformation,
 >(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
@@ -228,7 +227,7 @@ pub mod tests {
         network::{
             clique::mock::{random_address, random_invalid_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{compatibility::PeerAuthentications, Authentication},
+            session::Authentication,
             AddressingInformation,
         },
         NodeIndex, SessionId,
@@ -241,7 +240,6 @@ pub mod tests {
             .authentication()
             .expect("this is a validator handler")
         {
-            PeerAuthentications::Both(authentication, _) => authentication,
             _ => panic!("handler doesn't have both authentications"),
         }
     }

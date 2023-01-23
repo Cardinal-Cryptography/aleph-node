@@ -578,10 +578,6 @@ mod tests {
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
         let (address, message) = match message {
-            PeerAuthentications::Both(authentication, _) => (
-                authentication.0.address(),
-                DiscoveryMessage::Authentication(authentication),
-            ),
             message => panic!("Expected both authentications, got {:?}", message),
         };
         let ManagerActions {
@@ -624,9 +620,6 @@ mod tests {
             .await
             .unwrap();
         let message = match maybe_message.expect("there should be a discovery message") {
-            PeerAuthentications::Both(authentication, _) => {
-                DiscoveryMessage::Authentication(authentication)
-            }
             message => panic!("Expected both authentications, got {:?}", message),
         };
         manager.on_discovery_message(message);
