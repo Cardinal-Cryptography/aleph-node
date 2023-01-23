@@ -198,15 +198,6 @@ impl TestData {
                 .await
                 .expect("Should add reserved nodes");
             reserved_addresses.insert(address);
-            // Gotta repeat this, because we are adding every address twice, due to legacy
-            // authentications.
-            let (_, address) = self
-                .validator_network
-                .add_connection
-                .next()
-                .await
-                .expect("Should add reserved nodes");
-            reserved_addresses.insert(address);
         }
 
         let mut expected_addresses = HashSet::new();
@@ -334,18 +325,15 @@ async fn test_forwards_authentication_broadcast() {
         ));
     }
 
-    for _ in 0..2 {
-        // Since we send the legacy auth and both are correct this should happen twice.
-        assert_eq!(
-            test_data
-                .validator_network
-                .add_connection
-                .next()
-                .await
-                .expect("Should add reserved nodes"),
-            (sending_peer.peer_id(), sending_peer.address()),
-        );
-    }
+    assert_eq!(
+        test_data
+            .validator_network
+            .add_connection
+            .next()
+            .await
+            .expect("Should add reserved nodes"),
+        (sending_peer.peer_id(), sending_peer.address()),
+    );
 
     let mut expected_authentication = HashMap::new();
     for authority in test_data.authorities.iter().skip(1) {
@@ -448,7 +436,7 @@ async fn test_stops_session() {
 
     // This assert should be before cleanup. We want to check whether `session_manager.stop_session(...)`
     // drops the sender. After cleanup all network tasks end and senders will be dropped.
-    // If assert was after cleanup we wouldn't know whether data_network receiver is droopped
+    // If assert was after cleanup we wouldn't know whether data_network receiver is dropped
     // because of `session_manager.stop_session(...)` or because of cleanup.
     assert_eq!(
         timeout(DEFAULT_TIMEOUT, data_network.next()).await,
