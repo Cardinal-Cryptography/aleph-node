@@ -59,9 +59,10 @@ use crate::{
     AccountId, Balance, ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
-/// Default gas limit, which allows up to 25% of block execution time.
+/// Default gas limit, which allows up to 25% of block time (62.5% of the actual block capacity).
 pub const DEFAULT_MAX_GAS: u64 = 250_000_000_000u64;
-/// Default proof size limit, which allows up to 25% of block execution time.
+/// Default proof size limit, which allows up to 25% of block time (62.5% of the actual block
+/// capacity).
 pub const DEFAULT_MAX_PROOF_SIZE: u64 = 250_000_000_000u64;
 
 /// Represents a contract instantiated on the chain.
