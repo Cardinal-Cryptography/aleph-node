@@ -59,21 +59,30 @@ use crate::{
     AccountId, Balance, ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
+/// Default gas limit, which allows up to 25% of block execution time.
+pub const DEFAULT_MAX_GAS: u64 = 250_000_000_000u64;
+
 /// Represents a contract instantiated on the chain.
 pub struct ContractInstance {
     address: AccountId,
     transcoder: ContractMessageTranscoder,
+    max_gas_override: Option<u64>,
 }
 
 impl ContractInstance {
-    const MAX_GAS: u64 = 10000000000u64;
-
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
     pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
         Ok(Self {
             address,
             transcoder: ContractMessageTranscoder::load(metadata_path)?,
+            max_gas_override: None,
         })
+    }
+
+    /// From now on, the contract instance will use `limit_override` as the gas limit for all
+    /// contract calls. If `limit_override` is `None`, then [DEFAULT_MAX_GAS] will be used.
+    pub fn override_gas_limit(&mut self, limit_override: Option<u64>) {
+        self.max_gas_override = limit_override;
     }
 
     /// The address of this contract instance.
@@ -168,8 +177,8 @@ impl ContractInstance {
             self.address.clone(),
             value,
             Weight {
-                ref_time: Self::MAX_GAS,
-                proof_size: Self::MAX_GAS,
+                ref_time: self.max_gas_override.unwrap_or(DEFAULT_MAX_GAS),
+                proof_size: self.max_gas_override.unwrap_or(DEFAULT_MAX_GAS),
             },
             None,
             data,
