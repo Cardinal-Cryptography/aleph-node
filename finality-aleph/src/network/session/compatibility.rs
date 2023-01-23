@@ -8,8 +8,8 @@ use log::warn;
 
 use crate::{
     network::{
-        session::{AuthData, Authentication, LegacyAuthentication},
-        AddressingInformation, Data,
+        session::{AuthData, Authentication},
+        AddressingInformation
     },
     SessionId, Version,
 };
@@ -21,19 +21,16 @@ const MAX_AUTHENTICATION_SIZE: u16 = 16 * 1024;
 
 /// The possible forms of peer authentications we can have, either only new, only legacy or both.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PeerAuthentications<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> {
-    NewOnly(Authentication<A>),
-    LegacyOnly(LegacyAuthentication<M>),
-    Both(Authentication<A>, LegacyAuthentication<M>),
+pub enum PeerAuthentications<A: AddressingInformation> {
+    NewOnly(Authentication<A>)
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> PeerAuthentications<M, A> {
+impl<A: AddressingInformation> PeerAuthentications<A> {
     /// The session with which these authentications are associated.
     pub fn session_id(&self) -> SessionId {
         use PeerAuthentications::*;
         match self {
-            NewOnly((auth_data, _)) | Both((auth_data, _), _) => auth_data.session(),
-            LegacyOnly((auth_data, _)) => auth_data.session(),
+            NewOnly((auth_data, _)) => auth_data.session(),
         }
     }
 
@@ -42,20 +39,6 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> PeerAut
         use PeerAuthentications::*;
         match self {
             NewOnly(_) => *self = NewOnly(authentication),
-            LegacyOnly(legacy_authentication) | Both(_, legacy_authentication) => {
-                *self = Both(authentication, legacy_authentication.clone())
-            }
-        }
-    }
-
-    /// Add a legacy authentication, overriding one that might have been here previously.
-    pub fn add_legacy_authentication(&mut self, legacy_authentication: LegacyAuthentication<M>) {
-        use PeerAuthentications::*;
-        match self {
-            LegacyOnly(_) => *self = LegacyOnly(legacy_authentication),
-            NewOnly(authentication) | Both(authentication, _) => {
-                *self = Both(authentication.clone(), legacy_authentication)
-            }
         }
     }
 
@@ -63,47 +46,26 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> PeerAut
     pub fn maybe_address(&self) -> Option<A> {
         use PeerAuthentications::*;
         match self {
-            NewOnly((auth_data, _)) | Both((auth_data, _), _) => Some(auth_data.address()),
-            LegacyOnly((legacy_auth_data, _)) => legacy_auth_data
-                .clone()
-                .try_into()
-                .map(|auth_data: AuthData<A>| auth_data.address())
-                .ok(),
+            NewOnly((auth_data, _)) => Some(auth_data.address()),
         }
     }
 }
 
-/// Legacy messages used for discovery and authentication.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
-pub enum LegacyDiscoveryMessage<M: Data> {
-    AuthenticationBroadcast(LegacyAuthentication<M>),
-    Authentication(LegacyAuthentication<M>),
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum VersionedAuthentication<M: Data, A: AddressingInformation> {
+pub enum VersionedAuthentication<A: AddressingInformation> {
     // Most likely from the future.
     Other(Version, Vec<u8>),
-    V1(LegacyDiscoveryMessage<M>),
     V2(Authentication<A>),
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
-    From<PeerAuthentications<M, A>> for Vec<VersionedAuthentication<M, A>>
+impl<A: AddressingInformation>
+    From<PeerAuthentications<A>> for Vec<VersionedAuthentication<A>>
 {
-    fn from(authentications: PeerAuthentications<M, A>) -> Self {
-        use LegacyDiscoveryMessage::*;
+    fn from(authentications: PeerAuthentications<A>) -> Self {
         use PeerAuthentications::*;
         use VersionedAuthentication::*;
         match authentications {
             NewOnly(authentication) => vec![V2(authentication)],
-            LegacyOnly(legacy_authentication) => {
-                vec![V1(AuthenticationBroadcast(legacy_authentication))]
-            }
-            Both(authentication, legacy_authentication) => vec![
-                V2(authentication),
-                V1(AuthenticationBroadcast(legacy_authentication)),
-            ],
         }
     }
 }
@@ -112,35 +74,28 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
 /// Ignores whether the old authentication was a broadcast or not, we don't send the
 /// non-broadcasts anymore anyway, and treating them as broadcasts doesn't break anything.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum DiscoveryMessage<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> {
+pub enum DiscoveryMessage<A: AddressingInformation> {
     Authentication(Authentication<A>),
-    LegacyAuthentication(LegacyAuthentication<M>),
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> DiscoveryMessage<M, A> {
+impl<A: AddressingInformation> DiscoveryMessage<A> {
     /// Session ID associated with this message.
     pub fn session_id(&self) -> SessionId {
         use DiscoveryMessage::*;
         match self {
             Authentication((auth_data, _)) => auth_data.session(),
-            LegacyAuthentication((auth_data, _)) => auth_data.session(),
         }
     }
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
-    TryInto<DiscoveryMessage<M, A>> for VersionedAuthentication<M, A>
+impl<A: AddressingInformation>
+    TryInto<DiscoveryMessage<A>> for VersionedAuthentication<A>
 {
     type Error = Error;
 
-    fn try_into(self) -> Result<DiscoveryMessage<M, A>, Self::Error> {
-        use LegacyDiscoveryMessage::*;
+    fn try_into(self) -> Result<DiscoveryMessage<A>, Self::Error> {
         use VersionedAuthentication::*;
         match self {
-            V1(AuthenticationBroadcast(legacy_authentication))
-            | V1(Authentication(legacy_authentication)) => Ok(
-                DiscoveryMessage::LegacyAuthentication(legacy_authentication),
-            ),
             V2(authentication) => Ok(DiscoveryMessage::Authentication(authentication)),
             Other(v, _) => Err(Error::UnknownVersion(v)),
         }
@@ -177,8 +132,8 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     result
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Encode
-    for VersionedAuthentication<M, A>
+impl<A: AddressingInformation> Encode
+    for VersionedAuthentication<A>
 {
     fn size_hint(&self) -> usize {
         use VersionedAuthentication::*;
@@ -188,7 +143,6 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Encode
             + byte_count_size
             + match self {
                 Other(_, payload) => payload.len(),
-                V1(data) => data.size_hint(),
                 V2(data) => data.size_hint(),
             }
     }
@@ -197,21 +151,19 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Encode
         use VersionedAuthentication::*;
         match self {
             Other(version, payload) => encode_with_version(*version, payload),
-            V1(data) => encode_with_version(Version(1), &data.encode()),
             V2(data) => encode_with_version(Version(2), &data.encode()),
         }
     }
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Decode
-    for VersionedAuthentication<M, A>
+impl<A: AddressingInformation> Decode
+    for VersionedAuthentication<A>
 {
     fn decode<I: CodecInput>(input: &mut I) -> Result<Self, CodecError> {
         use VersionedAuthentication::*;
         let version = Version::decode(input)?;
         let num_bytes = ByteCount::decode(input)?;
         match version {
-            Version(1) => Ok(V1(LegacyDiscoveryMessage::decode(input)?)),
             Version(2) => Ok(V2(Authentication::decode(input)?)),
             _ => {
                 if num_bytes > MAX_AUTHENTICATION_SIZE {
@@ -254,10 +206,9 @@ mod test {
         network::{
             clique::mock::MockAddressingInformation,
             session::{
-                compatibility::{PeerAuthentications, MAX_AUTHENTICATION_SIZE},
-                LegacyDiscoveryMessage, SessionHandler,
+                compatibility::{PeerAuthentications, MAX_AUTHENTICATION_SIZE}, SessionHandler,
             },
-            tcp::{testing::new_identity, LegacyTcpMultiaddress, SignedTcpAddressingInformation},
+            tcp::{testing::new_identity, SignedTcpAddressingInformation},
             NetworkIdentity,
         },
         nodes::testing::new_pen,
@@ -265,7 +216,7 @@ mod test {
     };
 
     /// Session Handler used for generating versioned authentication in `raw_authentication_v1`
-    async fn handler() -> SessionHandler<LegacyTcpMultiaddress, SignedTcpAddressingInformation> {
+    async fn handler() -> SessionHandler<SignedTcpAddressingInformation> {
         let mnemonic = "ring cool spatial rookie need wing opinion pond fork garbage more april";
         let external_addresses = vec![
             String::from("addr1"),
@@ -286,23 +237,9 @@ mod test {
         .await
     }
 
-    fn authentication_v1(
-        handler: SessionHandler<LegacyTcpMultiaddress, SignedTcpAddressingInformation>,
-    ) -> VersionedAuthentication<LegacyTcpMultiaddress, SignedTcpAddressingInformation> {
-        match handler
-            .authentication()
-            .expect("should have authentication")
-        {
-            PeerAuthentications::Both(_, authentication) => {
-                VersionedAuthentication::V1(LegacyDiscoveryMessage::Authentication(authentication))
-            }
-            _ => panic!("handler doesn't have both authentications"),
-        }
-    }
-
     fn authentication_v2(
-        handler: SessionHandler<LegacyTcpMultiaddress, SignedTcpAddressingInformation>,
-    ) -> VersionedAuthentication<LegacyTcpMultiaddress, SignedTcpAddressingInformation> {
+        handler: SessionHandler<SignedTcpAddressingInformation>,
+    ) -> VersionedAuthentication<SignedTcpAddressingInformation> {
         match handler
             .authentication()
             .expect("should have authentication")
@@ -312,26 +249,6 @@ mod test {
             }
             _ => panic!("handler doesn't have both authentications"),
         }
-    }
-
-    /// Versioned authentication for authority with:
-    /// external_addresses: [String::from("addr1"), String::from("addr2"), String::from("addr3")]
-    /// derived from mnemonic "ring cool spatial rookie need wing opinion pond fork garbage more april"
-    /// for node index 21 and session id 37
-    /// encoded at version of Aleph Node from r-8.0
-    fn raw_authentication_v1() -> Vec<u8> {
-        vec![
-            1, 0, 192, 0, 1, 12, 50, 40, 192, 239, 72, 72, 119, 156, 76, 37, 212, 220, 76, 165, 39,
-            73, 20, 89, 77, 66, 171, 174, 61, 31, 254, 137, 186, 1, 7, 141, 187, 219, 20, 97, 100,
-            100, 114, 49, 50, 40, 192, 239, 72, 72, 119, 156, 76, 37, 212, 220, 76, 165, 39, 73,
-            20, 89, 77, 66, 171, 174, 61, 31, 254, 137, 186, 1, 7, 141, 187, 219, 20, 97, 100, 100,
-            114, 50, 50, 40, 192, 239, 72, 72, 119, 156, 76, 37, 212, 220, 76, 165, 39, 73, 20, 89,
-            77, 66, 171, 174, 61, 31, 254, 137, 186, 1, 7, 141, 187, 219, 20, 97, 100, 100, 114,
-            51, 21, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 166, 39, 166, 74, 57, 190, 80, 240, 169, 85,
-            240, 126, 250, 119, 54, 24, 244, 91, 199, 127, 32, 78, 52, 98, 159, 182, 227, 170, 251,
-            49, 47, 89, 13, 171, 79, 190, 220, 22, 65, 254, 25, 115, 232, 103, 177, 252, 161, 222,
-            74, 18, 216, 213, 105, 220, 223, 247, 221, 85, 31, 146, 177, 96, 254, 9,
-        ]
     }
 
     /// Versioned authentication for authority with:
@@ -353,37 +270,6 @@ mod test {
             104, 166, 75, 174, 164, 119, 197, 78, 101, 221, 52, 51, 116, 221, 67, 45, 196, 65, 61,
             5, 246, 111, 56, 215, 145, 48, 170, 241, 60, 68, 231, 187, 72, 201, 18, 82, 249, 11,
         ]
-    }
-
-    #[tokio::test]
-    async fn correcly_encodes_v1_to_bytes() {
-        let handler = handler().await;
-        let raw = raw_authentication_v1();
-        let authentication_v1 = authentication_v1(handler);
-
-        assert_eq!(authentication_v1.encode(), raw);
-    }
-
-    #[tokio::test]
-    async fn correcly_decodes_v1_from_bytes() {
-        let handler = handler().await;
-        let raw = raw_authentication_v1();
-        let authentication_v1 = authentication_v1(handler);
-
-        let decoded = VersionedAuthentication::decode(&mut raw.as_slice());
-
-        assert_eq!(decoded, Ok(authentication_v1));
-    }
-
-    #[tokio::test]
-    async fn correctly_decodes_v1_roundtrip() {
-        let handler = handler().await;
-        let authentication_v1 = authentication_v1(handler);
-
-        let encoded = authentication_v1.encode();
-        let decoded = VersionedAuthentication::decode(&mut encoded.as_slice());
-
-        assert_eq!(decoded, Ok(authentication_v1))
     }
 
     #[tokio::test]

@@ -7,8 +7,7 @@ use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         session::{
-            compatibility::PeerAuthentications, AuthData, Authentication, LegacyAuthData,
-            LegacyAuthentication,
+            compatibility::PeerAuthentications, AuthData, Authentication,
         },
         AddressingInformation, Data,
     },
@@ -16,12 +15,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum SessionInfo<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> {
+pub enum SessionInfo<A: AddressingInformation> {
     SessionId(SessionId),
-    OwnAuthentication(PeerAuthentications<M, A>),
+    OwnAuthentication(PeerAuthentications<A>),
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> SessionInfo<M, A> {
+impl<A: AddressingInformation> SessionInfo<A> {
     fn session_id(&self) -> SessionId {
         match self {
             SessionInfo::SessionId(session_id) => *session_id,
@@ -34,10 +33,10 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Session
 
 /// A struct for handling authentications for a given session and maintaining
 /// mappings between PeerIds and NodeIndexes within that session.
-pub struct Handler<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> {
+pub struct Handler<A: AddressingInformation> {
     peers_by_node: HashMap<NodeIndex, A::PeerId>,
-    authentications: HashMap<A::PeerId, PeerAuthentications<M, A>>,
-    session_info: SessionInfo<M, A>,
+    authentications: HashMap<A::PeerId, PeerAuthentications<A>>,
+    session_info: SessionInfo<A>,
     own_peer_id: A::PeerId,
     authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
     authority_verifier: AuthorityVerifier,
@@ -57,7 +56,7 @@ async fn construct_session_info<
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     address: A,
-) -> (SessionInfo<M, A>, A::PeerId) {
+) -> (SessionInfo<A>, A::PeerId) {
     let peer_id = address.peer_id();
     match authority_index_and_pen {
         Some((node_index, authority_pen)) => {
@@ -66,12 +65,9 @@ async fn construct_session_info<
                 node_id: *node_index,
                 session_id,
             };
-            let legacy_auth_data: LegacyAuthData<M> = auth_data.clone().into();
             let signature = authority_pen.sign(&auth_data.encode()).await;
-            let legacy_signature = authority_pen.sign(&legacy_auth_data.encode()).await;
-            let authentications = PeerAuthentications::Both(
+            let authentications = PeerAuthentications::NewOnly(
                 (auth_data, signature),
-                (legacy_auth_data, legacy_signature),
             );
             (SessionInfo::OwnAuthentication(authentications), peer_id)
         }
@@ -79,7 +75,7 @@ async fn construct_session_info<
     }
 }
 
-impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler<M, A> {
+impl<A: AddressingInformation> Handler<A> {
     /// Creates a new session handler. It will be a validator session handler if the authority
     /// index and pen are provided.
     pub async fn new(
@@ -87,7 +83,7 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler
         authority_verifier: AuthorityVerifier,
         session_id: SessionId,
         address: A,
-    ) -> Handler<M, A> {
+    ) -> Handler<A> {
         let (session_info, own_peer_id) =
             construct_session_info(&authority_index_and_pen, session_id, address).await;
         Handler {
@@ -120,7 +116,7 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
-    pub fn authentication(&self) -> Option<PeerAuthentications<M, A>> {
+    pub fn authentication(&self) -> Option<PeerAuthentications<A>> {
         match &self.session_info {
             SessionInfo::SessionId(_) => None,
             SessionInfo::OwnAuthentication(own_authentications) => {
@@ -176,44 +172,6 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler
         Some(address)
     }
 
-    /// Verifies the legacy authentication, uses it to update mappings, and returns the address we should stay connected to if any.
-    pub fn handle_legacy_authentication(
-        &mut self,
-        legacy_authentication: LegacyAuthentication<M>,
-    ) -> Option<A> {
-        if legacy_authentication.0.session() != self.session_id() {
-            return None;
-        }
-        let (legacy_auth_data, signature) = &legacy_authentication;
-
-        if !self.authority_verifier.verify(
-            &legacy_auth_data.encode(),
-            signature,
-            legacy_auth_data.creator(),
-        ) {
-            return None;
-        }
-
-        let maybe_auth_data: Option<AuthData<A>> = legacy_auth_data.clone().try_into().ok();
-        let address = match maybe_auth_data {
-            Some(auth_data) => auth_data.address(),
-            None => return None,
-        };
-        let peer_id = address.peer_id();
-        if peer_id == self.own_peer_id {
-            return None;
-        }
-        self.peers_by_node
-            .insert(legacy_auth_data.creator(), peer_id.clone());
-        self.authentications
-            .entry(peer_id)
-            .and_modify(|authentications| {
-                authentications.add_legacy_authentication(legacy_authentication.clone())
-            })
-            .or_insert(PeerAuthentications::LegacyOnly(legacy_authentication));
-        Some(address)
-    }
-
     /// Returns the PeerId of the node with the given NodeIndex, if known.
     pub fn peer_id(&self, node_id: &NodeIndex) -> Option<A::PeerId> {
         self.peers_by_node.get(node_id).cloned()
@@ -253,11 +211,6 @@ impl<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Handler
         for (_, authentication) in authentications {
             match authentication {
                 NewOnly(auth) => self.handle_authentication(auth),
-                LegacyOnly(legacy_auth) => self.handle_legacy_authentication(legacy_auth),
-                Both(auth, legacy_auth) => {
-                    self.handle_legacy_authentication(legacy_auth);
-                    self.handle_authentication(auth)
-                }
             };
         }
         Ok(self
@@ -275,26 +228,14 @@ pub mod tests {
         network::{
             clique::mock::{random_address, random_invalid_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{compatibility::PeerAuthentications, Authentication, LegacyAuthentication},
+            session::{compatibility::PeerAuthentications, Authentication},
             AddressingInformation,
         },
         NodeIndex, SessionId,
     };
 
-    pub fn legacy_authentication(
-        handler: &Handler<MockAddressingInformation, MockAddressingInformation>,
-    ) -> LegacyAuthentication<MockAddressingInformation> {
-        match handler
-            .authentication()
-            .expect("this is a validator handler")
-        {
-            PeerAuthentications::Both(_, authentication) => authentication,
-            _ => panic!("handler doesn't have both authentications"),
-        }
-    }
-
     pub fn authentication(
-        handler: &Handler<MockAddressingInformation, MockAddressingInformation>,
+        handler: &Handler<MockAddressingInformation>,
     ) -> Authentication<MockAddressingInformation> {
         match handler
             .authentication()
@@ -431,9 +372,6 @@ pub mod tests {
         assert!(handler0
             .handle_authentication(authentication(&handler1))
             .is_some());
-        assert!(handler0
-            .handle_legacy_authentication(legacy_authentication(&handler1))
-            .is_some());
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (2..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
@@ -461,9 +399,6 @@ pub mod tests {
         .await;
         assert!(handler0
             .handle_authentication(authentication(&handler1))
-            .is_some());
-        assert!(handler0
-            .handle_legacy_authentication(legacy_authentication(&handler1))
             .is_some());
         let missing_nodes = handler0.missing_nodes();
         let mut expected_missing: Vec<_> = (0..NUM_NODES).map(NodeIndex).collect();
@@ -543,9 +478,6 @@ pub mod tests {
         assert!(handler0
             .handle_authentication(authentication(&handler1))
             .is_none());
-        assert!(handler0
-            .handle_legacy_authentication(legacy_authentication(&handler1))
-            .is_none());
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
         assert_eq!(missing_nodes, expected_missing);
@@ -563,9 +495,6 @@ pub mod tests {
         .await;
         assert!(handler0
             .handle_authentication(authentication(&handler0))
-            .is_none());
-        assert!(handler0
-            .handle_legacy_authentication(legacy_authentication(&handler0))
             .is_none());
         let missing_nodes = handler0.missing_nodes();
         let expected_missing: Vec<_> = (1..NUM_NODES).map(NodeIndex).collect();
@@ -591,9 +520,6 @@ pub mod tests {
         .await;
         assert!(handler0
             .handle_authentication(authentication(&handler1))
-            .is_some());
-        assert!(handler0
-            .handle_legacy_authentication(legacy_authentication(&handler1))
             .is_some());
         let new_crypto_basics = crypto_basics(NUM_NODES).await;
         handler0

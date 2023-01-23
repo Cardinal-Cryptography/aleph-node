@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    fmt::Debug,
     marker::PhantomData,
     time::{Duration, Instant},
 };
@@ -10,23 +9,23 @@ use log::{debug, info, trace};
 use crate::{
     network::{
         session::{
-            compatibility::PeerAuthentications, Authentication, LegacyAuthentication,
+            compatibility::PeerAuthentications, Authentication,
             SessionHandler,
         },
-        AddressingInformation, Data,
+        AddressingInformation,
     },
     NodeIndex,
 };
 
 /// Handles creating and rebroadcasting discovery messages.
-pub struct Discovery<M: Data, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> {
+pub struct Discovery<A: AddressingInformation> {
     cooldown: Duration,
     last_broadcast: HashMap<NodeIndex, Instant>,
     last_legacy_broadcast: HashMap<NodeIndex, Instant>,
-    _phantom: PhantomData<(M, A)>,
+    _phantom: PhantomData<A>,
 }
 
-impl<M: Data + Debug, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>> Discovery<M, A> {
+impl<A: AddressingInformation> Discovery<A> {
     /// Create a new discovery handler with the given response/broadcast cooldown.
     pub fn new(cooldown: Duration) -> Self {
         Discovery {
@@ -40,8 +39,8 @@ impl<M: Data + Debug, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
     /// Returns a message that should be sent as part of authority discovery at this moment.
     pub fn discover_authorities(
         &mut self,
-        handler: &SessionHandler<M, A>,
-    ) -> Option<PeerAuthentications<M, A>> {
+        handler: &SessionHandler<A>,
+    ) -> Option<PeerAuthentications<A>> {
         let authentication = match handler.authentication() {
             Some(authentication) => authentication,
             None => return None,
@@ -73,8 +72,8 @@ impl<M: Data + Debug, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
     pub fn handle_authentication(
         &mut self,
         authentication: Authentication<A>,
-        handler: &mut SessionHandler<M, A>,
-    ) -> (Option<A>, Option<PeerAuthentications<M, A>>) {
+        handler: &mut SessionHandler<A>,
+    ) -> (Option<A>, Option<PeerAuthentications<A>>) {
         debug!(target: "aleph-network", "Handling broadcast with authentication {:?}.", authentication);
         let address = match handler.handle_authentication(authentication.clone()) {
             Some(address) => Some(address),
@@ -88,31 +87,6 @@ impl<M: Data + Debug, A: AddressingInformation + TryFrom<Vec<M>> + Into<Vec<M>>>
         self.last_broadcast.insert(node_id, Instant::now());
         (address, Some(PeerAuthentications::NewOnly(authentication)))
     }
-
-    /// Processes the legacy authentication and returns any new address we should
-    /// be connected to if we want to stay connected to the committee and an optional
-    /// message that we should send as a result of it.
-    pub fn handle_legacy_authentication(
-        &mut self,
-        legacy_authentication: LegacyAuthentication<M>,
-        handler: &mut SessionHandler<M, A>,
-    ) -> (Option<A>, Option<PeerAuthentications<M, A>>) {
-        debug!(target: "aleph-network", "Handling broadcast with legacy authentication {:?}.", legacy_authentication);
-        let address = match handler.handle_legacy_authentication(legacy_authentication.clone()) {
-            Some(address) => Some(address),
-            None => return (None, None),
-        };
-        let node_id = legacy_authentication.0.creator();
-        if !self.should_legacy_rebroadcast(&node_id) {
-            return (address, None);
-        }
-        trace!(target: "aleph-network", "Rebroadcasting {:?}.", legacy_authentication);
-        self.last_legacy_broadcast.insert(node_id, Instant::now());
-        (
-            address,
-            Some(PeerAuthentications::LegacyOnly(legacy_authentication)),
-        )
-    }
 }
 
 #[cfg(test)]
@@ -125,7 +99,7 @@ mod tests {
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
             session::{
-                authentication, compatibility::PeerAuthentications, legacy_authentication,
+                authentication, compatibility::PeerAuthentications,
                 SessionHandler,
             },
         },
@@ -142,9 +116,9 @@ mod tests {
     async fn build_number(
         num_nodes: u8,
     ) -> (
-        Discovery<MockAddressingInformation, MockAddressingInformation>,
-        Vec<SessionHandler<MockAddressingInformation, MockAddressingInformation>>,
-        SessionHandler<MockAddressingInformation, MockAddressingInformation>,
+        Discovery<MockAddressingInformation>,
+        Vec<SessionHandler<MockAddressingInformation>>,
+        SessionHandler<MockAddressingInformation>,
     ) {
         let crypto_basics = crypto_basics(num_nodes.into()).await;
         let mut handlers = Vec::new();
@@ -174,9 +148,9 @@ mod tests {
     }
 
     async fn build() -> (
-        Discovery<MockAddressingInformation, MockAddressingInformation>,
-        Vec<SessionHandler<MockAddressingInformation, MockAddressingInformation>>,
-        SessionHandler<MockAddressingInformation, MockAddressingInformation>,
+        Discovery<MockAddressingInformation>,
+        Vec<SessionHandler<MockAddressingInformation>>,
+        SessionHandler<MockAddressingInformation>,
     ) {
         build_number(NUM_NODES).await
     }
@@ -216,17 +190,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_rebroadcasts_and_accepts_addresses() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let authentication = legacy_authentication(&handlers[1]);
-        let handler = &mut handlers[0];
-        let (_, command) = discovery.handle_legacy_authentication(authentication.clone(), handler);
-        assert!(matches!(command, Some(
-                PeerAuthentications::LegacyOnly(rebroadcast_authentication),
-            ) if rebroadcast_authentication == authentication));
-    }
-
-    #[tokio::test]
     async fn non_validator_rebroadcasts() {
         let (mut discovery, handlers, mut non_validator) = build().await;
         let authentication = authentication(&handlers[1]);
@@ -241,7 +204,6 @@ mod tests {
     #[tokio::test]
     async fn legacy_non_validator_rebroadcasts() {
         let (mut discovery, handlers, mut non_validator) = build().await;
-        let authentication = legacy_authentication(&handlers[1]);
         let (_, command) =
             discovery.handle_legacy_authentication(authentication.clone(), &mut non_validator);
         assert!(matches!(command, Some(
@@ -262,18 +224,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_does_not_rebroadcast_wrong_authentications() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let (auth_data, _) = legacy_authentication(&handlers[1]);
-        let (_, signature) = legacy_authentication(&handlers[2]);
-        let authentication = (auth_data, signature);
-        let handler = &mut handlers[0];
-        let (address, command) = discovery.handle_legacy_authentication(authentication, handler);
-        assert!(address.is_none());
-        assert!(command.is_none());
-    }
-
-    #[tokio::test]
     async fn rebroadcasts_after_cooldown() {
         let (mut discovery, mut handlers, _) = build().await;
         let authentication = authentication(&handlers[1]);
@@ -285,32 +235,5 @@ mod tests {
         assert!(matches!(command, Some(
                 PeerAuthentications::NewOnly(rebroadcast_authentication),
             ) if rebroadcast_authentication == authentication));
-    }
-
-    #[tokio::test]
-    async fn legacy_rebroadcasts_after_cooldown() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let authentication = legacy_authentication(&handlers[1]);
-        let handler = &mut handlers[0];
-        discovery.handle_legacy_authentication(authentication.clone(), handler);
-        sleep(Duration::from_millis(MS_COOLDOWN + 5));
-        let (_, command) = discovery.handle_legacy_authentication(authentication.clone(), handler);
-        assert!(matches!(command, Some(
-                PeerAuthentications::LegacyOnly(rebroadcast_authentication),
-            ) if rebroadcast_authentication == authentication));
-    }
-
-    #[tokio::test]
-    async fn rebroadcasts_legacy_immediately() {
-        let (mut discovery, mut handlers, _) = build().await;
-        let authentication = authentication(&handlers[1]);
-        let legacy_authentication = legacy_authentication(&handlers[1]);
-        let handler = &mut handlers[0];
-        discovery.handle_authentication(authentication, handler);
-        let (_, command) =
-            discovery.handle_legacy_authentication(legacy_authentication.clone(), handler);
-        assert!(matches!(command, Some(
-                PeerAuthentications::LegacyOnly(rebroadcast_authentication),
-            ) if rebroadcast_authentication == legacy_authentication));
     }
 }

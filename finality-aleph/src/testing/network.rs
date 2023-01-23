@@ -19,8 +19,8 @@ use crate::{
         data::Network,
         mock::{crypto_basics, MockData},
         session::{
-            authentication, legacy_authentication, ConnectionManager, ConnectionManagerConfig,
-            DataInSession, LegacyDiscoveryMessage, ManagerError, SessionHandler, SessionManager,
+            authentication, ConnectionManager, ConnectionManagerConfig,
+            DataInSession, ManagerError, SessionHandler, SessionManager,
             VersionedAuthentication,
         },
         AddressingInformation, GossipService, MockEvent, MockRawNetwork, Protocol,
