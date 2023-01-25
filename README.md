@@ -17,7 +17,7 @@ Please consult the [BUILD][build] guide.
 
 #### Connect to Aleph Zero Testnet
 
-You can connect to global Aleph Zero Testnet network by running `aleph-node --chain=testnet`.
+You can connect to global Aleph Zero Testnet network by running `aleph-node --chain=testnet`. 
 
 #### Local Network
 
