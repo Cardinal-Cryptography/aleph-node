@@ -81,6 +81,7 @@ jobs:
           RELEASE_IMAGE: public.ecr.aws/p6e8q1z1/snarkeling:${{ steps.get_branch.outputs.sha_short }}
         uses: docker/build-push-action@v3
         with:
+          context: ./
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/Dockerfile
           push: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy || github.event_name == 'push' }}
