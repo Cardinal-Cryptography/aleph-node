@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [ snarkeling ]
     paths:
+      - aggregator/**
       - bin/node/**
       - bin/runtime/**
       - finality-aleph/**
@@ -14,6 +15,7 @@ on:
   push:
     branches: [ snarkeling ]
     paths:
+      - aggregator/**
       - bin/node/**
       - bin/runtime/**
       - finality-aleph/**

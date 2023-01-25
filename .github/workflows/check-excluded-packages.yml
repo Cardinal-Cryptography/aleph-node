@@ -2,13 +2,13 @@ name: Check excluded packages
 
 on:
   pull_request:
-    branches:
-      - '**'
-  push:
-    paths-ignore:
-      - '*.md'
-    branches:
-      - main
+    paths:
+      - aleph-client/**
+      - bin/cliain/**
+      - bin/runtime/src/chain_extension/snarcos-extension/**
+      - relations/**
+      - poseidon/**
+      - .github/workflows/check-excluded-packages.yaml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
