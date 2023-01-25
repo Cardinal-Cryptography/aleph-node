@@ -9,7 +9,7 @@ on:
       - finality-aleph/**
       - pallets/**
       - primitives/**
-      - .github/workflows/unit_tests.yaml
+      - .github/workflows/unit_tests.yml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}

@@ -8,7 +8,7 @@ on:
       - bin/runtime/src/chain_extension/snarcos-extension/**
       - relations/**
       - poseidon/**
-      - .github/workflows/check-excluded-packages.yaml
+      - .github/workflows/check-excluded-packages.yml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}

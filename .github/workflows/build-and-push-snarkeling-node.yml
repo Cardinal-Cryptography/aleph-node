@@ -11,7 +11,7 @@ on:
       - pallets/**
       - primitives/**
       - docker/**
-      - .github/workflows/build-and-push-snarkeling-node.yaml
+      - .github/workflows/build-and-push-snarkeling-node.yml
   push:
     branches: [ snarkeling ]
     paths:
@@ -22,7 +22,7 @@ on:
       - pallets/**
       - primitives/**
       - docker/**
-      - .github/workflows/build-and-push-snarkeling-node.yaml
+      - .github/workflows/build-and-push-snarkeling-node.yml
   workflow_dispatch:
     inputs:
       deploy:

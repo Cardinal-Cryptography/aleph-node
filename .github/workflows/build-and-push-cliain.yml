@@ -5,12 +5,12 @@ on:
     branches: [ snarkeling ]
     paths:
       - bin/cliain/**
-      - .github/workflows/build-and-push-cliain.yaml
+      - .github/workflows/build-and-push-cliain.yml
   push:
     branches: [ snarkeling ]
     paths:
       - bin/cliain/**
-      - .github/workflows/build-and-push-cliain.yaml
+      - .github/workflows/build-and-push-cliain.yml
   workflow_dispatch:
     inputs:
       deploy:
