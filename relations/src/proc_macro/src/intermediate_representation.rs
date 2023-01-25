@@ -1,21 +1,38 @@
-use std::str::FromStr;
-
 use proc_macro2::{Ident, Span};
 use syn::{
     spanned::Spanned, Error as SynError, Field, Fields, FieldsNamed, Item, ItemFn, ItemMod,
-    ItemStruct, ItemType, ItemUse, Result as SynResult, VisPublic, Visibility,
+    ItemStruct, ItemUse, Result as SynResult, Visibility,
 };
 
 use crate::{
     naming::{
-        CIRCUIT_FIELD_DEF, CONSTANT_FIELD, FIELD_FRONTEND_TYPE, FIELD_PARSER, FIELD_SERIALIZER,
-        PRIVATE_INPUT_FIELD, PUBLIC_INPUT_FIELD, PUBLIC_INPUT_ORDER,
+        CONSTANT_FIELD, FIELD_FRONTEND_TYPE, FIELD_PARSER, FIELD_SERIALIZER, PRIVATE_INPUT_FIELD,
+        PUBLIC_INPUT_FIELD,
     },
     parse_utils::{
-        as_circuit_def, as_circuit_field_def, as_relation_object_def, get_field_attr,
-        get_public_input_field_config, get_relation_field_config,
+        as_circuit_def, as_relation_object_def, get_field_attr, get_public_input_field_config,
+        get_relation_field_config,
     },
 };
+
+/// Intermediate representation of the source code.
+pub(super) struct IR {
+    /// Prefix for the new structs.
+    pub relation_base_name: Ident,
+
+    /// All constants fields with modifiers.
+    pub constants: Vec<RelationField>,
+    /// All public input fields with modifiers.
+    pub public_inputs: Vec<PublicInputField>,
+    /// All private input fields with modifiers.
+    pub private_inputs: Vec<RelationField>,
+
+    /// Circuit definition method.
+    pub circuit_definition: ItemFn,
+
+    /// Imports to be inherited.
+    pub imports: Vec<ItemUse>,
+}
 
 /// Common data for constant, public and private inputs.
 #[derive(Clone)]
@@ -50,8 +67,6 @@ pub(super) struct PublicInputField {
     pub inner: RelationField,
     /// The value of the `serialize_with` modifier, if any.
     pub serialize_with: Option<String>,
-    /// The value of the `order` modifier, if any.
-    pub order: Option<usize>,
 }
 
 impl From<PublicInputField> for RelationField {
@@ -67,19 +82,6 @@ impl TryFrom<Field> for PublicInputField {
         let attr = get_field_attr(&field)?;
         let config = get_public_input_field_config(attr)?;
 
-        let order = match config.get(PUBLIC_INPUT_ORDER) {
-            None => None,
-            Some(s) => match usize::from_str(s) {
-                Ok(order) => Some(order),
-                Err(e) => {
-                    return Err(SynError::new(
-                        attr.span(),
-                        format!("Invalid order value: {e:?}"),
-                    ))
-                }
-            },
-        };
-
         Ok(PublicInputField {
             inner: RelationField {
                 field,
@@ -87,38 +89,14 @@ impl TryFrom<Field> for PublicInputField {
                 parse_with: config.get(FIELD_PARSER).cloned(),
             },
             serialize_with: config.get(FIELD_SERIALIZER).cloned(),
-            order,
         })
     }
-}
-
-/// Intermediate representation of the source code.
-pub(super) struct IR {
-    /// Prefix for the new structs.
-    pub relation_base_name: Ident,
-
-    /// All constants fields with modifiers.
-    pub constants: Vec<RelationField>,
-    /// All public input fields with modifiers.
-    pub public_inputs: Vec<PublicInputField>,
-    /// All private input fields with modifiers.
-    pub private_inputs: Vec<RelationField>,
-
-    /// Circuit field type alias.
-    pub circuit_field: ItemType,
-
-    /// Circuit definition method.
-    pub circuit_definition: ItemFn,
-
-    /// Imports to be inherited.
-    pub imports: Vec<ItemUse>,
 }
 
 /// The only items that will be processed from the module.
 struct Items {
     struct_def: ItemStruct,
     circuit_def: ItemFn,
-    circuit_field: ItemType,
     imports: Vec<ItemUse>,
 }
 
@@ -129,7 +107,6 @@ impl TryFrom<ItemMod> for IR {
         let Items {
             struct_def,
             circuit_def: circuit_definition,
-            mut circuit_field,
             imports,
         } = extract_items(item_mod)?;
 
@@ -146,24 +123,14 @@ impl TryFrom<ItemMod> for IR {
             if !matches!(circuit_definition.vis, Visibility::Inherited) {
                 eprintln!("Warning: The circuit definition is public, but will be erased.")
             }
-            if !matches!(circuit_field.vis, Visibility::Public(_)) {
-                eprintln!("Warning: The circuit field must be public. Visibility will be changed.");
-                circuit_field.vis = Visibility::Public(VisPublic {
-                    pub_token: Default::default(),
-                });
-            }
         }
-
-        circuit_field
-            .attrs
-            .retain(|a| !a.path.is_ident(CIRCUIT_FIELD_DEF));
 
         // Extract all fields. There should be at least one field. All fields must be named.
         let fields = match struct_def.fields {
             Fields::Named(fields) => Ok(fields),
             _ => Err(SynError::new(
                 struct_def.fields.span(),
-                "The relation should have some fields and they should be named.",
+                "Expected struct with named fields",
             )),
         }?;
 
@@ -182,7 +149,6 @@ impl TryFrom<ItemMod> for IR {
             constants,
             public_inputs,
             private_inputs,
-            circuit_field,
             circuit_definition,
             imports,
         })
@@ -199,15 +165,11 @@ fn extract_item<I: Spanned + Clone, E: Fn(&Item) -> Option<I>>(
     item_name: &'static str,
 ) -> SynResult<I> {
     let matching = items.iter().filter_map(extractor).collect::<Vec<_>>();
-    match matching.len() {
-        0 => Err(SynError::new(
-            outer_span,
-            format!("Missing item: {item_name}"),
-        )),
-        1 => Ok(matching[0].clone()),
+    match &*matching {
+        [item] => Ok(item.clone()),
         _ => Err(SynError::new(
-            matching[1].span(),
-            format!("Duplicated item: {item_name}"),
+            outer_span,
+            format!("Expected unique item: {item_name}"),
         )),
     }
 }
@@ -227,9 +189,9 @@ fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
 
     let span = item_mod.span();
 
-    let struct_def = extract_item(items, as_relation_object_def, span, "relation object")?;
-    let circuit_def = extract_item(items, as_circuit_def, span, "circuit definition")?;
-    let circuit_field = extract_item(items, as_circuit_field_def, span, "circuit field")?;
+    let relation_object_definition =
+        extract_item(items, as_relation_object_def, span, "relation object")?;
+    let circuit_definition = extract_item(items, as_circuit_def, span, "circuit definition")?;
 
     let imports = items
         .iter()
@@ -240,14 +202,13 @@ fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
         .collect();
 
     Ok(Items {
-        struct_def,
-        circuit_def,
-        circuit_field,
+        struct_def: relation_object_definition,
+        circuit_def: circuit_definition,
         imports,
     })
 }
 
-/// Returns all the elements of `fields` that are attributed with `field_name`, e.g.
+/// Returns all the elements of `fields` that are attributed with `field_type`, e.g.
 /// ```rust,no_run
 /// #[public_input]
 /// a: u8
@@ -272,7 +233,5 @@ fn cast_fields<F: TryFrom<Field, Error = SynError>>(fields: Vec<Field>) -> SynRe
     fields
         .into_iter()
         .map(TryInto::<F>::try_into)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
 }

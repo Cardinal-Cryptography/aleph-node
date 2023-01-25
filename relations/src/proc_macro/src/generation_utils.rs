@@ -4,12 +4,12 @@ use syn::{spanned::Spanned, Error as SynError, Result as SynResult};
 
 use crate::intermediate_representation::{PublicInputField, RelationField};
 
-/// Forcily extracts ident from the field.
+/// Forcibly extracts ident from the field.
 fn get_ident(f: &RelationField) -> &Ident {
     f.field
         .ident
         .as_ref()
-        .expect("We are working on named fields")
+        .expect("Expected struct with named fields")
 }
 
 /// Applies `mapper` to every element in `fields` with its ident extracted.

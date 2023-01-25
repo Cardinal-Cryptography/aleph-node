@@ -18,12 +18,10 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 /// Given minimal relation definition, this macro will generate all the required code for creating
 /// and casting partial relation objects, public input serialization and circuit generation.
 ///
-/// The `#[snark_relation]` attribute is intended for modules. Such module must define three items:
-///  1. *circuit field type*: the destination type for serializing public input. The type alias
-///     should be defined with `#[circuit_field]` attribute.
-///  2. *relation object*: the collection of all constant, public and private relation data. The
+/// The `#[snark_relation]` attribute is intended for modules. Such module must define two items:
+///  1. *relation object*: the collection of all constant, public and private relation data. The
 ///     struct should be defined with `#[relation_object_definition]` attribute.
-///  3. *circuit definition*: the circuit form. The function should be defined with
+///  2. *circuit definition*: the circuit form. The function should be defined with
 ///     `#[circuit_definition]` attribute. The signature can be arbitrary.
 ///
 /// Provided with these inputs, the macro will generate following items (outside the module).
@@ -43,14 +41,11 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 ///  -  A `serialize_public_input(&self)` method for `<R>WithPublicInput`.
 ///  -  Implementation of `ConstraintSynthesizer` trait for `<R>WithoutInput` (with setup mode
 ///     check).
-///  -  Implementation of `ConstaintSynthesizer` trait for `<R>WithFullInput`.
+///  -  Implementation of `ConstraintSynthesizer` trait for `<R>WithFullInput`.
 ///
 /// ```rust, no_run
 ///#[snark_relation]
 ///mod relation {
-///    #[circuit_field]
-///    pub type CF = CircuitField;
-///
 ///    #[relation_object_definition]
 ///    struct SomeRelation {
 ///        #[constant]
@@ -76,11 +71,7 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 ///     "u32_to_CF")]`) - this is the method that will be used for translating frontend value to the
 ///     backend type in the constructors. Unless specified, `.into()` will be used. It cannot be
 ///     used without `frontend_type`.
-/// Public inputs can have two more modifiers:
-///  -  *order* (e.g. `#[public_input(order = "0")]`) - in case the order of the fields is different
-///     from the order in which variables are declared in the circuit, one can explicitly state
-///     in what order public inputs should be serialized. Either all or none of the inputs should
-///     have this modifier set.
+/// Public inputs can have one more modifier:
 ///  -  *serializator* (e.g. `#[public_input(serialize_with = "flatten_sequence")]`) - the
 ///     serialization process should result in `Vec<CF>` (where `CF` is the circuit field type). By
 ///     default, every public input will be firstly wrapped into a singleton vector (`vec![input]`),
@@ -88,7 +79,7 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 ///     requires some other way to fit into (usually flattening), you can pass you custom
 ///     serializator.
 ///
-/// All the values in modifiers (order, function names, types) must be passed as string literals
+/// All the values in modifiers (function names, types) must be passed as string literals
 /// (within `""`).
 ///
 /// All the imports (`use` items) that are present in the module will be copied and moved outside
@@ -116,18 +107,15 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 ///
 /// #[snark_relation]
 /// mod relation {
-///     #[circuit_field]
-///     pub type CF = CircuitField;
-///
 ///     #[relation_object_definition]
 ///     struct SomeRelation {
 ///         #[constant]
 ///         a: u8,
-///         #[public_input(order = "1", frontend_type = "u16", parse_with = "parse_u16")]
+///         #[public_input(frontend_type = "u16", parse_with = "parse_u16")]
 ///         b: CF,
 ///         #[private_input(frontend_type = "u32")]
 ///         c: u64,
-///         #[public_input(order = "0", serialize_with = "byte_to_bits")]
+///         #[public_input(serialize_with = "byte_to_bits")]
 ///         d: u8,
 ///     }
 ///

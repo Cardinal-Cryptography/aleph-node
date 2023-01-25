@@ -38,7 +38,6 @@ mod relation {
         #[public_input(frontend_type = "FrontendTokenAmount")]
         pub token_amount: BackendTokenAmount,
 
-        // Private inputs
         #[private_input(frontend_type = "FrontendTrapdoor")]
         pub trapdoor: BackendTrapdoor,
         #[private_input(frontend_type = "FrontendNullifier")]

@@ -1,26 +1,22 @@
-use std::collections::HashSet;
-
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{spanned::Spanned, Error as SynError, Result as SynResult};
+use syn::Result as SynResult;
 
 use crate::{
     generation_utils::{
         failing_field_getters, field_backend_decls, field_castings, field_frontend_decls,
         field_rewrites, field_serializations, plain_field_getters, successful_field_getters,
     },
-    intermediate_representation::{PublicInputField, IR},
+    intermediate_representation::IR,
     naming::{struct_name_with_full, struct_name_with_public, struct_name_without_input},
 };
 
 /// Generates the whole code based on the intermediate representation.
 pub(super) fn generate_code(ir: IR) -> SynResult<TokenStream2> {
     let imports = &ir.imports;
-    let circuit_field = &ir.circuit_field;
 
     let blocks = [
         quote! { #(#imports)* },
-        quote! { #circuit_field },
         generate_relation_without_input(&ir)?,
         generate_relation_with_public(&ir)?,
         generate_relation_with_full(&ir)?,
@@ -56,55 +52,11 @@ fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
     })
 }
 
-/// Returns reordered copies of the elements in `fields`.
-fn get_ordered_inputs(fields: &[PublicInputField]) -> SynResult<Vec<PublicInputField>> {
-    #[derive(Copy, Clone)]
-    enum Ordering {
-        Unknown,
-        Explicit,
-        Implicit,
-    }
-
-    let mut ordering = Ordering::Unknown;
-    let mut ordered = vec![];
-    let mut orders = HashSet::new();
-
-    for (idx, f) in fields.iter().enumerate() {
-        let maybe_explicit_order = f.order;
-        if matches!(ordering, Ordering::Unknown) {
-            ordering = maybe_explicit_order.map_or(Ordering::Implicit, |_| Ordering::Explicit);
-        }
-
-        let order = match (maybe_explicit_order, ordering) {
-            (None, Ordering::Explicit) | (Some(_), Ordering::Implicit) => {
-                return Err(SynError::new(
-                    f.inner.field.span(),
-                    "Either all or none of the fields should be explicitly ordered",
-                ))
-            }
-            (Some(order), Ordering::Explicit) => order,
-            (None, Ordering::Implicit) => idx,
-            _ => unreachable!(),
-        };
-
-        if orders.contains(&order) {
-            return Err(SynError::new(f.inner.field.span(), "Orders must be unique"));
-        }
-        orders.insert(order);
-        ordered.push((f.clone(), order));
-    }
-
-    ordered.sort_by_key(|(_, o)| *o);
-    Ok(ordered.into_iter().map(|(f, _)| f).collect())
-}
-
 fn generate_public_input_serialization(ir: &IR) -> SynResult<TokenStream2> {
-    let circuit_field = &ir.circuit_field.ident;
-    let inputs = get_ordered_inputs(&ir.public_inputs)?;
-    let accesses = field_serializations(&inputs, &Ident::new("self", Span::call_site()));
+    let accesses = field_serializations(&ir.public_inputs, &Ident::new("self", Span::call_site()));
 
     Ok(quote! {
-        pub fn serialize_public_input(&self) -> ark_std::vec::Vec<#circuit_field> {
+        pub fn serialize_public_input(&self) -> ark_std::vec::Vec<ark_bls12_381::Fr> {
             [ #(#accesses),* ].concat()
         }
     })
@@ -229,13 +181,12 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
     let struct_name_with_full = struct_name_with_full(&ir.relation_base_name);
 
     let body = &ir.circuit_definition.block.stmts;
-    let cf = &ir.circuit_field.ident;
 
     quote! {
-        impl ark_relations::r1cs::ConstraintSynthesizer<#cf> for #struct_name_without_input {
+        impl ark_relations::r1cs::ConstraintSynthesizer<ark_bls12_381::Fr> for #struct_name_without_input {
             fn generate_constraints(
                 self,
-                cs: ark_relations::r1cs::ConstraintSystemRef<#cf>
+                cs: ark_relations::r1cs::ConstraintSystemRef<ark_bls12_381::Fr>
             ) -> ark_relations::r1cs::Result<()> {
                 if cs.is_in_setup_mode() {
                     #(#body)*
@@ -248,10 +199,10 @@ fn generate_circuit_definitions(ir: &IR) -> TokenStream2 {
             }
         }
 
-        impl ark_relations::r1cs::ConstraintSynthesizer<#cf> for #struct_name_with_full {
+        impl ark_relations::r1cs::ConstraintSynthesizer<ark_bls12_381::Fr> for #struct_name_with_full {
             fn generate_constraints(
                 self,
-                cs: ark_relations::r1cs::ConstraintSystemRef<#cf>
+                cs: ark_relations::r1cs::ConstraintSystemRef<ark_bls12_381::Fr>
             ) -> ark_relations::r1cs::Result<()> {
                     #(#body)*
             }

@@ -5,13 +5,11 @@ use quote::format_ident;
 
 pub(super) const RELATION_OBJECT_DEF: &str = "relation_object_definition";
 pub(super) const CIRCUIT_DEF: &str = "circuit_definition";
-pub(super) const CIRCUIT_FIELD_DEF: &str = "circuit_field";
 
 pub(super) const CONSTANT_FIELD: &str = "constant";
 pub(super) const PUBLIC_INPUT_FIELD: &str = "public_input";
 pub(super) const PRIVATE_INPUT_FIELD: &str = "private_input";
 
-pub(super) const PUBLIC_INPUT_ORDER: &str = "order";
 pub(super) const FIELD_SERIALIZER: &str = "serialize_with";
 pub(super) const FIELD_FRONTEND_TYPE: &str = "frontend_type";
 pub(super) const FIELD_PARSER: &str = "parse_with";

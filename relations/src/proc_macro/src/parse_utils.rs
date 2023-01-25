@@ -1,14 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use syn::{
-    spanned::Spanned, Attribute, Error as SynError, Field, Item, ItemFn, ItemStruct, ItemType, Lit,
-    Meta, MetaList, MetaNameValue, NestedMeta, Result as SynResult,
+    spanned::Spanned, Attribute, Error as SynError, Field, Item, ItemFn, ItemStruct, Lit, Meta,
+    MetaList, MetaNameValue, NestedMeta, Result as SynResult,
 };
 
 use crate::naming::{
-    CIRCUIT_DEF, CIRCUIT_FIELD_DEF, CONSTANT_FIELD, FIELD_FRONTEND_TYPE, FIELD_PARSER,
-    FIELD_SERIALIZER, PRIVATE_INPUT_FIELD, PUBLIC_INPUT_FIELD, PUBLIC_INPUT_ORDER,
-    RELATION_OBJECT_DEF,
+    CIRCUIT_DEF, CONSTANT_FIELD, FIELD_FRONTEND_TYPE, FIELD_PARSER, FIELD_SERIALIZER,
+    PRIVATE_INPUT_FIELD, PUBLIC_INPUT_FIELD, RELATION_OBJECT_DEF,
 };
 
 /// Returns the unique field attribute (either `#[constant]`, `#[public_input]` or
@@ -23,15 +22,11 @@ pub(super) fn get_field_attr(field: &Field) -> SynResult<&Attribute> {
                 || a.path.is_ident(PRIVATE_INPUT_FIELD)
         })
         .collect::<Vec<_>>();
-    match attrs.len() {
-        0 => Err(SynError::new(
-            field.span(),
-            "Relation field should be one of 3 types (constant, public, private).",
-        )),
-        1 => Ok(attrs[0]),
+    match &*attrs {
+        &[attr] => Ok(attr),
         _ => Err(SynError::new(
-            attrs[1].span(),
-            "Relation field cannot have two types.",
+            field.span(),
+            "Relation field should have exactly one type: constant, public or private input.",
         )),
     }
 }
@@ -47,12 +42,7 @@ pub(super) fn get_relation_field_config(attr: &Attribute) -> SynResult<HashMap<S
 pub(super) fn get_public_input_field_config(
     attr: &Attribute,
 ) -> SynResult<HashMap<String, String>> {
-    let permissible_config = HashSet::from([
-        PUBLIC_INPUT_ORDER,
-        FIELD_FRONTEND_TYPE,
-        FIELD_PARSER,
-        FIELD_SERIALIZER,
-    ]);
+    let permissible_config = HashSet::from([FIELD_FRONTEND_TYPE, FIELD_PARSER, FIELD_SERIALIZER]);
     get_field_config(attr, &permissible_config)
 }
 
@@ -112,18 +102,6 @@ pub(super) fn as_circuit_def(item: &Item) -> Option<ItemFn> {
             .iter()
             .any(|a| a.path.is_ident(CIRCUIT_DEF))
             .then_some(item_fn.clone()),
-        _ => None,
-    }
-}
-
-/// Tries casting `item` to `ItemType` only when it is attributed with `#[circuit_field]`.
-pub(super) fn as_circuit_field_def(item: &Item) -> Option<ItemType> {
-    match item {
-        Item::Type(item_type) => item_type
-            .attrs
-            .iter()
-            .any(|a| a.path.is_ident(CIRCUIT_FIELD_DEF))
-            .then_some(item_type.clone()),
         _ => None,
     }
 }
