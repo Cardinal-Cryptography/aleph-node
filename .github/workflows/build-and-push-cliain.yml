@@ -41,9 +41,8 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: Cargo | Build release binary
-        run: |
-          cd ./bin/cliain && cargo build --release
+#      - name: Cargo | Build release binary
+#        run: cd ./bin/cliain && cargo build --release
 
       - name: GIT | Get branch name and commit SHA
         id: get_branch
@@ -63,10 +62,9 @@ jobs:
           version: v0.9.1
       
       - name: Build and push latest docker image
-        id: build-image
         env:
           RELEASE_IMAGE: public.ecr.aws/p6e8q1z1/cliain-snarkeling:${{ steps.get_branch.outputs.sha_short }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
           builder: ${{ steps.buildx.outputs.name }}
