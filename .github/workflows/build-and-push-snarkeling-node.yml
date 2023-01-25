@@ -79,7 +79,7 @@ jobs:
       - name: Build and push latest docker image
         env:
           RELEASE_IMAGE: public.ecr.aws/p6e8q1z1/snarkeling:${{ steps.get_branch.outputs.sha_short }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v3.3.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
