@@ -38,6 +38,9 @@ jobs:
         with:
           version: '3.6.1'
 
+      - name: Restore cache
+        uses: ./.github/actions/restore-cache
+
       - name: Cargo | Build release binary
         run: |
           cd ./bin/cliain && cargo build --release
