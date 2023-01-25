@@ -9,6 +9,8 @@ EXPOSE 30333 30343 9933 9944
 
 WORKDIR node
 
+RUN ls -a
+
 COPY target/release/aleph-node /usr/local/bin
 RUN chmod +x /usr/local/bin/aleph-node
 

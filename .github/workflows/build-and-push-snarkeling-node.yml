@@ -56,8 +56,8 @@ jobs:
       - name: Restore cache
         uses: ./.github/actions/restore-cache
 
-      - name: Build binary and runtime
-        run: cargo build --profile production -p aleph-node
+#      - name: Build binary and runtime
+#        run: cargo build --profile production -p aleph-node
 
       - name: GIT | Get branch name and commit SHA
         id: get_branch
