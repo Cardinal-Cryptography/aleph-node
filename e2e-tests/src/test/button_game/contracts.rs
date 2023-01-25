@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Debug, str::FromStr};
 
 use aleph_client::{
     contract::ContractInstance, AccountId, Connection, ConnectionApi, SignedConnection,
@@ -56,7 +56,7 @@ impl SimpleDexInstance {
         to: AccountId,
     ) -> Result<()> {
         self.contract
-            .contract_exec(conn, "add_swap_pair", &[&from.to_string(), &to.to_string()])
+            .contract_exec(conn, "add_swap_pair", &[from.to_string(), to.to_string()])
             .await
     }
 
@@ -84,7 +84,7 @@ impl SimpleDexInstance {
             .iter()
             .map(|(token, amount)| {
                 let address: AccountId = (*token).try_into()?;
-                Ok(format!("deposits ({:}, {:})", address, amount))
+                Ok(format!("({:}, {:})", address, amount))
             })
             .collect::<Result<Vec<String>>>()?;
 
@@ -113,7 +113,7 @@ impl SimpleDexInstance {
                     amount_token_in.to_string(),
                 ],
             )
-            .await
+            .await?
     }
 
     pub async fn swap(

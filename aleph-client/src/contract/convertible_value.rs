@@ -73,6 +73,19 @@ impl TryFrom<ConvertibleValue> for u32 {
     }
 }
 
+impl TryFrom<ConvertibleValue> for () {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> Result<Self> {
+        match value.0 {
+            Value::Tuple(tuple) if tuple.ident() == None && tuple.values().next().is_none() => {
+                Ok(())
+            }
+            _ => bail!("Expected {:?} to be a unit", value.0),
+        }
+    }
+}
+
 impl TryFrom<ConvertibleValue> for AccountId {
     type Error = anyhow::Error;
 

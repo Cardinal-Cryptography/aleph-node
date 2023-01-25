@@ -94,6 +94,7 @@ pub async fn simple_dex() -> Result<()> {
         token3,
         mut events,
     } = setup_dex_test(config).await?;
+
     let authority_conn = &sign(&conn, &authority);
     let account_conn = &sign(&conn, &account);
     let token1 = token1.as_ref();
@@ -116,22 +117,29 @@ pub async fn simple_dex() -> Result<()> {
     token1
         .mint(authority_conn, authority.account_id(), mega(3000))
         .await?;
+    assert_recv_id(&mut events, "Transfer").await;
     token2
         .mint(authority_conn, authority.account_id(), mega(5000))
         .await?;
+    assert_recv_id(&mut events, "Transfer").await;
     token3
         .mint(authority_conn, authority.account_id(), mega(10000))
         .await?;
+    assert_recv_id(&mut events, "Transfer").await;
 
     token1
         .approve(authority_conn, &dex.into(), mega(3000))
         .await?;
+    assert_recv_id(&mut events, "Approval").await;
     token2
         .approve(authority_conn, &dex.into(), mega(5000))
         .await?;
+    assert_recv_id(&mut events, "Approval").await;
     token3
         .approve(authority_conn, &dex.into(), mega(10000))
         .await?;
+    assert_recv_id(&mut events, "Approval").await;
+
     dex.deposit(
         authority_conn,
         &[
@@ -141,11 +149,13 @@ pub async fn simple_dex() -> Result<()> {
         ],
     )
     .await?;
+    assert_recv_id(&mut events, "Deposited").await;
 
     let more_than_liquidity = mega(1_000_000);
-    dex.swap(account_conn, token1, 100, token2, more_than_liquidity)
-        .await?;
-
+    let res = dex
+        .swap(account_conn, token1, 100, token2, more_than_liquidity)
+        .await;
+    assert!(res.is_err());
     refute_recv_id(&mut events, "Swapped").await;
 
     let initial_amount = mega(100);

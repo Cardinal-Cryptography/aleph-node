@@ -103,9 +103,25 @@ impl ContractInstance {
         message: &str,
         args: &[S],
     ) -> Result<T> {
+        self.contract_read_as(conn, message, args, self.address.clone())
+            .await
+    }
+
+    /// Reads the value of a contract call via RPC as if it was executed by `sender`.
+    pub async fn contract_read_as<
+        S: AsRef<str> + Debug,
+        T: TryFrom<ConvertibleValue, Error = anyhow::Error>,
+        C: ConnectionApi,
+    >(
+        &self,
+        conn: &C,
+        message: &str,
+        args: &[S],
+        sender: AccountId,
+    ) -> Result<T> {
         let payload = self.encode(message, args)?;
         let args = ContractCallArgs {
-            origin: self.address.clone(),
+            origin: sender,
             dest: self.address.clone(),
             value: 0,
             gas_limit: None,
@@ -119,6 +135,7 @@ impl ContractInstance {
             .context("RPC request error - there may be more info in node logs.")?
             .result
             .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
+
         let decoded = self.decode(message, result.data)?;
         ConvertibleValue(decoded).try_into()?
     }
@@ -162,6 +179,9 @@ impl ContractInstance {
         args: &[S],
         value: u128,
     ) -> Result<()> {
+        self.contract_read_as::<_, Result<()>, _>(conn, message, args, conn.account_id().clone())
+            .await??;
+
         let data = self.encode(message, args)?;
         conn.call(
             self.address.clone(),
@@ -172,7 +192,7 @@ impl ContractInstance {
             },
             None,
             data,
-            TxStatus::InBlock,
+            TxStatus::Finalized,
         )
         .await
         .map(|_| ())

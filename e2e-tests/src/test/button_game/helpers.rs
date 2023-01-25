@@ -153,7 +153,7 @@ pub(super) async fn setup_wrapped_azero_test(config: &Config) -> Result<WAzeroTe
             .unwrap();
     });
 
-    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(10));
 
     Ok(WAzeroTestContext {
         conn,
@@ -196,7 +196,7 @@ pub(super) async fn setup_dex_test(config: &Config) -> Result<DexTestContext> {
             .unwrap();
     });
 
-    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(10));
 
     Ok(DexTestContext {
         conn,
@@ -252,7 +252,7 @@ pub(super) async fn setup_button_test(
             .unwrap();
     });
 
-    let events = BufferedReceiver::new(events_rx, Duration::from_secs(3));
+    let events = BufferedReceiver::new(events_rx, Duration::from_secs(10));
 
     Ok(ButtonTestContext {
         button,
@@ -298,7 +298,10 @@ impl<T> BufferedReceiver<T> {
     /// If such a message was received earlier and is waiting in the buffer, returns the message immediately and removes
     /// it from the buffer. Otherwise, listens for messages for `default_timeout`, storing them in the buffer. If a
     /// matching message is found during that time, it is returned. If not, `Err(RecvTimeoutError)` is returned.
-    pub async fn recv_timeout<F: Fn(&T) -> bool>(&mut self, filter: F) -> Result<T> {
+    pub async fn recv_timeout<F: Fn(&T) -> bool>(&mut self, filter: F) -> Result<T>
+    where
+        T: Debug,
+    {
         match self.buffer.iter().find_position(|m| filter(m)) {
             Some((i, _)) => Ok(self.buffer.remove(i)),
             None => {
@@ -311,6 +314,7 @@ impl<T> BufferedReceiver<T> {
                             if filter(&msg) {
                                 return Ok(msg);
                             } else {
+                                info!("Buffering {:?}", msg);
                                 self.buffer.push(msg);
                                 remaining_timeout -= Instant::now().duration_since(start);
                             }
