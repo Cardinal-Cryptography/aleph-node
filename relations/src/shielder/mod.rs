@@ -56,7 +56,7 @@ fn check_merkle_proof(
     max_path_len: u8,
     cs: ConstraintSystemRef<CircuitField>,
 ) -> Result<(), SynthesisError> {
-    let path = merkle_path?;
+    let path = merkle_path.unwrap_or_default();
     if path.len() > max_path_len as usize {
         return Err(UnconstrainedVariable);
     }
