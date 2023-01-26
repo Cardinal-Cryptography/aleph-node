@@ -273,8 +273,8 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                     merkle_path.unwrap_or_else(|| panic!("You must provide merkle path")),
                     leaf_index.unwrap_or_else(|| panic!("You must provide leaf index")),
                     old_note.unwrap_or_else(|| panic!("You must provide old note")),
-                    new_token_amount.unwrap_or_else(|| panic!("You must provide new token amount")),
                     old_token_amount.unwrap_or_else(|| panic!("You must provide old token amount")),
+                    new_token_amount.unwrap_or_else(|| panic!("You must provide new token amount")),
                 )
                 .generate_constraints(cs)
             }
