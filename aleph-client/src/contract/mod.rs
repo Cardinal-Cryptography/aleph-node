@@ -50,6 +50,9 @@ use std::fmt::{Debug, Formatter};
 use anyhow::{anyhow, Context, Result};
 use contract_transcode::ContractMessageTranscoder;
 pub use convertible_value::ConvertibleValue;
+use log::error;
+use pallet_contracts_primitives::ContractExecResult;
+use primitives::Balance;
 
 use crate::{
     contract_transcode::Value,
@@ -65,7 +68,6 @@ pub struct ContractInstance {
 }
 
 impl ContractInstance {
-    const MAX_GAS: u64 = 10000000000u64;
 
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
     pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
@@ -119,20 +121,9 @@ impl ContractInstance {
         args: &[S],
         sender: AccountId,
     ) -> Result<T> {
-        let payload = self.encode(message, args)?;
-        let args = ContractCallArgs {
-            origin: sender,
-            dest: self.address.clone(),
-            value: 0,
-            gas_limit: None,
-            input_data: payload,
-            storage_deposit_limit: None,
-        };
-
-        let result = conn
-            .call_and_get(args)
-            .await
-            .context("RPC request error - there may be more info in node logs.")?
+        let result = self
+            .dry_run(conn, message, args, sender)
+            .await?
             .result
             .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
 
@@ -179,16 +170,17 @@ impl ContractInstance {
         args: &[S],
         value: u128,
     ) -> Result<()> {
-        self.contract_read_as::<_, Result<()>, _>(conn, message, args, conn.account_id().clone())
-            .await??;
+        let dry_run_result = self
+            .dry_run(conn, message, args, conn.account_id().clone())
+            .await?;
 
         let data = self.encode(message, args)?;
         conn.call(
             self.address.clone(),
             value,
             Weight {
-                ref_time: Self::MAX_GAS,
-                proof_size: Self::MAX_GAS,
+                ref_time: dry_run_result.gas_required.ref_time(),
+                proof_size: dry_run_result.gas_required.proof_size(),
             },
             None,
             data,
@@ -205,6 +197,39 @@ impl ContractInstance {
     fn decode(&self, message: &str, data: Vec<u8>) -> Result<Value> {
         self.transcoder.decode_return(message, &mut data.as_slice())
     }
+
+    async fn dry_run<S: AsRef<str> + Debug, C: ConnectionApi>(
+        &self,
+        conn: &C,
+        message: &str,
+        args: &[S],
+        sender: AccountId,
+    ) -> Result<ContractExecResult<Balance>> {
+        let payload = self.encode(message, args)?;
+        let args = ContractCallArgs {
+            origin: sender,
+            dest: self.address.clone(),
+            value: 0,
+            gas_limit: None,
+            input_data: payload,
+            storage_deposit_limit: None,
+        };
+
+        let contract_read_result = conn
+            .call_and_get(args)
+            .await
+            .context("RPC request error - there may be more info in node logs.")?;
+
+        if !contract_read_result.debug_message.is_empty() {
+            println!(
+                "Dry-run debug messages: {:?}",
+                hex::encode(&contract_read_result.debug_message)
+            );
+        }
+
+        Ok(contract_read_result)
+    }
+
 }
 
 impl Debug for ContractInstance {

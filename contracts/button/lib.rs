@@ -9,7 +9,10 @@ pub mod button_game {
     #[cfg(feature = "std")]
     use ink::storage::traits::StorageLayout;
     use ink::{
-        codegen::EmitEvent, env::call::FromAccountId, prelude::vec, reflect::ContractEventBase,
+        codegen::EmitEvent,
+        env::{call::FromAccountId, CallFlags},
+        prelude::vec,
+        reflect::ContractEventBase,
         ToAccountId,
     };
     use marketplace::marketplace::MarketplaceRef;
@@ -333,12 +336,17 @@ pub mod button_game {
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
-            PSP22Ref::transfer(
+            PSP22Ref::transfer_builder(
                 &self.ticket_token,
                 self.marketplace.to_account_id(),
                 self.held_tickets(),
                 vec![],
-            )?;
+            )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .fire()
+            .expect("innermost")
+            .expect("middle")
+            .expect("outermost");
 
             Ok(())
         }
@@ -383,7 +391,12 @@ pub mod button_game {
             to: AccountId,
             value: Balance,
         ) -> ButtonResult<()> {
-            PSP22Ref::transfer_from(&self.ticket_token, from, to, value, vec![])?;
+            PSP22Ref::transfer_from_builder(&self.ticket_token, from, to, value, vec![])
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .fire()
+                .expect("innermost")
+                .expect("middle")
+                .expect("outermost");
 
             Ok(())
         }

@@ -202,14 +202,14 @@ pub async fn simple_dex() -> Result<()> {
         .approve(account_conn, &dex.into(), balance_after)
         .await?;
     let unreasonable_slippage = expected_output * 11 / 10;
-    dex.swap(
+    assert!(dex.swap(
         account_conn,
         token1,
         balance_after,
         token2,
         unreasonable_slippage,
     )
-    .await?;
+    .await.is_err(), "expected swap to fail");
     refute_recv_id(&mut events, "Swapped").await;
 
     dex.swap(account_conn, token1, balance_after, token3, mega(90))
@@ -225,8 +225,8 @@ pub async fn simple_dex() -> Result<()> {
     token3
         .approve(account_conn, &dex.into(), balance_token3)
         .await?;
-    dex.swap(account_conn, token3, balance_token3, token1, mega(90))
-        .await?;
+    assert!(dex.swap(account_conn, token3, balance_token3, token1, mega(90))
+        .await.is_err(), "can't swap pair that is not whitelisted");
     refute_recv_id(&mut events, "Swapped").await;
 
     Ok(())
@@ -295,9 +295,9 @@ pub async fn marketplace() -> Result<()> {
     let latest_price = marketplace.price(&conn).await?;
 
     info!("Setting max price too low");
-    marketplace
+    assert!(marketplace
         .buy(&sign(&conn, player), Some(latest_price / 2))
-        .await?;
+        .await.is_err(), "set price too low, should fail");
     refute_recv_id(&mut events, "Bought").await;
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
 

@@ -53,7 +53,9 @@ pub mod game_token {
             let this = self.env().account_id();
             let required_role = Role::Minter(this);
 
+            ink::env::debug_println!("checking required role for minting");
             self.check_role(caller, required_role)?;
+            ink::env::debug_println!("role valid");
             self._mint_to(account, amount)
         }
     }
