@@ -1,11 +1,11 @@
 use clap::Subcommand;
 use relations::{
-    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositRelationWithFullInput,
-    DepositAndMergeRelation,DepositRelationWithPublicInput, DepositRelationWithoutInput, FrontendAccount,
-    FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
-    FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput, LinearEquationRelation,
-    MerkleTreeRelation, Result as R1CsResult, Root, WithdrawRelation, XorRelationWithFullInput,
-    XorRelationWithPublicInput,
+    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositAndMergeRelation,
+    DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
+    FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
+    FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput,
+    LinearEquationRelation, MerkleTreeRelation, Result as R1CsResult, Root, WithdrawRelation,
+    XorRelationWithFullInput, XorRelationWithPublicInput,
 };
 
 use crate::snark_relations::parsing::{
@@ -84,7 +84,7 @@ pub enum RelationArgs {
         /// The upper bound for Merkle tree height (circuit constant).
         #[clap(long, default_value = "16")]
         max_path_len: u8,
-        
+
         /// The identifier of the token being unshielded (public input).
         #[clap(long)]
         token_id: Option<FrontendTokenId>,
@@ -125,7 +125,7 @@ pub enum RelationArgs {
         /// The token amount that will be shielded in the new note (private input).
         #[clap(long)]
         new_token_amount: Option<FrontendTokenAmount>,
-        },
+    },
 
     Withdraw {
         /// The upper bound for Merkle tree height (circuit constant).
@@ -256,7 +256,8 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 new_token_amount,
             } => {
                 if cs.is_in_setup_mode() {
-                    return DepositAndMergeRelation::without_input(max_path_len).generate_constraints(cs);
+                    return DepositAndMergeRelation::without_input(max_path_len)
+                        .generate_constraints(cs);
                 }
 
                 DepositAndMergeRelation::with_full_input(
