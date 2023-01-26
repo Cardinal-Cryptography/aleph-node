@@ -24,6 +24,7 @@ use frame_support::{
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
 };
+use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -767,7 +768,27 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    StakingBagsListMigrationV8
 >;
+
+
+pub struct StakingBagsListMigrationV8;
+
+impl OnRuntimeUpgrade for StakingBagsListMigrationV8 {
+    fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        pallet_staking::migrations::v8::migrate::<Runtime>()
+    }
+
+    #[cfg(feature = "try-runtime")]
+    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+        pallet_staking::migrations::v8::pre_migrate::<Runtime>().map(|_| Vec::new() )
+    }
+
+    #[cfg(feature = "try-runtime")]
+    fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
+        pallet_staking::migrations::v8::post_migrate::<Runtime>()
+    }
+}
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
