@@ -1,14 +1,13 @@
-use primitives::Balance;
-use subxt::{ext::sp_runtime::MultiAddress, tx::PolkadotExtrinsicParamsBuilder};
+use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
     connections::TxInfo,
     pallet_balances::pallet::Call::transfer,
     pallets::utility::UtilityApi,
-    AccountId, BlockHash,
+    AccountId, Balance, BlockHash,
     Call::Balances,
-    ConnectionApi, SignedConnectionApi, TxStatus,
+    ConnectionApi, ParamsBuilder, SignedConnectionApi, TxStatus,
 };
 
 /// Pallet balances read-only API.
@@ -141,7 +140,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
             .balances()
             .transfer(MultiAddress::Id(dest), amount);
 
-        self.send_tx_with_params(tx, PolkadotExtrinsicParamsBuilder::new().tip(tip), status)
+        self.send_tx_with_params(tx, ParamsBuilder::new().tip(tip), status)
             .await
     }
 }
