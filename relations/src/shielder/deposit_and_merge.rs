@@ -107,7 +107,7 @@ mod relation {
         // Check the merkle proof.
         //------------------------
         check_merkle_proof(
-            self.merkle_root().cloned(),
+            self.merkle_root(),
             self.leaf_index().cloned(),
             old_note.to_bytes()?,
             self.merkle_path().cloned(),

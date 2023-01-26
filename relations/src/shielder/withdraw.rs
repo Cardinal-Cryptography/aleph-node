@@ -87,11 +87,11 @@ mod relation {
         //------------------------------
         // Check the new note arguments.
         //------------------------------
+        let new_note = FpVar::new_input(ns!(cs, "new note"), || self.new_note())?;
         let new_token_amount =
             FpVar::new_witness(ns!(cs, "new token amount"), || self.new_token_amount())?;
         let new_trapdoor = FpVar::new_witness(ns!(cs, "new trapdoor"), || self.new_trapdoor())?;
         let new_nullifier = FpVar::new_witness(ns!(cs, "new nullifier"), || self.new_nullifier())?;
-        let new_note = FpVar::new_input(ns!(cs, "new note"), || self.new_note())?;
 
         check_note(
             &token_id,
@@ -114,7 +114,7 @@ mod relation {
         // Check the merkle proof.
         //------------------------
         check_merkle_proof(
-            self.merkle_root().cloned(),
+            self.merkle_root(),
             self.leaf_index().cloned(),
             old_note.to_bytes()?,
             self.merkle_path().cloned(),
@@ -145,7 +145,6 @@ mod relation {
 #[cfg(test)]
 mod tests {
     use ark_bls12_381::Bls12_381;
-    use ark_ff::BigInteger256;
     use ark_groth16::Groth16;
     use ark_relations::r1cs::ConstraintSynthesizer;
     use ark_relations::r1cs::ConstraintSystem;
@@ -155,7 +154,7 @@ mod tests {
     use crate::shielder::note::{compute_note, compute_parent_hash};
     use crate::FrontendAccount;
 
-    const MAX_PATH_LEN: u8 = 10;
+    const MAX_PATH_LEN: u8 = 16;
 
     fn get_circuit_with_full_input() -> WithdrawRelationWithFullInput {
         let token_id: FrontendTokenId = 1;
@@ -300,13 +299,7 @@ mod tests {
 
         let mut input_with_corrupted_recipient = true_input.clone();
         let fake_recipient = [41; 32];
-        // todo: implement casting between backend and frontend types
-        input_with_corrupted_recipient[1] = BackendAccount::new(BigInteger256::new([
-            u64::from_le_bytes(fake_recipient[0..8].try_into().unwrap()),
-            u64::from_le_bytes(fake_recipient[8..16].try_into().unwrap()),
-            u64::from_le_bytes(fake_recipient[16..24].try_into().unwrap()),
-            u64::from_le_bytes(fake_recipient[24..32].try_into().unwrap()),
-        ]));
+        input_with_corrupted_recipient[1] = convert_account(fake_recipient);
         assert_ne!(true_input[1], input_with_corrupted_recipient[1]);
 
         let valid_proof = Groth16::verify(&vk, &input_with_corrupted_recipient, &proof).unwrap();

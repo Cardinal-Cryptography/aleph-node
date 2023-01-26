@@ -13,7 +13,7 @@ mod withdraw;
 
 use core::ops::Div;
 
-use ark_ff::{BigInteger, BigInteger256, Zero};
+use ark_ff::{BigInteger, BigInteger256, PrimeField, Zero};
 use ark_r1cs_std::{
     alloc::AllocVar, eq::EqGadget, fields::FieldVar, uint8::UInt8, R1CSVar, ToBytesGadget,
 };
@@ -30,7 +30,7 @@ pub use deposit_and_merge::{
     DepositAndMergeRelationWithoutInput,
 };
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
-use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, ByteVar};
+use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, ByteVar};
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
@@ -41,28 +41,19 @@ pub use types::{
 use crate::environment::{CircuitField, FpVar};
 
 fn convert(front: [u64; 4]) -> CircuitField {
-    BackendNote::from(BigInteger256::new(front))
+    CircuitField::from(BigInteger256::new(front))
 }
 
 fn convert_vec(front: Vec<[u64; 4]>) -> Vec<CircuitField> {
     front.into_iter().map(convert).collect()
 }
 
-pub fn array_from_bytes(bytes: [u8; 32]) -> [u64; 4] {
-    [
-        u64::from_le_bytes(bytes[0..8].try_into().unwrap()),
-        u64::from_le_bytes(bytes[8..16].try_into().unwrap()),
-        u64::from_le_bytes(bytes[16..24].try_into().unwrap()),
-        u64::from_le_bytes(bytes[24..32].try_into().unwrap()),
-    ]
-}
-
 fn convert_account(front: [u8; 32]) -> CircuitField {
-    convert(array_from_bytes(front))
+    CircuitField::from_le_bytes_mod_order(&front)
 }
 
 fn check_merkle_proof(
-    merkle_root: Result<BackendMerkleRoot, SynthesisError>,
+    merkle_root: Result<&BackendMerkleRoot, SynthesisError>,
     leaf_index: Result<BackendLeafIndex, SynthesisError>,
     leaf_bytes: Vec<UInt8<CircuitField>>,
     merkle_path: Result<BackendMerklePath, SynthesisError>,
