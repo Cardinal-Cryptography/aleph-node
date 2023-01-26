@@ -1,25 +1,4 @@
-use crate::{
-    BackendMerklePath, BackendMerkleRoot, BackendNote, FrontendMerklePath, FrontendMerkleRoot,
-    FrontendNote,
-};
-use ark_ff::BigInteger256;
-use ark_r1cs_std::alloc::AllocVar;
 use snark_relation_proc_macro::snark_relation;
-
-fn convert_note(front: FrontendNote) -> BackendNote {
-    BackendNote::from(BigInteger256::new(front))
-}
-
-fn convert_merkle_root(front: FrontendMerkleRoot) -> BackendMerkleRoot {
-    BackendMerkleRoot::from(BigInteger256::new(front))
-}
-
-fn convert_path(front: FrontendMerklePath) -> BackendMerklePath {
-    front
-        .into_iter()
-        .map(|f| crate::CircuitField::from(BigInteger256::new(f)))
-        .collect()
-}
 
 /// 'Deposit' relation for the Shielder application.
 ///
@@ -29,23 +8,19 @@ fn convert_path(front: FrontendMerklePath) -> BackendMerklePath {
 mod relation {
     use core::ops::Add;
 
-    use ark_r1cs_std::eq::EqGadget;
-    use ark_r1cs_std::ToBytesGadget;
+    use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar, ToBytesGadget};
     use ark_relations::ns;
 
-    use crate::shielder::note::check_note;
-    use crate::{
-        shielder::check_merkle_proof,
-        shielder::types::{
-            BackendLeafIndex, BackendNullifier, BackendTokenAmount, BackendTokenId,
-            BackendTrapdoor, FrontendLeafIndex, FrontendNullifier, FrontendTokenAmount,
-            FrontendTokenId, FrontendTrapdoor,
+    use crate::shielder::{
+        check_merkle_proof, convert, convert_vec,
+        note::check_note,
+        types::{
+            BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
+            BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendLeafIndex,
+            FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
+            FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
         },
     };
-    use ark_r1cs_std::fields::fp::FpVar;
-
-    #[circuit_field]
-    pub type CircuitField = crate::CircuitField;
 
     #[relation_object_definition]
     struct DepositAndMergeRelation {
@@ -59,9 +34,9 @@ mod relation {
         pub token_amount: BackendTokenAmount,
         #[public_input(frontend_type = "FrontendNullifier")]
         pub old_nullifier: BackendNullifier,
-        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert_root")]
+        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert")]
         pub merkle_root: BackendMerkleRoot,
-        #[public_input(frontend_type = "FrontendNote", parse_with = "convert_note")]
+        #[public_input(frontend_type = "FrontendNote", parse_with = "convert")]
         pub new_note: BackendNote,
 
         // Private inputs.
@@ -71,11 +46,11 @@ mod relation {
         pub new_trapdoor: BackendTrapdoor,
         #[private_input(frontend_type = "FrontendNullifier")]
         pub new_nullifier: BackendNullifier,
-        #[private_input(frontend_type = "FrontendMerklePath", parse_with = "convert_path")]
+        #[private_input(frontend_type = "FrontendMerklePath", parse_with = "convert_vec")]
         pub merkle_path: BackendMerklePath,
         #[private_input(frontend_type = "FrontendLeafIndex")]
         pub leaf_index: BackendLeafIndex,
-        #[private_input(frontend_type = "FrontendNote", parse_with = "convert_note")]
+        #[private_input(frontend_type = "FrontendNote", parse_with = "convert")]
         pub old_note: BackendNote,
         #[private_input(frontend_type = "FrontendTokenAmount")]
         pub old_token_amount: BackendTokenAmount,
@@ -158,90 +133,122 @@ mod relation {
 // When providing a public input to proof verification, you should keep the order of variable
 // declarations in circuit, i.e.: `token_id`, `old_nullifier`, `new_note`, `token_amount`, `merkle_root`.
 
-// #[cfg(test)]
-// mod tests {
-//     use ark_bls12_381::Bls12_381;
-//     use ark_groth16::Groth16;
-//     use ark_relations::r1cs::ConstraintSystem;
-//     use ark_snark::SNARK;
+#[cfg(test)]
+mod tests {
+    use ark_bls12_381::Bls12_381;
+    use ark_groth16::Groth16;
+    use ark_relations::r1cs::ConstraintSynthesizer;
+    use ark_relations::r1cs::ConstraintSystem;
+    use ark_snark::SNARK;
 
-//     use super::*;
-//     use crate::shielder::note::{compute_note, compute_parent_hash};
+    use super::*;
+    use crate::shielder::note::{compute_note, compute_parent_hash};
 
-//     const MAX_PATH_LEN: u8 = 10;
+    const MAX_PATH_LEN: u8 = 10;
 
-//     fn get_circuit_with_full_input() -> DepositAndMergeRelation<FullInput> {
-//         let token_id: FrontendTokenId = 1;
+    fn get_circuit_with_full_input() -> DepositAndMergeRelationWithFullInput {
+        let token_id: FrontendTokenId = 1;
 
-//         let old_trapdoor: FrontendTrapdoor = 17;
-//         let old_nullifier: FrontendNullifier = 19;
-//         let old_token_amount: FrontendTokenAmount = 7;
+        let old_trapdoor: FrontendTrapdoor = 17;
+        let old_nullifier: FrontendNullifier = 19;
+        let old_token_amount: FrontendTokenAmount = 7;
 
-//         let new_trapdoor: FrontendTrapdoor = 27;
-//         let new_nullifier: FrontendNullifier = 87;
-//         let new_token_amount: FrontendTokenAmount = 10;
+        let new_trapdoor: FrontendTrapdoor = 27;
+        let new_nullifier: FrontendNullifier = 87;
+        let new_token_amount: FrontendTokenAmount = 10;
 
-//         let token_amount: FrontendTokenAmount = 3;
+        let token_amount: FrontendTokenAmount = 3;
 
-//         let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
-//         let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
+        let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
+        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
 
-//         // Our leaf has a left bro. Their parent has a right bro. Our grandpa is the root.
-//         let leaf_index = 5;
+        // Our leaf has a left bro. Their parent has a right bro. Our grandpa is the root.
+        let leaf_index = 5;
 
-//         let sibling_note = compute_note(0, 1, 2, 3);
-//         let parent_note = compute_parent_hash(sibling_note, old_note);
-//         let uncle_note = compute_note(4, 5, 6, 7);
-//         let merkle_root = compute_parent_hash(parent_note, uncle_note);
+        let sibling_note = compute_note(0, 1, 2, 3);
+        let parent_note = compute_parent_hash(sibling_note, old_note);
+        let uncle_note = compute_note(4, 5, 6, 7);
+        let merkle_root = compute_parent_hash(parent_note, uncle_note);
 
-//         let merkle_path = vec![sibling_note, uncle_note];
+        let merkle_path = vec![sibling_note, uncle_note];
 
-//         DepositAndMergeRelation::with_full_input(
-//             MAX_PATH_LEN,
-//             token_id,
-//             token_amount,
-//             old_nullifier,
-//             merkle_root,
-//             new_note,
-//             old_trapdoor,
-//             new_trapdoor,
-//             new_nullifier,
-//             merkle_path,
-//             leaf_index,
-//             old_note,
-//             old_token_amount,
-//             new_token_amount,
-//         )
-//     }
+        DepositAndMergeRelationWithFullInput::new(
+            MAX_PATH_LEN,
+            token_id,
+            token_amount,
+            old_nullifier,
+            merkle_root,
+            new_note,
+            old_trapdoor,
+            new_trapdoor,
+            new_nullifier,
+            merkle_path,
+            leaf_index,
+            old_note,
+            old_token_amount,
+            new_token_amount,
+        )
+    }
 
-//     #[test]
-//     fn deposit_and_merge_constraints_correctness() {
-//         let circuit = get_circuit_with_full_input();
+    fn get_circuit_with_public_input() -> DepositAndMergeRelationWithPublicInput {
+        let token_id: FrontendTokenId = 1;
 
-//         let cs = ConstraintSystem::new_ref();
-//         circuit.generate_constraints(cs.clone()).unwrap();
+        let old_trapdoor: FrontendTrapdoor = 17;
+        let old_nullifier: FrontendNullifier = 19;
+        let old_token_amount: FrontendTokenAmount = 7;
 
-//         let is_satisfied = cs.is_satisfied().unwrap();
-//         if !is_satisfied {
-//             println!("{:?}", cs.which_is_unsatisfied());
-//         }
+        let new_trapdoor: FrontendTrapdoor = 27;
+        let new_nullifier: FrontendNullifier = 87;
+        let new_token_amount: FrontendTokenAmount = 10;
 
-//         assert!(is_satisfied);
-//     }
+        let token_amount: FrontendTokenAmount = 3;
 
-//     #[test]
-//     fn deposit_and_merge_proving_procedure() {
-//         let circuit_wo_input = DepositAndMergeRelation::without_input(MAX_PATH_LEN);
+        let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
+        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
 
-//         let mut rng = ark_std::test_rng();
-//         let (pk, vk) =
-//             Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
+        let sibling_note = compute_note(0, 1, 2, 3);
+        let parent_note = compute_parent_hash(sibling_note, old_note);
+        let uncle_note = compute_note(4, 5, 6, 7);
+        let merkle_root = compute_parent_hash(parent_note, uncle_note);
 
-//         let circuit = get_circuit_with_full_input();
-//         let input = circuit.public_input();
+        DepositAndMergeRelationWithPublicInput::new(
+            MAX_PATH_LEN,
+            token_id,
+            token_amount,
+            old_nullifier,
+            merkle_root,
+            new_note,
+        )
+    }
 
-//         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
-//         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
-//         assert!(valid_proof);
-//     }
-// }
+    #[test]
+    fn deposit_and_merge_constraints_correctness() {
+        let circuit = get_circuit_with_full_input();
+
+        let cs = ConstraintSystem::new_ref();
+        circuit.generate_constraints(cs.clone()).unwrap();
+
+        let is_satisfied = cs.is_satisfied().unwrap();
+        if !is_satisfied {
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
+
+        assert!(is_satisfied);
+    }
+
+    #[test]
+    fn deposit_and_merge_proving_procedure() {
+        let circuit_wo_input = DepositAndMergeRelationWithoutInput::new(MAX_PATH_LEN);
+
+        let mut rng = ark_std::test_rng();
+        let (pk, vk) =
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
+
+        let circuit = get_circuit_with_full_input();
+        let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+
+        let input = get_circuit_with_public_input().serialize_public_input();
+        let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
+        assert!(valid_proof);
+    }
+}

@@ -26,9 +26,6 @@ mod relation {
         },
     };
 
-    #[circuit_field]
-    pub type CircuitField = crate::CircuitField;
-
     #[relation_object_definition]
     struct DepositRelation {
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_note")]

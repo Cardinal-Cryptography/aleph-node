@@ -13,7 +13,7 @@ pub mod types;
 
 use core::ops::Div;
 
-use ark_ff::{BigInteger, Zero};
+use ark_ff::{BigInteger, BigInteger256, Zero};
 use ark_r1cs_std::{
     alloc::AllocVar, eq::EqGadget, fields::FieldVar, uint8::UInt8, R1CSVar, ToBytesGadget,
 };
@@ -30,15 +30,23 @@ pub use deposit_and_merge::{
     DepositAndMergeRelationWithoutInput,
 };
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
-use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, ByteVar};
+use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, ByteVar};
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
     FrontendTrapdoor as Trapdoor,
 };
-// pub use withdraw::WithdrawRelation;
 
+// pub use withdraw::WithdrawRelation;
 use crate::environment::{CircuitField, FpVar};
+
+fn convert(front: [u64; 4]) -> CircuitField {
+    BackendNote::from(BigInteger256::new(front))
+}
+
+fn convert_vec(front: Vec<[u64; 4]>) -> Vec<CircuitField> {
+    front.into_iter().map(convert).collect()
+}
 
 fn check_merkle_proof(
     merkle_root: Result<BackendMerkleRoot, SynthesisError>,
