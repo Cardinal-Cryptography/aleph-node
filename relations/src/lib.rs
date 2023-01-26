@@ -24,9 +24,18 @@ pub use preimage::PreimageRelation;
 pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{
-    bytes_from_note, compute_note, compute_parent_hash, note_from_bytes, types::*,
-    DepositAndMergeRelation, DepositRelationWithFullInput, DepositRelationWithPublicInput,
-    DepositRelationWithoutInput, WithdrawRelation,
+    bytes_from_note,
+    compute_note,
+    compute_parent_hash,
+    note_from_bytes,
+    types::*,
+    DepositAndMergeRelationWithFullInput,
+    DepositAndMergeRelationWithPublicInput,
+    DepositAndMergeRelationWithoutInput,
+    // WithdrawRelation,
+    DepositRelationWithFullInput,
+    DepositRelationWithPublicInput,
+    DepositRelationWithoutInput,
 };
 pub use utils::*;
 pub use xor::{XorRelationWithFullInput, XorRelationWithPublicInput, XorRelationWithoutInput};

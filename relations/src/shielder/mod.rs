@@ -9,7 +9,7 @@ mod deposit_and_merge;
 mod note;
 mod tangle;
 pub mod types;
-mod withdraw;
+// mod withdraw;
 
 use core::ops::Div;
 
@@ -19,16 +19,16 @@ use ark_r1cs_std::{
 };
 use ark_relations::{
     ns,
-    r1cs::{
-        ConstraintSystemRef, SynthesisError,
-        SynthesisError::{AssignmentMissing, UnconstrainedVariable},
-    },
+    r1cs::{ConstraintSystemRef, SynthesisError, SynthesisError::UnconstrainedVariable},
 };
 use ark_std::{vec, vec::Vec};
 pub use deposit::{
     DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
 };
-pub use deposit_and_merge::DepositAndMergeRelation;
+pub use deposit_and_merge::{
+    DepositAndMergeRelationWithFullInput, DepositAndMergeRelationWithPublicInput,
+    DepositAndMergeRelationWithoutInput,
+};
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
 use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, ByteVar};
 pub use types::{
@@ -36,31 +36,27 @@ pub use types::{
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
     FrontendTrapdoor as Trapdoor,
 };
-pub use withdraw::WithdrawRelation;
+// pub use withdraw::WithdrawRelation;
 
 use crate::environment::{CircuitField, FpVar};
 
 fn check_merkle_proof(
-    merkle_root: Option<BackendMerkleRoot>,
-    leaf_index: Option<BackendLeafIndex>,
+    merkle_root: Result<BackendMerkleRoot, SynthesisError>,
+    leaf_index: Result<BackendLeafIndex, SynthesisError>,
     leaf_bytes: Vec<UInt8<CircuitField>>,
-    merkle_path: Option<BackendMerklePath>,
+    merkle_path: Result<BackendMerklePath, SynthesisError>,
     max_path_len: u8,
     cs: ConstraintSystemRef<CircuitField>,
 ) -> Result<(), SynthesisError> {
-    let path = merkle_path.unwrap_or_default();
+    let path = merkle_path?;
     if path.len() > max_path_len as usize {
         return Err(UnconstrainedVariable);
     }
 
     let zero = CircuitField::zero();
 
-    let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || {
-        merkle_root.ok_or(AssignmentMissing)
-    })?;
-    let mut leaf_index = FpVar::new_witness(ns!(cs, "leaf index"), || {
-        leaf_index.ok_or(AssignmentMissing)
-    })?;
+    let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || merkle_root)?;
+    let mut leaf_index = FpVar::new_witness(ns!(cs, "leaf index"), || leaf_index)?;
 
     let mut current_hash_bytes = leaf_bytes;
     let mut hash_bytes = vec![current_hash_bytes.clone()];
