@@ -9,7 +9,7 @@ mod deposit_and_merge;
 mod note;
 mod tangle;
 pub mod types;
-// mod withdraw;
+mod withdraw;
 
 use core::ops::Div;
 
@@ -46,6 +46,19 @@ fn convert(front: [u64; 4]) -> CircuitField {
 
 fn convert_vec(front: Vec<[u64; 4]>) -> Vec<CircuitField> {
     front.into_iter().map(convert).collect()
+}
+
+pub fn array_from_bytes(bytes: [u8; 32]) -> [u64; 4] {
+    [
+        u64::from_le_bytes(bytes[0..8].try_into().unwrap()),
+        u64::from_le_bytes(bytes[8..16].try_into().unwrap()),
+        u64::from_le_bytes(bytes[16..24].try_into().unwrap()),
+        u64::from_le_bytes(bytes[24..32].try_into().unwrap()),
+    ]
+}
+
+fn convert_account(front: [u8; 32]) -> CircuitField {
+    convert(array_from_bytes(front))
 }
 
 fn check_merkle_proof(

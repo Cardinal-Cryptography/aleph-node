@@ -6,6 +6,7 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::{vec, vec::Vec};
 
 use super::{
+    array_from_bytes,
     tangle::{tangle, tangle_in_field},
     types::{
         ByteVar, FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
@@ -71,12 +72,8 @@ pub fn compute_parent_hash(left: FrontendNote, right: FrontendNote) -> FrontendN
 
 /// Create a note from the first 32 bytes of `bytes`.
 pub fn note_from_bytes(bytes: &[u8]) -> FrontendNote {
-    [
-        u64::from_le_bytes(bytes[0..8].try_into().unwrap()),
-        u64::from_le_bytes(bytes[8..16].try_into().unwrap()),
-        u64::from_le_bytes(bytes[16..24].try_into().unwrap()),
-        u64::from_le_bytes(bytes[24..32].try_into().unwrap()),
-    ]
+    let bytes: [u8; 32] = bytes.try_into().unwrap();
+    array_from_bytes(bytes)
 }
 
 fn convert(x: u64) -> [u8; 8] {
