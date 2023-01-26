@@ -180,37 +180,6 @@ mod tests {
         )
     }
 
-    fn get_circuit_with_public_input() -> DepositAndMergeRelationWithPublicInput {
-        let token_id: FrontendTokenId = 1;
-
-        let old_trapdoor: FrontendTrapdoor = 17;
-        let old_nullifier: FrontendNullifier = 19;
-        let old_token_amount: FrontendTokenAmount = 7;
-
-        let new_trapdoor: FrontendTrapdoor = 27;
-        let new_nullifier: FrontendNullifier = 87;
-        let new_token_amount: FrontendTokenAmount = 10;
-
-        let token_amount: FrontendTokenAmount = 3;
-
-        let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
-        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
-
-        let sibling_note = compute_note(0, 1, 2, 3);
-        let parent_note = compute_parent_hash(sibling_note, old_note);
-        let uncle_note = compute_note(4, 5, 6, 7);
-        let merkle_root = compute_parent_hash(parent_note, uncle_note);
-
-        DepositAndMergeRelationWithPublicInput::new(
-            MAX_PATH_LEN,
-            token_id,
-            old_nullifier,
-            new_note,
-            token_amount,
-            merkle_root,
-        )
-    }
-
     #[test]
     fn deposit_and_merge_constraints_correctness() {
         let circuit = get_circuit_with_full_input();
@@ -237,7 +206,8 @@ mod tests {
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
 
-        let input = get_circuit_with_public_input().serialize_public_input();
+        let circuit: DepositAndMergeRelationWithPublicInput = get_circuit_with_full_input().into();
+        let input = circuit.serialize_public_input();
         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(valid_proof);
     }

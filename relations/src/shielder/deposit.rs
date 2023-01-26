@@ -79,16 +79,6 @@ mod tests {
         DepositRelationWithFullInput::new(note, token_id, token_amount, trapdoor, nullifier)
     }
 
-    fn get_circuit_with_public_input() -> DepositRelationWithPublicInput {
-        let token_id: FrontendTokenId = 1;
-        let token_amount: FrontendTokenAmount = 10;
-        let trapdoor: FrontendTrapdoor = 17;
-        let nullifier: FrontendNullifier = 19;
-        let note = compute_note(token_id, token_amount, trapdoor, nullifier);
-
-        DepositRelationWithPublicInput::new(note, token_id, token_amount)
-    }
-
     #[test]
     fn deposit_constraints_correctness() {
         let circuit = get_circuit_with_full_input();
@@ -112,11 +102,11 @@ mod tests {
         let (pk, vk) =
             Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
 
-        let circuit = get_circuit_with_public_input();
-        let input = circuit.serialize_public_input();
-
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+
+        let circuit: DepositRelationWithPublicInput = get_circuit_with_full_input().into();
+        let input = circuit.serialize_public_input();
         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(valid_proof);
     }
