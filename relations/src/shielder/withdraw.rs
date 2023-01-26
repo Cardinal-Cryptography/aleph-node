@@ -1,5 +1,19 @@
 use snark_relation_proc_macro::snark_relation;
 
+/// 'Withdraw' relation for the Shielder application.
+///
+/// It expresses the facts that:
+///  - `new_note` is a prefix of the result of tangling together `token_id`, `whole_token_amount`,
+///    `old_trapdoor` and `old_nullifier`,
+///  - `old_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
+///    `new_trapdoor` and `new_nullifier`,
+///  - `new_token_amount + token_amount_out = whole_token_amount`
+///  - `merkle_path` is a valid Merkle proof for `old_note` being present at `leaf_index` in some
+///    Merkle tree with `merkle_root` hash in the root
+/// It also includes two artificial inputs `fee` and `recipient` just to strengthen the application
+/// security by treating them as public inputs (and thus integral part of the SNARK).
+/// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
+/// for the length of the merkle path (which is ~the height of the tree, ±1).
 #[snark_relation]
 mod relation {
     use core::ops::Add;
@@ -124,24 +138,6 @@ mod relation {
     }
 }
 
-///// 'Withdraw' relation for the Shielder application.
-/////
-///// It expresses the facts that:
-/////  - `new_note` is a prefix of the result of tangling together `token_id`, `whole_token_amount`,
-/////    `old_trapdoor` and `old_nullifier`,
-/////  - `old_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
-/////    `new_trapdoor` and `new_nullifier`,
-/////  - `new_token_amount + token_amount_out = whole_token_amount`
-/////  - `merkle_path` is a valid Merkle proof for `old_note` being present at `leaf_index` in some
-/////    Merkle tree with `merkle_root` hash in the root
-///// It also includes two artificial inputs `fee` and `recipient` just to strengthen the application
-///// security by treating them as public inputs (and thus integral part of the SNARK).
-///// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
-///// for the length of the merkle path (which is ~the height of the tree, ±1).
-/////
-///// When providing a public input to proof verification, you should keep the order of variable
-///// declarations in circuit, i.e.: `fee`, `recipient`, `token_id`, `old_nullifier`, `new_note`,
-///// `token_amount_out`, `merkle_root`.
 #[cfg(test)]
 mod tests {
     use ark_bls12_381::Bls12_381;

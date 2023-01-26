@@ -1,9 +1,15 @@
 use snark_relation_proc_macro::snark_relation;
 
-/// 'Deposit' relation for the Shielder application.
-///
-/// It expresses the fact that `note` is a prefix of the result of tangling together `token_id`,
-/// `token_amount`, `trapdoor` and `nullifier`.
+/// It expresses the facts that:
+///  - `old_note` is a prefix of the result of tangling together `token_id`, `old_token_amount`,
+///    `old_trapdoor` and `old_nullifier`,
+///  - `new_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
+///    `new_trapdoor` and `new_nullifier`,
+///  - `new_token_amount = token_amount + old_token_amount`
+///  - `merkle_path` is a valid Merkle proof for `old_note` being present at `leaf_index` in some
+///    Merkle tree with `merkle_root` hash in the root
+/// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
+/// for the length of the merkle path (which is ~the height of the tree, ±1).
 #[snark_relation]
 mod relation {
     use core::ops::Add;
@@ -106,33 +112,16 @@ mod relation {
         //------------------------
         // Check the merkle proof.
         //------------------------
-        FpVar::new_input(ns!(cs, "merkle root"), || self.merkle_root()).map(|_| ())
-        // check_merkle_proof(
-        //     self.merkle_root(),
-        //     self.leaf_index().cloned(),
-        //     old_note.to_bytes()?,
-        //     self.merkle_path().cloned(),
-        //     *self.max_path_len(),
-        //     cs,
-        // )
+        check_merkle_proof(
+            self.merkle_root(),
+            self.leaf_index().cloned(),
+            old_note.to_bytes()?,
+            self.merkle_path().cloned(),
+            *self.max_path_len(),
+            cs,
+        )
     }
 }
-
-// 'DepositAndMerge' relation for the Shielder application.
-//
-// It expresses the facts that:
-//  - `old_note` is a prefix of the result of tangling together `token_id`, `old_token_amount`,
-//    `old_trapdoor` and `old_nullifier`,
-//  - `new_note` is a prefix of the result of tangling together `token_id`, `new_token_amount`,
-//    `new_trapdoor` and `new_nullifier`,
-//  - `new_token_amount = token_amount + old_token_amount`
-//  - `merkle_path` is a valid Merkle proof for `old_note` being present at `leaf_index` in some
-//    Merkle tree with `merkle_root` hash in the root
-// Additionally, the relation has one constant input, `max_path_len` which specifies upper bound
-// for the length of the merkle path (which is ~the height of the tree, ±1).
-//
-// When providing a public input to proof verification, you should keep the order of variable
-// declarations in circuit, i.e.: `token_id`, `old_nullifier`, `new_note`, `token_amount`, `merkle_root`.
 
 #[cfg(test)]
 mod tests {
