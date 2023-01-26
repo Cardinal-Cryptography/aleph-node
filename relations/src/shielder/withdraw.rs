@@ -129,9 +129,9 @@ mod relation {
         //------------------------
         check_merkle_proof(
             self.merkle_root(),
-            self.leaf_index().cloned(),
+            self.leaf_index(),
             old_note.to_bytes()?,
-            self.merkle_path().cloned(),
+            self.merkle_path().cloned().unwrap_or_default(),
             *self.max_path_len(),
             cs,
         )

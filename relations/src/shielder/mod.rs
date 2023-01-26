@@ -54,13 +54,12 @@ fn convert_account(front: [u8; 32]) -> CircuitField {
 
 fn check_merkle_proof(
     merkle_root: Result<&BackendMerkleRoot, SynthesisError>,
-    leaf_index: Result<BackendLeafIndex, SynthesisError>,
+    leaf_index: Result<&BackendLeafIndex, SynthesisError>,
     leaf_bytes: Vec<UInt8<CircuitField>>,
-    merkle_path: Result<BackendMerklePath, SynthesisError>,
+    path: BackendMerklePath,
     max_path_len: u8,
     cs: ConstraintSystemRef<CircuitField>,
 ) -> Result<(), SynthesisError> {
-    let path = merkle_path.unwrap_or_default();
     if path.len() > max_path_len as usize {
         return Err(UnconstrainedVariable);
     }
