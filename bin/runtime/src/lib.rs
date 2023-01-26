@@ -7,7 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub use frame_support::{
-    construct_runtime, log, parameter_types,
+    construct_runtime, log, parameter_types, storage_alias,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
         OnUnbalanced, Randomness, ValidatorSet,
@@ -16,14 +16,18 @@ pub use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
     },
-    StorageValue,
+
 };
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote, WithdrawReasons},
     weights::constants::WEIGHT_PER_MILLIS,
     PalletId,
+    RuntimeDebug,
+    pallet_prelude::TypeInfo
 };
+use frame_support::codec::{Decode, Encode, MaxEncodedLen};
+
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 pub use pallet_balances::Call as BalancesCall;
@@ -768,25 +772,77 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    StakingBagsListMigrationV8
+    v9::BumpStorageVersionFromV7ToV9<Runtime>
 >;
 
 
-pub struct StakingBagsListMigrationV8;
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+enum Releases {
+    V1_0_0Ancient,
+    V2_0_0,
+    V3_0_0,
+    V4_0_0,
+    V5_0_0,  // blockable validators.
+    V6_0_0,  // removal of all storage associated with offchain phragmen.
+    V7_0_0,  // keep track of number of nominators / validators in map
+    V8_0_0,  // populate `VoterList`.
+    V9_0_0,  // inject validators into `VoterList` as well.
+    V10_0_0, // remove `EarliestUnappliedSlash`.
+    V11_0_0, // Move pallet storage prefix, e.g. BagsList -> VoterBagsList
+    V12_0_0, // remove `HistoryDepth`.
+}
 
-impl OnRuntimeUpgrade for StakingBagsListMigrationV8 {
-    fn on_runtime_upgrade() -> frame_support::weights::Weight {
-        pallet_staking::migrations::v8::migrate::<Runtime>()
-    }
+pub(crate) const LOG_TARGET: &str = "runtime::staking";
 
+#[storage_alias]
+type StorageVersion = StorageValue<Staking, Releases>;
+
+mod v9 {
+    use super::*;
     #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
-        pallet_staking::migrations::v8::pre_migrate::<Runtime>().map(|_| Vec::new() )
-    }
-
+    use frame_support::pallet_prelude::Get;
+    use pallet_staking::{Config, log};
     #[cfg(feature = "try-runtime")]
-    fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
-        pallet_staking::migrations::v8::post_migrate::<Runtime>()
+    use sp_std::vec::Vec;
+
+    pub struct BumpStorageVersionFromV7ToV9<T>(sp_std::marker::PhantomData<T>);
+    impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV7ToV9<T> {
+        fn on_runtime_upgrade() -> Weight {
+            if let Some(Releases::V7_0_0) = StorageVersion::get() {
+                log!(
+					info,
+					"Migrating storage to Releases::V9_0_0 from Releases::V7_0_0");
+                StorageVersion::put(crate::Releases::V9_0_0);
+            } else {
+                log!(
+					warn,
+					"Migration being executed on the wrong storage \
+				version, expected Releases::V7_0_0"
+				);
+            }
+            T::DbWeight::get().reads(1)
+
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+            frame_support::ensure!(
+				StorageVersion::get() == Some(crate::Releases::V7_0_0),
+				"Migration being executed on the wrong storage \
+				version, expected Releases::V7_0_0"
+			);
+
+            Ok(Vec::new())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade(_prev_count: Vec<u8>) -> Result<(), &'static str> {
+            frame_support::ensure!(
+				StorageVersion::get() == Some(crate::Releases::V9_0_0),
+				"must upgrade"
+			);
+            Ok(())
+        }
     }
 }
 
