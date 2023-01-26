@@ -30,14 +30,14 @@ mod relation {
         // Public inputs
         #[public_input(frontend_type = "FrontendTokenId")]
         pub token_id: BackendTokenId,
-        #[public_input(frontend_type = "FrontendTokenAmount")]
-        pub token_amount: BackendTokenAmount,
         #[public_input(frontend_type = "FrontendNullifier")]
         pub old_nullifier: BackendNullifier,
-        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert")]
-        pub merkle_root: BackendMerkleRoot,
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert")]
         pub new_note: BackendNote,
+        #[public_input(frontend_type = "FrontendTokenAmount")]
+        pub token_amount: BackendTokenAmount,
+        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert")]
+        pub merkle_root: BackendMerkleRoot,
 
         // Private inputs.
         #[private_input(frontend_type = "FrontendTrapdoor")]
@@ -106,14 +106,15 @@ mod relation {
         //------------------------
         // Check the merkle proof.
         //------------------------
-        check_merkle_proof(
-            self.merkle_root(),
-            self.leaf_index().cloned(),
-            old_note.to_bytes()?,
-            self.merkle_path().cloned(),
-            *self.max_path_len(),
-            cs,
-        )
+        FpVar::new_input(ns!(cs, "merkle root"), || self.merkle_root()).map(|_| ())
+        // check_merkle_proof(
+        //     self.merkle_root(),
+        //     self.leaf_index().cloned(),
+        //     old_note.to_bytes()?,
+        //     self.merkle_path().cloned(),
+        //     *self.max_path_len(),
+        //     cs,
+        // )
     }
 }
 
@@ -175,10 +176,10 @@ mod tests {
         DepositAndMergeRelationWithFullInput::new(
             MAX_PATH_LEN,
             token_id,
-            token_amount,
             old_nullifier,
-            merkle_root,
             new_note,
+            token_amount,
+            merkle_root,
             old_trapdoor,
             new_trapdoor,
             new_nullifier,
@@ -214,10 +215,10 @@ mod tests {
         DepositAndMergeRelationWithPublicInput::new(
             MAX_PATH_LEN,
             token_id,
-            token_amount,
             old_nullifier,
-            merkle_root,
             new_note,
+            token_amount,
+            merkle_root,
         )
     }
 

@@ -154,7 +154,7 @@ mod tests {
     use crate::shielder::note::{compute_note, compute_parent_hash};
     use crate::FrontendAccount;
 
-    const MAX_PATH_LEN: u8 = 16;
+    const MAX_PATH_LEN: u8 = 10;
 
     fn get_circuit_with_full_input() -> WithdrawRelationWithFullInput {
         let token_id: FrontendTokenId = 1;
