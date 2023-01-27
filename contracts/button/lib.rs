@@ -344,9 +344,9 @@ pub mod button_game {
             )
             .call_flags(CallFlags::default().set_allow_reentry(true))
             .fire()
-            .expect("innermost")
-            .expect("middle")
-            .expect("outermost");
+            .map_err(GameError::from)?
+            .unwrap() // new error we can't do anything about.
+            .map_err(GameError::from)?;
 
             Ok(())
         }
@@ -394,9 +394,9 @@ pub mod button_game {
             PSP22Ref::transfer_from_builder(&self.ticket_token, from, to, value, vec![])
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .fire()
-                .expect("innermost")
-                .expect("middle")
-                .expect("outermost");
+                .map_err(GameError::from)?
+                .unwrap() // new error we can't do anything about.
+                .map_err(GameError::from)?;
 
             Ok(())
         }

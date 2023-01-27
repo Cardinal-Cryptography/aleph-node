@@ -262,9 +262,9 @@ pub mod marketplace {
             PSP22BurnableRef::burn_builder(&self.reward_token, from, amount)
                 .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
                 .fire()
-                .expect("innermost")
-                .expect("middle")
-                .expect("outermost");
+                .map_err(Error::from)?
+                .unwrap() // new error we can't do anything about.
+                .map_err(Error::from)?;
 
             Ok(())
         }

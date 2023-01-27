@@ -12,16 +12,12 @@
 #[ink::contract]
 mod simple_dex {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
-    use game_token::TRANSFER_FROM_SELECTOR;
     use ink::{
         codegen::EmitEvent,
-        env::{
-            call::{build_call, Call, ExecutionInput, FromAccountId, Selector},
-            CallFlags, DefaultEnvironment, Error as InkEnvError,
-        },
+        env::{call::FromAccountId, CallFlags, Error as InkEnvError},
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
-        LangError, ToAccountId,
+        ToAccountId,
     };
     use openbrush::{
         contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
@@ -456,9 +452,9 @@ mod simple_dex {
             PSP22Ref::transfer_from_builder(&token, from, to, amount, vec![0x0])
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .fire()
-                .expect("innermost")
-                .expect("middle")
-                .expect("outermost");
+                .map_err(DexError::from)?
+                .unwrap() // new error we can't do anything about.
+                .map_err(DexError::from)?;
 
             Ok(())
         }
@@ -477,7 +473,7 @@ mod simple_dex {
             if self.access_control.has_role(account, role) {
                 Ok(())
             } else {
-                return Err(DexError::MissingRole(account, role));
+                Err(DexError::MissingRole(account, role))
             }
         }
 
