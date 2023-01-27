@@ -546,8 +546,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -835,32 +837,42 @@ dependencies = [
  "ark-sponge",
  "ark-std",
  "once_cell",
+ "poseidon-parameters",
  "poseidon-paramgen",
  "poseidon-permutation",
 ]
 
 [[package]]
-name = "poseidon-paramgen"
+name = "poseidon-parameters"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aaee7da4206270e6530bc1ec1ff1d930f67239396412c2a1c13e200daf88eaa"
+dependencies = [
+ "ark-ff",
+ "ark-std",
+ "num-integer",
+]
+
+[[package]]
+name = "poseidon-paramgen"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "ark-ff",
+ "ark-std",
+ "getrandom",
  "merlin",
  "num",
  "num-bigint",
+ "poseidon-parameters",
  "rand_core",
 ]
 
 [[package]]
 name = "poseidon-permutation"
-version = "0.1.0"
-source = "git+https://github.com/penumbra-zone/poseidon377#a2d8c7a3288e2e877ac88a4d8fd3cc4ff2b52c04"
+version = "0.1.1"
 dependencies = [
  "ark-ff",
  "once_cell",
- "poseidon-paramgen",
+ "poseidon-parameters",
 ]
 
 [[package]]

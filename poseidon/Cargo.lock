@@ -305,9 +305,9 @@ dependencies = [
 
 [[package]]
 name = "num-complex"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ae39348c8bc5fbd7f40c727a9925f03517afd2ab27d46702108b6a7e5414c19"
+checksum = "02e0d21255c828d6f128a1e41534206671e8c3ea0c62f32291e808dc82cff17d"
 dependencies = [
  "num-traits",
 ]
@@ -368,9 +368,9 @@ checksum = "d01a5bd0424d00070b0098dd17ebca6f961a959dead1dbcbbbc1d1cd8d3deeba"
 
 [[package]]
 name = "pest"
-version = "2.5.3"
+version = "2.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4257b4a04d91f7e9e6290be5d3da4804dd5784fafde3a497d73eb2b4a158c30a"
+checksum = "4ab62d2fa33726dbe6321cc97ef96d8cde531e3eeaf858a058de53a8a6d40d8f"
 dependencies = [
  "thiserror",
  "ucd-trie",
@@ -393,14 +393,23 @@ dependencies = [
  "ark-sponge",
  "ark-std",
  "once_cell",
+ "poseidon-parameters",
  "poseidon-paramgen",
  "poseidon-permutation",
 ]
 
 [[package]]
+name = "poseidon-parameters"
+version = "0.1.0"
+dependencies = [
+ "ark-ff",
+ "ark-std",
+ "num-integer",
+]
+
+[[package]]
 name = "poseidon-paramgen"
 version = "0.1.1"
-source = "git+https://github.com/pmikolajczyk41/poseidon377?branch=no-std#2a429a7bacef0b2d83c6453d86e282a16faaf874"
 dependencies = [
  "anyhow",
  "ark-ff",
@@ -409,17 +418,18 @@ dependencies = [
  "merlin",
  "num",
  "num-bigint",
+ "poseidon-parameters",
  "rand_core",
 ]
 
 [[package]]
 name = "poseidon-permutation"
 version = "0.1.1"
-source = "git+https://github.com/pmikolajczyk41/poseidon377?branch=no-std#2a429a7bacef0b2d83c6453d86e282a16faaf874"
 dependencies = [
  "ark-ff",
+ "ark-std",
  "once_cell",
- "poseidon-paramgen",
+ "poseidon-parameters",
 ]
 
 [[package]]

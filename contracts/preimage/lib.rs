@@ -3,8 +3,9 @@
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
 mod preimage {
 
-    use ark_ff::BigInteger256;
+    use ark_ff::{BigInteger256, PrimeField};
     use ink::{prelude::vec::Vec, storage::Mapping};
+    use poseidon::hash::one_to_one_hash;
     // use snarcos_extension::VerificationKeyIdentifier;
 
     // const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
@@ -63,7 +64,7 @@ mod preimage {
                 return Err(PreimageContractError::NotCommited);
             }
 
-            let _hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
+            let hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
                 &hash_bytes,
             )));
 
