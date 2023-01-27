@@ -449,7 +449,7 @@ mod tests {
         network::{
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{compatibility::PeerAuthentications, data::DataInSession, DiscoveryMessage},
+            session::{data::DataInSession, DiscoveryMessage},
         },
         Recipient, SessionId,
     };
@@ -575,12 +575,10 @@ mod tests {
             .await
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
-        let (address, message) = match message {
-            PeerAuthentications::Current(authentication) => (
-                authentication.0.address(),
-                DiscoveryMessage::Authentication(authentication),
-            ),
-        };
+        let (address, message) = (
+                message.0.address(),
+                DiscoveryMessage::Authentication(message),
+            );
         let ManagerActions {
             maybe_command,
             maybe_message,
@@ -620,11 +618,7 @@ mod tests {
             })
             .await
             .unwrap();
-        let message = match maybe_message.expect("there should be a discovery message") {
-            PeerAuthentications::Current(authentication) => {
-                DiscoveryMessage::Authentication(authentication)
-            }
-        };
+        let message = DiscoveryMessage::Authentication(maybe_message.expect("there should be a discovery message"));
         manager.on_discovery_message(message);
         let messages = manager.on_user_message(2137, session_id, Recipient::Everyone);
         assert_eq!(messages.len(), 1);

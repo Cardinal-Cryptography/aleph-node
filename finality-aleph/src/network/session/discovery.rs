@@ -8,7 +8,7 @@ use log::{debug, info, trace};
 
 use crate::{
     network::{
-        session::{compatibility::PeerAuthentications, Authentication, SessionHandler},
+        session::{Authentication, SessionHandler},
         AddressingInformation,
     },
     NodeIndex,
@@ -35,7 +35,7 @@ impl<A: AddressingInformation> Discovery<A> {
     pub fn discover_authorities(
         &mut self,
         handler: &SessionHandler<A>,
-    ) -> Option<PeerAuthentications<A>> {
+    ) -> Option<Authentication<A>> {
         let authentication = match handler.authentication() {
             Some(authentication) => authentication,
             None => return None,
@@ -61,7 +61,7 @@ impl<A: AddressingInformation> Discovery<A> {
         &mut self,
         authentication: Authentication<A>,
         handler: &mut SessionHandler<A>,
-    ) -> (Option<A>, Option<PeerAuthentications<A>>) {
+    ) -> (Option<A>, Option<Authentication<A>>) {
         debug!(target: "aleph-network", "Handling broadcast with authentication {:?}.", authentication);
         let address = match handler.handle_authentication(authentication.clone()) {
             Some(address) => Some(address),
@@ -73,7 +73,7 @@ impl<A: AddressingInformation> Discovery<A> {
         }
         trace!(target: "aleph-network", "Rebroadcasting {:?}.", authentication);
         self.last_broadcast.insert(node_id, Instant::now());
-        (address, Some(PeerAuthentications::Current(authentication)))
+        (address, Some(authentication))
     }
 }
 
@@ -86,7 +86,7 @@ mod tests {
         network::{
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{authentication, compatibility::PeerAuthentications, SessionHandler},
+            session::{authentication, SessionHandler, Authentication},
         },
         SessionId,
     };
@@ -170,7 +170,7 @@ mod tests {
         let (address, command) = discovery.handle_authentication(authentication.clone(), handler);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::Current(rebroadcast_authentication),
+                rebroadcast_authentication,
             ) if rebroadcast_authentication == authentication));
     }
 
@@ -182,16 +182,16 @@ mod tests {
             discovery.handle_authentication(authentication.clone(), &mut non_validator);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::Current(rebroadcast_authentication),
+                rebroadcast_authentication,
             ) if rebroadcast_authentication == authentication));
     }
 
     #[tokio::test]
     async fn does_not_rebroadcast_wrong_authentications() {
         let (mut discovery, mut handlers, _) = build().await;
-        let (auth_data, _) = authentication(&handlers[1]);
-        let (_, signature) = authentication(&handlers[2]);
-        let authentication = (auth_data, signature);
+        let Authentication(auth_data, _) = authentication(&handlers[1]);
+        let Authentication(_, signature) = authentication(&handlers[2]);
+        let authentication = Authentication(auth_data, signature);
         let handler = &mut handlers[0];
         let (address, command) = discovery.handle_authentication(authentication, handler);
         assert!(address.is_none());
@@ -208,7 +208,7 @@ mod tests {
         let (address, command) = discovery.handle_authentication(authentication.clone(), handler);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::Current(rebroadcast_authentication),
+                rebroadcast_authentication,
             ) if rebroadcast_authentication == authentication));
     }
 }

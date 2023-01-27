@@ -16,38 +16,6 @@ type ByteCount = u16;
 // We allow sending authentications of size up to 16KiB, that should be enough.
 const MAX_AUTHENTICATION_SIZE: u16 = 16 * 1024;
 
-/// The possible forms of peer authentications we can have, currently just one (Version 2).
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum PeerAuthentications<A: AddressingInformation> {
-    Current(Authentication<A>),
-}
-
-impl<A: AddressingInformation> PeerAuthentications<A> {
-    /// The session with which these authentications are associated.
-    pub fn session_id(&self) -> SessionId {
-        use PeerAuthentications::*;
-        match self {
-            Current((auth_data, _)) => auth_data.session(),
-        }
-    }
-
-    /// Add an authentication, overriding one that might have been here previously.
-    pub fn add_authentication(&mut self, authentication: Authentication<A>) {
-        use PeerAuthentications::*;
-        match self {
-            Current(_) => *self = Current(authentication),
-        }
-    }
-
-    /// The associated address, if any. Can be `None` only for legacy authentications.
-    pub fn maybe_address(&self) -> Option<A> {
-        use PeerAuthentications::*;
-        match self {
-            Current((auth_data, _)) => Some(auth_data.address()),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VersionedAuthentication<A: AddressingInformation> {
     // Most likely from the future.
@@ -55,31 +23,20 @@ pub enum VersionedAuthentication<A: AddressingInformation> {
     V2(Authentication<A>),
 }
 
-impl<A: AddressingInformation> From<PeerAuthentications<A>> for Vec<VersionedAuthentication<A>> {
-    fn from(authentications: PeerAuthentications<A>) -> Self {
-        use PeerAuthentications::*;
+impl<A: AddressingInformation> From<Authentication<A>> for Vec<VersionedAuthentication<A>> {
+    fn from(authentication: Authentication<A>) -> Self {
         use VersionedAuthentication::*;
-        match authentications {
-            Current(authentication) => vec![V2(authentication)],
-        }
+        vec![V2(authentication)]
     }
 }
 
 /// One of the possible messages we could have gotten as part of discovery.
-/// Ignores whether the old authentication was a broadcast or not, we don't send the
-/// non-broadcasts anymore anyway, and treating them as broadcasts doesn't break anything.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum DiscoveryMessage<A: AddressingInformation> {
-    Authentication(Authentication<A>),
-}
+pub type DiscoveryMessage<A: AddressingInformation> = Authentication<A>; 
 
 impl<A: AddressingInformation> DiscoveryMessage<A> {
     /// Session ID associated with this message.
     pub fn session_id(&self) -> SessionId {
-        use DiscoveryMessage::*;
-        match self {
-            Authentication((auth_data, _)) => auth_data.session(),
-        }
+        self.0.session()
     }
 }
 
@@ -89,7 +46,7 @@ impl<A: AddressingInformation> TryInto<DiscoveryMessage<A>> for VersionedAuthent
     fn try_into(self) -> Result<DiscoveryMessage<A>, Self::Error> {
         use VersionedAuthentication::*;
         match self {
-            V2(authentication) => Ok(DiscoveryMessage::Authentication(authentication)),
+            V2(authentication) => Ok(authentication),
             Other(v, _) => Err(Error::UnknownVersion(v)),
         }
     }
@@ -189,7 +146,7 @@ mod test {
     use codec::{Decode, Encode};
     use sp_keystore::testing::KeyStore;
 
-    use super::{PeerAuthentications, VersionedAuthentication};
+    use super::VersionedAuthentication;
     use crate::{
         crypto::AuthorityVerifier,
         network::{
@@ -227,14 +184,9 @@ mod test {
     fn authentication_v2(
         handler: SessionHandler<SignedTcpAddressingInformation>,
     ) -> VersionedAuthentication<SignedTcpAddressingInformation> {
-        match handler
+        VersionedAuthentication::V2(handler
             .authentication()
-            .expect("should have authentication")
-        {
-            PeerAuthentications::Current(authentication) => {
-                VersionedAuthentication::V2(authentication)
-            }
-        }
+            .expect("should have authentication"))
     }
 
     /// Versioned authentication for authority with:

@@ -6,7 +6,7 @@ use crate::{
     abft::NodeCount,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        session::{compatibility::PeerAuthentications, AuthData, Authentication},
+        session::{AuthData, Authentication},
         AddressingInformation,
     },
     NodeIndex, SessionId,
@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug)]
 pub enum SessionInfo<A: AddressingInformation> {
     SessionId(SessionId),
-    OwnAuthentication(PeerAuthentications<A>),
+    OwnAuthentication(Authentication<A>),
 }
 
 impl<A: AddressingInformation> SessionInfo<A> {
@@ -33,7 +33,7 @@ impl<A: AddressingInformation> SessionInfo<A> {
 /// mappings between PeerIds and NodeIndexes within that session.
 pub struct Handler<A: AddressingInformation> {
     peers_by_node: HashMap<NodeIndex, A::PeerId>,
-    authentications: HashMap<A::PeerId, PeerAuthentications<A>>,
+    authentications: HashMap<A::PeerId, Authentication<A>>,
     session_info: SessionInfo<A>,
     own_peer_id: A::PeerId,
     authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
@@ -61,7 +61,7 @@ async fn construct_session_info<A: AddressingInformation>(
                 session_id,
             };
             let signature = authority_pen.sign(&auth_data.encode()).await;
-            let authentications = PeerAuthentications::Current((auth_data, signature));
+            let authentications = Authentication(auth_data, signature);
             (SessionInfo::OwnAuthentication(authentications), peer_id)
         }
         None => (SessionInfo::SessionId(session_id), peer_id),
@@ -109,7 +109,7 @@ impl<A: AddressingInformation> Handler<A> {
     }
 
     /// Returns the authentication for the node and session this handler is responsible for.
-    pub fn authentication(&self) -> Option<PeerAuthentications<A>> {
+    pub fn authentication(&self) -> Option<Authentication<A>> {
         match &self.session_info {
             SessionInfo::SessionId(_) => None,
             SessionInfo::OwnAuthentication(own_authentications) => {
@@ -138,7 +138,7 @@ impl<A: AddressingInformation> Handler<A> {
         if authentication.0.session() != self.session_id() {
             return None;
         }
-        let (auth_data, signature) = &authentication;
+        let Authentication(auth_data, signature) = &authentication;
 
         let address = auth_data.address();
         if !address.verify() {
@@ -161,7 +161,7 @@ impl<A: AddressingInformation> Handler<A> {
             .and_modify(|authentications| {
                 authentications.add_authentication(authentication.clone())
             })
-            .or_insert(PeerAuthentications::Current(authentication));
+            .or_insert(authentication);
         Some(address)
     }
 
@@ -200,11 +200,8 @@ impl<A: AddressingInformation> Handler<A> {
         )
         .await;
 
-        use PeerAuthentications::*;
         for (_, authentication) in authentications {
-            match authentication {
-                Current(auth) => self.handle_authentication(auth),
-            };
+            self.handle_authentication(authentication);
         }
         Ok(self
             .authentications
@@ -221,7 +218,7 @@ pub mod tests {
         network::{
             clique::mock::{random_address, random_invalid_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{Authentication, PeerAuthentications},
+            session::Authentication,
             AddressingInformation,
         },
         NodeIndex, SessionId,
@@ -230,12 +227,9 @@ pub mod tests {
     pub fn authentication(
         handler: &Handler<MockAddressingInformation>,
     ) -> Authentication<MockAddressingInformation> {
-        match handler
+        handler
             .authentication()
             .expect("this is a validator handler")
-        {
-            PeerAuthentications::Current(authentication) => authentication,
-        }
     }
 
     const NUM_NODES: usize = 7;

@@ -1,4 +1,5 @@
 //! Managing the validator connections in sessions using the gossip network.
+use core::num::flt2dec::Sign;
 use std::fmt::Display;
 
 use codec::{Decode, Encode};
@@ -58,7 +59,8 @@ impl<A: AddressingInformation> AuthData<A> {
 }
 
 /// A full authentication, consisting of a signed AuthData.
-pub type Authentication<A> = (AuthData<A>, Signature);
+#[derive(Clone, Decode, Encode, Debug, Eq, PartialEq, Hash)]
+pub struct Authentication<A: AddressingInformation>(AuthData<A>, Signature);
 
 /// Sends data within a single session.
 #[derive(Clone)]
