@@ -50,7 +50,7 @@ use std::fmt::{Debug, Formatter};
 use anyhow::{anyhow, Context, Result};
 use contract_transcode::ContractMessageTranscoder;
 pub use convertible_value::ConvertibleValue;
-use log::error;
+use log::{error, info};
 use pallet_contracts_primitives::ContractExecResult;
 use primitives::Balance;
 
