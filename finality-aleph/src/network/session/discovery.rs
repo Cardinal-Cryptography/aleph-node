@@ -73,7 +73,7 @@ impl<A: AddressingInformation> Discovery<A> {
         }
         trace!(target: "aleph-network", "Rebroadcasting {:?}.", authentication);
         self.last_broadcast.insert(node_id, Instant::now());
-        (address, Some(PeerAuthentications::NewOnly(authentication)))
+        (address, Some(PeerAuthentications::Current(authentication)))
     }
 }
 
@@ -170,7 +170,7 @@ mod tests {
         let (address, command) = discovery.handle_authentication(authentication.clone(), handler);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::NewOnly(rebroadcast_authentication),
+                PeerAuthentications::Current(rebroadcast_authentication),
             ) if rebroadcast_authentication == authentication));
     }
 
@@ -182,7 +182,7 @@ mod tests {
             discovery.handle_authentication(authentication.clone(), &mut non_validator);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::NewOnly(rebroadcast_authentication),
+                PeerAuthentications::Current(rebroadcast_authentication),
             ) if rebroadcast_authentication == authentication));
     }
 
@@ -208,7 +208,7 @@ mod tests {
         let (address, command) = discovery.handle_authentication(authentication.clone(), handler);
         assert_eq!(address, Some(authentication.0.address()));
         assert!(matches!(command, Some(
-                PeerAuthentications::NewOnly(rebroadcast_authentication),
+                PeerAuthentications::Current(rebroadcast_authentication),
             ) if rebroadcast_authentication == authentication));
     }
 }

@@ -576,7 +576,7 @@ mod tests {
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
         let (address, message) = match message {
-            PeerAuthentications::NewOnly(authentication) => (
+            PeerAuthentications::Current(authentication) => (
                 authentication.0.address(),
                 DiscoveryMessage::Authentication(authentication),
             ),
@@ -621,7 +621,7 @@ mod tests {
             .await
             .unwrap();
         let message = match maybe_message.expect("there should be a discovery message") {
-            PeerAuthentications::NewOnly(authentication) => {
+            PeerAuthentications::Current(authentication) => {
                 DiscoveryMessage::Authentication(authentication)
             }
         };

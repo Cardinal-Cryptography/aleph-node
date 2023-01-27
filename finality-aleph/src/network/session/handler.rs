@@ -61,7 +61,7 @@ async fn construct_session_info<A: AddressingInformation>(
                 session_id,
             };
             let signature = authority_pen.sign(&auth_data.encode()).await;
-            let authentications = PeerAuthentications::NewOnly((auth_data, signature));
+            let authentications = PeerAuthentications::Current((auth_data, signature));
             (SessionInfo::OwnAuthentication(authentications), peer_id)
         }
         None => (SessionInfo::SessionId(session_id), peer_id),
@@ -161,7 +161,7 @@ impl<A: AddressingInformation> Handler<A> {
             .and_modify(|authentications| {
                 authentications.add_authentication(authentication.clone())
             })
-            .or_insert(PeerAuthentications::NewOnly(authentication));
+            .or_insert(PeerAuthentications::Current(authentication));
         Some(address)
     }
 
@@ -203,7 +203,7 @@ impl<A: AddressingInformation> Handler<A> {
         use PeerAuthentications::*;
         for (_, authentication) in authentications {
             match authentication {
-                NewOnly(auth) => self.handle_authentication(auth),
+                Current(auth) => self.handle_authentication(auth),
             };
         }
         Ok(self
@@ -234,7 +234,7 @@ pub mod tests {
             .authentication()
             .expect("this is a validator handler")
         {
-            PeerAuthentications::NewOnly(authentication) => authentication,
+            PeerAuthentications::Current(authentication) => authentication,
         }
     }
 

@@ -16,10 +16,10 @@ type ByteCount = u16;
 // We allow sending authentications of size up to 16KiB, that should be enough.
 const MAX_AUTHENTICATION_SIZE: u16 = 16 * 1024;
 
-/// The possible forms of peer authentications we can have, either only new, only legacy or both.
+/// The possible forms of peer authentications we can have, currently just one (Version 2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PeerAuthentications<A: AddressingInformation> {
-    NewOnly(Authentication<A>),
+    Current(Authentication<A>),
 }
 
 impl<A: AddressingInformation> PeerAuthentications<A> {
@@ -27,7 +27,7 @@ impl<A: AddressingInformation> PeerAuthentications<A> {
     pub fn session_id(&self) -> SessionId {
         use PeerAuthentications::*;
         match self {
-            NewOnly((auth_data, _)) => auth_data.session(),
+            Current((auth_data, _)) => auth_data.session(),
         }
     }
 
@@ -35,7 +35,7 @@ impl<A: AddressingInformation> PeerAuthentications<A> {
     pub fn add_authentication(&mut self, authentication: Authentication<A>) {
         use PeerAuthentications::*;
         match self {
-            NewOnly(_) => *self = NewOnly(authentication),
+            Current(_) => *self = Current(authentication),
         }
     }
 
@@ -43,7 +43,7 @@ impl<A: AddressingInformation> PeerAuthentications<A> {
     pub fn maybe_address(&self) -> Option<A> {
         use PeerAuthentications::*;
         match self {
-            NewOnly((auth_data, _)) => Some(auth_data.address()),
+            Current((auth_data, _)) => Some(auth_data.address()),
         }
     }
 }
@@ -60,7 +60,7 @@ impl<A: AddressingInformation> From<PeerAuthentications<A>> for Vec<VersionedAut
         use PeerAuthentications::*;
         use VersionedAuthentication::*;
         match authentications {
-            NewOnly(authentication) => vec![V2(authentication)],
+            Current(authentication) => vec![V2(authentication)],
         }
     }
 }
@@ -231,7 +231,7 @@ mod test {
             .authentication()
             .expect("should have authentication")
         {
-            PeerAuthentications::NewOnly(authentication) => {
+            PeerAuthentications::Current(authentication) => {
                 VersionedAuthentication::V2(authentication)
             }
         }
