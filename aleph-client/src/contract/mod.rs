@@ -220,7 +220,7 @@ impl ContractInstance {
             .context("RPC request error - there may be more info in node logs.")?;
 
         if !contract_read_result.debug_message.is_empty() {
-            error!(
+            info!(
                 target: "aleph_client::contract",
                 "Dry-run debug messages: {:?}",
                 core::str::from_utf8(&contract_read_result.debug_message)
