@@ -18,7 +18,7 @@ mod relation {
     use ark_relations::ns;
 
     use crate::shielder::{
-        check_merkle_proof, convert, convert_vec,
+        check_merkle_proof, convert_hash, convert_vec,
         note::check_note,
         types::{
             BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
@@ -38,11 +38,11 @@ mod relation {
         pub token_id: BackendTokenId,
         #[public_input(frontend_type = "FrontendNullifier")]
         pub old_nullifier: BackendNullifier,
-        #[public_input(frontend_type = "FrontendNote", parse_with = "convert")]
+        #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub new_note: BackendNote,
         #[public_input(frontend_type = "FrontendTokenAmount")]
         pub token_amount: BackendTokenAmount,
-        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert")]
+        #[public_input(frontend_type = "FrontendMerkleRoot", parse_with = "convert_hash")]
         pub merkle_root: BackendMerkleRoot,
 
         // Private inputs.
@@ -56,7 +56,7 @@ mod relation {
         pub merkle_path: BackendMerklePath,
         #[private_input(frontend_type = "FrontendLeafIndex")]
         pub leaf_index: BackendLeafIndex,
-        #[private_input(frontend_type = "FrontendNote", parse_with = "convert")]
+        #[private_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub old_note: BackendNote,
         #[private_input(frontend_type = "FrontendTokenAmount")]
         pub old_token_amount: BackendTokenAmount,

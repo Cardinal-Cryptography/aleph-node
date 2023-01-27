@@ -37,15 +37,17 @@ pub use types::{
     FrontendTrapdoor as Trapdoor,
 };
 
-// pub use withdraw::WithdrawRelation;
 use crate::environment::{CircuitField, FpVar};
+pub use withdraw::{
+    WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
+};
 
-fn convert(front: [u64; 4]) -> CircuitField {
+fn convert_hash(front: [u64; 4]) -> CircuitField {
     CircuitField::from(BigInteger256::new(front))
 }
 
 fn convert_vec(front: Vec<[u64; 4]>) -> Vec<CircuitField> {
-    front.into_iter().map(convert).collect()
+    front.into_iter().map(convert_hash).collect()
 }
 
 fn convert_account(front: [u8; 32]) -> CircuitField {
