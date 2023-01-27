@@ -337,9 +337,29 @@ pub(super) async fn wait_for_death<C: ConnectionApi>(
     button: &ButtonInstance,
 ) -> Result<()> {
     info!("Waiting for button to die");
-    if !timeout(Duration::from_secs(30), button.is_dead(conn)).await?? {
-        return bail!("Button didn't die in time.")
+    let mut iters = 0u8;
+    let mut is_dead = false;
+
+    while iters <= 10 {
+        match timeout(Duration::from_secs(2), button.is_dead(conn)).await? {
+            Err(e) => println!("Error while querying button.is_dead: {:?}", e),
+            Ok(status) => is_dead = status,
+        }
+
+        if !is_dead {
+            let _ = tokio::time::sleep(Duration::from_secs(3)).await;
+            iters += 1;
+        }
+
+        if is_dead {
+            break;
+        }
     }
+
+    if !is_dead {
+        bail!("Button didn't die in time")
+    }
+
     info!("Button died");
     Ok(())
 }
