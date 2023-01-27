@@ -337,7 +337,10 @@ pub(super) async fn wait_for_death<C: ConnectionApi>(
     button: &ButtonInstance,
 ) -> Result<()> {
     info!("Waiting for button to die");
-    timeout(Duration::from_secs(30), button.is_dead(conn)).await??;
+    if !timeout(Duration::from_secs(30), button.is_dead(conn)).await?? {
+        return bail!("Button didn't die in time.")
+    }
+    info!("Button died");
     Ok(())
 }
 
