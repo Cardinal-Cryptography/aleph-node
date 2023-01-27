@@ -12,12 +12,8 @@ ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 snarcos-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "liminal/migrate-to-ink4", package = "snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
-
-# poseidon-parameters = { path = "/home/filip/CloudStation/Rust/poseidon377/poseidon-parameters"}
-# poseidon-permutation = { path = "/home/filip/CloudStation/Rust/poseidon377/poseidon-permutation" , default-features = false}
-
 poseidon = { path = "../../poseidon", default-features = false }
-# relations = { path = "../../relations", default-features = false }
+relations = { path = "../../relations", default-features = false }
 
 [lib]
 name = "preimage"

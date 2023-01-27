@@ -12,7 +12,7 @@ ark-ff = { version = "^0.3.0", default-features = false }
 ark-r1cs-std = {version = "^0.3.0" , default-features = false }
 ark-relations = { version = "^0.3.0", default-features = false }
 ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs", default-features = false, features = ["r1cs"] }
-once_cell = {version = "1.8", default-features = false }
+# once_cell = {version = "1.8", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
 poseidon-permutation = { path = "/home/filip/CloudStation/Rust/poseidon377/poseidon-permutation" , default-features = false}
 poseidon-parameters = { path = "/home/filip/CloudStation/Rust/poseidon377/poseidon-parameters" }

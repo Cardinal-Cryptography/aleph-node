@@ -836,7 +836,6 @@ dependencies = [
  "ark-relations",
  "ark-sponge",
  "ark-std",
- "once_cell",
  "poseidon-parameters",
  "poseidon-paramgen",
  "poseidon-permutation",
@@ -871,7 +870,7 @@ name = "poseidon-permutation"
 version = "0.1.1"
 dependencies = [
  "ark-ff",
- "once_cell",
+ "ark-std",
  "poseidon-parameters",
 ]
 

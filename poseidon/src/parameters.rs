@@ -5,6 +5,7 @@ use poseidon_parameters::{Alpha, PoseidonParameters};
 
 // Poseidon parameters generated for the Fr (Fp256) finite field
 pub mod fr_parameters {
+    use ark_std::vec;
     include!(concat!(env!("OUT_DIR"), "/parameters.rs"));
 }
 
