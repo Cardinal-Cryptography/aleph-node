@@ -93,13 +93,10 @@ mod tests {
             request_handler.handle_authorization(|_| true),
         );
 
-        assert_eq!(
-            authorizator_result.expect("Authorizator should return Ok."),
-            true
-        );
-        assert_eq!(
-            request_handler_result.expect("Request handler should return Ok."),
-            ()
+        assert!(authorizator_result.expect("Authorizator should return Ok."));
+        assert!(
+            request_handler_result.is_ok(),
+            "Request handler should return Ok."
         );
 
         let (authorizator_result, request_handler_result) = join!(
@@ -107,13 +104,10 @@ mod tests {
             request_handler.handle_authorization(|_| false),
         );
 
-        assert_eq!(
-            authorizator_result.expect("Authorizator should return Ok."),
-            false
-        );
-        assert_eq!(
-            request_handler_result.expect("Request handler should return Ok."),
-            ()
+        assert!(!authorizator_result.expect("Authorizator should return Ok."));
+        assert!(
+            request_handler_result.is_ok(),
+            "Request handler should return Ok."
         );
     }
 
