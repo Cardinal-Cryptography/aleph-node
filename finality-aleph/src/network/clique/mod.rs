@@ -5,6 +5,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::network::Data;
 
+mod authorization;
 mod crypto;
 mod incoming;
 mod io;

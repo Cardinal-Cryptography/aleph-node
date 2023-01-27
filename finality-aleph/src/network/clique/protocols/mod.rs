@@ -3,6 +3,7 @@ use std::fmt::{Display, Error as FmtError, Formatter};
 use futures::channel::mpsc;
 
 use crate::network::clique::{
+    authorization::Authorizator,
     io::{ReceiveError, SendError},
     Data, PublicKey, SecretKey, Splittable,
 };
@@ -12,8 +13,9 @@ mod negotiation;
 mod v0;
 mod v1;
 
-use handshake::HandshakeError;
+pub use handshake::{Handshake, HandshakeError};
 pub use negotiation::{protocol, ProtocolNegotiationError};
+pub use v0::handle_authorization;
 
 pub type Version = u32;
 
@@ -57,6 +59,8 @@ pub enum ProtocolError<PK: PublicKey> {
     NoParentConnection,
     /// Data channel closed.
     NoUserConnection,
+    /// Authorization error.
+    NotAuthorized,
 }
 
 impl<PK: PublicKey> Display for ProtocolError<PK> {
@@ -69,6 +73,7 @@ impl<PK: PublicKey> Display for ProtocolError<PK> {
             CardiacArrest => write!(f, "heartbeat stopped"),
             NoParentConnection => write!(f, "cannot send result to service"),
             NoUserConnection => write!(f, "cannot send data to user"),
+            NotAuthorized => write!(f, "user not authorized"),
         }
     }
 }
@@ -103,13 +108,32 @@ impl Protocol {
         &self,
         stream: S,
         secret_key: SK,
-        result_for_service: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+        result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
+        authorizator: Authorizator<SK::PublicKey>,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::incoming(stream, secret_key, result_for_service, data_for_user).await,
-            V1 => v1::incoming(stream, secret_key, result_for_service, data_for_user).await,
+            V0 => {
+                v0::incoming(
+                    stream,
+                    secret_key,
+                    authorizator,
+                    result_for_parent,
+                    data_for_user,
+                )
+                .await
+            }
+            V1 => {
+                v1::incoming(
+                    stream,
+                    secret_key,
+                    authorizator,
+                    result_for_parent,
+                    data_for_user,
+                )
+                .await
+            }
         }
     }
 

@@ -180,6 +180,40 @@ pub async fn v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
     .map_err(|_| HandshakeError::TimedOut)?
 }
 
+#[async_trait::async_trait]
+pub trait Handshake<SK: SecretKey> {
+    async fn handshake_incoming<S: Splittable>(
+        stream: S,
+        secret_key: SK,
+    ) -> Result<(S::Sender, S::Receiver, SK::PublicKey), HandshakeError<SK::PublicKey>>;
+
+    async fn handshake_outgoing<S: Splittable>(
+        stream: S,
+        secret_key: SK,
+        public_key: SK::PublicKey,
+    ) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>>;
+}
+
+pub struct DefaultHandshake;
+
+#[async_trait::async_trait]
+impl<SK: SecretKey> Handshake<SK> for DefaultHandshake {
+    async fn handshake_incoming<S: Splittable>(
+        stream: S,
+        secret_key: SK,
+    ) -> Result<(S::Sender, S::Receiver, SK::PublicKey), HandshakeError<SK::PublicKey>> {
+        v0_handshake_incoming(stream, secret_key).await
+    }
+
+    async fn handshake_outgoing<S: Splittable>(
+        stream: S,
+        secret_key: SK,
+        public_key: SK::PublicKey,
+    ) -> Result<(S::Sender, S::Receiver), HandshakeError<SK::PublicKey>> {
+        v0_handshake_outgoing(stream, secret_key, public_key).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use futures::{join, try_join};

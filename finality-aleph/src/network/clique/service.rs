@@ -10,6 +10,7 @@ use tokio::time;
 use crate::{
     network::{
         clique::{
+            authorization::Authorizator,
             incoming::incoming,
             manager::{AddResult, LegacyManager, Manager},
             outgoing::outgoing,
@@ -126,7 +127,7 @@ where
     }
 
     fn spawn_new_outgoing(
-        &self,
+        &mut self,
         public_key: SK::PublicKey,
         address: A,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
@@ -152,12 +153,20 @@ where
         &self,
         stream: NL::Connection,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+        authorizator: Authorizator<SK::PublicKey>,
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
         self.spawn_handle
             .spawn("aleph/clique_network_incoming", None, async move {
-                incoming(secret_key, stream, result_for_parent, next_to_interface).await;
+                incoming(
+                    secret_key,
+                    stream,
+                    result_for_parent,
+                    next_to_interface,
+                    authorizator,
+                )
+                .await;
             });
     }
 
@@ -233,12 +242,14 @@ where
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         let (result_for_parent, mut worker_results) = mpsc::unbounded();
+        let (authorizator, mut authorization_handler) = Authorizator::new();
         use ServiceCommand::*;
         loop {
+            let manager = &self.manager;
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
                 maybe_stream = self.listener.accept() => match maybe_stream {
-                    Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone()),
+                    Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone(), authorizator.clone()),
                     Err(e) => warn!(target: LOG_TARGET, "Listener failed to accept connection: {}", e),
                 },
                 // got a new command from the interface
@@ -275,6 +286,11 @@ where
                             },
                         }
                     },
+                },
+                result = authorization_handler.handle_authorization(|pk| manager.is_authorized(&pk)) => {
+                    if result.is_err() {
+                        warn!(target: LOG_TARGET, "Other side of the Authorization Service is already closed.");
+                    }
                 },
                 // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection

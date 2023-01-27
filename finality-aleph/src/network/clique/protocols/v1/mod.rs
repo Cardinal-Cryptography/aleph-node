@@ -1,15 +1,17 @@
 use codec::{Decode, Encode};
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     time::{timeout, Duration},
 };
 
 use crate::network::clique::{
+    authorization::Authorization,
     io::{receive_data, send_data},
     protocols::{
-        handshake::{v0_handshake_incoming, v0_handshake_outgoing},
+        handle_authorization,
+        handshake::{DefaultHandshake, Handshake},
         ConnectionType, ProtocolError, ResultForService,
     },
     Data, PublicKey, SecretKey, Splittable, LOG_TARGET,
@@ -92,8 +94,25 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
+    handle_outgoing::<_, _, _, DefaultHandshake>(
+        stream,
+        secret_key,
+        public_key,
+        result_for_parent,
+        data_for_user,
+    )
+    .await
+}
+
+pub async fn handle_outgoing<SK: SecretKey, D: Data, S: Splittable, H: Handshake<SK>>(
+    stream: S,
+    secret_key: SK,
+    public_key: SK::PublicKey,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+    data_for_user: mpsc::UnboundedSender<D>,
+) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Extending hand to {}.", public_key);
-    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, public_key.clone()).await?;
+    let (sender, receiver) = H::handshake_outgoing(stream, secret_key, public_key.clone()).await?;
     info!(
         target: LOG_TARGET,
         "Outgoing handshake with {} finished successfully.", public_key
@@ -106,6 +125,7 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
             ConnectionType::New,
         ))
         .map_err(|_| ProtocolError::NoParentConnection)?;
+
     debug!(
         target: LOG_TARGET,
         "Starting worker for communicating with {}.", public_key
@@ -116,18 +136,54 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
 /// Performs the incoming handshake, and then manages a connection sending and receiving data.
 /// Exits on parent request (when the data source is dropped), or in case of broken or dead
 /// network connection.
-pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
+pub async fn incoming<SK: SecretKey, D: Data, S: Splittable, A: Authorization<SK::PublicKey>>(
     stream: S,
     secret_key: SK,
+    authorizator: A,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+    data_for_user: mpsc::UnboundedSender<D>,
+) -> Result<(), ProtocolError<SK::PublicKey>> {
+    handle_incoming::<_, _, _, _, DefaultHandshake>(
+        stream,
+        secret_key,
+        authorizator,
+        result_for_parent,
+        data_for_user,
+    )
+    .await
+}
+
+pub async fn handle_incoming<
+    SK: SecretKey,
+    D: Data,
+    S: Splittable,
+    A: Authorization<SK::PublicKey>,
+    H: Handshake<SK>,
+>(
+    stream: S,
+    secret_key: SK,
+    authorizator: A,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Waiting for extended hand...");
-    let (sender, receiver, public_key) = v0_handshake_incoming(stream, secret_key).await?;
+    let (sender, receiver, public_key) = H::handshake_incoming(stream, secret_key).await?;
     info!(
         target: LOG_TARGET,
         "Incoming handshake with {} finished successfully.", public_key
     );
+
+    let authorized = handle_authorization::<SK, A>(authorizator, public_key.clone())
+        .await
+        .map_err(|_| ProtocolError::NotAuthorized)?;
+    if !authorized {
+        warn!(
+            target: LOG_TARGET,
+            "public_key={} was not authorized.", public_key
+        );
+        return Ok(());
+    }
+
     let (data_for_network, data_from_user) = mpsc::unbounded();
     result_for_parent
         .unbounded_send((
@@ -147,11 +203,15 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 mod tests {
     use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
 
-    use super::{incoming, outgoing, ProtocolError};
     use crate::network::clique::{
-        mock::{key, MockPrelims, MockSplittable},
-        protocols::ConnectionType,
-        Data,
+        authorization::Authorization,
+        mock::{key, new_authorizer, MockPrelims, MockSplittable},
+        protocols::{
+            v0::tests::{execute_do_not_call_sender_and_receiver_until_authorized, HandleIncoming},
+            v1::{handle_incoming, incoming, outgoing},
+            ConnectionType, Handshake, ProtocolError, ResultForService,
+        },
+        Data, SecretKey, Splittable,
     };
 
     fn prepare<D: Data>() -> MockPrelims<D> {
@@ -163,9 +223,11 @@ mod tests {
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (incoming_data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
         let (outgoing_data_for_user, data_from_outgoing) = mpsc::unbounded::<D>();
+        let authorizer = new_authorizer();
         let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
+            authorizer,
             incoming_result_for_service,
             incoming_data_for_user,
         ));

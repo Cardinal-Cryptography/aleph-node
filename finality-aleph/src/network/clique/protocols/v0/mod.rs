@@ -1,19 +1,19 @@
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::network::clique::{
+    authorization::{Authorization, AuthorizatorError},
     io::{receive_data, send_data},
-    protocols::{
-        handshake::{v0_handshake_incoming, v0_handshake_outgoing},
-        ConnectionType, ProtocolError, ResultForService,
-    },
+    protocols::{ConnectionType, ProtocolError, ResultForService},
     Data, PublicKey, SecretKey, Splittable, LOG_TARGET,
 };
 
 mod heartbeat;
 
 use heartbeat::{heartbeat_receiver, heartbeat_sender};
+
+use super::handshake::{DefaultHandshake, Handshake};
 
 /// Receives data from the parent service and sends it over the network.
 /// Exits when the parent channel is closed, or if the network connection is broken.
@@ -38,8 +38,18 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     public_key: SK::PublicKey,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
+    handle_outgoing::<_, _, _, DefaultHandshake>(stream, secret_key, public_key, result_for_parent)
+        .await
+}
+
+pub async fn handle_outgoing<SK: SecretKey, D: Data, S: Splittable, H: Handshake<SK>>(
+    stream: S,
+    secret_key: SK,
+    public_key: SK::PublicKey,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Extending hand to {}.", public_key);
-    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, public_key.clone()).await?;
+    let (sender, receiver) = H::handshake_outgoing(stream, secret_key, public_key.clone()).await?;
     info!(
         target: LOG_TARGET,
         "Outgoing handshake with {} finished successfully.", public_key
@@ -85,18 +95,53 @@ async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(
 
 /// Performs the handshake, and then keeps sending data received from the network to the parent service.
 /// Exits on parent request, or in case of broken or dead network connection.
-pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
+pub async fn incoming<SK: SecretKey, D: Data, S: Splittable, A: Authorization<SK::PublicKey>>(
     stream: S,
     secret_key: SK,
+    authorizator: A,
+    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+    data_for_user: mpsc::UnboundedSender<D>,
+) -> Result<(), ProtocolError<SK::PublicKey>> {
+    handle_incoming::<_, _, _, _, DefaultHandshake>(
+        stream,
+        secret_key,
+        authorizator,
+        result_for_parent,
+        data_for_user,
+    )
+    .await
+}
+
+pub async fn handle_incoming<
+    SK: SecretKey,
+    D: Data,
+    S: Splittable,
+    A: Authorization<SK::PublicKey>,
+    H: Handshake<SK>,
+>(
+    stream: S,
+    secret_key: SK,
+    authorizator: A,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Waiting for extended hand...");
-    let (sender, receiver, public_key) = v0_handshake_incoming(stream, secret_key).await?;
+    let (sender, receiver, public_key) = H::handshake_incoming(stream, secret_key).await?;
     info!(
         target: LOG_TARGET,
         "Incoming handshake with {} finished successfully.", public_key
     );
+
+    let authorized = handle_authorization::<SK, A>(authorizator, public_key.clone())
+        .await
+        .map_err(|_| ProtocolError::NotAuthorized)?;
+    if !authorized {
+        warn!(
+            target: LOG_TARGET,
+            "public_key={} was not authorized.", public_key
+        );
+        return Ok(());
+    }
 
     let (tx_exit, mut exit) = mpsc::unbounded();
     result_for_parent
@@ -123,15 +168,48 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
+pub async fn handle_authorization<SK: SecretKey, A: Authorization<SK::PublicKey>>(
+    authorizator: A,
+    public_key: SK::PublicKey,
+) -> Result<bool, ()> {
+    let authorization_result = authorizator.is_authorized(public_key.clone()).await;
+    match authorization_result {
+        Ok(result) => Ok(result),
+        Err(error) => {
+            match error {
+                AuthorizatorError::MissingService => warn!(
+                    target: LOG_TARGET,
+                    "Authorization service for public_key={} went missing before we called it.",
+                    public_key
+                ),
+                AuthorizatorError::ServiceDisappeared => warn!(
+                    target: LOG_TARGET,
+                    "We managed to send authorization request for public_key={}, but were unable to receive an answer.",
+                    public_key
+                ),
+            };
+            Err(())
+        }
+    }
+}
 
-    use super::{incoming, outgoing, ProtocolError};
+#[cfg(test)]
+pub mod tests {
+    use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
+    use parking_lot::Mutex;
+
+    use super::handle_incoming;
     use crate::network::clique::{
-        mock::{key, MockPrelims, MockSplittable},
-        protocols::ConnectionType,
-        Data,
+        authorization::Authorization,
+        mock::{
+            key, new_authorizer, IteratorWrapper, MockAuthorizer, MockPrelims, MockSplittable,
+            MockWrappedSplittable, NoHandshake, WrappingReader, WrappingWriter,
+        },
+        protocols::{
+            v0::{incoming, outgoing},
+            ConnectionType, Handshake, ProtocolError, ResultForService,
+        },
+        Data, SecretKey, Splittable,
     };
 
     fn prepare<D: Data>() -> MockPrelims<D> {
@@ -145,6 +223,7 @@ mod tests {
         let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
+            new_authorizer(),
             incoming_result_for_service,
             data_for_user,
         ));
