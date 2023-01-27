@@ -490,4 +490,38 @@ mod tests {
             Ok(_) => panic!("successfully finished when connection dead"),
         };
     }
+
+    struct V1HandleIncoming;
+
+    #[async_trait::async_trait]
+    impl HandleIncoming for V1HandleIncoming {
+        async fn handle_incoming<SK, D, S, A, H>(
+            stream: S,
+            secret_key: SK,
+            authorization: A,
+            result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+            data_for_user: mpsc::UnboundedSender<D>,
+        ) -> Result<(), ProtocolError<SK::PublicKey>>
+        where
+            SK: SecretKey,
+            D: Data,
+            S: Splittable,
+            A: Authorization<SK::PublicKey> + Send + Sync,
+            H: Handshake<SK>,
+        {
+            handle_incoming::<_, _, _, _, H>(
+                stream,
+                secret_key,
+                authorization,
+                result_for_parent,
+                data_for_user,
+            )
+            .await
+        }
+    }
+
+    #[tokio::test]
+    async fn do_not_call_sender_and_receiver_until_authorized() {
+        execute_do_not_call_sender_and_receiver_until_authorized::<V1HandleIncoming>().await
+    }
 }

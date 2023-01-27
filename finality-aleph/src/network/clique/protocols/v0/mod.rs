@@ -500,4 +500,90 @@ pub mod tests {
             Ok(_) => panic!("successfully finished when connection dead"),
         };
     }
+
+    #[async_trait::async_trait]
+    pub trait HandleIncoming {
+        async fn handle_incoming<SK, D, S, A, H>(
+            stream: S,
+            secret_key: SK,
+            authorization: A,
+            result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+            data_for_user: mpsc::UnboundedSender<D>,
+        ) -> Result<(), ProtocolError<SK::PublicKey>>
+        where
+            SK: SecretKey,
+            D: Data,
+            S: Splittable,
+            A: Authorization<SK::PublicKey> + Send + Sync,
+            H: Handshake<SK>;
+    }
+
+    pub async fn execute_do_not_call_sender_and_receiver_until_authorized<H: HandleIncoming>() {
+        let writer = WrappingWriter::new_with_closure(Vec::new(), move || {
+            panic!("Writer should not be called.");
+        });
+        let reader = WrappingReader::new_with_closure(
+            IteratorWrapper::new([0].into_iter().cycle()),
+            move || {
+                panic!("Reader should not be called.");
+            },
+        );
+        let stream = MockWrappedSplittable::new(reader, writer);
+        let (result_for_parent, _) = mpsc::unbounded();
+        let (data_for_user, _) = mpsc::unbounded::<Vec<i32>>();
+
+        let authorizer_called = Mutex::new(false);
+        let authorizer = MockAuthorizer::new_with_closure(|_| {
+            *authorizer_called.lock() = true;
+            false
+        });
+        let (_, secret_key) = key();
+
+        // It should exit immediately after we reject authorization.
+        // `NoHandshake` mocks the real handshake procedure and it does not call reader nor writer.
+        let result = H::handle_incoming::<_, _, _, _, NoHandshake>(
+            stream,
+            secret_key,
+            authorizer,
+            result_for_parent,
+            data_for_user,
+        )
+        .await;
+        assert!(result.is_ok());
+        assert!(*authorizer_called.lock());
+    }
+
+    struct V0HandleIncoming;
+
+    #[async_trait::async_trait]
+    impl HandleIncoming for V0HandleIncoming {
+        async fn handle_incoming<SK, D, S, A, H>(
+            stream: S,
+            secret_key: SK,
+            authorization: A,
+            result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
+            data_for_user: mpsc::UnboundedSender<D>,
+        ) -> Result<(), ProtocolError<SK::PublicKey>>
+        where
+            SK: SecretKey,
+            D: Data,
+            S: Splittable,
+            A: Authorization<SK::PublicKey> + Send + Sync,
+            H: Handshake<SK>,
+        {
+            handle_incoming::<_, _, _, _, H>(
+                stream,
+                secret_key,
+                authorization,
+                result_for_parent,
+                data_for_user,
+            )
+            .await
+        }
+    }
+
+    #[tokio::test]
+    async fn do_not_call_sender_and_receiver_until_authorized() {
+        execute_do_not_call_sender_and_receiver_until_authorized::<V0HandleIncoming>().await
+    }
 }
