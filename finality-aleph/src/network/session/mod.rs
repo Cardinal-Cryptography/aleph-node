@@ -1,5 +1,4 @@
 //! Managing the validator connections in sessions using the gossip network.
-use core::num::flt2dec::Sign;
 use std::fmt::Display;
 
 use codec::{Decode, Encode};
@@ -25,7 +24,7 @@ mod handler;
 mod manager;
 mod service;
 
-pub use compatibility::{DiscoveryMessage, PeerAuthentications, VersionedAuthentication};
+pub use compatibility::{DiscoveryMessage, VersionedAuthentication};
 use connections::Connections;
 #[cfg(test)]
 pub use data::DataInSession;

@@ -30,8 +30,7 @@ impl<A: AddressingInformation> From<Authentication<A>> for Vec<VersionedAuthenti
     }
 }
 
-/// One of the possible messages we could have gotten as part of discovery.
-pub type DiscoveryMessage<A: AddressingInformation> = Authentication<A>; 
+pub type DiscoveryMessage<A> = Authentication<A>;
 
 impl<A: AddressingInformation> DiscoveryMessage<A> {
     /// Session ID associated with this message.
@@ -184,9 +183,11 @@ mod test {
     fn authentication_v2(
         handler: SessionHandler<SignedTcpAddressingInformation>,
     ) -> VersionedAuthentication<SignedTcpAddressingInformation> {
-        VersionedAuthentication::V2(handler
-            .authentication()
-            .expect("should have authentication"))
+        VersionedAuthentication::V2(
+            handler
+                .authentication()
+                .expect("should have authentication"),
+        )
     }
 
     /// Versioned authentication for authority with:

@@ -86,7 +86,7 @@ mod tests {
         network::{
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{authentication, SessionHandler, Authentication},
+            session::{authentication, Authentication, SessionHandler},
         },
         SessionId,
     };

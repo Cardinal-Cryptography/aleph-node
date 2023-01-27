@@ -156,12 +156,7 @@ impl<A: AddressingInformation> Handler<A> {
         }
         self.peers_by_node
             .insert(auth_data.creator(), peer_id.clone());
-        self.authentications
-            .entry(peer_id)
-            .and_modify(|authentications| {
-                authentications.add_authentication(authentication.clone())
-            })
-            .or_insert(authentication);
+        self.authentications.insert(peer_id, authentication);
         Some(address)
     }
 
@@ -206,7 +201,7 @@ impl<A: AddressingInformation> Handler<A> {
         Ok(self
             .authentications
             .values()
-            .flat_map(|authentication| authentication.maybe_address())
+            .map(|authentication| authentication.0.address())
             .collect())
     }
 }

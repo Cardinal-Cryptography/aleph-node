@@ -7,13 +7,14 @@ use std::{
 use futures::channel::mpsc;
 use log::{debug, info};
 
+use super::Authentication;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         session::{
-            compatibility::PeerAuthentications, data::DataInSession, Connections, Discovery,
-            DiscoveryMessage, SessionHandler, SessionHandlerError,
+            data::DataInSession, Connections, Discovery, DiscoveryMessage, SessionHandler,
+            SessionHandlerError,
         },
         AddressingInformation, Data, NetworkIdentity, PeerId,
     },
@@ -57,7 +58,7 @@ pub struct PreNonvalidatorSession {
 /// discovery  purposes.
 pub struct ManagerActions<A: AddressingInformation> {
     pub maybe_command: Option<ConnectionCommand<A>>,
-    pub maybe_message: Option<PeerAuthentications<A>>,
+    pub maybe_message: Option<Authentication<A>>,
 }
 
 impl<A: AddressingInformation> ManagerActions<A> {
@@ -127,7 +128,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     fn discover_authorities(
         &mut self,
         session_id: &SessionId,
-    ) -> Option<PeerAuthentications<NI::AddressingInformation>> {
+    ) -> Option<Authentication<NI::AddressingInformation>> {
         self.sessions.get_mut(session_id).and_then(
             |Session {
                  handler, discovery, ..
@@ -136,7 +137,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     }
 
     /// Returns all the network messages that should be sent as part of discovery at this moment.
-    pub fn discovery(&mut self) -> Vec<PeerAuthentications<NI::AddressingInformation>> {
+    pub fn discovery(&mut self) -> Vec<Authentication<NI::AddressingInformation>> {
         let sessions: Vec<_> = self.sessions.keys().cloned().collect();
         sessions
             .iter()
@@ -149,7 +150,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
         pre_session: PreValidatorSession,
         address: NI::AddressingInformation,
     ) -> (
-        Option<PeerAuthentications<NI::AddressingInformation>>,
+        Option<Authentication<NI::AddressingInformation>>,
         mpsc::UnboundedReceiver<D>,
     ) {
         let PreValidatorSession {
@@ -310,17 +311,13 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
         &mut self,
         message: DiscoveryMessage<NI::AddressingInformation>,
     ) -> ManagerActions<NI::AddressingInformation> {
-        use DiscoveryMessage::*;
         let session_id = message.session_id();
         match self.sessions.get_mut(&session_id) {
             Some(Session {
                 handler, discovery, ..
             }) => {
-                let (maybe_address, maybe_message) = match message {
-                    Authentication(authentication) => {
-                        discovery.handle_authentication(authentication, handler)
-                    }
-                };
+                let (maybe_address, maybe_message) =
+                    discovery.handle_authentication(message, handler);
                 let maybe_command = match (maybe_address, handler.is_validator()) {
                     (Some(address), true) => {
                         debug!(target: "aleph-network", "Adding addresses for session {:?} to reserved: {:?}", session_id, address);
@@ -449,7 +446,7 @@ mod tests {
         network::{
             clique::mock::{random_address, MockAddressingInformation},
             mock::crypto_basics,
-            session::{data::DataInSession, DiscoveryMessage},
+            session::data::DataInSession,
         },
         Recipient, SessionId,
     };
@@ -575,10 +572,7 @@ mod tests {
             .await
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
-        let (address, message) = (
-                message.0.address(),
-                DiscoveryMessage::Authentication(message),
-            );
+        let (address, message) = (message.0.address(), message);
         let ManagerActions {
             maybe_command,
             maybe_message,
@@ -618,7 +612,7 @@ mod tests {
             })
             .await
             .unwrap();
-        let message = DiscoveryMessage::Authentication(maybe_message.expect("there should be a discovery message"));
+        let message = maybe_message.expect("there should be a discovery message");
         manager.on_discovery_message(message);
         let messages = manager.on_user_message(2137, session_id, Recipient::Everyone);
         assert_eq!(messages.len(), 1);
