@@ -856,10 +856,12 @@ mod original_staking_migrations {
 pub const LOG_TARGET: &str = "runtime::staking";
 mod custom_staking_migration {
     use codec::{Decode, Encode, MaxEncodedLen};
-    #[cfg(feature = "try-runtime")]
-    use frame_support::pallet_prelude::Get;
     use frame_support::{
-        log, pallet_prelude::TypeInfo, storage_alias, traits::OnRuntimeUpgrade, RuntimeDebug,
+        log,
+        pallet_prelude::{Get, TypeInfo},
+        storage_alias,
+        traits::OnRuntimeUpgrade,
+        RuntimeDebug,
     };
     use pallet_staking::{log, Config};
     #[cfg(feature = "try-runtime")]
