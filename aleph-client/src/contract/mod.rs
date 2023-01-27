@@ -68,7 +68,6 @@ pub struct ContractInstance {
 }
 
 impl ContractInstance {
-
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
     pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
         Ok(Self {
@@ -221,15 +220,27 @@ impl ContractInstance {
             .context("RPC request error - there may be more info in node logs.")?;
 
         if !contract_read_result.debug_message.is_empty() {
-            println!(
+            error!(
+                target: "aleph_client::contract",
                 "Dry-run debug messages: {:?}",
-                hex::encode(&contract_read_result.debug_message)
+                core::str::from_utf8(&contract_read_result.debug_message)
+                    .unwrap_or("<Invalid UTF8>")
+                    .split('\n')
+                    .filter(|m| !m.is_empty())
+                    .collect::<Vec<_>>()
             );
+        }
+
+        if let Ok(res) = &contract_read_result.result {
+            if res.did_revert() {
+                // For dry run, failed transactions don't return `Err` but `Ok(_)`
+                // and we have to inspect flags manually.
+                error!("Dry-run call reverted");
+            }
         }
 
         Ok(contract_read_result)
     }
-
 }
 
 impl Debug for ContractInstance {
