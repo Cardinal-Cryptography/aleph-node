@@ -3,6 +3,12 @@ use std::{
     hash::Hash,
 };
 
+use codec::Codec;
+
+mod data;
+mod forest;
+#[cfg(test)]
+mod mock;
 mod substrate;
 mod task_queue;
 mod ticker;
@@ -10,6 +16,11 @@ mod ticker;
 pub use substrate::SessionVerifier;
 
 const LOG_TARGET: &str = "aleph-block-sync";
+
+/// The identifier of a connected peer.
+pub trait PeerId: Clone + Hash + Eq {}
+
+impl<T: Clone + Hash + Eq> PeerId for T {}
 
 /// The identifier of a block, the least amount of knowledge we can have about a block.
 pub trait BlockIdentifier: Clone + Hash + Debug + Eq {
@@ -37,7 +48,7 @@ pub trait Header: Clone {
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone {
     type Header: Header;
-    type Unverified;
+    type Unverified: Clone + Codec + Debug;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;
