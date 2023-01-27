@@ -15,43 +15,15 @@ pub trait Authorization<PK> {
     async fn is_authorized(&self, value: PK) -> Result<bool, AuthorizatorError>;
 }
 
-struct AuthorizationHandler<PK> {
-    identifier: PK,
-    result_sender: oneshot::Sender<bool>,
-}
-
-impl<PK> AuthorizationHandler<PK> {
-    fn new(result: PK) -> (Self, oneshot::Receiver<bool>) {
-        let (auth_sender, auth_receiver) = oneshot::channel();
-        (
-            Self {
-                identifier: result,
-                result_sender: auth_sender,
-            },
-            auth_receiver,
-        )
-    }
-
-    pub fn handle_authorization(
-        self,
-        handler: impl FnOnce(PK) -> bool,
-    ) -> Result<(), AuthorizatorError> {
-        let auth_result = handler(self.identifier);
-        self.result_sender
-            .send(auth_result)
-            .map_err(|_| AuthorizatorError::MissingService)
-    }
-}
-
 /// Used for validation of authorization requests. One should call [handle_authorization](Self::handle_authorization) and
 /// provide a callback responsible for authorization. Each such call should be matched with call to
 /// [Authorizator::is_authorized](Authorizator::is_authorized).
 pub struct AuthorizationRequestHandler<PK> {
-    receiver: mpsc::UnboundedReceiver<AuthorizationHandler<PK>>,
+    receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<bool>)>,
 }
 
 impl<PK> AuthorizationRequestHandler<PK> {
-    fn new(receiver: mpsc::UnboundedReceiver<AuthorizationHandler<PK>>) -> Self {
+    fn new(receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<bool>)>) -> Self {
         Self { receiver }
     }
 
@@ -59,19 +31,23 @@ impl<PK> AuthorizationRequestHandler<PK> {
         &mut self,
         handler: F,
     ) -> Result<(), AuthorizatorError> {
-        let next = self
+        let (identifier, result_sender) = self
             .receiver
             .next()
             .await
             .ok_or(AuthorizatorError::MissingService)?;
 
-        next.handle_authorization(handler)
+        let auth_result = handler(identifier);
+        result_sender
+            .send(auth_result)
+            .map_err(|_| AuthorizatorError::MissingService)?;
+        Ok(())
     }
 }
 
 #[derive(Clone)]
 pub struct Authorizator<PK> {
-    sender: mpsc::UnboundedSender<AuthorizationHandler<PK>>,
+    sender: mpsc::UnboundedSender<(PK, oneshot::Sender<bool>)>,
 }
 
 /// `Authorizator` is responsible for authorization of public-keys for the validator-network component. Each call to
@@ -87,9 +63,9 @@ impl<PK> Authorizator<PK> {
 #[async_trait::async_trait]
 impl<PK: Send> Authorization<PK> for Authorizator<PK> {
     async fn is_authorized(&self, value: PK) -> Result<bool, AuthorizatorError> {
-        let (handler, receiver) = AuthorizationHandler::new(value);
+        let (sender, receiver) = oneshot::channel();
         self.sender
-            .unbounded_send(handler)
+            .unbounded_send((value, sender))
             .map_err(|_| AuthorizatorError::MissingService)?;
         receiver
             .await
