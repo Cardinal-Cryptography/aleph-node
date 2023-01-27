@@ -36,11 +36,11 @@ pub use types::{
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
     FrontendTrapdoor as Trapdoor,
 };
-
-use crate::environment::{CircuitField, FpVar};
 pub use withdraw::{
     WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
 };
+
+use crate::environment::{CircuitField, FpVar};
 
 fn convert_hash(front: [u64; 4]) -> CircuitField {
     CircuitField::from(BigInteger256::new(front))

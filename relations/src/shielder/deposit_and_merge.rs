@@ -127,8 +127,7 @@ mod relation {
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
-    use ark_relations::r1cs::ConstraintSynthesizer;
-    use ark_relations::r1cs::ConstraintSystem;
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
     use ark_snark::SNARK;
 
     use super::*;

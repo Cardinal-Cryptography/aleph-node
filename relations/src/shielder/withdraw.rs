@@ -142,13 +142,14 @@ mod relation {
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
-    use ark_relations::r1cs::ConstraintSynthesizer;
-    use ark_relations::r1cs::ConstraintSystem;
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::shielder::note::{compute_note, compute_parent_hash};
-    use crate::FrontendAccount;
+    use crate::{
+        shielder::note::{compute_note, compute_parent_hash},
+        FrontendAccount,
+    };
 
     const MAX_PATH_LEN: u8 = 10;
 
