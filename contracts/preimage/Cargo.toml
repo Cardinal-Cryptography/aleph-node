@@ -28,9 +28,10 @@ std = [
     "ark-ff/std",
     "ark-serialize/std",
     "ink/std",
+    "poseidon/std",
+    "relations/std",
     "scale-info/std",
     "scale/std",
     "snarcos-extension/std",
-    "poseidon/std",
 ]
 ink-as-dependency = []

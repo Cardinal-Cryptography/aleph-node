@@ -6,6 +6,7 @@ mod preimage {
     use ark_ff::{BigInteger256, PrimeField};
     use ink::{prelude::vec::Vec, storage::Mapping};
     use poseidon::hash::one_to_one_hash;
+    use relations::PreimageRelation;
     // use snarcos_extension::VerificationKeyIdentifier;
 
     // const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
@@ -68,7 +69,7 @@ mod preimage {
                 &hash_bytes,
             )));
 
-            // let public_input = PreimageRelation::with_public_input(hash);
+            let public_input = PreimageRelation::with_public_input(hash);
 
             // TODO : verify
 
