@@ -4,7 +4,7 @@ use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 #[cfg(feature = "try-runtime")]
 use aleph_runtime::Block;
 use log::warn;
-use sc_cli::{clap::Parser, PruningParams, SubstrateCli};
+use sc_cli::{clap::Parser, CliConfiguration, PruningParams, SubstrateCli};
 use sc_network::config::Role;
 use sc_service::PartialComponents;
 
@@ -116,8 +116,8 @@ fn main() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
             if cli.aleph.experimental_pruning() {
                 warn!("Experimental_pruning was turned on. Usage of this flag can lead to misbehaviour, which can be punished. State pruning: {:?}; Blocks pruning: {:?};", 
-                    cli.run.import_params.pruning_params.state_pruning(),
-                    cli.run.import_params.pruning_params.blocks_pruning(),
+                    cli.run.state_pruning()?.unwrap_or_default(),
+                    cli.run.blocks_pruning()?,
                 );
             } else if overwritten_pruning {
                 warn!("Pruning not supported. Switching to keeping all block bodies and states.");
