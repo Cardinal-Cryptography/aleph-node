@@ -25,8 +25,7 @@ pub enum VersionedAuthentication<A: AddressingInformation> {
 
 impl<A: AddressingInformation> From<Authentication<A>> for Vec<VersionedAuthentication<A>> {
     fn from(authentication: Authentication<A>) -> Self {
-        use VersionedAuthentication::*;
-        vec![V2(authentication)]
+        vec![VersionedAuthentication::V2(authentication)]
     }
 }
 

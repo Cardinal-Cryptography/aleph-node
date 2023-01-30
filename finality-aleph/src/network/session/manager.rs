@@ -7,14 +7,13 @@ use std::{
 use futures::channel::mpsc;
 use log::{debug, info};
 
-use super::Authentication;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         session::{
-            data::DataInSession, Connections, Discovery, DiscoveryMessage, SessionHandler,
-            SessionHandlerError,
+            data::DataInSession, Authentication, Connections, Discovery, DiscoveryMessage,
+            SessionHandler, SessionHandlerError,
         },
         AddressingInformation, Data, NetworkIdentity, PeerId,
     },
