@@ -10,7 +10,7 @@ use tokio::time;
 use crate::{
     network::{
         clique::{
-            authorization::Authorizator,
+            authorization::{AuthorizationResult, Authorizator},
             incoming::incoming,
             manager::{AddResult, LegacyManager, Manager},
             outgoing::outgoing,
@@ -245,10 +245,10 @@ where
         let (authorizator, mut authorization_handler) = Authorizator::new();
         use ServiceCommand::*;
         loop {
-            let manager = &self.manager;
+            let listener = &mut self.listener;
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
-                maybe_stream = self.listener.accept() => match maybe_stream {
+                maybe_stream = listener.accept() => match maybe_stream {
                     Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone(), authorizator.clone()),
                     Err(e) => warn!(target: LOG_TARGET, "Listener failed to accept connection: {}", e),
                 },
@@ -287,7 +287,13 @@ where
                         }
                     },
                 },
-                result = authorization_handler.handle_authorization(|pk| manager.is_authorized(&pk)) => {
+                result = authorization_handler.handle_authorization(|public_key| {
+                    if self.manager.is_authorized(&public_key) {
+                        AuthorizationResult::Authorized
+                    } else {
+                        AuthorizationResult::NotAuthorized
+                    }
+                }) => {
                     if result.is_err() {
                         warn!(target: LOG_TARGET, "Other side of the Authorization Service is already closed.");
                     }

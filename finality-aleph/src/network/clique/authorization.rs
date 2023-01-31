@@ -9,6 +9,11 @@ pub enum AuthorizatorError {
     ServiceDisappeared,
 }
 
+pub enum AuthorizationResult {
+    Authorized,
+    NotAuthorized,
+}
+
 /// Allows one to authorize incoming public-keys.
 #[async_trait::async_trait]
 pub trait Authorization<PK> {
@@ -19,15 +24,15 @@ pub trait Authorization<PK> {
 /// provide a callback responsible for authorization. Each such call should be matched with call to
 /// [Authorizator::is_authorized](Authorizator::is_authorized).
 pub struct AuthorizationRequestHandler<PK> {
-    receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<bool>)>,
+    receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<AuthorizationResult>)>,
 }
 
 impl<PK> AuthorizationRequestHandler<PK> {
-    fn new(receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<bool>)>) -> Self {
+    fn new(receiver: mpsc::UnboundedReceiver<(PK, oneshot::Sender<AuthorizationResult>)>) -> Self {
         Self { receiver }
     }
 
-    pub async fn handle_authorization<F: FnOnce(PK) -> bool>(
+    pub async fn handle_authorization<F: FnOnce(PK) -> AuthorizationResult>(
         &mut self,
         handler: F,
     ) -> Result<(), AuthorizatorError> {
@@ -47,7 +52,7 @@ impl<PK> AuthorizationRequestHandler<PK> {
 
 #[derive(Clone)]
 pub struct Authorizator<PK> {
-    sender: mpsc::UnboundedSender<(PK, oneshot::Sender<bool>)>,
+    sender: mpsc::UnboundedSender<(PK, oneshot::Sender<AuthorizationResult>)>,
 }
 
 /// `Authorizator` is responsible for authorization of public-keys for the validator-network component. Each call to
@@ -70,6 +75,10 @@ impl<PK: Send> Authorization<PK> for Authorizator<PK> {
         receiver
             .await
             .map_err(|_| AuthorizatorError::ServiceDisappeared)
+            .map(|auth_result| match auth_result {
+                AuthorizationResult::Authorized => true,
+                AuthorizationResult::NotAuthorized => false,
+            })
     }
 }
 
@@ -78,7 +87,7 @@ mod tests {
     use futures::join;
 
     use crate::network::clique::{
-        authorization::{Authorization, Authorizator, AuthorizatorError},
+        authorization::{Authorization, AuthorizationResult, Authorizator, AuthorizatorError},
         mock::{key, MockSecretKey},
         SecretKey,
     };
@@ -90,7 +99,7 @@ mod tests {
         let public_key = key().0;
         let (authorizator_result, request_handler_result) = join!(
             authorizator.is_authorized(public_key.clone()),
-            request_handler.handle_authorization(|_| true),
+            request_handler.handle_authorization(|_| AuthorizationResult::Authorized),
         );
 
         assert!(authorizator_result.expect("Authorizator should return Ok."));
@@ -101,7 +110,7 @@ mod tests {
 
         let (authorizator_result, request_handler_result) = join!(
             authorizator.is_authorized(public_key),
-            request_handler.handle_authorization(|_| false),
+            request_handler.handle_authorization(|_| AuthorizationResult::NotAuthorized),
         );
 
         assert!(!authorizator_result.expect("Authorizator should return Ok."));
