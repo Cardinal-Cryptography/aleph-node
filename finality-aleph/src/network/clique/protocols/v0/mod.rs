@@ -91,7 +91,7 @@ async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(
 pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
     secret_key: SK,
-    authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+    authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
@@ -102,7 +102,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
         "Incoming handshake with {} finished successfully.", public_key
     );
 
-    let authorized = handle_authorization::<SK>(authorizator, public_key.clone())
+    let authorized = handle_authorization::<SK>(authorization_requests_sender, public_key.clone())
         .await
         .map_err(|_| ProtocolError::NotAuthorized)?;
     if !authorized {
@@ -139,11 +139,11 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
 }
 
 pub async fn handle_authorization<SK: SecretKey>(
-    authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+    authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     public_key: SK::PublicKey,
 ) -> Result<bool, ()> {
     let (sender, receiver) = oneshot::channel();
-    if let Err(err) = authorizator.unbounded_send((public_key.clone(), sender)) {
+    if let Err(err) = authorization_requests_sender.unbounded_send((public_key.clone(), sender)) {
         warn!(
             target: LOG_TARGET,
             "Unable to send authorization request for public-key {}: disconnected.",
@@ -185,11 +185,11 @@ pub mod tests {
         let (incoming_result_for_service, result_from_incoming) = mpsc::unbounded();
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
-        let (authorizator, authorization_handler) = mpsc::unbounded();
+        let (authorization_requests_sender, authorization_requests) = mpsc::unbounded();
         let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
-            authorizator,
+            authorization_requests_sender,
             incoming_result_for_service,
             data_for_user,
         ));
@@ -210,7 +210,7 @@ pub mod tests {
             data_from_outgoing: None,
             result_from_incoming,
             result_from_outgoing,
-            authorization_handler,
+            authorization_requests,
         }
     }
 
@@ -475,14 +475,14 @@ pub mod tests {
             outgoing_handle,
             mut data_from_incoming,
             mut result_from_incoming,
-            mut authorization_handler,
+            mut authorization_requests,
             ..
         } = prepare::<Vec<i32>>();
 
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
         let authorization_handle = async move {
-            let (_, response_sender) = authorization_handler
+            let (_, response_sender) = authorization_requests
                 .next()
                 .await
                 .expect("We should recieve at least one authorization request.");

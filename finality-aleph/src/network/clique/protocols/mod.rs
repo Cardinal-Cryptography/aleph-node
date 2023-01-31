@@ -109,7 +109,10 @@ impl Protocol {
         secret_key: SK,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
-        authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+        authorization_requests_sender: mpsc::UnboundedSender<(
+            SK::PublicKey,
+            oneshot::Sender<bool>,
+        )>,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
@@ -117,7 +120,7 @@ impl Protocol {
                 v0::incoming(
                     stream,
                     secret_key,
-                    authorizator,
+                    authorization_requests_sender,
                     result_for_parent,
                     data_for_user,
                 )
@@ -127,7 +130,7 @@ impl Protocol {
                 v1::incoming(
                     stream,
                     secret_key,
-                    authorizator,
+                    authorization_requests_sender,
                     result_for_parent,
                     data_for_user,
                 )

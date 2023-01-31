@@ -40,7 +40,7 @@ async fn manage_incoming<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
-    authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+    authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
 ) -> Result<(), IncomingError<SK::PublicKey>> {
     debug!(
         target: LOG_TARGET,
@@ -54,7 +54,7 @@ async fn manage_incoming<SK: SecretKey, D: Data, S: Splittable>(
             secret_key,
             result_for_parent,
             data_for_user,
-            authorizator,
+            authorization_requests_sender,
         )
         .await?)
 }
@@ -69,7 +69,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
-    authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+    authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
 ) {
     let addr = stream.peer_address_info();
     if let Err(e) = manage_incoming(
@@ -77,7 +77,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
         stream,
         result_for_parent,
         data_for_user,
-        authorizator,
+        authorization_requests_sender,
     )
     .await
     {

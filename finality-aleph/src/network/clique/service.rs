@@ -152,7 +152,10 @@ where
         &self,
         stream: NL::Connection,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
-        authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
+        authorization_requests_sender: mpsc::UnboundedSender<(
+            SK::PublicKey,
+            oneshot::Sender<bool>,
+        )>,
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
@@ -163,7 +166,7 @@ where
                     stream,
                     result_for_parent,
                     next_to_interface,
-                    authorizator,
+                    authorization_requests_sender,
                 )
                 .await;
             });
@@ -241,14 +244,14 @@ where
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         let (result_for_parent, mut worker_results) = mpsc::unbounded();
-        let (authorizator, mut authorization_handler) = mpsc::unbounded();
+        let (authorization_requests_sender, mut authorization_requests) = mpsc::unbounded();
         use ServiceCommand::*;
         loop {
             let listener = &mut self.listener;
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
                 maybe_stream = listener.accept() => match maybe_stream {
-                    Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone(), authorizator.clone()),
+                    Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone(), authorization_requests_sender.clone()),
                     Err(e) => warn!(target: LOG_TARGET, "Listener failed to accept connection: {}", e),
                 },
                 // got a new command from the interface
@@ -286,7 +289,7 @@ where
                         }
                     },
                 },
-                Some((public_key, response_channel)) = authorization_handler.next() => {
+                Some((public_key, response_channel)) = authorization_requests.next() => {
                     let authorization_result = self.manager.is_authorized(&public_key);
                     if response_channel.send(authorization_result).is_err() {
                         warn!(target: LOG_TARGET, "Other side of the Authorization Service is already closed.");
