@@ -782,6 +782,7 @@ pub type Executive = frame_executive::Executive<
             migrations::original_staking_migrations::StakingMigrationV11OldPallet,
         >,
         pallet_staking::migrations::v12::MigrateToV12<Runtime>,
+        pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
     ),
 >;
 
