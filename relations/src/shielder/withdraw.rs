@@ -222,11 +222,11 @@ mod tests {
 
     #[test]
     fn withdraw_proving_procedure() {
-        let circuit_wo_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
+        let circuit_withouth_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
-            Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
 
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
@@ -239,11 +239,11 @@ mod tests {
 
     #[test]
     fn neither_fee_nor_recipient_are_simplified_out() {
-        let circuit_wo_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
+        let circuit_withouth_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
-            Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
 
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();

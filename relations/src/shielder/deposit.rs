@@ -96,11 +96,11 @@ mod tests {
 
     #[test]
     fn deposit_proving_procedure() {
-        let circuit_wo_input = DepositRelationWithoutInput::new();
+        let circuit_withouth_input = DepositRelationWithoutInput::new();
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
-            Groth16::<Bls12_381>::circuit_specific_setup(circuit_wo_input, &mut rng).unwrap();
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
 
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
