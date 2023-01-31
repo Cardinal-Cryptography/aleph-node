@@ -18,7 +18,7 @@ use crate::{
     last_block_of_session, mpsc,
     mpsc::UnboundedSender,
     session_id_from_block_num,
-    session_map::ReadOnlySessionMap,
+    session_map::{AuthorityProvider, ReadOnlySessionMap},
     sync::SessionVerifier,
     BlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
@@ -31,7 +31,7 @@ pub mod testing {
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
 
-struct JustificationParams<B: Block, H: ExHashT, C, BB> {
+struct JustificationParams<B: Block, H: ExHashT, C, BB, AP: AuthorityProvider<NumberFor<B>>> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
@@ -40,6 +40,7 @@ struct JustificationParams<B: Block, H: ExHashT, C, BB> {
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub session_map: ReadOnlySessionMap,
+    pub authority_provider: AP,
 }
 
 struct SessionInfoProviderImpl {
@@ -75,8 +76,8 @@ impl<B: Block> SessionInfoProvider<B, SessionVerifier> for SessionInfoProviderIm
     }
 }
 
-fn setup_justification_handler<B, H, C, BB, BE>(
-    just_params: JustificationParams<B, H, C, BB>,
+fn setup_justification_handler<B, H, C, BB, BE, AP>(
+    just_params: JustificationParams<B, H, C, BB, AP>,
 ) -> (
     UnboundedSender<JustificationNotification<B>>,
     impl Future<Output = ()>,
@@ -88,6 +89,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     BB: BlockchainBackend<B> + 'static + Send,
+    AP: AuthorityProvider<NumberFor<B>>,
 {
     let JustificationParams {
         network,
@@ -98,10 +100,11 @@ where
         session_period,
         millisecs_per_block,
         session_map,
+        authority_provider,
     } = just_params;
 
     let handler = JustificationHandler::new(
-        SessionInfoProviderImpl::new(session_map, session_period),
+        authority_provider,
         network,
         blockchain_backend,
         AlephFinalizer::new(client),

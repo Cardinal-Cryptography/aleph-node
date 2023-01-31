@@ -113,6 +113,7 @@ where
 
     let (authority_justification_tx, handler_task) =
         setup_justification_handler(JustificationParams {
+            authority_provider: AuthorityProviderImpl::new(client.clone()),
             justification_rx,
             network,
             client: client.clone(),

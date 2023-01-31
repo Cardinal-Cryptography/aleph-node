@@ -42,6 +42,7 @@ where
         map_updater.run().await
     });
     let (_, handler_task) = setup_justification_handler(JustificationParams {
+        authority_provider: AuthorityProviderImpl::new(client.clone()),
         justification_rx,
         network,
         client,
