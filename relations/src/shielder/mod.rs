@@ -56,7 +56,7 @@ fn convert_account(front: [u8; 32]) -> CircuitField {
 
 fn check_merkle_proof(
     merkle_root: Result<&BackendMerkleRoot, SynthesisError>,
-    leaf_index: Result<&BackendLeafIndex, SynthesisError>,
+    leaf_index: Result<&u64, SynthesisError>,
     leaf_bytes: Vec<UInt8<CircuitField>>,
     path: BackendMerklePath,
     max_path_len: u8,
@@ -69,7 +69,10 @@ fn check_merkle_proof(
     let zero = CircuitField::zero();
 
     let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || merkle_root)?;
-    let mut leaf_index = FpVar::new_witness(ns!(cs, "leaf index"), || leaf_index)?;
+    let _ = FpVar::new_witness(ns!(cs, "leaf index"), || {
+        leaf_index.map(|li| CircuitField::from(*li))
+    })?;
+    let mut leaf_index = leaf_index.cloned().unwrap_or_default();
 
     let mut current_hash_bytes = leaf_bytes;
     let mut hash_bytes = vec![current_hash_bytes.clone()];
@@ -78,7 +81,7 @@ fn check_merkle_proof(
         let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {
             Ok(path.get(i as usize).unwrap_or(&zero))
         })?;
-        let bytes: Vec<ByteVar> = if leaf_index.value().unwrap_or_default().0.is_even() {
+        let bytes: Vec<ByteVar> = if leaf_index & 1 == 0 {
             [current_hash_bytes.clone(), sibling.to_bytes()?].concat()
         } else {
             [sibling.to_bytes()?, current_hash_bytes.clone()].concat()
@@ -87,12 +90,7 @@ fn check_merkle_proof(
         current_hash_bytes = tangle::tangle_in_field::<2>(bytes)?;
         hash_bytes.push(current_hash_bytes.clone());
 
-        leaf_index = FpVar::constant(
-            leaf_index
-                .value()
-                .unwrap_or_default()
-                .div(CircuitField::from(2)),
-        );
+        leaf_index /= 2;
     }
 
     for (a, b) in merkle_root

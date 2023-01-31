@@ -135,3 +135,45 @@ fn _tangle(bytes: &mut [u8], low: usize, high: usize) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ark_ff::{BigInteger, BigInteger256, Zero};
+    use ark_r1cs_std::R1CSVar;
+
+    use crate::{
+        shielder::tangle::{tangle, tangle_in_field},
+        ByteVar,
+    };
+
+    #[test]
+    fn tangling_is_homomorphic() {
+        let bytes = [
+            BigInteger256::from(0u64).to_bytes_le(),
+            BigInteger256::from(100u64).to_bytes_le(),
+            BigInteger256::from(17u64).to_bytes_le(),
+            BigInteger256::from(19u64).to_bytes_le(),
+        ]
+        .concat();
+        let tangled: [u8; 32] = tangle::<4>(bytes.clone()).try_into().unwrap();
+
+        let bytes_in_field = bytes.into_iter().map(ByteVar::constant).collect();
+        let tangled_in_field: [ByteVar; 32] = tangle_in_field::<4>(bytes_in_field)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        for (b, bf) in tangled.into_iter().zip(tangled_in_field) {
+            assert_eq!(b, bf.value().unwrap());
+        }
+    }
+
+    #[test]
+    fn tangles_to_non_zero() {
+        let bytes = vec![0; 128];
+
+        let tangled: [u8; 32] = tangle::<4>(bytes).try_into().unwrap();
+        println!("{:?}", tangled);
+        assert!(tangled.into_iter().filter(|b| b.is_zero()).count() < 4);
+    }
+}
