@@ -15,7 +15,6 @@ concurrency:
 env:
   CACHE_KEY: fe-benjamin-button
   CONTRACTS_ENVFILE: fe-benjamin
-  CARGOCONTRACT_REV: 2b1758756de59bd81e7bed5f8429d364f281cb9a
   NODE_VERSION: 16
   S3BUCKET_PATH: contracts/fe-benjamin-button
 
@@ -68,12 +67,11 @@ jobs:
             contracts/ticket_token/target/
             contracts/wrapped_azero/target/
 
-      # TODO : this should NOT be built every time
       - name: Install cargo-contract
-        run: |
-              cargo install cargo-dylint dylint-link --force
-              # revision merging Hans's PR changes [fix for node URL parsing ]
-              cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-contract
+          version: "2.0.0-beta.1"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -92,22 +90,15 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Run one-node smartnet
+      - name: Run nodes
         shell: bash
         run: |
-          .github/scripts/run_smartnet.sh &
+          scripts/run_nodes.sh
 
       - name: Display node logs
         shell: bash
         run: |
-          docker logs smartnode --follow &
-
-        # wait some while docker pulls the image and starts the node
-      - name: Wait for finalization
-        shell: bash
-        run:  |
-         .github/scripts/check_finalization.sh
-        timeout-minutes: 1
+          tail -f node-0.log &
 
       - name: Run e2e tests
         shell: bash
@@ -200,13 +191,11 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install dylint-link cargo-dylint
 
-      # TODO : this should NOT be built every time
-      - name: Install cargo-contract with bug fixes around URL parsing
-        run: |
-          . "$HOME/.cargo/env"
-          cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
-
-      # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
+      - name: Install cargo-contract
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-contract
+          version: "2.0.0-beta.1"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
