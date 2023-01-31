@@ -1,9 +1,8 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 
 use crate::network::clique::{
-    authorization::Authorizator,
     io::{ReceiveError, SendError},
     Data, PublicKey, SecretKey, Splittable,
 };
@@ -110,7 +109,7 @@ impl Protocol {
         secret_key: SK,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
-        authorizator: Authorizator<SK::PublicKey>,
+        authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {

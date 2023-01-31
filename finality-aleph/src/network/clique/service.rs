@@ -10,7 +10,6 @@ use tokio::time;
 use crate::{
     network::{
         clique::{
-            authorization::{AuthorizationResult, Authorizator},
             incoming::incoming,
             manager::{AddResult, LegacyManager, Manager},
             outgoing::outgoing,
@@ -153,7 +152,7 @@ where
         &self,
         stream: NL::Connection,
         result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
-        authorizator: Authorizator<SK::PublicKey>,
+        authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
@@ -242,7 +241,7 @@ where
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         let (result_for_parent, mut worker_results) = mpsc::unbounded();
-        let (authorizator, mut authorization_handler) = Authorizator::new();
+        let (authorizator, mut authorization_handler) = mpsc::unbounded();
         use ServiceCommand::*;
         loop {
             let listener = &mut self.listener;
@@ -287,14 +286,9 @@ where
                         }
                     },
                 },
-                result = authorization_handler.handle_authorization(|public_key| {
-                    if self.manager.is_authorized(&public_key) {
-                        AuthorizationResult::Authorized
-                    } else {
-                        AuthorizationResult::NotAuthorized
-                    }
-                }) => {
-                    if result.is_err() {
+                Some((public_key, response_channel)) = authorization_handler.next() => {
+                    let authorization_result = self.manager.is_authorized(&public_key);
+                    if response_channel.send(authorization_result).is_err() {
                         warn!(target: LOG_TARGET, "Other side of the Authorization Service is already closed.");
                     }
                 },

@@ -15,7 +15,6 @@ use log::info;
 use rand::Rng;
 use tokio::io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 
-use super::authorization::AuthorizationRequestHandler;
 use crate::network::{
     clique::{
         protocols::{ProtocolError, ResultForService},
@@ -555,5 +554,5 @@ pub struct MockPrelims<D> {
     pub data_from_outgoing: Option<UnboundedReceiver<D>>,
     pub result_from_incoming: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
     pub result_from_outgoing: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
-    pub authorization_handler: AuthorizationRequestHandler<MockPublicKey>,
+    pub authorization_handler: mpsc::UnboundedReceiver<(MockPublicKey, oneshot::Sender<bool>)>,
 }

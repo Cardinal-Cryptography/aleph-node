@@ -1,5 +1,8 @@
 use codec::{Decode, Encode};
-use futures::{channel::mpsc, StreamExt};
+use futures::{
+    channel::{mpsc, oneshot},
+    StreamExt,
+};
 use log::{debug, info, trace, warn};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -7,7 +10,6 @@ use tokio::{
 };
 
 use crate::network::clique::{
-    authorization::Authorization,
     io::{receive_data, send_data},
     protocols::{
         handle_authorization,
@@ -119,10 +121,10 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
 /// Performs the incoming handshake, and then manages a connection sending and receiving data.
 /// Exits on parent request (when the data source is dropped), or in case of broken or dead
 /// network connection.
-pub async fn incoming<SK: SecretKey, D: Data, S: Splittable, A: Authorization<SK::PublicKey>>(
+pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     stream: S,
     secret_key: SK,
-    authorizator: A,
+    authorizator: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
@@ -133,7 +135,7 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable, A: Authorization<SK
         "Incoming handshake with {} finished successfully.", public_key
     );
 
-    let authorized = handle_authorization::<SK, A>(authorizator, public_key.clone())
+    let authorized = handle_authorization::<SK>(authorizator, public_key.clone())
         .await
         .map_err(|_| ProtocolError::NotAuthorized)?;
     if !authorized {
@@ -164,7 +166,6 @@ mod tests {
     use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
 
     use crate::network::clique::{
-        authorization::{AuthorizationResult, Authorizator},
         mock::{key, MockPrelims, MockSplittable},
         protocols::{
             v1::{incoming, outgoing},
@@ -182,7 +183,7 @@ mod tests {
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (incoming_data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
         let (outgoing_data_for_user, data_from_outgoing) = mpsc::unbounded::<D>();
-        let (authorizer, authorization_handler) = Authorizator::new();
+        let (authorizer, authorization_handler) = mpsc::unbounded();
         let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
@@ -464,9 +465,17 @@ mod tests {
 
         let incoming_handle = incoming_handle.fuse();
         let outgoing_handle = outgoing_handle.fuse();
-        let authorization_handle = authorization_handler
-            .handle_authorization(|_| AuthorizationResult::NotAuthorized)
-            .fuse();
+        let authorization_handle = async move {
+            let (_, response_sender) = authorization_handler
+                .next()
+                .await
+                .expect("We should recieve at least one authorization request.");
+            response_sender
+                .send(false)
+                .expect("We should be able to send back an authorization response.");
+            Result::<(), ()>::Ok(())
+        }
+        .fuse();
 
         // since we are returning `NotAuthorized` all except `outgoing_handle` should finish hapilly
         let (incoming_result, outgoing_result, authorization_result) =
