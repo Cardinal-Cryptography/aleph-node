@@ -2,6 +2,7 @@ use access_control::roles::Role;
 use ink::{
     env::Error as InkEnvError,
     prelude::{format, string::String},
+    LangError,
 };
 use marketplace::marketplace::Error as MarketplaceError;
 use openbrush::contracts::psp22::PSP22Error;
@@ -26,6 +27,8 @@ pub enum GameError {
     Arithmethic,
     /// Error from the marketplace contract
     MarketplaceError(MarketplaceError),
+    /// Error while calling another contract
+    ContractCall(LangError),
 }
 
 impl From<PSP22Error> for GameError {
@@ -43,5 +46,11 @@ impl From<InkEnvError> for GameError {
 impl From<MarketplaceError> for GameError {
     fn from(e: MarketplaceError) -> Self {
         GameError::MarketplaceError(e)
+    }
+}
+
+impl From<LangError> for GameError {
+    fn from(e: LangError) -> Self {
+        GameError::ContractCall(e)
     }
 }

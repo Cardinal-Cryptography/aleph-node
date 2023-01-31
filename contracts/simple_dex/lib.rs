@@ -17,7 +17,7 @@ mod simple_dex {
         env::{call::FromAccountId, CallFlags, Error as InkEnvError},
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
-        ToAccountId,
+        LangError, ToAccountId,
     };
     use openbrush::{
         contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
@@ -64,6 +64,12 @@ mod simple_dex {
     impl From<InkEnvError> for DexError {
         fn from(why: InkEnvError) -> Self {
             DexError::InkEnv(format!("{:?}", why))
+        }
+    }
+
+    impl From<LangError> for DexError {
+        fn from(why: LangError) -> Self {
+            DexError::CrossContractCall(format!("{:?}", why))
         }
     }
 
@@ -451,10 +457,7 @@ mod simple_dex {
         ) -> Result<(), DexError> {
             PSP22Ref::transfer_from_builder(&token, from, to, amount, vec![0x0])
                 .call_flags(CallFlags::default().set_allow_reentry(true))
-                .fire()
-                .map_err(DexError::from)?
-                .unwrap() // new error we can't do anything about.
-                .map_err(DexError::from)?;
+                .fire()???;
 
             Ok(())
         }

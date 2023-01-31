@@ -343,10 +343,7 @@ pub mod button_game {
                 vec![],
             )
             .call_flags(CallFlags::default().set_allow_reentry(true))
-            .fire()
-            .map_err(GameError::from)?
-            .unwrap() // new error we can't do anything about.
-            .map_err(GameError::from)?;
+            .fire()???;
 
             Ok(())
         }
@@ -393,10 +390,7 @@ pub mod button_game {
         ) -> ButtonResult<()> {
             PSP22Ref::transfer_from_builder(&self.ticket_token, from, to, value, vec![])
                 .call_flags(CallFlags::default().set_allow_reentry(true))
-                .fire()
-                .map_err(GameError::from)?
-                .unwrap() // new error we can't do anything about.
-                .map_err(GameError::from)?;
+                .fire()???;
 
             Ok(())
         }

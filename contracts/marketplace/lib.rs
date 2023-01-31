@@ -30,6 +30,7 @@ pub mod marketplace {
         env::call::FromAccountId,
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
+        LangError,
     };
     use openbrush::contracts::psp22::{
         extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
@@ -81,6 +82,12 @@ pub mod marketplace {
     impl From<PSP22Error> for Error {
         fn from(inner: PSP22Error) -> Self {
             Error::PSP22TokenCall(inner)
+        }
+    }
+
+    impl From<LangError> for Error {
+        fn from(inner: LangError) -> Self {
+            Error::ContractCall(format!("{:?}", inner))
         }
     }
 
@@ -261,10 +268,7 @@ pub mod marketplace {
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
             PSP22BurnableRef::burn_builder(&self.reward_token, from, amount)
                 .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
-                .fire()
-                .map_err(Error::from)?
-                .unwrap() // new error we can't do anything about.
-                .map_err(Error::from)?;
+                .fire()???;
 
             Ok(())
         }
