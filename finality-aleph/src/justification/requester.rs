@@ -192,12 +192,14 @@ where
         }
     }
 
-    pub fn request_justification(&mut self, wanted: NumberFor<B>) {
+    pub fn request_justification(&mut self, wanted: Vec<NumberFor<B>>) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
                 let info = self.blockchain_backend.info();
                 self.request_children(&info);
-                self.request_wanted(wanted, &info);
+                for w in wanted {
+                    self.request_wanted(w, &info);
+                }
             }
             SchedulerActions::ClearQueue => {
                 debug!(target: "aleph-justification", "Clearing justification request queue");
@@ -209,6 +211,10 @@ where
 
     pub fn finalized_number(&self) -> NumberFor<B> {
         self.blockchain_backend.info().finalized_number
+    }
+
+    pub fn best_number(&self) -> NumberFor<B> {
+        self.blockchain_backend.info().best_number
     }
 
     fn do_request(&mut self, hash: &<B as BlockT>::Hash, num: NumberFor<B>) {

@@ -4,7 +4,7 @@ use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error};
 use sp_api::BlockT;
-use sp_runtime::traits::Header;
+use sp_runtime::traits::{Header, UniqueSaturatedInto};
 use tokio::time::timeout;
 
 use crate::{
@@ -105,7 +105,16 @@ where
                 Err(_) => {} //Timeout passed
             }
 
-            self.block_requester.request_justification(stop_h);
+            let mut wanted = Vec::new();
+            for x in (UniqueSaturatedInto::<u32>::unique_saturated_into(stop_h)
+                ..UniqueSaturatedInto::<u32>::unique_saturated_into(
+                    self.block_requester.best_number(),
+                ))
+                .step_by(900)
+            {
+                wanted.push(x.into());
+            }
+            self.block_requester.request_justification(wanted);
             if Instant::now().saturating_duration_since(last_status_report)
                 >= STATUS_REPORT_INTERVAL
             {
