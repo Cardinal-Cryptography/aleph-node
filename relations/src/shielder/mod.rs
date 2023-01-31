@@ -12,7 +12,7 @@ pub mod types;
 mod withdraw;
 
 use ark_ff::{BigInteger256, PrimeField, Zero};
-use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, R1CSVar};
 use ark_relations::{
     ns,
     r1cs::{ConstraintSystemRef, SynthesisError, SynthesisError::UnconstrainedVariable},
@@ -84,6 +84,11 @@ fn check_merkle_proof(
 
         current_note = tangle_in_field(&next_level)?;
         leaf_index /= 2;
+    }
+
+    if !cs.is_in_setup_mode() {
+        println!("merkle {}", merkle_root.value().unwrap());
+        println!("curren {}", current_note.value().unwrap());
     }
 
     merkle_root.enforce_equal(&current_note)

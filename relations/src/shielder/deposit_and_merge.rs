@@ -159,12 +159,13 @@ mod tests {
         //        1                          x                     x                         x
         //   2        3                x          x            x       x                 x       x
         // 4  *5*   6   7            x   x      x   x        x   x   x   x             x   x   x   x
-        let leaf_index = 5;
+        let leaf_index = 0;
 
         let zero_note = FrontendNote::default(); // x
 
         let sibling_note = compute_note(0, 1, 2, 3); // 4
-        let parent_note = compute_parent_hash(sibling_note, old_note); // 2
+                                                     // let parent_note = compute_parent_hash(sibling_note, old_note); // 2
+        let parent_note = compute_parent_hash(old_note, sibling_note); // 2
         let uncle_note = compute_note(4, 5, 6, 7); // 3
         let grandpa_root = compute_parent_hash(parent_note, uncle_note); // 1
 

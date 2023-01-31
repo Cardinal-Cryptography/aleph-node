@@ -19,61 +19,49 @@
 //! All the index intervals used here are closed-open, i.e. they are in form `[a, b)`, which means
 //! that we consider indices `a`, `a+1`, ..., `b-1`. We also use 0-based indexing.
 
-use std::ops::Add;
+use std::ops::{Add, AddAssign, Mul};
 
 use ark_ff::{BigInteger, ToConstraintField, Zero};
-use ark_r1cs_std::{fields::FieldVar, R1CSVar, ToBytesGadget, ToConstraintFieldGadget};
-use ark_relations::r1cs::SynthesisError;
+use ark_r1cs_std::{
+    alloc::AllocVar, fields::FieldVar, R1CSVar, ToBytesGadget, ToConstraintFieldGadget,
+};
+use ark_relations::{ns, r1cs::SynthesisError};
 
 use super::types::ByteVar;
 use crate::{environment::FpVar, CircuitField};
 
 /// Bottom-level chunk length.
 const BASE_LENGTH: usize = 4;
+/// Tangling operates on fixed-sized arrays with 128 elements.
 const EXPAND_TO: usize = 128;
 
-/// Tangle elements of `bytes`.
+/// Entangle `input` into single `FpVar`.
 ///
 /// For circuit use only.
 pub(super) fn tangle_in_field(input: &[FpVar]) -> Result<FpVar, SynthesisError> {
-    // let number_of_bytes = bytes.len();
-    // _tangle_in_field(&mut bytes, 0, number_of_bytes)?;
-    // Ok(bytes
-    //     .chunks(SQUASH_FACTOR)
-    //     .map(|chunk| {
-    //         chunk
-    //             .iter()
-    //             .cloned()
-    //             .reduce(|x, y| x.xor(&y).unwrap())
-    //             .unwrap()
-    //     })
-    //     .collect())
-
-    let input_expanded = input
+    let mut input_expanded = input
         .iter()
         .cycle()
         .take(EXPAND_TO)
         .cloned()
         .collect::<Vec<_>>();
 
-    let x: FpVar = input_expanded.into_iter().reduce(|a, b| a.add(b)).unwrap();
-    Ok(x)
+    _tangle_in_field(&mut input_expanded, 0, EXPAND_TO)?;
+
+    Ok(input_expanded.into_iter().reduce(|a, b| a.add(b)).unwrap())
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
-fn _tangle_in_field(bytes: &mut [ByteVar], low: usize, high: usize) -> Result<(), SynthesisError> {
-    // Bottom level case: computing suffix sums. We have to do some loop-index boilerplate, because
-    // Rust doesn't support decreasing range iteration.
+fn _tangle_in_field(elems: &mut [FpVar], low: usize, high: usize) -> Result<(), SynthesisError> {
+    // Bottom level case: computing suffix sums of inverses. We have to do some loop-index
+    // boilerplate, because Rust doesn't support decreasing range iteration.
+    let cs = elems[0].cs();
+
     if high - low <= BASE_LENGTH {
         let mut i = high - 2;
         loop {
-            bytes[i] = ByteVar::constant(
-                u8::overflowing_add(
-                    bytes[i].value().unwrap_or_default(),
-                    bytes[i + 1].value().unwrap_or_default(),
-                )
-                .0,
-            );
+            elems[i] = (&elems[i] + &elems[i + 1]) * FpVar::constant(CircuitField::from(i as u64));
+
             if i == low {
                 break;
             } else {
@@ -85,58 +73,53 @@ fn _tangle_in_field(bytes: &mut [ByteVar], low: usize, high: usize) -> Result<()
         //
         // We start by recursive call to both halves, so that we proceed in a bottom-top manner.
         let mid = (low + high) / 2;
-        _tangle_in_field(bytes, low, mid)?;
-        _tangle_in_field(bytes, mid, high)?;
+        _tangle_in_field(elems, low, mid)?;
+        _tangle_in_field(elems, mid, high)?;
 
         // Swapping the halves.
-        for i in low..mid {
-            let temp = bytes[i].clone();
-            bytes[i] = bytes[i + mid - low].clone();
-            bytes[i + mid - low] = temp;
-        }
+        // for i in low..mid {
+        //     let temp = elems[i].clone();
+        //     elems[i] = elems[i + mid - low].clone();
+        //     elems[i + mid - low] = temp;
+        // }
 
         // Prefix products.
-        for i in low + 1..high {
-            bytes[i] = ByteVar::constant(
-                u8::overflowing_mul(
-                    bytes[i].value().unwrap_or_default(),
-                    bytes[i - 1].value().unwrap_or_default(),
-                )
-                .0,
-            )
-        }
+        // for i in low + 1..high {
+        // elemes[i] = ByteVar::constant(
+        //     u8::overflowing_mul(
+        //         elemes[i].value().unwrap_or_default(),
+        //         elemes[i - 1].value().unwrap_or_default(),
+        //     )
+        //     .0,
+        // )
+        // }
     }
     Ok(())
 }
 
 /// Tangle elements of `bytes`.
 pub fn tangle(input: &[CircuitField]) -> CircuitField {
-    // let number_of_bytes = bytes.len();
-    // _tangle(&mut bytes, 0, number_of_bytes);
-    // bytes
-    //     .chunks(SQUASH_FACTOR)
-    //     .map(|chunk| chunk.iter().cloned().reduce(|x, y| x ^ y).unwrap())
-    //     .collect()
-
-    let input_expanded = input
+    let mut input_expanded = input
         .iter()
         .cycle()
         .take(EXPAND_TO)
         .cloned()
         .collect::<Vec<_>>();
 
-    let x: CircuitField = input_expanded.into_iter().sum();
-    x
+    _tangle(&mut input_expanded, 0, EXPAND_TO);
+
+    input_expanded.into_iter().sum()
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
 ///
 /// For detailed description, see `_tangle_in_field`.
-fn _tangle(bytes: &mut [u8], low: usize, high: usize) {
+fn _tangle(elems: &mut [CircuitField], low: usize, high: usize) {
     if high - low <= BASE_LENGTH {
         let mut i = high - 2;
         loop {
-            bytes[i] = u8::overflowing_add(bytes[i], bytes[i + 1]).0;
+            elems[i] = (elems[i] + elems[i + 1]) * CircuitField::from(i as u64);
+
             if i == low {
                 break;
             } else {
@@ -145,16 +128,16 @@ fn _tangle(bytes: &mut [u8], low: usize, high: usize) {
         }
     } else {
         let mid = (low + high) / 2;
-        _tangle(bytes, low, mid);
-        _tangle(bytes, mid, high);
+        _tangle(elems, low, mid);
+        _tangle(elems, mid, high);
 
-        for i in low..mid {
-            bytes.swap(i, i + mid - low);
-        }
-
-        for i in low + 1..high {
-            bytes[i] = u8::overflowing_mul(bytes[i], bytes[i - 1]).0;
-        }
+        // for i in low..mid {
+        //     bytes.swap(i, i + mid - low);
+        // }
+        //
+        // for i in low + 1..high {
+        //     bytes[i] = u8::overflowing_mul(bytes[i], bytes[i - 1]).0;
+        // }
     }
 }
 
