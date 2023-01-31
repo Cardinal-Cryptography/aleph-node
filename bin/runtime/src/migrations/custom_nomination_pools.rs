@@ -1,19 +1,16 @@
 pub use nomination_pools::CustomMigrateToV2;
 
 mod nomination_pools {
-    use codec::{Decode, Encode, Error, Input, MaxEncodedLen};
+    use codec::{Decode, Encode, Error, Input};
     use frame_support::{
-        dispatch::TypeInfo,
         log,
         traits::{OnRuntimeUpgrade, StorageVersion},
-        RuntimeDebugNoBound,
     };
     use pallet_nomination_pools::{
         BalanceOf, BondedPools, Config, Metadata, Pallet, PoolId, PoolMember, PoolMembers,
         ReversePoolIdLookup, RewardPool, RewardPools, SubPoolsStorage,
     };
     use sp_core::{Get, U256};
-    use sp_staking::EraIndex;
     use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 
     use crate::sp_api_hidden_includes_construct_runtime::hidden_include::dispatch::GetStorageVersion; // sick
@@ -24,15 +21,6 @@ mod nomination_pools {
         pub balance: B,
         pub total_earnings: B,
         pub points: U256,
-    }
-
-    #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebugNoBound)]
-    pub struct OldPoolMember<T: Config> {
-        pub pool_id: PoolId,
-        pub points: BalanceOf<T>,
-        pub reward_pool_total_earnings: BalanceOf<T>,
-        pub unbonding_eras:
-            sp_core::bounded::BoundedBTreeMap<EraIndex, BalanceOf<T>, T::MaxUnbonding>,
     }
 
     enum EitherRewardPool<T: Config, B> {
