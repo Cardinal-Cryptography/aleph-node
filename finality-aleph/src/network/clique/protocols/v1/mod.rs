@@ -11,7 +11,7 @@ use crate::network::clique::{
     io::{receive_data, send_data},
     protocols::{
         handle_authorization,
-        handshake::{DefaultHandshake, Handshake},
+        handshake::{v0_handshake_incoming, v0_handshake_outgoing},
         ConnectionType, ProtocolError, ResultForService,
     },
     Data, PublicKey, SecretKey, Splittable, LOG_TARGET,
@@ -94,25 +94,8 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
-    handle_outgoing::<_, _, _, DefaultHandshake>(
-        stream,
-        secret_key,
-        public_key,
-        result_for_parent,
-        data_for_user,
-    )
-    .await
-}
-
-pub async fn handle_outgoing<SK: SecretKey, D: Data, S: Splittable, H: Handshake<SK>>(
-    stream: S,
-    secret_key: SK,
-    public_key: SK::PublicKey,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
-    data_for_user: mpsc::UnboundedSender<D>,
-) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Extending hand to {}.", public_key);
-    let (sender, receiver) = H::handshake_outgoing(stream, secret_key, public_key.clone()).await?;
+    let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, public_key.clone()).await?;
     info!(
         target: LOG_TARGET,
         "Outgoing handshake with {} finished successfully.", public_key
@@ -143,31 +126,8 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable, A: Authorization<SK
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
-    handle_incoming::<_, _, _, _, DefaultHandshake>(
-        stream,
-        secret_key,
-        authorizator,
-        result_for_parent,
-        data_for_user,
-    )
-    .await
-}
-
-pub async fn handle_incoming<
-    SK: SecretKey,
-    D: Data,
-    S: Splittable,
-    A: Authorization<SK::PublicKey>,
-    H: Handshake<SK>,
->(
-    stream: S,
-    secret_key: SK,
-    authorizator: A,
-    result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
-    data_for_user: mpsc::UnboundedSender<D>,
-) -> Result<(), ProtocolError<SK::PublicKey>> {
     trace!(target: LOG_TARGET, "Waiting for extended hand...");
-    let (sender, receiver, public_key) = H::handshake_incoming(stream, secret_key).await?;
+    let (sender, receiver, public_key) = v0_handshake_incoming(stream, secret_key).await?;
     info!(
         target: LOG_TARGET,
         "Incoming handshake with {} finished successfully.", public_key
@@ -204,14 +164,13 @@ mod tests {
     use futures::{channel::mpsc, pin_mut, FutureExt, StreamExt};
 
     use crate::network::clique::{
-        authorization::Authorization,
-        mock::{key, new_authorizer, MockPrelims, MockSplittable},
+        authorization::{AuthorizationResult, Authorizator},
+        mock::{key, MockPrelims, MockSplittable},
         protocols::{
-            v0::tests::{execute_do_not_call_sender_and_receiver_until_authorized, HandleIncoming},
-            v1::{handle_incoming, incoming, outgoing},
-            ConnectionType, Handshake, ProtocolError, ResultForService,
+            v1::{incoming, outgoing},
+            ConnectionType, ProtocolError,
         },
-        Data, SecretKey, Splittable,
+        Data,
     };
 
     fn prepare<D: Data>() -> MockPrelims<D> {
@@ -223,7 +182,7 @@ mod tests {
         let (outgoing_result_for_service, result_from_outgoing) = mpsc::unbounded();
         let (incoming_data_for_user, data_from_incoming) = mpsc::unbounded::<D>();
         let (outgoing_data_for_user, data_from_outgoing) = mpsc::unbounded::<D>();
-        let authorizer = new_authorizer();
+        let (authorizer, authorization_handler) = Authorizator::new();
         let incoming_handle = Box::pin(incoming(
             stream_incoming,
             pen_incoming.clone(),
@@ -249,6 +208,7 @@ mod tests {
             data_from_outgoing: Some(data_from_outgoing),
             result_from_incoming,
             result_from_outgoing,
+            authorization_handler,
         }
     }
 
@@ -491,37 +451,35 @@ mod tests {
         };
     }
 
-    struct V1HandleIncoming;
-
-    #[async_trait::async_trait]
-    impl HandleIncoming for V1HandleIncoming {
-        async fn handle_incoming<SK, D, S, A, H>(
-            stream: S,
-            secret_key: SK,
-            authorization: A,
-            result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
-            data_for_user: mpsc::UnboundedSender<D>,
-        ) -> Result<(), ProtocolError<SK::PublicKey>>
-        where
-            SK: SecretKey,
-            D: Data,
-            S: Splittable,
-            A: Authorization<SK::PublicKey> + Send + Sync,
-            H: Handshake<SK>,
-        {
-            handle_incoming::<_, _, _, _, H>(
-                stream,
-                secret_key,
-                authorization,
-                result_for_parent,
-                data_for_user,
-            )
-            .await
-        }
-    }
-
     #[tokio::test]
     async fn do_not_call_sender_and_receiver_until_authorized() {
-        execute_do_not_call_sender_and_receiver_until_authorized::<V1HandleIncoming>().await
+        let MockPrelims {
+            incoming_handle,
+            outgoing_handle,
+            mut data_from_incoming,
+            mut result_from_incoming,
+            mut authorization_handler,
+            ..
+        } = prepare::<Vec<i32>>();
+
+        let incoming_handle = incoming_handle.fuse();
+        let outgoing_handle = outgoing_handle.fuse();
+        let authorization_handle = authorization_handler
+            .handle_authorization(|_| AuthorizationResult::NotAuthorized)
+            .fuse();
+
+        // since we are returning `NotAuthorized` all three should finish hapilly
+        let (incoming_result, outgoing_result, authorization_result) =
+            tokio::join!(incoming_handle, outgoing_handle, authorization_handle);
+
+        assert!(incoming_result.is_ok());
+        assert!(outgoing_result.is_err());
+        assert!(authorization_result.is_ok());
+
+        let data_from_incoming = data_from_incoming.try_next();
+        assert!(data_from_incoming.ok().flatten().is_none());
+
+        let result_from_incoming = result_from_incoming.try_next();
+        assert!(result_from_incoming.ok().flatten().is_none());
     }
 }

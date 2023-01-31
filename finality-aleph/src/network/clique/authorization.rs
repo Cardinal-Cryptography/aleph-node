@@ -156,7 +156,9 @@ mod tests {
         let (authorizator, mut request_handler) =
             Authorizator::<<MockSecretKey as SecretKey>::PublicKey>::new();
         drop(authorizator);
-        let result = request_handler.handle_authorization(|_| true).await;
+        let result = request_handler
+            .handle_authorization(|_| AuthorizationResult::Authorized)
+            .await;
 
         assert_eq!(result, Err(AuthorizatorError::MissingService))
     }
