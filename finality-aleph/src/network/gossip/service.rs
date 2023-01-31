@@ -310,7 +310,7 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
                                 .messages_for_authentication_user
                                 .unbounded_send((data, peer_id.clone()))?,
                             Err(e) => {
-                                warn!(target: "aleph-network", "Error decoding authentication protocol message: {}", e)
+                                // warn!(target: "aleph-network", "Error decoding authentication protocol message: {}", e)
                             }
                         },
                         // This is a bit of a placeholder for now, as we are not yet using this
