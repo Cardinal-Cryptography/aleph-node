@@ -468,7 +468,7 @@ mod tests {
             .handle_authorization(|_| AuthorizationResult::NotAuthorized)
             .fuse();
 
-        // since we are returning `NotAuthorized` all three should finish hapilly
+        // since we are returning `NotAuthorized` all except `outgoing_handle` should finish hapilly
         let (incoming_result, outgoing_result, authorization_result) =
             tokio::join!(incoming_handle, outgoing_handle, authorization_handle);
 
