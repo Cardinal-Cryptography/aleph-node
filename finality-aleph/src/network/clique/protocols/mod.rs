@@ -9,7 +9,6 @@ use crate::network::clique::{
 
 mod handshake;
 mod negotiation;
-mod v0;
 mod v1;
 
 use handshake::HandshakeError;
@@ -22,8 +21,6 @@ pub type Version = u32;
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub enum ConnectionType {
     New,
-    LegacyIncoming,
-    LegacyOutgoing,
 }
 
 /// What connections send back to the service after they become established. Starts with a public
@@ -35,8 +32,6 @@ pub type ResultForService<PK, D> = (PK, Option<mpsc::UnboundedSender<D>>, Connec
 /// Defines the protocol for communication.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
-    /// The first version of the protocol, with unidirectional connections.
-    V0,
     /// The current version of the protocol, with pseudorandom connection direction and
     /// multiplexing.
     V1,
@@ -93,7 +88,7 @@ impl<PK: PublicKey> From<ReceiveError> for ProtocolError<PK> {
 
 impl Protocol {
     /// Minimal supported protocol version.
-    const MIN_VERSION: Version = 0;
+    const MIN_VERSION: Version = 1;
 
     /// Maximal supported protocol version.
     const MAX_VERSION: Version = 1;
@@ -108,7 +103,6 @@ impl Protocol {
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::incoming(stream, secret_key, result_for_service, data_for_user).await,
             V1 => v1::incoming(stream, secret_key, result_for_service, data_for_user).await,
         }
     }
@@ -124,7 +118,6 @@ impl Protocol {
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
-            V0 => v0::outgoing(stream, secret_key, public_key, result_for_service).await,
             V1 => {
                 v1::outgoing(
                     stream,
@@ -144,7 +137,6 @@ impl TryFrom<Version> for Protocol {
 
     fn try_from(version: Version) -> Result<Self, Self::Error> {
         match version {
-            0 => Ok(Protocol::V0),
             1 => Ok(Protocol::V1),
             unknown_version => Err(unknown_version),
         }
