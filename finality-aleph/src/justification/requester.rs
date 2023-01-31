@@ -263,6 +263,7 @@ where
             Ok(Some(header)) => {
                 let hash = header.hash();
                 let num = *header.number();
+                log::info!(target: "aleph-finality", "actually requesting wanted: {:?} {:?}", hash, num);
                 self.do_request(&hash, num);
                 self.request_status.save_block((hash, num).into());
             }
