@@ -1,10 +1,11 @@
-use std::{thread, time::Duration};
+use std::time::Duration;
 
 use aleph_client::{contract_transcode::Value, pallets::system::SystemApi};
 use anyhow::Result;
 use assert2::{assert, let_assert};
 use helpers::sign;
 use log::info;
+use tokio::time::sleep;
 
 use crate::{
     config::{setup_test, Config},
@@ -269,7 +270,7 @@ pub async fn marketplace() -> Result<()> {
         .await?;
 
     let early_price = marketplace.price(&conn).await?;
-    thread::sleep(Duration::from_secs(2));
+    sleep(Duration::from_secs(2)).await;
     let later_price = marketplace.price(&conn).await?;
     assert!(later_price < early_price);
 
@@ -471,7 +472,7 @@ async fn button_game_play<F: Fn(u128, u128)>(
     );
 
     info!("Waiting before pressing again");
-    thread::sleep(Duration::from_secs(5));
+    sleep(Duration::from_secs(5)).await;
 
     button.press(&sign(&conn, player)).await?;
     let event = assert_recv_id(&mut events, "ButtonPressed").await;
