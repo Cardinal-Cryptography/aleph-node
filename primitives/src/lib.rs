@@ -71,7 +71,9 @@ pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
 
 /// Version returned when no version has been set.
 pub const DEFAULT_FINALITY_VERSION: Version = 0;
-/// Version of the legacy abft.
+/// Current version of abft.
+pub const CURRENT_FINALITY_VERSION: u16 = 2;
+/// Legacy version of abft.
 pub const LEGACY_FINALITY_VERSION: u16 = 1;
 
 /// Openness of the process of the elections

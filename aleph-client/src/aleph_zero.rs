@@ -6338,6 +6338,28 @@ pub mod api {
                         ],
                     )
                 }
+                pub fn next_authorities(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        ::std::vec::Vec<runtime_types::primitives::app::Public>,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Aleph",
+                        "NextAuthorities",
+                        vec![],
+                        [
+                            223u8, 196u8, 18u8, 234u8, 75u8, 169u8, 31u8, 25u8, 180u8, 189u8, 78u8,
+                            192u8, 179u8, 27u8, 218u8, 254u8, 245u8, 211u8, 86u8, 33u8, 113u8,
+                            114u8, 214u8, 133u8, 240u8, 211u8, 232u8, 163u8, 123u8, 98u8, 114u8,
+                            26u8,
+                        ],
+                    )
+                }
                 pub fn emergency_finalizer(
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
@@ -19533,9 +19555,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                155u8, 236u8, 207u8, 138u8, 149u8, 114u8, 96u8, 168u8, 143u8, 247u8, 148u8, 106u8,
-                148u8, 203u8, 48u8, 129u8, 14u8, 48u8, 155u8, 234u8, 78u8, 212u8, 73u8, 65u8,
-                212u8, 201u8, 174u8, 194u8, 72u8, 70u8, 240u8, 233u8,
+                129u8, 53u8, 4u8, 85u8, 248u8, 69u8, 122u8, 6u8, 68u8, 150u8, 173u8, 133u8, 118u8,
+                19u8, 96u8, 223u8, 153u8, 160u8, 226u8, 156u8, 47u8, 53u8, 206u8, 110u8, 204u8,
+                37u8, 67u8, 45u8, 176u8, 126u8, 21u8, 133u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
