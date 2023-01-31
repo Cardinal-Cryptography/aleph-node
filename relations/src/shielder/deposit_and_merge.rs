@@ -171,7 +171,7 @@ mod tests {
         let placeholder = compute_parent_hash(grandpa_root, zero_note);
         let merkle_root = compute_parent_hash(placeholder, zero_note);
 
-        let merkle_path = vec![sibling_note, uncle_note, zero_note, zero_note];
+        let merkle_path = vec![sibling_note, uncle_note];
 
         DepositAndMergeRelationWithFullInput::new(
             MAX_PATH_LEN,
