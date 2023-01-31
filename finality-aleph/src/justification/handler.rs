@@ -110,7 +110,7 @@ where
                 ..UniqueSaturatedInto::<u32>::unique_saturated_into(
                     self.block_requester.best_number(),
                 ))
-                .step_by(900)
+                .step_by(900).take(20)
             {
                 wanted.push(x.into());
             }
