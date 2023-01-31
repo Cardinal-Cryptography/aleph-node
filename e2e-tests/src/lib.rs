@@ -9,6 +9,8 @@ mod config;
 #[cfg(test)]
 mod elections;
 #[cfg(test)]
+mod finality_version;
+#[cfg(test)]
 mod rewards;
 #[cfg(test)]
 mod synthetic_network;

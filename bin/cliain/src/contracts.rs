@@ -9,14 +9,13 @@ use aleph_client::{
     pallets::contract::{ContractsApi, ContractsUserApi},
     sp_weights::weight_v2::Weight,
     waiting::{AlephWaiting, BlockStatus},
-    AccountId, Connection, SignedConnection, SignedConnectionApi, TxStatus,
+    AccountId, Balance, CodeHash, Connection, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use codec::{Compact, Decode};
 use contract_metadata::ContractMetadata;
 use contract_transcode::ContractMessageTranscoder;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
-use subxt::ext::sp_core::H256;
 
 use crate::commands::{
     ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
@@ -26,10 +25,10 @@ use crate::commands::{
 #[derive(Debug, Decode, Clone, Serialize, Deserialize)]
 pub struct InstantiateWithCodeReturnValue {
     pub contract: AccountId,
-    pub code_hash: H256,
+    pub code_hash: CodeHash,
 }
 
-fn storage_deposit(storage_deposit_limit: Option<u128>) -> Option<Compact<u128>> {
+fn storage_deposit(storage_deposit_limit: Option<Balance>) -> Option<Compact<u128>> {
     storage_deposit_limit.map(Compact)
 }
 
@@ -58,7 +57,7 @@ pub async fn upload_code(
             .await
     });
 
-    let _block_hash = signed_connection
+    let _tx_info = signed_connection
         .upload_code(
             wasm,
             storage_deposit(storage_deposit_limit),
@@ -109,7 +108,7 @@ pub async fn instantiate(
             .await
     });
 
-    let _block_hash = signed_connection
+    let _tx_info = signed_connection
         .instantiate(
             code_hash,
             balance,
@@ -182,7 +181,7 @@ pub async fn instantiate_with_code(
             .await
     });
 
-    let _block_hash = signed_connection
+    let _tx_info = signed_connection
         .instantiate_with_code(
             wasm,
             balance,
@@ -227,7 +226,7 @@ pub async fn call(
 
     debug!("Encoded call data {:?}", data);
 
-    let _block_hash = signed_connection
+    let _tx_info = signed_connection
         .call(
             destination,
             balance,
@@ -267,7 +266,7 @@ pub async fn remove_code(
             .await
     });
 
-    let _block_hash = signed_connection
+    let _tx_info = signed_connection
         .remove_code(code_hash, TxStatus::InBlock)
         .await?;
 

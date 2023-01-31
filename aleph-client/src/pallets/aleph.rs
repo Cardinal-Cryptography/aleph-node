@@ -1,12 +1,14 @@
 use codec::Encode;
-use primitives::{BlockNumber, SessionIndex};
+use primitives::{BlockNumber, SessionIndex, Version};
 use subxt::rpc_params;
 
 use crate::{
+    api,
     api::runtime_types::{
         pallet_aleph::pallet::Call::set_emergency_finalizer, primitives::app::Public,
         sp_core::ed25519::Public as EdPublic,
     },
+    connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
     AccountId, AlephKeyPair, BlockHash,
     Call::Aleph,
@@ -14,6 +16,15 @@ use crate::{
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
+/// Pallet aleph API which does not require sudo.
+#[async_trait::async_trait]
+pub trait AlephApi {
+    /// Gets the current finality version.
+    async fn finality_version(&self, at: Option<BlockHash>) -> Version;
+    /// Gets the finality version for the next session.
+    async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
+}
+
 /// Pallet aleph API that requires sudo.
 #[async_trait::async_trait]
 pub trait AlephSudoApi {
@@ -26,7 +37,7 @@ pub trait AlephSudoApi {
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 
     /// Schedules a finality version change for a future session.
     /// * `version` - next version of the finalizer
@@ -39,7 +50,7 @@ pub trait AlephSudoApi {
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash>;
+    ) -> anyhow::Result<TxInfo>;
 }
 
 /// Pallet aleph RPC api.
@@ -57,12 +68,29 @@ pub trait AlephRpc {
 }
 
 #[async_trait::async_trait]
+impl<C: ConnectionApi> AlephApi for C {
+    async fn finality_version(&self, at: Option<BlockHash>) -> Version {
+        let addrs = api::storage().aleph().finality_version();
+
+        self.get_storage_entry(&addrs, at).await
+    }
+
+    async fn next_session_finality_version(&self, hash: Option<BlockHash>) -> Version {
+        let method = "state_call";
+        let api_method = "AlephSessionApi_next_session_finality_version";
+        let params = rpc_params![api_method, "0x", hash];
+
+        self.rpc_call(method.to_string(), params).await.unwrap()
+    }
+}
+
+#[async_trait::async_trait]
 impl AlephSudoApi for RootConnection {
     async fn set_emergency_finalizer(
         &self,
         finalizer: AccountId,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let call = Aleph(set_emergency_finalizer {
             emergency_finalizer: Public(EdPublic(finalizer.into())),
         });
@@ -74,7 +102,7 @@ impl AlephSudoApi for RootConnection {
         version: u32,
         session: SessionIndex,
         status: TxStatus,
-    ) -> anyhow::Result<BlockHash> {
+    ) -> anyhow::Result<TxInfo> {
         let call = Aleph(schedule_finality_version_change {
             version_incoming: version,
             session,

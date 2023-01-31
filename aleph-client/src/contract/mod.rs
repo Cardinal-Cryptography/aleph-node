@@ -5,8 +5,8 @@
 //!
 //! ```no_run
 //! # use anyhow::{Result, Context};
-//! # use aleph_client::AccountId;
-//! # use aleph_client::{Connection, SignedConnection};
+//! # use aleph_client::{AccountId, Balance};
+//! # use aleph_client::{Connection, SignedConnection, TxInfo};
 //! # use aleph_client::contract::ContractInstance;
 //! #
 //! #[derive(Debug)]
@@ -24,7 +24,7 @@
 //!         })
 //!     }
 //!
-//!     async fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: u128) -> Result<()> {
+//!     async fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: Balance) -> Result<TxInfo> {
 //!         self.contract.contract_exec(
 //!             conn,
 //!             "PSP22::transfer",
@@ -32,7 +32,7 @@
 //!         ).await
 //!     }
 //!
-//!     async fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<u128> {
+//!     async fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<Balance> {
 //!         self.contract.contract_read(
 //!             conn,
 //!             "PSP22::balance_of",
@@ -55,16 +55,25 @@ use pallet_contracts_primitives::ContractExecResult;
 use primitives::Balance;
 
 use crate::{
+    connections::TxInfo,
     contract_transcode::Value,
     pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi},
     sp_weights::weight_v2::Weight,
-    AccountId, ConnectionApi, SignedConnectionApi, TxStatus,
+    AccountId, Balance, ConnectionApi, SignedConnectionApi, TxStatus,
 };
+
+/// Default gas limit, which allows up to 25% of block time (62.5% of the actual block capacity).
+pub const DEFAULT_MAX_GAS: u64 = 250_000_000_000u64;
+/// Default proof size limit, which allows up to 25% of block time (62.5% of the actual block
+/// capacity).
+pub const DEFAULT_MAX_PROOF_SIZE: u64 = 250_000_000_000u64;
 
 /// Represents a contract instantiated on the chain.
 pub struct ContractInstance {
     address: AccountId,
     transcoder: ContractMessageTranscoder,
+    max_gas_override: Option<u64>,
+    max_proof_size_override: Option<u64>,
 }
 
 impl ContractInstance {
@@ -73,7 +82,21 @@ impl ContractInstance {
         Ok(Self {
             address,
             transcoder: ContractMessageTranscoder::load(metadata_path)?,
+            max_gas_override: None,
+            max_proof_size_override: None,
         })
+    }
+
+    /// From now on, the contract instance will use `limit_override` as the gas limit for all
+    /// contract calls. If `limit_override` is `None`, the amount estimated by a dry run will be used.
+    pub fn override_gas_limit(&mut self, limit_override: Option<u64>) {
+        self.max_gas_override = limit_override;
+    }
+
+    /// From now on, the contract instance will use `limit_override` as the proof size limit for all
+    /// contract calls. If `limit_override` is `None`, the amount estimated by a dry run will be used.
+    pub fn override_proof_size_limit(&mut self, limit_override: Option<u64>) {
+        self.max_proof_size_override = limit_override;
     }
 
     /// The address of this contract instance.
@@ -135,7 +158,7 @@ impl ContractInstance {
         &self,
         conn: &C,
         message: &str,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract_exec::<C, String>(conn, message, &[]).await
     }
 
@@ -145,7 +168,7 @@ impl ContractInstance {
         conn: &C,
         message: &str,
         args: &[S],
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract_exec_value::<C, S>(conn, message, args, 0)
             .await
     }
@@ -155,8 +178,8 @@ impl ContractInstance {
         &self,
         conn: &C,
         message: &str,
-        value: u128,
-    ) -> Result<()> {
+        value: Balance,
+    ) -> Result<TxInfo> {
         self.contract_exec_value::<C, String>(conn, message, &[], value)
             .await
     }
@@ -167,8 +190,8 @@ impl ContractInstance {
         conn: &C,
         message: &str,
         args: &[S],
-        value: u128,
-    ) -> Result<()> {
+        value: Balance,
+    ) -> Result<TxInfo> {
         let dry_run_result = self
             .dry_run(conn, message, args, conn.account_id().clone())
             .await?;
@@ -178,15 +201,18 @@ impl ContractInstance {
             self.address.clone(),
             value,
             Weight {
-                ref_time: dry_run_result.gas_required.ref_time(),
-                proof_size: dry_run_result.gas_required.proof_size(),
+                ref_time: self
+                    .max_gas_override
+                    .unwrap_or(dry_run_result.gas_required.ref_time()),
+                proof_size: self
+                    .max_proof_size_override
+                    .unwrap_or(dry_run_result.gas_required.proof_size()),
             },
             None,
             data,
             TxStatus::Finalized,
         )
         .await
-        .map(|_| ())
     }
 
     fn encode<S: AsRef<str> + Debug>(&self, message: &str, args: &[S]) -> Result<Vec<u8>> {

@@ -39,6 +39,8 @@ pub type SessionCount = u32;
 pub type BlockCount = u32;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
+// We agreed to 5MB as the block size limit.
+pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 // Quick sessions for testing purposes
 #[cfg(feature = "short_session")]
@@ -63,8 +65,16 @@ pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 pub const DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
 pub const DEFAULT_BAN_SESSION_COUNT_THRESHOLD: SessionCount = 3;
 pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
+
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
+
+/// Version returned when no version has been set.
+pub const DEFAULT_FINALITY_VERSION: Version = 0;
+/// Current version of abft.
+pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
+/// Legacy version of abft.
+pub const LEGACY_FINALITY_VERSION: u16 = 1;
 
 /// Openness of the process of the elections
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
