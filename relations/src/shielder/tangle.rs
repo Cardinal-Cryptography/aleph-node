@@ -19,8 +19,10 @@
 //! All the index intervals used here are closed-open, i.e. they are in form `[a, b)`, which means
 //! that we consider indices `a`, `a+1`, ..., `b-1`. We also use 0-based indexing.
 
-use ark_ff::Zero;
-use ark_r1cs_std::{fields::FieldVar, R1CSVar};
+use std::ops::Add;
+
+use ark_ff::{BigInteger, ToConstraintField, Zero};
+use ark_r1cs_std::{fields::FieldVar, R1CSVar, ToBytesGadget, ToConstraintFieldGadget};
 use ark_relations::r1cs::SynthesisError;
 
 use super::types::ByteVar;
@@ -28,13 +30,12 @@ use crate::{environment::FpVar, CircuitField};
 
 /// Bottom-level chunk length.
 const BASE_LENGTH: usize = 4;
+const EXPAND_TO: usize = 128;
 
 /// Tangle elements of `bytes`.
 ///
 /// For circuit use only.
 pub(super) fn tangle_in_field(input: &[FpVar]) -> Result<FpVar, SynthesisError> {
-    Ok(FpVar::constant(CircuitField::zero()))
-
     // let number_of_bytes = bytes.len();
     // _tangle_in_field(&mut bytes, 0, number_of_bytes)?;
     // Ok(bytes
@@ -47,6 +48,16 @@ pub(super) fn tangle_in_field(input: &[FpVar]) -> Result<FpVar, SynthesisError> 
     //             .unwrap()
     //     })
     //     .collect())
+
+    let input_expanded = input
+        .iter()
+        .cycle()
+        .take(EXPAND_TO)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let x: FpVar = input_expanded.into_iter().reduce(|a, b| a.add(b)).unwrap();
+    Ok(x)
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
@@ -106,7 +117,16 @@ pub fn tangle(input: &[CircuitField]) -> CircuitField {
     //     .chunks(SQUASH_FACTOR)
     //     .map(|chunk| chunk.iter().cloned().reduce(|x, y| x ^ y).unwrap())
     //     .collect()
-    CircuitField::zero()
+
+    let input_expanded = input
+        .iter()
+        .cycle()
+        .take(EXPAND_TO)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let x: CircuitField = input_expanded.into_iter().sum();
+    x
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
@@ -170,7 +190,6 @@ mod tests {
         let input = vec![CircuitField::zero(); 128];
 
         let tangled = tangle(&input);
-        println!("{:?}", tangled);
         assert!(tangled.0 .0.into_iter().filter(|b| b.is_zero()).count() <= 1);
     }
 }

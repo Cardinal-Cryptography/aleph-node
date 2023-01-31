@@ -1,6 +1,6 @@
 //! Module exposing some utilities regarding note generation and verification.
 
-use ark_r1cs_std::eq::EqGadget;
+use ark_r1cs_std::{eq::EqGadget, R1CSVar};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{vec, vec::Vec};
 

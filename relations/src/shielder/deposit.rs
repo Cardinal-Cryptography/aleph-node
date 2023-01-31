@@ -5,19 +5,18 @@ use snark_relation_proc_macro::snark_relation;
 
 use crate::{BackendNote, FrontendNote};
 
-fn convert_note(front: FrontendNote) -> BackendNote {
-    BackendNote::from(BigInteger256::new(front))
-}
-
 /// 'Deposit' relation for the Shielder application.
 ///
 /// It expresses the fact that `note` is a prefix of the result of tangling together `token_id`,
 /// `token_amount`, `trapdoor` and `nullifier`.
 #[snark_relation]
 mod relation {
+    use ark_r1cs_std::R1CSVar;
+
     use crate::{
         environment::FpVar,
         shielder::{
+            convert_hash,
             note::check_note,
             types::{
                 BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
@@ -28,7 +27,7 @@ mod relation {
 
     #[relation_object_definition]
     struct DepositRelation {
-        #[public_input(frontend_type = "FrontendNote", parse_with = "convert_note")]
+        #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub note: BackendNote,
         #[public_input(frontend_type = "FrontendTokenId")]
         pub token_id: BackendTokenId,
@@ -57,16 +56,17 @@ mod relation {
 #[cfg(test)]
 mod tests {
     use ark_bls12_381::Bls12_381;
+    use ark_ff::BigInteger256;
     use ark_groth16::Groth16;
-    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
+    use ark_relations::r1cs::{ConstraintLayer, ConstraintSynthesizer, ConstraintSystem};
     use ark_snark::SNARK;
 
     use super::{
         DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
     };
     use crate::{
-        shielder::note::compute_note, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
-        FrontendTrapdoor,
+        shielder::note::compute_note, CircuitField, FrontendNullifier, FrontendTokenAmount,
+        FrontendTokenId, FrontendTrapdoor,
     };
 
     fn get_circuit_with_full_input() -> DepositRelationWithFullInput {

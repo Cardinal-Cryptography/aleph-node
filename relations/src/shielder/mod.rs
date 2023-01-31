@@ -40,7 +40,7 @@ pub use withdraw::{
 use crate::environment::{CircuitField, FpVar};
 
 fn convert_hash(front: [u64; 4]) -> CircuitField {
-    CircuitField::from(BigInteger256::new(front))
+    CircuitField::new(BigInteger256::new(front))
 }
 
 fn convert_vec(front: Vec<[u64; 4]>) -> Vec<CircuitField> {
