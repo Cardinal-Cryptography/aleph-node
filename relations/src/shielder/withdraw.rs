@@ -130,7 +130,7 @@ mod relation {
         check_merkle_proof(
             self.merkle_root(),
             self.leaf_index(),
-            old_note.to_bytes()?,
+            old_note,
             self.merkle_path().cloned().unwrap_or_default(),
             *self.max_path_len(),
             cs,

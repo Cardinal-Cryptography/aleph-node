@@ -19,11 +19,13 @@
 //! All the index intervals used here are closed-open, i.e. they are in form `[a, b)`, which means
 //! that we consider indices `a`, `a+1`, ..., `b-1`. We also use 0-based indexing.
 
-use ark_r1cs_std::R1CSVar;
-use ark_relations::r1cs::SynthesisError;
+use ark_ff::Zero;
+use ark_r1cs_std::{alloc::AllocVar, fields::FieldVar, R1CSVar, ToConstraintFieldGadget};
+use ark_relations::{ns, r1cs::SynthesisError};
 use ark_std::vec::Vec;
 
 use super::types::ByteVar;
+use crate::{environment::FpVar, CircuitField};
 
 /// Bottom-level chunk length.
 const BASE_LENGTH: usize = 4;
@@ -31,21 +33,21 @@ const BASE_LENGTH: usize = 4;
 /// Tangle elements of `bytes`.
 ///
 /// For circuit use only.
-pub(super) fn tangle_in_field<const SQUASH_FACTOR: usize>(
-    mut bytes: Vec<ByteVar>,
-) -> Result<Vec<ByteVar>, SynthesisError> {
-    let number_of_bytes = bytes.len();
-    _tangle_in_field(&mut bytes, 0, number_of_bytes)?;
-    Ok(bytes
-        .chunks(SQUASH_FACTOR)
-        .map(|chunk| {
-            chunk
-                .iter()
-                .cloned()
-                .reduce(|x, y| x.xor(&y).unwrap())
-                .unwrap()
-        })
-        .collect())
+pub(super) fn tangle_in_field(input: &[FpVar]) -> Result<FpVar, SynthesisError> {
+    Ok(FpVar::constant(CircuitField::zero()))
+
+    // let number_of_bytes = bytes.len();
+    // _tangle_in_field(&mut bytes, 0, number_of_bytes)?;
+    // Ok(bytes
+    //     .chunks(SQUASH_FACTOR)
+    //     .map(|chunk| {
+    //         chunk
+    //             .iter()
+    //             .cloned()
+    //             .reduce(|x, y| x.xor(&y).unwrap())
+    //             .unwrap()
+    //     })
+    //     .collect())
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
@@ -98,13 +100,14 @@ fn _tangle_in_field(bytes: &mut [ByteVar], low: usize, high: usize) -> Result<()
 }
 
 /// Tangle elements of `bytes`.
-pub fn tangle<const SQUASH_FACTOR: usize>(mut bytes: Vec<u8>) -> Vec<u8> {
-    let number_of_bytes = bytes.len();
-    _tangle(&mut bytes, 0, number_of_bytes);
-    bytes
-        .chunks(SQUASH_FACTOR)
-        .map(|chunk| chunk.iter().cloned().reduce(|x, y| x ^ y).unwrap())
-        .collect()
+pub fn tangle(input: &[CircuitField]) -> CircuitField {
+    // let number_of_bytes = bytes.len();
+    // _tangle(&mut bytes, 0, number_of_bytes);
+    // bytes
+    //     .chunks(SQUASH_FACTOR)
+    //     .map(|chunk| chunk.iter().cloned().reduce(|x, y| x ^ y).unwrap())
+    //     .collect()
+    CircuitField::zero()
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
@@ -139,41 +142,36 @@ fn _tangle(bytes: &mut [u8], low: usize, high: usize) {
 #[cfg(test)]
 mod tests {
     use ark_ff::{BigInteger, BigInteger256, Zero};
-    use ark_r1cs_std::R1CSVar;
+    use ark_r1cs_std::{fields::FieldVar, R1CSVar};
 
     use crate::{
+        environment::FpVar,
         shielder::tangle::{tangle, tangle_in_field},
-        ByteVar,
+        ByteVar, CircuitField,
     };
 
     #[test]
     fn tangling_is_homomorphic() {
-        let bytes = [
-            BigInteger256::from(0u64).to_bytes_le(),
-            BigInteger256::from(100u64).to_bytes_le(),
-            BigInteger256::from(17u64).to_bytes_le(),
-            BigInteger256::from(19u64).to_bytes_le(),
-        ]
-        .concat();
-        let tangled: [u8; 32] = tangle::<4>(bytes.clone()).try_into().unwrap();
+        let input = vec![
+            CircuitField::from(0u64),
+            CircuitField::from(100u64),
+            CircuitField::from(17u64),
+            CircuitField::from(19u64),
+        ];
+        let tangled = tangle(&input);
 
-        let bytes_in_field = bytes.into_iter().map(ByteVar::constant).collect();
-        let tangled_in_field: [ByteVar; 32] = tangle_in_field::<4>(bytes_in_field)
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let input_in_field = input.into_iter().map(FpVar::constant).collect::<Vec<_>>();
+        let tangled_in_field = tangle_in_field(&input_in_field).unwrap();
 
-        for (b, bf) in tangled.into_iter().zip(tangled_in_field) {
-            assert_eq!(b, bf.value().unwrap());
-        }
+        assert_eq!(tangled, tangled_in_field.value().unwrap());
     }
 
     #[test]
     fn tangles_to_non_zero() {
-        let bytes = vec![0; 128];
+        let input = vec![CircuitField::zero(); 128];
 
-        let tangled: [u8; 32] = tangle::<4>(bytes).try_into().unwrap();
+        let tangled = tangle(&input);
         println!("{:?}", tangled);
-        assert!(tangled.into_iter().filter(|b| b.is_zero()).count() < 4);
+        assert!(tangled.0 .0.into_iter().filter(|b| b.is_zero()).count() <= 1);
     }
 }

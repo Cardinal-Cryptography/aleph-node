@@ -30,6 +30,7 @@ pub use deposit_and_merge::{
     DepositAndMergeRelationWithoutInput,
 };
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
+use tangle::tangle_in_field;
 use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, ByteVar};
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
@@ -57,7 +58,7 @@ fn convert_account(front: [u8; 32]) -> CircuitField {
 fn check_merkle_proof(
     merkle_root: Result<&BackendMerkleRoot, SynthesisError>,
     leaf_index: Result<&u64, SynthesisError>,
-    leaf_bytes: Vec<UInt8<CircuitField>>,
+    leaf: FpVar,
     path: BackendMerklePath,
     max_path_len: u8,
     cs: ConstraintSystemRef<CircuitField>,
@@ -66,40 +67,28 @@ fn check_merkle_proof(
         return Err(UnconstrainedVariable);
     }
 
-    let zero = CircuitField::zero();
-
     let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || merkle_root)?;
     let _ = FpVar::new_witness(ns!(cs, "leaf index"), || {
         leaf_index.map(|li| CircuitField::from(*li))
     })?;
     let mut leaf_index = leaf_index.cloned().unwrap_or_default();
 
-    let mut current_hash_bytes = leaf_bytes;
-    let mut hash_bytes = vec![current_hash_bytes.clone()];
+    let mut current_note = leaf;
+    let zero_note = CircuitField::zero();
 
     for i in 0..max_path_len {
         let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {
-            Ok(path.get(i as usize).unwrap_or(&zero))
+            Ok(path.get(i as usize).unwrap_or(&zero_note))
         })?;
-        let bytes: Vec<ByteVar> = if leaf_index & 1 == 0 {
-            [current_hash_bytes.clone(), sibling.to_bytes()?].concat()
+        let next_level = if leaf_index & 1 == 0 {
+            [current_note.clone(), sibling]
         } else {
-            [sibling.to_bytes()?, current_hash_bytes.clone()].concat()
+            [sibling, current_note.clone()]
         };
 
-        current_hash_bytes = tangle::tangle_in_field::<2>(bytes)?;
-        hash_bytes.push(current_hash_bytes.clone());
-
+        current_note = tangle_in_field(&next_level)?;
         leaf_index /= 2;
     }
 
-    for (a, b) in merkle_root
-        .to_bytes()?
-        .iter()
-        .zip(hash_bytes[path.len()].iter())
-    {
-        a.enforce_equal(b)?;
-    }
-
-    Ok(())
+    merkle_root.enforce_equal(&current_note)
 }
