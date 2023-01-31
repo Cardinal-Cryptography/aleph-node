@@ -20,9 +20,8 @@
 //! that we consider indices `a`, `a+1`, ..., `b-1`. We also use 0-based indexing.
 
 use ark_ff::Zero;
-use ark_r1cs_std::{alloc::AllocVar, fields::FieldVar, R1CSVar, ToConstraintFieldGadget};
-use ark_relations::{ns, r1cs::SynthesisError};
-use ark_std::vec::Vec;
+use ark_r1cs_std::{fields::FieldVar, R1CSVar};
+use ark_relations::r1cs::SynthesisError;
 
 use super::types::ByteVar;
 use crate::{environment::FpVar, CircuitField};
@@ -141,13 +140,13 @@ fn _tangle(bytes: &mut [u8], low: usize, high: usize) {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::{BigInteger, BigInteger256, Zero};
+    use ark_ff::Zero;
     use ark_r1cs_std::{fields::FieldVar, R1CSVar};
 
     use crate::{
         environment::FpVar,
         shielder::tangle::{tangle, tangle_in_field},
-        ByteVar, CircuitField,
+        CircuitField,
     };
 
     #[test]

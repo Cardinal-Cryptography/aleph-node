@@ -11,17 +11,13 @@ mod tangle;
 pub mod types;
 mod withdraw;
 
-use core::ops::Div;
-
-use ark_ff::{BigInteger, BigInteger256, PrimeField, Zero};
-use ark_r1cs_std::{
-    alloc::AllocVar, eq::EqGadget, fields::FieldVar, uint8::UInt8, R1CSVar, ToBytesGadget,
-};
+use ark_ff::{BigInteger256, PrimeField, Zero};
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
     ns,
     r1cs::{ConstraintSystemRef, SynthesisError, SynthesisError::UnconstrainedVariable},
 };
-use ark_std::{vec, vec::Vec};
+use ark_std::vec::Vec;
 pub use deposit::{
     DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
 };
@@ -31,7 +27,7 @@ pub use deposit_and_merge::{
 };
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
 use tangle::tangle_in_field;
-use types::{BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, ByteVar};
+use types::{BackendMerklePath, BackendMerkleRoot};
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
