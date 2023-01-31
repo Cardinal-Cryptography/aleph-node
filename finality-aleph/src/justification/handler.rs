@@ -114,7 +114,7 @@ where
             {
                 wanted.push(x.into());
             }
-            log::info!(target:"aleph-finality", "requesting wanted: {:?}", wanted);
+
             self.block_requester.request_justification(wanted);
             if Instant::now().saturating_duration_since(last_status_report)
                 >= STATUS_REPORT_INTERVAL

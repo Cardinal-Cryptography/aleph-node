@@ -193,6 +193,7 @@ where
     }
 
     pub fn request_justification(&mut self, wanted: Vec<NumberFor<B>>) {
+        log::info!(target:"aleph-finality", "requesting wanted: {:?}", wanted);
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
                 let info = self.blockchain_backend.info();
