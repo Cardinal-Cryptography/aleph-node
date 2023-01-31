@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use futures::{channel::mpsc, Stream, StreamExt};
 use futures_timer::Delay;
 use log::{debug, error};
-use sp_api::BlockT;
+use sp_api::{BlockT, NumberFor};
 use sp_runtime::traits::{Header, UniqueSaturatedInto};
 use tokio::time::timeout;
 
@@ -13,37 +13,39 @@ use crate::{
         requester::BlockRequester, JustificationHandlerConfig, JustificationNotification,
         JustificationRequestScheduler, SessionInfo, SessionInfoProvider, Verifier,
     },
-    network, BlockchainBackend, Metrics, STATUS_REPORT_INTERVAL,
+    network,
+    session::{last_block_of_session, session_id_from_block_num},
+    session_map::AuthorityProvider,
+    sync::SessionVerifier,
+    BlockchainBackend, Metrics, SessionPeriod, STATUS_REPORT_INTERVAL,
 };
 
-pub struct JustificationHandler<B, V, RB, S, SI, F, BB>
+pub struct JustificationHandler<B, RB, S, F, BB, AP>
 where
     B: BlockT,
-    V: Verifier<B>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    SI: SessionInfoProvider<B, V>,
+    AP: AuthorityProvider<NumberFor<B>>,
     F: BlockFinalizer<B>,
     BB: BlockchainBackend<B> + 'static,
 {
-    session_info_provider: SI,
-    block_requester: BlockRequester<B, RB, S, F, V, BB>,
+    authority_provider: AP,
+    block_requester: BlockRequester<B, RB, S, F, SessionVerifier, BB>,
     verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
-impl<B, V, RB, S, SI, F, BB> JustificationHandler<B, V, RB, S, SI, F, BB>
+impl<B, RB, S, F, BB, AP> JustificationHandler<B, RB, S, F, BB, AP>
 where
     B: BlockT,
-    V: Verifier<B>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    SI: SessionInfoProvider<B, V>,
+    AP: AuthorityProvider<NumberFor<B>>,
     F: BlockFinalizer<B>,
     BB: BlockchainBackend<B> + 'static,
 {
     pub fn new(
-        session_info_provider: SI,
+        authority_provider: AP,
         block_requester: RB,
         blockchain_backend: BB,
         finalizer: F,
@@ -52,7 +54,7 @@ where
         justification_handler_config: JustificationHandlerConfig,
     ) -> Self {
         Self {
-            session_info_provider,
+            authority_provider,
             block_requester: BlockRequester::new(
                 block_requester,
                 blockchain_backend,
@@ -77,20 +79,18 @@ where
 
         loop {
             let last_finalized_number = self.block_requester.finalized_number();
-            let SessionInfo {
-                verifier,
-                last_block_height: stop_h,
-                current_session,
-            } = self
-                .session_info_provider
-                .for_block_num(last_finalized_number + 1u32.into())
-                .await;
+            let current_session =
+                session_id_from_block_num(last_finalized_number + 1u32.into(), SessionPeriod(900));
+            let last_block_height = last_block_of_session(current_session, SessionPeriod(900));
+            let verifier = self
+                .authority_provider
+                .authority_data(last_finalized_number + 1u32.into());
             if verifier.is_none() {
                 debug!(target: "aleph-justification", "Verifier for session {:?} not yet available. Waiting {}ms and will try again ...", current_session, self.verifier_timeout.as_millis());
                 Delay::new(self.verifier_timeout).await;
                 continue;
             }
-            let verifier = verifier.expect("We loop until this is some.");
+            let verifier: SessionVerifier = verifier.expect("We loop until this is some.").into();
 
             match timeout(self.notification_timeout, notification_stream.next()).await {
                 Ok(Some(notification)) => {
@@ -98,7 +98,7 @@ where
                         notification,
                         verifier,
                         last_finalized_number,
-                        stop_h,
+                        last_block_height,
                     );
                 }
                 Ok(None) => panic!("Justification stream ended."),
@@ -106,11 +106,12 @@ where
             }
 
             let mut wanted = Vec::new();
-            for x in (UniqueSaturatedInto::<u32>::unique_saturated_into(stop_h)
+            for x in (UniqueSaturatedInto::<u32>::unique_saturated_into(last_block_height)
                 ..UniqueSaturatedInto::<u32>::unique_saturated_into(
                     self.block_requester.best_number(),
                 ))
-                .step_by(900).take(20)
+                .step_by(900)
+                .take(20)
             {
                 wanted.push(x.into());
             }
