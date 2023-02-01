@@ -35,11 +35,11 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
                 "skipping v0 to v3 migration: Agendas are not empty. Found {:?} agendas.",
                 agendas,
             );
-            return T::DbWeight::get().reads(2);
+            return T::DbWeight::get().reads(1 + agendas as u64);
         }
 
         StorageVersion::new(3).put::<Pallet<T>>();
-        T::DbWeight::get().reads_writes(2, 1)
+        T::DbWeight::get().reads_writes(1 + agendas as u64, 1)
     }
 
     #[cfg(feature = "try-runtime")]
