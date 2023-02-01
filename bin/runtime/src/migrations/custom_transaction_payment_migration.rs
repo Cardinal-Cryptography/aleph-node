@@ -32,7 +32,7 @@ pub struct BumpTransactionVersionToV2<T>(sp_std::marker::PhantomData<T>);
 impl<T: Config> OnRuntimeUpgrade for BumpTransactionVersionToV2<T> {
     fn on_runtime_upgrade() -> Weight {
         let version = StorageVersion::get();
-        if version.is_some() && version.unwrap() == Releases::V2 {
+        if version == Some(Releases::V2) {
             log::warn!(
                 target: TARGET,
                 "skipping V1Ancient to V2 migration: executed on wrong storage version.\
@@ -48,11 +48,13 @@ impl<T: Config> OnRuntimeUpgrade for BumpTransactionVersionToV2<T> {
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
-        assert_eq!(
-            StorageVersion::get(),
-            None,
-            "Can only upgrade from version V1Ancient"
-        );
+        if let Some(version) = StorageVersion::get() {
+            assert_eq!(
+                version,
+                Releases::V1Ancient,
+                "Can only upgrade from version V1Ancient!"
+            );
+        }
 
         let next_fee_multiplier = NextFeeMultiplier::<T>::get();
         let inner_fee_multiplier = next_fee_multiplier.into_inner();
