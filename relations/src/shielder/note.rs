@@ -1,11 +1,11 @@
 //! Module exposing some utilities regarding note generation and verification.
 
-use ark_r1cs_std::{eq::EqGadget, R1CSVar};
+use ark_r1cs_std::eq::EqGadget;
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{vec, vec::Vec};
 
 use super::{
-    tangle::{tangle, tangle_in_field},
+    tangle::{tangle, tangle_in_circuit},
     types::{
         FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     },
@@ -23,7 +23,7 @@ pub(super) fn check_note(
     nullifier: &FpVar,
     note: &FpVar,
 ) -> Result<(), SynthesisError> {
-    let tangled = tangle_in_field(&vec![
+    let tangled = tangle_in_circuit(&vec![
         token_id.clone(),
         token_amount.clone(),
         trapdoor.clone(),

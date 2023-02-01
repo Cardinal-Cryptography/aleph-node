@@ -13,7 +13,7 @@ pub mod types;
 mod withdraw;
 
 use ark_ff::{BigInteger256, PrimeField, Zero};
-use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, R1CSVar};
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
     ns,
     r1cs::{ConstraintSystemRef, SynthesisError, SynthesisError::UnconstrainedVariable},
@@ -27,8 +27,8 @@ pub use deposit_and_merge::{
     DepositAndMergeRelationWithoutInput,
 };
 pub use note::{bytes_from_note, compute_note, compute_parent_hash, note_from_bytes};
-use tangle::tangle_in_field;
-use types::{BackendMerklePath, BackendMerkleRoot};
+use tangle::tangle_in_circuit;
+use types::BackendMerklePath;
 pub use types::{
     FrontendMerklePath as MerklePath, FrontendMerkleRoot as MerkleRoot, FrontendNote as Note,
     FrontendNullifier as Nullifier, FrontendTokenAmount as TokenAmount, FrontendTokenId as TokenId,
@@ -81,7 +81,7 @@ fn check_merkle_proof(
         let left = path_shape.at(i as usize).select(&current_note, &sibling)?;
         let right = path_shape.at(i as usize).select(&sibling, &current_note)?;
 
-        current_note = tangle_in_field(&[left, right])?;
+        current_note = tangle_in_circuit(&[left, right])?;
     }
 
     merkle_root.enforce_equal(&current_note)

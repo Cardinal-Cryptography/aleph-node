@@ -18,28 +18,20 @@ use snark_relation_proc_macro::snark_relation;
 mod relation {
     use core::ops::Add;
 
-    use ark_r1cs_std::{
-        alloc::{AllocVar, AllocationMode},
-        eq::EqGadget,
-        fields::fp::FpVar,
-    };
+    use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar};
     use ark_relations::ns;
 
-    use crate::{
-        shielder::{
-            check_merkle_proof,
-            circuit_utils::PathShapeVar,
-            convert_account, convert_hash, convert_vec,
-            note::check_note,
-            types::{
-                BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot,
-                BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
-                FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot,
-                FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
-                FrontendTrapdoor,
-            },
+    use crate::shielder::{
+        check_merkle_proof,
+        circuit_utils::PathShapeVar,
+        convert_account, convert_hash, convert_vec,
+        note::check_note,
+        types::{
+            BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
+            BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendAccount,
+            FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
+            FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
         },
-        CircuitField,
     };
 
     #[relation_object_definition]

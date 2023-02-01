@@ -7,10 +7,7 @@ use ark_r1cs_std::{
     boolean::Boolean,
     R1CSVar,
 };
-use ark_relations::{
-    ns,
-    r1cs::{ConstraintSystemRef, Namespace, SynthesisError, SynthesisError::AssignmentMissing},
-};
+use ark_relations::r1cs::{Namespace, SynthesisError};
 
 use crate::CircuitField;
 

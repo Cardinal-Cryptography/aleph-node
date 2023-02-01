@@ -14,7 +14,6 @@ use snark_relation_proc_macro::snark_relation;
 mod relation {
     use core::ops::Add;
 
-    use ark_ff::Zero;
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar};
     use ark_relations::ns;
 
