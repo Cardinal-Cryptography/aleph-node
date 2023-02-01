@@ -769,19 +769,11 @@ pub type Executive = frame_executive::Executive<
     Runtime,
     AllPalletsWithSystem,
     (
-        /* pallet staking migrations: from V7 to V12 */
-        migrations::original_staking_migrations::StakingBagsListMigrationV8,
-        // this requires custom migrations for sake of try-runtime post_upgrade hook
-        // that has a bug for blockchains that do not use BagsList
-        migrations::custom_staking_migrations::BumpStorageVersionFromV8ToV9<Runtime>,
-        pallet_staking::migrations::v10::MigrateToV10<Runtime>,
-        pallet_staking::migrations::v11::MigrateToV11<
-            Runtime,
-            // this argument is different as original one named VoterList referred to pallet_bags_list
-            migrations::original_staking_migrations::StakingMigrationV11OldPallet,
-            migrations::original_staking_migrations::StakingMigrationV11OldPallet,
-        >,
+        // pallet staking migrations: from V7 to V12
+        // for AlephZero chain, staking migrations from V7 to V11 does not have any side effects
+        migrations::custom_staking_migrations::BumpStorageVersionFromV7ToV11<Runtime>,
         pallet_staking::migrations::v12::MigrateToV12<Runtime>,
+        // pallet multisig migration
         pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
     ),
 >;
