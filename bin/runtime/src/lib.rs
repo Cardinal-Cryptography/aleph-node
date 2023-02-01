@@ -775,7 +775,10 @@ pub type Executive = frame_executive::Executive<
         pallet_staking::migrations::v12::MigrateToV12<Runtime>,
         // pallet multisig migration
         pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
+        // pallet scheduler migrations
         migrations::custom_scheduler_migration::MigrateToV3<Runtime>,
+        // pallet transaction payment migrations
+        migrations::custom_transaction_payment_migration::BumpTransactionVersionToV2<Runtime>,
     ),
 >;
 
