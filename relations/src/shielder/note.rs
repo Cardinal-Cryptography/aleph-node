@@ -42,7 +42,7 @@ pub fn compute_note(
     trapdoor: FrontendTrapdoor,
     nullifier: FrontendNullifier,
 ) -> FrontendNote {
-    tangle(&vec![
+    tangle(&[
         CircuitField::from(token_id as u64),
         CircuitField::from(token_amount),
         CircuitField::from(trapdoor),
@@ -53,7 +53,7 @@ pub fn compute_note(
 }
 
 pub fn compute_parent_hash(left: FrontendNote, right: FrontendNote) -> FrontendNote {
-    tangle(&vec![convert_hash(left), convert_hash(right)]).0 .0
+    tangle(&[convert_hash(left), convert_hash(right)]).0 .0
 }
 
 /// Create a note from the first 32 bytes of `bytes`.

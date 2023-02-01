@@ -1,19 +1,26 @@
 //! This module provides 'tangling' - some cheap substitute for real hash function.
 //!
-//! Tangling is a function that takes in a sequence of bytes (either raw bytes (`tangle`) or as
-//! field bytes gadgets (`tangle_in_field`)) and manipulates it. It operates in two steps, as
-//! follows:
-//!  1.1 For every chunk of length `BASE_LENGTH` we compute suffix sums.
-//!  1.2 We build a binary tree over these chunks.
-//!  1.3 We go bottom-to-top and in every intermediate node we:
+//! Tangling is a function that takes in a sequence of field elements (either raw `CircuitField`s
+//! ([tangle]) or as `FpVar`s ([tangle_in_circuit])) and mixes it into a single field element.
+//!
+//! It operates in three steps:
+//!  1.1 We repeat the sequence until the result has [EXPAND_TO] elements. If the input sequence is
+//!      longer than [EXPAND_TO], it will be trimmed.
+//!  2.1 For every chunk of length `BASE_LENGTH` we compute _spiced_ suffix sums. Basically, apart
+//!      from just summing elements, we take their inverses and multiply them by an index-dependent
+//!      factor.
+//!  2.2 We build a binary tree over these chunks.
+//!  2.3 We go bottom-to-top and in every intermediate node we:
 //!      1.3.1 swap the halves
 //!      1.3.2 compute prefix products
-//!  2.1 Given a new mangled sequence of `n` elements we squash it `SQUASH_FACTOR` times, i.e. we
-//!      take chunks of length `SQUASH_FACTOR` and reduce them to a single byte by xoring.
+//!  2.1 A new mangled sequence of `n` elements is reduced by summing.
+//!
+//! In some places, where an element turns out to be zero, we replace it by an index-dependent
+//! constant.
 //!
 //! Note, it is **not** hiding like any hashing function.
 //!
-//! This module exposes two implementations of tangling: `tangle` and `tangle_in_field`. They are
+//! This module exposes two implementations of tangling: [tangle] and [tangle_in_circuit]. They are
 //! semantically equivalent, but they just operate on different element types.
 //!
 //! All the index intervals used here are closed-open, i.e. they are in form `[a, b)`, which means
@@ -115,13 +122,13 @@ fn dezeroize(fp: &CircuitField, fallback: impl Into<CircuitField>) -> CircuitFie
     if fp.is_zero() {
         fallback.into()
     } else {
-        fp.clone()
+        *fp
     }
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
 ///
-/// For detailed description, see `_tangle_in_field`.
+/// For detailed description, see [_tangle_in_circuit].
 fn _tangle(elems: &mut [CircuitField], low: usize, high: usize) {
     if high - low <= BASE_LENGTH {
         let mut i = high - 2;
@@ -175,10 +182,10 @@ mod tests {
         ];
         let tangled = tangle(&input);
 
-        let input_in_field = input.into_iter().map(FpVar::constant).collect::<Vec<_>>();
-        let tangled_in_field = tangle_in_circuit(&input_in_field).unwrap();
+        let input_in_circuit = input.into_iter().map(FpVar::constant).collect::<Vec<_>>();
+        let tangled_in_circuit = tangle_in_circuit(&input_in_circuit).unwrap();
 
-        assert_eq!(tangled, tangled_in_field.value().unwrap());
+        assert_eq!(tangled, tangled_in_circuit.value().unwrap());
     }
 
     #[test]
