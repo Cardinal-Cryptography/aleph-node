@@ -50,7 +50,7 @@ pub(super) fn tangle_in_circuit(input: &[FpVar]) -> Result<FpVar, SynthesisError
         .cloned()
         .collect::<Vec<_>>();
 
-    _tangle_in_circuit(&mut input_expanded, 0, EXPAND_TO)?;
+    do_tangle_in_circuit(&mut input_expanded, 0, EXPAND_TO)?;
 
     Ok(input_expanded.into_iter().reduce(|a, b| a.add(b)).unwrap())
 }
@@ -64,7 +64,11 @@ fn dezeroize_in_circuit(
 }
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
-fn _tangle_in_circuit(elems: &mut [FpVar], low: usize, high: usize) -> Result<(), SynthesisError> {
+fn do_tangle_in_circuit(
+    elems: &mut [FpVar],
+    low: usize,
+    high: usize,
+) -> Result<(), SynthesisError> {
     // Bottom level case: computing suffix sums of inverses. We have to do some loop-index
     // boilerplate, because Rust doesn't support decreasing range iteration.
     if high - low <= BASE_LENGTH {
@@ -73,8 +77,8 @@ fn _tangle_in_circuit(elems: &mut [FpVar], low: usize, high: usize) -> Result<()
             let previous = dezeroize_in_circuit(&elems[i + 1], (2 * low + 1) as u64)?;
             let current = dezeroize_in_circuit(&elems[i], (2 * high + 1) as u64)?;
 
-            elems[i] = (previous.inverse()? + current.inverse()?)
-                * FpVar::constant(CircuitField::from(i as u64));
+            elems[i] =
+                (previous + current.inverse()?) * FpVar::constant(CircuitField::from(i as u64));
 
             if i == low {
                 break;
@@ -87,8 +91,8 @@ fn _tangle_in_circuit(elems: &mut [FpVar], low: usize, high: usize) -> Result<()
         //
         // We start by recursive call to both halves, so that we proceed in a bottom-top manner.
         let mid = (low + high) / 2;
-        _tangle_in_circuit(elems, low, mid)?;
-        _tangle_in_circuit(elems, mid, high)?;
+        do_tangle_in_circuit(elems, low, mid)?;
+        do_tangle_in_circuit(elems, mid, high)?;
 
         // Swapping the halves.
         for i in low..mid {
@@ -113,7 +117,7 @@ pub fn tangle(input: &[CircuitField]) -> CircuitField {
         .cloned()
         .collect::<Vec<_>>();
 
-    _tangle(&mut input_expanded, 0, EXPAND_TO);
+    do_tangle(&mut input_expanded, 0, EXPAND_TO);
 
     input_expanded.into_iter().sum()
 }
@@ -128,15 +132,14 @@ fn dezeroize(fp: &CircuitField, fallback: impl Into<CircuitField>) -> CircuitFie
 
 /// Recursive and index-bounded implementation of the first step of the `tangle` procedure.
 ///
-/// For detailed description, see [_tangle_in_circuit].
-fn _tangle(elems: &mut [CircuitField], low: usize, high: usize) {
+/// For detailed description, see [do_tangle_in_circuit].
+fn do_tangle(elems: &mut [CircuitField], low: usize, high: usize) {
     if high - low <= BASE_LENGTH {
         let mut i = high - 2;
         loop {
             let previous = dezeroize(&elems[i + 1], (2 * low + 1) as u64);
             let current = dezeroize(&elems[i], (2 * high + 1) as u64);
-            elems[i] = (previous.inverse().expect("Inverse of non-zero exists")
-                + current.inverse().expect("Inverse of non-zero exists"))
+            elems[i] = (previous + current.inverse().expect("Inverse of non-zero exists"))
                 * CircuitField::from(i as u64);
 
             if i == low {
@@ -147,8 +150,8 @@ fn _tangle(elems: &mut [CircuitField], low: usize, high: usize) {
         }
     } else {
         let mid = (low + high) / 2;
-        _tangle(elems, low, mid);
-        _tangle(elems, mid, high);
+        do_tangle(elems, low, mid);
+        do_tangle(elems, mid, high);
 
         for i in low..mid {
             elems.swap(i, i + mid - low);
