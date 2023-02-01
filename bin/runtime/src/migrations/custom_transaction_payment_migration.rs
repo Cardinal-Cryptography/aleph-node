@@ -31,13 +31,11 @@ pub struct BumpTransactionVersionToV2<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> OnRuntimeUpgrade for BumpTransactionVersionToV2<T> {
     fn on_runtime_upgrade() -> Weight {
-        let version = StorageVersion::get();
-        if version == Some(Releases::V2) {
+        if StorageVersion::get() == Some(Releases::V2) {
             log::warn!(
                 target: TARGET,
                 "skipping V1Ancient to V2 migration: executed on wrong storage version.\
-				Expected version V1Ancient, found {:?}",
-                version,
+				Expected version V1Ancient, found V2"
             );
             return T::DbWeight::get().reads(1);
         }
