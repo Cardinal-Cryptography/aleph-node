@@ -52,7 +52,7 @@ mod nomination_pools {
         let bonded_account = Pallet::<T>::create_bonded_account(id);
 
         let bonded_amount = T::StakingInterface::active_stake(&bonded_account).unwrap_or_default();
-        let r = T::StakingInterface::unbond(bonded_account.clone(), bonded_amount.clone());
+        let r = T::StakingInterface::unbond(bonded_account.clone(), bonded_amount);
         log::debug!(target: "runtime::nomination-pools", "Pool {} unbounding {:?}. {:?}", id, bonded_amount, r);
 
         ReversePoolIdLookup::<T>::remove(&bonded_account);
