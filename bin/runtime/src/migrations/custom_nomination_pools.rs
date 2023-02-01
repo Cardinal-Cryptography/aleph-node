@@ -108,7 +108,7 @@ mod nomination_pools {
 
             T::DbWeight::get().reads_writes(
                 members_read as u64 + pools_read as u64 + 1,
-                members_deleted + reward_pools_deleted + 1,
+                members_deleted + 5 * reward_pools_deleted + 1, // times 5 because for each pool we remove 4 other associated entries.
             )
         }
     }
@@ -136,7 +136,9 @@ mod nomination_pools {
         }
 
         #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<Vec<u8>, &'static str> {}
+        fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+            Ok(Vec::new())
+        }
 
         #[cfg(feature = "try-runtime")]
         fn post_upgrade(_: Vec<u8>) -> Result<(), &'static str> {
