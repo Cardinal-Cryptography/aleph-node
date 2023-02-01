@@ -32,31 +32,32 @@ enum Releases {
     V12_0_0, // remove `HistoryDepth`.
 }
 
-pub struct BumpStorageVersionFromV8ToV9<T>(sp_std::marker::PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV8ToV9<T> {
+pub struct BumpStorageVersionFromV7ToV11<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV7ToV11<T> {
     fn on_runtime_upgrade() -> Weight {
-        if let Some(Releases::V8_0_0) = StorageVersion::get() {
+        if let Some(Releases::V7_0_0) = StorageVersion::get() {
             log::info!(
                 target: "runtime::staking",
-                "💸 Migrating storage to Releases::V9_0_0 from Releases::V8_0_0"
+                "💸 Migrating storage to Releases::V7_0_0 from Releases::V11_0_0"
             );
-            StorageVersion::put(Releases::V9_0_0);
+            StorageVersion::put(Releases::V11_0_0);
+            T::DbWeight::get().reads_writes(1, 1)
         } else {
             log::warn!(
                 target: "runtime::staking",
                 "💸 Migration being executed on the wrong storage \
-                version, expected Releases::V8_0_0"
+                version, expected Releases::V7_0_0"
             );
+            T::DbWeight::get().reads(1)
         }
-        T::DbWeight::get().reads(1)
     }
 
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
         frame_support::ensure!(
-            StorageVersion::get() == Some(Releases::V8_0_0),
+            StorageVersion::get() == Some(Releases::V7_0_0),
             "💸 Migration being executed on the wrong storage \
-				version, expected Releases::V8_0_0"
+				version, expected Releases::V7_0_0"
         );
 
         Ok(Vec::new())
@@ -65,8 +66,8 @@ impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV8ToV9<T> {
     #[cfg(feature = "try-runtime")]
     fn post_upgrade(_prev_count: Vec<u8>) -> Result<(), &'static str> {
         frame_support::ensure!(
-            StorageVersion::get() == Some(Releases::V9_0_0),
-            "💸 must upgrade"
+            StorageVersion::get() == Some(Releases::V11_0_0),
+            "💸 must upgrade to Releases::V11_0_0"
         );
         Ok(())
     }
