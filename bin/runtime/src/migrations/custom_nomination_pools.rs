@@ -53,7 +53,7 @@ mod nomination_pools {
 
         let bonded_amount = T::StakingInterface::active_stake(&bonded_account).unwrap_or_default();
         let r = T::StakingInterface::unbond(bonded_account.clone(), bonded_amount);
-        log::debug!(target: "runtime::nomination-pools", "Pool {} unbounding {:?}. {:?}", id, bonded_amount, r);
+        log::info!(target: "runtime::nomination-pools", "Pool {} unbounding {:?}. {:?}", id, bonded_amount, r);
 
         ReversePoolIdLookup::<T>::remove(&bonded_account);
         SubPoolsStorage::<T>::remove(id);
@@ -87,10 +87,10 @@ mod nomination_pools {
                 match either {
                     EitherRewardPool::Old(_) => {
                         old_ids.insert(key);
-                        log::debug!(target: "runtime::nomination-pools", "deleting pool with id {}", key);
+                        log::info!(target: "runtime::nomination-pools", "deleting pool with id {}", key);
                         for (account, member) in members.remove(&key).unwrap_or_default() {
                             // encode to be able see AccountId in the log
-                            log::debug!(target: "runtime::nomination-pools", "deleting member with id {:?}, Member points {:?}", account.encode(), member.points);
+                            log::info!(target: "runtime::nomination-pools", "deleting member with id {:?}, Member points {:?}", account.encode(), member.points);
                             PoolMembers::<T>::remove(account);
                             members_deleted += 1;
                         }
@@ -103,7 +103,7 @@ mod nomination_pools {
                 }
             });
 
-            log::debug!(target: "runtime::nomination-pools", "deleted pools {:?}", old_ids);
+            log::info!(target: "runtime::nomination-pools", "deleted pools {:?}", old_ids);
             StorageVersion::new(2).put::<Pallet<T>>();
 
             T::DbWeight::get().reads_writes(
