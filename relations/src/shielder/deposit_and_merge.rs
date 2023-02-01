@@ -14,11 +14,14 @@ use snark_relation_proc_macro::snark_relation;
 mod relation {
     use core::ops::Add;
 
+    use ark_ff::Zero;
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar};
     use ark_relations::ns;
 
     use crate::shielder::{
-        check_merkle_proof, convert_hash, convert_vec,
+        check_merkle_proof,
+        circuit_utils::PathShapeVar,
+        convert_hash, convert_vec,
         note::check_note,
         types::{
             BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
@@ -112,9 +115,14 @@ mod relation {
         //------------------------
         // Check the merkle proof.
         //------------------------
+        let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || self.merkle_root())?;
+        let path_shape = PathShapeVar::new_witness(ns!(cs, "path shape"), || {
+            Ok((*self.max_path_len(), self.leaf_index().cloned()))
+        })?;
+
         check_merkle_proof(
-            self.merkle_root(),
-            self.leaf_index(),
+            merkle_root,
+            path_shape,
             old_note,
             self.merkle_path().cloned().unwrap_or_default(),
             *self.max_path_len(),
@@ -159,13 +167,12 @@ mod tests {
         //        1                          x                     x                         x
         //   2        3                x          x            x       x                 x       x
         // 4  *5*   6   7            x   x      x   x        x   x   x   x             x   x   x   x
-        let leaf_index = 0;
+        let leaf_index = 5;
 
         let zero_note = FrontendNote::default(); // x
 
         let sibling_note = compute_note(0, 1, 2, 3); // 4
-                                                     // let parent_note = compute_parent_hash(sibling_note, old_note); // 2
-        let parent_note = compute_parent_hash(old_note, sibling_note); // 2
+        let parent_note = compute_parent_hash(sibling_note, old_note); // 2
         let uncle_note = compute_note(4, 5, 6, 7); // 3
         let grandpa_root = compute_parent_hash(parent_note, uncle_note); // 1
 

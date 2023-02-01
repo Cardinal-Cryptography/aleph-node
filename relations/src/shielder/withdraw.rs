@@ -18,18 +18,28 @@ use snark_relation_proc_macro::snark_relation;
 mod relation {
     use core::ops::Add;
 
-    use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::fp::FpVar};
+    use ark_r1cs_std::{
+        alloc::{AllocVar, AllocationMode},
+        eq::EqGadget,
+        fields::fp::FpVar,
+    };
     use ark_relations::ns;
 
-    use crate::shielder::{
-        check_merkle_proof, convert_account, convert_hash, convert_vec,
-        note::check_note,
-        types::{
-            BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
-            BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendAccount,
-            FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-            FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+    use crate::{
+        shielder::{
+            check_merkle_proof,
+            circuit_utils::PathShapeVar,
+            convert_account, convert_hash, convert_vec,
+            note::check_note,
+            types::{
+                BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot,
+                BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
+                FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot,
+                FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
+                FrontendTrapdoor,
+            },
         },
+        CircuitField,
     };
 
     #[relation_object_definition]
@@ -127,9 +137,14 @@ mod relation {
         //------------------------
         // Check the merkle proof.
         //------------------------
+        let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || self.merkle_root())?;
+        let path_shape = PathShapeVar::new_witness(ns!(cs, "path shape"), || {
+            Ok((*self.max_path_len(), self.leaf_index().cloned()))
+        })?;
+
         check_merkle_proof(
-            self.merkle_root(),
-            self.leaf_index(),
+            merkle_root,
+            path_shape,
             old_note,
             self.merkle_path().cloned().unwrap_or_default(),
             *self.max_path_len(),

@@ -4,6 +4,7 @@
 //! Currently, instead of using some real hash function, we chose to incorporate a simple tangling
 //! algorithm. Essentially, it is a procedure that just mangles a byte sequence.
 
+mod circuit_utils;
 mod deposit;
 mod deposit_and_merge;
 mod note;
@@ -37,7 +38,10 @@ pub use withdraw::{
     WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
 };
 
-use crate::environment::{CircuitField, FpVar};
+use crate::{
+    environment::{CircuitField, FpVar},
+    shielder::circuit_utils::PathShapeVar,
+};
 
 fn convert_hash(front: [u64; 4]) -> CircuitField {
     CircuitField::new(BigInteger256::new(front))
@@ -52,8 +56,8 @@ fn convert_account(front: [u8; 32]) -> CircuitField {
 }
 
 fn check_merkle_proof(
-    merkle_root: Result<&BackendMerkleRoot, SynthesisError>,
-    leaf_index: Result<&u64, SynthesisError>,
+    merkle_root: FpVar,
+    path_shape: PathShapeVar,
     leaf: FpVar,
     path: BackendMerklePath,
     max_path_len: u8,
@@ -62,12 +66,9 @@ fn check_merkle_proof(
     if path.len() > max_path_len as usize {
         return Err(UnconstrainedVariable);
     }
-
-    let merkle_root = FpVar::new_input(ns!(cs, "merkle root"), || merkle_root)?;
-    let _ = FpVar::new_witness(ns!(cs, "leaf index"), || {
-        leaf_index.map(|li| CircuitField::from(*li))
-    })?;
-    let mut leaf_index = leaf_index.cloned().unwrap_or_default();
+    if path_shape.len() != max_path_len as usize {
+        return Err(UnconstrainedVariable);
+    }
 
     let mut current_note = leaf;
     let zero_note = CircuitField::zero();
@@ -76,19 +77,11 @@ fn check_merkle_proof(
         let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {
             Ok(path.get(i as usize).unwrap_or(&zero_note))
         })?;
-        let next_level = if leaf_index & 1 == 0 {
-            [current_note.clone(), sibling]
-        } else {
-            [sibling, current_note.clone()]
-        };
 
-        current_note = tangle_in_field(&next_level)?;
-        leaf_index /= 2;
-    }
+        let left = path_shape.at(i as usize).select(&current_note, &sibling)?;
+        let right = path_shape.at(i as usize).select(&sibling, &current_note)?;
 
-    if !cs.is_in_setup_mode() {
-        println!("merkle {}", merkle_root.value().unwrap());
-        println!("curren {}", current_note.value().unwrap());
+        current_note = tangle_in_field(&[left, right])?;
     }
 
     merkle_root.enforce_equal(&current_note)
