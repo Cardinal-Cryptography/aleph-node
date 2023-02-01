@@ -10,7 +10,7 @@ use sp_std::vec::Vec;
 
 use crate::Weight;
 
-const TARGET: &'static str = "runtime::scheduler::migration";
+const TARGET: &str = "runtime::scheduler::migration";
 
 /// Custom migrations the scheduler pallet from V0 to V3 that only bumps StorageVersion to 3
 pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
