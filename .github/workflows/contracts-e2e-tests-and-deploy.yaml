@@ -58,6 +58,7 @@ jobs:
           cargo-key: e2e-contracts
           cache-version: v3
           cargo-targets: |
+            target/
             e2e-tests/target/
             contracts/access_control/target/
             contracts/button/target/
@@ -72,6 +73,15 @@ jobs:
         with:
           crate: cargo-contract
           version: "2.0.0-beta.1"
+
+      - name: Build binary
+        run: cargo build --release -p aleph-node
+
+      - name: Build test docker image
+        id: build-image
+        run: |
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node.tar aleph-node:latest
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
