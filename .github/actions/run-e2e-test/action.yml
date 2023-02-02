@@ -30,6 +30,10 @@ inputs:
     description: 'Whether to deploy the adder sample contract to the node.'
     required: false
     default: 'false'
+  deploy-button:
+    description: 'Whether to deploy the button game contracts to the node.'
+    required: false
+    default: 'false'
   image-path:
     description: 'Custom path to docker image for aleph-node'
     required: false
@@ -109,6 +113,13 @@ runs:
           pushd contracts/adder
           export ADDER=$(./deploy.sh)
           popd
+        fi
+
+        DEPLOY_BUTTON="${{ inputs.deploy-button }}"
+
+        if [[ "${DEPLOY_BUTTON}" = "true" ]]; then
+          source contracts/env/dev
+          contracts/scripts/deploy.sh
         fi
 
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
