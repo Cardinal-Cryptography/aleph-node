@@ -6,14 +6,14 @@
 //! It operates in three steps:
 //!  1.1 We repeat the sequence until the result has [EXPAND_TO] elements. If the input sequence is
 //!      longer than [EXPAND_TO], it will be trimmed.
-//!  2.1 For every chunk of length `BASE_LENGTH` we compute _spiced_ suffix sums. Basically, apart
-//!      from just summing elements, we take their inverses and multiply them by an index-dependent
-//!      factor.
+//!  2.1 For every chunk of length `BASE_LENGTH` we compute _spiced_ suffix sums of inverses.
+//!     Basically, apart from just summing element inverses, we multiply intermediate results by an
+//!     index-dependent factor.
 //!  2.2 We build a binary tree over these chunks.
 //!  2.3 We go bottom-to-top and in every intermediate node we:
 //!      1.3.1 swap the halves
 //!      1.3.2 compute prefix products
-//!  2.1 A new mangled sequence of `n` elements is reduced by summing.
+//!  3.1 A new mangled sequence of `n` elements is reduced by summing.
 //!
 //! In some places, where an element turns out to be zero, we replace it by an index-dependent
 //! constant.
