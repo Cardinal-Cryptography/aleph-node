@@ -3,7 +3,7 @@ use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     time::{timeout, Duration},
@@ -12,8 +12,8 @@ use tokio::{
 use crate::network::clique::{
     io::{receive_data, send_data},
     protocols::{
-        handle_authorization,
         handshake::{v0_handshake_incoming, v0_handshake_outgoing},
+        v0::check_authorization,
         ConnectionType, ProtocolError, ResultForService,
     },
     Data, PublicKey, SecretKey, Splittable, LOG_TARGET,
@@ -135,15 +135,8 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
         "Incoming handshake with {} finished successfully.", public_key
     );
 
-    let authorized = handle_authorization::<SK>(authorization_requests_sender, public_key.clone())
-        .await
-        .map_err(|_| ProtocolError::NotAuthorized)?;
-    if !authorized {
-        warn!(
-            target: LOG_TARGET,
-            "public_key={} was not authorized.", public_key
-        );
-        return Ok(());
+    if !check_authorization::<SK>(authorization_requests_sender, public_key.clone()).await? {
+        return Err(ProtocolError::NotAuthorized);
     }
 
     let (data_for_network, data_from_user) = mpsc::unbounded();

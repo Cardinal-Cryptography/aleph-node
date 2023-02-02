@@ -14,7 +14,6 @@ mod v1;
 
 use handshake::HandshakeError;
 pub use negotiation::{protocol, ProtocolNegotiationError};
-pub use v0::handle_authorization;
 
 pub type Version = u32;
 

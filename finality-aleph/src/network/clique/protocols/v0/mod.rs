@@ -2,7 +2,7 @@ use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::network::clique::{
@@ -102,15 +102,8 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
         "Incoming handshake with {} finished successfully.", public_key
     );
 
-    let authorized = handle_authorization::<SK>(authorization_requests_sender, public_key.clone())
-        .await
-        .map_err(|_| ProtocolError::NotAuthorized)?;
-    if !authorized {
-        warn!(
-            target: LOG_TARGET,
-            "public_key={} was not authorized.", public_key
-        );
-        return Ok(());
+    if !check_authorization::<SK>(authorization_requests_sender, public_key.clone()).await? {
+        return Err(ProtocolError::NotAuthorized);
     }
 
     let (tx_exit, mut exit) = mpsc::unbounded();
@@ -138,30 +131,17 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     }
 }
 
-pub async fn handle_authorization<SK: SecretKey>(
+pub async fn check_authorization<SK: SecretKey>(
     authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     public_key: SK::PublicKey,
-) -> Result<bool, ()> {
+) -> Result<bool, ProtocolError<SK::PublicKey>> {
     let (sender, receiver) = oneshot::channel();
-    if let Err(err) = authorization_requests_sender.unbounded_send((public_key.clone(), sender)) {
-        warn!(
-            target: LOG_TARGET,
-            "Unable to send authorization request for public-key {}: disconnected.",
-            err.into_inner().0,
-        );
-        return Err(());
-    }
-    match receiver.await {
-        Ok(result) => Ok(result),
-        Err(_) => {
-            warn!(
-                target: LOG_TARGET,
-                "Unable to receive an answer to authorization request for public-key {}: disconnected.",
-                public_key,
-            );
-            Err(())
-        }
-    }
+    authorization_requests_sender
+        .unbounded_send((public_key.clone(), sender))
+        .map_err(|_| ProtocolError::NoParentConnection)?;
+    receiver
+        .await
+        .map_err(|_| ProtocolError::NoParentConnection)
 }
 
 #[cfg(test)]
