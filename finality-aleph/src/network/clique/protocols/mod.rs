@@ -71,7 +71,7 @@ impl<PK: PublicKey> Display for ProtocolError<PK> {
             CardiacArrest => write!(f, "heartbeat stopped"),
             NoParentConnection => write!(f, "cannot send result to service"),
             NoUserConnection => write!(f, "cannot send data to user"),
-            NotAuthorized => write!(f, "user not authorized"),
+            NotAuthorized => write!(f, "peer not authorized"),
         }
     }
 }

@@ -247,10 +247,9 @@ where
         let (authorization_requests_sender, mut authorization_requests) = mpsc::unbounded();
         use ServiceCommand::*;
         loop {
-            let listener = &mut self.listener;
             tokio::select! {
                 // got new incoming connection from the listener - spawn an incoming worker
-                maybe_stream = listener.accept() => match maybe_stream {
+                maybe_stream = self.listener.accept() => match maybe_stream {
                     Ok(stream) => self.spawn_new_incoming(stream, result_for_parent.clone(), authorization_requests_sender.clone()),
                     Err(e) => warn!(target: LOG_TARGET, "Listener failed to accept connection: {}", e),
                 },
