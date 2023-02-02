@@ -513,16 +513,15 @@ pub mod tests {
             ..
         } = prepare::<Vec<i32>>();
 
-        let incoming_handle = incoming_handle.fuse();
-        let outgoing_handle = outgoing_handle.fuse();
         let authorization_handle = no_go_authorization_handler(authorization_requests);
 
         // since we are returning `NotAuthorized` all except `outgoing_handle` should finish hapilly
         let (incoming_result, outgoing_result, authorization_result) =
             tokio::join!(incoming_handle, outgoing_handle, authorization_handle);
 
-        assert!(incoming_result.is_ok());
+        assert!(incoming_result.is_err());
         assert!(outgoing_result.is_err());
+        // this also verifies if it was called at all
         assert!(authorization_result.is_ok());
 
         let data_from_incoming = data_from_incoming.try_next();
