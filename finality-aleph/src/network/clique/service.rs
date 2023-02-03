@@ -13,7 +13,7 @@ use crate::{
             incoming::incoming,
             manager::{AddResult, Manager},
             outgoing::outgoing,
-            protocols::{ConnectionType, ResultForService},
+            protocols::ResultForService,
             Dialer, Listener, Network, PublicKey, SecretKey, LOG_TARGET,
         },
         Data, PeerId,
@@ -175,12 +175,8 @@ where
         &mut self,
         public_key: SK::PublicKey,
         data_for_network: mpsc::UnboundedSender<D>,
-        connection_type: ConnectionType,
     ) -> AddResult {
-        use ConnectionType::*;
-        match connection_type {
-            New => self.manager.add_connection(public_key, data_for_network),
-        }
+        self.manager.add_connection(public_key, data_for_network)
     }
 
     /// Run the service until a signal from exit.
@@ -225,10 +221,10 @@ where
                 },
                 // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
-                Some((public_key, maybe_data_for_network, connection_type)) = worker_results.next() => {
+                Some((public_key, maybe_data_for_network)) = worker_results.next() => {
                     use AddResult::*;
                     match maybe_data_for_network {
-                        Some(data_for_network) => match self.add_connection(public_key.clone(), data_for_network, connection_type) {
+                        Some(data_for_network) => match self.add_connection(public_key.clone(), data_for_network) {
                             Uninterested => warn!(target: LOG_TARGET, "Established connection with peer {} for unknown reasons.", public_key),
                             Added => info!(target: LOG_TARGET, "New connection with peer {}.", public_key),
                             Replaced => info!(target: LOG_TARGET, "Replaced connection with peer {}.", public_key),

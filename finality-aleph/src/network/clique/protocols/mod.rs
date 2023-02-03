@@ -16,18 +16,11 @@ pub use negotiation::{protocol, ProtocolNegotiationError};
 
 pub type Version = u32;
 
-/// The types of connections needed for backwards compatibility with the legacy two connections
-/// protocol. Remove after it's no longer needed.
-#[derive(PartialEq, Debug, Eq, Clone, Copy)]
-pub enum ConnectionType {
-    New,
-}
-
 /// What connections send back to the service after they become established. Starts with a public
 /// key of the remote node, followed by a channel for sending data to that node, with None if the
 /// connection was unsuccessful and should be reestablished. Finally a marker for legacy
 /// compatibility.
-pub type ResultForService<PK, D> = (PK, Option<mpsc::UnboundedSender<D>>, ConnectionType);
+pub type ResultForService<PK, D> = (PK, Option<mpsc::UnboundedSender<D>>);
 
 /// Defines the protocol for communication.
 #[derive(Debug, PartialEq, Eq)]
