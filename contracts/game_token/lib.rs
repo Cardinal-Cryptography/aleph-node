@@ -148,10 +148,12 @@ pub mod game_token {
             let access_control = AccessControlRef::from_account_id(access_control);
 
             if access_control.has_role(caller, required_role) {
-                let mut metadata = metadata::Data::default();
-                metadata.name = Some(name.into());
-                metadata.symbol = Some(symbol.into());
-                metadata.decimals = 12;
+                let metadata = metadata::Data {
+                    name: Some(name.into()),
+                    symbol: Some(symbol.into()),
+                    decimals: 12,
+                    ..Default::default()
+                };
 
                 Self {
                     metadata,

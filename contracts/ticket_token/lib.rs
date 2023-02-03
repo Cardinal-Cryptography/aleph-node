@@ -110,10 +110,12 @@ pub mod ticket_token {
             let access_control = AccessControlRef::from_account_id(access_control);
 
             if access_control.has_role(caller, required_role) {
-                let mut metadata = metadata::Data::default();
-                metadata.name = Some(name.into());
-                metadata.symbol = Some(symbol.into());
-                metadata.decimals = 0;
+                let metadata = metadata::Data {
+                    name: Some(name.into()),
+                    symbol: Some(symbol.into()),
+                    decimals: 0,
+                    ..Default::default()
+                };
 
                 let mut instance = TicketToken {
                     access_control,

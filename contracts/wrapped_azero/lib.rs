@@ -37,6 +37,12 @@ pub mod wrapped_azero {
         access_control: AccessControlRef,
     }
 
+    impl Default for WrappedAzero {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl PSP22 for WrappedAzero {}
 
     impl PSP22Metadata for WrappedAzero {}
@@ -131,10 +137,12 @@ pub mod wrapped_azero {
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             let access_control = AccessControlRef::from_account_id(access_control);
             if access_control.has_role(caller, Role::Initializer(code_hash)) {
-                let mut metadata = metadata::Data::default();
-                metadata.name = Some("wAzero".into());
-                metadata.symbol = Some("wA0".into());
-                metadata.decimals = 12; // same as AZERO
+                let metadata = metadata::Data {
+                    name: Some("wAzero".into()),
+                    symbol: Some("wA0".into()),
+                    decimals: 12, // same as AZERO
+                    ..Default::default()
+                };
 
                 Self {
                     psp22: psp22::Data::default(),
