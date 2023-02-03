@@ -1,6 +1,7 @@
 use core::borrow::Borrow;
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
+use std::ops::Index;
 
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
@@ -34,9 +35,13 @@ impl PathShapeVar {
     pub(super) fn len(&self) -> usize {
         self.shape.len()
     }
+}
 
-    pub(super) fn at(&self, i: usize) -> &Boolean<CircuitField> {
-        &self.shape[i]
+impl Index<usize> for PathShapeVar {
+    type Output = Boolean<CircuitField>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.shape[index]
     }
 }
 

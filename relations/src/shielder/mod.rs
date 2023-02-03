@@ -73,13 +73,13 @@ fn check_merkle_proof(
     let mut current_note = leaf;
     let zero_note = CircuitField::zero();
 
-    for i in 0..max_path_len {
+    for i in 0..max_path_len as usize {
         let sibling = FpVar::new_witness(ns!(cs, "merkle path node"), || {
-            Ok(path.get(i as usize).unwrap_or(&zero_note))
+            Ok(path.get(i).unwrap_or(&zero_note))
         })?;
 
-        let left = path_shape.at(i as usize).select(&current_note, &sibling)?;
-        let right = path_shape.at(i as usize).select(&sibling, &current_note)?;
+        let left = path_shape[i].select(&current_note, &sibling)?;
+        let right = path_shape[i].select(&sibling, &current_note)?;
 
         current_note = tangle_in_circuit(&[left, right])?;
     }
