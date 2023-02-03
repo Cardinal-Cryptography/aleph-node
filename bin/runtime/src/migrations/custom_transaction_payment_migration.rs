@@ -6,7 +6,9 @@ use frame_support::{
     traits::OnRuntimeUpgrade,
     RuntimeDebug,
 };
-use pallet_transaction_payment::{Config, NextFeeMultiplier};
+use pallet_transaction_payment::Config;
+#[cfg(feature = "try-runtime")]
+use pallet_transaction_payment::NextFeeMultiplier;
 #[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
 

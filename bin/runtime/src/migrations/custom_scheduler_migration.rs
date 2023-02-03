@@ -1,3 +1,4 @@
+#[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
 use frame_support::{
     log,
