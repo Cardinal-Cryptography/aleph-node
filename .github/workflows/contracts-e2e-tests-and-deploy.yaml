@@ -92,6 +92,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
+          download-image: false
           deploy-adder: true
           test-case: button_game
         timeout-minutes: 10
