@@ -43,6 +43,12 @@ def random_salt():
     return ''.join(random.choice('0123456789abcdef') for _ in range(10))
 
 
+def price_storage_deposit(call, directory):
+    res = subprocess.check_output(call + ["--dry-run"], cwd=directory)
+    res = json.loads(res.decode('utf-8'))
+    return res['storage_deposit']['Charge']
+
+
 class Pricing:
     def __init__(self, suri, url):
         self.suri = suri
@@ -51,6 +57,7 @@ class Pricing:
         self.addresses = {}
         self.directories = {}
         self.suri_address = None
+        self.storage_deposits = {}
 
         with urllib.request.urlopen('https://api.coingecko.com/api/v3/simple/price?ids=aleph-zero&vs_currencies=usd') as response:
             data = json.load(response)
@@ -58,15 +65,17 @@ class Pricing:
 
     def instantiate(self, directory, alias, args=[]):
         call_args = [x for a in args for x in ['--args', a]]
+        call = ['cargo', 'contract', 'instantiate', '--salt',
+                random_salt()] + call_args + self.common_args()
+        action = "Instantiate %s" % alias
 
-        res = subprocess.check_output(['cargo', 'contract', 'instantiate', '--salt',
-                                       random_salt()] + call_args + self.common_args(), cwd=directory)
+        self.storage_deposits[action] = price_storage_deposit(call, directory)
+        res = subprocess.check_output(call, cwd=directory)
         res = json.loads(res.decode('utf-8'))
 
         self.register(res['contract'], alias, directory)
         self.suri_address = deployer_account_id(res)
-        self.prices["Instantiate %s" % alias] = find_fee(
-            res['events'], self.suri_address)
+        self.prices[action] = find_fee(res['events'], self.suri_address)
 
     def register(self, address, alias, directory):
         self.addresses[alias] = address
@@ -75,19 +84,26 @@ class Pricing:
     def call(self, alias, message, value=0, args=[], silent=False):
         contract = self.addresses[alias]
         directory = self.directories[alias]
+        action = "Call %s::%s" % (alias, message)
         call_args = [x for a in args for x in ['--args', a]]
 
-        res = subprocess.check_output(['cargo', 'contract', 'call', '--contract', contract, '--value', str(value),
-                                       '--message', message] + call_args + self.common_args(), cwd=directory)
+        call = ['cargo', 'contract', 'call', '--contract', contract, '--value', str(value),
+                '--message', message] + call_args + self.common_args()
+        if not silent:
+            self.storage_deposits[action] = price_storage_deposit(
+                call, directory)
+
+        res = subprocess.check_output(call, cwd=directory)
         res = json.loads(res.decode('utf-8'))
 
         if not silent:
-            self.prices["Call %s::%s" %
-                        (alias, message)] = find_fee(res, self.suri_address)
+            self.prices[action] = find_fee(res, self.suri_address)
 
     def print_table(self):
-        headers = ['Operation', 'Fee']
-        rows = [[k, self.format_fee(v)] for k, v in self.prices.items()]
+        headers = ['Operation', 'Execution Fee', 'Storage Deposit']
+        rows = [[
+            k, self.format_fee(v), self.format_fee(self.storage_deposits[k])
+        ] for k, v in self.prices.items()]
 
         print(tabulate(rows, headers=headers, tablefmt="github"))
 
