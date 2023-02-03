@@ -18,11 +18,10 @@ pub type Version = u32;
 
 /// What connections send back to the service after they become established. Starts with a public
 /// key of the remote node, followed by a channel for sending data to that node, with None if the
-/// connection was unsuccessful and should be reestablished. Finally a marker for legacy
-/// compatibility.
+/// connection was unsuccessful and should be reestablished.
 pub type ResultForService<PK, D> = (PK, Option<mpsc::UnboundedSender<D>>);
 
-/// Defines the protocol for communication.
+/// Defines the protocol for communication. Currently single variant, but left in case of protocol change.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Protocol {
     /// The current version of the protocol, with pseudorandom connection direction and
