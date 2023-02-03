@@ -50,13 +50,6 @@ mod nomination_pools {
 
     fn dissolve_pool<T: Config>(id: PoolId) {
         let bonded_account = Pallet::<T>::create_bonded_account(id);
-
-        let bonded_amount = T::StakingInterface::active_stake(&bonded_account).unwrap_or_default();
-        let chill_result = T::StakingInterface::chill(bonded_account.clone());
-        log::info!(target: "runtime::nomination-pools", "Pool {}, chilled. {:?}", id, chill_result);
-        let r = T::StakingInterface::unbond(bonded_account.clone(), bonded_amount);
-        log::info!(target: "runtime::nomination-pools", "Pool {} unbounding {:?}. {:?}", id, bonded_amount, r);
-
         ReversePoolIdLookup::<T>::remove(&bonded_account);
         SubPoolsStorage::<T>::remove(id);
         Metadata::<T>::remove(id);
