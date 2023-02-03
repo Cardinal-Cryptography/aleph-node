@@ -56,18 +56,23 @@ class Pricing:
             data = json.load(response)
             self.aleph_usd = data['aleph-zero']['usd']
 
-    def instantiate(self, directory, alias):
+    def instantiate(self, directory, alias, args=[]):
+        call_args = [x for a in args for x in ['--args', a]]
+
         res = subprocess.check_output(['cargo', 'contract', 'instantiate', '--salt',
-                                       random_salt()] + self.common_args(), cwd=directory)
+                                       random_salt()] + call_args + self.common_args(), cwd=directory)
         res = json.loads(res.decode('utf-8'))
 
-        self.addresses[alias] = res['contract']
-        self.directories[alias] = directory
+        self.register(res['contract'], alias, directory)
         self.suri_address = deployer_account_id(res)
         self.prices["Instantiate %s" % alias] = find_fee(
             res['events'], self.suri_address)
 
-    def call(self, alias, message, value=0, args=[]):
+    def register(self, address, alias, directory):
+        self.addresses[alias] = address
+        self.directories[alias] = directory
+
+    def call(self, alias, message, value=0, args=[], silent=False):
         contract = self.addresses[alias]
         directory = self.directories[alias]
         call_args = [x for a in args for x in ['--args', a]]
@@ -76,8 +81,9 @@ class Pricing:
                                        '--message', message] + call_args + self.common_args(), cwd=directory)
         res = json.loads(res.decode('utf-8'))
 
-        self.prices["Call %s::%s(%s)" % (alias, message, ', '.join(args))] = find_fee(
-            res, self.suri_address)
+        if not silent:
+            self.prices["Call %s::%s" %
+                        (alias, message)] = find_fee(res, self.suri_address)
 
     def print_table(self):
         headers = ['Operation', 'Fee']
