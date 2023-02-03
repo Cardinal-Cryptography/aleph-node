@@ -11,7 +11,6 @@ mod nomination_pools {
         ReversePoolIdLookup, RewardPool, RewardPools, SubPoolsStorage,
     };
     use sp_core::{Get, U256};
-    use sp_staking::StakingInterface;
     use sp_std::{
         collections::{btree_map::BTreeMap, btree_set::BTreeSet},
         prelude::*,
