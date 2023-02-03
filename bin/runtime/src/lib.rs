@@ -775,6 +775,9 @@ pub type Executive = frame_executive::Executive<
         pallet_staking::migrations::v12::MigrateToV12<Runtime>,
         // pallet multisig migration
         pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
+        // migrating to storage V2 and deleting old pools
+        migrations::custom_nomination_pools::CustomMigrateToV2<Runtime>,
+        pallet_nomination_pools::migration::v3::MigrateToV3<Runtime>,
         // pallet scheduler migrations
         migrations::custom_scheduler_migration::MigrateToV3<Runtime>,
         // pallet transaction payment migrations
