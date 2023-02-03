@@ -38,10 +38,6 @@ inputs:
     description: 'Custom path to docker image for aleph-node'
     required: false
     default: aleph-test-docker
-  download-image:
-    description: 'If true, the image will be downloaded from {{ inputs.image-path }}, otherwise it is assumed to already be available.'
-    required: false
-    default: 'true'
   node-image:
     description: 'Custom name of aleph-node image'
     required: false
@@ -57,12 +53,10 @@ runs:
 
     - name: Download artifact with docker image
       uses: actions/download-artifact@v2
-      if: ${{ inputs.download-image }} == 'true'
       with:
         name: ${{ inputs.image-path }}
 
     - name: Load node docker image
-      if: ${{ inputs.download-image }} == 'true'
       shell: bash
       run: docker load -i aleph-node.tar
 

@@ -5,12 +5,14 @@ on:
     paths-ignore:
       - '*.md'
     branches:
+      - benjamin
       - main
       - "release-*"
   push:
     paths-ignore:
       - '*.md'
     branches:
+      - benjamin
       - main
       - "release-*"
   workflow_dispatch:
@@ -598,6 +600,34 @@ jobs:
           deploy-adder: true
           test-case: adder
         timeout-minutes: 10
+
+  run-e2e-button-contract-tests:
+    needs: [build-test-docker, build-test-client]
+    name: Run e2e button game contract tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Install cargo-contract
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-contract
+          version: "2.0.0-beta.1"
+
+      - name: Install rust-src
+        working-directory: ./contracts
+        run: rustup component add rust-src
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          deploy-button: true
+          test-case: button
+        timeout-minutes: 10
+
+      - name: Trigger deployment workflow
+        uses: ./.github/workflows/contracts-deploy.yml
 
 # The tests below were written under the assumption that nonfinalized blocks are being produced, they need a rewrite before being reenabled.
 # TODO(A0-1644): Reenable these tests.
