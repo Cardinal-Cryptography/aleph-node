@@ -80,4 +80,4 @@ pricing.call('DEX', 'deposit', args=["[(%s, 10), (%s, 10)]" % (
 pricing.call('DEX', 'swap', args=[
              pricing.addresses['wrapped_azero'], pricing.addresses['PSP22'], '5', '1'])
 
-pricing.print_table()
+print(pricing.table())

@@ -64,6 +64,14 @@ class Pricing:
             self.aleph_usd = data['aleph-zero']['usd']
 
     def instantiate(self, directory, alias, args=[]):
+        """Instantiate a contract from a given directory.
+
+        The contract will be referred to by the given alias in subsequent calls.
+        The price and storage fee of the instantiation will be recorded.
+
+        Keyword arguments:
+        args -- arguments to pass to the contract constructor (default [])
+        """
         call_args = [x for a in args for x in ['--args', a]]
         call = ['cargo', 'contract', 'instantiate', '--salt',
                 random_salt()] + call_args + self.common_args()
@@ -78,10 +86,22 @@ class Pricing:
         self.prices[action] = find_fee(res['events'], self.suri_address)
 
     def register(self, address, alias, directory):
+        """Register an already-deployed contract under the given alias.
+
+        Note that providing a directory with the contract code is needed, because
+        this module uses `cargo contract` to make the calls to the contract.
+        """
         self.addresses[alias] = address
         self.directories[alias] = directory
 
     def call(self, alias, message, value=0, args=[], silent=False):
+        """Call a contract method.
+
+        Keyword arguments:
+        value -- transfer this number of native tokens with the call (default 0)
+        args -- arguments to pass to the contract method (default [])
+        silent -- if True, the price and storage fee of the call will not be recorded (default False)
+        """
         contract = self.addresses[alias]
         directory = self.directories[alias]
         action = "Call %s::%s" % (alias, message)
@@ -99,13 +119,14 @@ class Pricing:
         if not silent:
             self.prices[action] = find_fee(res, self.suri_address)
 
-    def print_table(self):
+    def table(self):
+        """Return a table with the recorded prices and storage fees as a string."""
         headers = ['Operation', 'Execution Fee', 'Storage Deposit']
         rows = [[
             k, self.format_fee(v), self.format_fee(self.storage_deposits[k])
         ] for k, v in self.prices.items()]
 
-        print(tabulate(rows, headers=headers, tablefmt="github"))
+        return tabulate(rows, headers=headers, tablefmt="github")
 
     def format_fee(self, fee):
         return "%f AZERO ($%f)" % (fee / AZERO, fee / AZERO * self.aleph_usd)
