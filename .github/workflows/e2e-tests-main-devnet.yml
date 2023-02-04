@@ -28,7 +28,7 @@ jobs:
   build-test-docker:
     needs: [build-new-node]
     name: Build docker image with the test node artifact
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
 
   build-cliain-image:
     name: Build docker image for cliain
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
@@ -103,7 +103,7 @@ jobs:
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -142,7 +142,7 @@ jobs:
 
   build-test-client:
     name: Build e2e test client suite
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
     steps:
@@ -869,7 +869,7 @@ jobs:
     # Disbled check, reenable once we fix the issue with try-runtime test
     # if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     if: ${{ false }}
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -919,7 +919,7 @@ jobs:
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Checkout source code
