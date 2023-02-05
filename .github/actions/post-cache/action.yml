@@ -5,6 +5,9 @@ description: |
 runs:
   using: "composite"
   steps:
+    - name: Empty step
+      run: |
+        echo "Empty step"
     #- name: Prune unused packages from cargo cache
     #  uses: actions-rs/cargo@v1
     #  with:
