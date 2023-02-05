@@ -58,25 +58,14 @@ jobs:
   build-cliain-image:
     name: Build docker image for cliain
     runs-on: self-hosted
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: cliain
-          cache-version: v2
-          cargo-targets: bin/cliain/target/
 
       - name: Cargo | Build release binary
         run: |
@@ -96,9 +85,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
-
 
   check-determinism:
     needs: [build-new-node]
@@ -106,18 +92,13 @@ jobs:
     runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
@@ -145,26 +126,13 @@ jobs:
     runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: e2e
-          cargo-key: e2e
-          cache-version: v2
-          cargo-targets: e2e-tests/target/
 
       - name: Build binary and docker image
         run: |
@@ -173,9 +141,6 @@ jobs:
           cp $(cargo test --no-run --release --message-format=json | jq -r .executable | grep aleph_e2e_client) target/release/aleph-e2e-client
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
-
-      - name: Stop cache
-        uses: ./.github/actions/post-cache
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
@@ -870,6 +835,8 @@ jobs:
     # if: ${{ needs.check-runtime-change.outputs.runtime-updated != 0 }}
     if: ${{ false }}
     runs-on: self-hosted
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -877,20 +844,8 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: try-runtime
-          cache-version: v2
 
       - name: Build try-runtime
         run: cargo build --release -p aleph-node --features "try-runtime"
@@ -913,9 +868,6 @@ jobs:
           path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
