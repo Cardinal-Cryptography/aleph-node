@@ -44,8 +44,7 @@ jobs:
 
       - name: Push to Aleph-Zero-Foundation
         run: |
-          git remote add mirror 'https://x-access-token:${{ secrets.SYNCAZF }}@github.com/aleph-zero-foundation/aleph-node.git'
-          git push mirror ${{ steps.get_branch.outputs.branch_name }}:${{ steps.get_branch.outputs.branch_name }}
+          git push 'https://x-access-token:${{ secrets.SYNCAZF }}@github.com/aleph-zero-foundation/aleph-node.git' ${{ steps.get_branch.outputs.branch_name }}:${{ steps.get_branch.outputs.branch_name }}
 
 
   sync-release-tag:
