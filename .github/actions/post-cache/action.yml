@@ -5,18 +5,18 @@ description: |
 runs:
   using: "composite"
   steps:
-    - name: Prune unused packages from cargo cache
-      uses: actions-rs/cargo@v1
-      with:
-        command: cache
-        args: clean-unref
+    #- name: Prune unused packages from cargo cache
+    #  uses: actions-rs/cargo@v1
+    #  with:
+    #    command: cache
+    #    args: clean-unref
 
-    - name: Prune sources from cargo cache
-      uses: actions-rs/cargo@v1
-      with:
-        command: cache
-        args: --autoclean
+    #- name: Prune sources from cargo cache
+    #  uses: actions-rs/cargo@v1
+    #  with:
+    #    command: cache
+    #    args: --autoclean
 
-    - name: Stop sccache server
-      run: sccache --stop-server || true
-      shell: bash
+    #- name: Stop sccache server
+    #  run: sccache --stop-server || true
+    #  shell: bash

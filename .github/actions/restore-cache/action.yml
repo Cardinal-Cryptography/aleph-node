@@ -45,61 +45,61 @@ runs:
   using: "composite"
 
   steps:
-    - name: Restore cargo cache
-      uses: actions/cache@v3
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
-      with:
-        path: |
-          ~/.cargo
-        key: ${{ runner.os }}-cargo-${{ inputs.cargo-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.cargo-key }}-${{ inputs.cache-version }}
+    #- name: Restore cargo cache
+    #  uses: actions/cache@v3
+    #  env:
+    #    SEGMENT_DOWNLOAD_TIMEOUT_MIN: "10"
+    #  with:
+    #    path: |
+    #      ~/.cargo
+    #    key: ${{ runner.os }}-cargo-${{ inputs.cargo-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
+    #    restore-keys: |
+    #      ${{ runner.os }}-cargo-${{ inputs.cargo-key }}-${{ inputs.cache-version }}
 
-    - name: Restore target cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          target
-          ${{ inputs.cargo-targets }}
-        key: ${{ runner.os }}-target-${{ inputs.target-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-target-${{ inputs.target-key }}-${{ inputs.cache-version }}
+    #- name: Restore target cache
+    #  uses: actions/cache@v3
+    #  with:
+    #    path: |
+    #      target
+    #      ${{ inputs.cargo-targets }}
+    #    key: ${{ runner.os }}-target-${{ inputs.target-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
+    #    restore-keys: |
+    #      ${{ runner.os }}-target-${{ inputs.target-key }}-${{ inputs.cache-version }}
 
-    - name: Install sccache for ubuntu-20.04
-      shell: bash
-      run: |
-        LINK=https://github.com/mozilla/sccache/releases/download
-        SCCACHE_FILE=sccache-${{ inputs.sccache-version }}-x86_64-unknown-linux-musl
-        
-        mkdir -p $HOME/.local/bin
-        curl -L "$LINK/${{ inputs.sccache-version }}/$SCCACHE_FILE.tar.gz" | tar xz
-        mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
-        chmod +x $HOME/.local/bin/sccache
-        
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    #- name: Install sccache for ubuntu-20.04
+    #  shell: bash
+    #  run: |
+    #    LINK=https://github.com/mozilla/sccache/releases/download
+    #    SCCACHE_FILE=sccache-${{ inputs.sccache-version }}-x86_64-unknown-linux-musl
+    #    
+    #    mkdir -p $HOME/.local/bin
+    #    curl -L "$LINK/${{ inputs.sccache-version }}/$SCCACHE_FILE.tar.gz" | tar xz
+    #    mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+    #    chmod +x $HOME/.local/bin/sccache
+    #    
+    #    echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    - name: Restore sccache
-      uses: actions/cache@v3
-      with:
-        path: /home/runner/.cache/sccache
-        key: ${{ runner.os }}-sccache-${{ inputs.target-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-sccache-${{ inputs.target-key }}-${{ inputs.cache-version }}
+    #- name: Restore sccache
+    #  uses: actions/cache@v3
+    #  with:
+    #    path: /home/runner/.cache/sccache
+    #    key: ${{ runner.os }}-sccache-${{ inputs.target-key }}-${{ inputs.cache-version }}-${{ hashFiles('**/Cargo.lock') }}
+    #    restore-keys: |
+    #      ${{ runner.os }}-sccache-${{ inputs.target-key }}-${{ inputs.cache-version }}
 
-    - name: Start sccache server
-      env:
-        SCCACHE_CACHE_SIZE: ${{ inputs.sccache-size }}
-      shell: bash
-      run: sccache --start-server
+    #- name: Start sccache server
+    #  env:
+    #    SCCACHE_CACHE_SIZE: ${{ inputs.sccache-size }}
+    #  shell: bash
+    #  run: sccache --start-server
 
     - name: Set RUSTC_WRAPPER
       shell: bash
       run: |
-        echo "RUSTC_WRAPPER=$HOME/.local/bin/sccache" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
-    - name: Install cargo-cache
-      uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: cargo-cache
+    #- name: Install cargo-cache
+    #  uses: actions-rs/cargo@v1
+    #  with:
+    #    command: install
+    #    args: cargo-cache
