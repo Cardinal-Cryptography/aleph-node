@@ -6,6 +6,7 @@ runs:
   using: "composite"
   steps:
     - name: Empty step
+      shell: bash
       run: |
         echo "Empty step"
     #- name: Prune unused packages from cargo cache
