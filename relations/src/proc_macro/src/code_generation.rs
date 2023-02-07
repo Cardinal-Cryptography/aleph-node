@@ -48,6 +48,9 @@ fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
             #(#const_backend_decls),*
         }
         impl #struct_name {
+            #[allow(clippy::too_many_arguments)]
+            #[allow(clippy::new_without_default)]
+            #[allow(clippy::useless_conversion)]
             pub fn new(#(#const_frontend_decls),*) -> Self {
                 Self { #(#const_castings),* }
             }
@@ -112,6 +115,8 @@ fn generate_relation_with_public(ir: &IR) -> SynResult<TokenStream2> {
         }
         impl #struct_name {
             #[allow(clippy::too_many_arguments)]
+            #[allow(clippy::new_without_default)]
+            #[allow(clippy::useless_conversion)]
             pub fn new(#(#frontend_decls),*) -> Self {
                 Self { #(#castings),* }
             }
@@ -173,6 +178,8 @@ fn generate_relation_with_full(ir: &IR) -> SynResult<TokenStream2> {
         }
         impl #struct_name {
             #[allow(clippy::too_many_arguments)]
+            #[allow(clippy::new_without_default)]
+            #[allow(clippy::useless_conversion)]
             pub fn new(#(#frontend_decls),*) -> Self {
                 Self { #(#castings),* }
             }
