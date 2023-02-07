@@ -8,7 +8,7 @@ use ark_r1cs_std::{
     R1CSVar,
 };
 use ark_relations::r1cs::{Namespace, SynthesisError};
-use ark_std::vec::Vec;
+use ark_std::{vec, vec::Vec};
 
 use crate::CircuitField;
 
@@ -54,7 +54,7 @@ impl AllocVar<(u8, Result<u64, SynthesisError>), CircuitField> for PathShapeVar 
         let ns = cs.into();
         let cs = ns.cs();
 
-        let mut shape = Vec::new();
+        let mut shape = vec![];
 
         let (path_length, maybe_leaf_index) = *f()?.borrow();
 
