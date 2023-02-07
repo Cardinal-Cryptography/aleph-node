@@ -58,7 +58,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use crate::migrations::BumpStorageVersionFromV7ToV10;
+use crate::migrations::{BumpStorageVersionFromV7ToV10, SchedulerMigrateToV3};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -722,7 +722,10 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (BumpStorageVersionFromV7ToV10<Runtime>,),
+    (
+        BumpStorageVersionFromV7ToV10<Runtime>,
+        SchedulerMigrateToV3<Runtime>,
+    ),
 >;
 
 impl_runtime_apis! {
