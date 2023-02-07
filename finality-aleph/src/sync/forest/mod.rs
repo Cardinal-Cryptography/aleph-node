@@ -1,6 +1,9 @@
-use std::collections::{
-    hash_map::{Entry, OccupiedEntry, VacantEntry},
-    HashMap, HashSet,
+use std::{
+    collections::{
+        hash_map::{Entry, OccupiedEntry, VacantEntry},
+        HashMap, HashSet,
+    },
+    fmt::{Display, Error as FmtError, Formatter},
 };
 
 use crate::sync::{BlockIdFor, BlockIdentifier, Header, Justification, PeerId};
@@ -42,6 +45,24 @@ pub enum Error {
     IncorrectVertexState,
     ParentNotImported,
     TooNew,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        use Error::*;
+        match self {
+            HeaderMissingParentId => write!(f, "header did not contain a parent ID"),
+            IncorrectParentState => write!(
+                f,
+                "parent was in a state incompatible with importing this block"
+            ),
+            IncorrectVertexState => write!(f, "block in a state incompatible with importing"),
+            ParentNotImported => {
+                write!(f, "parent was not imported when attempting to import block")
+            }
+            TooNew => write!(f, "block too new to be considered"),
+        }
+    }
 }
 
 pub struct VertexWithChildren<I: PeerId, J: Justification> {

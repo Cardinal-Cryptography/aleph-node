@@ -72,7 +72,7 @@ fn is_predecessor(
 }
 
 impl Backend {
-    pub fn setup() -> (Self, impl ChainStatusNotifier<MockIdentifier>) {
+    pub fn setup() -> (Self, impl ChainStatusNotifier<MockHeader>) {
         let (notification_sender, notification_receiver) = mpsc::unbounded();
 
         (Backend::new(notification_sender), notification_receiver)
@@ -100,15 +100,15 @@ impl Backend {
         }
     }
 
-    fn notify_imported(&self, id: MockIdentifier) {
+    fn notify_imported(&self, header: MockHeader) {
         self.notification_sender
-            .unbounded_send(MockNotification::BlockImported(id))
+            .unbounded_send(MockNotification::BlockImported(header))
             .expect("notification receiver is open");
     }
 
-    fn notify_finalized(&self, id: MockIdentifier) {
+    fn notify_finalized(&self, header: MockHeader) {
         self.notification_sender
-            .unbounded_send(MockNotification::BlockFinalized(id))
+            .unbounded_send(MockNotification::BlockFinalized(header))
             .expect("notification receiver is open");
     }
 
@@ -146,7 +146,7 @@ impl Backend {
             .blockchain
             .insert(header.id(), MockBlock::new(header.clone()));
 
-        self.notify_imported(header.id());
+        self.notify_imported(header);
     }
 }
 
@@ -195,7 +195,8 @@ impl Finalizer<MockJustification> for Backend {
             );
         }
 
-        let id = justification.header().id();
+        let header = justification.header().clone();
+        let id = header.id();
         let block = match storage.blockchain.get_mut(&id) {
             Some(block) => block,
             None => panic!("finalizing a not imported block: {:?}", header),
@@ -216,7 +217,7 @@ impl Finalizer<MockJustification> for Backend {
         ) {
             storage.best_block = id.clone()
         }
-        self.notify_finalized(id);
+        self.notify_finalized(header);
 
         Ok(())
     }

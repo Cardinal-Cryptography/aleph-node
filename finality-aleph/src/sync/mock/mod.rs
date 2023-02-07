@@ -131,5 +131,5 @@ impl JustificationT for MockJustification {
     }
 }
 
-type MockNotification = ChainStatusNotification<MockIdentifier>;
+type MockNotification = ChainStatusNotification<MockHeader>;
 type MockBlockStatus = BlockStatus<MockJustification>;
