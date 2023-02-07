@@ -6,6 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+mod migrations;
+
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -56,6 +58,8 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use crate::migrations::BumpStorageVersionFromV7ToV10;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -104,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 46,
+    spec_version: 47,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -718,6 +722,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    (BumpStorageVersionFromV7ToV10<Runtime>,),
 >;
 
 impl_runtime_apis! {
