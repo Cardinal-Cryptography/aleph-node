@@ -28,8 +28,8 @@ enum Releases {
     V10_0_0, // remove `EarliestUnappliedSlash`.
 }
 
-pub struct BumpStorageVersionFromV7ToV10<T>(sp_std::marker::PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV7ToV10<T> {
+pub struct MigrateToV10<T>(sp_std::marker::PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for MigrateToV10<T> {
     fn on_runtime_upgrade() -> Weight {
         match StorageVersion::get() {
             None => {
