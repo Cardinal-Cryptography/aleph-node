@@ -84,7 +84,7 @@ jobs:
       - name: Install nono
         run: cargo install cargo-nono
 
-      - name: Assert that packages are 'no-std'-compatible
+      - name: Assert that packages are compatible with no-std
         run: |
           packages=("relations" "bin/runtime/src/chain_extension/snarcos-extension")
 # Uncomment once `poseidon` is `no-std`.
