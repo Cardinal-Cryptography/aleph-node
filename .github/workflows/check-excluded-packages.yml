@@ -86,7 +86,7 @@ jobs:
 
       - name: Assert that packages are compatible with no-std
         run: |
-          packages=("relations" "bin/runtime/src/chain_extension/snarcos-extension")
+          packages=("relations" "relations/src/proc_macro" "bin/runtime/src/chain_extension/snarcos-extension")
           for p in ${packages[@]}
           do
             echo "Checking package $p..."
