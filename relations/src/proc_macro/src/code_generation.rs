@@ -55,11 +55,17 @@ fn generate_relation_without_input(ir: &IR) -> SynResult<TokenStream2> {
 fn generate_public_input_serialization(ir: &IR) -> SynResult<TokenStream2> {
     let accesses = field_serializations(&ir.public_inputs, &Ident::new("self", Span::call_site()));
 
-    Ok(quote! {
-        pub fn serialize_public_input(&self) -> ark_std::vec::Vec<ark_bls12_381::Fr> {
-            [ #(#accesses),* ].concat()
-        }
-    })
+    if accesses.is_empty() {
+        Ok(quote! {
+            pub fn serialize_public_input(&self) -> ark_std::vec::Vec<ark_bls12_381::Fr> { ark_std::vec![] }
+        })
+    } else {
+        Ok(quote! {
+            pub fn serialize_public_input(&self) -> ark_std::vec::Vec<ark_bls12_381::Fr> {
+                [ #(#accesses),* ].concat()
+            }
+        })
+    }
 }
 
 /// Generates struct, constructor, getters, public input serialization and downcasting for the
