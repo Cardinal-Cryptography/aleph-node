@@ -1,7 +1,6 @@
-use core::borrow::Borrow;
+use core::{borrow::Borrow, ops::Index};
 #[cfg(feature = "std")]
 use std::fmt::{Display, Formatter};
-use std::ops::Index;
 
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
@@ -9,6 +8,7 @@ use ark_r1cs_std::{
     R1CSVar,
 };
 use ark_relations::r1cs::{Namespace, SynthesisError};
+use ark_std::vec::Vec;
 
 use crate::CircuitField;
 
@@ -54,7 +54,7 @@ impl AllocVar<(u8, Result<u64, SynthesisError>), CircuitField> for PathShapeVar 
         let ns = cs.into();
         let cs = ns.cs();
 
-        let mut shape = vec![];
+        let mut shape = Vec::new();
 
         let (path_length, maybe_leaf_index) = *f()?.borrow();
 
