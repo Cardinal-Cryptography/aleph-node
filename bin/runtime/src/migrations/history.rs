@@ -15,7 +15,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV1<T> {
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
         frame_support::ensure!(
-            StorageVersion::get::<Pallet<T>>() == 0 || StorageVersion::get::<Pallet<T>>() == 0,
+            StorageVersion::get::<Pallet<T>>() == 0 || StorageVersion::get::<Pallet<T>>() == 1,
             "💸 Migration being executed on the wrong storage \
                 version, expected 0 or 1"
         );

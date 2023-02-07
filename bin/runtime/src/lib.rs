@@ -59,8 +59,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use crate::migrations::{
-    BumpStorageVersionFromV7ToV10, HistoryMigrateToV1, SchedulerMigrateToV3,
-    TransactionPaymentMigrateToV2,
+    HistoryMigrateToV1, SchedulerMigrateToV3, StakingMigrateToV10, TransactionPaymentMigrateToV2,
 };
 
 /// An index to a block.
@@ -726,7 +725,7 @@ pub type Executive = frame_executive::Executive<
     Runtime,
     AllPalletsWithSystem,
     (
-        BumpStorageVersionFromV7ToV10<Runtime>,
+        StakingMigrateToV10<Runtime>,
         SchedulerMigrateToV3<Runtime>,
         HistoryMigrateToV1<Runtime>,
         TransactionPaymentMigrateToV2<Runtime>,
