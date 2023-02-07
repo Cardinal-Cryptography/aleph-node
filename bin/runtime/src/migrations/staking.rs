@@ -54,7 +54,7 @@ impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV7ToV10<T> {
                     "💸 Migration being executed on the wrong storage \
                     version, expected Releases::V10_0_0 or None"
                 );
-                return T::DbWeight::get().reads(1);
+                T::DbWeight::get().reads(1)
             }
         }
     }
@@ -62,9 +62,9 @@ impl<T: Config> OnRuntimeUpgrade for BumpStorageVersionFromV7ToV10<T> {
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<(), &'static str> {
         frame_support::ensure!(
-            StorageVersion::get() == Some(Releases::V7_0_0) || StorageVersion::get() == None,
+            StorageVersion::get() == Some(Releases::V10_0_0) || StorageVersion::get() == None,
             "💸 Migration being executed on the wrong storage \
-                version, expected Releases::V7_0_0 or None"
+                version, expected Releases::V10_0_0 or None"
         );
 
         Ok(())
