@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 NODE_URL="${NODE_URL:-ws://localhost:9944}"
 AUTHORITY="${AUTHORITY:-//Alice}"
 
