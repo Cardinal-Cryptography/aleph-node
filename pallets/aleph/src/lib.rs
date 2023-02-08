@@ -51,7 +51,10 @@ pub mod pallet {
     use sp_std::marker::PhantomData;
 
     use super::*;
-    use crate::traits::{NextSessionAuthorityProvider, SessionInfoProvider};
+    use crate::{
+        log::warn,
+        traits::{NextSessionAuthorityProvider, SessionInfoProvider},
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -123,6 +126,9 @@ pub mod pallet {
         StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
 
     #[pallet::storage]
+    pub type NextFinalityCommittee<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn emergency_finalizer)]
     pub(super) type EmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
@@ -164,12 +170,28 @@ pub mod pallet {
             }
         }
 
-        pub(crate) fn update_authorities(
-            authorities: &[T::AuthorityId],
-            next_authorities: &[T::AuthorityId],
-        ) {
-            <Authorities<T>>::put(authorities);
-            <NextAuthorities<T>>::put(next_authorities);
+        pub(crate) fn update_authorities(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) {
+            let committee_ids = NextFinalityCommittee::<T>::take();
+
+            let mut na = vec![];
+            let expected_len = committee_ids.len();
+
+            for committee_id in committee_ids {
+                if let Some((_, key)) = next_authorities.iter().find(|(id, _)| **id == committee_id)
+                {
+                    na.push(key.clone());
+                }
+            }
+
+            if na.len() != expected_len {
+                warn!(target: "pallet_aleph", "Not all committee members were converted to keys. Falling back to using the default committee");
+
+                let (_, default): (Vec<_>, Vec<_>) = next_authorities.into_iter().unzip();
+                na = default;
+            }
+
+            <Authorities<T>>::put(<NextAuthorities<T>>::get());
+            <NextAuthorities<T>>::put(na);
         }
 
         pub(crate) fn update_emergency_finalizer() {
@@ -290,16 +312,14 @@ pub mod pallet {
             Self::initialize_authorities(authorities.as_slice(), authorities.as_slice());
         }
 
-        fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
+        fn on_new_session<'a, I: 'a>(changed: bool, _: I, queued_validators: I)
         where
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
             Self::update_emergency_finalizer();
             if changed {
-                let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-                let (_, next_authorities): (Vec<_>, Vec<_>) = queued_validators.unzip();
-                Self::update_authorities(authorities.as_slice(), next_authorities.as_slice());
+                Self::update_authorities(queued_validators.collect());
             }
         }
 

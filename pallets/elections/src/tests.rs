@@ -31,6 +31,7 @@ fn storage_is_initialized_already_in_genesis() {
     const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
         reserved_seats: 3,
         non_reserved_seats: 2,
+        non_reserved_finality_seats: 4,
     };
 
     TestExtBuilder::new(RESERVED.to_vec(), NON_RESERVED.to_vec())
@@ -92,6 +93,7 @@ fn session_authorities_must_have_been_elected() {
         .with_committee_seats(CommitteeSeats {
             reserved_seats: 2,
             non_reserved_seats: 2,
+            non_reserved_finality_seats: 4,
         })
         .build()
         .execute_with(|| {

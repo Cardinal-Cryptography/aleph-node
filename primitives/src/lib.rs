@@ -89,8 +89,10 @@ pub enum ElectionOpenness {
 pub struct CommitteeSeats {
     /// Size of reserved validators in a session
     pub reserved_seats: u32,
-    /// Size of non reserved valiadtors in a session
+    /// Size of non reserved validators in a session
     pub non_reserved_seats: u32,
+    /// Size of non reserved validators participating in the finality in a session
+    pub non_reserved_finality_seats: u32,
 }
 
 impl CommitteeSeats {
@@ -104,6 +106,7 @@ impl Default for CommitteeSeats {
         CommitteeSeats {
             reserved_seats: DEFAULT_COMMITTEE_SIZE,
             non_reserved_seats: 0,
+            non_reserved_finality_seats: 0,
         }
     }
 }

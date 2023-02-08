@@ -45,6 +45,7 @@ mod traits;
 use codec::{Decode, Encode};
 use frame_support::{log::info, traits::StorageVersion};
 pub use impls::{compute_validator_scaled_total_rewards, LENIENT_THRESHOLD};
+pub use migrations::v3_to_v4::Migration;
 pub use pallet::*;
 use pallets_support::StorageMigration;
 pub use primitives::EraValidators;
@@ -53,10 +54,11 @@ use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
     prelude::*,
 };
+pub use traits::*;
 
 pub type TotalReward = u32;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
@@ -80,7 +82,8 @@ pub mod pallet {
 
     use super::*;
     use crate::traits::{
-        EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler,
+        EraInfoProvider, FinalityCommitteeManager, SessionInfoProvider, ValidatorExtractor,
+        ValidatorRewardsHandler,
     };
 
     #[pallet::config]
@@ -108,6 +111,7 @@ pub mod pallet {
         /// Maximum acceptable ban reason length.
         #[pallet::constant]
         type MaximumBanReasonLength: Get<u32>;
+        type FinalityCommitteeManager: FinalityCommitteeManager<Self::AccountId>;
     }
 
     #[pallet::event]
@@ -396,6 +400,7 @@ pub mod pallet {
             let CommitteeSeats {
                 reserved_seats: reserved,
                 non_reserved_seats: non_reserved,
+                non_reserved_finality_seats,
             } = committee_size;
             let reserved_len = reserved_validators.len() as u32;
             let non_reserved_len = non_reserved_validators.len() as u32;
@@ -404,8 +409,13 @@ pub mod pallet {
             let committee_size_all = reserved + non_reserved;
 
             ensure!(
+                non_reserved_finality_seats <= non_reserved,
+                Error::<T>::NonReservedFinalityShouldBeSmaller,
+            );
+
+            ensure!(
                 committee_size_all <= validators_size,
-                Error::<T>::NotEnoughValidators
+                Error::<T>::NotEnoughValidators,
             );
 
             ensure!(
@@ -454,6 +464,7 @@ pub mod pallet {
         NotEnoughReservedValidators,
         NotEnoughNonReservedValidators,
         NonUniqueListOfValidators,
+        NonReservedFinalityShouldBeSmaller,
 
         /// Raised in any scenario [`BanConfig`] is invalid
         /// * `performance_ratio_threshold` must be a number in range [0; 100]

@@ -87,6 +87,14 @@ where
     }
 }
 
+pub trait FinalityCommitteeManager<T> {
+    fn next_session_finality_committee(committee: Vec<T>);
+}
+
+impl<T> FinalityCommitteeManager<T> for () {
+    fn next_session_finality_committee(_: Vec<T>) {}
+}
+
 pub trait ValidatorExtractor {
     type AccountId;
 

@@ -8,14 +8,16 @@ use sp_runtime::Perbill;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+    prelude::*,
     vec::Vec,
 };
 
 use crate::{
     traits::{EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler},
-    BanConfig, Banned, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
-    NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
-    UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
+    BanConfig, Banned, CommitteeSize, Config, CurrentEraValidators, FinalityCommitteeManager,
+    NextEraCommitteeSize, NextEraNonReservedValidators, NextEraReservedValidators, Pallet,
+    SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+    ValidatorTotalRewards,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -40,6 +42,12 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 ///    * then we update the reserved and non reserved validators.
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
 ///
+
+#[derive(Debug, Eq, PartialEq)]
+struct SessionCommittee<T> {
+    pub finality_committee: Vec<T>,
+    pub committee: Vec<T>,
+}
 
 fn calculate_adjusted_session_points(
     sessions_per_era: EraIndex,
@@ -84,11 +92,7 @@ pub fn compute_validator_scaled_total_rewards<V>(
         .collect()
 }
 
-fn choose_for_session<T: Clone>(
-    validators: Vec<T>,
-    count: usize,
-    session: usize,
-) -> Option<Vec<T>> {
+fn choose_for_session<T: Clone>(validators: &[T], count: usize, session: usize) -> Option<Vec<T>> {
     if validators.is_empty() || count == 0 {
         return None;
     }
@@ -96,8 +100,9 @@ fn choose_for_session<T: Clone>(
     let validators_len = validators.len();
     let first_index = session.saturating_mul(count) % validators_len;
     let mut chosen = Vec::new();
+    let count = count.min(validators_len);
 
-    for i in 0..count.min(validators_len) {
+    for i in 0..count {
         chosen.push(validators[first_index.saturating_add(i) % validators_len].clone());
     }
 
@@ -108,24 +113,45 @@ fn rotate<T: Clone + PartialEq>(
     current_session: SessionIndex,
     reserved_seats: usize,
     non_reserved_seats: usize,
+    non_reserved_finality_seats: usize,
     reserved: Vec<T>,
     non_reserved: Vec<T>,
-) -> Option<Vec<T>> {
+) -> Option<SessionCommittee<T>> {
     // The validators for the committee at the session `n` are chosen as follow:
     // 1. `reserved_seats` validators are chosen from the reserved set while `non_reserved_seats` from the non_reserved set.
     // 2. Given a set of validators the chosen ones are from the range:
     // `n * seats` to `(n + 1) * seats` where seats is equal to reserved_seats(non_reserved_seats) for reserved(non_reserved) validators.
+    // 3. Finality committee is filled first with reserved_seats and then a subsample of non_reserved_seats equal to non_reserved_finality_seats
 
-    let reserved_committee = choose_for_session(reserved, reserved_seats, current_session as usize);
+    let reserved_committee =
+        choose_for_session(&reserved, reserved_seats, current_session as usize);
     let non_reserved_committee =
-        choose_for_session(non_reserved, non_reserved_seats, current_session as usize);
+        choose_for_session(&non_reserved, non_reserved_seats, current_session as usize);
 
-    match (reserved_committee, non_reserved_committee) {
+    let mut finality_committee = if let Some(rc) = reserved_committee.as_ref() {
+        rc.clone()
+    } else {
+        vec![]
+    };
+
+    let free_seats = non_reserved_finality_seats.saturating_sub(finality_committee.len());
+
+    if let Some(nrc) = non_reserved_committee.as_ref() {
+        let nrc = choose_for_session(nrc.as_slice(), free_seats, current_session as usize);
+        finality_committee.extend_from_slice(&nrc.unwrap_or_default())
+    }
+
+    let committee = match (reserved_committee, non_reserved_committee) {
         (Some(rc), Some(nrc)) => Some(rc.into_iter().chain(nrc.into_iter()).collect()),
         (Some(rc), _) => Some(rc),
         (_, Some(nrc)) => Some(nrc),
         _ => None,
-    }
+    }?;
+
+    Some(SessionCommittee {
+        committee,
+        finality_committee,
+    })
 }
 
 impl<T> Pallet<T>
@@ -202,7 +228,7 @@ where
 
     // Choose a subset of all the validators for current era that contains all the
     // reserved nodes. Non reserved ones are chosen in consecutive batches for every session
-    fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>> {
+    fn rotate_committee(current_session: SessionIndex) -> Option<SessionCommittee<T::AccountId>> {
         if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
             return None;
         }
@@ -214,12 +240,14 @@ where
         let CommitteeSeats {
             reserved_seats,
             non_reserved_seats,
+            non_reserved_finality_seats,
         } = CommitteeSize::<T>::get();
 
         rotate(
             current_session,
             reserved_seats as usize,
             non_reserved_seats as usize,
+            non_reserved_finality_seats as usize,
             reserved,
             non_reserved,
         )
@@ -403,7 +431,13 @@ where
         // new session is always called before the end_session of the previous session
         // so we need to populate reserved set here not on start_session nor end_session
         Self::populate_next_era_validators_on_next_era_start(new_index);
-        Self::rotate_committee(new_index)
+        let SessionCommittee {
+            finality_committee,
+            committee,
+        } = Self::rotate_committee(new_index)?;
+        T::FinalityCommitteeManager::next_session_finality_committee(finality_committee);
+
+        Some(committee)
     }
 
     fn new_session_genesis(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
@@ -560,10 +594,12 @@ mod tests {
                     session_index,
                     reserved_seats,
                     non_reserved_seats,
+                    non_reserved_seats + non_reserved_seats,
                     reserved.clone(),
                     non_reserved.clone(),
                 )
                 .expect("Expected non-empty rotated committee!")
+                .committee
             );
         }
     }

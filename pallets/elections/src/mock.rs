@@ -186,6 +186,7 @@ impl Config for Test {
     type ValidatorRewardsHandler = MockProvider;
     type ValidatorExtractor = MockProvider;
     type MaximumBanReasonLength = ConstU32<300>;
+    type FinalityCommitteeManager = ();
 }
 
 type MaxVotesPerVoter = ConstU32<1>;
@@ -245,6 +246,9 @@ impl TestExtBuilder {
             committee_seats: CommitteeSeats {
                 reserved_seats: reserved_validators.len() as u32,
                 non_reserved_seats: non_reserved_validators.len() as u32,
+                non_reserved_finality_seats: (reserved_validators.len()
+                    + non_reserved_validators.len())
+                    as u32,
             },
             reserved_validators,
             non_reserved_validators,

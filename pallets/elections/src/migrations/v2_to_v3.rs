@@ -1,18 +1,22 @@
+use codec::{Decode, Encode};
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
-use primitives::CommitteeSeats;
 #[cfg(feature = "try-runtime")]
-use {
-    codec::{Decode, Encode},
-    frame_support::ensure,
-    pallets_support::ensure_storage_version,
-    sp_std::vec::Vec,
-};
+use {frame_support::ensure, pallets_support::ensure_storage_version, sp_std::vec::Vec};
 
-use crate::{migrations::Validators, Config, EraValidators};
+use crate::{migrations::Validators, Config, EraValidators, TypeInfo};
+
+//V3 CommiteeSeats
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommitteeSeats {
+    /// Size of reserved validators in a session
+    pub reserved_seats: u32,
+    /// Size of non reserved validators in a session
+    pub non_reserved_seats: u32,
+}
 
 // V2 storages
 #[storage_alias]

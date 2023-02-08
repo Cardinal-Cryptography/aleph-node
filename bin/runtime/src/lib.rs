@@ -339,6 +339,7 @@ impl pallet_elections::Config for Runtime {
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
+    type FinalityCommitteeManager = Aleph;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -371,6 +372,7 @@ parameter_types! {
 }
 
 use sp_runtime::traits::Convert;
+use pallet_elections::Migration;
 
 pub struct BalanceToU256;
 
@@ -773,6 +775,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    Migration<Runtime, Elections>
 >;
 
 impl_runtime_apis! {

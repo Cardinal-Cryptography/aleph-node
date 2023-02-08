@@ -18,6 +18,7 @@ sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptogra
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.32" }
 
 pallets-support = { path = "../support", default-features = false }
+pallet-elections = { path = "../elections", default-features = false }
 primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
