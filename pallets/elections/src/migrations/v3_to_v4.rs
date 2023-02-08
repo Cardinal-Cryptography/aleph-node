@@ -7,6 +7,8 @@ use frame_support::{
 };
 use primitives::CommitteeSeats;
 use sp_core::Get;
+#[cfg(feature = "try-runtime")]
+use {frame_support::ensure, pallets_support::ensure_storage_version, sp_std::vec::Vec};
 
 use crate::{CommitteeSize, Config, NextEraCommitteeSize};
 
@@ -32,9 +34,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
         if let Ok(_) = CommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
             if let Some(CommitteeSeatsV3 {
-                            reserved_seats,
-                            non_reserved_seats,
-                        }) = old
+                reserved_seats,
+                non_reserved_seats,
+            }) = old
             {
                 Some(CommitteeSeats {
                     reserved_seats,
@@ -52,9 +54,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
 
         if let Ok(_) = NextEraCommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
             if let Some(CommitteeSeatsV3 {
-                            reserved_seats,
-                            non_reserved_seats,
-                        }) = old
+                reserved_seats,
+                non_reserved_seats,
+            }) = old
             {
                 Some(CommitteeSeats {
                     reserved_seats,
