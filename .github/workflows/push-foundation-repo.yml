@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'Cardinal-Cryptography/aleph-node' && startsWith(github.ref, 'refs/heads/') && github.ref_name == 'main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.SYNCAZF }}
