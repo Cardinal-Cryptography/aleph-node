@@ -87,9 +87,6 @@ mod tests {
         let circuit_with_full_input = LinearEquationRelationWithFullInput::new(A, B, Y, X);
 
         let proof = Groth16::prove(&pk, circuit_with_full_input, &mut rng).unwrap();
-        // This returns `Err(MalformedVerifyingKey)`.
-        // Most probably b/c DUMMY value is used to work around the fact that
-        // macro doesn't work for relation w/o public input.
         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(valid_proof);
     }
