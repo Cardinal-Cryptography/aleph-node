@@ -47,7 +47,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV2<T> {
                     "💸 Migration being executed on the wrong storage \
                     version, expected Releases::V1Ancient or None"
                 );
-                return T::DbWeight::get().reads(1);
+                T::DbWeight::get().reads(1)
             }
         }
     }
