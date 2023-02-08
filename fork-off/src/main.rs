@@ -12,7 +12,7 @@ use crate::{
         file_content, read_json_from_file, read_snapshot_from_file, save_snapshot_to_file,
         write_to_file,
     },
-    types::{Storage, ChildStorage},
+    types::{ChildStorage, Storage},
 };
 
 mod account_setting;
@@ -57,11 +57,11 @@ async fn main() -> anyhow::Result<()> {
     let state = read_snapshot_from_file(snapshot_path);
 
     // Initialize with state from chainspec + empty child storage
-    let initial_state = Storage { 
+    let initial_state = Storage {
         top: serde_json::from_value(initial_spec["genesis"]["raw"]["top"].take())
             .expect("Deserialization of state from given chainspec file failed"),
         child_storage: ChildStorage::new(),
-        };
+    };
 
     let state = combine_states(state, initial_state, storage_keep_state);
 
@@ -80,8 +80,10 @@ async fn main() -> anyhow::Result<()> {
     };
     let state = apply_account_setting(state, account_setting);
 
-    let json_state = serde_json::to_value(state.top).expect("Failed to convert a storage map to json");
-    let json_child_state = serde_json::to_value(state.child_storage).expect("Failed to convert a storage map to json");
+    let json_state =
+        serde_json::to_value(state.top).expect("Failed to convert a storage map to json");
+    let json_child_state =
+        serde_json::to_value(state.child_storage).expect("Failed to convert a storage map to json");
     initial_spec["genesis"]["raw"]["top"] = json_state;
     initial_spec["genesis"]["raw"]["childrenDefault"] = json_child_state;
     let new_spec = serde_json::to_vec_pretty(&initial_spec)?;

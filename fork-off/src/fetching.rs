@@ -37,21 +37,24 @@ impl StateFetcher {
                 .await
                 .unwrap();
 
-            let child_storage_entry = if let Ok(child_keys) = self
-                .client
-                .get_all_keys_for_child(&key, &block)
-                .await {
-                    info!("Got {} child keys!", child_keys.len());
-                    Some(self.client.get_storage_map_for_child(key.clone(), child_keys, block.clone()).await)
+            let child_storage_entry =
+                if let Ok(child_keys) = self.client.get_all_keys_for_child(&key, &block).await {
+                    Some(
+                        self.client
+                            .get_storage_map_for_child(key.clone(), child_keys, block.clone())
+                            .await,
+                    )
                 } else {
                     None
                 };
 
-
             let mut output_guard = output.lock();
             output_guard.top.insert(key.clone(), value);
             if child_storage_entry.is_some() {
-                output_guard.child_storage.insert(key.without_child_storage_prefix(), child_storage_entry.unwrap());
+                output_guard.child_storage.insert(
+                    key.without_child_storage_prefix(),
+                    child_storage_entry.unwrap(),
+                );
             }
 
             if output_guard.top.len() % LOG_PROGRESS_FREQUENCY == 0 {
@@ -64,9 +67,6 @@ impl StateFetcher {
         info!("Fetching state at block {:?}", block_hash);
 
         let (input, key_fetcher) = self.client.stream_all_keys(&block_hash);
-        //let child_keys = self.client.get_all_child_keys(&block_hash).await;
-        //info!("Child key number {}", child_keys.len());
-
         let output = Arc::new(Mutex::new(Storage::default()));
 
         let workers = repeat_with(|| {

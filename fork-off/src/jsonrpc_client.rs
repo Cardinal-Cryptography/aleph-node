@@ -6,7 +6,7 @@ use jsonrpc_core::Error;
 use jsonrpc_core_client::{transports::ws, RpcError};
 use jsonrpc_derive::rpc;
 
-use crate::types::{BlockHash, StorageKey, StorageValue, ChildStorageMap};
+use crate::types::{BlockHash, ChildStorageMap, StorageKey, StorageValue};
 
 #[rpc]
 pub trait Rpc {
@@ -87,21 +87,17 @@ impl Client {
         (receiver, self.do_stream_all_keys(sender, at.clone()))
     }
 
-    pub async fn get_all_keys_for_child(&self, child_key: &StorageKey, at: &BlockHash) -> RpcResult<Vec<StorageKey>> {
-        //let child_storage = StorageKey::new("0x");
-        //let child_storage = StorageKey::new(&encode(b":child_storage:default:"));
-        //let prefix = StorageKey::new(&encode(b"child"));
+    pub async fn get_all_keys_for_child(
+        &self,
+        child_key: &StorageKey,
+        at: &BlockHash,
+    ) -> RpcResult<Vec<StorageKey>> {
         let empty_prefix = StorageKey::new("0x");
-
         let mut output = Vec::new();
 
         let keys = self
             .client
-            .get_child_keys(
-                child_key.clone(),
-                empty_prefix.clone(),
-                Some(at.clone()),
-            )
+            .get_child_keys(child_key.clone(), empty_prefix.clone(), Some(at.clone()))
             .await?;
 
         for key in keys {
@@ -111,8 +107,17 @@ impl Client {
         Ok(output)
     }
 
-    pub async fn get_storage_map_for_child(&self, child_key: StorageKey, keys: Vec<StorageKey>, at: BlockHash) -> ChildStorageMap {
-        let values = self.client.get_child_storage_entries(child_key, keys.clone(), Some(at)).await.unwrap();
+    pub async fn get_storage_map_for_child(
+        &self,
+        child_key: StorageKey,
+        keys: Vec<StorageKey>,
+        at: BlockHash,
+    ) -> ChildStorageMap {
+        let values = self
+            .client
+            .get_child_storage_entries(child_key, keys.clone(), Some(at))
+            .await
+            .unwrap();
         let mut res = ChildStorageMap::new();
         for (k, v) in keys.iter().zip(values) {
             res.insert(k.clone(), v);

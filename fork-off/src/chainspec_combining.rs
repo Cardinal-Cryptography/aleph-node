@@ -27,7 +27,7 @@ impl Index<&StoragePath> for PathCounter {
     }
 }
 
-/// Combines states - ommiting child state as we assume that it is empty for initial chainspec
+/// Combines states - ommiting child state as we assume that it is empty in initial chainspec
 pub fn combine_states(
     mut state: Storage,
     initial_state: Storage,

@@ -5,7 +5,11 @@
 //! to a function, as `clippy` screams outrageously about changing it to `&str` and then the alias
 //! is useless.
 
-use std::{collections::{HashMap, BTreeMap}, fmt::Debug, str::FromStr};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Debug,
+    str::FromStr,
+};
 
 use codec::Encode;
 use frame_support::{sp_runtime::AccountId32, Blake2_128Concat, StorageHasher, Twox128};
