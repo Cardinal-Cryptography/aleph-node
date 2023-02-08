@@ -371,8 +371,8 @@ parameter_types! {
     pub const MaxPointsToBalance: u8 = 10;
 }
 
-use sp_runtime::traits::Convert;
 use pallet_elections::Migration;
+use sp_runtime::traits::Convert;
 
 pub struct BalanceToU256;
 
@@ -775,7 +775,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    Migration<Runtime, Elections>
+    Migration<Runtime, Elections>,
 >;
 
 impl_runtime_apis! {
