@@ -5,7 +5,7 @@
 //! to a function, as `clippy` screams outrageously about changing it to `&str` and then the alias
 //! is useless.
 
-use std::{collections::HashMap, fmt::Debug, str::FromStr};
+use std::{collections::{HashMap, BTreeMap}, fmt::Debug, str::FromStr};
 
 use codec::Encode;
 use frame_support::{sp_runtime::AccountId32, Blake2_128Concat, StorageHasher, Twox128};
@@ -17,7 +17,7 @@ pub trait Get<T = String> {
 }
 
 /// Remove leading `"0x"`.
-fn strip_hex<T: ToString + ?Sized>(t: &T) -> String {
+pub fn strip_hex<T: ToString + ?Sized>(t: &T) -> String {
     let s = t.to_string();
     s.strip_prefix("0x").map(ToString::to_string).unwrap_or(s)
 }
@@ -69,7 +69,7 @@ impl Get for StoragePath {
 }
 
 /// Hex-encoded key in raw chainspec.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct StorageKey(String);
 
 impl From<&StorageKey> for Vec<u8> {
@@ -77,6 +77,8 @@ impl From<&StorageKey> for Vec<u8> {
         hex::decode(strip_hex(&k.0)).expect("Could not decode hex value")
     }
 }
+
+pub const CHILD_STORAGE_PREFIX: &[u8] = b":child_storage:default:";
 
 impl StorageKey {
     pub fn new<T: ToString + ?Sized>(content: &T) -> Self {
@@ -95,6 +97,10 @@ impl StorageKey {
         let shorter = as_hex(&self.0);
         let longer = as_hex(&other.0);
         longer.starts_with(&shorter)
+    }
+
+    pub fn without_child_storage_prefix(self) -> Self {
+        StorageKey::new(&("0x".to_owned() + &self.get().split_off(CHILD_STORAGE_PREFIX.len() + 2)))
     }
 }
 
@@ -169,6 +175,16 @@ impl FromStr for BlockHash {
 }
 
 /// Content of `chainspec["genesis"]["raw"]["top"]`.
-pub type Storage = HashMap<StorageKey, StorageValue>;
+pub type TopStorage = HashMap<StorageKey, StorageValue>;
+
+pub type ChildStorageMap = BTreeMap<StorageKey, StorageValue>;
+
+pub type ChildStorage = HashMap<StorageKey, ChildStorageMap>;
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Storage {
+    pub top: TopStorage,
+    pub child_storage: ChildStorage,
+}
 
 pub type Balance = u128;

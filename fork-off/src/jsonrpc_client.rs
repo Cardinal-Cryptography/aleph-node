@@ -6,7 +6,7 @@ use jsonrpc_core::Error;
 use jsonrpc_core_client::{transports::ws, RpcError};
 use jsonrpc_derive::rpc;
 
-use crate::types::{BlockHash, StorageKey, StorageValue};
+use crate::types::{BlockHash, StorageKey, StorageValue, ChildStorageMap};
 
 #[rpc]
 pub trait Rpc {
@@ -28,6 +28,22 @@ pub trait Rpc {
         start_key: Option<StorageKey>,
         at: Option<BlockHash>,
     ) -> Result<Vec<StorageKey>, Error>;
+
+    #[rpc(name = "childstate_getKeys")]
+    fn get_child_keys(
+        &self,
+        child_storage: StorageKey,
+        prefix: StorageKey,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<StorageKey>, Error>;
+
+    #[rpc(name = "childstate_getStorageEntries")]
+    fn get_child_storage_entries(
+        &self,
+        child_storage: StorageKey,
+        keys: Vec<StorageKey>,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<StorageValue>, Error>;
 }
 
 type RpcResult<T> = Result<T, RpcError>;
@@ -69,6 +85,39 @@ impl Client {
     ) {
         let (sender, receiver) = bounded(STORAGE_CAP);
         (receiver, self.do_stream_all_keys(sender, at.clone()))
+    }
+
+    pub async fn get_all_keys_for_child(&self, child_key: &StorageKey, at: &BlockHash) -> RpcResult<Vec<StorageKey>> {
+        //let child_storage = StorageKey::new("0x");
+        //let child_storage = StorageKey::new(&encode(b":child_storage:default:"));
+        //let prefix = StorageKey::new(&encode(b"child"));
+        let empty_prefix = StorageKey::new("0x");
+
+        let mut output = Vec::new();
+
+        let keys = self
+            .client
+            .get_child_keys(
+                child_key.clone(),
+                empty_prefix.clone(),
+                Some(at.clone()),
+            )
+            .await?;
+
+        for key in keys {
+            output.push(key);
+        }
+
+        Ok(output)
+    }
+
+    pub async fn get_storage_map_for_child(&self, child_key: StorageKey, keys: Vec<StorageKey>, at: BlockHash) -> ChildStorageMap {
+        let values = self.client.get_child_storage_entries(child_key, keys.clone(), Some(at)).await.unwrap();
+        let mut res = ChildStorageMap::new();
+        for (k, v) in keys.iter().zip(values) {
+            res.insert(k.clone(), v);
+        }
+        res
     }
 
     async fn do_stream_all_keys(&self, sender: Sender<StorageKey>, at: BlockHash) -> RpcResult<()> {
