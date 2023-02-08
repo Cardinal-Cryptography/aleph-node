@@ -94,10 +94,9 @@ impl Client {
     ) -> RpcResult<Vec<StorageKey>> {
         let empty_prefix = StorageKey::new("0x");
 
-        Ok(self
-            .client
+        self.client
             .get_child_keys(child_key.clone(), empty_prefix.clone(), Some(at.clone()))
-            .await?)
+            .await
     }
 
     pub async fn get_storage_map_for_child(

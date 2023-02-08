@@ -13,7 +13,7 @@ use std::{
 
 use codec::Encode;
 use frame_support::{sp_runtime::AccountId32, Blake2_128Concat, StorageHasher, Twox128};
-use hex::ToHex;
+use hex::{encode, ToHex};
 use serde::{Deserialize, Serialize};
 
 pub trait Get<T = String> {
@@ -104,7 +104,13 @@ impl StorageKey {
     }
 
     pub fn without_child_storage_prefix(self) -> Self {
-        StorageKey::new(&("0x".to_owned() + &self.get().split_off(CHILD_STORAGE_PREFIX.len() + 2)))
+        StorageKey::new(
+            &(as_hex(
+                &self
+                    .get()
+                    .split_off(as_hex(&encode(CHILD_STORAGE_PREFIX)).len()),
+            )),
+        )
     }
 }
 
