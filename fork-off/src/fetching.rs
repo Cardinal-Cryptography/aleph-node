@@ -37,7 +37,7 @@ impl StateFetcher {
                 .await
                 .unwrap();
 
-            let child_storage_entry =
+            let child_storage_map =
                 if let Ok(child_keys) = self.client.get_all_keys_for_child(&key, &block).await {
                     Some(
                         self.client
@@ -50,10 +50,10 @@ impl StateFetcher {
 
             let mut output_guard = output.lock();
             output_guard.top.insert(key.clone(), value);
-            if child_storage_entry.is_some() {
+            if child_storage_map.is_some() {
                 output_guard.child_storage.insert(
                     key.without_child_storage_prefix(),
-                    child_storage_entry.unwrap(),
+                    child_storage_map.unwrap(),
                 );
             }
 

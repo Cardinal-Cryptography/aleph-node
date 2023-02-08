@@ -93,18 +93,11 @@ impl Client {
         at: &BlockHash,
     ) -> RpcResult<Vec<StorageKey>> {
         let empty_prefix = StorageKey::new("0x");
-        let mut output = Vec::new();
 
-        let keys = self
+        Ok(self
             .client
             .get_child_keys(child_key.clone(), empty_prefix.clone(), Some(at.clone()))
-            .await?;
-
-        for key in keys {
-            output.push(key);
-        }
-
-        Ok(output)
+            .await?)
     }
 
     pub async fn get_storage_map_for_child(
@@ -118,11 +111,7 @@ impl Client {
             .get_child_storage_entries(child_key, keys.clone(), Some(at))
             .await
             .unwrap();
-        let mut res = ChildStorageMap::new();
-        for (k, v) in keys.iter().zip(values) {
-            res.insert(k.clone(), v);
-        }
-        res
+        keys.iter().cloned().zip(values).collect()
     }
 
     async fn do_stream_all_keys(&self, sender: Sender<StorageKey>, at: BlockHash) -> RpcResult<()> {

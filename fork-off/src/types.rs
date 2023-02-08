@@ -181,9 +181,10 @@ impl FromStr for BlockHash {
 /// Content of `chainspec["genesis"]["raw"]["top"]`.
 pub type TopStorage = HashMap<StorageKey, StorageValue>;
 
-pub type ChildStorageMap = BTreeMap<StorageKey, StorageValue>;
-
+/// Content of `chainspec["genesis"]["raw"]["childrenDefault"]`.
 pub type ChildStorage = HashMap<StorageKey, ChildStorageMap>;
+
+pub type ChildStorageMap = BTreeMap<StorageKey, StorageValue>;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Storage {
