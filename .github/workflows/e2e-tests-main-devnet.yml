@@ -62,7 +62,7 @@ jobs:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install Rust toolchainrun_e2e_testrun_e2e_test
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
       - name: Install Protoc

@@ -29,9 +29,6 @@ chain.bootstrap(binary,
                 sudo_account_id=keys[phrases[0]],
                 chain_type='local')
 
-printt('Purging previous chain')
-chain.purge()
-
 chain.set_flags('no-mdns',
                 port=Seq(30334),
                 validator_port=Seq(30343),
@@ -53,10 +50,14 @@ chain.set_flags_validator('validator')
 printt('Starting the chain')
 chain.start('aleph')
 
+printt('Waiting for finalization')
+chain.wait_for_finalization(0)
 printt('Waiting for authorities')
 chain.wait_for_authorities()
-printt('Waiting for finalization')
-chain.wait_for_finalization(256)
+if state_pruning is not None and state_pruning.isnumeric():
+    bound = min(256, int(state_pruning))
+    printt(f'Pruning turned on. Waiting for {bound} blocks to finalize')
+    chain.wait_for_finalization(bound)
 
 delta = 5
 
