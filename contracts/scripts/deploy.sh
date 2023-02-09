@@ -2,8 +2,6 @@
 
 set -euo pipefail
 
-ROOT=$(pwd)
-
 # --- FUNCTIONS
 
 function upload_contract {
@@ -256,7 +254,7 @@ ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORIT
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 14-)
 ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | jq -r '.contract')
-ACCESS_CONTROL_PUBKEY=$("$ROOT"/target/release/aleph-node key inspect $ACCESS_CONTROL | grep hex | cut -c 23- | cut -c 3-)
+ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
