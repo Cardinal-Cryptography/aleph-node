@@ -618,7 +618,7 @@ jobs:
         with:
           deploy-button: true
           test-case: button
-        timeout-minutes: 30
+        timeout-minutes: 60
 
       - name: Trigger deployment workflow
         uses: ./.github/workflows/contracts-deploy.yml
