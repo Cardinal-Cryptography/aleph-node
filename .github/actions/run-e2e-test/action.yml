@@ -120,6 +120,7 @@ runs:
         if [[ "${DEPLOY_BUTTON}" = "true" ]]; then
           source contracts/env/dev
           contracts/scripts/deploy.sh
+          source contracts/scripts/test_env.sh
         fi
 
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
