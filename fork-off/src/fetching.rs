@@ -40,11 +40,11 @@ impl StateFetcher {
             let child_storage_map_res = self
                 .client
                 .get_child_storage_for_key(key.clone(), &block)
-                .await;
+                .await.unwrap();
 
             let mut output_guard = output.lock();
             output_guard.top.insert(key.clone(), value);
-            if let Ok(child_storage_map) = child_storage_map_res {
+            if let Some(child_storage_map) = child_storage_map_res {
                 info!("Fetched child trie with {} keys", child_storage_map.len());
                 output_guard
                     .child_storage
