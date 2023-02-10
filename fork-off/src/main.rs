@@ -12,7 +12,7 @@ use crate::{
         file_content, read_json_from_file, read_snapshot_from_file, save_snapshot_to_file,
         write_to_file,
     },
-    types::{ChildStorage, Storage},
+    types::Storage,
 };
 
 mod account_setting;
@@ -57,11 +57,7 @@ async fn main() -> anyhow::Result<()> {
     let state = read_snapshot_from_file(snapshot_path);
 
     // Initialize with state from chainspec + empty child storage
-    let initial_state = Storage {
-        top: serde_json::from_value(initial_spec["genesis"]["raw"]["top"].take())
-            .expect("Deserialization of state from given chainspec file failed"),
-        child_storage: ChildStorage::new(),
-    };
+    let initial_state = Storage::new(&initial_spec);
 
     let state = combine_states(state, initial_state, storage_keep_state);
 

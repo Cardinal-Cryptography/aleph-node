@@ -14,6 +14,7 @@ use std::{
 use codec::Encode;
 use frame_support::{sp_runtime::AccountId32, Blake2_128Concat, StorageHasher, Twox128};
 use hex::{encode, ToHex};
+use jsonrpc_core::Value;
 use serde::{Deserialize, Serialize};
 
 pub trait Get<T = String> {
@@ -199,3 +200,13 @@ pub struct Storage {
 }
 
 pub type Balance = u128;
+
+impl Storage {
+    pub fn new(initial_spec: &Value) -> Self {
+        Storage {
+            top: serde_json::from_value(initial_spec["genesis"]["raw"]["top"].clone())
+                .expect("Deserialization of state from initial chainspec has failed"),
+            child_storage: ChildStorage::new(),
+        }
+    }
+}
