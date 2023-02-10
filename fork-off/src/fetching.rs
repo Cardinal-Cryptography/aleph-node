@@ -40,7 +40,8 @@ impl StateFetcher {
             let child_storage_map_res = self
                 .client
                 .get_child_storage_for_key(key.clone(), &block)
-                .await.unwrap();
+                .await
+                .unwrap();
 
             let mut output_guard = output.lock();
             output_guard.top.insert(key.clone(), value);

@@ -5,7 +5,6 @@ use backoff::{future::retry, ExponentialBackoff};
 use jsonrpc_core::Error;
 use jsonrpc_core_client::{transports::ws, RpcError};
 use jsonrpc_derive::rpc;
-use log::info;
 
 use crate::types::{BlockHash, ChildStorageMap, StorageKey, StorageValue};
 
@@ -105,8 +104,8 @@ impl Client {
                 } else {
                     Err(RpcError::JsonRpcError(err))
                 }
-            },
-            _ => res.map(|x| Some(x)), 
+            }
+            _ => res.map(Some),
         }
     }
 
