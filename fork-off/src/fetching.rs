@@ -46,10 +46,9 @@ impl StateFetcher {
             output_guard.top.insert(key.clone(), value);
             if let Ok(child_storage_map) = child_storage_map_res {
                 info!("Fetched child trie with {} keys", child_storage_map.len());
-                output_guard.child_storage.insert(
-                    key.without_child_storage_prefix(),
-                    child_storage_map,
-                );
+                output_guard
+                    .child_storage
+                    .insert(key.without_child_storage_prefix(), child_storage_map);
             }
 
             if output_guard.top.len() % LOG_PROGRESS_FREQUENCY == 0 {
