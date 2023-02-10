@@ -35,6 +35,8 @@ args = parser.parse_args()
 
 pricing = Pricing(args.suri, args.url)
 
+pricing.build(args.adder_dir)
+pricing.upload(args.adder_dir)
 pricing.instantiate(args.adder_dir, 'adder')
 pricing.call('adder', 'add', args=['42'])
 
