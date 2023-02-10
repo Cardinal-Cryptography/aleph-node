@@ -37,23 +37,18 @@ impl StateFetcher {
                 .await
                 .unwrap();
 
-            let child_storage_map =
-                if let Ok(child_keys) = self.client.get_all_keys_for_child(&key, &block).await {
-                    Some(
-                        self.client
-                            .get_storage_map_for_child(key.clone(), child_keys, block.clone())
-                            .await,
-                    )
-                } else {
-                    None
-                };
+            let child_storage_map_res = self
+                .client
+                .get_child_storage_for_key(key.clone(), &block)
+                .await;
 
             let mut output_guard = output.lock();
             output_guard.top.insert(key.clone(), value);
-            if child_storage_map.is_some() {
+            if let Ok(child_storage_map) = child_storage_map_res {
+                info!("Fetched child trie with {} keys", child_storage_map.len());
                 output_guard.child_storage.insert(
                     key.without_child_storage_prefix(),
-                    child_storage_map.unwrap(),
+                    child_storage_map,
                 );
             }
 

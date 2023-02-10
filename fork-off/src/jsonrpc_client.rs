@@ -29,11 +29,13 @@ pub trait Rpc {
         at: Option<BlockHash>,
     ) -> Result<Vec<StorageKey>, Error>;
 
-    #[rpc(name = "childstate_getKeys")]
-    fn get_child_keys(
+    #[rpc(name = "childstate_getKeysPaged")]
+    fn get_child_keys_paged(
         &self,
         child_storage: StorageKey,
         prefix: StorageKey,
+        count: usize,
+        start_key: Option<StorageKey>,
         at: Option<BlockHash>,
     ) -> Result<Vec<StorageKey>, Error>;
 
@@ -87,30 +89,44 @@ impl Client {
         (receiver, self.do_stream_all_keys(sender, at.clone()))
     }
 
-    pub async fn get_all_keys_for_child(
-        &self,
-        child_key: &StorageKey,
-        at: &BlockHash,
-    ) -> RpcResult<Vec<StorageKey>> {
-        let empty_prefix = StorageKey::new("0x");
-
-        self.client
-            .get_child_keys(child_key.clone(), empty_prefix.clone(), Some(at.clone()))
-            .await
-    }
-
-    pub async fn get_storage_map_for_child(
+    /// Returns a map representing a single child trie
+    pub async fn get_child_storage_for_key(
         &self,
         child_key: StorageKey,
-        keys: Vec<StorageKey>,
-        at: BlockHash,
-    ) -> ChildStorageMap {
-        let values = self
-            .client
-            .get_child_storage_entries(child_key, keys.clone(), Some(at))
-            .await
-            .unwrap();
-        keys.iter().cloned().zip(values).collect()
+        at: &BlockHash,
+    ) -> RpcResult<ChildStorageMap> {
+        let empty_prefix = StorageKey::new("0x");
+        let mut child_storage_map = ChildStorageMap::new();
+        let mut start_key = None;
+
+        loop {
+            let keys = self
+                .client
+                .get_child_keys_paged(
+                    child_key.clone(),
+                    empty_prefix.clone(),
+                    CHUNK_SIZE,
+                    start_key,
+                    Some(at.clone()),
+                )
+                .await?;
+
+            let values = self
+                .client
+                .get_child_storage_entries(child_key.clone(), keys.clone(), Some(at.clone()))
+                .await?;
+
+            child_storage_map.append(&mut keys.iter().cloned().zip(values).collect());
+
+            let fetched = keys.len();
+            start_key = keys.last().cloned();
+
+            if fetched < CHUNK_SIZE {
+                break;
+            }
+        }
+
+        Ok(child_storage_map)
     }
 
     async fn do_stream_all_keys(&self, sender: Sender<StorageKey>, at: BlockHash) -> RpcResult<()> {
