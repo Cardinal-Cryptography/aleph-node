@@ -95,17 +95,20 @@ impl Client {
         child_key: StorageKey,
         at: &BlockHash,
     ) -> RpcResult<Option<ChildStorageMap>> {
-        let res = self.get_child_storage_for_key_inner(child_key, at).await;
-        match res {
-            Err(RpcError::JsonRpcError(err)) => {
-                // Ugly :(
-                if err.message == "Client error: Invalid child storage key" {
-                    Ok(None)
-                } else {
-                    Err(RpcError::JsonRpcError(err))
-                }
+        let res = self
+            .get_child_storage_for_key_inner(child_key, at)
+            .await
+            .map(Some);
+
+        if let Err(RpcError::JsonRpcError(err)) = res {
+            // Empty child storage is returned as error
+            if err.message == "Client error: Invalid child storage key" {
+                Ok(None)
+            } else {
+                Err(RpcError::JsonRpcError(err))
             }
-            _ => res.map(Some),
+        } else {
+            res
         }
     }
 
