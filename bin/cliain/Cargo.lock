@@ -708,11 +708,11 @@ dependencies = [
  "env_logger",
  "hex",
  "ink_metadata",
+ "liminal-ark-relations",
  "log",
  "pallet-staking",
  "parity-scale-codec",
  "primitives",
- "relations",
  "serde",
  "serde_json",
  "sp-core 6.0.0",
@@ -2162,12 +2162,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "liminal-ark-poseidon"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-381",
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-sponge",
+ "ark-std",
+ "once_cell",
+ "poseidon-parameters",
+ "poseidon-paramgen",
+ "poseidon-permutation",
+]
+
+[[package]]
 name = "liminal-ark-relation-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "liminal-ark-relations"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-381",
+ "ark-crypto-primitives",
+ "ark-ec",
+ "ark-ed-on-bls12-381",
+ "ark-ff",
+ "ark-gm17",
+ "ark-groth16",
+ "ark-marlin",
+ "ark-poly",
+ "ark-poly-commit",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-snark",
+ "ark-std",
+ "blake2 0.9.2",
+ "liminal-ark-poseidon",
+ "liminal-ark-relation-macro",
 ]
 
 [[package]]
@@ -2807,22 +2847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "poseidon"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-381",
- "ark-ff",
- "ark-r1cs-std",
- "ark-relations",
- "ark-sponge",
- "ark-std",
- "once_cell",
- "poseidon-parameters",
- "poseidon-paramgen",
- "poseidon-permutation",
-]
-
-[[package]]
 name = "poseidon-parameters"
 version = "0.1.0"
 source = "git+https://github.com/penumbra-zone/poseidon377?rev=50699746#50699746c031a915d5434088a1240f4b568d9ee8"
@@ -3102,30 +3126,6 @@ name = "regex-syntax"
 version = "0.6.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "456c603be3e8d448b072f410900c09faf164fbce2d480456f50eea6e25f9c848"
-
-[[package]]
-name = "relations"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-381",
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ed-on-bls12-381",
- "ark-ff",
- "ark-gm17",
- "ark-groth16",
- "ark-marlin",
- "ark-poly",
- "ark-poly-commit",
- "ark-r1cs-std",
- "ark-relations",
- "ark-serialize",
- "ark-snark",
- "ark-std",
- "blake2 0.9.2",
- "liminal-ark-relation-macro",
- "poseidon",
-]
 
 [[package]]
 name = "remove_dir_all"

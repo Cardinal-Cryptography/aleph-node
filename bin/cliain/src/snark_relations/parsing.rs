@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Error, Result};
 use clap::ValueEnum;
-use relations::{CircuitField, FrontendAccount, FrontendMerklePath, FrontendNote};
+use liminal_ark_relations::{CircuitField, FrontendAccount, FrontendMerklePath, FrontendNote};
 
 use crate::{
     snark_relations::systems::SomeProvingSystem, NonUniversalProvingSystem, UniversalProvingSystem,

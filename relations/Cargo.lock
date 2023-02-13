@@ -448,12 +448,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
+name = "liminal-ark-poseidon"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-381",
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-sponge",
+ "ark-std",
+ "once_cell",
+ "poseidon-parameters",
+ "poseidon-paramgen",
+ "poseidon-permutation",
+]
+
+[[package]]
 name = "liminal-ark-relation-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "liminal-ark-relations"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-381",
+ "ark-crypto-primitives",
+ "ark-ec",
+ "ark-ed-on-bls12-381",
+ "ark-ff",
+ "ark-gm17",
+ "ark-groth16",
+ "ark-marlin",
+ "ark-poly",
+ "ark-poly-commit",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-snark",
+ "ark-std",
+ "blake2",
+ "liminal-ark-poseidon",
+ "liminal-ark-relation-macro",
 ]
 
 [[package]]
@@ -592,22 +632,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0a7ae3ac2f1173085d398531c705756c94a4c56843785df85a60c1a0afac116"
 
 [[package]]
-name = "poseidon"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-381",
- "ark-ff",
- "ark-r1cs-std",
- "ark-relations",
- "ark-sponge",
- "ark-std",
- "once_cell",
- "poseidon-parameters",
- "poseidon-paramgen",
- "poseidon-permutation",
-]
-
-[[package]]
 name = "poseidon-parameters"
 version = "0.1.0"
 source = "git+https://github.com/penumbra-zone/poseidon377?rev=50699746#50699746c031a915d5434088a1240f4b568d9ee8"
@@ -694,30 +718,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
-]
-
-[[package]]
-name = "relations"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-381",
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ed-on-bls12-381",
- "ark-ff",
- "ark-gm17",
- "ark-groth16",
- "ark-marlin",
- "ark-poly",
- "ark-poly-commit",
- "ark-r1cs-std",
- "ark-relations",
- "ark-serialize",
- "ark-snark",
- "ark-std",
- "blake2",
- "liminal-ark-relation-macro",
- "poseidon",
 ]
 
 [[package]]

@@ -1,9 +1,13 @@
 [package]
-name = "poseidon"
+name = "liminal-ark-poseidon"
 version = "0.1.0"
 edition = "2021"
-license = "Apache 2.0"
-authors = ["Cardinal Cryptography"]
+authors = ["Cardinal"]
+documentation = "https://docs.rs/?"
+homepage = "https://alephzero.org"
+license = "Apache-2.0"
+categories = ["cryptography"]
+repository = "https://github.com/Cardinal-Cryptography/aleph-node"
 description = "An instantiation of the Poseidon SNARK-friendly hash function."
 
 [dependencies]
