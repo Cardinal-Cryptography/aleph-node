@@ -33,7 +33,7 @@ use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
     DEFAULT_BAN_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE,
-    MILLISECS_PER_BLOCK, TOKEN,
+    MILLISECS_PER_BLOCK, TOKEN, DEFAULT_MAX_WINNERS,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -327,6 +327,7 @@ impl_opaque_keys! {
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const MaximumBanReasonLength: u32 = DEFAULT_BAN_REASON_LENGTH;
+    pub const MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -339,6 +340,7 @@ impl pallet_elections::Config for Runtime {
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
+    type MaxWinners = MaxWinners;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
