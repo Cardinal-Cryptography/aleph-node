@@ -55,7 +55,7 @@ impl ClientChainBuilder {
     /// Finalize block with given hash without providing justification.
     pub fn finalize_block(&self, hash: &H256) {
         self.client
-            .finalize_block(BlockId::Hash(*hash), None)
+            .finalize_block(*hash, None)
             .unwrap();
     }
 
