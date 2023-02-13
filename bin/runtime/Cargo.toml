@@ -1,6 +1,6 @@
 [package]
 name = "aleph-runtime"
-version = "0.8.1+mainnet"
+version = "0.8.4+mainnet"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 homepage = "https://alephzero.org"
