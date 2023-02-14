@@ -13,14 +13,8 @@ pub mod fr_parameters {
 pub static RATE_1_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_1);
 /// Parameters for the 2:1 hash instance of Poseidon
 pub static RATE_2_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_2);
-/// Parameters for the 3:1 hash instance of Poseidon
-pub static RATE_3_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_3);
 /// Parameters for the 4:1 hash instance of Poseidon
 pub static RATE_4_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_4);
-/// Parameters for the 5:1 hash instance of Poseidon
-pub static RATE_5_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_5);
-/// Parameters for the 6:1 hash instance of Poseidon
-pub static RATE_6_PARAMETERS: Lazy<PoseidonParameters<Fr>> = Lazy::new(fr_parameters::rate_6);
 
 // taken from Penumbra (https://github.com/penumbra-zone/poseidon377/blob/a2d8c7a3288e2e877ac88a4d8fd3cc4ff2b52c04/poseidon377/src/r1cs.rs#L12)
 pub fn to_ark_sponge_poseidon_parameters(
