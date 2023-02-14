@@ -1,0 +1,35 @@
+[package]
+name = "preimage"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+
+[dependencies]
+ark-bls12-381 = { version = "^0.3.0" }
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
+ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+snarcos-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "liminal/migrate-to-ink4", package = "snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
+liminal-ark-relations = { path = "../../relations", default-features = false }
+
+[lib]
+name = "preimage"
+path = "lib.rs"
+crate-type = [
+    "cdylib",
+]
+
+[features]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-serialize/std",
+    "ink/std",
+    "liminal-ark-relations/std",
+    "scale-info/std",
+    "scale/std",
+    "snarcos-extension/std",
+]
+ink-as-dependency = []

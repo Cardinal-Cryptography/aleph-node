@@ -19,6 +19,7 @@ exclude = [
     "relations",
     "relations/src/proc_macro",
     "poseidon",
+    "contracts/preimage",
 ]
 
 [profile.release]
