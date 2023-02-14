@@ -79,7 +79,7 @@ short_session = [
 ]
 try-runtime = [
     "aleph-runtime/try-runtime",
-    "try-runtime-cli",
+    "try-runtime-cli/try-runtime",
 ]
 enable_treasury_proposals = [
     "aleph-runtime/enable_treasury_proposals"

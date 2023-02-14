@@ -8300,6 +8300,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.33#f404b5d379784b774f462e4e25cf5885b5d1246c"
 dependencies = [
  "clap",
+ "frame-try-runtime",
  "log",
  "parity-scale-codec",
  "remote-externalities",
