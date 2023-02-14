@@ -50,7 +50,6 @@ pub enum Error {
     IncorrectVertexState,
     ParentNotImported,
     TooNew,
-    FinalizeCacheCorrupted,
 }
 
 pub struct VertexWithChildren<I: PeerId, J: Justification> {
@@ -312,25 +311,27 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
-    pub fn try_finalize(&mut self, round: &u32) -> Result<Option<J>, Error> {
+    pub fn try_finalize(&mut self, round: &u32) -> Option<J> {
+        // cached as ready
         if let Some(id) = self.justified_blocks.get(round) {
             if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(&id) {
                 match vertex.ready() {
+                    // ready indeed
                     Ok(justification) => {
                         self.root_id = id.clone();
                         self.root_children = children;
                         self.prune_level(self.root_id.number());
-                        return Ok(Some(justification));
+                        return Some(justification);
                     }
+                    // cache corrupted, we'll wait for it to fix itself
                     Err(vertex) => {
                         self.vertices
                             .insert(id.clone(), VertexWithChildren { vertex, children });
-                        return Err(Error::FinalizeCacheCorrupted);
                     }
                 }
             }
         }
-        Ok(None)
+        None
     }
 
     /// Prepare additional info required to create a request for the block.
