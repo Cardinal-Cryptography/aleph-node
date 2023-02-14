@@ -36,15 +36,17 @@ mod preimage {
             }
         }
 
+        /// Caller commits to a specific value by passing the field value to which it hashes
+        /// `commitment` is a corresponding output from the Poseidon hash function.
         #[ink(message)]
-        pub fn commit(&mut self, hash: [u64; 4]) -> Result<(), PreimageContractError> {
+        pub fn commit(&mut self, commitment: [u64; 4]) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
             if self.commitments.contains(caller) {
                 return Err(PreimageContractError::AlreadyCommited);
             }
 
-            self.commitments.insert(caller, &hash);
+            self.commitments.insert(caller, &commitment);
             Ok(())
         }
 
@@ -56,16 +58,13 @@ mod preimage {
         }
 
         #[ink(message)]
-        pub fn reveal(
-            &mut self,
-            commitment: [u64; 4],
-            proof: Vec<u8>,
-        ) -> Result<(), PreimageContractError> {
+        pub fn reveal(&mut self, proof: Vec<u8>) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
-            if !self.commitments.contains(caller) {
-                return Err(PreimageContractError::NotCommited);
-            }
+            let commitment = self
+                .commitments
+                .get(caller)
+                .ok_or(PreimageContractError::NotCommited)?;
 
             let relation = PreimageRelation::with_public_input(commitment);
 
