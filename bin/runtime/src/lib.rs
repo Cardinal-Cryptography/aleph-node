@@ -5,6 +5,7 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+mod migrations;
 
 pub use frame_support::{
     construct_runtime, log, parameter_types,
@@ -104,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 45,
+    spec_version: 46,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -767,6 +768,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    (migrations::CustomContractMigration<Runtime>,),
 >;
 
 impl_runtime_apis! {
