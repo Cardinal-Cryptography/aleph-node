@@ -22,8 +22,8 @@ type BalanceOf<T> =
 const TARGET: &str = "runtime::custom_contract_migration";
 
 /// Performs all necessary migrations based on `StorageVersion`.
-pub struct Migration<T: Config>(PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for Migration<T> {
+pub struct CustomMigrateToV8<T: Config>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for CustomMigrateToV8<T> {
     fn on_runtime_upgrade() -> Weight {
         let version = StorageVersion::get::<Pallet<T>>();
         let mut weight = Weight::zero();

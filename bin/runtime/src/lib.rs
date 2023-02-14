@@ -5,6 +5,7 @@
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
 mod migrations;
 
 pub use frame_support::{
@@ -17,7 +18,6 @@ pub use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
     },
-    StorageValue,
 };
 use frame_support::{
     sp_runtime::Perquintill,
@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 46,
+    spec_version: 47,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
