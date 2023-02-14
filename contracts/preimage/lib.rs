@@ -5,8 +5,8 @@ mod preimage {
 
     use ark_ff::{BigInteger256, PrimeField};
     use ink::{prelude::vec::Vec, storage::Mapping};
-    use poseidon::hash::one_to_one_hash;
-    use relations::PreimageRelation;
+    use liminal_ark_poseidon::hash::one_to_one_hash;
+    use liminal_ark_relations::PreimageRelation;
     // use snarcos_extension::VerificationKeyIdentifier;
 
     // const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];

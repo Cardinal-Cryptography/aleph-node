@@ -8,24 +8,18 @@ members = [
     "pallets/aleph",
     "pallets/elections",
     "pallets/support",
-    "pallets/snarcos",
+    "pallets/baby-liminal",
     "primitives",
 ]
 
 exclude = [
     "aleph-client",
-    "benches/payout-stakers",
     "bin/cliain",
-    "bin/runtime/src/chain_extension/snarcos-extension",
-    "contracts/snarcos-contract",
-    "contracts/preimage",
-    "e2e-tests",
-    "flooder",
-    "fork-off",
+    "bin/runtime/src/chain_extension/baby-liminal-extension",
     "relations",
-    "paramgen",
-    "permutation",
+    "relations/src/proc_macro",
     "poseidon",
+    "contracts/preimage",
 ]
 
 [profile.release]

@@ -1,0 +1,23 @@
+[package]
+name = "liminal-ark-relation-macro"
+version = "0.1.0"
+edition = "2021"
+authors = ["Cardinal"]
+documentation = "https://docs.rs/?"
+homepage = "https://alephzero.org"
+license = "Apache-2.0"
+categories = ["cryptography"]
+repository = "https://github.com/Cardinal-Cryptography/aleph-node"
+description = "Procedural macro for concise defining SNARK relations."
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "1.0", features = ["full"] }
+quote = "1.0"
+
+[features]
+std = []
+default = ["std"]

@@ -2,13 +2,13 @@ name: Check excluded packages
 
 on:
   pull_request:
-    branches:
-      - '**'
-  push:
-    paths-ignore:
-      - '*.md'
-    branches:
-      - main
+    paths:
+      - aleph-client/**
+      - bin/cliain/**
+      - bin/runtime/src/chain_extension/baby-liminal-extension/**
+      - relations/**
+      - poseidon/**
+      - .github/workflows/check-excluded-packages.yml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -77,6 +77,21 @@ jobs:
             pushd "$p"
             cargo fmt --all --check
             cargo clippy --all-features -- --no-deps -D warnings
+            cargo test
+            popd
+          done
+
+      - name: Install nono
+        run: cargo install cargo-nono
+
+      - name: Assert that packages are compatible with no-std
+        run: |
+          packages=("poseidon" "relations" "bin/runtime/src/chain_extension/baby-liminal-extension")
+          for p in ${packages[@]}
+          do
+            echo "Checking package $p..."
+            pushd "$p"
+            cargo nono check --no-default-features
             popd
           done
 

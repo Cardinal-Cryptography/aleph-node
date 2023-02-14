@@ -2,7 +2,6 @@
 
 mod environment;
 mod linear;
-mod merkle_tree;
 mod preimage;
 mod relation;
 mod serialization;
@@ -16,14 +15,19 @@ pub use environment::{
     CircuitField, Groth16, Marlin, MarlinPolynomialCommitment, NonUniversalSystem, ProvingSystem,
     RawKeys, UniversalSystem, GM17,
 };
-pub use linear::LinearEquationRelation;
-pub use merkle_tree::{MerkleTreeRelation, Root};
+pub use linear::{
+    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
+    LinearEquationRelationWithoutInput,
+};
 pub use preimage::{preimage_proving, PreimageRelation};
 pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{
-    bytes_from_note, compute_note, compute_parent_hash, note_from_bytes, types::*, DepositRelation,
-    WithdrawRelation,
+    bytes_from_note, compute_note, compute_parent_hash, note_from_bytes, types::*,
+    DepositAndMergeRelationWithFullInput, DepositAndMergeRelationWithPublicInput,
+    DepositAndMergeRelationWithoutInput, DepositRelationWithFullInput,
+    DepositRelationWithPublicInput, DepositRelationWithoutInput, WithdrawRelationWithFullInput,
+    WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
 };
 pub use utils::*;
-pub use xor::XorRelation;
+pub use xor::{XorRelationWithFullInput, XorRelationWithPublicInput, XorRelationWithoutInput};
