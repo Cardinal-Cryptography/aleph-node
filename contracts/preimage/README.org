@@ -1,0 +1,25 @@
+* Preimage contract
+
+This contract utilzes the /preimage relation/ in a commit-reveal scheme, where revealing does not leak the witness (the commitment value).
+It's main purpose is benchmarking on-chain verification of a relation using the Poseidon hash function instance.
+
+** Generate keys
+Generate pk and vk keys using the cliain tool:
+
+#+BEGIN_SRC bash
+cargo run -- snark-relation generate-keys preimage
+#+END_SRC
+
+** Register v-key
+Register the just created key with the pallet:
+
+#+BEGIN_SRC bash
+cargo run -- --seed //Alice --node ws://127.0.0.1:9943 baby-liminal store-key --identifier 'pimg' --vk-file preimage.groth16.vk.bytes
+#+END_SRC
+
+# ** Generate proof
+# Create a proof that we know a /preimage/ (7u64, argument is passed the corresponding Fr field value) that hashes to the public /hash/ value using a Poseidon instance that operates in that field.
+
+# #+BEGIN_SRC bash
+# cargo run snark-relation generate-proof --proving-key-file preimage.groth16.pk.bytes preimage --hash 6921429189085971870,65421081288123788,1703765854531614015,5826733087857826612 --preimage 64424509425,1721329240476523535,18418692815241631664,3824455624000121028
+# #+END_SRC
