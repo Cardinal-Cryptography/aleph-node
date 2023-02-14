@@ -83,7 +83,7 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PreimageRelation<S> {
             self.preimage.ok_or(AssignmentMissing)
         })?;
         let hash = FpVar::new_input(ns!(cs, "hash"), || self.hash.ok_or(AssignmentMissing))?;
-        let hash_result = circuit::one_to_one_hash(cs, preimage)?;
+        let hash_result = circuit::one_to_one_hash(cs, [preimage])?;
 
         hash.enforce_equal(&hash_result)?;
 

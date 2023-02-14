@@ -15,7 +15,7 @@ use crate::{preimage::PreimageRelation, relation::state::FullInput, CircuitField
 #[test]
 fn preimage_constraints_correctness() {
     let preimage = CircuitField::from(17u64);
-    let image = hash::one_to_one_hash(preimage);
+    let image = hash::one_to_one_hash([preimage]);
 
     let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
 
@@ -35,7 +35,7 @@ fn preimage_constraints_correctness() {
 #[test]
 fn unsatisfied_preimage_constraints() {
     let true_preimage = CircuitField::from(17u64);
-    let fake_image = hash::one_to_one_hash(CircuitField::from(19u64));
+    let fake_image = hash::one_to_one_hash([CircuitField::from(19u64)]);
     let circuit: PreimageRelation<FullInput> =
         PreimageRelation::new(Some(true_preimage), Some(fake_image));
 
@@ -62,7 +62,7 @@ pub fn preimage_proving() -> (
     Proof<Bls12<ark_bls12_381::Parameters>>,
 ) {
     let preimage = CircuitField::from(7u64);
-    let image = hash::one_to_one_hash(preimage);
+    let image = hash::one_to_one_hash([preimage]);
 
     let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
 
@@ -80,7 +80,11 @@ pub fn frontend_to_backend_conversion() {
     let frontend_preimage = 7u64;
     let backend_preimage: CircuitField = CircuitField::from(frontend_preimage);
 
-    let expected_backend_hash: CircuitField = hash::one_to_one_hash(backend_preimage);
+    println!("preimage input in the field {:?}", backend_preimage);
+
+    let expected_backend_hash: CircuitField = hash::one_to_one_hash([backend_preimage]);
+
+    println!("hash value in the field {:?}", expected_backend_hash);
 
     let bint = BigInteger256::new([
         6921429189085971870u64,
