@@ -2,7 +2,6 @@
 
 mod environment;
 mod linear;
-mod merkle_tree;
 mod preimage;
 mod relation;
 mod serialization;
@@ -20,7 +19,6 @@ pub use linear::{
     LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
     LinearEquationRelationWithoutInput,
 };
-pub use merkle_tree::{MerkleTreeRelation, Root};
 pub use preimage::PreimageRelation;
 pub use relation::GetPublicInput;
 pub use serialization::serialize;
