@@ -1,3 +1,4 @@
+use ark_ff::BigInteger256;
 // This relation showcases how to use Poseidon in r1cs circuits
 use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
@@ -29,6 +30,16 @@ pub struct PreimageRelation<S: State> {
     _phantom: PhantomData<S>,
 }
 
+impl<S: State> PreimageRelation<S> {
+    pub fn new(preimage: Option<CircuitField>, hash: Option<CircuitField>) -> Self {
+        PreimageRelation {
+            preimage,
+            hash,
+            _phantom: PhantomData::<S>,
+        }
+    }
+}
+
 impl PreimageRelation<NoInput> {
     pub fn without_input() -> Self {
         Self {
@@ -40,20 +51,24 @@ impl PreimageRelation<NoInput> {
 }
 
 impl PreimageRelation<OnlyPublicInput> {
-    pub fn with_public_input(hash: CircuitField) -> Self {
+    pub fn with_public_input(hash: [u64; 4]) -> Self {
+        let backend_hash = CircuitField::new(BigInteger256::new(hash));
         Self {
             preimage: None,
-            hash: Some(hash),
+            hash: Some(backend_hash),
             _phantom: PhantomData,
         }
     }
 }
 
 impl PreimageRelation<FullInput> {
-    pub fn with_full_input(preimage: CircuitField, hash: CircuitField) -> Self {
+    pub fn with_full_input(preimage: [u64; 4], hash: [u64; 4]) -> Self {
+        let backend_hash = CircuitField::new(BigInteger256::new(hash));
+        let backend_preimage = CircuitField::new(BigInteger256::new(preimage));
+
         Self {
-            preimage: Some(preimage),
-            hash: Some(hash),
+            preimage: Some(backend_preimage),
+            hash: Some(backend_hash),
             _phantom: PhantomData,
         }
     }

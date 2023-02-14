@@ -10,14 +10,14 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
 use ark_std::vec::Vec;
 use liminal_ark_poseidon::hash;
 
-use crate::{preimage::PreimageRelation, CircuitField, GetPublicInput};
+use crate::{preimage::PreimageRelation, relation::state::FullInput, CircuitField, GetPublicInput};
 
 #[test]
 fn preimage_constraints_correctness() {
     let preimage = CircuitField::from(17u64);
     let image = hash::one_to_one_hash(preimage);
 
-    let circuit = PreimageRelation::with_full_input(preimage, image);
+    let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
@@ -36,7 +36,8 @@ fn preimage_constraints_correctness() {
 fn unsatisfied_preimage_constraints() {
     let true_preimage = CircuitField::from(17u64);
     let fake_image = hash::one_to_one_hash(CircuitField::from(19u64));
-    let circuit = PreimageRelation::with_full_input(true_preimage, fake_image);
+    let circuit: PreimageRelation<FullInput> =
+        PreimageRelation::new(Some(true_preimage), Some(fake_image));
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
@@ -63,7 +64,7 @@ pub fn preimage_proving() -> (
     let preimage = CircuitField::from(7u64);
     let image = hash::one_to_one_hash(preimage);
 
-    let circuit = PreimageRelation::with_full_input(preimage, image);
+    let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
 
     let mut rng = ark_std::test_rng();
     let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(circuit.clone(), &mut rng).unwrap();
