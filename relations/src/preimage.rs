@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn preimage_constraints_correctness() {
         let preimage = CircuitField::from(17u64);
-        let image = hash::one_to_one_hash(preimage);
+        let image = hash::one_to_one_hash([preimage]);
 
         let circuit = PreimageRelation::with_full_input(preimage, image);
 
