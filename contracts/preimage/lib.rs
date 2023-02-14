@@ -3,13 +3,16 @@
 #[ink::contract(env = snarcos_extension::DefaultEnvironment)]
 mod preimage {
 
-    use ark_ff::{BigInteger256, PrimeField};
-    use ink::{prelude::vec::Vec, storage::Mapping};
-    use liminal_ark_poseidon::hash::one_to_one_hash;
-    use liminal_ark_relations::PreimageRelation;
-    // use snarcos_extension::VerificationKeyIdentifier;
+    use ark_ff::BigInteger256;
+    use ark_serialize::CanonicalSerialize;
+    use ink::{
+        prelude::{vec, vec::Vec},
+        storage::Mapping,
+    };
+    use liminal_ark_relations::{GetPublicInput, PreimageRelation};
+    use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
-    // const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
+    const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
 
     type CircuitField = ark_bls12_381::Fr;
 
@@ -18,11 +21,12 @@ mod preimage {
     pub enum PreimageContractError {
         AlreadyCommited,
         NotCommited,
+        CannotVerify(SnarcosError),
     }
 
     #[ink(storage)]
     pub struct Preimage {
-        commitments: Mapping<AccountId, Vec<u8>>,
+        commitments: Mapping<AccountId, [u64; 4]>,
     }
 
     impl Preimage {
@@ -34,7 +38,7 @@ mod preimage {
         }
 
         #[ink(message)]
-        pub fn commit(&mut self, hash: Vec<u8>) -> Result<(), PreimageContractError> {
+        pub fn commit(&mut self, hash: [u64; 4]) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
             if self.commitments.contains(caller) {
@@ -45,19 +49,18 @@ mod preimage {
             Ok(())
         }
 
-        fn bytes_to_u64_little_endian(bytes: &[u8]) -> u64 {
-            let mut res = 0;
-            for i in 0..8 {
-                res |= (bytes[7 - i] as u64) << (8 * i);
-            }
-            res
+        /// Serialize with `ark-serialize::CanonicalSerialize`.
+        fn serialize<T: CanonicalSerialize + ?Sized>(t: &T) -> Vec<u8> {
+            let mut bytes = vec![0; t.serialized_size()];
+            t.serialize(&mut bytes[..]).expect("Failed to serialize");
+            bytes.to_vec()
         }
 
         #[ink(message)]
         pub fn reveal(
             &mut self,
-            hash_bytes: Vec<u8>,
-            _proof: Vec<u8>,
+            commitment: [u64; 4],
+            proof: Vec<u8>,
         ) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
@@ -65,13 +68,18 @@ mod preimage {
                 return Err(PreimageContractError::NotCommited);
             }
 
-            let hash = CircuitField::new(BigInteger256::from(Self::bytes_to_u64_little_endian(
-                &hash_bytes,
-            )));
+            let hash = CircuitField::new(BigInteger256::new(commitment));
+            let relation = PreimageRelation::with_public_input(hash);
 
-            let public_input = PreimageRelation::with_public_input(hash);
-
-            // TODO : verify
+            self.env()
+                .extension()
+                .verify(
+                    VERIFYING_KEY_IDENTIFIER,
+                    proof,
+                    Self::serialize::<Vec<CircuitField>>(&relation.public_input()),
+                    ProvingSystem::Groth16,
+                )
+                .map_err(|err: SnarcosError| PreimageContractError::CannotVerify(err))?;
 
             self.commitments.remove(caller);
             Ok(())
