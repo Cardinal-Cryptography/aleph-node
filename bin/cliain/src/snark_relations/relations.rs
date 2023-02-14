@@ -184,7 +184,7 @@ impl RelationArgs {
             RelationArgs::Deposit { .. } => String::from("deposit"),
             RelationArgs::DepositAndMerge { .. } => String::from("deposit_and_merge"),
             RelationArgs::Withdraw { .. } => String::from("withdraw"),
-            RelationArgs::Preimage { hash, preimage } => String::from("preimage"),
+            RelationArgs::Preimage { .. } => String::from("preimage"),
         }
     }
 }
