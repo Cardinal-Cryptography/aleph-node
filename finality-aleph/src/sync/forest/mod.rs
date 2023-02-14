@@ -23,15 +23,23 @@ enum VertexHandle<'a, I: PeerId, J: Justification> {
     Candidate(OccupiedEntry<'a, BlockIdFor<J>, VertexWithChildren<I, J>>),
 }
 
+/// Information required to prepare a request for block.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct RequestInfo<I: PeerId, J: Justification> {
+    know_most: HashSet<I>,
+    oldest_ancestor_id: BlockIdFor<J>,
+    top_imported_ancestor_id: Option<BlockIdFor<J>>,
+}
+
 /// Our interest in a block referred to by a vertex, including the information about whom we expect to have the block.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Interest<I: PeerId> {
+pub enum Interest<I: PeerId, J: Justification> {
     /// We are not interested in this block.
     Uninterested,
     /// We would like to have this block.
-    Required(HashSet<I>),
+    Required(RequestInfo<I, J>),
     /// We would like to have this block and its the highest on its branch.
-    TopRequired(HashSet<I>),
+    TopRequired(RequestInfo<I, J>),
 }
 
 /// What can go wrong when inserting data into the forest.
@@ -42,6 +50,7 @@ pub enum Error {
     IncorrectVertexState,
     ParentNotImported,
     TooNew,
+    FinalizeCacheCorrupted,
 }
 
 pub struct VertexWithChildren<I: PeerId, J: Justification> {
@@ -69,6 +78,7 @@ const MAX_DEPTH: u32 = 1800;
 pub struct Forest<I: PeerId, J: Justification> {
     vertices: HashMap<BlockIdFor<J>, VertexWithChildren<I, J>>,
     top_required: HashSet<BlockIdFor<J>>,
+    justified_blocks: HashMap<u32, BlockIdFor<J>>,
     root_id: BlockIdFor<J>,
     root_children: HashSet<BlockIdFor<J>>,
     compost_bin: HashSet<BlockIdFor<J>>,
@@ -79,6 +89,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         Self {
             vertices: HashMap::new(),
             top_required: HashSet::new(),
+            justified_blocks: HashMap::new(),
             root_id: highest_justified,
             root_children: HashSet::new(),
             compost_bin: HashSet::new(),
@@ -224,9 +235,9 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
     }
 
-    /// Updates the vertex related to the provided header marking it as imported. Returns whether
-    /// it is now finalizable, or errors when it's impossible to do consistently.
-    pub fn update_body(&mut self, header: &J::Header) -> Result<bool, Error> {
+    /// Updates the vertex related to the provided header marking it as imported.
+    /// Returns errors when it's impossible to do consistently.
+    pub fn update_body(&mut self, header: &J::Header) -> Result<(), Error> {
         use VertexHandle::*;
         let (id, parent_id) = self.process_header(header)?;
         self.update_header(header, None, false)?;
@@ -240,41 +251,49 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
             Unknown(_) | HopelessFork | BelowMinimal => return Err(Error::IncorrectParentState),
         }
         match self.get_mut(&id) {
-            Candidate(mut entry) => Ok(entry.get_mut().vertex.insert_body(parent_id.clone())),
+            Candidate(mut entry) => {
+                let vertex = entry.get_mut().vertex;
+                vertex.insert_body(parent_id.clone());
+                if vertex.justified_block() {
+                    self.justified_blocks.insert(id.number(), id.clone());
+                }
+                Ok(())
+            }
             _ => Err(Error::IncorrectVertexState),
         }
     }
 
-    /// Updates the provided justification, returns whether either finalization is now possible or
-    /// the vertex became a new top required.
+    /// Updates the provided justification.
+    /// Returns whether the vertex became a new top required.
     pub fn update_justification(
         &mut self,
         justification: J,
         holder: Option<I>,
-    ) -> Result<JustificationAddResult, Error> {
-        use JustificationAddResult::*;
+    ) -> Result<bool, Error> {
         let (id, parent_id) = self.process_header(justification.header())?;
         self.update_header(justification.header(), None, false)?;
         match self.get_mut(&id) {
             VertexHandle::Candidate(mut entry) => {
-                match entry.get_mut().vertex.insert_justification(
-                    parent_id.clone(),
-                    justification,
-                    holder,
-                ) {
-                    Noop => Ok(Noop),
-                    Required => {
-                        self.top_required.insert(id.clone());
-                        self.set_required(&parent_id);
-                        Ok(Required)
-                    }
-                    Finalizable => {
-                        self.top_required.remove(&id);
-                        Ok(Finalizable)
-                    }
+                let vertex = entry.get_mut().vertex;
+                let result =
+                    match vertex.insert_justification(parent_id.clone(), justification, holder) {
+                        Noop => Ok(false),
+                        Required => {
+                            self.top_required.insert(id.clone());
+                            self.set_required(&parent_id);
+                            Ok(true)
+                        }
+                        Finalizable => {
+                            self.top_required.remove(&id);
+                            Ok(false)
+                        }
+                    };
+                if vertex.justified_block() {
+                    self.justified_blocks.insert(id.number(), id.clone());
                 }
+                result
             }
-            _ => Ok(Noop),
+            _ => Ok(false),
         }
     }
 
@@ -289,44 +308,82 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
             self.prune(&id);
         }
         self.compost_bin.retain(|k| k.number() > level);
+        self.justified_blocks.retain(|k, _| k > &level);
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
-    pub fn try_finalize(&mut self) -> Option<J> {
-        for child_id in self.root_children.clone().into_iter() {
-            if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(&child_id) {
+    pub fn try_finalize(&mut self, round: &u32) -> Result<Option<J>, Error> {
+        if let Some(id) = self.justified_blocks.get(round) {
+            if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(&id) {
                 match vertex.ready() {
                     Ok(justification) => {
-                        self.root_id = child_id;
+                        self.root_id = id.clone();
                         self.root_children = children;
                         self.prune_level(self.root_id.number());
-                        return Some(justification);
+                        return Ok(Some(justification));
                     }
                     Err(vertex) => {
                         self.vertices
-                            .insert(child_id, VertexWithChildren { vertex, children });
+                            .insert(id.clone(), VertexWithChildren { vertex, children });
+                        return Err(Error::FinalizeCacheCorrupted);
                     }
                 }
             }
         }
-        None
+        Ok(None)
+    }
+
+    /// Prepare additional info required to create a request for the block.
+    fn prepare_request_info(&mut self, mut id: &BlockIdFor<J>) -> Option<RequestInfo<I, J>> {
+        use VertexHandle::*;
+        match self.get_mut(id) {
+            Candidate(entry) => {
+                let know_most = entry.get().vertex.know_most().clone();
+                let mut oldest_ancestor_id;
+                let mut vertex;
+                let mut top_imported_ancestor_id = None;
+                // traverse ancestors till we reach the root, or a parentless vertex
+                loop {
+                    vertex = entry.get().vertex;
+                    // first encounter of an imported ancestor
+                    if vertex.imported() && top_imported_ancestor_id.is_none() {
+                        top_imported_ancestor_id = Some(id.clone());
+                    }
+                    match vertex.parent() {
+                        Some(parent_id) => id = parent_id,
+                        None => {
+                            oldest_ancestor_id = id.clone();
+                            break;
+                        }
+                    };
+                    match self.get_mut(id) {
+                        Candidate(entry_) => entry = entry_,
+                        HighestFinalized => {
+                            oldest_ancestor_id = id.clone();
+                            break;
+                        }
+                        _ => return None,
+                    };
+                }
+                Some(RequestInfo {
+                    know_most,
+                    oldest_ancestor_id,
+                    top_imported_ancestor_id,
+                })
+            }
+            _ => None,
+        }
     }
 
     /// How much interest we have for the block.
-    pub fn state(&mut self, id: &BlockIdFor<J>) -> Interest<I> {
-        match self.get_mut(id) {
-            VertexHandle::Candidate(entry) => {
-                let vertex = &entry.get().vertex;
-                let know_most = vertex.know_most().clone();
-                match vertex.required() {
-                    true => match self.top_required.contains(id) {
-                        true => Interest::TopRequired(know_most),
-                        false => Interest::Required(know_most),
-                    },
-                    false => Interest::Uninterested,
-                }
-            }
-            _ => Interest::Uninterested,
+    pub fn state(&mut self, id: &BlockIdFor<J>) -> Interest<I, J> {
+        match (
+            self.prepare_request_info(id),
+            self.top_required.contains(id),
+        ) {
+            (Some(request_info), true) => Interest::TopRequired(request_info),
+            (Some(request_info), false) => Interest::Required(request_info),
+            (None, _) => Interest::Uninterested,
         }
     }
 }
