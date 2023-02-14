@@ -5,7 +5,7 @@ use liminal_ark_relations::{
     DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
     FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
     FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput,
-    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
+    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput, PreimageRelation,
     Result as R1CsResult, WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput,
     WithdrawRelationWithoutInput, XorRelationWithFullInput, XorRelationWithPublicInput,
 };
@@ -18,6 +18,15 @@ use crate::snark_relations::parsing::{
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Subcommand)]
 pub enum RelationArgs {
+    Preimage {
+        /// hash to commit to (public input)
+        #[clap(long, value_parser = parse_frontend_note)]
+        hash: Option<[u64; 4]>,
+        /// preimage (private witness)
+        #[clap(long, value_parser = parse_frontend_note)]
+        preimage: Option<[u64; 4]>,
+    },
+
     Xor {
         /// The first xoree (public input).
         #[clap(long, short = 'a', default_value = "2")]
@@ -175,6 +184,7 @@ impl RelationArgs {
             RelationArgs::Deposit { .. } => String::from("deposit"),
             RelationArgs::DepositAndMerge { .. } => String::from("deposit_and_merge"),
             RelationArgs::Withdraw { .. } => String::from("withdraw"),
+            RelationArgs::Preimage { hash, preimage } => String::from("preimage"),
         }
     }
 }
@@ -298,6 +308,11 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 )
                 .generate_constraints(cs)
             }
+            RelationArgs::Preimage { hash, preimage } => PreimageRelation::with_full_input(
+                preimage.unwrap_or_else(|| panic!("You must provide preimage")),
+                hash.unwrap_or_else(|| panic!("You must provide hash")),
+            )
+            .generate_constraints(cs),
         }
     }
 }
@@ -404,6 +419,7 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                     _ => panic!("Provide at least public (fee, recipient, token id, old nullifier, new note, token amount out and merkle root)"),
                 }
             }
+            RelationArgs::Preimage { hash, .. } => PreimageRelation::with_public_input(hash.unwrap_or_else(|| panic!("You must provide hash"))).public_input(),
         }
     }
 }
