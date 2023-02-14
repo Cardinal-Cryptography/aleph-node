@@ -143,7 +143,7 @@ mod v8 {
         }
     }
 
-	// Returns the used weight and whether this migration is the final one.
+    // Returns the used weight and whether this migration is the final one.
     pub fn migrate<T: Config>() -> (Weight, bool) {
         log::info!(
             target: TARGET,
