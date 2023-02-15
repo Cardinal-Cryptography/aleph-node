@@ -184,7 +184,7 @@ pub mod pallet {
             }
 
             if na.len() != expected_len {
-                warn!(target: "pallet_aleph", "Not all committee members were converted to keys. Falling back to using the default committee");
+                warn!(target: "pallet_aleph", "Not all committee members were converted to keys. Falling back to the default committee");
 
                 let (_, default): (Vec<_>, Vec<_>) = next_authorities.into_iter().unzip();
                 na = default;

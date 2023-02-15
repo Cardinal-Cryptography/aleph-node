@@ -32,7 +32,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         let reads = 2;
         let mut writes = 1;
 
-        if let Ok(_) = CommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
+        if CommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
             if let Some(CommitteeSeatsV3 {
                 reserved_seats,
                 non_reserved_seats,
@@ -46,13 +46,13 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             } else {
                 None
             }
-        }) {
+        }).is_ok() {
             writes += 1;
         } else {
             log::error!(target: "pallet_elections", "Could not migrate CommitteeSize");
         }
 
-        if let Ok(_) = NextEraCommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
+        if NextEraCommitteeSize::<T>::translate::<CommitteeSeatsV3, _>(|old| {
             if let Some(CommitteeSeatsV3 {
                 reserved_seats,
                 non_reserved_seats,
@@ -66,7 +66,7 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             } else {
                 None
             }
-        }) {
+        }).is_ok() {
             writes += 1;
         } else {
             log::error!(target: "pallet_elections", "Could not migrate NextCommitteeSize");
