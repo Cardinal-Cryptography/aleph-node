@@ -116,7 +116,7 @@ fn choose_finality_committee<T: Clone>(
     session: usize,
 ) -> Vec<T> {
     let non_reserved_finality_committee = if let Some(nr) = non_reserved {
-        choose_for_session(&nr, non_reserved_seats, session)
+        choose_for_session(nr, non_reserved_seats, session)
     } else {
         None
     }
