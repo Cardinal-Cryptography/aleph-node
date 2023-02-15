@@ -678,9 +678,9 @@ impl pallet_contracts::Config for Runtime {
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
-    type CallStack = [pallet_contracts::Frame<Self>; 31];
+    type CallStack = [pallet_contracts::Frame<Self>; 5];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
-    type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+    type MaxCodeLen = ConstU32<{ 123 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
 }
 
