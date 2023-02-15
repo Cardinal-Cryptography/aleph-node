@@ -1,34 +1,26 @@
-use ark_bls12_381::Bls12_381;
 use ark_crypto_primitives::SNARK;
-use ark_ec::bls12::Bls12;
-#[cfg(test)]
 use ark_ff::BigInteger256;
-use ark_ff::Fp256;
-use ark_groth16::{Groth16, Proof, VerifyingKey};
-#[cfg(test)]
+use ark_groth16::Groth16;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
-use ark_std::vec::Vec;
 use liminal_ark_poseidon::hash;
 
-use crate::{preimage::PreimageRelation, relation::state::FullInput, CircuitField, GetPublicInput};
+use crate::{
+    preimage::{preimage_proving, PreimageRelationWithFullInput},
+    CircuitField,
+};
 
 #[test]
 fn preimage_constraints_correctness() {
     let preimage = CircuitField::from(17u64);
     let image = hash::one_to_one_hash([preimage]);
+    let frontend_image: [u64; 4] = image.0 .0;
 
-    let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
+    let circuit = PreimageRelationWithFullInput::new(frontend_image, preimage);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
 
     let is_satisfied = cs.is_satisfied().unwrap();
-    if !is_satisfied {
-        println!("{:?}", cs.which_is_unsatisfied());
-    } else {
-        println!("preimage circuit size: {:?}", cs.num_constraints());
-    }
-
     assert!(is_satisfied);
 }
 
@@ -36,8 +28,7 @@ fn preimage_constraints_correctness() {
 fn unsatisfied_preimage_constraints() {
     let true_preimage = CircuitField::from(17u64);
     let fake_image = hash::one_to_one_hash([CircuitField::from(19u64)]);
-    let circuit: PreimageRelation<FullInput> =
-        PreimageRelation::new(Some(true_preimage), Some(fake_image));
+    let circuit = PreimageRelationWithFullInput::new(fake_image.0 .0, true_preimage);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
@@ -48,43 +39,18 @@ fn unsatisfied_preimage_constraints() {
 }
 
 #[test]
-pub fn preimage_proving_and_verifying() {
+fn preimage_proving_and_verifying() {
     let (vk, input, proof) = preimage_proving();
 
     let is_valid = Groth16::verify(&vk, &input, &proof).unwrap();
     assert!(is_valid);
 }
 
-#[allow(clippy::type_complexity)]
-pub fn preimage_proving() -> (
-    VerifyingKey<Bls12<ark_bls12_381::Parameters>>,
-    Vec<Fp256<ark_ed_on_bls12_381::FqParameters>>,
-    Proof<Bls12<ark_bls12_381::Parameters>>,
-) {
-    let preimage = CircuitField::from(7u64);
-    let image = hash::one_to_one_hash([preimage]);
-
-    let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
-
-    let mut rng = ark_std::test_rng();
-    let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(circuit.clone(), &mut rng).unwrap();
-
-    let input = circuit.public_input();
-    let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
-
-    (vk, input, proof)
-}
-
 #[test]
-pub fn frontend_to_backend_conversion() {
+fn frontend_to_backend_conversion() {
     let frontend_preimage = 7u64;
     let backend_preimage: CircuitField = CircuitField::from(frontend_preimage);
-
-    println!("preimage input in the field {:?}", backend_preimage);
-
     let expected_backend_hash: CircuitField = hash::one_to_one_hash([backend_preimage]);
-
-    println!("hash value in the field {:?}", expected_backend_hash);
 
     let bint = BigInteger256::new([
         6921429189085971870u64,
