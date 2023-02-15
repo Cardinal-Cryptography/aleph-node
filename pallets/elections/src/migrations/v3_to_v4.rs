@@ -46,7 +46,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             } else {
                 None
             }
-        }).is_ok() {
+        })
+        .is_ok()
+        {
             writes += 1;
         } else {
             log::error!(target: "pallet_elections", "Could not migrate CommitteeSize");
@@ -66,7 +68,9 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
             } else {
                 None
             }
-        }).is_ok() {
+        })
+        .is_ok()
+        {
             writes += 1;
         } else {
             log::error!(target: "pallet_elections", "Could not migrate NextCommitteeSize");

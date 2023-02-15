@@ -109,6 +109,29 @@ fn choose_for_session<T: Clone>(validators: &[T], count: usize, session: usize) 
     Some(chosen)
 }
 
+fn choose_finality_committee<T: Clone>(
+    reserved: &Option<Vec<T>>,
+    non_reserved: &Option<Vec<T>>,
+    non_reserved_seats: usize,
+    session: usize,
+) -> Vec<T> {
+    let non_reserved_finality_committee = if let Some(nr) = non_reserved {
+        choose_for_session(&nr, non_reserved_seats, session)
+    } else {
+        None
+    }
+    .unwrap_or_default();
+
+    if let Some(r) = reserved {
+        let mut finality_committee = r.clone();
+        finality_committee.extend(non_reserved_finality_committee.into_iter());
+
+        finality_committee
+    } else {
+        non_reserved_finality_committee
+    }
+}
+
 fn rotate<T: Clone + PartialEq>(
     current_session: SessionIndex,
     reserved_seats: usize,
@@ -128,18 +151,12 @@ fn rotate<T: Clone + PartialEq>(
     let non_reserved_committee =
         choose_for_session(&non_reserved, non_reserved_seats, current_session as usize);
 
-    let mut finality_committee = if let Some(rc) = reserved_committee.as_ref() {
-        rc.clone()
-    } else {
-        vec![]
-    };
-
-    let free_seats = non_reserved_finality_seats.saturating_sub(finality_committee.len());
-
-    if let Some(nrc) = non_reserved_committee.as_ref() {
-        let nrc = choose_for_session(nrc.as_slice(), free_seats, current_session as usize);
-        finality_committee.extend_from_slice(&nrc.unwrap_or_default())
-    }
+    let finality_committee = choose_finality_committee(
+        &reserved_committee,
+        &non_reserved_committee,
+        non_reserved_finality_seats,
+        current_session as usize,
+    );
 
     let committee = match (reserved_committee, non_reserved_committee) {
         (Some(rc), Some(nrc)) => Some(rc.into_iter().chain(nrc.into_iter()).collect()),
