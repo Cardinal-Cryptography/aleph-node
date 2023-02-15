@@ -40,7 +40,7 @@ fn unsatisfied_preimage_constraints() {
 }
 
 #[test]
-pub fn preimage_proving_and_verifying() {
+fn preimage_proving_and_verifying() {
     let (vk, input, proof) = preimage_proving();
 
     let is_valid = Groth16::verify(&vk, &input, &proof).unwrap();
@@ -48,7 +48,7 @@ pub fn preimage_proving_and_verifying() {
 }
 
 #[test]
-pub fn frontend_to_backend_conversion() {
+fn frontend_to_backend_conversion() {
     let frontend_preimage = 7u64;
     let backend_preimage: CircuitField = CircuitField::from(frontend_preimage);
     let expected_backend_hash: CircuitField = hash::one_to_one_hash([backend_preimage]);
