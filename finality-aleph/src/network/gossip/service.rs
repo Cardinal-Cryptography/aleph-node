@@ -382,6 +382,7 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
 mod tests {
     use std::{collections::HashSet, iter};
 
+    use aleph_clique::mock::{random_peer_id, MockPublicKey};
     use codec::Encode;
     use futures::channel::oneshot;
     use sc_service::TaskManager;
@@ -389,7 +390,6 @@ mod tests {
 
     use super::{Error, Service};
     use crate::network::{
-        clique::mock::{random_peer_id, MockPublicKey},
         gossip::{
             mock::{MockEvent, MockRawNetwork, MockSenderError},
             Network,

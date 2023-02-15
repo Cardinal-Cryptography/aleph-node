@@ -435,6 +435,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
 mod tests {
     use std::{iter, time::Duration};
 
+    use aleph_clique::mock::{random_address, MockAddressingInformation};
     use futures::StreamExt;
 
     use super::{
@@ -442,11 +443,7 @@ mod tests {
         SendError,
     };
     use crate::{
-        network::{
-            clique::mock::{random_address, MockAddressingInformation},
-            mock::crypto_basics,
-            session::data::DataInSession,
-        },
+        network::{mock::crypto_basics, session::data::DataInSession},
         Recipient, SessionId,
     };
 
