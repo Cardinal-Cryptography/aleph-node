@@ -5,8 +5,7 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
 use liminal_ark_poseidon::hash;
 
 use crate::{
-    preimage::{preimage_proving, PreimageRelation},
-    relation::state::FullInput,
+    preimage::{preimage_proving, PreimageRelationWithFullInput},
     CircuitField,
 };
 
@@ -14,8 +13,9 @@ use crate::{
 fn preimage_constraints_correctness() {
     let preimage = CircuitField::from(17u64);
     let image = hash::one_to_one_hash([preimage]);
+    let frontend_image: [u64; 4] = image.0 .0;
 
-    let circuit: PreimageRelation<FullInput> = PreimageRelation::new(Some(preimage), Some(image));
+    let circuit = PreimageRelationWithFullInput::new(frontend_image, preimage);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
@@ -28,8 +28,7 @@ fn preimage_constraints_correctness() {
 fn unsatisfied_preimage_constraints() {
     let true_preimage = CircuitField::from(17u64);
     let fake_image = hash::one_to_one_hash([CircuitField::from(19u64)]);
-    let circuit: PreimageRelation<FullInput> =
-        PreimageRelation::new(Some(true_preimage), Some(fake_image));
+    let circuit = PreimageRelationWithFullInput::new(fake_image.0 .0, true_preimage);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
