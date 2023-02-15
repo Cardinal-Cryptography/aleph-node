@@ -23,12 +23,6 @@ fn preimage_constraints_correctness() {
     circuit.generate_constraints(cs.clone()).unwrap();
 
     let is_satisfied = cs.is_satisfied().unwrap();
-    if !is_satisfied {
-        println!("{:?}", cs.which_is_unsatisfied());
-    } else {
-        println!("preimage circuit size: {:?}", cs.num_constraints());
-    }
-
     assert!(is_satisfied);
 }
 
@@ -79,12 +73,7 @@ pub fn preimage_proving() -> (
 pub fn frontend_to_backend_conversion() {
     let frontend_preimage = 7u64;
     let backend_preimage: CircuitField = CircuitField::from(frontend_preimage);
-
-    println!("preimage input in the field {:?}", backend_preimage);
-
     let expected_backend_hash: CircuitField = hash::one_to_one_hash([backend_preimage]);
-
-    println!("hash value in the field {:?}", expected_backend_hash);
 
     let bint = BigInteger256::new([
         6921429189085971870u64,

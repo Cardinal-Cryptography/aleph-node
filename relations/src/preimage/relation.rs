@@ -1,5 +1,5 @@
+/// This relation showcases how to use Poseidon in r1cs circuits
 use ark_ff::BigInteger256;
-// This relation showcases how to use Poseidon in r1cs circuits
 use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
 use ark_relations::{
     ns,
