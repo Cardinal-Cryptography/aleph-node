@@ -5,9 +5,10 @@ use liminal_ark_relations::{
     DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
     FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
     FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput,
-    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput, PreimageRelation,
-    Result as R1CsResult, WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput,
-    WithdrawRelationWithoutInput, XorRelationWithFullInput, XorRelationWithPublicInput,
+    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
+    PreimageRelationWithFullInput, PreimageRelationWithPublicInput, Result as R1CsResult,
+    WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
+    XorRelationWithFullInput, XorRelationWithPublicInput,
 };
 
 use crate::snark_relations::parsing::{
@@ -308,7 +309,8 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 )
                 .generate_constraints(cs)
             }
-            RelationArgs::Preimage { hash, preimage } => PreimageRelation::with_full_input(
+
+            RelationArgs::Preimage { hash, preimage } => PreimageRelationWithFullInput::new(
                 preimage.unwrap_or_else(|| panic!("You must provide preimage")),
                 hash.unwrap_or_else(|| panic!("You must provide hash")),
             )
@@ -419,7 +421,7 @@ impl GetPublicInput<CircuitField> for RelationArgs {
                     _ => panic!("Provide at least public (fee, recipient, token id, old nullifier, new note, token amount out and merkle root)"),
                 }
             }
-            RelationArgs::Preimage { hash, .. } => PreimageRelation::with_public_input(hash.unwrap_or_else(|| panic!("You must provide hash"))).public_input(),
+            RelationArgs::Preimage { hash, .. } => PreimageRelationWithPublicInput::new(hash.unwrap_or_else(|| panic!("You must provide hash"))).serialize_public_input(),
         }
     }
 }

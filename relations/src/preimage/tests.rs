@@ -15,7 +15,7 @@ fn preimage_constraints_correctness() {
     let image = hash::one_to_one_hash([preimage]);
     let frontend_image: [u64; 4] = image.0 .0;
 
-    let circuit = PreimageRelationWithFullInput::new(frontend_image, preimage);
+    let circuit = PreimageRelationWithFullInput::new(frontend_image, preimage.0 .0);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();
@@ -28,7 +28,7 @@ fn preimage_constraints_correctness() {
 fn unsatisfied_preimage_constraints() {
     let true_preimage = CircuitField::from(17u64);
     let fake_image = hash::one_to_one_hash([CircuitField::from(19u64)]);
-    let circuit = PreimageRelationWithFullInput::new(fake_image.0 .0, true_preimage);
+    let circuit = PreimageRelationWithFullInput::new(fake_image.0 .0, true_preimage.0 .0);
 
     let cs = ConstraintSystem::new_ref();
     circuit.generate_constraints(cs.clone()).unwrap();

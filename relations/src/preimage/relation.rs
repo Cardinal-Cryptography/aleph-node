@@ -8,7 +8,12 @@ mod dummy_module {
     use ark_relations::ns;
     use liminal_ark_poseidon::circuit;
 
-    use crate::{environment::FpVar, preimage::FrontendHash, shielder::convert_hash, CircuitField};
+    use crate::{
+        environment::FpVar,
+        preimage::{FrontendHash, FrontendPreimage},
+        shielder::convert_hash,
+        CircuitField,
+    };
 
     /// Preimage relation : H(preimage)=hash
     /// where:
@@ -16,7 +21,7 @@ mod dummy_module {
     /// - preimage : private witness
     #[relation_object_definition]
     struct PreimageRelation {
-        #[private_input]
+        #[private_input(frontend_type = "FrontendPreimage", parse_with = "convert_hash")]
         pub preimage: CircuitField,
         #[public_input(frontend_type = "FrontendHash", parse_with = "convert_hash")]
         pub hash: CircuitField,
