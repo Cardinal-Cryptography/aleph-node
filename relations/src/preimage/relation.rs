@@ -8,7 +8,12 @@ mod dummy_module {
     use ark_relations::ns;
     use liminal_ark_poseidon::circuit;
 
-    use crate::{environment::FpVar, preimage::FrontendHash, shielder::convert_hash, CircuitField};
+    use crate::{
+        environment::FpVar,
+        preimage::{FrontendHash, FrontendPreimage},
+        shielder::convert_hash,
+        CircuitField,
+    };
 
     /// Preimage relation : H(preimage)=hash
     /// where:
@@ -16,15 +21,9 @@ mod dummy_module {
     /// - preimage : private witness
     #[relation_object_definition]
     struct PreimageRelation {
-        /// private witness
-        #[private_input]
+        #[private_input(frontend_type = "FrontendPreimage", parse_with = "convert_hash")]
         pub preimage: CircuitField,
-        /// public input
-        #[public_input(
-            frontend_type = "FrontendHash",
-            parse_with = "convert_hash"
-            // serialize_with = "flatten_sequence"
-        )]
+        #[public_input(frontend_type = "FrontendHash", parse_with = "convert_hash")]
         pub hash: CircuitField,
     }
 
@@ -41,21 +40,4 @@ mod dummy_module {
 
         Ok(())
     }
-
-    // #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-    // pub struct PreimageRelation<S: State> {
-    //     // private witness
-    //     pub preimage: Option<CircuitField>,
-    //     // public input
-    //     pub hash: Option<CircuitField>,
-    //     _phantom: PhantomData<S>,
-    // }
-
-    // impl<S: WithPublicInput> GetPublicInput<CircuitField> for PreimageRelation<S> {
-    //     fn public_input(&self) -> Vec<CircuitField> {
-    //         vec![self
-    //             .hash
-    //             .expect("Circuit should have public input assigned")]
-    //     }
-    // }
 }

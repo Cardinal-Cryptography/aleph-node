@@ -16,6 +16,7 @@ pub use self::relation::{
 use crate::CircuitField;
 
 pub type FrontendHash = [u64; 4];
+pub type FrontendPreimage = [u64; 4];
 
 #[allow(clippy::type_complexity)]
 pub fn preimage_proving() -> (
@@ -29,7 +30,7 @@ pub fn preimage_proving() -> (
     let image = hash::one_to_one_hash([preimage]);
     let frontend_image: [u64; 4] = image.0 .0;
 
-    let full_circuit = PreimageRelationWithFullInput::new(frontend_image, preimage);
+    let full_circuit = PreimageRelationWithFullInput::new(frontend_image, preimage.0 .0);
 
     let mut rng = ark_std::test_rng();
     let (pk, vk) =
