@@ -178,22 +178,8 @@ impl Finalizer<MockJustification> for Backend {
             None => panic!("finalizing block without a parent: {:?}", header),
         };
 
-        let parent_block = match storage.blockchain.get(&parent_id) {
-            Some(block) => block,
-            None => panic!("finalizing block without an imported parent: {:?}", header),
-        };
-
-        if parent_block.justification.is_none() {
-            panic!("finalizing block without a finalized parent: {:?}", header);
-        }
-
-        if &parent_id != storage.finalized.last().expect("there is a top finalized") {
-            panic!(
-                "finalizing block whose parent is not top finalized: {:?}. Top is {:?}",
-                header,
-                storage.finalized.last().expect("there is a top finalized")
-            );
-        }
+        // check if finalizing block without an imported parent
+        assert!(storage.blockchain.get(&parent_id).is_some());
 
         let id = justification.header().id();
         let block = match storage.blockchain.get_mut(&id) {

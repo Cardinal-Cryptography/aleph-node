@@ -27,6 +27,15 @@ impl<J: Justification> State<J> {
     }
 }
 
+/// Request content.
+#[derive(Clone, Debug, Encode, Decode)]
+pub struct Request<J: Justification> {
+    pub target_id: BlockIdFor<J>,
+    pub oldest_ancestor_id: BlockIdFor<J>,
+    pub top_imported_id: Option<BlockIdFor<J>>,
+    pub state: State<J>,
+}
+
 /// Data to be sent over the network.
 #[derive(Clone, Debug, Encode, Decode)]
 pub enum NetworkData<J: Justification> {
@@ -34,10 +43,13 @@ pub enum NetworkData<J: Justification> {
     /// send what we are missing, and sometines just use the justifications to update their own
     /// state.
     StateBroadcast(State<J>),
-    /// A series of justifications, sent to a node that is clearly behind.
-    Justifications(Vec<J::Unverified>, State<J>),
+    /// Response to a state broadcast. Contains at most two justifications that the peer will
+    /// understand.
+    StateBroadcastResponse(J::Unverified, Option<J::Unverified>),
     /// An explicit request for data, potentially a lot of it.
-    Request(BlockIdFor<J>, State<J>),
+    Request(Request<J>),
+    /// Response to the request for data. Currently consists only of justifications.
+    RequestResponse(Vec<J::Unverified>),
 }
 
 /// Version wrapper around the network data.
