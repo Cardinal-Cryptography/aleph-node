@@ -88,14 +88,14 @@ pub trait BabyLiminalExtension {
         system: ProvingSystem,
     );
 
-    #[ink(extension = 43)]
-    fn poseidon_one_to_one(input: [[u64; 4]; 1]) -> [u64; 4];
+    #[ink(extension = 43, handle_status = false)]
+    fn poseidon_one_to_one(input: [[u64; 4]; 1]) -> Result<[u64; 4], ()>;
 
-    #[ink(extension = 44)]
-    fn poseidon_two_to_one(input: [[u64; 4]; 2]) -> [u64; 4];
+    #[ink(extension = 44, handle_status = false)]
+    fn poseidon_two_to_one(input: [[u64; 4]; 2]) -> Result<[u64; 4], ()>;
 
-    #[ink(extension = 45)]
-    fn poseidon_four_to_one(input: [[u64; 4]; 4]) -> [u64; 4];
+    #[ink(extension = 45, handle_status = false)]
+    fn poseidon_four_to_one(input: [[u64; 4]; 4]) -> Result<[u64; 4], ()>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
