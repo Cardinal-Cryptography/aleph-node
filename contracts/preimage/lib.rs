@@ -8,7 +8,7 @@ mod preimage {
         prelude::{vec, vec::Vec},
         storage::Mapping,
     };
-    use liminal_ark_relations::{GetPublicInput, PreimageRelation};
+    use liminal_ark_relations::PreimageRelationWithPublicInput;
     use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
     const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
@@ -66,20 +66,35 @@ mod preimage {
                 .get(caller)
                 .ok_or(PreimageContractError::NotCommited)?;
 
-            let relation = PreimageRelation::with_public_input(commitment);
+            let relation = PreimageRelationWithPublicInput::new(commitment);
 
             self.env()
                 .extension()
                 .verify(
                     VERIFYING_KEY_IDENTIFIER,
                     proof,
-                    Self::serialize::<Vec<CircuitField>>(&relation.public_input()),
+                    Self::serialize::<Vec<CircuitField>>(&relation.serialize_public_input()),
                     ProvingSystem::Groth16,
                 )
                 .map_err(PreimageContractError::CannotVerify)?;
 
             self.commitments.remove(caller);
             Ok(())
+        }
+
+        /// Caller removes his commitment if any
+        #[ink(message)]
+        pub fn uncommit(&mut self) -> Result<(), PreimageContractError> {
+            let caller = Self::env().caller();
+            self.commitments.remove(caller);
+            Ok(())
+        }
+
+        /// returns caller commitment or None
+        #[ink(message)]
+        pub fn commitment(&mut self) -> Option<[u64; 4]> {
+            let caller = Self::env().caller();
+            self.commitments.get(caller)
         }
     }
 }
