@@ -101,9 +101,9 @@ pub trait BabyLiminalExtension {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 /// All default, except `ChainExtension`, which is set to `BabyLiminalExtension`.
-pub enum DefaultEnvironment {}
+pub enum BabyLiminalEnvironment {}
 
-impl Environment for DefaultEnvironment {
+impl Environment for BabyLiminalEnvironment {
     const MAX_EVENT_TOPICS: usize = <ink::env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
 
     type AccountId = <ink::env::DefaultEnvironment as Environment>::AccountId;

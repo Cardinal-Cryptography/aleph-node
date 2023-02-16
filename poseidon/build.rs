@@ -18,7 +18,7 @@ fn main() {
             "256" => 256,
             _ => panic!("Unsupported security level. Supported levels: 80, 128, 256"),
         },
-        Err(_) => 32,
+        Err(_) => 128,
     };
 
     // t = arity + 1, so t=2 is a 1:1 hash, t=3 is a 2:1 hash etc
