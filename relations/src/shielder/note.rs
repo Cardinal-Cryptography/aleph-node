@@ -22,7 +22,7 @@ pub(super) fn check_note(
     note: &FpVar,
 ) -> Result<(), SynthesisError> {
     let hash = circuit::four_to_one_hash(
-        token_id.cs().clone(),
+        token_id.cs(),
         [
             token_id.clone(),
             token_amount.clone(),
