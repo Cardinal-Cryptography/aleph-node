@@ -466,23 +466,23 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
-#  run-e2e-authorities-are-staking:
-#    needs: [build-test-docker, build-test-client]
-#    name: Run authorities are staking test
-#    runs-on: ubuntu-20.04
-#    steps:
-#      - name: Checkout source code
-#        uses: actions/checkout@v2
-#
-#      - name: Run e2e test
-#        uses: ./.github/actions/run-e2e-test
-#        with:
-#          test-case: authorities_are_staking
-#          node-count: 6
-#          reserved-seats: 3
-#          non-reserved-seats: 3
-#          follow-up-finalization-check: false
-#        timeout-minutes: 15
+  run-e2e-authorities-are-staking:
+    needs: [build-test-docker, build-test-client]
+    name: Run authorities are staking test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: authorities_are_staking
+          node-count: 6
+          reserved-seats: 3
+          non-reserved-seats: 3
+          follow-up-finalization-check: true
+        timeout-minutes: 15
 
   run-e2e-ban-automatic:
     needs: [build-test-docker, build-test-client]
@@ -570,7 +570,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: version_upgrade::schedule_version_change
+          test-case: finality_version::schedule_version_change
         env:
           UPGRADE_VERSION: 1
           UPGRADE_SESSION: 3
@@ -586,10 +586,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install cargo-contract
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-contract
-          version: "2.0.0-beta.1"
+        run: cargo install cargo-contract --version 2.0.0-beta.1
 
       - name: Install rust-src
         working-directory: ./contracts
@@ -683,6 +680,21 @@ jobs:
 #        run: |
 #          ./scripts/catchup_version_upgrade_test.sh
 
+  run-e2e-finality-version-change:
+    needs: [build-test-docker, build-test-client]
+    name: Run finality version change test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: finality_version::finality_version_change
+          follow-up-finalization-check: true
+        timeout-minutes: 10
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
@@ -702,7 +714,7 @@ jobs:
       run-e2e-rewards-stake-change,
       run-e2e-rewards-change-stake-force-new-era,
       run-e2e-rewards-points-basic,
-#      run-e2e-authorities-are-staking,
+      run-e2e-authorities-are-staking,
       run-e2e-ban-automatic,
       run-e2e-ban-manual,
       run-e2e-ban-counter-clearing,
@@ -712,6 +724,7 @@ jobs:
       run-e2e-adder-contract-test,
 #      run-e2e-failing-version-upgrade,
 #      run-e2e-version-upgrade-catchup,
+      run-e2e-finality-version-change,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
@@ -780,6 +793,9 @@ jobs:
     name: Test catching up
     runs-on: ubuntu-20.04
     needs: build-new-node
+    strategy:
+      matrix:
+        pruning: ['', '--state-pruning 90']
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -799,12 +815,15 @@ jobs:
         env:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
-        run: ./.github/scripts/test_catch_up.sh
+        run: ./.github/scripts/test_catch_up.sh ${{ matrix.pruning }}
 
   test-multiple-restarts:
     name: Test multiple restarts
     runs-on: ubuntu-20.04
     needs: build-new-node
+    strategy:
+      matrix:
+        pruning: ['', '--state-pruning 2048']
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -824,7 +843,7 @@ jobs:
         env:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-release-node/aleph-node
-        run: ./.github/scripts/test_multiple_restarts.sh
+        run: ./.github/scripts/test_multiple_restarts.sh ${{ matrix.pruning }}
 
   check-runtime-change:
     name: Inspect whether runtime version has been changed (compared with main)

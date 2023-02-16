@@ -8,10 +8,7 @@ use futures::channel::mpsc;
 use crate::network::{clique::PublicKey, Data, PeerId};
 
 mod direction;
-mod legacy;
-
 use direction::DirectedPeers;
-pub use legacy::Manager as LegacyManager;
 
 /// Error during sending data through the Manager
 #[derive(Debug, PartialEq, Eq)]
@@ -231,6 +228,10 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
     /// A status of the manager, to be displayed somewhere.
     pub fn status_report(&self) -> impl Display {
         ManagerStatus::new(self)
+    }
+
+    pub fn is_authorized(&self, public_key: &PK) -> bool {
+        self.wanted.interested(public_key)
     }
 }
 

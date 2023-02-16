@@ -31,13 +31,13 @@ use frame_support::{
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-use primitives::{SessionIndex, Version, VersionChange};
+use primitives::{
+    SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
+};
 use sp_std::prelude::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
-
-const DEFAULT_FINALITY_VERSION: Version = 1;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -48,6 +48,7 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use pallets_support::StorageMigration;
+    use sp_std::marker::PhantomData;
 
     use super::*;
     use crate::traits::{NextSessionAuthorityProvider, SessionInfoProvider};
@@ -233,6 +234,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Sets the emergency finalization key. If called in session `N` the key can be used to
         /// finalize blocks from session `N+2` onwards, until it gets overridden.
+        #[pallet::call_index(0)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_emergency_finalizer(
             origin: OriginFor<T>,
@@ -250,6 +252,7 @@ pub mod pallet {
         /// advance of the provided session of the version change.
         /// In order to cancel a scheduled version change, a new version change should be scheduled
         /// with the same version as the current one.
+        #[pallet::call_index(1)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn schedule_finality_version_change(
             origin: OriginFor<T>,
@@ -303,5 +306,28 @@ pub mod pallet {
         }
 
         fn on_disabled(_validator_index: u32) {}
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub finality_version: Version,
+        pub _marker: PhantomData<T>,
+    }
+
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                finality_version: LEGACY_FINALITY_VERSION as u32,
+                _marker: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <FinalityVersion<T>>::put(&self.finality_version);
+        }
     }
 }
