@@ -221,7 +221,7 @@ impl BabyLiminalChainExtension {
         Ok(RetVal::Converging(return_status))
     }
 
-    fn create_fr(x: SingleHashInput) -> Fr {
+    fn into_field_element(x: SingleHashInput) -> Fr {
         Fr::new(BigInteger256::new(x))
     }
 
@@ -231,7 +231,7 @@ impl BabyLiminalChainExtension {
         let input: [SingleHashInput; 1] = env.read_as()?;
 
         env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_one_to_one())?;
-        let hash = hash::one_to_one_hash(input.map(Self::create_fr));
+        let hash = hash::one_to_one_hash(input.map(Self::into_field_element));
 
         env.write(&hash.0 .0.encode())?;
 
@@ -244,7 +244,7 @@ impl BabyLiminalChainExtension {
         let input: [SingleHashInput; 2] = env.read_as()?;
 
         env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_two_to_one())?;
-        let hash = hash::two_to_one_hash(input.map(Self::create_fr));
+        let hash = hash::two_to_one_hash(input.map(Self::into_field_element));
 
         env.write(&hash.0 .0.encode())?;
 
@@ -257,7 +257,7 @@ impl BabyLiminalChainExtension {
         let input: [SingleHashInput; 4] = env.read_as()?;
 
         env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_four_to_one())?;
-        let hash = hash::four_to_one_hash(input.map(Self::create_fr));
+        let hash = hash::four_to_one_hash(input.map(Self::into_field_element));
 
         env.write(&hash.0 .0.encode())?;
 
