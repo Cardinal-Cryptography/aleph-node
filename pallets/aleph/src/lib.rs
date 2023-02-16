@@ -173,7 +173,9 @@ pub mod pallet {
 
         /// Map `NextFinalityCommittee` account ids to authority ids using `next_authorities`. In case
         /// where not all ids were mapped uses `next_authorities` authority ids as a result.
-        fn get_authorities_for_next_session(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) -> Vec<T::AuthorityId> {
+        fn get_authorities_for_next_session(
+            next_authorities: Vec<(&T::AccountId, T::AuthorityId)>,
+        ) -> Vec<T::AuthorityId> {
             let committee_ids = NextFinalityCommittee::<T>::take();
 
             let mut na = vec![];

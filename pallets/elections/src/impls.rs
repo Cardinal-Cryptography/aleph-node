@@ -109,6 +109,7 @@ fn choose_for_session<T: Clone>(validators: &[T], count: usize, session: usize) 
     Some(chosen)
 }
 
+/// choose all items from `reserved` if present and extend it by #`non_reserved_seats` from non_reserved if present.
 fn choose_finality_committee<T: Clone>(
     reserved: &Option<Vec<T>>,
     non_reserved: &Option<Vec<T>>,
@@ -452,6 +453,7 @@ where
             finality_committee,
             committee,
         } = Self::rotate_committee(new_index)?;
+        // Notify about elected next session finality committee
         T::FinalityCommitteeManager::next_session_finality_committee(finality_committee);
 
         Some(committee)

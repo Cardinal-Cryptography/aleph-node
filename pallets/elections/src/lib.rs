@@ -415,7 +415,7 @@ pub mod pallet {
 
             ensure!(
                 non_reserved_finality_seats <= non_reserved,
-                Error::<T>::NonReservedFinalityShouldBeSmaller,
+                Error::<T>::NonReservedFinalityShouldBeSmallerThanNonReserve,
             );
 
             ensure!(
@@ -469,7 +469,7 @@ pub mod pallet {
         NotEnoughReservedValidators,
         NotEnoughNonReservedValidators,
         NonUniqueListOfValidators,
-        NonReservedFinalityShouldBeSmaller,
+        NonReservedFinalityShouldBeSmallerThanNonReserve,
 
         /// Raised in any scenario [`BanConfig`] is invalid
         /// * `performance_ratio_threshold` must be a number in range [0; 100]

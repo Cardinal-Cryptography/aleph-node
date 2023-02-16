@@ -88,6 +88,7 @@ where
 }
 
 pub trait FinalityCommitteeManager<T> {
+    /// `committee` is the set elected for finality committee for the next session
     fn next_session_finality_committee(committee: Vec<T>);
 }
 
