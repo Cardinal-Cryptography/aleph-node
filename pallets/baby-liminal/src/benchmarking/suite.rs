@@ -156,5 +156,19 @@ benchmarks! {
         )
     }
 
+    // Cryptography
+
+    poseidon_one_to_one {} : {
+        liminal_ark_poseidon::hash::one_to_one_hash([0u64.into()]);
+    }
+
+    poseidon_two_to_one {} : {
+        liminal_ark_poseidon::hash::two_to_one_hash([0u64.into(), 1u64.into()]);
+    }
+
+    poseidon_four_to_one {} : {
+        liminal_ark_poseidon::hash::four_to_one_hash([0u64.into(), 1u64.into(), 2u64.into(), 3u64.into()]);
+    }
+
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::TestRuntime);
 }
