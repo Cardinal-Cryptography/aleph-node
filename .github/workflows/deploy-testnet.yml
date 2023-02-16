@@ -40,8 +40,6 @@ jobs:
           registry: public.ecr.aws
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-        env:
-          AWS_REGION: us-east-1
 
       - name: Tag and push image for Testnet
         env:
