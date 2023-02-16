@@ -35,7 +35,7 @@ impl ink::env::chain_extension::FromStatusCode for BabyLiminalError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
             // Success codes
-            10_000 | 11_000 => Ok(()),
+            10_000 | 11_000 | 12_000 => Ok(()),
 
             // `pallet_baby_liminal::store_key` errors
             10_001 => Err(Self::VerificationKeyTooLong),
@@ -87,6 +87,15 @@ pub trait BabyLiminalExtension {
         input: Vec<u8>,
         system: ProvingSystem,
     );
+
+    #[ink(extension = 43)]
+    fn poseidon_one_to_one(input: [[u64; 4]; 1]) -> [u64; 4];
+
+    #[ink(extension = 44)]
+    fn poseidon_two_to_one(input: [[u64; 4]; 2]) -> [u64; 4];
+
+    #[ink(extension = 45)]
+    fn poseidon_four_to_one(input: [[u64; 4]; 4]) -> [u64; 4];
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

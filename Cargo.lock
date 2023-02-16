@@ -300,6 +300,7 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "liminal-ark-poseidon",
  "pallet-aleph",
  "pallet-aura",
  "pallet-authorship",
@@ -613,6 +614,24 @@ dependencies = [
  "ark-ff",
  "ark-relations",
  "ark-std",
+]
+
+[[package]]
+name = "ark-sponge"
+version = "0.3.0"
+source = "git+https://github.com/penumbra-zone/sponge?branch=r1cs#113469aef48a9c5f458dbf523a509d4769affbf2"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest 0.9.0",
+ "rand_chacha 0.3.1",
+ "tracing",
 ]
 
 [[package]]
@@ -3939,6 +3958,9 @@ version = "0.1.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-sponge",
  "paste",
  "poseidon-parameters",
  "poseidon-paramgen",
