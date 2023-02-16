@@ -125,6 +125,7 @@ pub mod pallet {
     pub(super) type NextAuthorities<T: Config> =
         StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
 
+    /// Set of account ids that will be used as authorities in the next session
     #[pallet::storage]
     pub type NextFinalityCommittee<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
@@ -170,7 +171,9 @@ pub mod pallet {
             }
         }
 
-        pub(crate) fn update_authorities(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) {
+        /// Map `NextFinalityCommittee` account ids to authority ids using `next_authorities`. In case
+        /// where not all ids were mapped uses `next_authorities` authority ids as a result.
+        fn get_authorities_for_next_session(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) -> Vec<T::AuthorityId> {
             let committee_ids = NextFinalityCommittee::<T>::take();
 
             let mut na = vec![];
@@ -190,8 +193,14 @@ pub mod pallet {
                 na = default;
             }
 
+            na
+        }
+
+        pub(crate) fn update_authorities(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) {
+            let next_authorities = Self::get_authorities_for_next_session(next_authorities);
+
             <Authorities<T>>::put(<NextAuthorities<T>>::get());
-            <NextAuthorities<T>>::put(na);
+            <NextAuthorities<T>>::put(next_authorities);
         }
 
         pub(crate) fn update_emergency_finalizer() {
