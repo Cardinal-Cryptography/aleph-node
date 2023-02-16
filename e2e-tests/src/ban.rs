@@ -36,6 +36,7 @@ pub async fn setup_test(
     let seats = CommitteeSeats {
         reserved_seats: RESERVED_SEATS,
         non_reserved_seats: NON_RESERVED_SEATS,
+        non_reserved_finality_seats: NON_RESERVED_SEATS,
     };
 
     root_connection
