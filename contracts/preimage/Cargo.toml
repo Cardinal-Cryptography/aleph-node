@@ -11,7 +11,7 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-snarcos-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "liminal/migrate-to-ink4", package = "snarcos-extension", default-features = false, features = ["ink-as-dependency"] }
+baby-liminal-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "snarkeling", package = "baby-liminal-extension", default-features = false, features = ["ink-as-dependency"] }
 liminal-ark-relations = { path = "../../relations", default-features = false }
 
 [lib]
@@ -30,6 +30,6 @@ std = [
     "liminal-ark-relations/std",
     "scale-info/std",
     "scale/std",
-    "snarcos-extension/std",
+    "baby-liminal-extension/std",
 ]
 ink-as-dependency = []

@@ -330,19 +330,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
-name = "atomic-polyfill"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d299f547288d6db8d5c3a2916f7b2f66134b15b8c1ac1c4357dd3b8752af7bb2"
-dependencies = [
- "critical-section",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "baby-liminal-extension"
+version = "0.1.0"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node?branch=snarkeling#20055a7e053265a7b0ca131d36ce1c2847b44c17"
+dependencies = [
+ "ink",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-std",
+]
 
 [[package]]
 name = "bitflags"
@@ -429,12 +431,6 @@ checksum = "28d997bd5e24a5928dd43e46dc529867e207907fe0b239c3477d924f7f2ca320"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "critical-section"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6548a0ad5d2549e111e1f6a11a6c2e2d00ce6a3dafe22948d67c2b443f775e52"
 
 [[package]]
 name = "crypto-common"
@@ -864,8 +860,6 @@ dependencies = [
  "ark-r1cs-std",
  "ark-relations",
  "ark-sponge",
- "ark-std",
- "once_cell",
  "paste",
  "poseidon-parameters",
  "poseidon-paramgen",
@@ -1021,10 +1015,6 @@ name = "once_cell"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
-dependencies = [
- "atomic-polyfill",
- "critical-section",
-]
 
 [[package]]
 name = "opaque-debug"
@@ -1129,11 +1119,11 @@ dependencies = [
  "ark-bls12-381",
  "ark-ff",
  "ark-serialize",
+ "baby-liminal-extension",
  "ink",
  "liminal-ark-relations",
  "parity-scale-codec",
  "scale-info",
- "snarcos-extension",
 ]
 
 [[package]]
@@ -1364,17 +1354,6 @@ checksum = "bdf0c33fae925bdc080598b84bc15c55e7b9a4a43b3c704da051f977469691c9"
 dependencies = [
  "digest 0.10.6",
  "keccak",
-]
-
-[[package]]
-name = "snarcos-extension"
-version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node?branch=liminal/migrate-to-ink4#608dc2a0b275d6776962f93c971149af92faa15f"
-dependencies = [
- "ink",
- "parity-scale-codec",
- "scale-info",
- "sp-std",
 ]
 
 [[package]]

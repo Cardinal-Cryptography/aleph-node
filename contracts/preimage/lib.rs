@@ -1,15 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[ink::contract(env = snarcos_extension::DefaultEnvironment)]
+#[ink::contract(env = baby_liminal_extension::BabyLiminalEnvironment)]
 mod preimage {
 
     use ark_serialize::CanonicalSerialize;
+    use baby_liminal_extension::{BabyLiminalError, ProvingSystem, VerificationKeyIdentifier};
     use ink::{
         prelude::{vec, vec::Vec},
         storage::Mapping,
     };
     use liminal_ark_relations::PreimageRelationWithPublicInput;
-    use snarcos_extension::{ProvingSystem, SnarcosError, VerificationKeyIdentifier};
 
     const VERIFYING_KEY_IDENTIFIER: VerificationKeyIdentifier = [b'p', b'i', b'm', b'g'];
 
@@ -20,7 +20,7 @@ mod preimage {
     pub enum PreimageContractError {
         AlreadyCommited,
         NotCommited,
-        CannotVerify(SnarcosError),
+        CannotVerify(BabyLiminalError),
     }
 
     #[ink(storage)]
