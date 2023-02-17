@@ -1,7 +1,7 @@
 name: contracts-e2e-tests-and-deploy
 
 on:
-  workflow_call
+  workflow_call:
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
