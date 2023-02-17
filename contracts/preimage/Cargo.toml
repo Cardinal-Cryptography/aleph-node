@@ -8,11 +8,11 @@ edition = "2021"
 ark-bls12-381 = { version = "^0.3.0" }
 ark-ff = { version = "^0.3.0", default-features = false }
 ark-serialize = { version = "^0.3.0", default-features = false }
+baby-liminal-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "snarkeling", package = "baby-liminal-extension", default-features = false, features = ["ink-as-dependency"] }
 ink = { git = "https://github.com/paritytech/ink", rev = "4655a8b4413cb50cbc38d1b7c173ad426ab06cde", default-features = false }
+liminal-ark-relations = { path = "../../relations", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-baby-liminal-extension = { git = "https://github.com/Cardinal-Cryptography/aleph-node", branch = "snarkeling", package = "baby-liminal-extension", default-features = false, features = ["ink-as-dependency"] }
-liminal-ark-relations = { path = "../../relations", default-features = false }
 
 [lib]
 name = "preimage"

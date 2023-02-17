@@ -58,6 +58,21 @@ mod preimage {
         }
 
         #[ink(message)]
+        pub fn one_to_one(&mut self) {
+            let _res = self.env().extension().poseidon_one_to_one([[0u64; 4]]);
+            ink::env::debug_println!("{_res:?}");
+        }
+
+        #[ink(message)]
+        pub fn two_to_one(&mut self) {
+            let _res = self
+                .env()
+                .extension()
+                .poseidon_two_to_one([[0u64; 4], [1u64; 4]]);
+            ink::env::debug_println!("{_res:?}");
+        }
+
+        #[ink(message)]
         pub fn reveal(&mut self, proof: Vec<u8>) -> Result<(), PreimageContractError> {
             let caller = Self::env().caller();
 
