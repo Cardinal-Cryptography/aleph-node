@@ -7,12 +7,14 @@ use aleph_client::{
 use log::info;
 use primitives::Balance;
 
+// This test is disabled, as substrate update we no longer have access to fill_block runtime call
+// TODO: bring the `fee_calculation` test back
+
 // use aleph_client::{RootConnection, pallets::system::SystemSudoApi};
 // use sp_runtime::{FixedPointNumber, FixedU128};
 
 // use crate::{config::setup_test, transfer::setup_for_transfer};
 
-// This test is disabled, as for now we no longer have access to fill_block runtime call
 // #[tokio::test]
 // pub async fn fee_calculation() -> anyhow::Result<()> {
 //     let config = setup_test();
