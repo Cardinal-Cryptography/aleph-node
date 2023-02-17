@@ -59,7 +59,7 @@ finality-aleph = { path = "../../finality-aleph" }
 aleph-primitives = { package = "primitives", path = "../../primitives" }
 
 # These dependencies are used for the node's RPCs
-jsonrpsee = { version = "0.15.1", features = ["server"] }
+jsonrpsee = { version = "0.16.2", features = ["server"] }
 sc-rpc = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "wip-v0.9.35" }
 sp-api = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "wip-v0.9.35" }
 sc-rpc-api = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "wip-v0.9.35" }
