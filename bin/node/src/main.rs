@@ -1,22 +1,27 @@
+use std::str::FromStr;
+
 #[cfg(feature = "try-runtime")]
 use aleph_node::ExecutorDispatch;
 use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
 #[cfg(feature = "try-runtime")]
 use aleph_runtime::Block;
 use log::warn;
-use sc_cli::{clap::Parser, CliConfiguration, PruningParams, SubstrateCli};
+use sc_cli::{clap::Parser, CliConfiguration, DatabasePruningMode, PruningParams, SubstrateCli};
 use sc_network::config::Role;
 use sc_service::PartialComponents;
 
-const STATE_PRUNING: &str = "archive";
-const BLOCKS_PRUNING: &str = "archive-canonical";
+fn default_state_pruning() -> DatabasePruningMode {
+    DatabasePruningMode::from_str("archive").expect("is valid pruning mode")
+}
+
+fn default_blocks_pruning() -> DatabasePruningMode {
+    DatabasePruningMode::from_str("archive-canonical").expect("is valid pruning mode")
+}
 
 fn pruning_changed(params: &PruningParams) -> bool {
-    let state_pruning_changed =
-        params.state_pruning != Some(STATE_PRUNING.into()) && params.state_pruning.is_some();
+    let state_pruning_changed = params.state_pruning != default_state_pruning();
 
-    let blocks_pruning_changed =
-        params.blocks_pruning != Some(BLOCKS_PRUNING.into()) && params.blocks_pruning.is_some();
+    let blocks_pruning_changed = params.blocks_pruning != default_blocks_pruning();
 
     state_pruning_changed || blocks_pruning_changed
 }
@@ -25,8 +30,8 @@ fn main() -> sc_cli::Result<()> {
     let mut cli = Cli::parse();
     let overwritten_pruning = pruning_changed(&cli.run.import_params.pruning_params);
     if !cli.aleph.experimental_pruning() {
-        cli.run.import_params.pruning_params.state_pruning = Some(STATE_PRUNING.into());
-        cli.run.import_params.pruning_params.blocks_pruning = Some(BLOCKS_PRUNING.into());
+        cli.run.import_params.pruning_params.state_pruning = default_state_pruning();
+        cli.run.import_params.pruning_params.blocks_pruning = default_blocks_pruning();
     }
 
     match &cli.subcommand {
@@ -142,16 +147,13 @@ fn main() -> sc_cli::Result<()> {
 mod tests {
     use sc_service::{BlocksPruning, PruningMode};
 
-    use super::{PruningParams, BLOCKS_PRUNING, STATE_PRUNING};
+    use super::{default_blocks_pruning, default_state_pruning, PruningParams};
 
     #[test]
     fn pruning_sanity_check() {
-        let state_pruning = Some(String::from(STATE_PRUNING));
-        let blocks_pruning = Some(String::from(BLOCKS_PRUNING));
-
         let pruning_params = PruningParams {
-            state_pruning,
-            blocks_pruning,
+            state_pruning: default_state_pruning(),
+            blocks_pruning: default_blocks_pruning(),
         };
 
         assert_eq!(
