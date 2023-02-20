@@ -71,7 +71,7 @@ impl TryFrom<ConvertibleValue> for () {
 
     fn try_from(value: ConvertibleValue) -> Result<Self> {
         match value.0 {
-            Value::Tuple(tuple) if tuple.ident() == None && tuple.values().next().is_none() => {
+            Value::Tuple(tuple) if tuple.ident().is_none() && tuple.values().next().is_none() => {
                 Ok(())
             }
             _ => bail!("Expected {:?} to be a unit", value.0),
