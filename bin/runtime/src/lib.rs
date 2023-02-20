@@ -745,13 +745,6 @@ construct_runtime!(
     }
 );
 
-pub struct EmptyList;
-impl Get<Vec<AccountId>> for EmptyList {
-    fn get() -> Vec<AccountId> {
-        vec![]
-    }
-}
-
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 /// Block header type as expected by this runtime.
@@ -784,10 +777,6 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (
-        pallet_scheduler::migration::v3::MigrateToV4<Runtime>,
-        pallet_balances::migration::MigrateManyToTrackInactive<Runtime, EmptyList>,
-    ),
 >;
 
 impl_runtime_apis! {
