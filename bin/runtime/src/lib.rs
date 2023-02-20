@@ -27,6 +27,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
+use pallet_balances::migration::MigrateManyToTrackInactive;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -39,7 +40,7 @@ use primitives::{
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, Get, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -745,6 +746,13 @@ construct_runtime!(
     }
 );
 
+pub struct EmptyList;
+impl Get<Vec<AccountId>> for EmptyList {
+    fn get() -> Vec<AccountId> {
+        vec![]
+    }
+}
+
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 /// Block header type as expected by this runtime.
@@ -777,6 +785,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    (MigrateManyToTrackInactive<Runtime, EmptyList>,),
 >;
 
 impl_runtime_apis! {
