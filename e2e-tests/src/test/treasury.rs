@@ -1,13 +1,15 @@
 use aleph_client::{
     account_from_keypair,
-    api::treasury::events::Rejected,
+    api::{transaction_payment::events::TransactionFeePaid, treasury::events::Rejected},
     pallets::{
-        balances::BalanceApi,
+        balances::{BalanceApi, BalanceUserApi},
+        fee::TransactionPaymentApi,
         system::SystemApi,
         treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
     },
+    utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
-    ConnectionApi, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AccountId, ConnectionApi, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;
