@@ -88,6 +88,7 @@ std = [
     "pallet-vesting/std",
     "pallet-multisig/std",
     "pallet-utility/std",
+    "pallet-scheduler/std",
     "serde",
     "sp-api/std",
     "sp-block-builder/std",

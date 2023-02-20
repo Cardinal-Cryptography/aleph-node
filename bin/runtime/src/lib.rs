@@ -27,7 +27,6 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
-use pallet_balances::migration::MigrateManyToTrackInactive;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -785,7 +784,10 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (MigrateManyToTrackInactive<Runtime, EmptyList>,),
+    (
+        pallet_scheduler::migration::v3::MigrateToV4<Runtime>,
+        pallet_balances::migration::MigrateManyToTrackInactive<Runtime, EmptyList>,
+    ),
 >;
 
 impl_runtime_apis! {
