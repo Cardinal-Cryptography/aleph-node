@@ -84,7 +84,7 @@ jobs:
         uses: baptiste0928/cargo-install@v1
         with:
           crate: cargo-contract
-          version: "2.0.0-beta.1"
+          version: "2.0.1"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
