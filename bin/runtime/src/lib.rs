@@ -32,8 +32,8 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
-    DEFAULT_BAN_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
-    MILLISECS_PER_BLOCK, TOKEN,
+    DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -47,7 +47,7 @@ use sp_runtime::{
         OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedU128, MultiSignature, RuntimeAppPublic,
+    ApplyExtrinsicResult, FixedU128, MultiSignature,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
@@ -104,7 +104,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 45,
+    spec_version: 47,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -132,8 +132,6 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
 pub const MAX_BLOCK_WEIGHT: Weight = WEIGHT_PER_MILLIS.saturating_mul(400);
-// We agreed to 5MB as the block size limit.
-pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 // The storage deposit is roughly 1 TOKEN per 1kB
 pub const DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
@@ -316,6 +314,7 @@ impl pallet_aleph::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = Session;
     type SessionManager = Elections;
+    type NextSessionAuthorityProvider = Session;
 }
 
 impl_opaque_keys! {
@@ -328,6 +327,7 @@ impl_opaque_keys! {
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const MaximumBanReasonLength: u32 = DEFAULT_BAN_REASON_LENGTH;
+    pub const MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -340,6 +340,7 @@ impl pallet_elections::Config for Runtime {
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
+    type MaxWinners = MaxWinners;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -372,13 +373,17 @@ parameter_types! {
 }
 
 use sp_runtime::traits::Convert;
+
 pub struct BalanceToU256;
+
 impl Convert<Balance, sp_core::U256> for BalanceToU256 {
     fn convert(balance: Balance) -> sp_core::U256 {
         sp_core::U256::from(balance)
     }
 }
+
 pub struct U256ToBalance;
+
 impl Convert<sp_core::U256, Balance> for U256ToBalance {
     fn convert(n: sp_core::U256) -> Balance {
         n.try_into().unwrap_or(Balance::max_value())
@@ -389,11 +394,10 @@ impl pallet_nomination_pools::Config for Runtime {
     type WeightInfo = ();
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type CurrencyBalance = Balance;
     type RewardCounter = FixedU128;
     type BalanceToU256 = BalanceToU256;
     type U256ToBalance = U256ToBalance;
-    type StakingInterface = pallet_staking::Pallet<Self>;
+    type Staking = pallet_staking::Pallet<Self>;
     type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
     type MaxMetadataLen = ConstU32<256>;
     type MaxUnbonding = ConstU32<8>;
@@ -423,6 +427,7 @@ impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
 type SubstrateStakingWeights = pallet_staking::weights::SubstrateWeight<Runtime>;
 
 pub struct PayoutStakersDecreasedWeightInfo;
+
 impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
     // To make possible to change nominators per validator we need to decrease weight for payout_stakers
     fn payout_stakers_alive_staked(n: u32) -> Weight {
@@ -493,6 +498,7 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
 }
 
 pub struct StakingBenchmarkingConfig;
+
 impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
     type MaxValidators = ConstU32<1000>;
     type MaxNominators = ConstU32<1000>;
@@ -609,6 +615,7 @@ parameter_types! {
 }
 
 pub struct TreasuryGovernance;
+
 impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
         pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
@@ -884,10 +891,12 @@ impl_runtime_apis! {
         }
 
         fn next_session_authorities() -> Result<Vec<AlephId>, AlephApiError> {
-            Session::queued_keys()
-                .iter()
-                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<AlephId>, AlephApiError>>()
+            let next_authorities = Aleph::next_authorities();
+            if next_authorities.is_empty() {
+                return Err(AlephApiError::DecodeKey)
+            }
+
+            Ok(next_authorities)
         }
 
         fn authority_data() -> SessionAuthorityData {
@@ -895,10 +904,8 @@ impl_runtime_apis! {
         }
 
         fn next_session_authority_data() -> Result<SessionAuthorityData, AlephApiError> {
-            Ok(SessionAuthorityData::new(Session::queued_keys()
-                .iter()
-                .map(|(_, key)| key.get(AlephId::ID).ok_or(AlephApiError::DecodeKey))
-                .collect::<Result<Vec<AlephId>, AlephApiError>>()?,
+            Ok(SessionAuthorityData::new(
+                Self::next_session_authorities()?,
                 Aleph::queued_emergency_finalizer(),
             ))
         }
@@ -937,7 +944,8 @@ impl_runtime_apis! {
                 gas_limit,
                 storage_deposit_limit,
                 input_data,
-                CONTRACTS_DEBUG_OUTPUT
+                CONTRACTS_DEBUG_OUTPUT,
+                pallet_contracts::Determinism::Deterministic,
             )
         }
 
@@ -968,9 +976,10 @@ impl_runtime_apis! {
             origin: AccountId,
             code: Vec<u8>,
             storage_deposit_limit: Option<Balance>,
+            determinism: pallet_contracts::Determinism,
         ) -> pallet_contracts_primitives::CodeUploadResult<Hash, Balance>
         {
-            Contracts::bare_upload_code(origin, code, storage_deposit_limit)
+            Contracts::bare_upload_code(origin, code, storage_deposit_limit, determinism)
         }
 
         fn get_storage(

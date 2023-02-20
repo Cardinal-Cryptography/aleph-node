@@ -13,7 +13,10 @@ use sp_runtime::{
 
 use crate::{
     justification::backwards_compatible_decode,
-    sync::{substrate::Justification, BlockStatus, ChainStatus, Header, LOG_TARGET},
+    sync::{
+        substrate::{BlockId, Justification},
+        BlockStatus, ChainStatus, Header, LOG_TARGET,
+    },
     AlephJustification,
 };
 
@@ -73,16 +76,19 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
+    fn hash_for_number(&self, number: BlockNumber) -> Result<Option<B::Hash>, ClientError> {
+        self.client.hash(number)
+    }
+
     fn header(&self, hash: B::Hash) -> Result<Option<B::Header>, ClientError> {
         let id = SubstrateBlockId::<B>::Hash(hash);
         self.client.header(id)
     }
 
     fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, ClientError> {
-        let id = SubstrateBlockId::<B>::Hash(hash);
         let justification = match self
             .client
-            .justifications(id)?
+            .justifications(hash)?
             .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
         {
             Some(justification) => justification,
@@ -118,6 +124,20 @@ where
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
     type Error = Error<B>;
+
+    fn finalized_at(
+        &self,
+        number: BlockNumber,
+    ) -> Result<Option<Justification<B::Header>>, Self::Error> {
+        let id = match self.hash_for_number(number)? {
+            Some(hash) => BlockId { hash, number },
+            None => return Ok(None),
+        };
+        match self.status_of(id)? {
+            BlockStatus::Justified(justification) => Ok(Some(justification)),
+            _ => Ok(None),
+        }
+    }
 
     fn status_of(
         &self,

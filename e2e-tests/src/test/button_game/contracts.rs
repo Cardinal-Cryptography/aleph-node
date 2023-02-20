@@ -1,7 +1,7 @@
 use std::{fmt::Debug, str::FromStr};
 
 use aleph_client::{
-    contract::ContractInstance, AccountId, Connection, ConnectionApi, SignedConnection,
+    contract::ContractInstance, AccountId, Connection, ConnectionApi, SignedConnection, TxInfo,
 };
 use anyhow::{Context, Result};
 use primitives::Balance;
@@ -54,7 +54,7 @@ impl SimpleDexInstance {
         conn: &SignedConnection,
         from: AccountId,
         to: AccountId,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract
             .contract_exec(conn, "add_swap_pair", &[from.to_string(), to.to_string()])
             .await
@@ -65,7 +65,7 @@ impl SimpleDexInstance {
         conn: &SignedConnection,
         from: AccountId,
         to: AccountId,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract
             .contract_exec(
                 conn,
@@ -79,7 +79,7 @@ impl SimpleDexInstance {
         &self,
         conn: &SignedConnection,
         amounts: &[(&PSP22TokenInstance, Balance)],
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         let deposits = amounts
             .iter()
             .map(|(token, amount)| {
@@ -123,7 +123,7 @@ impl SimpleDexInstance {
         amount_token_in: Balance,
         token_out: &PSP22TokenInstance,
         min_amount_token_out: Balance,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         let token_in: AccountId = token_in.into();
         let token_out: AccountId = token_out.into();
 
@@ -188,11 +188,11 @@ impl ButtonInstance {
         self.contract.contract_read0(conn, "marketplace").await
     }
 
-    pub async fn press(&self, conn: &SignedConnection) -> Result<()> {
+    pub async fn press(&self, conn: &SignedConnection) -> Result<TxInfo> {
         self.contract.contract_exec0(conn, "press").await
     }
 
-    pub async fn reset(&self, conn: &SignedConnection) -> Result<()> {
+    pub async fn reset(&self, conn: &SignedConnection) -> Result<TxInfo> {
         self.contract.contract_exec0(conn, "reset").await
     }
 }
@@ -232,7 +232,7 @@ impl PSP22TokenInstance {
         conn: &SignedConnection,
         to: &AccountId,
         amount: Balance,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract
             .contract_exec(
                 conn,
@@ -247,7 +247,7 @@ impl PSP22TokenInstance {
         conn: &SignedConnection,
         to: &AccountId,
         amount: Balance,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract
             .contract_exec(
                 conn,
@@ -262,7 +262,7 @@ impl PSP22TokenInstance {
         conn: &SignedConnection,
         spender: &AccountId,
         value: Balance,
-    ) -> Result<()> {
+    ) -> Result<TxInfo> {
         self.contract
             .contract_exec(
                 conn,
@@ -311,11 +311,11 @@ impl MarketplaceInstance {
         })
     }
 
-    pub async fn reset(&self, conn: &SignedConnection) -> Result<()> {
+    pub async fn reset(&self, conn: &SignedConnection) -> Result<TxInfo> {
         self.contract.contract_exec0(conn, "reset").await
     }
 
-    pub async fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<()> {
+    pub async fn buy(&self, conn: &SignedConnection, max_price: Option<Balance>) -> Result<TxInfo> {
         let max_price = max_price.map_or_else(|| "None".to_string(), |x| format!("Some({})", x));
 
         self.contract
@@ -366,13 +366,13 @@ impl WAzeroInstance {
         })
     }
 
-    pub async fn wrap(&self, conn: &SignedConnection, value: Balance) -> Result<()> {
+    pub async fn wrap(&self, conn: &SignedConnection, value: Balance) -> Result<TxInfo> {
         self.contract
             .contract_exec_value0(conn, "wrap", value)
             .await
     }
 
-    pub async fn unwrap(&self, conn: &SignedConnection, amount: Balance) -> Result<()> {
+    pub async fn unwrap(&self, conn: &SignedConnection, amount: Balance) -> Result<TxInfo> {
         self.contract
             .contract_exec(conn, "unwrap", &[amount.to_string()])
             .await
