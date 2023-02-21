@@ -58,6 +58,7 @@ jobs:
           command: fmt
           args: --all
 
+
       - name: Run Linter
         uses: actions-rs/cargo@v1
         env:
@@ -67,6 +68,11 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features -- --no-deps -D warnings
+
+      - name: Run Clean
+        uses: actions-rs/cargo@v1
+        with:
+          command: clean
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
