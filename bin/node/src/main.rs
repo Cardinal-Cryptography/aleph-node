@@ -10,7 +10,7 @@ use sc_service::{Configuration, PartialComponents};
 
 const STATE_PRUNING: &str = "archive";
 const BLOCKS_PRUNING: &str = "archive-canonical";
-const HEAP_PAGES: u64 = 4094;
+const HEAP_PAGES: u64 = 4096;
 
 fn pruning_changed(params: &PruningParams) -> bool {
     let state_pruning_changed =
