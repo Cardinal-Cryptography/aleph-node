@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       CARGO_INCREMENTAL: 0
+      CARGO_TARGET_DIR: ${{ env.working-directory }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v6
