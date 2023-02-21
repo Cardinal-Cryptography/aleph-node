@@ -21,6 +21,13 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
     steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v6
+        with:
+          root-reserve-mb: 2048
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+
       - name: Checkout Source code
         uses: actions/checkout@v2
 
