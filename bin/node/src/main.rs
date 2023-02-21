@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[cfg(feature = "try-runtime")]
 use aleph_node::ExecutorDispatch;
 use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
@@ -11,15 +9,13 @@ use sc_network::config::Role;
 use sc_service::{Configuration, PartialComponents};
 
 fn default_state_pruning() -> DatabasePruningMode {
-    DatabasePruningMode::from_str("archive").expect("is valid pruning mode")
+    DatabasePruningMode::Archive
 }
 
 fn default_blocks_pruning() -> DatabasePruningMode {
-    DatabasePruningMode::from_str("archive-canonical").expect("is valid pruning mode")
+    DatabasePruningMode::ArchiveCanonical
 }
 
-const STATE_PRUNING: &str = "archive";
-const BLOCKS_PRUNING: &str = "archive-canonical";
 const HEAP_PAGES: u64 = 4096;
 
 fn pruning_changed(params: &PruningParams) -> bool {
