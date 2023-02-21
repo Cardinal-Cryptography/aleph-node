@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       CARGO_INCREMENTAL: 0
-      CARGO_TARGET_DIR: ${{ github.repository }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v6
@@ -71,10 +70,7 @@ jobs:
           args: --all-targets --all-features -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib --features "try-runtime"
+        run: CARGO_TARGET_DIR=$(pwd) cargo test --lib --features "try-runtime"
 
       - name: Cleanup cache
         uses: ./.github/actions/post-cache
