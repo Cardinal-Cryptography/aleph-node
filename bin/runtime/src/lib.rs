@@ -1015,11 +1015,11 @@ impl_runtime_apis! {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use frame_support::traits::Get;
     use primitives::HEAP_PAGES;
     use smallvec::Array;
-    use frame_support::traits::Get;
 
+    use super::*;
 
     #[test]
     fn state_version_must_be_zero() {
@@ -1028,7 +1028,7 @@ mod tests {
 
     #[test]
     fn check_contracts_memory_parameters() {
-        // Memory limit of one instance of a runtime 
+        // Memory limit of one instance of a runtime
         const MAX_RUNTIME_MEM: u32 = HEAP_PAGES as u32 * 64 * 1024;
         // Max stack size defined by wasmi - 1MB
         const MAX_STACK_SIZE: u32 = 1024 * 1024;
@@ -1041,7 +1041,7 @@ mod tests {
         // Max code len
         let max_code_len: u32 = <Runtime as pallet_contracts::Config>::MaxCodeLen::get();
 
-        // The factor comes from allocator, contracts representation, and wasmi 
+        // The factor comes from allocator, contracts representation, and wasmi
         let lhs = max_call_depth * (72 * max_code_len + max_heap_size + MAX_STACK_SIZE);
         // We allocate only 75% of all runtime memory to contracts execution. Important: it's not
         // enforeced in wasmtime
