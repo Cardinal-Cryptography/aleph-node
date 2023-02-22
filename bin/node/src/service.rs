@@ -516,8 +516,16 @@ impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
     }
     fn header(
         &self,
-        block_id: sp_api::BlockId<Block>,
+        block_id: BlockId<Block>,
     ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        self.backend.blockchain().header(block_id)
+        let hash = match block_id {
+            BlockId::Hash(h) => h,
+            BlockId::Number(n) => self
+                .backend
+                .blockchain()
+                .hash(n)?
+                .expect(&format!("Hash should be known for block #{:?}", n)),
+        };
+        self.backend.blockchain().header(hash)
     }
 }
