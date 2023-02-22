@@ -14,7 +14,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-smallvec = { version = "1", default-features = false}
 
 frame-executive = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.35" }
 frame-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.35" }
@@ -64,6 +63,9 @@ pallet-elections = { path = "../../pallets/elections", default-features = false 
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.35" }
+
+[dev-dependencies]
+smallvec = { version = "1", default-features = false}
 
 [features]
 default = ["std"]
