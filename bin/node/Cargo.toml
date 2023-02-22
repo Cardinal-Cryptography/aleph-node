@@ -53,6 +53,7 @@ pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git
 try-runtime-cli = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.36", optional = true }
 sc-consensus-slots = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.36" }
 sp-arithmetic = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.36" }
+sp-io = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.36" }
 
 aleph-runtime = { path = "../runtime" }
 finality-aleph = { path = "../../finality-aleph" }
