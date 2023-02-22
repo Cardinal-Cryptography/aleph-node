@@ -13,15 +13,19 @@ pub use frame_support::{
         OnUnbalanced, Randomness, ValidatorSet,
     },
     weights::{
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        constants::{
+            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+        },
         IdentityFee, Weight,
     },
     StorageValue,
 };
 use frame_support::{
     sp_runtime::Perquintill,
-    traits::{ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote, WithdrawReasons},
-    weights::constants::WEIGHT_PER_MILLIS,
+    traits::{
+        ConstBool, ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote, WithdrawReasons,
+    },
+    weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -32,8 +36,8 @@ pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
-    DEFAULT_BAN_REASON_LENGTH, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE,
-    MILLISECS_PER_BLOCK, TOKEN,
+    DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -104,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 46,
+    spec_version: 53,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -131,7 +135,8 @@ pub const PICO_AZERO: Balance = NANO_AZERO / 1000;
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
-pub const MAX_BLOCK_WEIGHT: Weight = WEIGHT_PER_MILLIS.saturating_mul(400);
+pub const MAX_BLOCK_WEIGHT: Weight =
+    Weight::from_ref_time(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(400));
 
 // The storage deposit is roughly 1 TOKEN per 1kB
 pub const DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
@@ -327,6 +332,7 @@ impl_opaque_keys! {
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const MaximumBanReasonLength: u32 = DEFAULT_BAN_REASON_LENGTH;
+    pub const MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
 impl pallet_elections::Config for Runtime {
@@ -339,6 +345,7 @@ impl pallet_elections::Config for Runtime {
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
     type MaximumBanReasonLength = MaximumBanReasonLength;
+    type MaxWinners = MaxWinners;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -392,11 +399,10 @@ impl pallet_nomination_pools::Config for Runtime {
     type WeightInfo = ();
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type CurrencyBalance = Balance;
     type RewardCounter = FixedU128;
     type BalanceToU256 = BalanceToU256;
     type U256ToBalance = U256ToBalance;
-    type StakingInterface = pallet_staking::Pallet<Self>;
+    type Staking = pallet_staking::Pallet<Self>;
     type PostUnbondingPoolsWindow = PostUnbondPoolsWindow;
     type MaxMetadataLen = ConstU32<256>;
     type MaxUnbonding = ConstU32<8>;
@@ -472,7 +478,7 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
         (reap_stash(s: u32), SubstrateStakingWeights, Weight),
         (new_era(v: u32, n: u32), SubstrateStakingWeights, Weight),
         (
-            get_npos_voters(v: u32, n: u32, s: u32),
+            get_npos_voters(v: u32, n: u32),
             SubstrateStakingWeights,
             Weight
         ),
@@ -678,10 +684,11 @@ impl pallet_contracts::Config for Runtime {
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
-    type CallStack = [pallet_contracts::Frame<Self>; 31];
+    type CallStack = [pallet_contracts::Frame<Self>; 16];
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
     type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
+    type UnsafeUnstableInterface = ConstBool<false>;
 }
 
 parameter_types! {
@@ -943,7 +950,8 @@ impl_runtime_apis! {
                 gas_limit,
                 storage_deposit_limit,
                 input_data,
-                CONTRACTS_DEBUG_OUTPUT
+                CONTRACTS_DEBUG_OUTPUT,
+                pallet_contracts::Determinism::Deterministic,
             )
         }
 
@@ -974,9 +982,10 @@ impl_runtime_apis! {
             origin: AccountId,
             code: Vec<u8>,
             storage_deposit_limit: Option<Balance>,
+            determinism: pallet_contracts::Determinism,
         ) -> pallet_contracts_primitives::CodeUploadResult<Hash, Balance>
         {
-            Contracts::bare_upload_code(origin, code, storage_deposit_limit)
+            Contracts::bare_upload_code(origin, code, storage_deposit_limit, determinism)
         }
 
         fn get_storage(
