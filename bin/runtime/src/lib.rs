@@ -1041,7 +1041,10 @@ mod tests {
         // Max code len
         let max_code_len: u32 = <Runtime as pallet_contracts::Config>::MaxCodeLen::get();
 
+        // The factor comes from allocator, contracts representation, and wasmi 
         let lhs = max_call_depth * (72 * max_code_len + max_heap_size + MAX_STACK_SIZE);
+        // We allocate only 75% of all runtime memory to contracts execution. Important: it's not
+        // enforeced in wasmtime
         let rhs = MAX_RUNTIME_MEM * 3 / 4;
 
         assert!(lhs < rhs);
