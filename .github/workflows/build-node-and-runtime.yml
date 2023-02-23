@@ -41,7 +41,7 @@ jobs:
 
 
       # Testing cargo-cache here
-      - name: S3 CI | Configure AWS credentials
+      - name: S3 CI DEVNET | Configure AWS credentials
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v1
         env:
@@ -51,7 +51,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download '~/.cargo' from CI S3 bucket
+      - name: S3 CI DEVNET | Download '~/.cargo' from CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
@@ -66,7 +66,7 @@ jobs:
             tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo
           fi
 
-      - name: Download 'target' from CI S3 bucket
+      - name: S3 CI DEVNET | Download 'target' from CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
@@ -110,7 +110,7 @@ jobs:
           retention-days: 7
 
 
-      - name: S3 CI | Configure AWS credentials
+      - name: S3 CI MAINNET | Configure AWS credentials
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v1
         env:
@@ -120,7 +120,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: S3 CI | Copy release binary to S3 bucket
+      - name: S3 CI MAINNET | Copy release binary to S3 bucket
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
@@ -132,7 +132,7 @@ jobs:
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
-      - name: S3 CI | Copy release runtime to S3 bucket
+      - name: S3 CI MAINNET | Copy release runtime to S3 bucket
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
@@ -163,7 +163,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: S3 CI | Copy test binary to S3 bucket
+      - name: S3 CI MAINNET | Copy test binary to S3 bucket
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
@@ -175,7 +175,7 @@ jobs:
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
-      - name: S3 CI | Copy test runtime to S3 bucket
+      - name: S3 CI MAINNET | Copy test runtime to S3 bucket
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
         env:
@@ -189,7 +189,7 @@ jobs:
 
 
       # Testing cargo-cache here
-      - name: S3 CI | Configure AWS credentials
+      - name: S3 CI DEVNET | Configure AWS credentials
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v1
         env:
@@ -199,7 +199,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Upload '~/.cargo' to CI S3 bucket
+      - name: S3 CI DEVNET | Upload '~/.cargo' to CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
@@ -208,7 +208,7 @@ jobs:
           tar -czf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo .
           aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
 
-      - name: Upload 'target' to CI S3 bucket
+      - name: S3 CI DEVNET | Upload 'target' to CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
