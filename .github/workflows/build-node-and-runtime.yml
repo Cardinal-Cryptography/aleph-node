@@ -56,31 +56,24 @@ jobs:
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
-          CACHE_FILENAME: rust-cache-dotcargo.tar.gz
+          CACHE_FILENAME: rust-cache-dotcargo.tar
+        continue-on-error: true
         run: |
-          set +e
-          aws s3api head-object --bucket ${{ secrets.CI_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }}
-          if [[ $? == 0 ]]; then
-            set -e
-            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }} .
-            mkdir -p ~/.cargo
-            tar -zxf ${{ env.CACHE_FILENAME }} -C ~/.cargo
-          fi
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }} .
+          mkdir -p ~/.cargo
+          tar -xf ${{ env.CACHE_FILENAME }} -C ~/.cargo
 
       - name: S3 CI DEVNET | Download 'target' from CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
-          CACHE_FILENAME: rust-cache-target.tar.gz
+          CACHE_FILENAME: rust-cache-target.tar
+        continue-on-error: true
         run: |
-          set +e
-          aws s3api head-object --bucket ${{ secrets.CI_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }}
-          if [[ $? == 0 ]]; then
-            set -e
-            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }} .
-            mkdir -p ./target
-            tar -zxf ${{ env.CACHE_FILENAME }} -C ./target
-          fi
+          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }} .
+          mkdir -p ./target
+          tar -xf ${{ env.CACHE_FILENAME }} -C ./target
+
 
       - name: Install cargo-cache
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
@@ -198,18 +191,18 @@ jobs:
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
-          CACHE_FILENAME: rust-cache-dotcargo.tar.gz
+          CACHE_FILENAME: rust-cache-dotcargo.tar
         run: |
-          tar -czf ${{ env.CACHE_FILENAME }} -C ~/.cargo .
+          tar -cf ${{ env.CACHE_FILENAME }} -C ~/.cargo .
           aws s3 cp ${{ env.CACHE_FILENAME }} s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }}
 
       - name: S3 CI DEVNET | Upload 'target' to CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
-          CACHE_FILENAME: rust-cache-target.tar.gz
+          CACHE_FILENAME: rust-cache-target.tar
         run: |
-          tar -czf ${{ env.CACHE_FILENAME }} -C ./target .
+          tar -cf ${{ env.CACHE_FILENAME }} -C ./target .
           aws s3 cp ${{ env.CACHE_FILENAME }} s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.CACHE_FILENAME }}
 
       - name: Prune unused packages from cargo cache
