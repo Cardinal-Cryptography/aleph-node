@@ -52,10 +52,15 @@ jobs:
 
 
       # Testing cargo-cache here
+      - name: Set cache key environment variable
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
+        run: |
+          echo "CACHE_KEY=${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}" >> $GITHUB_ENV
+
       - name: S3 CI DEVNET | Download '~/.cargo' from CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
-          S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
+          S3BUCKET_PATH: rust-cache-dotcargo/${{ env.CACHE_KEY }}
           CACHE_FILENAME: rust-cache-dotcargo.tar
         continue-on-error: true
         run: |
@@ -66,7 +71,7 @@ jobs:
       - name: S3 CI DEVNET | Download 'target' from CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
-          S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
+          S3BUCKET_PATH: rust-cache-target/${{ env.CACHE_KEY }}
           CACHE_FILENAME: rust-cache-target.tar
         continue-on-error: true
         run: |
@@ -190,7 +195,7 @@ jobs:
       - name: S3 CI DEVNET | Upload '~/.cargo' to CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
-          S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
+          S3BUCKET_PATH: rust-cache-dotcargo/${{ env.CACHE_KEY }}
           CACHE_FILENAME: rust-cache-dotcargo.tar
         run: |
           tar -cf ${{ env.CACHE_FILENAME }} -C ~/.cargo .
@@ -199,7 +204,7 @@ jobs:
       - name: S3 CI DEVNET | Upload 'target' to CI S3 bucket
         if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
-          S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
+          S3BUCKET_PATH: rust-cache-target/${{ env.CACHE_KEY }}
           CACHE_FILENAME: rust-cache-target.tar
         run: |
           tar -cf ${{ env.CACHE_FILENAME }} -C ./target .
