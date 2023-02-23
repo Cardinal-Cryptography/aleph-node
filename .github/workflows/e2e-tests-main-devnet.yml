@@ -534,9 +534,6 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install cargo-contract
-        run: cargo install cargo-contract --version 2.0.0-beta.1
-
       - name: Install rust-src
         working-directory: ./contracts
         run: rustup component add rust-src
