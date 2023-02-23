@@ -21,6 +21,8 @@ jobs:
       RUSTC_WRAPPER: sccache
       SECRETS_AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
       SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+      SECRETS_AWS_DEVNET_ACCESS_KEY_ID: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+      SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -37,47 +39,50 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
+
+      # Testing cargo-cache here
       - name: S3 CI | Configure AWS credentials
-        if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v1
         env:
           AWS_REGION: us-east-1
         with:
-          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.SECRETS_AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-
-      # Testing cargo-cache here
       - name: Download '~/.cargo' from CI S3 bucket
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: rust-cache-dotcargo.tar.gz
         run: |
           set +e
-          aws s3api head-object --bucket ${{ secrets.CI_MAINNET_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
+          aws s3api head-object --bucket ${{ secrets.CI_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
           if [[ $? == 0 ]]; then
             set -e
-            aws s3 cp s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
             mkdir -p ~/.cargo
             tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo
           fi
 
       - name: Download 'target' from CI S3 bucket
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: rust-cache-target.tar.gz
         run: |
           set +e
-          aws s3api head-object --bucket ${{ secrets.CI_MAINNET_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
+          aws s3api head-object --bucket ${{ secrets.CI_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
           if [[ $? == 0 ]]; then
             set -e
-            aws s3 cp s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
+            aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
             mkdir -p ./target
             tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ./target
           fi
 
       - name: Install cargo-cache
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: actions-rs/cargo@v1
         with:
           command: install
@@ -104,6 +109,16 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+
+      - name: S3 CI | Configure AWS credentials
+        if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        uses: aws-actions/configure-aws-credentials@v1
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: S3 CI | Copy release binary to S3 bucket
         if: env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
@@ -174,29 +189,43 @@ jobs:
 
 
       # Testing cargo-cache here
+      - name: S3 CI | Configure AWS credentials
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
+        uses: aws-actions/configure-aws-credentials@v1
+        env:
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.SECRETS_AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Upload '~/.cargo' to CI S3 bucket
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-dotcargo/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: rust-cache-dotcargo.tar.gz
         run: |
           tar -czf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo .
-          aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
+          aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
 
       - name: Upload 'target' to CI S3 bucket
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         env:
           S3BUCKET_PATH: rust-cache-target/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: rust-cache-target.tar.gz
         run: |
           tar -czf ${{ env.DOT_CACHE_FILENAME }} -C ./target .
-          aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
+          aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
 
       - name: Prune unused packages from cargo cache
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: actions-rs/cargo@v1
         with:
           command: cache
           args: clean-unref
 
       - name: Prune sources from cargo cache
+        if: env.SECRETS_AWS_DEVNET_ACCESS_KEY_ID != '' && env.SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: actions-rs/cargo@v1
         with:
           command: cache
