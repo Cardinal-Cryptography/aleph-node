@@ -8,7 +8,7 @@ function ink-build() {
     --network host \
     -v ${PWD}:/code \
     --platform linux/amd64 \
-    --rm -it public.ecr.aws/p6e8q1z1/ink-dev:latest "$@"
+    --rm public.ecr.aws/p6e8q1z1/ink-dev:0.1.0 "$@"
 }
 
 ink-build cargo contract build --release --quiet 1>&2
