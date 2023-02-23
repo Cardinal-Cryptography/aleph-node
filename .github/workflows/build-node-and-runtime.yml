@@ -54,13 +54,14 @@ jobs:
           S3BUCKET_PATH: cargo-cache/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: dot-cargo.tar.gz
         run: |
+          set +e
           aws s3api head-object --bucket ${{ secrets.CI_MAINNET_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
           if [[ $? == 0 ]]; then
+            set -e
             aws s3 cp s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
             mkdir -p ~/.cargo
             tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo
           fi
-          true
 
       - name: Install cargo-cache
         uses: actions-rs/cargo@v1
