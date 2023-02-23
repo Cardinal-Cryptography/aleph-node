@@ -60,6 +60,8 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -774,6 +776,12 @@ pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+
+// Migrations
+use pallet_contracts::{Migration as ContractsMigrations};
+use pallet_scheduler::{migration::{v3::MigrateToV4 as SchedulerV3V4Migration, v4::CleanupAgendas as SchedulerV4CleanUp}};
+use pallet_staking::{migrations::v13::MigrateToV13 as StakingV13Migration};
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
     Runtime,
@@ -781,6 +789,12 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    (
+        ContractsMigrations, 
+        SchedulerV3V4Migration,
+        SchedulerV4CleanUp,
+        StakingV13Migration,
+    ),
 >;
 
 impl_runtime_apis! {
