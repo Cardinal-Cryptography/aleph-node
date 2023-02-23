@@ -69,7 +69,7 @@ jobs:
           for p in ${packages[@]}
           do
             # skip checking the adder for now
-            if [ $p = "contracts/adder ]
+            if [ $p = "contracts/adder" ]
             then
               continue
             fi
