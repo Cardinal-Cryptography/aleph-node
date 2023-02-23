@@ -20,7 +20,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Lint e2e-tests-main-devnet.yml
+        uses: ibiqlik/action-yamllint@v3.1.1
+        with:
+          file_or_dir: ./.github/workflows/e2e-tests-main-devnet.yml
+          strict: true
+
   build-new-node:
+    needs: [yaml-lint]
     name: Build node and runtime artifacts (PR version)
     uses: ./.github/workflows/build-node-and-runtime.yml
     secrets: inherit
@@ -56,6 +70,7 @@ jobs:
 
 
   build-cliain-image:
+    needs: [yaml-lint]
     name: Build docker image for cliain
     runs-on: ubuntu-20.04
     steps:
@@ -141,6 +156,7 @@ jobs:
 
 
   build-test-client:
+    needs: [yaml-lint]
     name: Build e2e test client suite
     runs-on: ubuntu-20.04
     env:
@@ -829,6 +845,7 @@ jobs:
         run: ./.github/scripts/test_multiple_restarts.sh ${{ matrix.pruning }}
 
   check-runtime-change:
+    needs: [yaml-lint]
     name: Inspect whether runtime version has been changed (compared with main)
     runs-on: ubuntu-20.04
     outputs:
