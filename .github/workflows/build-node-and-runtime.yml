@@ -54,11 +54,11 @@ jobs:
           S3BUCKET_PATH: cargo-cache/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: dot-cargo.tar.gz
         run: |
-          aws s3api head-object --bucket ${{ secrets.CI_MAINNET_S3BUCKET_NAME }} --key ${{ S3BUCKET_PATH }}/${{ DOT_CACHE_FILENAME }}
+          aws s3api head-object --bucket ${{ secrets.CI_MAINNET_S3BUCKET_NAME }} --key ${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
           if [[ $? == 0 ]]; then
-            aws s3 cp s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ S3BUCKET_PATH }}/${{ DOT_CACHE_FILENAME }} .
+            aws s3 cp s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }} .
             mkdir -p ~/.cargo
-            tar -zxf ${{ DOT_CACHE_FILENAME }} -C ~/.cargo
+            tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo
           fi
 
       - name: Install cargo-cache
@@ -163,8 +163,8 @@ jobs:
           S3BUCKET_PATH: cargo-cache/${{ runner.os }}-cargo-aleph-node-v1-${{ hashFiles('**/Cargo.lock') }}
           DOT_CACHE_FILENAME: dot-cargo.tar.gz
         run: |
-          tar -czf ${{ DOT_CACHE_FILENAME }} -C ~/.cargo .
-          aws s3 cp ${{ DOT_CACHE_FILENAME }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ S3BUCKET_PATH }}/${{ DOT_CACHE_FILENAME }}
+          tar -czf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo .
+          aws s3 cp ${{ env.DOT_CACHE_FILENAME }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.DOT_CACHE_FILENAME }}
 
       - name: Prune unused packages from cargo cache
         uses: actions-rs/cargo@v1
