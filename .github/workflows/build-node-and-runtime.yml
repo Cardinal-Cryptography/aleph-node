@@ -60,6 +60,7 @@ jobs:
             mkdir -p ~/.cargo
             tar -zxf ${{ env.DOT_CACHE_FILENAME }} -C ~/.cargo
           fi
+          true
 
       - name: Install cargo-cache
         uses: actions-rs/cargo@v1
