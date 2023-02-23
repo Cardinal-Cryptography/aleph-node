@@ -533,6 +533,9 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
+      
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
 
       - name: Install rust-src
         working-directory: ./contracts
