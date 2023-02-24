@@ -461,7 +461,7 @@ mod tests {
         let summary = FinalizeSummary {
             header: block.header,
             finalized: vec![],
-            stale_heads: vec![]
+            stale_heads: vec![],
         };
 
         FinalityNotification::from_summary(summary, sender)
