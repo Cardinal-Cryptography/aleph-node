@@ -29,6 +29,6 @@ jobs:
       - name: Check diff
         id: check-diff
         run: |
-          echo ${{ GITHUB_BASE_REF }}
-          echo ${{ GITHUB_REF_NAME }}
-          git --no-pager diff origin/${{ GITHUB_BASE_REF }} --name-only
+          echo ${{ github.base.ref }}
+          echo ${{ github.ref.name }}
+          git --no-pager diff origin/${{ github.base.ref }} --name-only
