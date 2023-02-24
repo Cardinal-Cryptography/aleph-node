@@ -15,19 +15,19 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout source code
+      - name: GIT | Checkout source code
         uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/aleph-node
           token: ${{ secrets.CI_GH_TOKEN }}
           path: aleph-node
 
-      - name: Check diff
+      - name: GIT | Check diff
         id: check-diff
         run: |
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
           cd aleph-node
-          git fetch origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
-          echo "Changed YAML files in this PR:"
-          git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml"
+          git fetch origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF} > /dev/null
+          YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml"`
+          echo "Changed YAML files: ${YAML_FILES}"
