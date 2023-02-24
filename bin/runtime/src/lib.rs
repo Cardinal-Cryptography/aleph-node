@@ -29,6 +29,8 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
+#[cfg(feature = "try-runtime")]
+use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -110,7 +112,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 54,
+    spec_version: 55,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -500,7 +502,8 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
             force_apply_min_commission(),
             SubstrateStakingWeights,
             Weight
-        )
+        ),
+        (set_min_commission(), SubstrateStakingWeights, Weight)
     );
 }
 
@@ -526,7 +529,6 @@ impl pallet_staking::Config for Runtime {
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = EnsureRoot<AccountId>;
     type SessionInterface = Self;
     type EraPayout = UniformEraPayout;
     type NextNewSession = Session;
@@ -540,6 +542,7 @@ impl pallet_staking::Config for Runtime {
     type OnStakerSlash = NominationPools;
     type HistoryDepth = HistoryDepth;
     type TargetList = pallet_staking::UseValidatorsMap<Self>;
+    type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -1013,7 +1016,7 @@ impl_runtime_apis! {
 
     #[cfg(feature = "try-runtime")]
      impl frame_try_runtime::TryRuntime<Block> for Runtime {
-          fn on_runtime_upgrade(checks: bool) -> (Weight, Weight) {
+          fn on_runtime_upgrade(checks: UpgradeCheckSelect) -> (Weight, Weight) {
                let weight = Executive::try_runtime_upgrade(checks).unwrap();
                (weight, BlockWeights::get().max_block)
           }
