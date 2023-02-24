@@ -23,7 +23,6 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-20.04
     steps:
-    steps:
       - name: Checkout source code
         uses: actions/checkout@v3
 
