@@ -23,10 +23,16 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
+        with:
+          repository: Cardinal-Cryptography/aleph-node
+          token: ${{ secrets.CI_GH_TOKEN }}
+          path: aleph-node
 
       - name: Check diff
         id: check-diff
         run: |
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
+          cd aleph-node
+          git fetch origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
           git --no-pager diff origin/${GITHUB_BASE_REF} --name-only
