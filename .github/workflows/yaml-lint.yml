@@ -30,4 +30,5 @@ jobs:
         id: check-diff
         run: |
           echo ${{ GITHUB_BASE_REF }}
+          echo ${{ GITHUB_REF_NAME }}
           git --no-pager diff origin/${{ GITHUB_BASE_REF }} --name-only
