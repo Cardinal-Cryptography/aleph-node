@@ -25,9 +25,14 @@ jobs:
       - name: GIT | Check diff
         id: check-diff
         run: |
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
           cd aleph-node
           git fetch --quiet origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
           YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml" | tr '\n' ' '`
           echo "Changed YAML files: ${YAML_FILES}"
+          echo "YAML_FILES=`echo $YAML_FILES`" >> $GITHUB_ENV
+
+      - name: LINT | Execute yaml-lint
+        uses: ibiqlik/action-yamllint@v3.1.1
+        with:
+          strict: true
+          file_or_dir: ${{ steps.check-diff.outputs.YAML_FILES }}
