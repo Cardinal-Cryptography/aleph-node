@@ -6,9 +6,9 @@ on:
       - "./.github/*/*.yml"
       - "./.github/*/*.yaml"
   push:
-    # paths:
-    #   - "./.github/*/*.yml"
-    #   - "./.github/*/*.yaml"
+    paths:
+      - "./.github/*/*.yml"
+      - "./.github/*/*.yaml"
     branches:
       - "main"
       - "A0-2005-gha-yamllint"
@@ -22,6 +22,8 @@ jobs:
   main:
     name: YAML Lint
     runs-on: ubuntu-20.04
+    env:
+      BASE_REF: ${{ GITHUB_BASE_REF }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -29,6 +31,5 @@ jobs:
       - name: Check diff
         id: check-diff
         run: |
-          echo ${{ github.base.ref }}
-          echo ${{ github.ref.name }}
-          git --no-pager diff origin/${{ github.base.ref }} --name-only
+          echo ${{ env.BASE_REF }}
+          git --no-pager diff origin/${{ env.BASE_REF }} --name-only
