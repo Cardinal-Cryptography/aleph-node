@@ -126,4 +126,3 @@ jobs:
           notify-on: "failure"
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          TEST: test

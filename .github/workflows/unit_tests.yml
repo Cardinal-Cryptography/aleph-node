@@ -62,7 +62,6 @@ jobs:
       - name: Run Linter
         uses: actions-rs/cargo@v1
         env:
-          TEST: TEST
           # https://github.com/mozilla/sccache/issues/966
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
