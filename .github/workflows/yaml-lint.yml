@@ -33,5 +33,5 @@ jobs:
         uses: ibiqlik/action-yamllint@v3.1.1
         with:
           strict: true
-          file_or_dir: .github/workflows/e2e-tests-main-devnet.yml .github/workflows/yaml-lint.yml #${{ steps.check-diff.outputs.YAML_FILES }}
+          file_or_dir: ${{ steps.check-diff.outputs.YAML_FILES }}
           #config_file: .yamllint
