@@ -29,6 +29,8 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
+#[cfg(feature = "try-runtime")]
+use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -108,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 54,
+    spec_version: 55,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 14,
@@ -498,7 +500,8 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
             force_apply_min_commission(),
             SubstrateStakingWeights,
             Weight
-        )
+        ),
+        (set_min_commission(), SubstrateStakingWeights, Weight)
     );
 }
 
@@ -524,7 +527,6 @@ impl pallet_staking::Config for Runtime {
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = EnsureRoot<AccountId>;
     type SessionInterface = Self;
     type EraPayout = UniformEraPayout;
     type NextNewSession = Session;
@@ -538,6 +540,7 @@ impl pallet_staking::Config for Runtime {
     type OnStakerSlash = NominationPools;
     type HistoryDepth = HistoryDepth;
     type TargetList = pallet_staking::UseValidatorsMap<Self>;
+    type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -999,7 +1002,7 @@ impl_runtime_apis! {
 
     #[cfg(feature = "try-runtime")]
      impl frame_try_runtime::TryRuntime<Block> for Runtime {
-          fn on_runtime_upgrade(checks: bool) -> (Weight, Weight) {
+          fn on_runtime_upgrade(checks: UpgradeCheckSelect) -> (Weight, Weight) {
                let weight = Executive::try_runtime_upgrade(checks).unwrap();
                (weight, BlockWeights::get().max_block)
           }
@@ -1017,10 +1020,38 @@ impl_runtime_apis! {
 
 #[cfg(test)]
 mod tests {
-    use crate::VERSION;
+    use frame_support::traits::Get;
+    use primitives::HEAP_PAGES;
+    use smallvec::Array;
+
+    use super::*;
 
     #[test]
     fn state_version_must_be_zero() {
         assert_eq!(0, VERSION.state_version);
+    }
+
+    #[test]
+    fn check_contracts_memory_parameters() {
+        // Memory limit of one instance of a runtime
+        const MAX_RUNTIME_MEM: u32 = HEAP_PAGES as u32 * 64 * 1024;
+        // Max stack size defined by wasmi - 1MB
+        const MAX_STACK_SIZE: u32 = 1024 * 1024;
+        // Max heap size is 16 mempages of 64KB each - 1MB
+        let max_heap_size = <Runtime as pallet_contracts::Config>::Schedule::get()
+            .limits
+            .max_memory_size();
+        // Max call depth is CallStack::size() + 1
+        let max_call_depth = <Runtime as pallet_contracts::Config>::CallStack::size() as u32 + 1;
+        // Max code len
+        let max_code_len: u32 = <Runtime as pallet_contracts::Config>::MaxCodeLen::get();
+
+        // The factor comes from allocator, contracts representation, and wasmi
+        let lhs = max_call_depth * (72 * max_code_len + max_heap_size + MAX_STACK_SIZE);
+        // We allocate only 75% of all runtime memory to contracts execution. Important: it's not
+        // enforeced in wasmtime
+        let rhs = MAX_RUNTIME_MEM * 3 / 4;
+
+        assert!(lhs < rhs);
     }
 }
