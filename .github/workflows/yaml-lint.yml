@@ -5,12 +5,6 @@ on:
     paths:
       - ".github/**/**.yml"
       - ".github/**/**.yaml"
-  push:
-    paths:
-      - ".github/**/**.yml"
-      - ".github/**/**.yaml"
-    branches:
-      - "main"
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -34,4 +28,5 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
           cd aleph-node
+          git fetch origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
           git --no-pager diff origin/${GITHUB_BASE_REF} --name-only
