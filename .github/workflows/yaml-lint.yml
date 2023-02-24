@@ -3,15 +3,15 @@ name: yaml-lint
 on:
   pull_request:
     paths:
-      - './.github/*/*.yml'
-      - './.github/*/*.yaml'
+      - "./.github/*/*.yml"
+      - "./.github/*/*.yaml"
   push:
-    paths:
-      - './.github/*/*.yml'
-      - './.github/*/*.yaml'
+    # paths:
+    #   - "./.github/*/*.yml"
+    #   - "./.github/*/*.yaml"
     branches:
-      - main
-      - A0-2005-gha-yamllint
+      - "main"
+      - "A0-2005-gha-yamllint"
   workflow_dispatch:
 
 concurrency:
