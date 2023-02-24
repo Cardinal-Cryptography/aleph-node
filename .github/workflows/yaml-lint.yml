@@ -29,5 +29,5 @@ jobs:
           echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
           cd aleph-node
           git fetch origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF} > /dev/null
-          YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml"`
+          YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml" | tr '\n' ' '`
           echo "Changed YAML files: ${YAML_FILES}"
