@@ -31,8 +31,6 @@ jobs:
 
       - name: LINT | Execute yaml-lint
         uses: ibiqlik/action-yamllint@v3.1.1
-        env:
-          YAML_FILES: ${{ steps.check-diff.outputs.YAML_FILES }}
         with:
           strict: true
           file_or_dir: ${{ env.YAML_FILES }}
