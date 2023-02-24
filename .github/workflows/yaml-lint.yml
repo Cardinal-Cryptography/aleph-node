@@ -9,6 +9,9 @@ on:
     paths:
       - '*.yml'
       - '*.yaml'
+    branches:
+      - main
+      - A0-2005-gha-yamllint
   workflow_dispatch:
 
 concurrency:
