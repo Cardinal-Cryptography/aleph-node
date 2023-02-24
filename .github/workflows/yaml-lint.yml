@@ -11,8 +11,6 @@ on:
       - ".github/**/**.yaml"
     branches:
       - "main"
-      - "A0-2005-gha-yamllint"
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -31,4 +29,4 @@ jobs:
         run: |
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
-          git --no-pager diff origin/${{ env.BASE_REF }} --name-only
+          git --no-pager diff origin/${GITHUB_BASE_REF} --name-only
