@@ -3,12 +3,12 @@ name: yaml-lint
 on:
   pull_request:
     paths:
-      - '*.yml'
-      - '*.yaml'
+      - './.github/*/*.yml'
+      - './.github/*/*.yaml'
   push:
     paths:
-      - '*.yml'
-      - '*.yaml'
+      - './.github/*/*.yml'
+      - './.github/*/*.yaml'
     branches:
       - main
       - A0-2005-gha-yamllint
