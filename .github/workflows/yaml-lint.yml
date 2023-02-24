@@ -20,12 +20,10 @@ jobs:
         with:
           repository: Cardinal-Cryptography/aleph-node
           token: ${{ secrets.CI_GH_TOKEN }}
-          path: aleph-node
 
       - name: GIT | Check diff
         id: check-diff
         run: |
-          cd aleph-node
           git fetch --quiet origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
           YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml" | tr '\n' ' '`
           echo "Changed YAML files: ${YAML_FILES}"
@@ -36,4 +34,4 @@ jobs:
         with:
           strict: true
           file_or_dir: .github/workflows/e2e-tests-main-devnet.yml .github/workflows/yaml-lint.yml #${{ steps.check-diff.outputs.YAML_FILES }}
-          #config_file: aleph-node/.yamllint
+          #config_file: .yamllint
