@@ -225,7 +225,9 @@ impl BabyLiminalChainExtension {
     ) -> Result<RetVal, DispatchError> {
         let input: [SingleHashInput; 1] = env.read_as()?;
 
-        env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_one_to_one_host())?;
+        env.charge_weight(
+            <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_one_to_one_host(),
+        )?;
         let hash = poseidon::hash_one_to_one(input[0]);
 
         env.write(&hash.encode())?;
@@ -238,7 +240,9 @@ impl BabyLiminalChainExtension {
     ) -> Result<RetVal, DispatchError> {
         let input: [SingleHashInput; 2] = env.read_as()?;
 
-        env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_two_to_one_host())?;
+        env.charge_weight(
+            <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_two_to_one_host(),
+        )?;
         let hash = poseidon::hash_two_to_one(input[0], input[1]);
 
         env.write(&hash.encode())?;
@@ -251,7 +255,9 @@ impl BabyLiminalChainExtension {
     ) -> Result<RetVal, DispatchError> {
         let input: [SingleHashInput; 4] = env.read_as()?;
 
-         env.charge_weight(<<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_four_to_one_host())?;
+        env.charge_weight(
+            <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_four_to_one_host(),
+        )?;
         let hash = poseidon::hash_four_to_one(input[0], input[1], input[2], input[3]);
 
         env.write(&hash.encode())?;
