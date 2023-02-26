@@ -8,7 +8,10 @@ pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
     #[cfg(feature = "runtime-benchmarks")]
-    type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+    type ExtendHostFunctions = (
+        frame_benchmarking::benchmarking::HostFunctions,
+        aleph_primitives::HostFunctions,
+    );
     #[cfg(not(feature = "runtime-benchmarks"))]
     type ExtendHostFunctions = aleph_primitives::HostFunctions;
 
