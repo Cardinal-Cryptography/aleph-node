@@ -66,7 +66,8 @@ pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 #[frame_support::pallet]
 pub mod pallet {
     use frame_election_provider_support::{
-        ElectionDataProvider, ElectionProvider, ElectionProviderBase, Support, Supports,
+        BoundedSupportsOf, ElectionDataProvider, ElectionProvider, ElectionProviderBase, Support,
+        Supports,
     };
     use frame_support::{log, pallet_prelude::*, traits::Get};
     use frame_system::{
@@ -112,6 +113,13 @@ pub mod pallet {
         #[pallet::constant]
         type MaximumBanReasonLength: Get<u32>;
         type FinalityCommitteeManager: FinalityCommitteeManager<Self::AccountId>;
+
+        /// The maximum number of winners that can be elected by this `ElectionProvider`
+        /// implementation.
+        ///
+        /// Note: This must always be greater or equal to `T::DataProvider::desired_targets()`.
+        #[pallet::constant]
+        type MaxWinners: Get<u32>;
     }
 
     #[pallet::event]
@@ -461,6 +469,10 @@ pub mod pallet {
     #[derive(Debug)]
     pub enum ElectionError {
         DataProvider(&'static str),
+
+        /// Winner number is greater than
+        /// [`Config::MaxWinners`]
+        TooManyWinners,
     }
 
     #[pallet::error]
@@ -487,17 +499,18 @@ pub mod pallet {
         type BlockNumber = T::BlockNumber;
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
-
-        fn ongoing() -> bool {
-            false
-        }
+        type MaxWinners = T::MaxWinners;
     }
 
     impl<T: Config> ElectionProvider for Pallet<T> {
+        fn ongoing() -> bool {
+            false
+        }
+
         /// We calculate the supports for each validator. The external validators are chosen as:
         /// 1) "`NextEraNonReservedValidators` that are staking and are not banned" in case of Permissioned ElectionOpenness
         /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
-        fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
+        fn elect() -> Result<BoundedSupportsOf<Self>, Self::Error> {
             Self::emit_fresh_bans_event();
             let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
             let ban_period = BanConfig::<T>::get().ban_period;
@@ -565,7 +578,11 @@ pub mod pallet {
                 }
             }
 
-            Ok(supports.into_iter().collect())
+            supports
+                .into_iter()
+                .collect::<Supports<_>>()
+                .try_into()
+                .map_err(|_| Self::Error::TooManyWinners)
         }
     }
 }

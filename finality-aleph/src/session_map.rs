@@ -366,6 +366,7 @@ mod tests {
 
     use futures_timer::Delay;
     use sc_block_builder::BlockBuilderProvider;
+    use sc_client_api::FinalizeSummary;
     use sc_utils::mpsc::tracing_unbounded;
     use sp_consensus::BlockOrigin;
     use substrate_test_runtime_client::{
@@ -456,17 +457,19 @@ mod tests {
     }
 
     fn to_notification(block: TBlock) -> FinalityNotification<TBlock> {
-        FinalityNotification {
-            hash: block.header.hash(),
+        let (sender, _) = tracing_unbounded("test", 1);
+        let summary = FinalizeSummary {
             header: block.header,
-            tree_route: Arc::new([]),
-            stale_heads: Arc::new([]),
-        }
+            finalized: vec![],
+            stale_heads: vec![],
+        };
+
+        FinalityNotification::from_summary(summary, sender)
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn genesis_catch_up() {
-        let (_sender, receiver) = tracing_unbounded("test");
+        let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mock_notificator = MockNotificator::new(receiver);
 
@@ -493,7 +496,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn updates_session_map_on_notifications() {
         let mut client = Arc::new(TestClientBuilder::new().build());
-        let (sender, receiver) = tracing_unbounded("test");
+        let (sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mock_notificator = MockNotificator::new(receiver);
 
@@ -533,7 +536,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn catch_up() {
-        let (_sender, receiver) = tracing_unbounded("test");
+        let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mut mock_notificator = MockNotificator::new(receiver);
 
@@ -571,7 +574,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn catch_up_old_sessions() {
-        let (_sender, receiver) = tracing_unbounded("test");
+        let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mut mock_notificator = MockNotificator::new(receiver);
 
@@ -609,7 +612,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn deals_with_database_pruned_authorities() {
-        let (_sender, receiver) = tracing_unbounded("test");
+        let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mut mock_notificator = MockNotificator::new(receiver);
 
@@ -646,7 +649,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn prunes_old_sessions() {
         let mut client = Arc::new(TestClientBuilder::new().build());
-        let (sender, receiver) = tracing_unbounded("test");
+        let (sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
         let mock_notificator = MockNotificator::new(receiver);
 
