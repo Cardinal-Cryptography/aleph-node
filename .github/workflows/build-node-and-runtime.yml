@@ -25,8 +25,8 @@ jobs:
       SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout source code

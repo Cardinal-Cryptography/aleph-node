@@ -31,8 +31,8 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout Source code
@@ -67,8 +67,8 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: GIT | Checkout source code
@@ -105,8 +105,8 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout Source code
@@ -144,8 +144,8 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout Source code
@@ -766,8 +766,8 @@ jobs:
         pruning: ['', '--state-pruning 90']
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout source code
@@ -850,8 +850,8 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout source code
@@ -891,8 +891,8 @@ jobs:
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Set CARGO_HOME to current directory
-        run:
-          echo "Current working directory is '$(pwd)'"
+        run: |
+          echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
       - name: Checkout source code
