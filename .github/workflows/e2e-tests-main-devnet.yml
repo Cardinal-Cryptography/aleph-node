@@ -31,10 +31,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -59,6 +56,9 @@ jobs:
           path: aleph-node.tar
           if-no-files-found: error
           retention-days: 7
+      
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
 
 
   build-cliain-image:
@@ -68,10 +68,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
@@ -97,6 +94,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
+
 
   check-determinism:
     needs: [build-new-node]
@@ -107,10 +107,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -138,6 +135,9 @@ jobs:
           cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
+
 
   build-test-client:
     name: Build e2e test client suite
@@ -147,10 +147,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -173,6 +170,9 @@ jobs:
           path: e2e-tests/aleph-e2e-client.tar
           if-no-files-found: error
           retention-days: 7
+      
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
 
   run-aleph-client-subxt-codegen-check:
     needs: [build-test-docker]
@@ -770,10 +770,7 @@ jobs:
         pruning: ['', '--state-pruning 90']
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -794,6 +791,9 @@ jobs:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh ${{ matrix.pruning }}
+
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
 
   test-multiple-restarts:
     name: Test multiple restarts
@@ -855,10 +855,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -890,6 +887,9 @@ jobs:
           path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
+      
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
@@ -897,10 +897,7 @@ jobs:
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -929,6 +926,9 @@ jobs:
               ../bin/node/src/resources/testnet_chainspec.json \
               ${{ env.NEW_RUNTIME }} \
               ${{ env.TRY_RUNTIME }}
+      
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
 
   slack:
     name: Slack notification

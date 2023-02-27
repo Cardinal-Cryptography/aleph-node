@@ -25,10 +25,7 @@ jobs:
       SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -147,3 +144,6 @@ jobs:
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
+
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace

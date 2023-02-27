@@ -23,10 +23,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -74,3 +71,6 @@ jobs:
             cargo clippy --all-features -- --no-deps -D warnings
             popd
           done
+
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace

@@ -23,10 +23,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Cleanup workspace
-        run: |
-          rm -rf *
-          rm -rf ~/.cargo
-          rm -rf ~/.rustup
+        uses: ./.github/actions/cleanup-workspace
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -61,3 +58,6 @@ jobs:
         with:
           command: test
           args: --lib --features "try-runtime"
+
+      - name: Cleanup workspace
+        uses: ./.github/actions/cleanup-workspace
