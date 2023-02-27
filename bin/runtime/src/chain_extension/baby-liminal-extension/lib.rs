@@ -4,7 +4,6 @@ use ink::env::Environment;
 use scale::{Decode, Encode};
 #[cfg(feature = "std")]
 use scale_info::TypeInfo;
-use sp_std::vec::Vec;
 
 /// Gathers all the possible errors that might occur while calling `pallet_baby_liminal::store_key` or
 /// `pallet_baby_liminal::verify`.
@@ -74,13 +73,13 @@ pub trait BabyLiminalExtension {
     ///
     /// The extension method ID matches the one declared in runtime:
     /// `BABY_LIMINAL_STORE_KEY_FUNC_ID`.
-    #[ink(extension = 41, returns_result = false)]
+    #[ink(extension = 41)]
     fn store_key(identifier: VerificationKeyIdentifier, key: Vec<u8>);
 
     /// Directly call `pallet_baby_liminal::verify`.
     ///
     /// The extension method ID matches the one declared in runtime: `BABY_LIMINAL_VERIFY_FUNC_ID`.
-    #[ink(extension = 42, returns_result = false)]
+    #[ink(extension = 42)]
     fn verify(
         identifier: VerificationKeyIdentifier,
         proof: Vec<u8>,
@@ -88,13 +87,13 @@ pub trait BabyLiminalExtension {
         system: ProvingSystem,
     );
 
-    #[ink(extension = 43, returns_result = false, handle_status = false)]
+    #[ink(extension = 43, handle_status = false)]
     fn poseidon_one_to_one(input: [[u64; 4]; 1]) -> [u64; 4];
 
-    #[ink(extension = 44, returns_result = false, handle_status = false)]
+    #[ink(extension = 44, handle_status = false)]
     fn poseidon_two_to_one(input: [[u64; 4]; 2]) -> [u64; 4];
 
-    #[ink(extension = 45, returns_result = false, handle_status = false)]
+    #[ink(extension = 45, handle_status = false)]
     fn poseidon_four_to_one(input: [[u64; 4]; 4]) -> [u64; 4];
 }
 
