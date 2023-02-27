@@ -25,7 +25,7 @@ jobs:
         id: check-diff
         run: |
           git fetch --quiet origin ${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}
-          YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -i ".yml\|.yaml" | tr '\n' ' '`
+          YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -E ".github\/.*\/.*(.yaml|.yml)" | tr '\n' ' '`
           echo "Changed YAML files: ${YAML_FILES}"
           echo "YAML_FILES=`echo $YAML_FILES`" >> $GITHUB_ENV
 
