@@ -31,7 +31,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -67,7 +67,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -105,7 +105,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -144,7 +144,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -766,7 +766,7 @@ jobs:
         pruning: ['', '--state-pruning 90']
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -850,7 +850,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -891,7 +891,7 @@ jobs:
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 

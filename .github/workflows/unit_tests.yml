@@ -23,7 +23,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Set CARGO_HOME to current directory
-        runs:
+        run:
           echo "Current working directory is '$(pwd)'"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
