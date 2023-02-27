@@ -59,7 +59,7 @@ chain.start('aleph', nodes=[4])
 printt('Waiting for finalization')
 chain.wait_for_finalization(0)
 printt('Waiting for authorities')
-chain.wait_for_authorities(timeout=300)
+chain.wait_for_authorities(timeout=480)
 if state_pruning is not None and state_pruning.isnumeric():
     bound = min(256, int(state_pruning))
     printt(f'Pruning turned on. Waiting for {bound} blocks to finalize')
