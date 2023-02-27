@@ -20,8 +20,10 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 

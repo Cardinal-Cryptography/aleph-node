@@ -30,8 +30,10 @@ jobs:
     name: Build docker image with the test node artifact
     runs-on: self-hosted
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -66,8 +68,10 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -104,8 +108,10 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -143,8 +149,10 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -765,8 +773,10 @@ jobs:
       matrix:
         pruning: ['', '--state-pruning 90']
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -849,8 +859,10 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
@@ -890,8 +902,10 @@ jobs:
     runs-on: self-hosted
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
-      - name: Set CARGO_HOME to current directory
+      - name: Cleanup workspace and set CARGO_HOME to current directory
         run: |
+          rm -rf *
+          rm -rf .cargo
           echo "Current working directory is $(pwd)"
           echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
 
