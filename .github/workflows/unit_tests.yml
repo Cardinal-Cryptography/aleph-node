@@ -22,9 +22,6 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -58,6 +55,3 @@ jobs:
         with:
           command: test
           args: --lib --features "try-runtime"
-
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace

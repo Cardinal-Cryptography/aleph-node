@@ -11,9 +11,6 @@ jobs:
     name: Build binary
     runs-on: self-hosted
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
@@ -58,6 +55,3 @@ jobs:
           file: ./bin/cliain/Dockerfile
           push: true
           tags: ${{ env.RELEASE_IMAGE }}
-
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace

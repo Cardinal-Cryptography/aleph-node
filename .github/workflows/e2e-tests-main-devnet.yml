@@ -30,9 +30,6 @@ jobs:
     name: Build docker image with the test node artifact
     runs-on: self-hosted
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -56,10 +53,6 @@ jobs:
           path: aleph-node.tar
           if-no-files-found: error
           retention-days: 7
-      
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
 
   build-cliain-image:
     name: Build docker image for cliain
@@ -67,9 +60,6 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
@@ -94,10 +84,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
-
   check-determinism:
     needs: [build-new-node]
     name: Verify runtime build determinism
@@ -106,9 +92,6 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -135,10 +118,6 @@ jobs:
           cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
-
   build-test-client:
     name: Build e2e test client suite
     runs-on: self-hosted
@@ -146,9 +125,6 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout Source code
         uses: actions/checkout@v2
 
@@ -170,9 +146,6 @@ jobs:
           path: e2e-tests/aleph-e2e-client.tar
           if-no-files-found: error
           retention-days: 7
-      
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
 
   run-aleph-client-subxt-codegen-check:
     needs: [build-test-docker]
@@ -769,9 +742,6 @@ jobs:
       matrix:
         pruning: ['', '--state-pruning 90']
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout source code
         uses: actions/checkout@v2
 
@@ -791,9 +761,6 @@ jobs:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_catch_up.sh ${{ matrix.pruning }}
-
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
 
   test-multiple-restarts:
     name: Test multiple restarts
@@ -854,9 +821,6 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout source code
         uses: actions/checkout@v3
 
@@ -887,18 +851,12 @@ jobs:
           path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-      
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
 
   test-runtime-update:
     name: Test runtime update with try-runtime tool
     runs-on: self-hosted
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: Checkout source code
         uses: actions/checkout@v3
 
@@ -926,9 +884,6 @@ jobs:
               ../bin/node/src/resources/testnet_chainspec.json \
               ${{ env.NEW_RUNTIME }} \
               ${{ env.TRY_RUNTIME }}
-      
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
 
   slack:
     name: Slack notification

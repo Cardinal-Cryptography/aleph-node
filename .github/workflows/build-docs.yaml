@@ -9,9 +9,6 @@ jobs:
     name: Build docs
     runs-on: self-hosted
     steps:
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
-
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
@@ -21,6 +18,3 @@ jobs:
       - name: rustdoc | Build aleph-client docs
         run: |
           cd aleph-client && cargo doc --no-deps
-      
-      - name: Cleanup workspace
-        uses: ./.github/actions/cleanup-workspace
