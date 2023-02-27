@@ -11,6 +11,11 @@ jobs:
     name: Build binary
     runs-on: self-hosted
     steps:
+      - name: Set CARGO_HOME to current directory
+        runs:
+          echo "Current working directory is '$(pwd)'"
+          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
 
