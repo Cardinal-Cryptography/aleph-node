@@ -4,6 +4,7 @@ use ink::env::Environment;
 use scale::{Decode, Encode};
 #[cfg(feature = "std")]
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 /// Gathers all the possible errors that might occur while calling `pallet_baby_liminal::store_key` or
 /// `pallet_baby_liminal::verify`.
