@@ -533,7 +533,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
-      
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
@@ -739,7 +739,7 @@ jobs:
 
   test-catch-up:
     name: Test catching up
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     needs: build-new-node
     strategy:
       matrix:
