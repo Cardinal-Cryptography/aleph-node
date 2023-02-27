@@ -25,7 +25,7 @@ concurrency:
 jobs:
   build-image:
     name: Build binary
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
