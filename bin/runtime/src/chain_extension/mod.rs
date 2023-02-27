@@ -230,6 +230,8 @@ impl BabyLiminalChainExtension {
         )?;
         let hash = poseidon::hash_one_to_one(input[0]);
 
+        // hash is of type (u64, u64, u64, u64) but this type has the same encoding
+        // as [u64, u64, u64, u64] so we're fine
         env.write(&hash.encode())?;
 
         Ok(RetVal::Converging(POSEIDON_X_TO_ONE_OK))
@@ -245,6 +247,8 @@ impl BabyLiminalChainExtension {
         )?;
         let hash = poseidon::hash_two_to_one(input[0], input[1]);
 
+        // hash is of type (u64, u64, u64, u64) but this type has the same encoding
+        // as [u64, u64, u64, u64] so we're fine
         env.write(&hash.encode())?;
 
         Ok(RetVal::Converging(POSEIDON_X_TO_ONE_OK))
@@ -260,6 +264,8 @@ impl BabyLiminalChainExtension {
         )?;
         let hash = poseidon::hash_four_to_one(input[0], input[1], input[2], input[3]);
 
+        // hash is of type (u64, u64, u64, u64) but this type has the same encoding
+        // as [u64, u64, u64, u64] so we're fine
         env.write(&hash.encode())?;
 
         Ok(RetVal::Converging(POSEIDON_X_TO_ONE_OK))
