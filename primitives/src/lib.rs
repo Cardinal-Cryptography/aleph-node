@@ -38,6 +38,9 @@ pub type BlockNumber = u32;
 pub type SessionCount = u32;
 pub type BlockCount = u32;
 
+// Default number of heap pages that gives limit of 256MB for a runtime instance since each page is 64KB
+pub const HEAP_PAGES: u64 = 4096;
+
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 // We agreed to 5MB as the block size limit.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
@@ -65,6 +68,7 @@ pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 pub const DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
 pub const DEFAULT_BAN_SESSION_COUNT_THRESHOLD: SessionCount = 3;
 pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
+pub const DEFAULT_MAX_WINNERS: u32 = u32::MAX;
 
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;

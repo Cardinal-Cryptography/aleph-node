@@ -175,6 +175,7 @@ pub fn new_partial(
             registry: config.prometheus_registry(),
             check_for_equivocation: Default::default(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
+            compatibility_mode: Default::default(),
         },
     )?;
 
@@ -380,6 +381,7 @@ pub fn new_authority(
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
             telemetry: telemetry.as_ref().map(|x| x.handle()),
+            compatibility_mode: Default::default(),
         },
     )?;
 
@@ -514,8 +516,20 @@ impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
     }
     fn header(
         &self,
-        block_id: sp_api::BlockId<Block>,
+        block_id: BlockId<Block>,
     ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        self.backend.blockchain().header(block_id)
+        let hash = match block_id {
+            BlockId::Hash(h) => h,
+            BlockId::Number(n) => {
+                let maybe_hash = self.backend.blockchain().hash(n)?;
+
+                if let Some(h) = maybe_hash {
+                    h
+                } else {
+                    return Ok(None);
+                }
+            }
+        };
+        self.backend.blockchain().header(hash)
     }
 }
