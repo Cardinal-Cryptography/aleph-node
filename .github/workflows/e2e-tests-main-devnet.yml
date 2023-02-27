@@ -30,12 +30,11 @@ jobs:
     name: Build docker image with the test node artifact
     runs-on: self-hosted
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -68,12 +67,11 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
@@ -108,12 +106,11 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -149,12 +146,11 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -773,12 +769,11 @@ jobs:
       matrix:
         pruning: ['', '--state-pruning 90']
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -859,12 +854,11 @@ jobs:
     env:
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -902,12 +896,11 @@ jobs:
     runs-on: self-hosted
     needs: [ build-new-runtime-and-try_runtime ]
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout source code
         uses: actions/checkout@v3

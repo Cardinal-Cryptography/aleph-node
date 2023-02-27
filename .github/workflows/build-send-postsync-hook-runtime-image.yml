@@ -20,12 +20,11 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: Checkout source code
         uses: actions/checkout@v2

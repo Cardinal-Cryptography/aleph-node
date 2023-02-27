@@ -11,12 +11,11 @@ jobs:
     name: Build binary
     runs-on: self-hosted
     steps:
-      - name: Cleanup workspace and set CARGO_HOME to current directory
+      - name: Cleanup workspace
         run: |
           rm -rf *
-          rm -rf .cargo
-          echo "Current working directory is $(pwd)"
-          echo "CARGO_HOME=$(pwd)" >> $GITHUB_ENV
+          rm -rf ~/.cargo
+          rm -rf ~/.rustup
 
       - name: GIT | Checkout source code
         uses: actions/checkout@v2
