@@ -40,9 +40,12 @@ pub trait WeightInfo {
 	fn verify_data_too_long(excess: u32) -> Weight;
 	fn verify_data_deserializing_fails(data_length: u32) -> Weight;
 	fn verify_key_deserializing_fails(key_length: u32) -> Weight;
-	fn poseidon_one_to_one() -> Weight;
-	fn poseidon_two_to_one() -> Weight;
-	fn poseidon_four_to_one() -> Weight;
+	fn poseidon_one_to_one_wasm() -> Weight;
+	fn poseidon_two_to_one_wasm() -> Weight;
+	fn poseidon_four_to_one_wasm() -> Weight;
+	fn poseidon_one_to_one_host() -> Weight;
+	fn poseidon_two_to_one_host() -> Weight;
+	fn poseidon_four_to_one_host() -> Weight;
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
@@ -90,16 +93,28 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 		<I as BenchmarkInfo>::verify_key_deserializing_fails(key_length)
 	}
 
-	fn poseidon_one_to_one() -> Weight {
-		<I as BenchmarkInfo>::poseidon_one_to_one()
+	fn poseidon_one_to_one_wasm() -> Weight {
+		<I as BenchmarkInfo>::poseidon_one_to_one_wasm()
 	}
 
-	fn poseidon_two_to_one() -> Weight {
-		<I as BenchmarkInfo>::poseidon_two_to_one()
+	fn poseidon_two_to_one_wasm() -> Weight {
+		<I as BenchmarkInfo>::poseidon_two_to_one_wasm()
 	}
 
-	fn poseidon_four_to_one() -> Weight {
-		<I as BenchmarkInfo>::poseidon_four_to_one()
+	fn poseidon_four_to_one_wasm() -> Weight {
+		<I as BenchmarkInfo>::poseidon_four_to_one_wasm()
+	}
+
+	fn poseidon_one_to_one_host() -> Weight {
+		<I as BenchmarkInfo>::poseidon_one_to_one_host()
+	}
+
+	fn poseidon_two_to_one_host() -> Weight {
+		<I as BenchmarkInfo>::poseidon_two_to_one_host()
+	}
+
+	fn poseidon_four_to_one_host() -> Weight {
+		<I as BenchmarkInfo>::poseidon_four_to_one_host()
 	}
 }
 
@@ -125,14 +140,17 @@ trait BenchmarkInfo {
 	fn verify_data_too_long(e: u32, ) -> Weight;
 	fn verify_data_deserializing_fails(l: u32, ) -> Weight;
 	fn verify_key_deserializing_fails(l: u32, ) -> Weight;
-	fn poseidon_one_to_one() -> Weight;
-	fn poseidon_two_to_one() -> Weight;
-	fn poseidon_four_to_one() -> Weight;
+	fn poseidon_one_to_one_wasm() -> Weight;
+	fn poseidon_two_to_one_wasm() -> Weight;
+	fn poseidon_four_to_one_wasm() -> Weight;
+	fn poseidon_one_to_one_host() -> Weight;
+	fn poseidon_two_to_one_host() -> Weight;
+	fn poseidon_four_to_one_host() -> Weight;
 }
 
 /// Weight functions for `pallet_baby_liminal`.
-pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_baby_liminal::WeightInfo for WeightInfo<T> {
+pub struct AlephWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal VerificationKeys (r:1 w:1)
 	/// The range of component `l` is `[1, 10000]`.
 	fn store_key(l: u32, ) -> Weight {
@@ -278,13 +296,13 @@ impl<T: frame_system::Config> pallet_baby_liminal::WeightInfo for WeightInfo<T> 
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_wasm(_x: u32, ) -> Weight {
+	fn poseidon_one_to_one_wasm() -> Weight {
 		// Minimum execution time: 6_275_221 nanoseconds.
 		Weight::from_ref_time(6_821_819_756 as u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_wasm(_x: u32, _y: u32, ) -> Weight {
+	fn poseidon_two_to_one_wasm() -> Weight {
 		// Minimum execution time: 10_092_627 nanoseconds.
 		Weight::from_ref_time(9_243_181_507 as u64)
 	}
@@ -292,18 +310,18 @@ impl<T: frame_system::Config> pallet_baby_liminal::WeightInfo for WeightInfo<T> 
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_wasm(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
+	fn poseidon_four_to_one_wasm() -> Weight {
 		// Minimum execution time: 20_195_827 nanoseconds.
 		Weight::from_ref_time(21_752_966_199 as u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_host(_x: u32, ) -> Weight {
+	fn poseidon_one_to_one_host() -> Weight {
 		// Minimum execution time: 899_894 nanoseconds.
 		Weight::from_ref_time(1_063_158_980 as u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_host(_x: u32, _y: u32, ) -> Weight {
+	fn poseidon_two_to_one_host() -> Weight {
 		// Minimum execution time: 1_442_250 nanoseconds.
 		Weight::from_ref_time(1_533_174_418 as u64)
 	}
@@ -311,7 +329,7 @@ impl<T: frame_system::Config> pallet_baby_liminal::WeightInfo for WeightInfo<T> 
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_host(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
+	fn poseidon_four_to_one_host() -> Weight {
 		// Minimum execution time: 2_689_428 nanoseconds.
 		Weight::from_ref_time(3_376_808_137 as u64)
 	}
