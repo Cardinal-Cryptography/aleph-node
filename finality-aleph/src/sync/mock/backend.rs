@@ -38,6 +38,7 @@ impl MockBlock {
 
 #[derive(Clone, Debug)]
 struct BackendStorage {
+    session_period: u32,
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
     best_block: MockIdentifier,
@@ -72,13 +73,16 @@ fn is_predecessor(
 }
 
 impl Backend {
-    pub fn setup() -> (Self, impl ChainStatusNotifier<MockIdentifier>) {
+    pub fn setup(session_period: usize) -> (Self, impl ChainStatusNotifier<MockIdentifier>) {
         let (notification_sender, notification_receiver) = mpsc::unbounded();
 
-        (Backend::new(notification_sender), notification_receiver)
+        (
+            Backend::new(notification_sender, session_period as u32),
+            notification_receiver,
+        )
     }
 
-    fn new(notification_sender: UnboundedSender<MockNotification>) -> Self {
+    fn new(notification_sender: UnboundedSender<MockNotification>, session_period: u32) -> Self {
         let header = MockHeader::random_parentless(0);
         let id = header.id();
 
@@ -88,6 +92,7 @@ impl Backend {
         };
 
         let storage = Arc::new(Mutex::new(BackendStorage {
+            session_period,
             blockchain: HashMap::from([(id.clone(), block)]),
             finalized: vec![id.clone()],
             best_block: id.clone(),
@@ -188,6 +193,19 @@ impl Finalizer<MockJustification> for Backend {
         };
 
         block.finalize(justification);
+
+        // Check if the previous block was finalized, or this is the last block of the current
+        // session
+        let allowed_numbers = match storage.finalized.last() {
+            Some(id) => [
+                id.number + 1,
+                id.number + storage.session_period
+                    - (id.number + 1).rem_euclid(storage.session_period),
+            ],
+            None => [0, storage.session_period - 1],
+        };
+        assert!(allowed_numbers.contains(&id.number));
+
         storage.finalized.push(id.clone());
         // In case finalization changes best block, we set best block, to top finalized.
         // Whenever a new import happens, best block will update anyway.

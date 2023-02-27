@@ -297,7 +297,7 @@ mod tests {
     const SESSION_PERIOD: usize = 20;
 
     fn setup() -> (MockHandler, Backend, impl Send) {
-        let (backend, _keep) = Backend::setup();
+        let (backend, _keep) = Backend::setup(SESSION_PERIOD);
         let verifier = MockVerifier {};
         let handler = Handler::new(
             backend.clone(),
