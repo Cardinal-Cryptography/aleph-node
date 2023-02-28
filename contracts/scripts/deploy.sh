@@ -4,6 +4,15 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function cargo_contract() {
+    docker run \
+      -v "${PWD}:/code" \
+      --platform linux/amd64 \
+      --rm -it cardinal-cryptography/ink-dev:latest \
+      --network host \
+      cargo contract "$@"
+}
+
 function upload_contract {
 
   local  __resultvar=$1
@@ -23,14 +32,14 @@ function upload_contract {
 
   # --- UPLOAD CONTRACT CODE
 
-  code_hash=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -r '.code_hash')
+  code_hash=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -r '.code_hash')
 
   echo "$contract_name code hash: $code_hash"
 
   cd "$CONTRACTS_PATH"/access_control
 
   # Set the initializer of the contract
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('$code_hash')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Initializer('$code_hash')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval $__resultvar="'$code_hash'"
 }
@@ -46,7 +55,7 @@ function deploy_ticket_token {
 
   cd "$CONTRACTS_PATH"/ticket_token
 
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TICKET_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
+  local contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" "$TICKET_BALANCE" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
   local contract_address=$(echo "$contract_address" | jq -r '.contract')
 
   echo "$token_symbol ticket contract instance address:  $contract_address"
@@ -56,7 +65,7 @@ function deploy_ticket_token {
   cd "$CONTRACTS_PATH"/access_control
 
   # set the admin and the owner of the contract instance
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval $__resultvar="'$contract_address'"
 }
@@ -72,7 +81,7 @@ function deploy_game_token {
 
   cd "$CONTRACTS_PATH"/game_token
 
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
+  local contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new --args \"$token_name\" \"$token_symbol\" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
   local contract_address=$(echo "$contract_address" | jq -r '.contract')
 
   echo "$token_symbol token contract instance address: $contract_address"
@@ -82,7 +91,7 @@ function deploy_game_token {
   cd "$CONTRACTS_PATH"/access_control
 
   # set the owner of the contract instance
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -100,7 +109,7 @@ function deploy_button_game {
 
   cd "$CONTRACTS_PATH"/button
 
-  local contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$marketplace" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
+  local contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new --args "$ticket_token" "$game_token" "$marketplace" "$LIFETIME" "$game_type" --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
   local contract_address=$(echo "$contract_address" | jq -r '.contract')
   echo "$game_type contract instance address: $contract_address"
 
@@ -108,12 +117,12 @@ function deploy_button_game {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
   if [ "$ENV_NAME" = "dev" ]; then
-    cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
+    cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
   fi
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Admin('"$marketplace"')' --suri "$AUTHORITY_SEED" --skip-confirm
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Admin('"$marketplace"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Minter('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -136,7 +145,7 @@ function deploy_marketplace {
   local sale_price_multiplier=2
 
   local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new \
+  contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new \
     --args "$ticket_token" "$game_token" "$initial_price" "$min_price" "$sale_price_multiplier" "$blocks_per_hour" \
     --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
   contract_address=$(echo "$contract_address" | jq -r '.contract')
@@ -147,9 +156,9 @@ function deploy_marketplace {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Burner('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$contract_address" 'Burner('"$game_token"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -162,7 +171,7 @@ function deploy_simple_dex {
   cd "$CONTRACTS_PATH"/simple_dex
 
   local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
+  contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
   contract_address=$(echo "$contract_address" | jq -r '.contract')
 
   echo "Simple dex contract instance address: $contract_address"
@@ -171,9 +180,9 @@ function deploy_simple_dex {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'LiquidityProvider('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'LiquidityProvider('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -184,7 +193,7 @@ function whitelist_swap_pair() {
 
   cd "$CONTRACTS_PATH"/simple_dex
 
-  cargo contract call --url "$NODE" --contract "$SIMPLE_DEX" --message add_swap_pair --args "$from_address" "$to_address" --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$SIMPLE_DEX" --message add_swap_pair --args "$from_address" "$to_address" --suri "$AUTHORITY_SEED" --skip-confirm
 }
 
 function deploy_wrapped_azero {
@@ -195,7 +204,7 @@ function deploy_wrapped_azero {
   cd "$CONTRACTS_PATH"/wrapped_azero
 
   local contract_address
-  contract_address=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
+  contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
   contract_address=$(echo "$contract_address" | jq -r '.contract')
 
   echo "wrapped Azero contract instance address: $contract_address"
@@ -204,7 +213,7 @@ function deploy_wrapped_azero {
 
   cd "$CONTRACTS_PATH"/access_control
 
-  cargo contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Owner('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
 
   eval "$__resultvar='$contract_address'"
 }
@@ -226,33 +235,33 @@ CONTRACTS_PATH=$(pwd)/contracts
 # --- COMPILE CONTRACTS
 
 cd "$CONTRACTS_PATH"/access_control
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/ticket_token
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/game_token
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/button
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/marketplace
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/simple_dex
-cargo contract build --release
+cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/wrapped_azero
-cargo contract build --release
+cargo_contract build --release
 
 # # --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
 
-ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
+ACCESS_CONTROL_CODE_HASH=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED")
 ACCESS_CONTROL_CODE_HASH=$(echo "$ACCESS_CONTROL_CODE_HASH" | grep hash | tail -1 | cut -c 14-)
-ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
+ACCESS_CONTROL=$(cargo_contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json)
 ACCESS_CONTROL=$(echo "$ACCESS_CONTROL" | jq -r '.contract')
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 

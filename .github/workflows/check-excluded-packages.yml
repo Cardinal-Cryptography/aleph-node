@@ -17,9 +17,7 @@ concurrency:
 jobs:
   build:
     name: Check excluded packages
-    runs-on: ubuntu-20.04
-    env:
-      CARGO_INCREMENTAL: 0
+    runs-on: self-hosted
     strategy:
       matrix:
         package: [
@@ -39,18 +37,15 @@ jobs:
           contracts/adder,
           scripts/synthetic-network/synthetic-link,
         ]
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check excluded package
         run: |
