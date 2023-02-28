@@ -736,7 +736,7 @@ jobs:
 
   test-catch-up:
     name: Test catching up
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
     needs: build-new-node
     strategy:
       matrix:
