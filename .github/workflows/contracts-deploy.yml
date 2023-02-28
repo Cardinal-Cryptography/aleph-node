@@ -3,8 +3,9 @@ name: contracts-e2e-tests-and-deploy
 on:
   workflow_call:
 
+# DO NOT TOUCH THIS:
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
