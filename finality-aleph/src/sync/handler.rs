@@ -164,7 +164,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
     ) -> Result<SyncActions<J>, Error<J, CS, V, F>> {
         let mut number = self
             .verifier
-            .verify(request.state.top_justification())
+            .verify(request.state().top_justification())
             .map_err(Error::Verifier)?
             .header()
             .id()
@@ -285,7 +285,7 @@ mod tests {
     use super::{Handler, SyncActions};
     use crate::{
         sync::{
-            data::{NetworkData, Request},
+            data::{BranchKnowledge::*, NetworkData, Request},
             mock::{Backend, MockHeader, MockJustification, MockPeerId, MockVerifier},
             BlockIdentifier, ChainStatus, Header, Justification,
         },
@@ -497,12 +497,7 @@ mod tests {
         }
         // currently ignored, so picking a random one
         let requested_id = justifications[43].header().id();
-        let request = Request {
-            target_id: requested_id.clone(),
-            oldest_ancestor_id: requested_id,
-            top_imported_id: None,
-            state: initial_state,
-        };
+        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
         // filter justifications, these are supposed to be included in the response
         justifications.retain(|j| {
             let number = j.header().id().number();

@@ -3,7 +3,9 @@ use std::collections::{
     HashMap, HashSet,
 };
 
-use crate::sync::{BlockIdFor, BlockIdentifier, Header, Justification, PeerId};
+use crate::sync::{
+    data::BranchKnowledge, BlockIdFor, BlockIdentifier, Header, Justification, PeerId,
+};
 
 mod vertex;
 
@@ -27,8 +29,7 @@ enum VertexHandle<'a, I: PeerId, J: Justification> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RequestInfo<I: PeerId, J: Justification> {
     know_most: HashSet<I>,
-    oldest_ancestor_id: BlockIdFor<J>,
-    top_imported_ancestor_id: Option<BlockIdFor<J>>,
+    branch_knowledge: BranchKnowledge<J>,
 }
 
 /// Our interest in a block referred to by a vertex,
@@ -332,54 +333,59 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         None
     }
 
+    /// Returns the BranchKnowledge regarding the given block id,
+    /// or None if any errors are encountered.
+    fn branch_knowledge(&mut self, mut id: BlockIdFor<J>) -> Option<BranchKnowledge<J>> {
+        use VertexHandle::*;
+        let mut maybe_parent_id;
+        let mut guard: u32 = 0;
+        // traverse ancestors till we reach something imported or a parentless vertex
+        loop {
+            // try get parent id
+            maybe_parent_id = match self.get_mut(&id) {
+                Candidate(entry) => {
+                    // first encounter of an imported ancestor
+                    if entry.get().vertex.imported() {
+                        return Some(BranchKnowledge::TopImported(id));
+                    }
+                    entry.get().vertex.parent().cloned()
+                }
+                HighestFinalized => {
+                    return Some(BranchKnowledge::TopImported(id));
+                }
+                // we shouldn't have reached any other type of vertex
+                _ => return None,
+            };
+            // try update current id to parent_id
+            match maybe_parent_id {
+                Some(parent_id) => id = parent_id,
+                // does not have parent, thus is not imported (as is not HighestFinalized)
+                None => return Some(BranchKnowledge::LowestId(id)),
+            };
+            // avoid infinite loop
+            if guard > MAX_DEPTH {
+                return None;
+            }
+            guard += 1;
+        }
+    }
+
     /// Prepare additional info required to create a request for the block.
     fn prepare_request_info(&mut self, id: &BlockIdFor<J>) -> Option<RequestInfo<I, J>> {
-        use VertexHandle::*;
+        use VertexHandle::Candidate;
         match self.get_mut(id) {
             Candidate(entry) => {
-                let mut vertex = &entry.get().vertex;
                 // request only required blocks
-                if !vertex.required() {
+                if !&entry.get().vertex.required() {
                     return None;
                 }
-                let know_most = vertex.know_most().clone();
-                let mut current_id = id.clone();
-                let mut maybe_parent_id = vertex.parent().cloned();
-                let mut top_imported_ancestor_id = match vertex.imported() {
-                    true => Some(id.clone()),
-                    false => None,
-                };
-                // traverse ancestors till we reach the root, or a parentless vertex
-                loop {
-                    match maybe_parent_id {
-                        Some(parent_id) => current_id = parent_id.clone(),
-                        None => {
-                            return Some(RequestInfo {
-                                know_most,
-                                oldest_ancestor_id: current_id,
-                                top_imported_ancestor_id,
-                            });
-                        }
-                    };
-                    match self.get_mut(&current_id) {
-                        Candidate(entry_) => {
-                            vertex = &entry_.get().vertex;
-                            // first encounter of an imported ancestor
-                            if vertex.imported() && top_imported_ancestor_id.is_none() {
-                                top_imported_ancestor_id = Some(current_id.clone());
-                            }
-                            maybe_parent_id = vertex.parent().cloned();
-                        }
-                        HighestFinalized => {
-                            return Some(RequestInfo {
-                                know_most,
-                                oldest_ancestor_id: current_id,
-                                top_imported_ancestor_id,
-                            });
-                        }
-                        _ => return None,
-                    };
-                }
+                let know_most = entry.get().vertex.know_most().clone();
+                // 'None' means that we could not get information about the branch
+                self.branch_knowledge(id.clone())
+                    .map(|branch_knowledge| RequestInfo {
+                        know_most,
+                        branch_knowledge,
+                    })
             }
             _ => None,
         }
@@ -387,13 +393,12 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
 
     /// How much interest we have for the block.
     pub fn state(&mut self, id: &BlockIdFor<J>) -> Interest<I, J> {
-        match (
-            self.prepare_request_info(id),
-            self.top_required.contains(id),
-        ) {
-            (Some(request_info), true) => Interest::TopRequired(request_info),
-            (Some(request_info), false) => Interest::Required(request_info),
-            (None, _) => Interest::Uninterested,
+        match self.prepare_request_info(id) {
+            Some(request_info) => match self.top_required.contains(id) {
+                true => Interest::TopRequired(request_info),
+                false => Interest::Required(request_info),
+            },
+            None => Interest::Uninterested,
         }
     }
 }
@@ -402,6 +407,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
 mod tests {
     use super::{Error, Forest, Interest::*, MAX_DEPTH};
     use crate::sync::{
+        data::BranchKnowledge::*,
         mock::{MockHeader, MockJustification, MockPeerId},
         Header, Justification,
     };
@@ -697,8 +703,7 @@ mod tests {
             TopRequired(request_info) => {
                 assert!(request_info.know_most.contains(&peer_id));
                 // we only know parent from branch[2], namely branch[1]
-                assert_eq!(request_info.oldest_ancestor_id, branch[1].id());
-                assert!(request_info.top_imported_ancestor_id.is_none());
+                assert_eq!(request_info.branch_knowledge, LowestId(branch[1].id()));
             }
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
@@ -714,9 +719,7 @@ mod tests {
         match forest.state(&branch[3].id()) {
             TopRequired(request_info) => {
                 // now we know all ancestors
-                assert_eq!(request_info.oldest_ancestor_id, initial_header.id());
-                // still nothing imported
-                assert!(request_info.top_imported_ancestor_id.is_none());
+                assert_eq!(request_info.branch_knowledge, LowestId(initial_header.id()));
             }
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
@@ -724,10 +727,8 @@ mod tests {
         forest.update_body(&branch[1]).expect("should import");
         match forest.state(&branch[3].id()) {
             TopRequired(request_info) => {
-                // we know all ancestors
-                assert_eq!(request_info.oldest_ancestor_id, initial_header.id());
-                // three blocks were imported
-                assert_eq!(request_info.top_imported_ancestor_id, Some(branch[1].id()));
+                // we know all ancestors, three blocks were imported
+                assert_eq!(request_info.branch_knowledge, TopImported(branch[1].id()));
             }
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }

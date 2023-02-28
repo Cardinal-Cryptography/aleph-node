@@ -27,13 +27,40 @@ impl<J: Justification> State<J> {
     }
 }
 
+/// Additional information about the branch connecting the top finalized block
+/// with a given one.
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+pub enum BranchKnowledge<J: Justification> {
+    LowestId(BlockIdFor<J>),
+    TopImported(BlockIdFor<J>),
+}
+
 /// Request content.
 #[derive(Clone, Debug, Encode, Decode)]
 pub struct Request<J: Justification> {
-    pub target_id: BlockIdFor<J>,
-    pub oldest_ancestor_id: BlockIdFor<J>,
-    pub top_imported_id: Option<BlockIdFor<J>>,
-    pub state: State<J>,
+    target_id: BlockIdFor<J>,
+    branch_knowledge: BranchKnowledge<J>,
+    state: State<J>,
+}
+
+impl<J: Justification> Request<J> {
+    pub fn new(
+        target_id: BlockIdFor<J>,
+        branch_knowledge: BranchKnowledge<J>,
+        state: State<J>,
+    ) -> Self {
+        Self {
+            target_id,
+            branch_knowledge,
+            state,
+        }
+    }
+}
+
+impl<J: Justification> Request<J> {
+    pub fn state(&self) -> &State<J> {
+        &self.state
+    }
 }
 
 /// Data to be sent over the network.
