@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(min_specialization)]
 
 #[ink::contract(env = baby_liminal_extension::BabyLiminalEnvironment)]
 mod poseidon_host_bench {
@@ -21,17 +20,17 @@ mod poseidon_host_bench {
                 panic!("Please have 2^n leaves")
             }
 
-            let mut bench = Self::default();
-            bench.next_free_leaf = max_leaves;
+            let mut this = Self::default();
+            this.next_free_leaf = max_leaves;
 
-            bench.create_new_leaf([1, 7, 2, 9]);
+            this.create_new_leaf([1, 7, 2, 9]);
 
-            bench
+            this
         }
 
         #[ink(message)]
         pub fn hash(&mut self) {
-            self.hash_two([2, 1, 3, 7], [1, 7, 2, 9]);
+            self.two_to_one_hash([2, 1, 3, 7], [1, 7, 2, 9]);
         }
 
         #[ink(message)]
@@ -50,7 +49,7 @@ mod poseidon_host_bench {
             while parent > 0 {
                 let left_child = self.tree_value(2 * parent);
                 let right_child = self.tree_value(2 * parent + 1);
-                let parent_hash = self.hash_two(left_child, right_child);
+                let parent_hash = self.two_to_one_hash(left_child, right_child);
                 self.hashes.insert(parent, &parent_hash);
                 parent /= 2;
             }
@@ -58,7 +57,7 @@ mod poseidon_host_bench {
             self.next_free_leaf += 1;
         }
 
-        fn hash_two(&self, x: MerkleHash, y: MerkleHash) -> MerkleHash {
+        fn two_to_one_hash(&self, x: MerkleHash, y: MerkleHash) -> MerkleHash {
             self.env().extension().poseidon_two_to_one([x, y])
         }
     }
