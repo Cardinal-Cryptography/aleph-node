@@ -188,14 +188,14 @@ benchmarks! {
     poseidon_one_to_one_host{
         let x in 0 .. u32::MAX;
     } : {
-        poseidon::hash_one_to_one(gen_input(x));
+        poseidon::one_to_one_hash(gen_poseidon_host_input(x));
     }
 
     poseidon_two_to_one_host{
         let x in 0 .. u32::MAX;
         let y in 0 .. u32::MAX;
     } : {
-        poseidon::hash_two_to_one(gen_input(x), gen_input(y));
+        poseidon::two_to_one_hash(gen_poseidon_host_input(x), gen_poseidon_host_input(y));
     }
 
     poseidon_four_to_one_host{
@@ -204,7 +204,7 @@ benchmarks! {
         let w in 0 .. u32::MAX;
         let z in 0 .. u32::MAX;
     } : {
-        poseidon::hash_four_to_one(gen_input(x), gen_input(y), gen_input(w), gen_input(z));
+        poseidon::four_to_one_hash(gen_poseidon_host_input(x), gen_poseidon_host_input(y), gen_poseidon_host_input(w), gen_poseidon_host_input(z));
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::TestRuntime);
