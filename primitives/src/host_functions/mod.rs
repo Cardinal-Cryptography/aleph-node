@@ -5,12 +5,12 @@
 pub type Input = (u64, u64, u64, u64);
 pub type Output = (u64, u64, u64, u64);
 
-fn field_element(input: Input) -> ark_poseidon::Fr {
+fn field_element(input: Input) -> liminal_ark_poseidon::Fr {
     let input: [u64; 4] = [input.0, input.1, input.2, input.3];
-    ark_poseidon::Fr::new(ark_poseidon::BigInteger256::new(input))
+    liminal_ark_poseidon::Fr::new(liminal_ark_poseidon::BigInteger256::new(input))
 }
 
-fn output(field_element: ark_poseidon::Fr) -> Output {
+fn output(field_element: liminal_ark_poseidon::Fr) -> Output {
     let a = field_element.0 .0;
     (a[0], a[1], a[2], a[3])
 }
@@ -18,18 +18,20 @@ fn output(field_element: ark_poseidon::Fr) -> Output {
 #[sp_runtime_interface::runtime_interface]
 pub trait Poseidon {
     fn one_to_one_hash(input: Input) -> Output {
-        let hash = ark_poseidon::hash::one_to_one_hash([field_element(input)]);
+        let hash = liminal_ark_poseidon::hash::one_to_one_hash([field_element(input)]);
         output(hash)
     }
 
     fn two_to_one_hash(input0: Input, input1: Input) -> Output {
-        let hash =
-            ark_poseidon::hash::two_to_one_hash([field_element(input0), field_element(input1)]);
+        let hash = liminal_ark_poseidon::hash::two_to_one_hash([
+            field_element(input0),
+            field_element(input1),
+        ]);
         output(hash)
     }
 
     fn four_to_one_hash(input0: Input, input1: Input, input2: Input, input3: Input) -> Output {
-        let hash = ark_poseidon::hash::four_to_one_hash([
+        let hash = liminal_ark_poseidon::hash::four_to_one_hash([
             field_element(input0),
             field_element(input1),
             field_element(input2),
