@@ -17,18 +17,18 @@ fn output(field_element: ark_poseidon::Fr) -> Output {
 
 #[sp_runtime_interface::runtime_interface]
 pub trait Poseidon {
-    fn hash_one_to_one(input: Input) -> Output {
+    fn one_to_one_hash(input: Input) -> Output {
         let hash = ark_poseidon::hash::one_to_one_hash([field_element(input)]);
         output(hash)
     }
 
-    fn hash_two_to_one(input0: Input, input1: Input) -> Output {
+    fn two_to_one_hash(input0: Input, input1: Input) -> Output {
         let hash =
             ark_poseidon::hash::two_to_one_hash([field_element(input0), field_element(input1)]);
         output(hash)
     }
 
-    fn hash_four_to_one(input0: Input, input1: Input, input2: Input, input3: Input) -> Output {
+    fn four_to_one_hash(input0: Input, input1: Input, input2: Input, input3: Input) -> Output {
         let hash = ark_poseidon::hash::four_to_one_hash([
             field_element(input0),
             field_element(input1),

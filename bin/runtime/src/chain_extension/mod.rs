@@ -228,7 +228,7 @@ impl BabyLiminalChainExtension {
         env.charge_weight(
             <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_one_to_one_host(),
         )?;
-        let hash = poseidon::hash_one_to_one(input[0]);
+        let hash = poseidon::one_to_one_hash(input[0]);
 
         // hash is of type (u64, u64, u64, u64) but this type has the same encoding
         // as [u64, u64, u64, u64] so we're fine
@@ -245,7 +245,7 @@ impl BabyLiminalChainExtension {
         env.charge_weight(
             <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_two_to_one_host(),
         )?;
-        let hash = poseidon::hash_two_to_one(input[0], input[1]);
+        let hash = poseidon::two_to_one_hash(input[0], input[1]);
 
         // hash is of type (u64, u64, u64, u64) but this type has the same encoding
         // as [u64, u64, u64, u64] so we're fine
@@ -262,7 +262,7 @@ impl BabyLiminalChainExtension {
         env.charge_weight(
             <<Runtime as Config>::WeightInfo as WeightInfo>::poseidon_four_to_one_host(),
         )?;
-        let hash = poseidon::hash_four_to_one(input[0], input[1], input[2], input[3]);
+        let hash = poseidon::four_to_one_hash(input[0], input[1], input[2], input[3]);
 
         // hash is of type (u64, u64, u64, u64) but this type has the same encoding
         // as [u64, u64, u64, u64] so we're fine

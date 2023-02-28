@@ -21,7 +21,7 @@ fn insert_key<T: Config>(key: Vec<u8>) {
     VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
 }
 
-fn gen_input(x: u32) -> (u64, u64, u64, u64) {
+fn gen_poseidon_host_input(x: u32) -> (u64, u64, u64, u64) {
     (x as u64, 0, 0, 0)
 }
 
