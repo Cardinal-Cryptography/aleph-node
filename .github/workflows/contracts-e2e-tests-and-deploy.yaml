@@ -8,8 +8,9 @@ on:
       - created
   push:
 
+# DO NOT TOUCH THIS:
 concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
