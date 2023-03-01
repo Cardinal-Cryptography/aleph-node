@@ -1,3 +1,4 @@
+---
 name: yaml-lint
 
 on:
@@ -28,10 +29,11 @@ jobs:
           YAML_FILES=`git --no-pager diff origin/${GITHUB_BASE_REF} --name-only | grep -E ".github\/.*\/.*(.yaml|.yml)" | tr '\n' ' '`
           echo "Changed YAML files: ${YAML_FILES}"
           echo "YAML_FILES=`echo $YAML_FILES`" >> $GITHUB_ENV
+          ls -l
 
       - name: LINT | Execute yaml-lint
         uses: ibiqlik/action-yamllint@v3.1.1
         with:
           strict: true
           file_or_dir: ${{ env.YAML_FILES }}
-          #config_file: .yamllint
+          config_file: .yamllint
