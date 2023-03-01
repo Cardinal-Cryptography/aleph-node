@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use aleph_clique::{Network as CliqueNetwork, PublicKey};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
@@ -15,7 +16,6 @@ use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        clique::{Network as CliqueNetwork, PublicKey},
         session::{
             data::DataInSession,
             manager::{

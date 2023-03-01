@@ -15,15 +15,12 @@ use tokio::{
     time::{error::Elapsed, interval, timeout, Duration},
 };
 
-use crate::network::{
-    clique::{
-        mock::{
-            random_keys, Addresses, MockDialer, MockListener, MockPublicKey, MockSecretKey,
-            UnreliableConnectionMaker,
-        },
-        Network, SecretKey, Service,
+use crate::{
+    mock::{
+        random_keys, Addresses, MockData, MockDialer, MockListener, MockPublicKey, MockSecretKey,
+        UnreliableConnectionMaker,
     },
-    mock::MockData,
+    Network, SecretKey, Service,
 };
 
 pub const LOG_TARGET: &str = "clique-network-test";

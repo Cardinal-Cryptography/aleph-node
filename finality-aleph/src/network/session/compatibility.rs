@@ -141,6 +141,7 @@ impl Display for Error {
 mod test {
     use std::sync::Arc;
 
+    use aleph_clique::mock::MockAddressingInformation;
     use codec::{Decode, Encode};
     use sp_keystore::testing::KeyStore;
 
@@ -148,7 +149,6 @@ mod test {
     use crate::{
         crypto::AuthorityVerifier,
         network::{
-            clique::mock::MockAddressingInformation,
             session::{compatibility::MAX_AUTHENTICATION_SIZE, SessionHandler},
             tcp::{testing::new_identity, SignedTcpAddressingInformation},
             NetworkIdentity,

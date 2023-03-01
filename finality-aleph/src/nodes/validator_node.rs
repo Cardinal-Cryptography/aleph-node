@@ -1,5 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
+use aleph_clique::Service;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
@@ -12,7 +13,6 @@ use sp_runtime::traits::Block;
 use crate::{
     crypto::AuthorityPen,
     network::{
-        clique::Service,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,

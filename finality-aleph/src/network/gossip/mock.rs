@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, fmt, sync::Arc};
 
+use aleph_clique::mock::MockPublicKey;
 use async_trait::async_trait;
 use futures::{
     channel::{mpsc, oneshot},
@@ -8,7 +9,6 @@ use futures::{
 use parking_lot::Mutex;
 
 use crate::network::{
-    clique::mock::MockPublicKey,
     gossip::{Event, EventStream, NetworkSender, Protocol, RawNetwork},
     mock::Channel,
 };
