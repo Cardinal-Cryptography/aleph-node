@@ -29,10 +29,7 @@ fn main() {
     let parameters =
         poseidon_build::compile::<Fr>(security_level, t_values, FrParameters::MODULUS, true);
 
-    let output_directory = PathBuf::from(
-        env::var("OUT_DIR").expect("OUT_DIR environmental variable should be always set"),
-    )
-    .join("parameters.rs");
+    let output_directory = PathBuf::from("./src/parameters.rs");
 
     let mut file =
         BufWriter::new(File::create(output_directory).expect("can't create source file"));

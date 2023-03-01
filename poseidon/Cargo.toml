@@ -21,14 +21,20 @@ ark-sponge = { git = "https://github.com/penumbra-zone/sponge", branch = "r1cs",
 poseidon-parameters = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746", default-features = false }
 poseidon-permutation = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746", default-features = false }
 
-[build-dependencies]
-ark-bls12-381 = { version = "^0.3.0" }
-ark-ff = { version = "^0.3.0" }
+poseidon-paramgen = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746" , optional = true }
 
-poseidon-paramgen = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746" }
+[lib]
+name = "liminal_ark_poseidon"
+
+
+[[bin]]
+name = "liminal-ark-poseidon-paramgen"
+path = "src/generate_parameters.rs"
+required-features = ["build-binary"]
+
 
 [features]
-default = ["std"]
+default = ["std", "build-binary"]
 std = [
     "ark-bls12-381/std",
     "ark-ff/std",
@@ -44,3 +50,4 @@ circuit = [
     "ark-relations",
     "ark-sponge",
 ]
+build-binary = ["poseidon-paramgen"]
