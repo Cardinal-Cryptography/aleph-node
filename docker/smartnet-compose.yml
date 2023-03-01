@@ -13,23 +13,25 @@ services:
       - NAME=Smartnode
       - NODE_KEY_PATH=/data/$NODE_ID/p2p_secret
       - PORT=30333
-      - PURGE_BEFORE_START=true
+      - WS_PORT=9943
       - RPC_PORT=9933
+      - VALIDATOR_PORT=30343
+      - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - UNIT_CREATION_DELAY=50
-      - WS_PORT=9943
       - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333
-      - VALIDATOR_PORT=30343
       - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30343
     volumes:
       - ./data/:/data/
     expose:
       - 30333
+      - 30343
       - 9933
       - 9943
     ports:
       - 0.0.0.0:30333:30333
+      - 0.0.0.0:30343:30343
       - 0.0.0.0:9933:9933
       - 0.0.0.0:9943:9943
 

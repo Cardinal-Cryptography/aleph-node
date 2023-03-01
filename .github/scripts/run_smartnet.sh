@@ -2,7 +2,7 @@
 
 set -e
 
-export NODE_IMAGE=public.ecr.aws/p6e8q1z1/feature-env-aleph-node:fe-benjamin_c643069
+export NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:5172d74 #public.ecr.aws/p6e8q1z1/aleph-node:5172d74
 
 # key derived from "//0"
 export NODE_ID=5D34dL5prEUaGNQtPPZ3yN5Y6BnkfXunKXXz6fo7ZJbLwRRH

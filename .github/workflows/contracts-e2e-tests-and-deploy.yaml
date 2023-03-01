@@ -196,15 +196,12 @@ jobs:
             contracts/ticket_token/target/
             contracts/wrapped_azero/target/
 
-      - name: Install cargo additional libs
-        run: |
-          . "$HOME/.cargo/env"
-          cargo install dylint-link cargo-dylint
-
       # TODO : this should NOT be built every time
       - name: Install cargo-contract with bug fixes around URL parsing
         run: |
-          . "$HOME/.cargo/env"
+          # . "$HOME/.cargo/env"
+          cargo install cargo-dylint@2.1.1 dylint-link@2.1.1 --force
+          # revision merging Hans's PR changes [fix for node URL parsing ]
           cargo install --git https://github.com/paritytech/cargo-contract.git --rev ${{ env.CARGOCONTRACT_REV }} --force
 
       # TODO: Cache some files from contracts directory to fasten up builds, is that possible?
