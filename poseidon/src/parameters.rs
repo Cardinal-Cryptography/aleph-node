@@ -1,6 +1,8 @@
 use ark_ff::PrimeField;
-
-use poseidon_parameters::{Alpha, ArcMatrix, RoundNumbers, SquareMatrix, Matrix, MdsMatrix, OptimizedArcMatrix, OptimizedMdsMatrices, PoseidonParameters, MatrixOperations};
+use poseidon_parameters::{
+    Alpha, ArcMatrix, Matrix, MatrixOperations, MdsMatrix, OptimizedArcMatrix,
+    OptimizedMdsMatrices, PoseidonParameters, RoundNumbers, SquareMatrix,
+};
 
 /// Parameters for the rate-1 instance of Poseidon.
 pub fn rate_1<F: PrimeField>() -> PoseidonParameters<F> {
