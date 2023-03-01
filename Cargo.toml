@@ -19,7 +19,6 @@ exclude = [
     "relations",
     "relations/src/proc_macro",
     "poseidon",
-    "contracts/poseidon_host_bench",
 ]
 
 [profile.release]
