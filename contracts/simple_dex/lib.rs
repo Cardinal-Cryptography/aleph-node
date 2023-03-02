@@ -429,7 +429,7 @@ mod simple_dex {
             balance_token_out
                 .checked_sub(op4)
                 // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
-                .and_then(|result| result.checked_sub(if op3 % op2 > 0 { 1 } else { 0 }))
+                .and_then(|result| result.checked_sub((op3 % op2 > 0).into()))
                 .ok_or(DexError::Arithmethic)
         }
 
