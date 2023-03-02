@@ -113,7 +113,7 @@ fi
 
 if [[ -n "${ADDER:-}" ]]; then
     ARGS+=(-e "ADDER=${ADDER}")
-    ARGS+=(-e "ADDER_METADATA=/contracts/adder/target/ink/metadata.json")
+    ARGS+=(-e "ADDER_METADATA=/contracts/adder/target/ink/adder.json")
 fi
 
 if [[ -n "${BUTTON_GAME_METADATA:-}" ]]; then
@@ -123,12 +123,12 @@ if [[ -n "${BUTTON_GAME_METADATA:-}" ]]; then
     ARGS+=(-e "SIMPLE_DEX=${SIMPLE_DEX}")
     ARGS+=(-e "WRAPPED_AZERO=${WRAPPED_AZERO}")
     ARGS+=(-e "RUST_LOG=${RUST_LOG}")
-    ARGS+=(-e "BUTTON_GAME_METADATA=/contracts/button/target/ink/metadata.json")
-    ARGS+=(-e "TICKET_TOKEN_METADATA=/contracts/ticket_token/target/ink/metadata.json")
-    ARGS+=(-e "REWARD_TOKEN_METADATA=/contracts/game_token/target/ink/metadata.json")
-    ARGS+=(-e "MARKETPLACE_METADATA=/contracts/marketplace/target/ink/metadata.json")
-    ARGS+=(-e "SIMPLE_DEX_METADATA=/contracts/simple_dex/target/ink/metadata.json")
-    ARGS+=(-e "WRAPPED_AZERO_METADATA=/contracts/wrapped_azero/target/ink/metadata.json")
+    ARGS+=(-e "BUTTON_GAME_METADATA=/contracts/button/target/ink/button.json")
+    ARGS+=(-e "TICKET_TOKEN_METADATA=/contracts/ticket_token/target/ink/ticket_token.json")
+    ARGS+=(-e "REWARD_TOKEN_METADATA=/contracts/game_token/target/ink/game_token.json")
+    ARGS+=(-e "MARKETPLACE_METADATA=/contracts/marketplace/target/ink/marketplace.json")
+    ARGS+=(-e "SIMPLE_DEX_METADATA=/contracts/simple_dex/target/ink/simple_dex.json")
+    ARGS+=(-e "WRAPPED_AZERO_METADATA=/contracts/wrapped_azero/target/ink/wrapped_azero.json")
 fi
 
 if [[ -n "${OUT_LATENCY:-}" ]]; then

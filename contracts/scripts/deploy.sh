@@ -1,16 +1,31 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euox pipefail
 
 # --- FUNCTIONS
 
+function run_ink_builder() {
+  docker start ink_builder || docker run \
+    --network host \
+    -v "${PWD}:/code" \
+    -u "$(id -u):$(id -g)" \
+    --name ink_builder \
+    --platform linux/amd64 \
+    --detach \
+    --rm public.ecr.aws/p6e8q1z1/ink-dev:1.0.0 sleep 1d
+}
+
+function ink_build() {
+  contract_dir=$(basename "${PWD}")
+
+  docker exec \
+    -u "$(id -u):$(id -g)" \
+    -w "/code/contracts/$contract_dir" \
+    ink_builder "$@"
+}
+
 function cargo_contract() {
-    docker run \
-      -v "${PWD}:/code" \
-      --platform linux/amd64 \
-      --rm -it cardinal-cryptography/ink-dev:latest \
-      --network host \
-      cargo contract "$@"
+  ink_build cargo contract "$@"
 }
 
 function upload_contract {
@@ -234,7 +249,11 @@ CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
+run_ink_builder
+
 cd "$CONTRACTS_PATH"/access_control
+ink_build rustup target add wasm32-unknown-unknown
+ink_build rustup component add rust-src
 cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/ticket_token

@@ -533,10 +533,6 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v2
 
-      - name: Install rust-src
-        working-directory: ./contracts
-        run: rustup component add rust-src
-
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
@@ -551,13 +547,6 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
-
-      - name: Install cargo-contract
-        run: cargo install cargo-contract --version 2.0.1
-
-      - name: Install rust-src
-        working-directory: ./contracts
-        run: rustup component add rust-src
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
