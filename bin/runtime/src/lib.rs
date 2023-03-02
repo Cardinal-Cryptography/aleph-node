@@ -1,10 +1,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+// For *TESTING PURPOSES ONLY* we use magnificent additional const generics.
+#![cfg_attr(test, allow(incomplete_features))]
+#![cfg_attr(test, feature(adt_const_params))]
+#![cfg_attr(test, feature(generic_const_exprs))]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
+
+mod chain_extension;
 
 pub use frame_support::{
     construct_runtime, log, parameter_types,
@@ -61,6 +67,8 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+
+use crate::chain_extension::BabyLiminalChainExtension;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -323,6 +331,19 @@ impl pallet_aleph::Config for Runtime {
     type SessionInfoProvider = Session;
     type SessionManager = Elections;
     type NextSessionAuthorityProvider = Session;
+}
+
+parameter_types! {
+    // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
+    pub const MaximumVerificationKeyLength: u32 = 10_000;
+    pub const MaximumDataLength: u32 = 10_000;
+}
+
+impl pallet_baby_liminal::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_baby_liminal::AlephWeight<Runtime>;
+    type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
+    type MaximumDataLength = MaximumDataLength;
 }
 
 impl_opaque_keys! {
@@ -684,7 +705,7 @@ impl pallet_contracts::Config for Runtime {
     type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = ();
+    type ChainExtension = BabyLiminalChainExtension;
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
@@ -750,6 +771,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
+        BabyLiminal: pallet_baby_liminal,
     }
 );
 
@@ -786,6 +808,11 @@ pub type Executive = frame_executive::Executive<
     Runtime,
     AllPalletsWithSystem,
 >;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+    frame_benchmarking::define_benchmarks!([pallet_baby_liminal, BabyLiminal]);
+}
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
@@ -1008,21 +1035,55 @@ impl_runtime_apis! {
     }
 
     #[cfg(feature = "try-runtime")]
-     impl frame_try_runtime::TryRuntime<Block> for Runtime {
-          fn on_runtime_upgrade(checks: UpgradeCheckSelect) -> (Weight, Weight) {
-               let weight = Executive::try_runtime_upgrade(checks).unwrap();
-               (weight, BlockWeights::get().max_block)
-          }
+    impl frame_try_runtime::TryRuntime<Block> for Runtime {
+        fn on_runtime_upgrade(checks: UpgradeCheckSelect) -> (Weight, Weight) {
+            let weight = Executive::try_runtime_upgrade(checks).unwrap();
+            (weight, BlockWeights::get().max_block)
+        }
 
-          fn execute_block(
-               block: Block,
-               state_root_check: bool,
-               checks: bool,
-               select: frame_try_runtime::TryStateSelect,
-          ) -> Weight {
+        fn execute_block(
+            block: Block,
+            state_root_check: bool,
+            checks: bool,
+            select: frame_try_runtime::TryStateSelect,
+        ) -> Weight {
             Executive::try_execute_block(block, state_root_check, checks, select).unwrap()
         }
      }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    impl frame_benchmarking::Benchmark<Block> for Runtime {
+        fn benchmark_metadata(extra: bool) -> (
+            Vec<frame_benchmarking::BenchmarkList>,
+            Vec<frame_support::traits::StorageInfo>,
+        ) {
+            use frame_benchmarking::{Benchmarking, BenchmarkList, cb_list_benchmarks, list_benchmark};
+            use frame_support::traits::StorageInfoTrait;
+
+            let mut list = Vec::<BenchmarkList>::new();
+            list_benchmarks!(list, extra);
+
+            let storage_info = AllPalletsWithSystem::storage_info();
+
+            (list, storage_info)
+        }
+
+        fn dispatch_benchmark(
+            config: frame_benchmarking::BenchmarkConfig
+        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+            use frame_benchmarking::{
+                Benchmarking, BenchmarkBatch, TrackedStorageKey, cb_add_benchmarks, add_benchmark};
+            use frame_support::traits::WhitelistedStorageKeys;
+
+            let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
+
+            let params = (&config, &whitelist);
+            let mut batches = Vec::<BenchmarkBatch>::new();
+            add_benchmarks!(params, batches);
+
+            Ok(batches)
+        }
+    }
 }
 
 #[cfg(test)]

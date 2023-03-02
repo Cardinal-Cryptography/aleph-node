@@ -391,7 +391,6 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "liminal-ark-poseidon",
  "pallet-aleph",
  "pallet-aura",
  "pallet-authorship",
