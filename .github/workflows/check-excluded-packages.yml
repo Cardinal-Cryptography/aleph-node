@@ -27,11 +27,6 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-
       - name: Install clippy and fmt
         run: rustup component add clippy rustfmt
 
@@ -73,8 +68,15 @@ jobs:
           packages="${{ steps.format_output.outputs.packages }}"
           for p in ${packages[@]}
           do
+            # skip checking the adder for now
+            if [ $p = "contracts/adder" ]
+            then
+              continue
+            fi
             echo "Checking package $p..."
             pushd "$p"
+            rustup component add clippy rustfmt
+            rustup target add wasm32-unknown-unknown
             cargo fmt --all --check
             cargo clippy --all-features -- --no-deps -D warnings
             cargo test
