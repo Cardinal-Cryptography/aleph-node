@@ -2,14 +2,13 @@ name: unit-tests
 
 on:
   pull_request:
-    paths:
-      - aggregator/**
-      - bin/node/**
-      - bin/runtime/**
-      - finality-aleph/**
-      - pallets/**
-      - primitives/**
-      - .github/workflows/unit_tests.yml
+    branches:
+      - '**'
+  push:
+    paths-ignore:
+      - '*.md'
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -21,6 +20,7 @@ jobs:
     runs-on: self-hosted
     env:
       CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v2
@@ -48,10 +48,10 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args:  --workspace --exclude finality-aleph --exclude aleph-node -- --no-deps -D warnings
+          args: --all-targets --all-features -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --features "try-runtime runtime-benchmarks" --workspace --exclude finality-aleph --exclude aleph-node
+          args: --lib --features "try-runtime"

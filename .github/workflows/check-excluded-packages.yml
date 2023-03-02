@@ -2,13 +2,13 @@ name: Check excluded packages
 
 on:
   pull_request:
-    paths:
-      - aleph-client/**
-      - bin/cliain/**
-      - bin/runtime/src/chain_extension/baby-liminal-extension/**
-      - relations/**
-      - poseidon/**
-      - .github/workflows/check-excluded-packages.yml
+    branches:
+      - '**'
+  push:
+    paths-ignore:
+      - '*.md'
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -20,18 +20,13 @@ jobs:
     runs-on: self-hosted
     env:
       CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install clippy and fmt
-        run: rustup component add clippy rustfmt
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
@@ -71,20 +66,5 @@ jobs:
             rustup target add wasm32-unknown-unknown
             cargo fmt --all --check
             cargo clippy --all-features -- --no-deps -D warnings
-            cargo test
-            popd
-          done
-
-      - name: Install nono
-        run: cargo install cargo-nono
-
-      - name: Assert that packages are compatible with no-std
-        run: |
-          packages=("poseidon" "relations" "bin/runtime/src/chain_extension/baby-liminal-extension")
-          for p in ${packages[@]}
-          do
-            echo "Checking package $p..."
-            pushd "$p"
-            cargo nono check --no-default-features
             popd
           done
