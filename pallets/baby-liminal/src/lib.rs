@@ -96,13 +96,13 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Verification key has been successfully stored.
-        VerificationKeyStored,
+        VerificationKeyStored(VerificationKeyIdentifier, T::AccountId),
 
         /// Verification key has been successfully deleted.
-        VerificationKeyDeleted,
+        VerificationKeyDeleted(VerificationKeyIdentifier),
 
         /// Verification key has been successfully overwritten.
-        VerificationKeyOverwritten,
+        VerificationKeyOverwritten(VerificationKeyIdentifier),
 
         /// Proof has been successfully verified.
         VerificationSucceeded,
@@ -156,7 +156,7 @@ pub mod pallet {
         ///
         /// Can only be called by a root account.
         #[pallet::call_index(1)]
-        #[pallet::weight(T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::DbWeight::get().reads(2) + T::DbWeight::get().writes(2))]
         pub fn delete_key(
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
@@ -171,7 +171,7 @@ pub mod pallet {
             T::Currency::unreserve(&owner, deposit);
 
             VerificationKeys::<T>::remove(identifier);
-            Self::deposit_event(Event::VerificationKeyDeleted);
+            Self::deposit_event(Event::VerificationKeyDeleted(identifier));
             Ok(())
         }
 
@@ -204,7 +204,7 @@ pub mod pallet {
                 Ok(())
             })?;
 
-            Self::deposit_event(Event::VerificationKeyOverwritten);
+            Self::deposit_event(Event::VerificationKeyOverwritten(identifier));
             Ok(())
         }
 
@@ -280,7 +280,7 @@ pub mod pallet {
             VerificationKeyOwners::<T>::insert(identifier, &who);
             VerificationKeyDeposits::<T>::insert(&who, deposit);
 
-            Self::deposit_event(Event::VerificationKeyStored);
+            Self::deposit_event(Event::VerificationKeyStored(identifier, who));
             Ok(())
         }
 
