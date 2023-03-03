@@ -13,16 +13,16 @@ mod relation {
     #[relation_object_definition]
     struct LinearEquationRelation {
         /// slope
-        #[constant()]
+        #[constant]
         pub a: u32,
         /// private witness
-        #[private_input()]
+        #[private_input]
         pub x: u32,
         /// an intercept
-        #[constant()]
+        #[constant]
         pub b: u32,
         /// constant
-        #[constant()]
+        #[constant]
         pub y: u32,
     }
 

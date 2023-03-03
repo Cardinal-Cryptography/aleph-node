@@ -48,11 +48,11 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 ///mod relation {
 ///    #[relation_object_definition]
 ///    struct SomeRelation {
-///        #[constant()]
+///        #[constant]
 ///        a: CF,
-///        #[public_input()]
+///        #[public_input]
 ///        b: CF,
-///        #[private_input()]
+///        #[private_input]
 ///        c: CF,
 ///    }
 ///
@@ -109,7 +109,7 @@ use crate::{code_generation::generate_code, intermediate_representation::IR};
 /// mod relation {
 ///     #[relation_object_definition]
 ///     struct SomeRelation {
-///         #[constant()]
+///         #[constant]
 ///         a: u8,
 ///         #[public_input(frontend_type = "u16", parse_with = "parse_u16")]
 ///         b: CF,

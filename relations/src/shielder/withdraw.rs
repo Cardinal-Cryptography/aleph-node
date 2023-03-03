@@ -36,7 +36,7 @@ mod relation {
 
     #[relation_object_definition]
     struct WithdrawRelation {
-        #[constant()]
+        #[constant]
         pub max_path_len: u8,
 
         // Public inputs

@@ -1,8 +1,8 @@
 use darling::FromMeta;
 use proc_macro2::{Ident, Span};
 use syn::{
-    spanned::Spanned, Error as SynError, Field, Fields, FieldsNamed, Item, ItemFn, ItemMod,
-    ItemStruct, ItemUse, Result as SynResult, Visibility,
+    spanned::Spanned, Attribute, Error as SynError, Field, Fields, FieldsNamed, Item, ItemFn,
+    ItemMod, ItemStruct, ItemUse, Meta, Result as SynResult, Visibility,
 };
 
 use crate::{
@@ -37,6 +37,13 @@ pub(super) struct RelationFieldAttrs {
     pub parse_with: Option<String>,
 }
 
+fn parse_field_attrs<Attr: Default + FromMeta>(attr: &Attribute) -> SynResult<Attr> {
+    match attr.parse_meta()? {
+        Meta::Path(_) => Ok(Attr::default()),
+        meta => Attr::from_meta(&meta).map_err(|e| e.into()),
+    }
+}
+
 /// Common data for constant, public and private inputs.
 #[derive(Clone)]
 pub(super) struct RelationField {
@@ -66,8 +73,7 @@ impl TryFrom<Field> for RelationField {
 
     fn try_from(field: Field) -> Result<Self, Self::Error> {
         let attr = get_field_attr(&field)?;
-        let attrs = RelationFieldAttrs::from_meta(&attr.parse_meta()?)?;
-
+        let attrs = parse_field_attrs(attr)?;
         Ok(RelationField { field, attrs })
     }
 }
@@ -123,8 +129,7 @@ impl TryFrom<Field> for PublicInputField {
 
     fn try_from(field: Field) -> Result<Self, Self::Error> {
         let attr = get_field_attr(&field)?;
-        let attrs = PublicFieldAttrs::from_meta(&attr.parse_meta()?)?;
-
+        let attrs = parse_field_attrs(attr)?;
         Ok(PublicInputField { field, attrs })
     }
 }
@@ -246,7 +251,7 @@ fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
 
 /// Returns all the elements of `fields` that are attributed with `field_type`, e.g.
 /// ```ignore
-/// #[public_input()]
+/// #[public_input]
 /// a: u8
 /// ```
 fn extract_relation_fields<FieldType: ?Sized>(
