@@ -79,7 +79,7 @@ runs:
 
         /usr/local/bin/argocd app get fe-root-application --hard-refresh \
           --auth-token ${{ inputs.argo-sync-user-token }} --server ${{ env.ARGOCD_URL }}
-        /usr/local/bin/argocd app wait fe-root-application --auth-token\
+        /usr/local/bin/argocd app wait fe-root-application --auth-token \
           ${{ inputs.argo-sync-user-token }} --server ${{ env.ARGOCD_URL }}
 
     - name: Clean S3 storage
