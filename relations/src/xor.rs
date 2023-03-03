@@ -19,9 +19,9 @@ mod relation {
         // Otherwise, we have to provide it to circuit bit by bit.
         #[public_input(serialize_with = "byte_to_bits")]
         public_xoree: u8,
-        #[private_input]
+        #[private_input()]
         private_xoree: u8,
-        #[constant]
+        #[constant()]
         result: u8,
     }
 

@@ -32,7 +32,7 @@ mod relation {
 
     #[relation_object_definition]
     struct DepositAndMergeRelation {
-        #[constant]
+        #[constant()]
         pub max_path_len: u8,
 
         // Public inputs

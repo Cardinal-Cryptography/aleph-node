@@ -1,3 +1,4 @@
+use darling::FromMeta;
 use proc_macro2::{Ident, Span};
 use syn::{
     spanned::Spanned, Error as SynError, Field, Fields, FieldsNamed, Item, ItemFn, ItemMod,
@@ -5,14 +6,8 @@ use syn::{
 };
 
 use crate::{
-    naming::{
-        CONSTANT_FIELD, FIELD_FRONTEND_TYPE, FIELD_PARSER, FIELD_SERIALIZER, PRIVATE_INPUT_FIELD,
-        PUBLIC_INPUT_FIELD,
-    },
-    parse_utils::{
-        as_circuit_def, as_relation_object_def, get_field_attr, get_public_input_field_config,
-        get_relation_field_config,
-    },
+    naming::{CONSTANT_FIELD, PRIVATE_INPUT_FIELD, PUBLIC_INPUT_FIELD},
+    parse_utils::{as_circuit_def, as_relation_object_def, get_field_attr},
 };
 
 /// Intermediate representation of the source code.
@@ -34,20 +29,35 @@ pub(super) struct IR {
     pub imports: Vec<ItemUse>,
 }
 
-/// Common data for constant, public and private inputs.
-#[derive(Clone)]
-pub(super) struct RelationField {
-    /// The source item AST.
-    pub field: Field,
+#[derive(Clone, Default, FromMeta)]
+pub(super) struct RelationFieldAttrs {
     /// The value of the `frontend_type` modifier, if any.
     pub frontend_type: Option<String>,
     /// The value of the `parse_with` modifier, if any.
     pub parse_with: Option<String>,
 }
 
+/// Common data for constant, public and private inputs.
+#[derive(Clone)]
+pub(super) struct RelationField {
+    /// Field itself (the source item AST).
+    pub field: Field,
+    /// Field attributes and modifiers.
+    pub attrs: RelationFieldAttrs,
+}
+
 impl RelationField {
+    /// Returns the span of the field.
     pub fn span(&self) -> Span {
         self.field.span()
+    }
+
+    /// Forcibly extracts ident from the field.
+    pub fn ident(&self) -> &Ident {
+        self.field
+            .ident
+            .as_ref()
+            .expect("Expected struct with named fields")
     }
 }
 
@@ -56,34 +66,55 @@ impl TryFrom<Field> for RelationField {
 
     fn try_from(field: Field) -> Result<Self, Self::Error> {
         let attr = get_field_attr(&field)?;
-        let config = get_relation_field_config(attr)?;
+        let attrs = RelationFieldAttrs::from_meta(&attr.parse_meta()?)?;
 
-        Ok(RelationField {
-            field,
-            frontend_type: config.get(FIELD_FRONTEND_TYPE).cloned(),
-            parse_with: config.get(FIELD_PARSER).cloned(),
-        })
+        Ok(RelationField { field, attrs })
     }
+}
+
+#[derive(Clone, Default, FromMeta)]
+pub(super) struct PublicFieldAttrs {
+    /// The value of the `frontend_type` modifier, if any.
+    pub frontend_type: Option<String>,
+    /// The value of the `parse_with` modifier, if any.
+    pub parse_with: Option<String>,
+    /// The value of the `serialize_with` modifier, if any.
+    pub serialize_with: Option<String>,
 }
 
 /// Full data for public inputs.
 #[derive(Clone)]
 pub(super) struct PublicInputField {
-    /// Common data for all inputs.
-    pub inner: RelationField,
-    /// The value of the `serialize_with` modifier, if any.
-    pub serialize_with: Option<String>,
+    /// Field itself (the source item AST).
+    pub field: Field,
+    /// Field attributes and modifiers.
+    pub attrs: PublicFieldAttrs,
 }
 
 impl PublicInputField {
+    /// Returns the span of the field.
     pub fn span(&self) -> Span {
-        self.inner.span()
+        self.field.span()
+    }
+
+    /// Forcibly extracts ident from the field.
+    pub fn ident(&self) -> &Ident {
+        self.field
+            .ident
+            .as_ref()
+            .expect("Expected struct with named fields")
     }
 }
 
 impl From<PublicInputField> for RelationField {
     fn from(public_input_field: PublicInputField) -> Self {
-        public_input_field.inner
+        RelationField {
+            field: public_input_field.field,
+            attrs: RelationFieldAttrs {
+                frontend_type: public_input_field.attrs.frontend_type,
+                parse_with: public_input_field.attrs.parse_with,
+            },
+        }
     }
 }
 
@@ -92,16 +123,9 @@ impl TryFrom<Field> for PublicInputField {
 
     fn try_from(field: Field) -> Result<Self, Self::Error> {
         let attr = get_field_attr(&field)?;
-        let config = get_public_input_field_config(attr)?;
+        let attrs = PublicFieldAttrs::from_meta(&attr.parse_meta()?)?;
 
-        Ok(PublicInputField {
-            inner: RelationField {
-                field,
-                frontend_type: config.get(FIELD_FRONTEND_TYPE).cloned(),
-                parse_with: config.get(FIELD_PARSER).cloned(),
-            },
-            serialize_with: config.get(FIELD_SERIALIZER).cloned(),
-        })
+        Ok(PublicInputField { field, attrs })
     }
 }
 
@@ -222,7 +246,7 @@ fn extract_items(item_mod: ItemMod) -> SynResult<Items> {
 
 /// Returns all the elements of `fields` that are attributed with `field_type`, e.g.
 /// ```ignore
-/// #[public_input]
+/// #[public_input()]
 /// a: u8
 /// ```
 fn extract_relation_fields<FieldType: ?Sized>(
