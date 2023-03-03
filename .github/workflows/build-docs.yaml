@@ -1,3 +1,4 @@
+---
 # this workflow builds rustdoc for aleph-node crates
 name: build-docs
 

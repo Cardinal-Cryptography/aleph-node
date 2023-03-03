@@ -1,3 +1,4 @@
+---
 name: "Rust cache cleanup"
 description: |
   Run this at the end of your workflow if you're running `rust-cache`.
