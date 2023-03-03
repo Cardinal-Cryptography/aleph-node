@@ -6,14 +6,14 @@ pub use crate::ticket_token::{BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANS
 
 #[openbrush::contract]
 pub mod ticket_token {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use ink_env::Error as InkEnvError;
-    use ink_lang::{
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
+    use ink::{
         codegen::{EmitEvent, Env},
+        env::call::FromAccountId,
+        prelude::{format, string::String},
         reflect::ContractEventBase,
+        ToAccountId,
     };
-    use ink_prelude::{format, string::String};
-    use ink_storage::traits::SpreadAllocate;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal},
         traits::Storage,
@@ -24,14 +24,13 @@ pub mod ticket_token {
     pub const TRANSFER_FROM_SELECTOR: [u8; 4] = [0x54, 0xb3, 0xc7, 0x6e];
 
     #[ink(storage)]
-    #[derive(Default, SpreadAllocate, Storage)]
+    #[derive(Storage)]
     pub struct TicketToken {
         #[storage_field]
         psp22: psp22::Data,
         #[storage_field]
         metadata: metadata::Data,
-        /// access control contract
-        access_control: AccountId,
+        access_control: AccessControlRef,
     }
 
     impl PSP22 for TicketToken {}
@@ -67,10 +66,6 @@ pub mod ticket_token {
         }
     }
 
-    impl AccessControlled for TicketToken {
-        type ContractError = PSP22Error;
-    }
-
     /// Result type
     pub type Result<T> = core::result::Result<T, PSP22Error>;
     /// Event type
@@ -102,39 +97,39 @@ pub mod ticket_token {
     impl TicketToken {
         /// Creates a new contract with the specified initial supply.
         ///
-        /// Will revert if called from an account without a proper role        
+        /// Will revert if called from an account without a proper role
         #[ink(constructor)]
         pub fn new(name: String, symbol: String, total_supply: Balance) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
                 .own_code_hash()
                 .expect("Called new on a contract with no code hash");
+
             let required_role = Role::Initializer(code_hash);
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
 
-            let role_check = <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                caller,
-                required_role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(
-                        format!("Calling access control has failed: {:?}", why).into(),
-                    )
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
-            );
+            if access_control.has_role(caller, required_role) {
+                let metadata = metadata::Data {
+                    name: Some(name.into()),
+                    symbol: Some(symbol.into()),
+                    decimals: 0,
+                    ..Default::default()
+                };
 
-            match role_check {
-                Ok(_) => ink_lang::codegen::initialize_contract(|instance: &mut TicketToken| {
-                    instance.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-                    instance.metadata.name = Some(name.into());
-                    instance.metadata.symbol = Some(symbol.into());
-                    instance.metadata.decimals = 0;
+                let mut instance = TicketToken {
+                    access_control,
+                    metadata,
+                    psp22: psp22::Data::default(),
+                };
 
-                    instance
-                        ._mint_to(instance.env().caller(), total_supply)
-                        .expect("Should mint");
-                }),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+                instance
+                    ._mint_to(instance.env().caller(), total_supply)
+                    .expect("Should mint");
+
+                instance
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -158,21 +153,17 @@ pub mod ticket_token {
         /// Returns the contract's access control contract address
         #[ink(message, selector = 8)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
-                role,
-                |why: InkEnvError| {
-                    PSP22Error::Custom(
-                        format!("Calling access control has failed: {:?}", why).into(),
-                    )
-                },
-                |role: Role| PSP22Error::Custom(format!("MissingRole:{:?}", role).into()),
-            )
+            if self.access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                Err(PSP22Error::Custom(
+                    format!("Role missing: {:?}", role).into(),
+                ))
+            }
         }
 
         /// Sets new access control contract address
@@ -185,7 +176,8 @@ pub mod ticket_token {
             let required_role = Role::Owner(this);
 
             self.check_role(caller, required_role)?;
-            self.access_control = access_control;
+            self.access_control = AccessControlRef::from_account_id(access_control);
+
             Ok(())
         }
 

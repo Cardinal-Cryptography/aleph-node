@@ -64,7 +64,8 @@ pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 #[frame_support::pallet]
 pub mod pallet {
     use frame_election_provider_support::{
-        ElectionDataProvider, ElectionProvider, Support, Supports,
+        BoundedSupportsOf, ElectionDataProvider, ElectionProvider, ElectionProviderBase, Support,
+        Supports,
     };
     use frame_support::{log, pallet_prelude::*, traits::Get};
     use frame_system::{
@@ -79,13 +80,15 @@ pub mod pallet {
     use sp_runtime::Perbill;
 
     use super::*;
-    use crate::traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler};
+    use crate::traits::{
+        EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler,
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Something that provides information about ongoing eras.
         type EraInfoProvider: EraInfoProvider<AccountId = Self::AccountId>;
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Something that provides data for elections.
         type DataProvider: ElectionDataProvider<
             AccountId = Self::AccountId,
@@ -100,10 +103,19 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<Self>;
         /// Something that handles addition of rewards for validators.
         type ValidatorRewardsHandler: ValidatorRewardsHandler<Self>;
+        /// Something that removes validators from candidates in elections
+        type ValidatorExtractor: ValidatorExtractor<AccountId = Self::AccountId>;
 
         /// Maximum acceptable ban reason length.
         #[pallet::constant]
         type MaximumBanReasonLength: Get<u32>;
+
+        /// The maximum number of winners that can be elected by this `ElectionProvider`
+        /// implementation.
+        ///
+        /// Note: This must always be greater or equal to `T::DataProvider::desired_targets()`.
+        #[pallet::constant]
+        type MaxWinners: Get<u32>;
     }
 
     #[pallet::event]
@@ -130,7 +142,7 @@ pub mod pallet {
             let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
             T::DbWeight::get().reads(1)
                 + match on_chain {
-                    _ if on_chain == STORAGE_VERSION => 0,
+                    _ if on_chain == STORAGE_VERSION => Weight::zero(),
                     _ if on_chain == StorageVersion::new(0) => {
                         migrations::v0_to_v1::Migration::<T, Self>::migrate()
                             + migrations::v1_to_v2::Migration::<T, Self>::migrate()
@@ -149,7 +161,7 @@ pub mod pallet {
                             "On chain storage version of pallet elections is {:?} but it should not be bigger than 2",
                             on_chain
                         );
-                        0
+                        Weight::zero()
                     }
                 }
         }
@@ -224,6 +236,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn change_validators(
             origin: OriginFor<T>,
@@ -258,6 +271,7 @@ pub mod pallet {
         }
 
         /// Sets ban config, it has an immediate effect
+        #[pallet::call_index(1)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_ban_config(
             origin: OriginFor<T>,
@@ -308,6 +322,7 @@ pub mod pallet {
         }
 
         /// Schedule a non-reserved node to be banned out from the committee at the end of the era
+        #[pallet::call_index(2)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn ban_from_committee(
             origin: OriginFor<T>,
@@ -326,6 +341,7 @@ pub mod pallet {
         }
 
         /// Schedule a non-reserved node to be banned out from the committee at the end of the era
+        #[pallet::call_index(3)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn cancel_ban(origin: OriginFor<T>, banned: T::AccountId) -> DispatchResult {
             ensure_root(origin)?;
@@ -335,6 +351,7 @@ pub mod pallet {
         }
 
         /// Set openness of the elections
+        #[pallet::call_index(4)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_elections_openness(
             origin: OriginFor<T>,
@@ -371,8 +388,8 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <CommitteeSize<T>>::put(&self.committee_seats);
-            <NextEraCommitteeSize<T>>::put(&self.committee_seats);
+            <CommitteeSize<T>>::put(self.committee_seats);
+            <NextEraCommitteeSize<T>>::put(self.committee_seats);
             <NextEraNonReservedValidators<T>>::put(&self.non_reserved_validators);
             <NextEraReservedValidators<T>>::put(&self.reserved_validators);
             <CurrentEraValidators<T>>::put(&EraValidators {
@@ -442,6 +459,10 @@ pub mod pallet {
     #[derive(Debug)]
     pub enum ElectionError {
         DataProvider(&'static str),
+
+        /// Winner number is greater than
+        /// [`Config::MaxWinners`]
+        TooManyWinners,
     }
 
     #[pallet::error]
@@ -462,16 +483,23 @@ pub mod pallet {
         BanReasonTooBig,
     }
 
-    impl<T: Config> ElectionProvider for Pallet<T> {
+    impl<T: Config> ElectionProviderBase for Pallet<T> {
         type AccountId = T::AccountId;
         type BlockNumber = T::BlockNumber;
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
+        type MaxWinners = T::MaxWinners;
+    }
+
+    impl<T: Config> ElectionProvider for Pallet<T> {
+        fn ongoing() -> bool {
+            false
+        }
 
         /// We calculate the supports for each validator. The external validators are chosen as:
         /// 1) "`NextEraNonReservedValidators` that are staking and are not banned" in case of Permissioned ElectionOpenness
         /// 2) "All staking and not banned validators" in case of Permissionless ElectionOpenness
-        fn elect() -> Result<Supports<T::AccountId>, Self::Error> {
+        fn elect() -> Result<BoundedSupportsOf<Self>, Self::Error> {
             Self::emit_fresh_bans_event();
             let active_era = <T as Config>::EraInfoProvider::active_era().unwrap_or(0);
             let ban_period = BanConfig::<T>::get().ban_period;
@@ -539,7 +567,11 @@ pub mod pallet {
                 }
             }
 
-            Ok(supports.into_iter().collect())
+            supports
+                .into_iter()
+                .collect::<Supports<_>>()
+                .try_into()
+                .map_err(|_| Self::Error::TooManyWinners)
         }
     }
 }

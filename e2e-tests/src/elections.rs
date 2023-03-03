@@ -1,15 +1,20 @@
 use std::{collections::HashSet, iter::empty};
 
-use aleph_client::{get_validators_for_session, AccountId, ReadStorage};
+use aleph_client::{
+    pallets::session::SessionApi,
+    primitives::{CommitteeSeats, EraValidators},
+    utility::BlocksApi,
+    AccountId,
+};
 use log::debug;
-use primitives::{CommitteeSeats, EraValidators, SessionIndex};
+use primitives::SessionIndex;
 
-pub fn get_and_test_members_for_session<C: ReadStorage>(
+pub async fn get_and_test_members_for_session<C: SessionApi + BlocksApi>(
     connection: &C,
     seats: CommitteeSeats,
     era_validators: &EraValidators<AccountId>,
     session: SessionIndex,
-) -> (Vec<AccountId>, Vec<AccountId>) {
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let reserved_members_for_session =
         get_members_subset_for_session(seats.reserved_seats, &era_validators.reserved, session);
     let non_reserved_members_for_session = get_members_subset_for_session(
@@ -35,9 +40,8 @@ pub fn get_and_test_members_for_session<C: ReadStorage>(
         .collect();
 
     let members_active_set: HashSet<_> = members_active.iter().cloned().collect();
-    let network_members: HashSet<_> = get_validators_for_session(connection, session)
-        .into_iter()
-        .collect();
+    let block = connection.first_block_of_session(session).await?;
+    let network_members: HashSet<_> = connection.get_validators(block).await.into_iter().collect();
 
     debug!(
         "expected era validators for session {}: reserved - {:?}, non-reserved - {:?}",
@@ -51,7 +55,7 @@ pub fn get_and_test_members_for_session<C: ReadStorage>(
 
     assert_eq!(members_active_set, network_members);
 
-    (members_active, members_bench)
+    Ok((members_active, members_bench))
 }
 
 /// Computes a list of validators that should be elected for a given session, based on description in our elections pallet.

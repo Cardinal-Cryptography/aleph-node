@@ -17,9 +17,29 @@ concurrency:
 jobs:
   build:
     name: Check excluded packages
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        package: [
+          flooder,
+          e2e-tests,
+          aleph-client,
+          fork-off,
+          benches/payout-stakers,
+          bin/cliain,
+          contracts/access_control,
+          contracts/button,
+          contracts/game_token,
+          contracts/marketplace,
+          contracts/simple_dex,
+          contracts/ticket_token,
+          contracts/wrapped_azero,
+          contracts/adder,
+          scripts/synthetic-network/synthetic-link,
+        ]
     env:
       CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -27,54 +47,14 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Install clippy and fmt
-        run: rustup component add clippy rustfmt
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Read excluded packages from Cargo.toml
-        id: read_excluded
-        uses: SebRollen/toml-action@v1.0.0
-        with:
-          file: 'Cargo.toml'
-          field: 'workspace.exclude'
-
-      - name: Format output
-        id: format_output
+      - name: Check excluded package
         run: |
-          packages="$(echo ${{ steps.read_excluded.outputs.value }} | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
-          targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
-
-          packages="${packages//$'\n'/'%0A'}"
-          targets="${targets//$'\n'/'%0A'}"
-
-          echo "::set-output name=packages::$packages"
-          echo "::set-output name=targets::$targets"
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: excluded
-          cargo-key: excluded
-          cache-version: v2
-          cargo-targets: "${{ steps.format_output.outputs.targets }}"
-
-      - name: Check excluded packages
-        env:
-          RUSTC_WRAPPER: ""
-          RUSTC_WORKSPACE_WRAPPER: sccache
-        run: |
-          packages="${{ steps.format_output.outputs.packages }}"
-          for p in ${packages[@]}
-          do
-            echo "Checking package $p..."
-            pushd "$p"
-            cargo fmt --all --check
-            cargo clippy --all-features -- --no-deps -D warnings
+          cd ${{ matrix.package }}
+          rustup component add clippy rustfmt
+          rustup target add wasm32-unknown-unknown
+          cargo fmt --all --check
+          cargo clippy --all-features -- --no-deps -D warnings
+          if [ ${{ matrix.package }} != "e2e-tests" ]
+          then
             cargo test
-            popd
-          done
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
+          fi

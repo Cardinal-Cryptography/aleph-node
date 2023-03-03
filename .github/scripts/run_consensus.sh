@@ -3,15 +3,19 @@
 set -euo pipefail
 
 # default node count
-# change when increasing the number of node containers
 NODE_COUNT=5
+# max node count that will not crash current GH machines
+MAX_NODE_COUNT=6
+# default minimum validator count
 MIN_VALIDATOR_COUNT=4
+DOCKER_COMPOSE=${DOCKER_COMPOSE:-"docker/docker-compose.yml"}
 OVERRIDE_DOCKER_COMPOSE=${OVERRIDE_DOCKER_COMPOSE:-""}
+NODE_IMAGE=${NODE_IMAGE:-aleph-node:latest}
 
 # default minimum validator count
 MIN_VALIDATOR_COUNT=4
 
-export NODE_IMAGE=aleph-node:latest
+export NODE_IMAGE
 
 mkdir -p docker/data/
 
@@ -49,6 +53,11 @@ done
 
 export NODE_COUNT
 
+if [[ ${NODE_COUNT} -gt ${MAX_NODE_COUNT} ]]; then
+  echo "Tried to run ${NODE_COUNT} nodes. Max node count allowed: ${MAX_NODE_COUNT}."
+  exit 1
+fi
+
 function generate_authorities {
   local authorities_count="$1"
 
@@ -83,19 +92,20 @@ function generate_bootnode_peer_id {
 
 function run_containers {
   local authorities_count="$1"
-  local override_file="$2"
+  local docker_compose_file="$2"
+  local override_file="$3"
 
   echo "Running ${authorities_count} containers..."
   if [[ -z ${override_file} ]]; then
-      docker-compose -f docker/docker-compose.yml up -d
+      docker-compose -f "${docker_compose_file}" up -d
   else
-      docker-compose -f docker/docker-compose.yml -f "${override_file}" up -d
+      docker-compose -f "${docker_compose_file}" -f "${override_file}" up -d
   fi
 }
 
 authorities=$(generate_authorities ${NODE_COUNT})
 generate_chainspec "${authorities[@]}" "${MIN_VALIDATOR_COUNT}"
 generate_bootnode_peer_id ${authorities[0]}
-run_containers ${NODE_COUNT} "${OVERRIDE_DOCKER_COMPOSE}"
+run_containers ${NODE_COUNT} "${DOCKER_COMPOSE}" "${OVERRIDE_DOCKER_COMPOSE}"
 
 exit $?

@@ -54,7 +54,7 @@ Game continues in perpetuity (but in practice as long as there are accounts that
 ## Prerequisites
 
 - Rust nightly
-- cargo-contract with bug fixes around URL parsing: `cargo install --git https://github.com/paritytech/cargo-contract.git --rev 2b1758756de59bd81e7bed5f8429d364f281cb9a --force`
+- cargo-contract compatible with current node: `cargo install cargo-contract --version 2.0.1`
 
 ## Instructions
 

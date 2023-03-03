@@ -1,14 +1,13 @@
 services:
   AlephNodeService:
     image: aleph-node:latest
-    network_mode: host
     environment:
       - PURGE_BEFORE_START=true
       - RUST_LOG=info
       - CHAIN=/data/chainspec.json
       - ALLOW_PRIVATE_IPV4=true
       - DISCOVER_LOCAL=true
-      - UNIT_CREATION_DELAY=50
+      - UNIT_CREATION_DELAY=300
     volumes:
       - ./data/:/data/
 

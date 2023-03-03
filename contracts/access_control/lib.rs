@@ -2,17 +2,19 @@
 #![allow(clippy::let_unit_value)]
 
 pub use crate::access_control::{
-    AccessControlError, ACCESS_CONTROL_PUBKEY, CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
+    AccessControl, AccessControlError, AccessControlRef, ACCESS_CONTROL_PUBKEY,
+    CHECK_ROLE_SELECTOR, HAS_ROLE_SELECTOR,
 };
 pub mod roles;
-pub mod traits;
-use ink_lang as ink;
+
+use ink::env::{DefaultEnvironment, Environment};
+
+type AccountId = <DefaultEnvironment as Environment>::AccountId;
+type Hash = <DefaultEnvironment as Environment>::Hash;
 
 #[ink::contract]
 mod access_control {
-
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_storage::{traits::SpreadAllocate, Mapping};
+    use ink::{codegen::EmitEvent, reflect::ContractEventBase, storage::Mapping};
     use scale::{Decode, Encode};
 
     use crate::roles::Role;
@@ -24,7 +26,6 @@ mod access_control {
     pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
     pub struct AccessControl {
         /// Stores a de-facto hashset of user accounts and their roles
         pub privileges: Mapping<(AccountId, Role), ()>,
@@ -67,19 +68,13 @@ mod access_control {
         /// Creates a new contract.
         #[ink(constructor)]
         pub fn new() -> Self {
-            // This call is required in order to correctly initialize the
-            // `Mapping`s of our contract.
-            ink_lang::utils::initialize_contract(Self::new_init)
-        }
-
-        /// Initializes the contract.
-        ///
-        /// caller is granted admin and owner privileges
-        fn new_init(&mut self) {
+            let mut privileges = Mapping::default();
             let caller = Self::env().caller();
             let this = Self::env().account_id();
-            self.privileges.insert((caller, Role::Admin(this)), &());
-            self.privileges.insert((caller, Role::Owner(this)), &());
+            privileges.insert((caller, Role::Admin(this)), &());
+            privileges.insert((caller, Role::Owner(this)), &());
+
+            Self { privileges }
         }
 
         /// Gives a role to an account
@@ -166,13 +161,11 @@ mod access_control {
 
     #[cfg(test)]
     mod tests {
-        use ink_lang as ink;
-
         use super::*;
 
         #[ink::test]
         fn access_control() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>();
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
             let alice = accounts.alice;
             let bob = accounts.bob;
@@ -180,9 +173,9 @@ mod access_control {
             let contract_address = accounts.django;
 
             // alice deploys the access control contract
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(alice);
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(contract_address);
+            ink::env::test::set_account_balance::<ink::env::DefaultEnvironment>(
                 contract_address,
                 100,
             );
@@ -213,8 +206,8 @@ mod access_control {
                 "Bob is not admin"
             );
 
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(charlie);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(charlie);
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(contract_address);
 
             // charlie tries granting admin rights to himself
             assert!(
@@ -225,8 +218,8 @@ mod access_control {
             );
 
             // test terminating
-            ink_env::test::set_caller::<ink_env::DefaultEnvironment>(alice);
-            ink_env::test::set_callee::<ink_env::DefaultEnvironment>(contract_address);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(alice);
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(contract_address);
 
             let should_terminate = move || {
                 access_control
@@ -234,7 +227,7 @@ mod access_control {
                     .expect("Calling terminate failed")
             };
 
-            ink_env::test::assert_contract_termination::<ink_env::DefaultEnvironment, _>(
+            ink::env::test::assert_contract_termination::<ink::env::DefaultEnvironment, _>(
                 should_terminate,
                 alice,
                 100,

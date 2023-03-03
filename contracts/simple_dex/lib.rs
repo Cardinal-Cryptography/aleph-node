@@ -1,8 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
 
-use ink_lang as ink;
-
 /// Simple DEX contract
 ///
 /// This contract is based on Balancer multi asset LP design and all formulas are taken from the Balancer's whitepaper (https://balancer.fi/whitepaper.pdf)
@@ -13,26 +11,23 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod simple_dex {
-
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use game_token::{
-        ALLOWANCE_SELECTOR, BALANCE_OF_SELECTOR, TRANSFER_FROM_SELECTOR, TRANSFER_SELECTOR,
-    };
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags, DefaultEnvironment, Error as InkEnvError,
-    };
-    use ink_lang::{
-        codegen::{initialize_contract, EmitEvent},
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
+    use ink::{
+        codegen::EmitEvent,
+        env::{call::FromAccountId, CallFlags, Error as InkEnvError},
+        prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
+        LangError, ToAccountId,
     };
-    use ink_prelude::{format, string::String, vec, vec::Vec};
-    use ink_storage::traits::{PackedLayout, SpreadAllocate, SpreadLayout};
-    use openbrush::{contracts::traits::errors::PSP22Error, storage::Mapping};
+    use openbrush::{
+        contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
+        storage::Mapping,
+        traits::Storage,
+    };
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
-    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode, SpreadLayout, PackedLayout)]
+    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub struct SwapPair {
         pub from: AccountId,
@@ -52,7 +47,7 @@ mod simple_dex {
         InsufficientAllowanceOf(AccountId),
         Arithmethic,
         WrongParameterValue,
-        MissingRole(Role),
+        MissingRole(AccountId, Role),
         InkEnv(String),
         CrossContractCall(String),
         TooMuchSlippage,
@@ -70,6 +65,20 @@ mod simple_dex {
         fn from(why: InkEnvError) -> Self {
             DexError::InkEnv(format!("{:?}", why))
         }
+    }
+
+    impl From<LangError> for DexError {
+        fn from(why: LangError) -> Self {
+            DexError::CrossContractCall(format!("{:?}", why))
+        }
+    }
+
+    #[ink(event)]
+    pub struct Deposited {
+        caller: AccountId,
+        #[ink(topic)]
+        token: AccountId,
+        amount: Balance,
     }
 
     #[ink(event)]
@@ -103,16 +112,12 @@ mod simple_dex {
     }
 
     #[ink(storage)]
-    #[derive(SpreadAllocate)]
+    #[derive(Storage)]
     pub struct SimpleDex {
         pub swap_fee_percentage: u128,
-        pub access_control: AccountId,
+        pub access_control: AccessControlRef,
         // a set of pairs that are availiable for swapping between
         pub swap_pairs: Mapping<SwapPair, ()>,
-    }
-
-    impl AccessControlled for SimpleDex {
-        type ContractError = DexError;
     }
 
     impl SimpleDex {
@@ -124,18 +129,16 @@ mod simple_dex {
                 .expect("Called new on a contract with no code hash");
             let required_role = Role::Initializer(code_hash);
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
 
-            let role_check = <Self as AccessControlled>::check_role(
-                access_control,
-                caller,
-                required_role,
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            );
-
-            match role_check {
-                Ok(_) => initialize_contract(Self::new_init),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+            if access_control.has_role(caller, required_role) {
+                Self {
+                    swap_fee_percentage: 0,
+                    access_control,
+                    swap_pairs: Mapping::default(),
+                }
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -153,7 +156,7 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            let balance_token_out = self.balance_of(token_out, this)?;
+            let balance_token_out = self.balance_of(token_out, this);
             if balance_token_out < min_amount_token_out {
                 // throw early if we cannot support this swap anyway due to liquidity being too low
                 return Err(DexError::NotEnoughLiquidityOf(token_out));
@@ -165,7 +168,7 @@ mod simple_dex {
             }
 
             // check allowance
-            if self.allowance(token_in, caller, this)? < amount_token_in {
+            if self.allowance(token_in, caller, this) < amount_token_in {
                 return Err(DexError::InsufficientAllowanceOf(token_in));
             }
 
@@ -178,9 +181,9 @@ mod simple_dex {
             }
 
             // transfer token_in from user to the contract
-            self.transfer_from_tx(token_in, caller, this, amount_token_in)??;
+            self.transfer_from_tx(token_in, caller, this, amount_token_in)?;
             // transfer token_out from contract to user
-            self.transfer_tx(token_out, caller, amount_token_out)??;
+            self.transfer_tx(token_out, caller, amount_token_out)?;
 
             // emit event
             Self::emit_event(
@@ -216,7 +219,17 @@ mod simple_dex {
                     // transfer token_in from the caller to the contract
                     // will revert if the contract does not have enough allowance from the caller
                     // in which case the whole tx is reverted
-                    self.transfer_from_tx(token_in, caller, this, amount)??;
+                    self.transfer_from_tx(token_in, caller, this, amount)?;
+
+                    Self::emit_event(
+                        self.env(),
+                        Event::Deposited(Deposited {
+                            caller,
+                            token: token_in,
+                            amount,
+                        }),
+                    );
+
                     Ok(())
                 })?;
 
@@ -237,7 +250,7 @@ mod simple_dex {
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
                     // transfer token_out from the contract to the caller
-                    self.transfer_tx(token_out, caller, amount)??;
+                    self.transfer_tx(token_out, caller, amount)?;
                     Ok(())
                 },
             )?;
@@ -294,14 +307,14 @@ mod simple_dex {
 
             self.check_role(caller, Role::Owner(this))?;
 
-            self.access_control = access_control;
+            self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
 
         /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control
+            self.access_control.to_account_id()
         }
 
         /// Whitelists a token pair for swapping between
@@ -378,8 +391,8 @@ mod simple_dex {
             amount_token_in: Balance,
         ) -> Result<Balance, DexError> {
             let this = self.env().account_id();
-            let balance_token_in = self.balance_of(token_in, this)?;
-            let balance_token_out = self.balance_of(token_out, this)?;
+            let balance_token_in = self.balance_of(token_in, this);
+            let balance_token_out = self.balance_of(token_out, this);
 
             Self::_out_given_in(
                 amount_token_in,
@@ -416,13 +429,8 @@ mod simple_dex {
             balance_token_out
                 .checked_sub(op4)
                 // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
-                .and_then(|result| result.checked_sub(if op3 % op2 > 0 { 1 } else { 0 }))
+                .and_then(|result| result.checked_sub((op3 % op2 > 0).into()))
                 .ok_or(DexError::Arithmethic)
-        }
-
-        fn new_init(&mut self) {
-            self.access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            self.swap_fee_percentage = 0;
         }
 
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
@@ -431,17 +439,10 @@ mod simple_dex {
             token: AccountId,
             to: AccountId,
             amount: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_SELECTOR))
-                        .push_arg(to)
-                        .push_arg(amount)
-                        .push_arg(vec![0x0]),
-                )
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        ) -> Result<(), PSP22Error> {
+            PSP22Ref::transfer(&token, to, amount, vec![])?;
+
+            Ok(())
         }
 
         /// Transfers a given amount of a PSP22 token on behalf of a specified account to another account
@@ -453,69 +454,30 @@ mod simple_dex {
             from: AccountId,
             to: AccountId,
             amount: Balance,
-        ) -> Result<Result<(), PSP22Error>, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_FROM_SELECTOR))
-                        .push_arg(from)
-                        .push_arg(to)
-                        .push_arg(amount)
-                        .push_arg(vec![0x0]),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true)) // needed for checking allowance before the actual tx
-                .returns::<Result<(), PSP22Error>>()
-                .fire()
+        ) -> Result<(), DexError> {
+            PSP22Ref::transfer_from_builder(&token, from, to, amount, vec![0x0])
+                .call_flags(CallFlags::default().set_allow_reentry(true))
+                .fire()???;
+
+            Ok(())
         }
 
         /// Returns the amount of unused allowance that the token owner has given to the spender
-        fn allowance(
-            &self,
-            token: AccountId,
-            owner: AccountId,
-            spender: AccountId,
-        ) -> Result<Balance, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(ALLOWANCE_SELECTOR))
-                        .push_arg(owner)
-                        .push_arg(spender),
-                )
-                .returns::<Balance>()
-                .fire()
+        fn allowance(&self, token: AccountId, owner: AccountId, spender: AccountId) -> Balance {
+            PSP22Ref::allowance(&token, owner, spender)
         }
 
         /// Returns DEX balance of a PSP22 token for an account
-        fn balance_of(&self, token: AccountId, account: AccountId) -> Result<Balance, InkEnvError> {
-            build_call::<DefaultEnvironment>()
-                .call_type(Call::new().callee(token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(BALANCE_OF_SELECTOR)).push_arg(account),
-                )
-                .returns::<Balance>()
-                .fire()
+        fn balance_of(&self, token: AccountId, account: AccountId) -> Balance {
+            PSP22Ref::balance_of(&token, account)
         }
 
-        fn access_control_error_handler(role: Role) -> DexError {
-            DexError::MissingRole(role)
-        }
-
-        fn cross_contract_call_error_handler(why: InkEnvError) -> DexError {
-            DexError::CrossContractCall(format!("Calling access control has failed: {:?}", why))
-        }
-
-        fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError>
-        where
-            Self: AccessControlled,
-        {
-            <Self as AccessControlled>::check_role(
-                self.access_control,
-                account,
-                role,
-                Self::cross_contract_call_error_handler,
-                Self::access_control_error_handler,
-            )
+        fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {
+            if self.access_control.has_role(account, role) {
+                Ok(())
+            } else {
+                Err(DexError::MissingRole(account, role))
+            }
         }
 
         fn emit_event<EE>(emitter: EE, event: Event)

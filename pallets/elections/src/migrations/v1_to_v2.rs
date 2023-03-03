@@ -1,13 +1,15 @@
-#[cfg(feature = "try-runtime")]
-use frame_support::ensure;
 use frame_support::{
     log, storage_alias,
     traits::{Get, OnRuntimeUpgrade, PalletInfoAccess, StorageVersion},
     weights::Weight,
 };
 #[cfg(feature = "try-runtime")]
-use pallets_support::ensure_storage_version;
-use pallets_support::StorageMigration;
+use {
+    codec::{Decode, Encode},
+    frame_support::ensure,
+    pallets_support::ensure_storage_version,
+    sp_std::vec::Vec,
+};
 
 use crate::{migrations::Validators, Config, EraValidators};
 
@@ -40,9 +42,13 @@ type CurrentEraValidators<T> =
 /// - `ErasMembers` `(reserved, non_reserved)` -> `CurrentEraValidators` `ErasValidators { reserved, non_reserved}`
 pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
 
-impl<T: Config, P: PalletInfoAccess> StorageMigration for Migration<T, P> {
-    #[cfg(feature = "try-runtime")]
-    const MIGRATION_STORAGE_PREFIX: &'static [u8] = b"PALLET_ELECTIONS::V1_TO_V2_MIGRATION";
+#[cfg(feature = "try-runtime")]
+#[derive(Decode, Encode)]
+struct MigrationChecksState<T: Config> {
+    members_per_session: u32,
+    reserved_members: Validators<T>,
+    non_reserved_members: Validators<T>,
+    eras_members: (Validators<T>, Validators<T>),
 }
 
 impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
@@ -82,29 +88,28 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
     }
 
     #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<(), &'static str> {
+    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
         ensure_storage_version::<P>(1)?;
 
         let members_per_session =
             MembersPerSession::get().ok_or("No `MembersPerSession` in the storage")?;
-        Self::store_temp("members_per_session", members_per_session);
-
         let reserved_members =
             ReservedMembers::<T>::get().ok_or("No `ReservedMembers` in the storage")?;
-        Self::store_temp("reserved_members", reserved_members);
-
         let non_reserved_members =
             NonReservedMembers::<T>::get().ok_or("No `NonReservedMembers` in the storage")?;
-        Self::store_temp("non_reserved_members", non_reserved_members);
-
         let eras_members = ErasMembers::<T>::get().ok_or("No `ErasMembers` in the storage")?;
-        Self::store_temp("eras_members", eras_members);
 
-        Ok(())
+        Ok(MigrationChecksState::<T> {
+            members_per_session,
+            reserved_members,
+            non_reserved_members,
+            eras_members,
+        }
+        .encode())
     }
 
     #[cfg(feature = "try-runtime")]
-    fn post_upgrade() -> Result<(), &'static str> {
+    fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
         ensure_storage_version::<P>(2)?;
 
         let committee_size = CommitteeSize::get().ok_or("No `CommitteeSize` in the storage")?;
@@ -115,10 +120,13 @@ impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
         let current_era_validators =
             CurrentEraValidators::<T>::get().ok_or("No `CurrentEraValidators` in the storage")?;
 
-        let members_per_session = Self::read_temp::<u32>("members_per_session");
-        let reserved_members = Self::read_temp::<Validators<T>>("reserved_members");
-        let non_reserved_members = Self::read_temp::<Validators<T>>("non_reserved_members");
-        let eras_members = Self::read_temp::<(Validators<T>, Validators<T>)>("eras_members");
+        let MigrationChecksState {
+            members_per_session,
+            reserved_members,
+            non_reserved_members,
+            eras_members,
+        } = <MigrationChecksState<T>>::decode(&mut &*state)
+            .map_err(|_| "Failed to decode old state")?;
 
         ensure!(
             committee_size == members_per_session,

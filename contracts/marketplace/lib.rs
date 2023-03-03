@@ -1,4 +1,4 @@
-//! Implement a Dutch auction of one token for another.
+//! Implements a Dutch auction of one token for another.
 //!
 //! This contract will auction off units of one token (referred to as `tickets`), accepting payment
 //! in another token (`reward token`). The auction keeps track of the average price over all sales
@@ -20,29 +20,23 @@
 #![feature(min_specialization)]
 #![allow(clippy::let_unit_value)]
 
-use ink_lang as ink;
-
 pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 
 #[ink::contract]
 pub mod marketplace {
-    use access_control::{roles::Role, traits::AccessControlled, ACCESS_CONTROL_PUBKEY};
-    use game_token::BURN_SELECTOR as REWARD_BURN_SELECTOR;
-    use ink_env::{
-        call::{build_call, Call, ExecutionInput, Selector},
-        CallFlags,
+    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
+    use ink::{
+        codegen::EmitEvent,
+        env::call::FromAccountId,
+        prelude::{format, string::String, vec},
+        reflect::ContractEventBase,
+        LangError,
     };
-    use ink_lang::{codegen::EmitEvent, reflect::ContractEventBase};
-    use ink_prelude::{format, string::String};
-    use openbrush::contracts::psp22::PSP22Error;
-    use ticket_token::{
-        BALANCE_OF_SELECTOR as TICKET_BALANCE_SELECTOR,
-        TRANSFER_SELECTOR as TRANSFER_TICKET_SELECTOR,
+    use openbrush::contracts::psp22::{
+        extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
     };
 
     type Event = <Marketplace as ContractEventBase>::Type;
-
-    const DUMMY_DATA: &[u8] = &[0x0];
 
     #[ink(storage)]
     pub struct Marketplace {
@@ -54,6 +48,7 @@ pub mod marketplace {
         sale_multiplier: Balance,
         ticket_token: AccountId,
         reward_token: AccountId,
+        access_control: AccessControlRef,
     }
 
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
@@ -78,8 +73,8 @@ pub mod marketplace {
     #[derive(Clone, Eq, PartialEq, Debug)]
     pub struct Reset;
 
-    impl From<ink_env::Error> for Error {
-        fn from(inner: ink_env::Error) -> Self {
+    impl From<ink::env::Error> for Error {
+        fn from(inner: ink::env::Error) -> Self {
             Error::ContractCall(format!("{:?}", inner))
         }
     }
@@ -90,8 +85,10 @@ pub mod marketplace {
         }
     }
 
-    impl AccessControlled for Marketplace {
-        type ContractError = Error;
+    impl From<LangError> for Error {
+        fn from(inner: LangError) -> Self {
+            Error::ContractCall(format!("{:?}", inner))
+        }
     }
 
     impl Marketplace {
@@ -104,18 +101,22 @@ pub mod marketplace {
             sale_multiplier: Balance,
             auction_length: BlockNumber,
         ) -> Self {
-            Self::ensure_role(Self::initializer())
-                .unwrap_or_else(|e| panic!("Failed to initialize the contract {:?}", e));
-
-            Marketplace {
-                ticket_token,
-                reward_token,
-                min_price,
-                sale_multiplier,
-                auction_length,
-                current_start_block: Self::env().block_number(),
-                total_proceeds: starting_price.saturating_div(sale_multiplier),
-                tickets_sold: 1,
+            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
+            let access_control = AccessControlRef::from_account_id(access_control);
+            if access_control.has_role(Self::env().caller(), Self::initializer()) {
+                Marketplace {
+                    ticket_token,
+                    reward_token,
+                    min_price,
+                    sale_multiplier,
+                    auction_length,
+                    current_start_block: Self::env().block_number(),
+                    total_proceeds: starting_price.saturating_div(sale_multiplier),
+                    tickets_sold: 1,
+                    access_control,
+                }
+            } else {
+                panic!("Caller is not allowed to initialize this contract");
             }
         }
 
@@ -160,7 +161,7 @@ pub mod marketplace {
         ///
         /// The tickets will be auctioned off one by one.
         #[ink(message)]
-        pub fn available_tickets(&self) -> Result<Balance, Error> {
+        pub fn available_tickets(&self) -> Balance {
             self.ticket_balance()
         }
 
@@ -173,7 +174,7 @@ pub mod marketplace {
         /// Update the minimal price.
         #[ink(message)]
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
-            Self::ensure_role(self.admin())?;
+            self.ensure_role(self.admin())?;
 
             self.min_price = value;
 
@@ -199,7 +200,7 @@ pub mod marketplace {
         /// current price is greater than that.
         #[ink(message)]
         pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
-            if self.ticket_balance()? == 0 {
+            if self.ticket_balance() == 0 {
                 return Err(Error::MarketplaceEmpty);
             }
 
@@ -230,7 +231,7 @@ pub mod marketplace {
         /// Requires `Role::Admin`.
         #[ink(message, selector = 0x00000001)]
         pub fn reset(&mut self) -> Result<(), Error> {
-            Self::ensure_role(self.admin())?;
+            self.ensure_role(self.admin())?;
 
             self.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
@@ -245,7 +246,7 @@ pub mod marketplace {
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            Self::ensure_role(Role::Owner(this))?;
+            self.ensure_role(Role::Owner(this))?;
             self.env().terminate_contract(caller)
         }
 
@@ -265,56 +266,29 @@ pub mod marketplace {
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
-            build_call::<Environment>()
-                .call_type(Call::new().callee(self.reward_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(REWARD_BURN_SELECTOR))
-                        .push_arg(from)
-                        .push_arg(amount),
-                )
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+            PSP22BurnableRef::burn_builder(&self.reward_token, from, amount)
+                .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
+                .fire()???;
 
             Ok(())
         }
 
         fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
-            build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TRANSFER_TICKET_SELECTOR))
-                        .push_arg(to)
-                        .push_arg(1u128)
-                        .push_arg(DUMMY_DATA),
-                )
-                .returns::<Result<(), PSP22Error>>()
-                .fire()??;
+            PSP22Ref::transfer(&self.ticket_token, to, 1, vec![])?;
 
             Ok(())
         }
 
-        fn ticket_balance(&self) -> Result<Balance, Error> {
-            let balance = build_call::<Environment>()
-                .call_type(Call::new().callee(self.ticket_token))
-                .exec_input(
-                    ExecutionInput::new(Selector::new(TICKET_BALANCE_SELECTOR))
-                        .push_arg(self.env().account_id()),
-                )
-                .returns::<Balance>()
-                .fire()?;
-
-            Ok(balance)
+        fn ticket_balance(&self) -> Balance {
+            PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
         }
 
-        fn ensure_role(role: Role) -> Result<(), Error> {
-            <Self as AccessControlled>::check_role(
-                AccountId::from(ACCESS_CONTROL_PUBKEY),
-                Self::env().caller(),
-                role,
-                |reason| reason.into(),
-                Error::MissingRole,
-            )
+        fn ensure_role(&self, role: Role) -> Result<(), Error> {
+            if self.access_control.has_role(self.env().caller(), role) {
+                Ok(())
+            } else {
+                Err(Error::MissingRole(role))
+            }
         }
 
         fn initializer() -> Role {

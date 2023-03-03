@@ -16,7 +16,7 @@ services:
       - PURGE_BEFORE_START=true
       - RPC_PORT=9933
       - RUST_LOG=info
-      - UNIT_CREATION_DELAY=50
+      - UNIT_CREATION_DELAY=300
       - WS_PORT=9943
       - BOOT_NODES=/ip4/127.0.0.1/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - PUBLIC_ADDR=/ip4/127.0.0.1/tcp/30333

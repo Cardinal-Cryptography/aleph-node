@@ -12,7 +12,7 @@ use sp_std::{
 };
 
 use crate::{
-    traits::{EraInfoProvider, SessionInfoProvider, ValidatorRewardsHandler},
+    traits::{EraInfoProvider, SessionInfoProvider, ValidatorExtractor, ValidatorRewardsHandler},
     BanConfig, Banned, CommitteeSize, Config, CurrentEraValidators, NextEraCommitteeSize,
     NextEraNonReservedValidators, NextEraReservedValidators, Pallet, SessionValidatorBlockCount,
     UnderperformedValidatorSessionCount, ValidatorEraTotalReward, ValidatorTotalRewards,
@@ -347,23 +347,28 @@ where
     }
 
     pub fn ban_validator(validator: &T::AccountId, reason: BanReason) {
+        // we do not ban reserved validators
+        if NextEraReservedValidators::<T>::get().contains(validator) {
+            return;
+        }
         // current era is the latest planned era for which validators are already chosen
         // so we ban from the next era
         let start: EraIndex = T::EraInfoProvider::current_era()
             .unwrap_or(0)
             .saturating_add(1);
+        T::ValidatorExtractor::remove_validator(validator);
         Banned::<T>::insert(validator, BanInfo { reason, start });
     }
 
     fn mark_validator_underperformance(thresholds: &BanConfigStruct, validator: &T::AccountId) {
-        let counter = UnderperformedValidatorSessionCount::<T>::mutate(&validator, |count| {
+        let counter = UnderperformedValidatorSessionCount::<T>::mutate(validator, |count| {
             *count += 1;
             *count
         });
         if counter >= thresholds.underperformed_session_count_threshold {
             let reason = BanReason::InsufficientUptime(counter);
             Self::ban_validator(validator, reason);
-            UnderperformedValidatorSessionCount::<T>::remove(&validator);
+            UnderperformedValidatorSessionCount::<T>::remove(validator);
         }
     }
 
@@ -385,8 +390,6 @@ where
             *count += 1;
         });
     }
-
-    fn note_uncle(_author: T::AccountId, _age: T::BlockNumber) {}
 }
 
 impl<T> pallet_session::SessionManager<T::AccountId> for Pallet<T>
