@@ -23,6 +23,9 @@ poseidon-permutation = { git = "https://github.com/penumbra-zone/poseidon377", r
 
 poseidon-paramgen = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746" , optional = true, default-features = false  }
 
+[dev-dependencies]
+poseidon-paramgen = { git = "https://github.com/penumbra-zone/poseidon377", rev = "50699746" }
+
 [lib]
 name = "liminal_ark_poseidon"
 

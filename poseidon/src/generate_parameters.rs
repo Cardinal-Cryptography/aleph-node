@@ -36,6 +36,13 @@ fn main() {
     let mut file =
         BufWriter::new(File::create(output_directory).expect("can't create source file"));
 
+    let header =
+        "//! This file was generated using `generate_parameters.rs`, do not edit it manually!\n";
+    file.write_all(header.as_bytes())
+        .expect("can write header to file");
+    let import_vec = "\nuse ark_ff::vec;\n";
+    file.write_all(import_vec.as_bytes())
+        .expect("can write import vec to file");
     file.write_all(parameters.as_bytes())
         .expect("can write parameters to file");
 }
