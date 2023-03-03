@@ -4,8 +4,8 @@ name: GH Action YAML linter
 on:
   pull_request:
     paths:
-      - ".github/**.yml"
-      - ".github/**.yaml"
+      - '.github/**.yml'
+      - '.github/**.yaml'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}

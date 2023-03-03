@@ -7,8 +7,8 @@ on:
     branches:
       - main
     paths:
-      - bin/cliain/**
-      - docker-runtime-hook/**
+      - 'bin/cliain/**'
+      - 'docker-runtime-hook/**'
       - .github/workflows/build-send-postsync-hook-runtime-image.yml
 
 concurrency:

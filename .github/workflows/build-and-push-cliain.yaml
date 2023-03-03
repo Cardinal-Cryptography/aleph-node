@@ -4,7 +4,7 @@ name: Build and push cliain docker image
 on:
   push:
     paths:
-      - .bin/cliain/**
+      - 'bin/cliain/**'
       - .github/workflows/build-and-push-cliain.yaml
   workflow_dispatch:
 

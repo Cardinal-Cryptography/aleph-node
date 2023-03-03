@@ -8,14 +8,14 @@ on:
       - 'flooder/**'
     branches:
       - main
-      - "release-*"
+      - 'release-*'
   push:
     paths-ignore:
       - 'fork-off/**'
       - 'flooder/**'
     branches:
       - main
-      - "release-*"
+      - 'release-*'
   workflow_dispatch:
 
 concurrency:
