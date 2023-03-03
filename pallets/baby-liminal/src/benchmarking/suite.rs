@@ -7,7 +7,7 @@ use primitives::host_functions::poseidon;
 
 use crate::{
     benchmarking::import::Artifacts, get_artifacts, Call, Config, Pallet, ProvingSystem::*,
-    VerificationKeyIdentifier, VerificationKeys,
+    VerificationKeyIdentifier, VerificationKeyOwners, VerificationKeys,
 };
 
 const SEED: u32 = 41;
@@ -19,6 +19,8 @@ fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
 
 fn insert_key<T: Config>(key: Vec<u8>) {
     VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
+    let owner: T::AccountId = account("caller", 0, SEED);
+    VerificationKeyOwners::<T>::insert(IDENTIFIER, owner);
 }
 
 fn gen_poseidon_host_input(x: u32) -> (u64, u64, u64, u64) {
@@ -35,7 +37,7 @@ benchmarks! {
     overwrite_key {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
         let key = vec![0u8; l as usize];
-    } : _(RawOrigin::Root, IDENTIFIER, key)
+    } : _(caller::<T>(), IDENTIFIER, key)
 
     // Groth16 benchmarks
 

@@ -193,10 +193,11 @@ pub mod pallet {
             key: Vec<u8>,
         ) -> DispatchResult {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
-            let owner = VerificationKeyOwners::<T>::get(identifier)
-                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+            let owner = VerificationKeyOwners::<T>::get(identifier);
 
-            ensure!(who == owner, Error::<T>::NotOwner);
+            if let Some(owner) = owner {
+                ensure!(who == owner, Error::<T>::NotOwner)
+            };
 
             ensure!(
                 key.len() <= T::MaximumVerificationKeyLength::get() as usize,

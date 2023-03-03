@@ -86,7 +86,7 @@ pub fn new_test_ext() -> TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<TestRuntime> {
-        balances: vec![(200, 500)],
+        balances: vec![(100, 1000), (200, 1000)],
     }
     .assimilate_storage(&mut t)
     .unwrap();
