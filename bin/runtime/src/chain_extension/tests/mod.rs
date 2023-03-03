@@ -37,6 +37,10 @@ impl Sum for RevertibleWeight {
     }
 }
 
+const DEPOSITOR: [u8; 32] = [
+    0u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,
+];
 const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9];
 const VK: [u8; 2] = [4, 1];
 const PROOF: [u8; 20] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4];
@@ -46,6 +50,7 @@ const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 /// Returns encoded arguments to `store_key`.
 fn store_key_args() -> Vec<u8> {
     StoreKeyArgs {
+        depositor: AccountId::from(DEPOSITOR),
         identifier: IDENTIFIER,
         key: VK.to_vec(),
     }

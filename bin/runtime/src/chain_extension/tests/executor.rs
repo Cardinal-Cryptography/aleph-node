@@ -1,6 +1,6 @@
 use pallet_baby_liminal::{Error as BabyLiminalError, ProvingSystem, VerificationKeyIdentifier};
 
-use crate::{chain_extension::executor::Executor, Weight};
+use crate::{chain_extension::executor::Executor, AccountId, Weight};
 
 type Error = BabyLiminalError<()>;
 
@@ -59,7 +59,11 @@ impl<const STORE_KEY_RESPONDER: Responder, const VERIFY_RESPONDER: Responder> Ex
 {
     type ErrorGenericType = ();
 
-    fn store_key(_identifier: VerificationKeyIdentifier, _key: Vec<u8>) -> Result<(), Error> {
+    fn store_key(
+        _depositor: AccountId,
+        _identifier: VerificationKeyIdentifier,
+        _key: Vec<u8>,
+    ) -> Result<(), Error> {
         match STORE_KEY_RESPONDER {
             Responder::Panicker => panic!("Function `store_key` shouldn't have been executed"),
             Responder::Okayer => Ok(()),
