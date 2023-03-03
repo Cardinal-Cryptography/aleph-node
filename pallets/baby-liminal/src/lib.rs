@@ -7,8 +7,11 @@ mod systems;
 mod tests;
 mod weights;
 
-use frame_support::pallet_prelude::StorageVersion;
-use frame_system::ensure_root;
+use frame_support::{
+    pallet_prelude::StorageVersion,
+    traits::{Currency, ReservableCurrency},
+};
+use frame_system::ensure_signed;
 pub use pallet::*;
 pub use systems::{ProvingSystem, VerificationError};
 pub use weights::{AlephWeight, WeightInfo};
@@ -18,9 +21,12 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 /// We store verification keys under short identifiers.
 pub type VerificationKeyIdentifier = [u8; 4];
+pub type VerificationKeyDeposit<T> =
+    <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
+
     use ark_serialize::CanonicalDeserialize;
     use frame_support::{
         dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
@@ -35,6 +41,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
+        type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
         /// Limits how many bytes verification key can have.
         ///
@@ -46,6 +53,12 @@ pub mod pallet {
         /// Limits how many bytes proof or public input can have.
         #[pallet::constant]
         type MaximumDataLength: Get<u32>;
+
+        /// Deposit amount for storing a verification key
+        ///
+        /// Will get locked and returned upon deleting the key by the owner
+        #[pallet::constant]
+        type VerificationKeyDepositAmount: Get<VerificationKeyDeposit<Self>>;
     }
 
     #[pallet::error]
@@ -70,6 +83,13 @@ pub mod pallet {
         VerificationFailed(VerificationError),
         /// Proof has been found as incorrect.
         IncorrectProof,
+
+        /// Unsigned request
+        BadOrigin,
+        /// User has insufficient funds to lock the deposit for storing verification key        
+        CannotAffordDeposit,
+        /// Caller is not the owner of the key
+        NotOwner,
     }
 
     #[pallet::event]
@@ -94,12 +114,23 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
+    #[pallet::getter(fn get_verification_key)]
     pub type VerificationKeys<T: Config> = StorageMap<
         _,
         Twox64Concat,
         VerificationKeyIdentifier,
         BoundedVec<u8, T::MaximumVerificationKeyLength>,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_verification_key_owner)]
+    pub type VerificationKeyOwners<T: Config> =
+        StorageMap<_, Twox64Concat, VerificationKeyIdentifier, T::AccountId>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_verification_key_deposit)]
+    pub type VerificationKeyDeposits<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, VerificationKeyDeposit<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -114,11 +145,11 @@ pub mod pallet {
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::store_key(key.len() as u32))]
         pub fn store_key(
-            _origin: OriginFor<T>,
+            origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
             key: Vec<u8>,
         ) -> DispatchResult {
-            Self::bare_store_key(identifier, key).map_err(|e| e.into())
+            Self::bare_store_key(origin, identifier, key).map_err(|e| e.into())
         }
 
         /// Deletes a key stored under `identifier` in `VerificationKeys` map.
@@ -130,7 +161,15 @@ pub mod pallet {
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
         ) -> DispatchResult {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
+            let owner = VerificationKeyOwners::<T>::get(identifier)
+                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+
+            ensure!(who == owner, Error::<T>::NotOwner);
+
+            let deposit = VerificationKeyDeposits::<T>::get(&owner).unwrap(); // cannot fail since the key has owner and owner must have made a deposit
+            T::Currency::unreserve(&owner, deposit);
+
             VerificationKeys::<T>::remove(identifier);
             Self::deposit_event(Event::VerificationKeyDeleted);
             Ok(())
@@ -139,7 +178,7 @@ pub mod pallet {
         /// Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`
         ///
         /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
-        /// Can only be called by a root account.
+        /// Can only be called by the original owner of the key.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
         pub fn overwrite_key(
@@ -147,7 +186,11 @@ pub mod pallet {
             identifier: VerificationKeyIdentifier,
             key: Vec<u8>,
         ) -> DispatchResult {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
+            let owner = VerificationKeyOwners::<T>::get(identifier)
+                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+
+            ensure!(who == owner, Error::<T>::NotOwner);
 
             ensure!(
                 key.len() <= T::MaximumVerificationKeyLength::get() as usize,
@@ -209,9 +252,12 @@ pub mod pallet {
         /// or other dispatchable-related overhead. Thus, it is more suited to call directly from
         /// runtime, like from a chain extension.
         pub fn bare_store_key(
+            origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,
             key: Vec<u8>,
         ) -> Result<(), Error<T>> {
+            let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
+
             ensure!(
                 key.len() <= T::MaximumVerificationKeyLength::get() as usize,
                 Error::<T>::VerificationKeyTooLong
@@ -222,10 +268,17 @@ pub mod pallet {
                 Error::<T>::IdentifierAlreadyInUse
             );
 
+            let deposit = T::VerificationKeyDepositAmount::get();
+            T::Currency::reserve(&who, deposit).map_err(|_| Error::<T>::CannotAffordDeposit)?;
+
             VerificationKeys::<T>::insert(
                 identifier,
                 BoundedVec::try_from(key).unwrap(), // must succeed since we've just check length
             );
+
+            // will never overwrite anything since we already check the VerificationKeys map
+            VerificationKeyOwners::<T>::insert(identifier, &who);
+            VerificationKeyDeposits::<T>::insert(&who, deposit);
 
             Self::deposit_event(Event::VerificationKeyStored);
             Ok(())
