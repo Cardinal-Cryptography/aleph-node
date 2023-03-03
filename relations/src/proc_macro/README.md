@@ -30,7 +30,7 @@ Provided with these inputs, the macro will generate following items (outside the
   -  Implementation of `ConstraintSynthesizer` trait for `<R>WithFullInput`.
 
 ```rust
-[snark_relation]
+#[snark_relation]
 mod relation {
     #[relation_object_definition]
     struct SomeRelation {
