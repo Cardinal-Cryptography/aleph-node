@@ -338,9 +338,9 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     fn branch_knowledge(&mut self, mut id: BlockIdFor<J>) -> Option<BranchKnowledge<J>> {
         use VertexHandle::*;
         let mut maybe_parent_id;
-        let mut guard: u32 = 0;
         // traverse ancestors till we reach something imported or a parentless vertex
-        loop {
+        // avoid infinite loop by limiting the number of iterations to max possible value
+        for _ in 0..MAX_DEPTH {
             // try get parent id
             maybe_parent_id = match self.get_mut(&id) {
                 Candidate(entry) => {
@@ -362,15 +362,13 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                 // does not have parent, thus is not imported (as is not HighestFinalized)
                 None => return Some(BranchKnowledge::LowestId(id)),
             };
-            // avoid infinite loop
-            if guard > MAX_DEPTH {
-                return None;
-            }
-            guard += 1;
         }
+        None
     }
 
     /// Prepare additional info required to create a request for the block.
+    /// Returns `None` if the block is not required, its ID is not known, is a hopeless fork,
+    /// its number is out of allowed range, or if any other error was encountered.
     fn prepare_request_info(&mut self, id: &BlockIdFor<J>) -> Option<RequestInfo<I, J>> {
         use VertexHandle::Candidate;
         match self.get_mut(id) {
@@ -380,13 +378,14 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                     return None;
                 }
                 let know_most = entry.get().vertex.know_most().clone();
-                // 'None' means that we could not get information about the branch
+                // returns 'None' if we could not get information about the branch
                 self.branch_knowledge(id.clone())
                     .map(|branch_knowledge| RequestInfo {
                         know_most,
                         branch_knowledge,
                     })
             }
+            // request only blocks with known ID
             _ => None,
         }
     }

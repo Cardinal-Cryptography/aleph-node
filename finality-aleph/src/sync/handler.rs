@@ -216,6 +216,19 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         self.handle_verified_justification(justification, peer)
     }
 
+    fn last_justification_unverified(
+        &self,
+        session: SessionId,
+    ) -> Result<J::Unverified, Error<J, CS, V, F>> {
+        use Error::*;
+        Ok(self
+            .chain_status
+            .finalized_at(last_block_of_session(session, self.period))
+            .map_err(ChainStatus)?
+            .ok_or(MissingJustification)?
+            .into_unverified())
+    }
+
     /// Handle a state broadcast returning the actions we should take in response.
     pub fn handle_state(
         &mut self,
@@ -232,40 +245,29 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         let local_top_number = local_top.header().id().number();
         let remote_session = session_id_from_block_num(remote_top_number, self.period);
         let local_session = session_id_from_block_num(local_top_number, self.period);
-        if remote_top_number >= local_top_number {
-            return self.handle_verified_justification(remote_top, peer);
-        }
         match local_session.0.checked_sub(remote_session.0) {
-            Some(0) => Ok(SyncActions::state_broadcast_response(
-                local_top.into_unverified(),
-                None,
-            )),
+            // remote session number larger than ours, nothing to do here
+            None => Ok(SyncActions::noop()),
+            // same session
+            Some(0) => match remote_top_number >= local_top_number {
+                // remote top justification higher than ours, we can import the justification
+                true => self.handle_verified_justification(remote_top, peer),
+                // remote top justification lower than ours, we can send a response
+                false => Ok(SyncActions::state_broadcast_response(
+                    local_top.into_unverified(),
+                    None,
+                )),
+            },
+            // remote lags one session behind
             Some(1) => Ok(SyncActions::state_broadcast_response(
-                self.chain_status
-                    .finalized_at(last_block_of_session(remote_session, self.period))
-                    .map_err(ChainStatus)?
-                    .ok_or(MissingJustification)?
-                    .into_unverified(),
+                self.last_justification_unverified(remote_session)?,
                 Some(local_top.into_unverified()),
             )),
+            // remote lags multiple sessions behind
             Some(2..) => Ok(SyncActions::state_broadcast_response(
-                self.chain_status
-                    .finalized_at(last_block_of_session(remote_session, self.period))
-                    .map_err(ChainStatus)?
-                    .ok_or(MissingJustification)?
-                    .into_unverified(),
-                Some(
-                    self.chain_status
-                        .finalized_at(last_block_of_session(
-                            SessionId(remote_session.0 + 1),
-                            self.period,
-                        ))
-                        .map_err(ChainStatus)?
-                        .ok_or(MissingJustification)?
-                        .into_unverified(),
-                ),
+                self.last_justification_unverified(remote_session)?,
+                Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
             )),
-            None => Ok(SyncActions::noop()),
         }
     }
 

@@ -180,11 +180,12 @@ impl Finalizer<MockJustification> for Backend {
         let header = justification.header();
         let parent_id = match justification.header().parent_id() {
             Some(id) => id,
-            None => panic!("finalizing block without a parent: {:?}", header),
+            None => panic!("finalizing block without specified parent: {:?}", header),
         };
 
-        // check if finalizing block without an imported parent
-        assert!(storage.blockchain.get(&parent_id).is_some());
+        if storage.blockchain.get(&parent_id).is_none() {
+            panic!("finalizing block without imported parent: {:?}", header)
+        }
 
         let id = justification.header().id();
         let block = match storage.blockchain.get_mut(&id) {
@@ -204,7 +205,9 @@ impl Finalizer<MockJustification> for Backend {
             ],
             None => [0, storage.session_period - 1],
         };
-        assert!(allowed_numbers.contains(&id.number));
+        if !allowed_numbers.contains(&id.number) {
+            panic!("finalizing a block that is not a child of top finalized (round {:?}), nor the last of a session (round {:?}): round {:?}", allowed_numbers[0], allowed_numbers[1], id.number);
+        }
 
         storage.finalized.push(id.clone());
         // In case finalization changes best block, we set best block, to top finalized.
