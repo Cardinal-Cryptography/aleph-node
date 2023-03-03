@@ -16,10 +16,10 @@ SIMPLE_DEX=$(jq --raw-output ".simple_dex" < "$CONTRACTS_PATH"/addresses.json)
 export WRAPPED_AZERO
 WRAPPED_AZERO=$(jq --raw-output ".wrapped_azero" < "$CONTRACTS_PATH"/addresses.json)
 
-export BUTTON_GAME_METADATA=$CONTRACTS_PATH/button/target/ink/metadata.json
-export TICKET_TOKEN_METADATA=$CONTRACTS_PATH/ticket_token/target/ink/metadata.json
-export REWARD_TOKEN_METADATA=$CONTRACTS_PATH/game_token/target/ink/metadata.json
-export MARKETPLACE_METADATA=$CONTRACTS_PATH/marketplace/target/ink/metadata.json
-export SIMPLE_DEX_METADATA=$CONTRACTS_PATH/simple_dex/target/ink/metadata.json
-export WRAPPED_AZERO_METADATA=$CONTRACTS_PATH/wrapped_azero/target/ink/metadata.json
+export BUTTON_GAME_METADATA=$CONTRACTS_PATH/button/target/ink/button.json
+export TICKET_TOKEN_METADATA=$CONTRACTS_PATH/ticket_token/target/ink/ticket_token.json
+export REWARD_TOKEN_METADATA=$CONTRACTS_PATH/game_token/target/ink/game_token.json
+export MARKETPLACE_METADATA=$CONTRACTS_PATH/marketplace/target/ink/marketplace.json
+export SIMPLE_DEX_METADATA=$CONTRACTS_PATH/simple_dex/target/ink/simple_dex.json
+export WRAPPED_AZERO_METADATA=$CONTRACTS_PATH/wrapped_azero/target/ink/wrapped_azero.json
 export RUST_LOG="aleph_e2e_client=info"
