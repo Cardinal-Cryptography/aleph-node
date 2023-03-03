@@ -5,8 +5,8 @@ name: build-docs
 on:
   push:
     paths:
-      - aleph-client/**
-      - .github/workflows/build-docs.yaml
+      - 'aleph-client/**'
+      - '.github/workflows/build-docs.yaml'
 
 jobs:
   build-aleph-client-docs:
