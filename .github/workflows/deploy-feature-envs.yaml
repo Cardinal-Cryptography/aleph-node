@@ -59,7 +59,7 @@ jobs:
 
       - name: Build docker image with PR aleph-node binary
         env:
-          IMAGE_TAG: >
+          IMAGE_TAG:
             ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get_branch.outputs.branch_imagetag_full }}
         run: |
           chmod +x target/release/aleph-node
@@ -77,7 +77,7 @@ jobs:
 
       - name: Push FE aleph-node image to the feature-env-aleph-node registry
         env:
-          IMAGE_TAG: >
+          IMAGE_TAG:
             ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get_branch.outputs.branch_imagetag_full }}
         run: |
           docker push ${{ env.FE_ALEPHNODE_REGISTRY }}:${{ env.IMAGE_TAG }}
@@ -382,7 +382,7 @@ jobs:
 
       - name: Update feature environment to the latest PR image
         env:
-          IMAGE_TAG: >
+          IMAGE_TAG:
             ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get_branch.outputs.branch_imagetag_full }}
           APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get_branch.outputs.branch_appname }}
           ARGOCD_URL: argocd.dev.azero.dev
@@ -418,14 +418,14 @@ jobs:
       - name: GIT | Commit changes to aleph-apps repository.
         uses: EndBug/add-and-commit@v5.1.0
         env:
-          IMAGE_TAG: >
+          IMAGE_TAG:
             ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get_branch.outputs.branch_imagetag_full }}
           APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get_branch.outputs.branch_appname }}
           GITHUB_TOKEN: ${{ secrets.CI_GH_TOKEN }}
         with:
           author_name: AlephZero Automation
           author_email: alephzero@10clouds.com
-          message: >
+          message:
             "Image changed for the feature environment to:
             ${{ env.FE_ALEPHNODE_REGISTRY }}:${{ env.IMAGE_TAG }}"
           add: "*.yaml"

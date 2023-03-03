@@ -50,7 +50,7 @@ jobs:
 
       - name: Push to Aleph-Zero-Foundation
         # yamllint disable rule:line-length
-        run: >
+        run: |
           git push \
             'https://x-access-token:${{ secrets.SYNCAZF }}@github.com/aleph-zero-foundation/aleph-node.git' \
             ${{ steps.get_branch.outputs.branch_name }}:${{ steps.get_branch.outputs.branch_name }}

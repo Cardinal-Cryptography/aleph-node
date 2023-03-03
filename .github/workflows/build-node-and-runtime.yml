@@ -109,8 +109,8 @@ jobs:
 
 
       - name: Build test binary
-        run: >
-          cargo build --release -p aleph-node
+        run: |
+          cargo build --release -p aleph-node \
           --features "short_session enable_treasury_proposals only_legacy"
 
       - name: Upload test binary

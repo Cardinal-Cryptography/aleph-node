@@ -7,8 +7,9 @@ on:
     branches:
       - main
     paths:
-      - 'bin/cliain/**'
-      - 'docker-runtime-hook/**'
+      - bin/cliain/**
+      - docker-runtime-hook/**
+      - .github/workflows/build-send-postsync-hook-runtime-image.yml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -71,7 +72,7 @@ jobs:
       - name: Push postsync hook current Image to Public ECR
         env:
           CURRENT_IMAGE: runtime-update-hook:${{ steps.vars.outputs.sha_short }}
-          ECR_PUSH_IMAGE: >
+          ECR_PUSH_IMAGE:
             public.ecr.aws/p6e8q1z1/runtime-update-hook:${{ steps.vars.outputs.sha_short }}
           ECR_LATEST: public.ecr.aws/p6e8q1z1/runtime-update-hook:latest
         run: |
@@ -95,7 +96,7 @@ jobs:
 
       - name: Update postsync hook docker image
         env:
-          RELEASE_IMAGE: >
+          RELEASE_IMAGE:
             public.ecr.aws/p6e8q1z1/runtime-update-hook:${{ steps.vars.outputs.sha_short }}
           REGIONS_AWS: 'eu-central-1'
         run: |

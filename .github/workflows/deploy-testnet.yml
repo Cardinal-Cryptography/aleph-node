@@ -70,7 +70,7 @@ jobs:
       - name: Tag and push image of Testnet to DockerHub
         env:
           TESTNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
-          DOCKERHUB_TESTNET_IMAGE: >
+          DOCKERHUB_TESTNET_IMAGE:
             cardinalcryptography/aleph-zero:testnet-${{ steps.vars.outputs.branch }}
           DOCKERHUB_TESTNET_LATEST_IMAGE: cardinalcryptography/aleph-zero:testnet-latest
         run: |
@@ -134,7 +134,7 @@ jobs:
         with:
           author_name: AlephZero Automation
           author_email: alephzero@10clouds.com
-          message: >
+          message:
             "Updating Testnet docker image tag for pre-release: ${{ steps.vars.outputs.branch }}"
           add: "*.yaml"
           cwd: "aleph-apps"

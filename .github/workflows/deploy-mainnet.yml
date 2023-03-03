@@ -63,7 +63,7 @@ jobs:
       - name: Tag and push image of Mainnet to DockerHub
         env:
           MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
-          DOCKERHUB_MAINNET_IMAGE: >
+          DOCKERHUB_MAINNET_IMAGE:
             cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
           DOCKERHUB_MAINNET_LATEST_IMAGE: cardinalcryptography/aleph-zero:mainnet-latest
         run: |
