@@ -173,13 +173,6 @@ jobs:
             --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
             --faucet-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY > chainspec.json
 
-          # Generate chainspec from skeleton
-          # docker run -v $(pwd):/app --env RUST_LOG=info ${{ env.FORKOFF_IMAGE }} \
-            --ws-rpc-endpoint=${{ env.WSS_TESTNET_URL }} \
-            --initial-spec-path=chainspec.skeleton.json \
-            --combined-spec-path=chainspec.json \
-            --storage-keep-state=Aura,Aleph,Sudo,Staking,Session,Elections,Balances
-
           aws s3 cp chainspec.json \
             s3://${{ env.FE_KEYS_S3BUCKET }}/${{ env.FE_KEYS_S3PATH_PREFIX }}${{ env.BRANCH_NAME }}/chainspec.json
           aws s3 cp \
