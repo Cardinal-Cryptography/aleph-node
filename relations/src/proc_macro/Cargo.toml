@@ -4,6 +4,7 @@ version = "0.1.1"
 edition = "2021"
 authors = ["Cardinal"]
 documentation = "https://docs.rs/liminal-ark-relation-macro"
+readme = "README.md"
 homepage = "https://alephzero.org"
 license = "Apache-2.0"
 categories = ["cryptography"]
