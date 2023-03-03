@@ -2,7 +2,7 @@ use frame_support::dispatch::Weight;
 use pallet_baby_liminal::{Error, Pallet as BabyLiminal, ProvingSystem, VerificationKeyIdentifier};
 use sp_std::vec::Vec;
 
-use crate::Runtime;
+use crate::{AccountId, Runtime, RuntimeOrigin};
 
 /// Abstraction around `Runtime`. Makes testing easier.
 ///
@@ -16,6 +16,7 @@ pub(super) trait Executor: Sized {
     type ErrorGenericType;
 
     fn store_key(
+        depositor: AccountId,
         identifier: VerificationKeyIdentifier,
         key: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>>;
@@ -33,10 +34,12 @@ impl Executor for Runtime {
     type ErrorGenericType = Runtime;
 
     fn store_key(
+        depositor: AccountId,
         identifier: VerificationKeyIdentifier,
         key: Vec<u8>,
     ) -> Result<(), Error<Runtime>> {
-        BabyLiminal::<Runtime>::bare_store_key(identifier, key)
+        let origin: RuntimeOrigin = Some(depositor).into();
+        BabyLiminal::<Runtime>::bare_store_key(origin, identifier, key)
     }
 
     fn verify(

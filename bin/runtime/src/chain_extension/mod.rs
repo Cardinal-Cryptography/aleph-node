@@ -12,7 +12,7 @@ use sp_runtime::DispatchError;
 use sp_std::{mem::size_of, vec::Vec};
 use Error::*;
 
-use crate::{MaximumVerificationKeyLength, Runtime};
+use crate::{AccountId, MaximumVerificationKeyLength, Runtime};
 mod environment;
 mod executor;
 #[cfg(test)]
@@ -90,6 +90,7 @@ pub type ByteCount = u32;
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
 #[derive(Decode, Encode)]
 struct StoreKeyArgs {
+    pub depositor: AccountId,
     pub identifier: VerificationKeyIdentifier,
     pub key: Vec<u8>,
 }
@@ -166,7 +167,7 @@ impl BabyLiminalChainExtension {
             weight_of_store_key(args.key.len() as ByteCount),
         );
 
-        let return_status = match Exc::store_key(args.identifier, args.key) {
+        let return_status = match Exc::store_key(args.depositor, args.identifier, args.key) {
             Ok(_) => BABY_LIMINAL_STORE_KEY_OK,
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could have adjusted weight. However, for the storing key action
