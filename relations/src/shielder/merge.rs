@@ -254,7 +254,7 @@ mod tests {
 
         // Merkle paths.
         let first_merkle_path = vec![first_sibling_note, second_parent_note];
-        let second_merkle_path = vec![first_parent_note, second_sibling_note];
+        let second_merkle_path = vec![second_sibling_note, first_parent_note];
 
         // Common roots.
         let grandpa_root = compute_parent_hash(first_parent_note, second_parent_note); // 1
