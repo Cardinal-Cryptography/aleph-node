@@ -1,3 +1,4 @@
+
 # liminal-ark-relation-macro
 
 This crate provides `snark_relation` procedural macro for concise defining SNARK relations.
@@ -7,8 +8,8 @@ Given minimal relation definition, this macro will generate all the required cod
 
 The `#[snark_relation]` attribute is intended for modules. Such module must define two items:
   1. *relation object*: the collection of all constant, public and private relation data. The
-     struct should be defined with `#[relation_object_definition]` attribute.
-  2. *circuit definition*: the circuit form. The function should be defined with
+     struct must be defined with `#[relation_object_definition]` attribute.
+  2. *circuit definition*: the circuit form. The function must be defined with
      `#[circuit_definition]` attribute. The signature can be arbitrary.
 
 Provided with these inputs, the macro will generate following items (outside the module).
