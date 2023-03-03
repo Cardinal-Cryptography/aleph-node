@@ -86,7 +86,7 @@ pub mod pallet {
 
         /// Unsigned request
         BadOrigin,
-        /// User has insufficient funds to lock the deposit for storing verification key        
+        /// User has insufficient funds to lock the deposit for storing verification key
         CannotAffordDeposit,
         /// Caller is not the owner of the key
         NotOwner,
@@ -96,12 +96,18 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Verification key has been successfully stored.
+        ///
+        /// \[ identifier, account_id \]
         VerificationKeyStored(VerificationKeyIdentifier, T::AccountId),
 
         /// Verification key has been successfully deleted.
+        ///
+        /// \[ identifier \]
         VerificationKeyDeleted(VerificationKeyIdentifier),
 
         /// Verification key has been successfully overwritten.
+        ///
+        /// \[ identifier \]
         VerificationKeyOverwritten(VerificationKeyIdentifier),
 
         /// Proof has been successfully verified.
