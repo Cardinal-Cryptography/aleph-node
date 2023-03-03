@@ -1,11 +1,11 @@
 use liminal_ark_relation_macro::snark_relation;
 
 /// It expresses the facts that:
-///  - `first_old_note` is a prefix of the result of hashing together the `token_id`,
+///  - `first_old_note` is the result of hashing together the `token_id`,
 ///    `first_old_token_amount`, `first_old_trapdoor` and `first_old_nullifier`,
-///  - `second_old_note` is a prefix of the result of hashing together the `token_id`,
+///  - `second_old_note` is the result of hashing together the `token_id`,
 ///    `second_old_token_amount`, `second_old_trapdoor` and `second_old_nullifier`,
-///  - `new_note` is a prefix of the result of hashing together the `token_id`, `new_token_amount`,
+///  - `new_note` is the result of hashing together the `token_id`, `new_token_amount`,
 ///    `new_trapdoor` and `new_nullifier`,
 ///  - `new_token_amount = token_amount + old_token_amount`
 ///  - `first_merkle_path` is a valid Merkle proof for `first_old_note` being present
