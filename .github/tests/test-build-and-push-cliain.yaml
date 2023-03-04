@@ -1,0 +1,34 @@
+name: Test Build and push cliain docker image
+
+on:
+  push:
+    paths:
+      - 'bin/cliain/**'
+  workflow_dispatch:
+
+jobs:
+  build-image:
+    name: Build binary
+    runs-on: self-hosted
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v2
+
+      - name: GIT | Get branch name and commit SHA
+        id: get-branch
+        uses: ./.github/actions/get-branch
+
+      - name: Set RELEASE_IMAGE env var
+        run: |
+          echo "RELEASE_IMAGE=${{ secrets.ECR_REPO_CLIAIN }}:${{ steps.get-branch.outputs.branch_name == 'main' && 'latest' || steps.get-branch.outputs.branch_name }}" >> $GITHUB_ENV
+
+      - name: Login to ECR docker registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.ECR_PUBLIC }}
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+
+      - name: Test if docker image has been pushed
+        run: |
+          docker pull ${{ env.RELEASE_IMAGE }}
