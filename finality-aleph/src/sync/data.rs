@@ -28,10 +28,16 @@ impl<J: Justification> State<J> {
 }
 
 /// Additional information about the branch connecting the top finalized block
-/// with a given one.
+/// with a given one. All the variants are exhaustive and exclusive due to the
+/// properties of the `Forest` structure.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum BranchKnowledge<J: Justification> {
+    /// ID of the oldest known ancestor if none of them are imported.
+    /// It must be different from the root, as it is always imported.
     LowestId(BlockIdFor<J>),
+    /// ID of the top imported ancestor if any of them is imported.
+    /// Since imported vertices are connected to the root, the oldest known
+    /// ancestor is, implicitly, the root.
     TopImported(BlockIdFor<J>),
 }
 

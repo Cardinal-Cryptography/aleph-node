@@ -246,8 +246,8 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         let remote_session = session_id_from_block_num(remote_top_number, self.period);
         let local_session = session_id_from_block_num(local_top_number, self.period);
         match local_session.0.checked_sub(remote_session.0) {
-            // remote session number larger than ours, nothing to do here
-            None => Ok(SyncActions::noop()),
+            // remote session number larger than ours, we can try to import the justification
+            None => self.handle_verified_justification(remote_top, peer),
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification

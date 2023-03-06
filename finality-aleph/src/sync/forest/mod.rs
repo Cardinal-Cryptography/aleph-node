@@ -322,11 +322,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                         self.prune_level(self.root_id.number());
                         return Some(justification);
                     }
-                    // cache corrupted, we'll wait for it to fix itself
-                    Err(vertex) => {
-                        self.vertices
-                            .insert(id.clone(), VertexWithChildren { vertex, children });
-                    }
+                    Err(_vertex) => panic!("Block sync justified_blocks cache corrupted, please restart the Node and contact the developers"),
                 }
             }
         }
@@ -334,41 +330,40 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     }
 
     /// Returns the BranchKnowledge regarding the given block id,
-    /// or None if any errors are encountered.
+    /// or None if there is no branch at all.
     fn branch_knowledge(&mut self, mut id: BlockIdFor<J>) -> Option<BranchKnowledge<J>> {
         use VertexHandle::*;
-        let mut maybe_parent_id;
         // traverse ancestors till we reach something imported or a parentless vertex
-        // avoid infinite loop by limiting the number of iterations to max possible value
-        for _ in 0..MAX_DEPTH {
-            // try get parent id
-            maybe_parent_id = match self.get_mut(&id) {
+        loop {
+            match self.get_mut(&id) {
                 Candidate(entry) => {
-                    // first encounter of an imported ancestor
+                    // first encounter of an imported ancestor, return it
                     if entry.get().vertex.imported() {
                         return Some(BranchKnowledge::TopImported(id));
                     }
-                    entry.get().vertex.parent().cloned()
+                    // try update current id to parent_id
+                    match entry.get().vertex.parent().cloned() {
+                        // it has a parent, continue
+                        Some(parent_id) => id = parent_id,
+                        // does not have parent, thus is the lowest known,
+                        // and is not imported (a Candidate is not the HighestFinalized),
+                        // return it
+                        None => return Some(BranchKnowledge::LowestId(id)),
+                    };
                 }
+                // we've reached the root, hence this is the top imported ancestor, return it
                 HighestFinalized => {
                     return Some(BranchKnowledge::TopImported(id));
                 }
-                // we shouldn't have reached any other type of vertex
-                _ => return None,
-            };
-            // try update current id to parent_id
-            match maybe_parent_id {
-                Some(parent_id) => id = parent_id,
-                // does not have parent, thus is not imported (as is not HighestFinalized)
-                None => return Some(BranchKnowledge::LowestId(id)),
+                // either we don't know the requested id, or it will never connect to the root,
+                // return None
+                HopelessFork | BelowMinimal | Unknown(_) => return None,
             };
         }
-        None
     }
 
     /// Prepare additional info required to create a request for the block.
-    /// Returns `None` if the block is not required, its ID is not known, is a hopeless fork,
-    /// its number is out of allowed range, or if any other error was encountered.
+    /// Returns `None` if we're not interested in the block.
     fn prepare_request_info(&mut self, id: &BlockIdFor<J>) -> Option<RequestInfo<I, J>> {
         use VertexHandle::Candidate;
         match self.get_mut(id) {
@@ -378,14 +373,14 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                     return None;
                 }
                 let know_most = entry.get().vertex.know_most().clone();
-                // returns 'None' if we could not get information about the branch
+                // should always return Some, as the branch of a Candidate always exists
                 self.branch_knowledge(id.clone())
                     .map(|branch_knowledge| RequestInfo {
                         know_most,
                         branch_knowledge,
                     })
             }
-            // request only blocks with known ID
+            // request only Candidates
             _ => None,
         }
     }
@@ -718,7 +713,10 @@ mod tests {
         match forest.state(&branch[3].id()) {
             TopRequired(request_info) => {
                 // now we know all ancestors
-                assert_eq!(request_info.branch_knowledge, LowestId(initial_header.id()));
+                assert_eq!(
+                    request_info.branch_knowledge,
+                    TopImported(initial_header.id())
+                );
             }
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
