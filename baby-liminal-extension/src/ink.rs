@@ -1,4 +1,4 @@
-use ink::env::Environment;
+use ink::{env::Environment, ChainExtensionInstance};
 
 /// ink!'s chain extension counterpart.
 ///
@@ -9,6 +9,14 @@ use ink::env::Environment;
     derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
 )]
 pub struct Extension;
+
+impl ChainExtensionInstance for Extension {
+    type Instance = Extension;
+
+    fn instantiate() -> Self::Instance {
+        Extension
+    }
+}
 
 impl crate::BabyLiminalExtension for Extension {}
 

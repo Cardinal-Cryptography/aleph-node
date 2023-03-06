@@ -51,11 +51,7 @@ where
             verification_key_identifier,
             proof,
             public_input,
-            match system {
-                ProvingSystem::Groth16 => pallet_baby_liminal::ProvingSystem::Groth16,
-                ProvingSystem::Gm17 => pallet_baby_liminal::ProvingSystem::Gm17,
-                ProvingSystem::Marlin => pallet_baby_liminal::ProvingSystem::Marlin,
-            },
+            system.into(),
         )
     }
 }

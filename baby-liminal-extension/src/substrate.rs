@@ -58,16 +58,16 @@ where
     #[obce(
         weight(
             expr = r#"{
-        let approx_key_length = env
-            .in_len()
-            .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
+                let approx_key_length = env
+                    .in_len()
+                    .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
 
-        if approx_key_length > 10_000 {
-            return Ok(RetVal::Converging(BABY_LIMINAL_STORE_KEY_TOO_LONG_KEY));
-        }
+                if approx_key_length > 10_000 {
+                    return Ok(RetVal::Converging(BABY_LIMINAL_STORE_KEY_TOO_LONG_KEY));
+                }
 
-        weight_of_store_key::<T>(approx_key_length)
-    }"#,
+                weight_of_store_key::<T>(approx_key_length)
+            }"#,
             pre_charge
         ),
         ret_val

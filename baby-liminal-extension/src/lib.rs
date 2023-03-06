@@ -83,6 +83,17 @@ pub enum ProvingSystem {
     Marlin,
 }
 
+#[cfg(feature = "substrate")]
+impl From<ProvingSystem> for pallet_baby_liminal::ProvingSystem {
+    fn from(system: ProvingSystem) -> Self {
+        match system {
+            ProvingSystem::Groth16 => pallet_baby_liminal::ProvingSystem::Groth16,
+            ProvingSystem::Gm17 => pallet_baby_liminal::ProvingSystem::Gm17,
+            ProvingSystem::Marlin => pallet_baby_liminal::ProvingSystem::Marlin,
+        }
+    }
+}
+
 /// BabyLiminal chain extension definition.
 #[obce::definition(id = "baby-liminal-extension@v0.1")]
 pub trait BabyLiminalExtension {
