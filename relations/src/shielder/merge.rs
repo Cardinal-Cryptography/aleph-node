@@ -1,11 +1,11 @@
 use liminal_ark_relation_macro::snark_relation;
 
 /// It expresses the facts that:
-///  - `first_old_note` is a prefix of the result of hashing together the `token_id`,
+///  - `first_old_note` is the result of hashing together the `token_id`,
 ///    `first_old_token_amount`, `first_old_trapdoor` and `first_old_nullifier`,
-///  - `second_old_note` is a prefix of the result of hashing together the `token_id`,
+///  - `second_old_note` is the result of hashing together the `token_id`,
 ///    `second_old_token_amount`, `second_old_trapdoor` and `second_old_nullifier`,
-///  - `new_note` is a prefix of the result of hashing together the `token_id`, `new_token_amount`,
+///  - `new_note` is the result of hashing together the `token_id`, `new_token_amount`,
 ///    `new_trapdoor` and `new_nullifier`,
 ///  - `new_token_amount = token_amount + old_token_amount`
 ///  - `first_merkle_path` is a valid Merkle proof for `first_old_note` being present
@@ -197,40 +197,45 @@ mod tests {
 
     use super::*;
     use crate::{
-        shielder::note::{compute_note, compute_parent_hash},
+        shielder::{
+            convert_hash,
+            note::{compute_note, compute_parent_hash},
+        },
         FrontendNote,
     };
 
     const MAX_PATH_LEN: u8 = 4;
+    const TOKEN_ID: FrontendTokenId = 1;
+
+    const FIRST_OLD_TRAPDOOR: FrontendTrapdoor = 17;
+    const FIRST_OLD_NULLIFIER: FrontendNullifier = 19;
+    const FIRST_OLD_TOKEN_AMOUNT: FrontendTokenAmount = 3;
+
+    const SECOND_OLD_TRAPDOOR: FrontendTrapdoor = 23;
+    const SECOND_OLD_NULLIFIER: FrontendNullifier = 29;
+    const SECOND_OLD_TOKEN_AMOUNT: FrontendTokenAmount = 7;
+
+    const NEW_TRAPDOOR: FrontendTrapdoor = 27;
+    const NEW_NULLIFIER: FrontendNullifier = 87;
+    const NEW_TOKEN_AMOUNT: FrontendTokenAmount = 10;
+
+    const FIRST_LEAF_INDEX: u64 = 5;
+    const SECOND_LEAF_INDEX: u64 = 6;
 
     fn get_circuit_with_full_input() -> MergeRelationWithFullInput {
-        let token_id: FrontendTokenId = 1;
-
-        let first_old_trapdoor: FrontendTrapdoor = 17;
-        let first_old_nullifier: FrontendNullifier = 19;
-        let first_old_token_amount: FrontendTokenAmount = 3;
-
-        let second_old_trapdoor: FrontendTrapdoor = 23;
-        let second_old_nullifier: FrontendNullifier = 29;
-        let second_old_token_amount: FrontendTokenAmount = 7;
-
-        let new_trapdoor: FrontendTrapdoor = 27;
-        let new_nullifier: FrontendNullifier = 87;
-        let new_token_amount: FrontendTokenAmount = 10;
-
         let first_old_note = compute_note(
-            token_id,
-            first_old_token_amount,
-            first_old_trapdoor,
-            first_old_nullifier,
+            TOKEN_ID,
+            FIRST_OLD_TOKEN_AMOUNT,
+            FIRST_OLD_TRAPDOOR,
+            FIRST_OLD_NULLIFIER,
         );
         let second_old_note = compute_note(
-            token_id,
-            second_old_token_amount,
-            second_old_trapdoor,
-            second_old_nullifier,
+            TOKEN_ID,
+            SECOND_OLD_TOKEN_AMOUNT,
+            SECOND_OLD_TRAPDOOR,
+            SECOND_OLD_NULLIFIER,
         );
-        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
+        let new_note = compute_note(TOKEN_ID, NEW_TOKEN_AMOUNT, NEW_TRAPDOOR, NEW_NULLIFIER);
 
         //                                          merkle root
         //                placeholder                                        x
@@ -243,12 +248,10 @@ mod tests {
         let zero_note = FrontendNote::default(); // x
 
         // First Merkle path setup.
-        let first_leaf_index = 5;
         let first_sibling_note = compute_note(0, 1, 2, 3); // 4
         let first_parent_note = compute_parent_hash(first_sibling_note, first_old_note); // 2
 
         // Second Merkle path setup.
-        let second_leaf_index = 6;
         let second_sibling_note = compute_note(0, 1, 3, 4); // 7
         let second_parent_note = compute_parent_hash(second_old_note, second_sibling_note); // 3
 
@@ -263,57 +266,171 @@ mod tests {
 
         MergeRelationWithFullInput::new(
             MAX_PATH_LEN,
-            token_id,
-            first_old_nullifier,
-            second_old_nullifier,
+            TOKEN_ID,
+            FIRST_OLD_NULLIFIER,
+            SECOND_OLD_NULLIFIER,
             new_note,
             merkle_root,
-            first_old_trapdoor,
-            second_old_trapdoor,
-            new_trapdoor,
-            new_nullifier,
+            FIRST_OLD_TRAPDOOR,
+            SECOND_OLD_TRAPDOOR,
+            NEW_TRAPDOOR,
+            NEW_NULLIFIER,
             first_merkle_path,
             second_merkle_path,
-            first_leaf_index,
-            second_leaf_index,
+            FIRST_LEAF_INDEX,
+            SECOND_LEAF_INDEX,
             first_old_note,
             second_old_note,
-            first_old_token_amount,
-            second_old_token_amount,
-            new_token_amount,
+            FIRST_OLD_TOKEN_AMOUNT,
+            SECOND_OLD_TOKEN_AMOUNT,
+            NEW_TOKEN_AMOUNT,
         )
     }
 
-    #[test]
-    fn merge_constraints_correctness() {
-        let circuit = get_circuit_with_full_input();
+    fn get_circuit_with_invalid_first_old_note() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
 
+        let first_old_note = compute_note(
+            TOKEN_ID,
+            FIRST_OLD_TOKEN_AMOUNT + 1,
+            FIRST_OLD_TRAPDOOR,
+            FIRST_OLD_NULLIFIER,
+        );
+        circuit.first_old_note = convert_hash(first_old_note);
+
+        circuit
+    }
+
+    fn get_circuit_with_invalid_second_old_note() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
+
+        let second_old_note = compute_note(
+            TOKEN_ID,
+            SECOND_OLD_TOKEN_AMOUNT + 1,
+            SECOND_OLD_TRAPDOOR,
+            SECOND_OLD_NULLIFIER,
+        );
+        circuit.second_old_note = convert_hash(second_old_note);
+
+        circuit
+    }
+
+    fn get_circuit_with_invalid_new_note() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
+
+        let new_note = compute_note(TOKEN_ID, NEW_TOKEN_AMOUNT, NEW_TRAPDOOR + 1, NEW_NULLIFIER);
+        circuit.new_note = convert_hash(new_note);
+
+        circuit
+    }
+
+    fn get_circuit_with_unsound_value() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
+
+        let new_note = compute_note(TOKEN_ID, NEW_TOKEN_AMOUNT + 1, NEW_TRAPDOOR, NEW_NULLIFIER);
+        circuit.new_note = convert_hash(new_note);
+
+        circuit
+    }
+
+    fn get_circuit_with_invalid_first_leaf_index() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
+        circuit.first_leaf_index = FIRST_LEAF_INDEX + 1;
+        circuit
+    }
+
+    fn get_circuit_with_invalid_second_leaf_index() -> MergeRelationWithFullInput {
+        let mut circuit = get_circuit_with_full_input();
+        circuit.second_leaf_index = SECOND_LEAF_INDEX + 1;
+        circuit
+    }
+
+    fn merge_constraints_correctness(circuit: MergeRelationWithFullInput) -> bool {
         let cs = ConstraintSystem::new_ref();
         circuit.generate_constraints(cs.clone()).unwrap();
 
         let is_satisfied = cs.is_satisfied().unwrap();
-        println!("Dat: {:?}", cs.num_constraints());
         if !is_satisfied {
             println!("{:?}", cs.which_is_unsatisfied());
         }
 
-        assert!(is_satisfied);
+        is_satisfied
     }
 
-    #[test]
-    fn merge_proving_procedure() {
+    fn merge_proving_procedure(circuit_generator: fn() -> MergeRelationWithFullInput) {
         let circuit_withouth_input = MergeRelationWithoutInput::new(MAX_PATH_LEN);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
             Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
 
-        let circuit = get_circuit_with_full_input();
-        let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+        let proof = Groth16::prove(&pk, circuit_generator(), &mut rng).unwrap();
 
-        let circuit: MergeRelationWithPublicInput = get_circuit_with_full_input().into();
+        let circuit: MergeRelationWithPublicInput = circuit_generator().into();
         let input = circuit.serialize_public_input();
+
         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(valid_proof);
+    }
+
+    #[test]
+    fn merge_constraints_valid_circuit() {
+        let circuit = get_circuit_with_full_input();
+
+        let constraints_correctness = merge_constraints_correctness(circuit);
+        assert!(constraints_correctness);
+    }
+
+    #[test]
+    fn merge_proving_procedure_valid_circuit() {
+        merge_proving_procedure(get_circuit_with_full_input);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_first_old_note() {
+        let invalid_circuit = get_circuit_with_invalid_first_old_note();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_second_old_note() {
+        let invalid_circuit = get_circuit_with_invalid_second_old_note();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_new_note() {
+        let invalid_circuit = get_circuit_with_invalid_new_note();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_unsound_value() {
+        let invalid_circuit = get_circuit_with_unsound_value();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_first_leaf_index() {
+        let invalid_circuit = get_circuit_with_invalid_first_leaf_index();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_second_leaf_index() {
+        let invalid_circuit = get_circuit_with_invalid_second_leaf_index();
+
+        let constraints_correctness = merge_constraints_correctness(invalid_circuit);
+        assert!(!constraints_correctness);
     }
 }
