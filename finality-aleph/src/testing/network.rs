@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use aleph_clique::{
+use network_clique::{
     mock::{
         key, random_address_from, MockAddressingInformation, MockNetwork as MockCliqueNetwork,
         MockPublicKey,

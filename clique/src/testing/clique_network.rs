@@ -23,7 +23,7 @@ use crate::{
     Network, SecretKey, Service,
 };
 
-pub const LOG_TARGET: &str = "clique-network-test";
+pub const LOG_TARGET: &str = "network-clique-test";
 
 const TWICE_MAX_DATA_SIZE: usize = 32 * 1024 * 1024;
 

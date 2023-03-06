@@ -1,6 +1,6 @@
 use std::{io::Error as IoError, iter, net::ToSocketAddrs as _};
 
-use aleph_clique::{Dialer, Listener, PeerId, PublicKey, SecretKey};
+use network_clique::{Dialer, Listener, PeerId, PublicKey, SecretKey};
 use aleph_primitives::AuthorityId;
 use codec::{Decode, Encode};
 use derive_more::{AsRef, Display};

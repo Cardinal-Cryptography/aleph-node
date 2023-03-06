@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use aleph_clique::Service;
+use network_clique::Service;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};

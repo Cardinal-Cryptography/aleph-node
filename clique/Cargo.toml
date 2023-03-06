@@ -1,13 +1,11 @@
 [package]
-name = "clique-network"
+name = "network-clique"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
-# fixed version to 'freeze' some types used in abft, mainly `SignatureSet` used in justification and signature aggregation
-
 async-trait = "0.1"
 bytes = "1.0"
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["std", "derive"] }
@@ -26,6 +24,3 @@ tiny-bip39 = "1.0"
 tokio = { version = "1.25", features = [ "sync", "macros", "time", "rt-multi-thread", "io-util", "net" ] }
 
 sc-service = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-
-[features]
-only_legacy = []

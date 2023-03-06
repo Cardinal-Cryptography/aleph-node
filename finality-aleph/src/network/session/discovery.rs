@@ -81,7 +81,7 @@ impl<A: AddressingInformation> Discovery<A> {
 mod tests {
     use std::{thread::sleep, time::Duration};
 
-    use aleph_clique::mock::{random_address, MockAddressingInformation};
+    use network_clique::mock::{random_address, MockAddressingInformation};
 
     use super::Discovery;
     use crate::{

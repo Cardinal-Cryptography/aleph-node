@@ -1152,29 +1152,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clique-network"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bytes",
- "derive_more",
- "env_logger 0.10.0",
- "futures",
- "futures-timer",
- "hash-db",
- "ip_network",
- "log",
- "lru 0.9.0",
- "parity-scale-codec",
- "parking_lot 0.12.1",
- "rand 0.8.5",
- "sc-service",
- "serde",
- "tiny-bip39",
- "tokio",
-]
-
-[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2126,7 +2103,6 @@ dependencies = [
  "aleph-bft-rmc 0.6.1",
  "async-trait",
  "bytes",
- "clique-network",
  "derive_more",
  "env_logger 0.9.3",
  "futures",
@@ -2135,6 +2111,7 @@ dependencies = [
  "ip_network",
  "log",
  "lru 0.7.8",
+ "network-clique",
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "primitives",
@@ -4577,6 +4554,29 @@ dependencies = [
  "futures",
  "libc",
  "log",
+ "tokio",
+]
+
+[[package]]
+name = "network-clique"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "derive_more",
+ "env_logger 0.10.0",
+ "futures",
+ "futures-timer",
+ "hash-db",
+ "ip_network",
+ "log",
+ "lru 0.9.0",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "sc-service",
+ "serde",
+ "tiny-bip39",
  "tokio",
 ]
 

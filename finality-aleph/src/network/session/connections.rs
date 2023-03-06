@@ -55,7 +55,7 @@ impl<PID: PeerId> Connections<PID> {
 mod tests {
     use std::collections::HashSet;
 
-    use aleph_clique::mock::{random_keys, MockPublicKey};
+    use network_clique::mock::{random_keys, MockPublicKey};
 
     use super::Connections;
     use crate::SessionId;

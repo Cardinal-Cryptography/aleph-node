@@ -7,6 +7,21 @@ use std::{
 use codec::Codec;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+mod crypto;
+mod incoming;
+mod io;
+mod manager;
+pub mod mock;
+mod outgoing;
+mod protocols;
+mod service;
+#[cfg(test)]
+mod testing;
+
+pub use crypto::{PublicKey, SecretKey};
+pub use service::Service;
+
+const LOG_TARGET: &str = "network-clique";
 /// A basic alias for properties we expect basic data to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
@@ -48,22 +63,6 @@ pub trait NetworkIdentity {
     /// The external identity of this node.
     fn identity(&self) -> Self::AddressingInformation;
 }
-
-mod crypto;
-mod incoming;
-mod io;
-mod manager;
-pub mod mock;
-mod outgoing;
-mod protocols;
-mod service;
-#[cfg(test)]
-mod testing;
-
-pub use crypto::{PublicKey, SecretKey};
-pub use service::Service;
-
-const LOG_TARGET: &str = "clique-network";
 
 /// Network represents an interface for opening and closing connections with other nodes,
 /// and sending direct messages between them.

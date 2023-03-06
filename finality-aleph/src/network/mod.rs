@@ -10,7 +10,7 @@ pub mod session;
 mod substrate;
 pub mod tcp;
 
-use aleph_clique::{AddressingInformation, NetworkIdentity, PeerId};
+use network_clique::{AddressingInformation, NetworkIdentity, PeerId};
 #[cfg(test)]
 pub use gossip::mock::{MockEvent, MockRawNetwork};
 pub use gossip::{Network as GossipNetwork, Protocol, Service as GossipService};

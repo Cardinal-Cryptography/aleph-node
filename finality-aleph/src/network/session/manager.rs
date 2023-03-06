@@ -435,7 +435,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
 mod tests {
     use std::{iter, time::Duration};
 
-    use aleph_clique::mock::{random_address, MockAddressingInformation};
+    use network_clique::mock::{random_address, MockAddressingInformation};
     use futures::StreamExt;
 
     use super::{

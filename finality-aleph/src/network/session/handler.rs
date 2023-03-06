@@ -208,7 +208,7 @@ impl<A: AddressingInformation> Handler<A> {
 
 #[cfg(test)]
 pub mod tests {
-    use aleph_clique::mock::{random_address, random_invalid_address, MockAddressingInformation};
+    use network_clique::mock::{random_address, random_invalid_address, MockAddressingInformation};
 
     use super::{Handler, HandlerError};
     use crate::{
