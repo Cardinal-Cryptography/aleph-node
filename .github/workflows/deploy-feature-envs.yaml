@@ -158,7 +158,7 @@ jobs:
             NAMES=([aleph-node-validator-0]=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
             [aleph-node-validator-1]=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
             [aleph-node-validator-2]=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y \
-            [aleph-node-validator-3]=5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy\
+            [aleph-node-validator-3]=5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy \
             [aleph-node-validator-4]=5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw)
 
           for NAME in "${!NAMES[@]}"; do
@@ -287,8 +287,8 @@ jobs:
         run: |
           # Set up envs
           SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" \
-            -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' ${{ env.RPC_MAINNET_URL }} |\
-            jq -r '.result')
+           -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' ${{ env.RPC_MAINNET_URL }} | \
+           jq -r '.result')
           SUFFIX="-x86_64-linux-gnu"
           LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
           COMMIT_ID=${LONG_COMMIT_ID: -7}
@@ -552,9 +552,9 @@ jobs:
 
   destroy_feature_env_on_close:
     if: >
-      (github.event.action == 'closed' &&
-      !contains( github.event.pull_request.labels.*.name, 'DESTROYED') &&
-      contains( github.event.pull_request.labels.*.name, 'DEPLOYED'))
+      github.event.action == 'closed' &&
+      !contains(github.event.pull_request.labels.*.name, 'DESTROYED') &&
+      contains(github.event.pull_request.labels.*.name, 'DEPLOYED')
     name: Destroy feature env when PR closed
     runs-on: ubuntu-20.04
     steps:

@@ -1,8 +1,5 @@
 This directory gathers useful actions for Github pipelines.
 
-## `post-cache`
-Stops sccache server. Use together with `restore-cache`.
-
 ---
 
 ## `run-e2e-test`

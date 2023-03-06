@@ -13,8 +13,9 @@ jobs:
   sync-main:
     runs-on: ubuntu-20.04
     if: >
-      github.repository == 'Cardinal-Cryptography/aleph-node' && startsWith(github.ref,
-      'refs/heads/') && github.ref_name == 'main'
+      github.repository == 'Cardinal-Cryptography/aleph-node' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      github.ref_name == 'main'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -30,8 +31,9 @@ jobs:
   sync-release-branch:
     runs-on: ubuntu-20.04
     if: >
-      github.repository == 'Cardinal-Cryptography/aleph-node' && startsWith(github.ref,
-      'refs/heads/') && startsWith(github.ref_name, 'release-')
+      github.repository == 'Cardinal-Cryptography/aleph-node' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      startsWith(github.ref_name, 'release-')
     steps:
       - name: GIT | Checkout
         uses: actions/checkout@v3
