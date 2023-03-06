@@ -141,8 +141,8 @@ impl Display for Error {
 mod test {
     use std::sync::Arc;
 
-    use network_clique::mock::MockAddressingInformation;
     use codec::{Decode, Encode};
+    use network_clique::mock::MockAddressingInformation;
     use sp_keystore::testing::KeyStore;
 
     use super::VersionedAuthentication;

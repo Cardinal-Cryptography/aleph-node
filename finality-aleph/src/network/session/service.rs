@@ -4,12 +4,12 @@ use std::{
     time::Duration,
 };
 
-use network_clique::{Network as CliqueNetwork, PublicKey};
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
 use log::{debug, trace, warn};
+use network_clique::{Network as CliqueNetwork, PublicKey};
 use tokio::time::{self, Instant};
 
 use crate::{

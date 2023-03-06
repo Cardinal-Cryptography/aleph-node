@@ -1,9 +1,9 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use network_clique::Service;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
+use network_clique::Service;
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;

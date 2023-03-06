@@ -435,8 +435,8 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
 mod tests {
     use std::{iter, time::Duration};
 
-    use network_clique::mock::{random_address, MockAddressingInformation};
     use futures::StreamExt;
+    use network_clique::mock::{random_address, MockAddressingInformation};
 
     use super::{
         ConnectionCommand, Manager, ManagerActions, PreNonvalidatorSession, PreValidatorSession,

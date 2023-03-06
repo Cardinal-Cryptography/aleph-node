@@ -1,11 +1,11 @@
 use std::{collections::VecDeque, fmt, sync::Arc};
 
-use network_clique::mock::MockPublicKey;
 use async_trait::async_trait;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
+use network_clique::mock::MockPublicKey;
 use parking_lot::Mutex;
 
 use crate::network::{

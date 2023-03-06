@@ -1,10 +1,10 @@
 use std::{io::Error as IoError, iter, net::ToSocketAddrs as _};
 
-use network_clique::{Dialer, Listener, PeerId, PublicKey, SecretKey};
 use aleph_primitives::AuthorityId;
 use codec::{Decode, Encode};
 use derive_more::{AsRef, Display};
 use log::info;
+use network_clique::{Dialer, Listener, PeerId, PublicKey, SecretKey};
 use sp_core::crypto::KeyTypeId;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 

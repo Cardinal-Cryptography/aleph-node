@@ -4,6 +4,8 @@ use std::{
     time::Duration,
 };
 
+use codec::{Decode, Encode};
+use futures::channel::oneshot;
 use network_clique::{
     mock::{
         key, random_address_from, MockAddressingInformation, MockNetwork as MockCliqueNetwork,
@@ -11,8 +13,6 @@ use network_clique::{
     },
     AddressingInformation,
 };
-use codec::{Decode, Encode};
-use futures::channel::oneshot;
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
