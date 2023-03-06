@@ -33,7 +33,7 @@ impl<J: Justification> State<J> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum BranchKnowledge<J: Justification> {
     /// ID of the oldest known ancestor if none of them are imported.
-    /// It must be different from the root, as it is always imported.
+    /// It must be different from the, imported by definition, root.
     LowestId(BlockIdFor<J>),
     /// ID of the top imported ancestor if any of them is imported.
     /// Since imported vertices are connected to the root, the oldest known
