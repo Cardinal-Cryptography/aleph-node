@@ -933,7 +933,6 @@ dependencies = [
  "parity-scale-codec",
  "primitives",
  "scale-info",
- "sp-std",
 ]
 
 [[package]]
