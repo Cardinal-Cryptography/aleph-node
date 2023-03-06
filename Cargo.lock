@@ -5295,7 +5295,7 @@ dependencies = [
 [[package]]
 name = "obce"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#59bed07d2dba77faec8bbc16d8d93c27d426167d"
+source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5313,7 +5313,7 @@ dependencies = [
 [[package]]
 name = "obce-codegen"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#59bed07d2dba77faec8bbc16d8d93c27d426167d"
+source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
 dependencies = [
  "blake2 0.10.6",
  "itertools",
@@ -5326,7 +5326,7 @@ dependencies = [
 [[package]]
 name = "obce-macro"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#59bed07d2dba77faec8bbc16d8d93c27d426167d"
+source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
 dependencies = [
  "obce-codegen",
  "proc-macro2",
