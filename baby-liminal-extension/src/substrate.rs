@@ -87,7 +87,7 @@ where
             weight_of_store_key::<T>(key.len() as ByteCount),
         );
 
-        match Env::store_key(origin.into(), identifier, key) {
+        match Env::store_key(origin, identifier, key) {
             Ok(_) => Ok(()),
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could have adjusted weight. However, for the storing key action
