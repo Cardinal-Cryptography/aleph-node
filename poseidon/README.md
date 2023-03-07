@@ -1,7 +1,6 @@
 # Liminal Arkworks Poseidon
 
-This package provides arkworks-based Poseidon hashing.
-It is built upon https://github.com/penumbra-zone/poseidon377.
+This package provides arkworks-based Poseidon hashing, for which parameters were generated using https://github.com/penumbra-zone/poseidon377.
 
 ## General usage
 
