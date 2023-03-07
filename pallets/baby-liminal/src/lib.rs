@@ -21,7 +21,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 /// We store verification keys under short identifiers.
 pub type VerificationKeyIdentifier = [u8; 4];
-pub type VerificationKeyDeposit<T> =
+pub type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
@@ -58,7 +58,7 @@ pub mod pallet {
         ///
         /// Will get locked and returned upon deleting the key by the owner
         #[pallet::constant]
-        type VerificationKeyDepositAmount: Get<VerificationKeyDeposit<Self>>;
+        type VerificationKeyDepositPerByte: Get<BalanceOf<Self>>;
     }
 
     #[pallet::error]
@@ -70,6 +70,8 @@ pub mod pallet {
         UnknownVerificationKeyIdentifier,
         /// Provided verification key is longer than `MaximumVerificationKeyLength` limit.
         VerificationKeyTooLong,
+        /// When you override a key new key stored must be of the same size in bytes
+        NewKeyMustHaveSameLength,
 
         /// Either proof or public input is longer than `MaximumDataLength` limit.
         DataTooLong,
@@ -97,13 +99,13 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Verification key has been successfully stored.
         ///
-        /// \[ identifier, account_id \]
-        VerificationKeyStored(VerificationKeyIdentifier, T::AccountId),
+        /// \[ account_id, identifier \]
+        VerificationKeyStored(T::AccountId, VerificationKeyIdentifier),
 
         /// Verification key has been successfully deleted.
         ///
         /// \[ identifier \]
-        VerificationKeyDeleted(VerificationKeyIdentifier),
+        VerificationKeyDeleted(T::AccountId, VerificationKeyIdentifier),
 
         /// Verification key has been successfully overwritten.
         ///
@@ -136,7 +138,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn get_verification_key_deposit)]
     pub type VerificationKeyDeposits<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, VerificationKeyDeposit<T>>;
+        StorageMap<_, Twox64Concat, (T::AccountId, VerificationKeyIdentifier), BalanceOf<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -160,7 +162,7 @@ pub mod pallet {
 
         /// Deletes a key stored under `identifier` in `VerificationKeys` map.
         ///
-        /// Can only be called by a root account.
+        /// Returns the deposit locked. Can only be called by the key owner.
         #[pallet::call_index(1)]
         #[pallet::weight(T::DbWeight::get().reads(2) + T::DbWeight::get().writes(2))]
         pub fn delete_key(
@@ -173,11 +175,11 @@ pub mod pallet {
 
             ensure!(who == owner, Error::<T>::NotOwner);
 
-            let deposit = VerificationKeyDeposits::<T>::get(&owner).unwrap(); // cannot fail since the key has owner and owner must have made a deposit
+            let deposit = VerificationKeyDeposits::<T>::take((&owner, &identifier)).unwrap(); // cannot fail since the key has owner and owner must have made a deposit
             T::Currency::unreserve(&owner, deposit);
 
             VerificationKeys::<T>::remove(identifier);
-            Self::deposit_event(Event::VerificationKeyDeleted(identifier));
+            Self::deposit_event(Event::VerificationKeyDeleted(who, identifier));
             Ok(())
         }
 
@@ -194,9 +196,17 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
             let owner = VerificationKeyOwners::<T>::get(identifier);
+            let previous_key = VerificationKeys::<T>::get(identifier);
 
             if let Some(owner) = owner {
                 ensure!(who == owner, Error::<T>::NotOwner)
+            };
+
+            if let Some(previous) = previous_key {
+                ensure!(
+                    previous.len() == key.len(),
+                    Error::<T>::NewKeyMustHaveSameLength
+                )
             };
 
             ensure!(
@@ -275,7 +285,10 @@ pub mod pallet {
                 Error::<T>::IdentifierAlreadyInUse
             );
 
-            let deposit = T::VerificationKeyDepositAmount::get();
+            // make a locked deposit that will be returned when the key is deleted
+            // deposit is calculated per byte of occupied storage
+            let deposit =
+                T::VerificationKeyDepositPerByte::get() * BalanceOf::<T>::from(key.len() as u32);
             T::Currency::reserve(&who, deposit).map_err(|_| Error::<T>::CannotAffordDeposit)?;
 
             VerificationKeys::<T>::insert(
@@ -285,9 +298,9 @@ pub mod pallet {
 
             // will never overwrite anything since we already check the VerificationKeys map
             VerificationKeyOwners::<T>::insert(identifier, &who);
-            VerificationKeyDeposits::<T>::insert(&who, deposit);
+            VerificationKeyDeposits::<T>::insert((&who, &identifier), deposit);
 
-            Self::deposit_event(Event::VerificationKeyStored(identifier, who));
+            Self::deposit_event(Event::VerificationKeyStored(who, identifier));
             Ok(())
         }
 

@@ -346,7 +346,7 @@ impl pallet_baby_liminal::Config for Runtime {
     type WeightInfo = pallet_baby_liminal::AlephWeight<Runtime>;
     type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
     type MaximumDataLength = MaximumDataLength;
-    type VerificationKeyDepositAmount = VerificationKeyDepositAmount;
+    type VerificationKeyDepositPerByte = VerificationKeyDepositAmount;
 }
 
 impl_opaque_keys! {

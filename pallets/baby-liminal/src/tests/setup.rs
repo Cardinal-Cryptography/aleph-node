@@ -77,7 +77,7 @@ impl pallet_baby_liminal::Config for TestRuntime {
     type Currency = Balances;
     type MaximumVerificationKeyLength = ConstU32<10_000>;
     type MaximumDataLength = ConstU32<10_000>;
-    type VerificationKeyDepositAmount = ConstU64<0>;
+    type VerificationKeyDepositPerByte = ConstU64<0>;
 }
 
 pub fn new_test_ext() -> TestExternalities {

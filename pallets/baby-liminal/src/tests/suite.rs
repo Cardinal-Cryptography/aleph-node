@@ -34,9 +34,11 @@ fn not_owner() -> OriginFor<TestRuntime> {
 }
 
 fn put_key() {
+    let owner = 1;
+    let deposit = 0;
     VerificationKeys::<TestRuntime>::insert(IDENTIFIER, BoundedVec::try_from(vk()).unwrap());
-    VerificationKeyOwners::<TestRuntime>::insert(IDENTIFIER, 1);
-    VerificationKeyDeposits::<TestRuntime>::insert(1, 0);
+    VerificationKeyOwners::<TestRuntime>::insert(IDENTIFIER, owner);
+    VerificationKeyDeposits::<TestRuntime>::insert((owner, IDENTIFIER), deposit);
 }
 
 #[test]
