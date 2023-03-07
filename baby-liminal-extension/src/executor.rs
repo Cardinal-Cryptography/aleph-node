@@ -32,7 +32,7 @@ impl<'a, 'b, E, T> Executor<T> for Environment<'a, 'b, E, BufInBufOutState>
 where
     T: SysConfig + BabyLiminalConfig,
     E: Ext<T = T>,
-    <T as SysConfig>::RuntimeOrigin: From<AccountId32>,
+    <T as SysConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
     type ErrorGenericType = T;
 
@@ -41,7 +41,7 @@ where
         identifier: VerificationKeyIdentifier,
         key: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>> {
-        BabyLiminal::<T>::bare_store_key(depositor.into(), identifier, key)
+        BabyLiminal::<T>::bare_store_key(Some(depositor).into(), identifier, key)
     }
 
     fn verify(

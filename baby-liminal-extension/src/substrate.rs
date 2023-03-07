@@ -54,7 +54,7 @@ where
     <<T as SysConfig>::Lookup as StaticLookup>::Source: From<<T as SysConfig>::AccountId>,
     <T as SysConfig>::AccountId: UncheckedFrom<<T as SysConfig>::Hash> + AsRef<[u8]>,
     Env: ChainExtensionEnvironment<E, T> + Executor<T>,
-    <T as SysConfig>::RuntimeOrigin: From<AccountId32>,
+    <T as SysConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
     #[obce(
         weight(
