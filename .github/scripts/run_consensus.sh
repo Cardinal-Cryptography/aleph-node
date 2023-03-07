@@ -22,7 +22,7 @@ if [[ $(docker images | grep ${NODE_IMAGE}) ]]; then
 else
   echo "${NODE_IMAGE} not found locally."
   echo "Build image first with:"
-  echo "docker build -t aleph-node:latest -f docker/Dockerfile ."
+  echo "docker build -t ${NODE_IMAGE} -f docker/Dockerfile ."
   exit 1;
 fi
 
