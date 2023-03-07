@@ -165,7 +165,7 @@ pub mod pallet {
         ///
         /// Returns the deposit locked. Can only be called by the key owner.
         #[pallet::call_index(1)]
-        #[pallet::weight(T::WeightInfo::delete_key(key.len() as u32))]
+        #[pallet::weight(T::WeightInfo::delete_key(T::MaximumVerificationKeyLength::get()))]
         pub fn delete_key(
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,

@@ -27,521 +27,607 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_baby_liminal.
 pub trait WeightInfo {
+    fn store_key(key_length: u32) -> Weight;
+    fn overwrite_key(key_length: u32) -> Weight;
+    fn delete_key(key_length: u32) -> Weight;
+    fn verify_groth16() -> Weight;
+    fn verify_gm17() -> Weight;
+    fn verify_marlin() -> Weight;
+    fn verify_data_too_long(excess: u32) -> Weight;
+    fn verify_data_deserializing_fails(data_length: u32) -> Weight;
+    fn verify_key_deserializing_fails(key_length: u32) -> Weight;
+    fn poseidon_one_to_one_wasm() -> Weight;
+    fn poseidon_two_to_one_wasm() -> Weight;
+    fn poseidon_four_to_one_wasm() -> Weight;
+    fn poseidon_one_to_one_host() -> Weight;
+    fn poseidon_two_to_one_host() -> Weight;
+    fn poseidon_four_to_one_host() -> Weight;
     // TODO: fill it with the methods that you actually need
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
+        fn store_key(key_length: u32) -> Weight {
+                <I as BenchmarkInfo>::store_key(key_length)
+        }
+
+        fn overwrite_key(key_length: u32) -> Weight {
+                <I as BenchmarkInfo>::overwrite_key(key_length)
+        }
+
+        fn delete_key(key_length: u32) -> Weight {
+                <I as BenchmarkInfo>::delete_key(key_length)
+        }
+
+        fn verify_groth16() -> Weight {
+                <I as BenchmarkInfo>::verify_groth16_xor()
+                        .max(<I as BenchmarkInfo>::verify_groth16_linear_equation())
+                        .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_8())
+                        .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_64())
+                        .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_1024())
+        }
+
+        fn verify_gm17() -> Weight {
+                <I as BenchmarkInfo>::verify_gm17_xor()
+                        .max(<I as BenchmarkInfo>::verify_gm17_linear_equation())
+                        .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_8())
+                        .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_64())
+                        .max(<I as BenchmarkInfo>::verify_gm17_merkle_tree_1024())
+        }
+
+        fn verify_marlin() -> Weight {
+                <I as BenchmarkInfo>::verify_marlin_xor()
+                        .max(<I as BenchmarkInfo>::verify_marlin_linear_equation())
+                        .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_8())
+                        .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_64())
+                        .max(<I as BenchmarkInfo>::verify_marlin_merkle_tree_1024())
+        }
+
+        fn verify_data_too_long(excess: u32) -> Weight {
+                <I as BenchmarkInfo>::verify_data_too_long(excess)
+        }
+
+        fn verify_data_deserializing_fails(data_length: u32) -> Weight {
+                <I as BenchmarkInfo>::verify_data_deserializing_fails(data_length)
+        }
+
+        fn verify_key_deserializing_fails(key_length: u32) -> Weight {
+                <I as BenchmarkInfo>::verify_key_deserializing_fails(key_length)
+        }
+
+        fn poseidon_one_to_one_wasm() -> Weight {
+                <I as BenchmarkInfo>::poseidon_one_to_one_wasm()
+        }
+
+        fn poseidon_two_to_one_wasm() -> Weight {
+                <I as BenchmarkInfo>::poseidon_two_to_one_wasm()
+        }
+
+        fn poseidon_four_to_one_wasm() -> Weight {
+                <I as BenchmarkInfo>::poseidon_four_to_one_wasm()
+        }
+
+        fn poseidon_one_to_one_host() -> Weight {
+                <I as BenchmarkInfo>::poseidon_one_to_one_host()
+        }
+
+        fn poseidon_two_to_one_host() -> Weight {
+                <I as BenchmarkInfo>::poseidon_two_to_one_host()
+        }
+
+        fn poseidon_four_to_one_host() -> Weight {
+                <I as BenchmarkInfo>::poseidon_four_to_one_host()
+        }
     // TODO: compile results from benchmarks
 }
 
 /// Benchmark results for pallet_baby_liminal.
 trait BenchmarkInfo {
-	fn store_key(l: u32, ) -> Weight;
-	fn overwrite_key(l: u32, ) -> Weight;
-	fn delete_key(l: u32, ) -> Weight;
-	fn verify_groth16_xor() -> Weight;
-	fn verify_groth16_linear_equation() -> Weight;
-	fn verify_groth16_merkle_tree_8() -> Weight;
-	fn verify_groth16_merkle_tree_64() -> Weight;
-	fn verify_groth16_merkle_tree_1024() -> Weight;
-	fn verify_gm17_xor() -> Weight;
-	fn verify_gm17_linear_equation() -> Weight;
-	fn verify_gm17_merkle_tree_8() -> Weight;
-	fn verify_gm17_merkle_tree_64() -> Weight;
-	fn verify_gm17_merkle_tree_1024() -> Weight;
-	fn verify_marlin_xor() -> Weight;
-	fn verify_marlin_linear_equation() -> Weight;
-	fn verify_marlin_merkle_tree_8() -> Weight;
-	fn verify_marlin_merkle_tree_64() -> Weight;
-	fn verify_marlin_merkle_tree_1024() -> Weight;
-	fn verify_data_too_long(e: u32, ) -> Weight;
-	fn verify_data_deserializing_fails(l: u32, ) -> Weight;
-	fn verify_key_deserializing_fails(l: u32, ) -> Weight;
-	fn poseidon_one_to_one_wasm(x: u32, ) -> Weight;
-	fn poseidon_two_to_one_wasm(x: u32, y: u32, ) -> Weight;
-	fn poseidon_four_to_one_wasm(x: u32, y: u32, w: u32, z: u32, ) -> Weight;
-	fn poseidon_one_to_one_host(x: u32, ) -> Weight;
-	fn poseidon_two_to_one_host(x: u32, y: u32, ) -> Weight;
-	fn poseidon_four_to_one_host(x: u32, y: u32, w: u32, z: u32, ) -> Weight;
+        fn store_key(l: u32, ) -> Weight;
+        fn overwrite_key(l: u32, ) -> Weight;
+        fn delete_key(l: u32, ) -> Weight;
+        fn verify_groth16_xor() -> Weight;
+        fn verify_groth16_linear_equation() -> Weight;
+        fn verify_groth16_merkle_tree_8() -> Weight;
+        fn verify_groth16_merkle_tree_64() -> Weight;
+        fn verify_groth16_merkle_tree_1024() -> Weight;
+        fn verify_gm17_xor() -> Weight;
+        fn verify_gm17_linear_equation() -> Weight;
+        fn verify_gm17_merkle_tree_8() -> Weight;
+        fn verify_gm17_merkle_tree_64() -> Weight;
+        fn verify_gm17_merkle_tree_1024() -> Weight;
+        fn verify_marlin_xor() -> Weight;
+        fn verify_marlin_linear_equation() -> Weight;
+        fn verify_marlin_merkle_tree_8() -> Weight;
+        fn verify_marlin_merkle_tree_64() -> Weight;
+        fn verify_marlin_merkle_tree_1024() -> Weight;
+        fn verify_data_too_long(e: u32, ) -> Weight;
+        fn verify_data_deserializing_fails(l: u32, ) -> Weight;
+        fn verify_key_deserializing_fails(l: u32, ) -> Weight;
+        fn poseidon_one_to_one_wasm() -> Weight;
+        fn poseidon_two_to_one_wasm() -> Weight;
+        fn poseidon_four_to_one_wasm() -> Weight;
+        fn poseidon_one_to_one_host() -> Weight;
+        fn poseidon_two_to_one_host() -> Weight;
+        fn poseidon_four_to_one_host() -> Weight;
 }
 
 /// Weights for pallet_baby_liminal using the Substrate node and recommended hardware.
 pub struct AlephWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
-	// Storage: BabyLiminal VerificationKeys (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyOwners (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn store_key(l: u32, ) -> Weight {
-		// Minimum execution time: 20_973 nanoseconds.
-		Weight::from_ref_time(22_327_195_u64)
-			// Standard Error: 4
-			.saturating_add(Weight::from_ref_time(745_u64).saturating_mul(l as u64))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(3_u64))
-	}
-	// Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_key(l: u32, ) -> Weight {
-		// Minimum execution time: 18_975 nanoseconds.
-		Weight::from_ref_time(20_019_317_u64)
-			// Standard Error: 3
-			.saturating_add(Weight::from_ref_time(725_u64).saturating_mul(l as u64))
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	// Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeys (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn delete_key(_l: u32, ) -> Weight {
-		// Minimum execution time: 23_973 nanoseconds.
-		Weight::from_ref_time(24_908_391_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 51_605_208 nanoseconds.
-		Weight::from_ref_time(52_100_980_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 40_698_618 nanoseconds.
-		Weight::from_ref_time(40_715_462_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 54_080_020 nanoseconds.
-		Weight::from_ref_time(54_202_386_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 54_183_621 nanoseconds.
-		Weight::from_ref_time(55_289_847_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 54_387_947 nanoseconds.
-		Weight::from_ref_time(55_329_045_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_xor() -> Weight {
-		// Minimum execution time: 57_326_083 nanoseconds.
-		Weight::from_ref_time(58_559_711_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_linear_equation() -> Weight {
-		// Minimum execution time: 46_098_887 nanoseconds.
-		Weight::from_ref_time(46_949_094_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_8() -> Weight {
-		// Minimum execution time: 59_656_363 nanoseconds.
-		Weight::from_ref_time(61_025_914_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_64() -> Weight {
-		// Minimum execution time: 60_182_347 nanoseconds.
-		Weight::from_ref_time(61_464_125_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 59_697_644 nanoseconds.
-		Weight::from_ref_time(62_166_611_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_xor() -> Weight {
-		// Minimum execution time: 90_292_488 nanoseconds.
-		Weight::from_ref_time(91_877_541_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_linear_equation() -> Weight {
-		// Minimum execution time: 89_448_996 nanoseconds.
-		Weight::from_ref_time(91_316_803_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_8() -> Weight {
-		// Minimum execution time: 88_079_576 nanoseconds.
-		Weight::from_ref_time(89_903_065_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_64() -> Weight {
-		// Minimum execution time: 87_649_210 nanoseconds.
-		Weight::from_ref_time(89_445_291_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 87_577_178 nanoseconds.
-		Weight::from_ref_time(88_923_678_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-	}
-	/// The range of component `e` is `[1, 10000000]`.
-	fn verify_data_too_long(_e: u32, ) -> Weight {
-		// Minimum execution time: 4_230 nanoseconds.
-		Weight::from_ref_time(4_559_691_u64)
-	}
-	/// The range of component `l` is `[1, 10000]`.
-	fn verify_data_deserializing_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 11_471 nanoseconds.
-		Weight::from_ref_time(12_357_014_u64)
-			// Standard Error: 8
-			.saturating_add(Weight::from_ref_time(27_u64).saturating_mul(l as u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn verify_key_deserializing_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 6_876_792 nanoseconds.
-		Weight::from_ref_time(6_983_499_256_u64)
-			// Standard Error: 563
-			.saturating_add(Weight::from_ref_time(592_u64).saturating_mul(l as u64))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_wasm(_x: u32, ) -> Weight {
-		// Minimum execution time: 8_196_664 nanoseconds.
-		Weight::from_ref_time(8_215_840_230_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_wasm(_x: u32, _y: u32, ) -> Weight {
-		// Minimum execution time: 12_943_627 nanoseconds.
-		Weight::from_ref_time(12_996_165_039_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	/// The range of component `w` is `[0, 4294967295]`.
-	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_wasm(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
-		// Minimum execution time: 24_452_386 nanoseconds.
-		Weight::from_ref_time(24_372_298_813_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_host(_x: u32, ) -> Weight {
-		// Minimum execution time: 1_065_910 nanoseconds.
-		Weight::from_ref_time(1_078_967_419_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_host(_x: u32, _y: u32, ) -> Weight {
-		// Minimum execution time: 1_692_214 nanoseconds.
-		Weight::from_ref_time(1_734_950_130_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	/// The range of component `w` is `[0, 4294967295]`.
-	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_host(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
-		// Minimum execution time: 3_172_487 nanoseconds.
-		Weight::from_ref_time(3_194_226_869_u64)
-	}
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyOwners (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn store_key(l: u32, ) -> Weight {
+                // Minimum execution time: 20_973 nanoseconds.
+                Weight::from_ref_time(22_327_195_u64)
+                        // Standard Error: 4
+                        .saturating_add(Weight::from_ref_time(745_u64).saturating_mul(l as u64))
+                        .saturating_add(T::DbWeight::get().reads(1_u64))
+                        .saturating_add(T::DbWeight::get().writes(3_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn overwrite_key(l: u32, ) -> Weight {
+                // Minimum execution time: 18_975 nanoseconds.
+                Weight::from_ref_time(20_019_317_u64)
+                        // Standard Error: 3
+                        .saturating_add(Weight::from_ref_time(725_u64).saturating_mul(l as u64))
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+                        .saturating_add(T::DbWeight::get().writes(1_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn delete_key(_l: u32, ) -> Weight {
+                // Minimum execution time: 23_973 nanoseconds.
+                Weight::from_ref_time(24_908_391_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+                        .saturating_add(T::DbWeight::get().writes(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_xor() -> Weight {
+                // Minimum execution time: 51_605_208 nanoseconds.
+                Weight::from_ref_time(52_100_980_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_linear_equation() -> Weight {
+                // Minimum execution time: 40_698_618 nanoseconds.
+                Weight::from_ref_time(40_715_462_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_8() -> Weight {
+                // Minimum execution time: 54_080_020 nanoseconds.
+                Weight::from_ref_time(54_202_386_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_64() -> Weight {
+                // Minimum execution time: 54_183_621 nanoseconds.
+                Weight::from_ref_time(55_289_847_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 54_387_947 nanoseconds.
+                Weight::from_ref_time(55_329_045_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_xor() -> Weight {
+                // Minimum execution time: 57_326_083 nanoseconds.
+                Weight::from_ref_time(58_559_711_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_linear_equation() -> Weight {
+                // Minimum execution time: 46_098_887 nanoseconds.
+                Weight::from_ref_time(46_949_094_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_8() -> Weight {
+                // Minimum execution time: 59_656_363 nanoseconds.
+                Weight::from_ref_time(61_025_914_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_64() -> Weight {
+                // Minimum execution time: 60_182_347 nanoseconds.
+                Weight::from_ref_time(61_464_125_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 59_697_644 nanoseconds.
+                Weight::from_ref_time(62_166_611_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_xor() -> Weight {
+                // Minimum execution time: 90_292_488 nanoseconds.
+                Weight::from_ref_time(91_877_541_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_linear_equation() -> Weight {
+                // Minimum execution time: 89_448_996 nanoseconds.
+                Weight::from_ref_time(91_316_803_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_8() -> Weight {
+                // Minimum execution time: 88_079_576 nanoseconds.
+                Weight::from_ref_time(89_903_065_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_64() -> Weight {
+                // Minimum execution time: 87_649_210 nanoseconds.
+                Weight::from_ref_time(89_445_291_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 87_577_178 nanoseconds.
+                Weight::from_ref_time(88_923_678_000_u64)
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+        }
+        /// The range of component `e` is `[1, 10000000]`.
+        fn verify_data_too_long(_e: u32, ) -> Weight {
+                // Minimum execution time: 4_230 nanoseconds.
+                Weight::from_ref_time(4_559_691_u64)
+        }
+        /// The range of component `l` is `[1, 10000]`.
+        fn verify_data_deserializing_fails(l: u32, ) -> Weight {
+                // Minimum execution time: 11_471 nanoseconds.
+                Weight::from_ref_time(12_357_014_u64)
+                        // Standard Error: 8
+                        .saturating_add(Weight::from_ref_time(27_u64).saturating_mul(l as u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn verify_key_deserializing_fails(l: u32, ) -> Weight {
+                // Minimum execution time: 6_876_792 nanoseconds.
+                Weight::from_ref_time(6_983_499_256_u64)
+                        // Standard Error: 563
+                        .saturating_add(Weight::from_ref_time(592_u64).saturating_mul(l as u64))
+                        .saturating_add(T::DbWeight::get().reads(1_u64))
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        fn poseidon_one_to_one_wasm() -> Weight {
+                // Minimum execution time: 8_196_664 nanoseconds.
+                Weight::from_ref_time(8_215_840_230_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        fn poseidon_two_to_one_wasm() -> Weight {
+                // Minimum execution time: 12_943_627 nanoseconds.
+                Weight::from_ref_time(12_996_165_039_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        /// The range of component `w` is `[0, 4294967295]`.
+        /// The range of component `z` is `[0, 4294967295]`.
+        fn poseidon_four_to_one_wasm() -> Weight {
+                // Minimum execution time: 24_452_386 nanoseconds.
+                Weight::from_ref_time(24_372_298_813_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        fn poseidon_one_to_one_host() -> Weight {
+                // Minimum execution time: 1_065_910 nanoseconds.
+                Weight::from_ref_time(1_078_967_419_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        fn poseidon_two_to_one_host() -> Weight {
+                // Minimum execution time: 1_692_214 nanoseconds.
+                Weight::from_ref_time(1_734_950_130_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        /// The range of component `w` is `[0, 4294967295]`.
+        /// The range of component `z` is `[0, 4294967295]`.
+        fn poseidon_four_to_one_host() -> Weight {
+                // Minimum execution time: 3_172_487 nanoseconds.
+                Weight::from_ref_time(3_194_226_869_u64)
+        }
 }
 
 // For backwards compatibility and tests
 impl BenchmarkInfo for () {
-	// Storage: BabyLiminal VerificationKeys (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyOwners (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn store_key(l: u32, ) -> Weight {
-		// Minimum execution time: 20_973 nanoseconds.
-		Weight::from_ref_time(22_327_195_u64)
-			// Standard Error: 4
-			.saturating_add(Weight::from_ref_time(745_u64).saturating_mul(l as u64))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(3_u64))
-	}
-	// Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_key(l: u32, ) -> Weight {
-		// Minimum execution time: 18_975 nanoseconds.
-		Weight::from_ref_time(20_019_317_u64)
-			// Standard Error: 3
-			.saturating_add(Weight::from_ref_time(725_u64).saturating_mul(l as u64))
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	// Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
-	// Storage: BabyLiminal VerificationKeys (r:0 w:1)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn delete_key(_l: u32, ) -> Weight {
-		// Minimum execution time: 23_973 nanoseconds.
-		Weight::from_ref_time(24_908_391_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 51_605_208 nanoseconds.
-		Weight::from_ref_time(52_100_980_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 40_698_618 nanoseconds.
-		Weight::from_ref_time(40_715_462_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 54_080_020 nanoseconds.
-		Weight::from_ref_time(54_202_386_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 54_183_621 nanoseconds.
-		Weight::from_ref_time(55_289_847_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 54_387_947 nanoseconds.
-		Weight::from_ref_time(55_329_045_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_xor() -> Weight {
-		// Minimum execution time: 57_326_083 nanoseconds.
-		Weight::from_ref_time(58_559_711_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_linear_equation() -> Weight {
-		// Minimum execution time: 46_098_887 nanoseconds.
-		Weight::from_ref_time(46_949_094_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_8() -> Weight {
-		// Minimum execution time: 59_656_363 nanoseconds.
-		Weight::from_ref_time(61_025_914_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_64() -> Weight {
-		// Minimum execution time: 60_182_347 nanoseconds.
-		Weight::from_ref_time(61_464_125_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_gm17_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 59_697_644 nanoseconds.
-		Weight::from_ref_time(62_166_611_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_xor() -> Weight {
-		// Minimum execution time: 90_292_488 nanoseconds.
-		Weight::from_ref_time(91_877_541_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_linear_equation() -> Weight {
-		// Minimum execution time: 89_448_996 nanoseconds.
-		Weight::from_ref_time(91_316_803_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_8() -> Weight {
-		// Minimum execution time: 88_079_576 nanoseconds.
-		Weight::from_ref_time(89_903_065_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_64() -> Weight {
-		// Minimum execution time: 87_649_210 nanoseconds.
-		Weight::from_ref_time(89_445_291_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	// Storage: System ParentHash (r:1 w:0)
-	// Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
-	fn verify_marlin_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 87_577_178 nanoseconds.
-		Weight::from_ref_time(88_923_678_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-	}
-	/// The range of component `e` is `[1, 10000000]`.
-	fn verify_data_too_long(_e: u32, ) -> Weight {
-		// Minimum execution time: 4_230 nanoseconds.
-		Weight::from_ref_time(4_559_691_u64)
-	}
-	/// The range of component `l` is `[1, 10000]`.
-	fn verify_data_deserializing_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 11_471 nanoseconds.
-		Weight::from_ref_time(12_357_014_u64)
-			// Standard Error: 8
-			.saturating_add(Weight::from_ref_time(27_u64).saturating_mul(l as u64))
-	}
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `l` is `[1, 10000]`.
-	fn verify_key_deserializing_fails(l: u32, ) -> Weight {
-		// Minimum execution time: 6_876_792 nanoseconds.
-		Weight::from_ref_time(6_983_499_256_u64)
-			// Standard Error: 563
-			.saturating_add(Weight::from_ref_time(592_u64).saturating_mul(l as u64))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_wasm(_x: u32, ) -> Weight {
-		// Minimum execution time: 8_196_664 nanoseconds.
-		Weight::from_ref_time(8_215_840_230_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_wasm(_x: u32, _y: u32, ) -> Weight {
-		// Minimum execution time: 12_943_627 nanoseconds.
-		Weight::from_ref_time(12_996_165_039_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	/// The range of component `w` is `[0, 4294967295]`.
-	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_wasm(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
-		// Minimum execution time: 24_452_386 nanoseconds.
-		Weight::from_ref_time(24_372_298_813_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	fn poseidon_one_to_one_host(_x: u32, ) -> Weight {
-		// Minimum execution time: 1_065_910 nanoseconds.
-		Weight::from_ref_time(1_078_967_419_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	fn poseidon_two_to_one_host(_x: u32, _y: u32, ) -> Weight {
-		// Minimum execution time: 1_692_214 nanoseconds.
-		Weight::from_ref_time(1_734_950_130_u64)
-	}
-	/// The range of component `x` is `[0, 4294967295]`.
-	/// The range of component `y` is `[0, 4294967295]`.
-	/// The range of component `w` is `[0, 4294967295]`.
-	/// The range of component `z` is `[0, 4294967295]`.
-	fn poseidon_four_to_one_host(_x: u32, _y: u32, _w: u32, _z: u32, ) -> Weight {
-		// Minimum execution time: 3_172_487 nanoseconds.
-		Weight::from_ref_time(3_194_226_869_u64)
-	}
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyOwners (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn store_key(l: u32, ) -> Weight {
+                // Minimum execution time: 20_973 nanoseconds.
+                Weight::from_ref_time(22_327_195_u64)
+                        // Standard Error: 4
+                        .saturating_add(Weight::from_ref_time(745_u64).saturating_mul(l as u64))
+                        .saturating_add(RocksDbWeight::get().reads(1_u64))
+                        .saturating_add(RocksDbWeight::get().writes(3_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn overwrite_key(l: u32, ) -> Weight {
+                // Minimum execution time: 18_975 nanoseconds.
+                Weight::from_ref_time(20_019_317_u64)
+                        // Standard Error: 3
+                        .saturating_add(Weight::from_ref_time(725_u64).saturating_mul(l as u64))
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+                        .saturating_add(RocksDbWeight::get().writes(1_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:0 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn delete_key(_l: u32, ) -> Weight {
+                // Minimum execution time: 23_973 nanoseconds.
+                Weight::from_ref_time(24_908_391_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+                        .saturating_add(RocksDbWeight::get().writes(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_xor() -> Weight {
+                // Minimum execution time: 51_605_208 nanoseconds.
+                Weight::from_ref_time(52_100_980_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_linear_equation() -> Weight {
+                // Minimum execution time: 40_698_618 nanoseconds.
+                Weight::from_ref_time(40_715_462_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_8() -> Weight {
+                // Minimum execution time: 54_080_020 nanoseconds.
+                Weight::from_ref_time(54_202_386_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_64() -> Weight {
+                // Minimum execution time: 54_183_621 nanoseconds.
+                Weight::from_ref_time(55_289_847_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_groth16_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 54_387_947 nanoseconds.
+                Weight::from_ref_time(55_329_045_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_xor() -> Weight {
+                // Minimum execution time: 57_326_083 nanoseconds.
+                Weight::from_ref_time(58_559_711_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_linear_equation() -> Weight {
+                // Minimum execution time: 46_098_887 nanoseconds.
+                Weight::from_ref_time(46_949_094_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_8() -> Weight {
+                // Minimum execution time: 59_656_363 nanoseconds.
+                Weight::from_ref_time(61_025_914_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_64() -> Weight {
+                // Minimum execution time: 60_182_347 nanoseconds.
+                Weight::from_ref_time(61_464_125_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_gm17_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 59_697_644 nanoseconds.
+                Weight::from_ref_time(62_166_611_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_xor() -> Weight {
+                // Minimum execution time: 90_292_488 nanoseconds.
+                Weight::from_ref_time(91_877_541_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_linear_equation() -> Weight {
+                // Minimum execution time: 89_448_996 nanoseconds.
+                Weight::from_ref_time(91_316_803_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_8() -> Weight {
+                // Minimum execution time: 88_079_576 nanoseconds.
+                Weight::from_ref_time(89_903_065_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_64() -> Weight {
+                // Minimum execution time: 87_649_210 nanoseconds.
+                Weight::from_ref_time(89_445_291_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        // Storage: System ParentHash (r:1 w:0)
+        // Proof: System ParentHash (max_values: Some(1), max_size: Some(32), added: 527, mode: MaxEncodedLen)
+        fn verify_marlin_merkle_tree_1024() -> Weight {
+                // Minimum execution time: 87_577_178 nanoseconds.
+                Weight::from_ref_time(88_923_678_000_u64)
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+        }
+        /// The range of component `e` is `[1, 10000000]`.
+        fn verify_data_too_long(_e: u32, ) -> Weight {
+                // Minimum execution time: 4_230 nanoseconds.
+                Weight::from_ref_time(4_559_691_u64)
+        }
+        /// The range of component `l` is `[1, 10000]`.
+        fn verify_data_deserializing_fails(l: u32, ) -> Weight {
+                // Minimum execution time: 11_471 nanoseconds.
+                Weight::from_ref_time(12_357_014_u64)
+                        // Standard Error: 8
+                        .saturating_add(Weight::from_ref_time(27_u64).saturating_mul(l as u64))
+        }
+        // Storage: BabyLiminal VerificationKeys (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn verify_key_deserializing_fails(l: u32, ) -> Weight {
+                // Minimum execution time: 6_876_792 nanoseconds.
+                Weight::from_ref_time(6_983_499_256_u64)
+                        // Standard Error: 563
+                        .saturating_add(Weight::from_ref_time(592_u64).saturating_mul(l as u64))
+                        .saturating_add(RocksDbWeight::get().reads(1_u64))
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        fn poseidon_one_to_one_wasm() -> Weight {
+                // Minimum execution time: 8_196_664 nanoseconds.
+                Weight::from_ref_time(8_215_840_230_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        fn poseidon_two_to_one_wasm() -> Weight {
+                // Minimum execution time: 12_943_627 nanoseconds.
+                Weight::from_ref_time(12_996_165_039_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        /// The range of component `w` is `[0, 4294967295]`.
+        /// The range of component `z` is `[0, 4294967295]`.
+        fn poseidon_four_to_one_wasm() -> Weight {
+                // Minimum execution time: 24_452_386 nanoseconds.
+                Weight::from_ref_time(24_372_298_813_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        fn poseidon_one_to_one_host() -> Weight {
+                // Minimum execution time: 1_065_910 nanoseconds.
+                Weight::from_ref_time(1_078_967_419_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        fn poseidon_two_to_one_host() -> Weight {
+                // Minimum execution time: 1_692_214 nanoseconds.
+                Weight::from_ref_time(1_734_950_130_u64)
+        }
+        /// The range of component `x` is `[0, 4294967295]`.
+        /// The range of component `y` is `[0, 4294967295]`.
+        /// The range of component `w` is `[0, 4294967295]`.
+        /// The range of component `z` is `[0, 4294967295]`.
+        fn poseidon_four_to_one_host() -> Weight {
+                // Minimum execution time: 3_172_487 nanoseconds.
+                Weight::from_ref_time(3_194_226_869_u64)
+        }
 }
