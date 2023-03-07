@@ -1,9 +1,10 @@
 //! This file was generated using `generate_parameters.rs`, do not edit it manually!
 
-use ark_ff::vec;
-use ark_ff::PrimeField;
-
-use poseidon_parameters::{Alpha, ArcMatrix, RoundNumbers, SquareMatrix, Matrix, MdsMatrix, OptimizedArcMatrix, OptimizedMdsMatrices, PoseidonParameters, MatrixOperations};
+use ark_ff::{vec, PrimeField};
+use poseidon_parameters::{
+    Alpha, ArcMatrix, Matrix, MatrixOperations, MdsMatrix, OptimizedArcMatrix,
+    OptimizedMdsMatrices, PoseidonParameters, RoundNumbers, SquareMatrix,
+};
 
 /// Parameters for the rate-1 instance of Poseidon.
 pub fn rate_1<F: PrimeField>() -> PoseidonParameters<F> {
