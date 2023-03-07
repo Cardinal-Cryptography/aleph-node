@@ -1,10 +1,11 @@
 # Liminal Arkworks Poseidon
 
-This package provides arkworks-based Poseidon hashing, for which parameters were generated using https://github.com/penumbra-zone/poseidon377.
+This package contains two crates: a library exposing arkworks-based Poseidon hashing and a binary for regenerating parameters.
+Parameters are generated using https://github.com/penumbra-zone/poseidon377.
 
-## General usage
+## Library usage
 
-The crate `liminal-ark-poseidon` provides two modules:
+The lib crate `liminal-ark-poseidon` provides two modules:
  - [`hash`](src/hash.rs) module that exposes `<x>_to_one_hash` method family for hashing raw field elements
  - [`circuit`](src/circuit.rs) module that exposes `<x>_to_one_hash` method family for hashing circuit field elements;
 it is available only under `circuit` feature flag
@@ -25,3 +26,12 @@ fn hash_in_circuit(
     liminal_ark_poseidon::circuit::two_to_one_hash(cs, [left, right])
 }
 ```
+
+## Binary usage
+
+If you need fresh parameters, you can regenerate [parameters module](src/parameters.rs) by running:
+```shell
+cargo run --release --features paramgen
+```
+
+You can also manipulate security level with `SECURITY_LEVEL` env variable.
