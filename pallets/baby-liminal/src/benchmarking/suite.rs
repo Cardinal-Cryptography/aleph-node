@@ -42,11 +42,11 @@ benchmarks! {
         let key = vec![0u8; l as usize];
     } : _(caller::<T>(), IDENTIFIER, key)
 
-    delete_key {
-        let l in 1 .. T::MaximumVerificationKeyLength::get();
-        let key = vec![0u8; l as usize];
-        let _ = insert_key::<T>(key);
-    } : _(caller::<T>(), IDENTIFIER)
+    // delete_key {
+    //     let l in 1 .. T::MaximumVerificationKeyLength::get();
+    //     let key = vec![0u8; l as usize];
+    //     let _ = insert_key::<T>(key);
+    // } : _(caller::<T>(), IDENTIFIER)
 
     // Groth16 benchmarks
 

@@ -10,7 +10,7 @@ use crate::{
 
 type BabyLiminal = crate::Pallet<TestRuntime>;
 
-const IDENTIFIER: VerificationKeyIdentifier = [0; 4];
+const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
 const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
 fn vk() -> Vec<u8> {
