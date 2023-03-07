@@ -20,7 +20,7 @@ pub use weights::{AlephWeight, WeightInfo};
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 /// We store verification keys under short identifiers.
-pub type VerificationKeyIdentifier = [u8; 4];
+pub type VerificationKeyIdentifier = [u8; 8];
 pub type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 

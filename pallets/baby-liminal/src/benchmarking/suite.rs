@@ -12,7 +12,7 @@ use crate::{
 };
 
 const SEED: u32 = 41;
-const IDENTIFIER: VerificationKeyIdentifier = [0; 4];
+const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
 
 fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
     RawOrigin::Signed(account("caller", 0, SEED))
