@@ -6,8 +6,9 @@ use frame_system::RawOrigin;
 use primitives::host_functions::poseidon;
 
 use crate::{
-    benchmarking::import::Artifacts, get_artifacts, Call, Config, Pallet, ProvingSystem::*,
-    VerificationKeyIdentifier, VerificationKeyOwners, VerificationKeys,
+    benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, Pallet,
+    ProvingSystem::*, VerificationKeyDeposits, VerificationKeyIdentifier, VerificationKeyOwners,
+    VerificationKeys,
 };
 
 const SEED: u32 = 41;
@@ -18,9 +19,11 @@ fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
 }
 
 fn insert_key<T: Config>(key: Vec<u8>) {
-    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
     let owner: T::AccountId = account("caller", 0, SEED);
-    VerificationKeyOwners::<T>::insert(IDENTIFIER, owner);
+    let deposit = BalanceOf::<T>::from(0u32);
+    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
+    VerificationKeyOwners::<T>::insert(IDENTIFIER, &owner);
+    VerificationKeyDeposits::<T>::insert((&owner, IDENTIFIER), deposit);
 }
 
 fn gen_poseidon_host_input(x: u32) -> (u64, u64, u64, u64) {
@@ -38,6 +41,12 @@ benchmarks! {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
         let key = vec![0u8; l as usize];
     } : _(caller::<T>(), IDENTIFIER, key)
+
+    delete_key {
+        let l in 1 .. T::MaximumVerificationKeyLength::get();
+        let key = vec![0u8; l as usize];
+        let _ = insert_key::<T>(key);
+    } : _(caller::<T>(), IDENTIFIER)
 
     // Groth16 benchmarks
 
