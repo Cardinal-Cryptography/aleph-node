@@ -26,6 +26,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             upgrade_session: get_env("UPGRADE_SESSION"),
             upgrade_finalization_wait_sessions: get_env("UPGRADE_FINALIZATION_WAIT_SESSIONS"),
             adder: get_env("ADDER"),
+            adder_metadata: get_env("ADDER_METADATA"),
             back_to_the_future: get_env("BACK_TO_THE_FUTURE"),
             early_bird_special: get_env("EARLY_BIRD_SPECIAL"),
             the_pressiah_cometh: get_env("THE_PRESSIAH_COMETH"),
