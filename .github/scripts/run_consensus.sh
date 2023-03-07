@@ -17,6 +17,15 @@ MIN_VALIDATOR_COUNT=4
 
 export NODE_IMAGE
 
+if [[ $(docker images | grep ${NODE_IMAGE}) ]]; then
+  echo "${NODE_IMAGE} found locally"
+else
+  echo "${NODE_IMAGE} not found locally."
+  echo "Build image first with:"
+  echo "docker build -t aleph-node:latest -f docker/Dockerfile ."
+  exit 1;
+fi
+
 mkdir -p docker/data/
 
 function usage {
