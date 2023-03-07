@@ -13092,7 +13092,7 @@ pub mod api {
                 PartialEq,
             )]
             pub struct StoreKey {
-                pub identifier: [::core::primitive::u8; 4usize],
+                pub identifier: [::core::primitive::u8; 8usize],
                 pub key: ::std::vec::Vec<::core::primitive::u8>,
             }
             #[derive(
@@ -13104,7 +13104,7 @@ pub mod api {
                 PartialEq,
             )]
             pub struct DeleteKey {
-                pub identifier: [::core::primitive::u8; 4usize],
+                pub identifier: [::core::primitive::u8; 8usize],
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13115,7 +13115,7 @@ pub mod api {
                 PartialEq,
             )]
             pub struct OverwriteKey {
-                pub identifier: [::core::primitive::u8; 4usize],
+                pub identifier: [::core::primitive::u8; 8usize],
                 pub key: ::std::vec::Vec<::core::primitive::u8>,
             }
             #[derive(
@@ -13127,7 +13127,7 @@ pub mod api {
                 PartialEq,
             )]
             pub struct Verify {
-                pub verification_key_identifier: [::core::primitive::u8; 4usize],
+                pub verification_key_identifier: [::core::primitive::u8; 8usize],
                 pub proof: ::std::vec::Vec<::core::primitive::u8>,
                 pub public_input: ::std::vec::Vec<::core::primitive::u8>,
                 pub system: runtime_types::pallet_baby_liminal::systems::ProvingSystem,
@@ -13144,7 +13144,7 @@ pub mod api {
                 #[doc = "particular, `key` can contain just trash bytes."]
                 pub fn store_key(
                     &self,
-                    identifier: [::core::primitive::u8; 4usize],
+                    identifier: [::core::primitive::u8; 8usize],
                     key: ::std::vec::Vec<::core::primitive::u8>,
                 ) -> ::subxt::tx::StaticTxPayload<StoreKey> {
                     ::subxt::tx::StaticTxPayload::new(
@@ -13163,7 +13163,7 @@ pub mod api {
                 #[doc = "Can only be called by a root account."]
                 pub fn delete_key(
                     &self,
-                    identifier: [::core::primitive::u8; 4usize],
+                    identifier: [::core::primitive::u8; 8usize],
                 ) -> ::subxt::tx::StaticTxPayload<DeleteKey> {
                     ::subxt::tx::StaticTxPayload::new(
                         "BabyLiminal",
@@ -13182,7 +13182,7 @@ pub mod api {
                 #[doc = "Can only be called by a root account."]
                 pub fn overwrite_key(
                     &self,
-                    identifier: [::core::primitive::u8; 4usize],
+                    identifier: [::core::primitive::u8; 8usize],
                     key: ::std::vec::Vec<::core::primitive::u8>,
                 ) -> ::subxt::tx::StaticTxPayload<OverwriteKey> {
                     ::subxt::tx::StaticTxPayload::new(
@@ -13210,7 +13210,7 @@ pub mod api {
                 #[doc = "- proof is incorrect"]
                 pub fn verify(
                     &self,
-                    verification_key_identifier: [::core::primitive::u8; 4usize],
+                    verification_key_identifier: [::core::primitive::u8; 8usize],
                     proof: ::std::vec::Vec<::core::primitive::u8>,
                     public_input: ::std::vec::Vec<::core::primitive::u8>,
                     system: runtime_types::pallet_baby_liminal::systems::ProvingSystem,
@@ -14079,7 +14079,7 @@ pub mod api {
                     #[doc = "`key` can come from any proving system - there are no checks that verify it, in"]
                     #[doc = "particular, `key` can contain just trash bytes."]
                     store_key {
-                        identifier: [::core::primitive::u8; 4usize],
+                        identifier: [::core::primitive::u8; 8usize],
                         key: ::std::vec::Vec<::core::primitive::u8>,
                     },
                     #[codec(index = 1)]
@@ -14087,7 +14087,7 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "Can only be called by a root account."]
                     delete_key {
-                        identifier: [::core::primitive::u8; 4usize],
+                        identifier: [::core::primitive::u8; 8usize],
                     },
                     #[codec(index = 2)]
                     #[doc = "Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`"]
@@ -14095,7 +14095,7 @@ pub mod api {
                     #[doc = "Fails if `key.len()` is greater than `MaximumVerificationKeyLength`."]
                     #[doc = "Can only be called by a root account."]
                     overwrite_key {
-                        identifier: [::core::primitive::u8; 4usize],
+                        identifier: [::core::primitive::u8; 8usize],
                         key: ::std::vec::Vec<::core::primitive::u8>,
                     },
                     #[codec(index = 3)]
@@ -14112,7 +14112,7 @@ pub mod api {
                     #[doc = "- verifying procedure fails (e.g. incompatible verification key and proof)"]
                     #[doc = "- proof is incorrect"]
                     verify {
-                        verification_key_identifier: [::core::primitive::u8; 4usize],
+                        verification_key_identifier: [::core::primitive::u8; 8usize],
                         proof: ::std::vec::Vec<::core::primitive::u8>,
                         public_input: ::std::vec::Vec<::core::primitive::u8>,
                         system: runtime_types::pallet_baby_liminal::systems::ProvingSystem,
