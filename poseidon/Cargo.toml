@@ -3,7 +3,8 @@ name = "liminal-ark-poseidon"
 version = "0.1.0"
 edition = "2021"
 authors = ["Cardinal"]
-documentation = "https://docs.rs/?"
+documentation = "https://docs.rs/liminal-ark-poseidon"
+readme = "README.md"
 homepage = "https://alephzero.org"
 license = "Apache-2.0"
 categories = ["cryptography"]
@@ -35,7 +36,7 @@ path = "src/generate_parameters.rs"
 required-features = ["std", "build-binary"]
 
 [features]
-default = ["build-binary"]
+default = ["std"]
 std = [
     "ark-bls12-381/std",
     "ark-ff/std",
