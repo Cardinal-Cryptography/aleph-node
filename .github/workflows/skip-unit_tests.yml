@@ -6,9 +6,6 @@ on:
     paths:
       - 'fork-off/**'
       - 'flooder/**'
-  push:
-    branches:
-      - 'release-*'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
