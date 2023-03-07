@@ -265,7 +265,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 .generate_constraints(cs),
 
             RelationArgs::LinearEquation { a, x, b, y } => {
-                LinearEquationRelationWithFullInput::new(a, x, b, y).generate_constraints(cs)
+                LinearEquationRelationWithFullInput::new(a, b, y, x).generate_constraints(cs)
             }
 
             RelationArgs::Deposit {
@@ -351,32 +351,40 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
                 new_token_amount,
             } => {
                 if cs.is_in_setup_mode() {
-                    return MergeRelationWithoutInput::new(max_path_len)
-                        .generate_constraints(cs);
+                    return MergeRelationWithoutInput::new(max_path_len).generate_constraints(cs);
                 }
 
                 MergeRelationWithFullInput::new(
                     max_path_len,
                     token_id.unwrap_or_else(|| panic!("You must provide token id")),
-                    first_old_nullifier.unwrap_or_else(|| panic!("You must provide first old nullifier")),
-                    second_old_nullifier.unwrap_or_else(|| panic!("You must provide second old nullifier")),
+                    first_old_nullifier
+                        .unwrap_or_else(|| panic!("You must provide first old nullifier")),
+                    second_old_nullifier
+                        .unwrap_or_else(|| panic!("You must provide second old nullifier")),
                     new_note.unwrap_or_else(|| panic!("You must provide new note")),
                     merkle_root.unwrap_or_else(|| panic!("You must provide merkle root")),
-                    first_old_trapdoor.unwrap_or_else(|| panic!("You must provide first old trapdoor")),
-                    second_old_trapdoor.unwrap_or_else(|| panic!("You must provide second old trapdoor")),
+                    first_old_trapdoor
+                        .unwrap_or_else(|| panic!("You must provide first old trapdoor")),
+                    second_old_trapdoor
+                        .unwrap_or_else(|| panic!("You must provide second old trapdoor")),
                     new_trapdoor.unwrap_or_else(|| panic!("You must provide new trapdoor")),
                     new_nullifier.unwrap_or_else(|| panic!("You must provide new nullifier")),
-                    first_merkle_path.unwrap_or_else(|| panic!("You must provide first merkle path")),
-                    second_merkle_path.unwrap_or_else(|| panic!("You must provide second merkle path")),
+                    first_merkle_path
+                        .unwrap_or_else(|| panic!("You must provide first merkle path")),
+                    second_merkle_path
+                        .unwrap_or_else(|| panic!("You must provide second merkle path")),
                     first_leaf_index.unwrap_or_else(|| panic!("You must provide first leaf index")),
-                    second_leaf_index.unwrap_or_else(|| panic!("You must provide second leaf index")),
+                    second_leaf_index
+                        .unwrap_or_else(|| panic!("You must provide second leaf index")),
                     first_old_note.unwrap_or_else(|| panic!("You must provide first old note")),
                     second_old_note.unwrap_or_else(|| panic!("You must provide second old note")),
-                    first_old_token_amount.unwrap_or_else(|| panic!("You must provide first old token amount")),
-                    second_old_token_amount.unwrap_or_else(|| panic!("You must provide second old token amount")),
+                    first_old_token_amount
+                        .unwrap_or_else(|| panic!("You must provide first old token amount")),
+                    second_old_token_amount
+                        .unwrap_or_else(|| panic!("You must provide second old token amount")),
                     new_token_amount.unwrap_or_else(|| panic!("You must provide new token amount")),
                 )
-                    .generate_constraints(cs)
+                .generate_constraints(cs)
             }
 
             RelationArgs::Withdraw {
