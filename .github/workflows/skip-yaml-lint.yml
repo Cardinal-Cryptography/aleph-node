@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   main:
-    name: Skip 'YAML Lint'
+    name: YAML Lint
     runs-on: ubuntu-20.04
     steps:
       - name: Return success

@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    name: Skip 'Check excluded packages'
+    name: Check excluded packages
     runs-on: ubuntu-20.04
     steps:
       - name: Return success
