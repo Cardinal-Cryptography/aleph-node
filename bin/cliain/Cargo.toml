@@ -9,12 +9,11 @@ aleph_client = { path = "../../aleph-client" }
 anyhow = "1.0"
 clap = { version = "3.0", features = ["derive"] }
 codec = { package = 'parity-scale-codec', version = "3.0.0", features = ['derive'] }
-contract-metadata = { git = "https://github.com/paritytech/cargo-contract.git", tag = "v1.4.0"}
-contract-transcode = { version = "=2.0.0-beta" }
+contract-metadata = "2.0.2"
 dialoguer = "0.10.0"
 env_logger = "0.8"
 hex = "0.4.3"
-ink_metadata = { version = "4.0.0-beta", features = ["derive"] }
+ink_metadata = { version = "=4.0.1", features = ["derive"] }
 log = "0.4"
 pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 primitives = { path = "../../primitives" }
