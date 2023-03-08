@@ -14,6 +14,8 @@ pub mod fee;
 pub mod multisig;
 /// Pallet session API
 pub mod session;
+/// Pallet session-ext API
+pub mod session_ext;
 /// Pallet staking API
 pub mod staking;
 /// Pallet system API

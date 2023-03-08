@@ -8,6 +8,7 @@ members = [
     "pallets/aleph",
     "pallets/elections",
     "pallets/support",
+    "pallets/session-ext",
     "primitives",
 ]
 

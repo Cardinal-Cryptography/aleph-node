@@ -1,5 +1,5 @@
 use aleph_client::{
-    pallets::{aleph::AlephSudoApi, elections::ElectionsApi, session::SessionApi},
+    pallets::{aleph::AlephSudoApi, session::SessionApi, session_ext::SessionExtApi},
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
     AsConnection, TxStatus,

@@ -5,6 +5,7 @@ use aleph_client::{
     pallets::{
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
+        session_ext::{SessionExtApi, SessionExtSudoApi},
         staking::{StakingApi, StakingUserApi},
     },
     primitives::{BanInfo, BanReason, CommitteeSeats, ElectionOpenness},

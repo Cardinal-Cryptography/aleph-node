@@ -10,6 +10,7 @@ pub use sp_runtime::{
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
     BoundedVec, ConsensusEngineId, Perbill,
 };
+use sp_runtime::Perquintill;
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
@@ -79,6 +80,8 @@ pub const DEFAULT_FINALITY_VERSION: Version = 0;
 pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
 /// Legacy version of abft.
 pub const LEGACY_FINALITY_VERSION: u16 = 1;
+
+pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 /// Openness of the process of the elections
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
@@ -226,6 +229,36 @@ sp_api::decl_runtime_apis! {
         fn next_session_finality_version() -> Version;
     }
 }
+
+pub trait BanHandler {
+    type AccountId;
+    fn can_ban(who: &Self::AccountId) -> bool;
+}
+
+pub trait ValidatorProvider {
+    type AccountId;
+    fn current_era_validators() -> Option<EraValidators<Self::AccountId>>;
+    fn current_era_committee_size() -> Option<CommitteeSeats>;
+    fn current_session_committee_and_non_committee() -> SessionValidators<Self::AccountId>;
+}
+
+pub struct SessionValidators<T> {
+    pub committee: Vec<T>,
+    pub non_committee: Vec<T>,
+}
+
+pub trait BannedValidators {
+    type AccountId;
+    fn banned() -> Vec<Self::AccountId>;
+}
+
+pub trait EraManager {
+    /// new era has been planned
+    fn on_new_era(era: EraIndex);
+    /// new era starts
+    fn new_era_start(era: EraIndex);
+}
+
 
 pub mod staking {
     use sp_runtime::Perbill;

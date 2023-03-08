@@ -395,7 +395,6 @@ fn generate_genesis_config(
             reserved_validators: accounts_config.members.clone(),
             non_reserved_validators: vec![],
             committee_seats: Default::default(),
-            committee_ban_config: Default::default(),
         },
         session: SessionConfig {
             keys: accounts_config.keys,
@@ -419,6 +418,7 @@ fn generate_genesis_config(
         vesting: VestingConfig { vesting: vec![] },
         nomination_pools: Default::default(),
         transaction_payment: Default::default(),
+        session_ext: Default::default(),
     }
 }
 

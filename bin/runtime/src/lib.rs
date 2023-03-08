@@ -32,13 +32,14 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
+use pallet_session_ext::SessionManagerExt;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, SessionAuthorityData, Version as FinalityVersion, ADDRESSES_ENCODING,
-    DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    AuthorityId as AlephId, BannedValidators, SessionAuthorityData, Version as FinalityVersion,
+    ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
     DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
@@ -226,7 +227,7 @@ parameter_types! {
 
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-    type EventHandler = (Elections,);
+    type EventHandler = (SessionExt,);
 }
 
 parameter_types! {
@@ -321,7 +322,12 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = Session;
-    type SessionManager = Elections;
+    type SessionManager = SessionManagerExt<
+        Staking,
+        Elections,
+        pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>,
+        Runtime,
+    >;
     type NextSessionAuthorityProvider = Session;
 }
 
@@ -338,17 +344,32 @@ parameter_types! {
     pub const MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
+pub struct BannedValidatorsImpl;
+
+impl BannedValidators for BannedValidatorsImpl {
+    type AccountId = AccountId;
+
+    fn banned() -> Vec<Self::AccountId> {
+        pallet_session_ext::Banned::<Runtime>::iter_keys().collect()
+    }
+}
+
 impl pallet_elections::Config for Runtime {
-    type EraInfoProvider = Staking;
     type RuntimeEvent = RuntimeEvent;
     type DataProvider = Staking;
-    type SessionInfoProvider = Session;
-    type SessionPeriod = SessionPeriod;
-    type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>;
+    type ValidatorProvider = Staking;
+    type MaxWinners = MaxWinners;
+    type BannedValidators = BannedValidatorsImpl;
+}
+
+impl pallet_session_ext::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type BanHandler = Elections;
+    type ValidatorProvider = Elections;
+    type EraInfoProvider = Staking;
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
-    type MaximumBanReasonLength = MaximumBanReasonLength;
-    type MaxWinners = MaxWinners;
+    type SessionPeriod = SessionPeriod;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -750,6 +771,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
+        SessionExt: pallet_session_ext,
     }
 );
 
