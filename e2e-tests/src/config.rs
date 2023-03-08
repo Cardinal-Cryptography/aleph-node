@@ -32,7 +32,6 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             the_pressiah_cometh: get_env("THE_PRESSIAH_COMETH"),
             wrapped_azero: get_env("WRAPPED_AZERO"),
             simple_dex: get_env("SIMPLE_DEX"),
-            adder_metadata: get_env("ADDER_METADATA"),
             button_game_metadata: get_env("BUTTON_GAME_METADATA"),
             marketplace_metadata: get_env("MARKETPLACE_METADATA"),
             reward_token_metadata: get_env("REWARD_TOKEN_METADATA"),
