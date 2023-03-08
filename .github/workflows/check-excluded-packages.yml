@@ -1,14 +1,19 @@
+---
 name: Check excluded packages
 
 on:
   pull_request:
-    branches:
-      - '**'
-  push:
-    paths-ignore:
-      - '*.md'
-    branches:
-      - main
+    paths:
+      - 'flooder/**'
+      - 'e2e-tests/**'
+      - 'aleph-client/**'
+      - 'fork-off/**'
+      - 'bin/cliain/**'
+      - 'benches/**'
+      - 'contracts/**'
+      # TODO this package needs to be moved to /bin
+      - 'scripts/synthetic-network/synthetic-link/**'
+      - .github/workflows/check-excluded-packages.yml
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -17,21 +22,16 @@ concurrency:
 jobs:
   build:
     name: Check excluded packages
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
@@ -43,7 +43,8 @@ jobs:
       - name: Format output
         id: format_output
         run: |
-          packages="$(echo ${{ steps.read_excluded.outputs.value }} | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
+          packages="$(echo ${{ steps.read_excluded.outputs.value }} \
+          | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
           targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
 
           packages="${packages//$'\n'/'%0A'}"
@@ -51,14 +52,6 @@ jobs:
 
           echo "::set-output name=packages::$packages"
           echo "::set-output name=targets::$targets"
-
-      - name: Restore cache
-        uses: ./.github/actions/restore-cache
-        with:
-          target-key: excluded
-          cargo-key: excluded
-          cache-version: v2
-          cargo-targets: "${{ steps.format_output.outputs.targets }}"
 
       - name: Check excluded packages
         env:
@@ -81,6 +74,3 @@ jobs:
             cargo clippy --all-features -- --no-deps -D warnings
             popd
           done
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
