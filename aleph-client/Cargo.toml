@@ -13,7 +13,7 @@ hex = { version = "0.4.3", features = ["alloc"] }
 log = "0.4"
 serde_json = { version = "1.0" }
 thiserror = "1.0"
-contract-transcode = "=2.0.2"
+contract-transcode = { git = "https://github.com/deuszx/cargo-contract.git", branch = "ink4-no-wasmtime-issue" }
 subxt = "0.25.0"
 futures = "0.3.25"
 serde = { version = "1.0", features = ["derive"] }
