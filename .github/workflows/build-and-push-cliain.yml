@@ -35,6 +35,10 @@ jobs:
           fi
           cd ./bin/cliain && cargo build --release ${FEATURES}
 
+      - name: Test SNARK relations
+        if: ${{ matrix.runtime == 'liminal' }}
+        run: ./.github/scripts/test_cliain_snark_relations.sh
+
       - name: GIT | Get branch name and commit SHA
         id: get_branch
         uses: ./.github/actions/get-branch
@@ -64,7 +68,7 @@ jobs:
                   (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
                   steps.get_branch.outputs.branch_name) ||
                 matrix.runtime == 'liminal' && steps.get_branch.outputs.sha_short }}
-          RELEASE_IMAGE: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          RELEASE_IMAGE: ${REGISTRY}${IMAGE_NAME}:${env.TAG}
         uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
