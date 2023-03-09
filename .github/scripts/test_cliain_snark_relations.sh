@@ -92,7 +92,7 @@ ${CLIAIN} snark-relation generate-proof -p withdraw.groth16.pk.bytes withdraw \
   --token-id 1 \
   --token-amount-out 7 \
   --fee 1 \
-  --recipient "[212,53,147,199,21,253,211,28,97,20,26,189,4,169,159,214,130,44,133,88,133,76,205,227,154,86,132,231,165,109,162,125]"\
+  --recipient "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d" \
   --old-trapdoor 17 \
   --new-trapdoor 27 \
   --new-nullifier 87 \

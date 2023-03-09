@@ -75,4 +75,4 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
           push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
-          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME//[$'\t\r\n '] }}:${{ env.TAG }}
