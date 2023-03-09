@@ -23,9 +23,9 @@ jobs:
         run: |
           cd ./bin/cliain && cargo build --release
 
-      - name: GIT | Get branch name and commit SHA
-        id: get_branch
-        uses: ./.github/actions/get-branch
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
 
       - name: Login to ECR
         uses: docker/login-action@v1
@@ -44,8 +44,8 @@ jobs:
         id: build-image
         env:
           RELEASE_IMAGE: >
-            public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main'
-            && 'latest' || steps.get_branch.outputs.branch_name }}
+            public.ecr.aws/p6e8q1z1/cliain:${{ steps.get-ref-properties.outputs.branch == 'main'
+            && 'latest' || steps.get-ref-properties.outputs.branch-name-flattened }}
         uses: docker/build-push-action@v2
         with:
           context: ./bin/cliain
