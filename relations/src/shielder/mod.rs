@@ -5,6 +5,7 @@ mod deposit;
 mod deposit_and_merge;
 mod merge;
 mod note;
+pub mod note_var;
 mod path_shape_var;
 pub mod types;
 mod withdraw;
