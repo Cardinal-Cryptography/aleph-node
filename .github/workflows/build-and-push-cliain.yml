@@ -5,30 +5,40 @@ on:
   push:
     paths:
       - 'bin/cliain/**'
-      - .github/workflows/build-and-push-cliain.yaml
+      - .github/workflows/build-and-push-cliain.yml
+  pull_request:
+    paths:
+      - 'bin/cliain/**'
+      - .github/workflows/build-and-push-cliain.yml
   workflow_dispatch:
 
 jobs:
   build-image:
     name: Build binary
     runs-on: self-hosted
+    strategy:
+      matrix:
+        runtime: [standard, liminal]
     steps:
       - name: GIT | Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
       - name: Cargo | Build release binary
         run: |
-          cd ./bin/cliain && cargo build --release
+          if [[ ${{ matrix.runtime }} = 'liminal' ]]; then
+            FEATURE="--features liminal"
+          fi
+          cd ./bin/cliain && cargo build --release ${FEATURES}
 
       - name: GIT | Get branch name and commit SHA
         id: get_branch
         uses: ./.github/actions/get-branch
 
       - name: Login to ECR
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: public.ecr.aws
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -44,12 +54,15 @@ jobs:
         id: build-image
         env:
           RELEASE_IMAGE: >
-            public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main'
-            && 'latest' || steps.get_branch.outputs.branch_name }}
-        uses: docker/build-push-action@v2
+            ${{ matrix.runtime == 'standard' }} && 
+              public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main' && 'latest' 
+                || steps.get_branch.outputs.branch_name }} ||
+            ${{ matrix.runtime == 'liminal' }} &&
+              public.ecr.aws/p6e8q1z1/cliain-liminal:${{ steps.get_branch.outputs.sha_short }}
+        uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
-          push: true
+          push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
           tags: ${{ env.RELEASE_IMAGE }}
