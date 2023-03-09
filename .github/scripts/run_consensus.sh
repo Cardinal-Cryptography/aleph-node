@@ -17,7 +17,7 @@ MIN_VALIDATOR_COUNT=4
 
 export NODE_IMAGE
 
-if [[ -z $(docker inspect ${NODE_IMAGE} | grep "No such object") ]]; then
+if docker inspect ${NODE_IMAGE} > /dev/null ; then
   echo "${NODE_IMAGE} found locally"
 else
   echo "${NODE_IMAGE} not found locally."
