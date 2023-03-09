@@ -32,7 +32,7 @@ jobs:
       - name: Cargo | Build release binary
         run: |
           if [[ ${{ matrix.runtime }} = 'liminal' ]]; then
-            FEATURE="--features liminal"
+            FEATURES="--features liminal"
           fi
           cd ./bin/cliain && cargo build --release ${FEATURES}
 
