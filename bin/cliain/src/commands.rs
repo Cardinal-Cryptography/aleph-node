@@ -3,18 +3,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aleph_client::{
-    pallet_baby_liminal::systems::ProvingSystem, pallets::baby_liminal::VerificationKeyIdentifier,
-    AccountId, Balance, TxStatus,
-};
+use aleph_client::{AccountId, Balance, TxStatus};
 use clap::{clap_derive::ValueEnum, Args, Subcommand};
 use primitives::{BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
-
-use crate::snark_relations::{
-    parsing::parse_some_system, NonUniversalProvingSystem, RelationArgs, SomeProvingSystem,
-    UniversalProvingSystem,
+#[cfg(feature = "liminal")]
+use {
+    crate::snark_relations::{
+        parsing::parse_some_system, NonUniversalProvingSystem, RelationArgs, SomeProvingSystem,
+        UniversalProvingSystem,
+    },
+    aleph_client::{
+        pallet_baby_liminal::systems::ProvingSystem,
+        pallets::baby_liminal::VerificationKeyIdentifier,
+    },
 };
 
 #[derive(Debug, Clone, Args)]
@@ -148,6 +151,7 @@ impl From<ExtrinsicState> for TxStatus {
     }
 }
 
+#[cfg(feature = "liminal")]
 #[derive(Debug, Clone, Subcommand)]
 pub enum BabyLiminal {
     /// Store a verification key under an identifier in the pallet's storage.
@@ -199,6 +203,7 @@ pub enum BabyLiminal {
     },
 }
 
+#[cfg(feature = "liminal")]
 #[derive(Debug, Clone, Subcommand)]
 pub enum SnarkRelation {
     GenerateSrs {
@@ -507,16 +512,19 @@ pub enum Command {
     },
 
     /// Interact with `pallet_baby_liminal`.
+    #[cfg(feature = "liminal")]
     #[clap(subcommand)]
     BabyLiminal(BabyLiminal),
 
     /// Interact with `relations` crate.
     ///
     /// Inner object is boxed, because it is significantly bigger than any other variant (clippy).
+    #[cfg(feature = "liminal")]
     #[clap(subcommand)]
     SnarkRelation(Box<SnarkRelation>),
 }
 
+#[cfg(feature = "liminal")]
 mod parsing {
     use aleph_client::{
         pallet_baby_liminal::systems::ProvingSystem,

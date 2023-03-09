@@ -1,6 +1,6 @@
 [package]
 name = "cliain"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
@@ -24,9 +24,14 @@ pallet-staking = { git = "https://github.com/Cardinal-Cryptography/substrate.git
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", features = ["full_crypto"] }
 
 aleph_client = { path = "../../aleph-client" }
-liminal-ark-relations = { path = "../../relations" }
 primitives = { path = "../../primitives" }
+liminal-ark-relations = { path = "../../relations", optional = true }
 
 [features]
 default = ["std"]
 std = []
+liminal = [
+    "aleph_client/liminal",
+    "liminal-ark-relations",
+]
+

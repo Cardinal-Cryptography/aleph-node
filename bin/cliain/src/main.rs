@@ -3,13 +3,16 @@ use std::env;
 use aleph_client::{account_from_keypair, aleph_keypair_from_string, keypair_from_string, Pair};
 use clap::Parser;
 use cliain::{
-    bond, call, change_validators, delete_key, finalize, force_new_era, generate_keys,
-    generate_keys_from_srs, generate_proof, generate_srs, instantiate, instantiate_with_code,
-    next_session_keys, nominate, overwrite_key, owner_info, prepare_keys, prompt_password_hidden,
-    remove_code, rotate_keys, schedule_upgrade, set_emergency_finalizer, set_keys,
-    set_staking_limits, store_key, transfer, treasury_approve, treasury_propose, treasury_reject,
-    update_runtime, upload_code, validate, verify, verify_proof, vest, vest_other, vested_transfer,
-    BabyLiminal, Command, ConnectionConfig, SnarkRelation,
+    bond, call, change_validators, finalize, force_new_era, instantiate, instantiate_with_code,
+    next_session_keys, nominate, owner_info, prepare_keys, prompt_password_hidden, remove_code,
+    rotate_keys, schedule_upgrade, set_emergency_finalizer, set_keys, set_staking_limits, transfer,
+    treasury_approve, treasury_propose, treasury_reject, update_runtime, upload_code, validate,
+    vest, vest_other, vested_transfer, Command, ConnectionConfig,
+};
+#[cfg(feature = "liminal")]
+use cliain::{
+    delete_key, generate_keys, generate_keys_from_srs, generate_proof, generate_srs, overwrite_key,
+    store_key, verify, verify_proof, BabyLiminal, SnarkRelation,
 };
 use log::{error, info};
 
@@ -41,8 +44,9 @@ fn read_seed(command: &Command, seed: Option<String>) -> String {
         | Command::NextSessionKeys { .. }
         | Command::RotateKeys
         | Command::SeedToSS58 { .. }
-        | Command::SnarkRelation { .. }
         | Command::ContractOwnerInfo { .. } => String::new(),
+        #[cfg(feature = "liminal")]
+        Command::SnarkRelation { .. } => String::new(),
         _ => read_secret(seed, "Provide seed for the signer account:"),
     }
 }
@@ -248,6 +252,7 @@ async fn main() -> anyhow::Result<()> {
             Err(why) => error!("Unable to schedule an upgrade {:?}", why),
         },
 
+        #[cfg(feature = "liminal")]
         Command::BabyLiminal(cmd) => match cmd {
             BabyLiminal::StoreKey {
                 identifier,
@@ -294,6 +299,7 @@ async fn main() -> anyhow::Result<()> {
             }
         },
 
+        #[cfg(feature = "liminal")]
         Command::SnarkRelation(cmd) => match *cmd {
             SnarkRelation::GenerateSrs {
                 system,
@@ -319,7 +325,7 @@ async fn main() -> anyhow::Result<()> {
                 system,
             } => {
                 if verify_proof(verifying_key_file, proof_file, public_input_file, system) {
-                    println!("Proof is correct.")
+                    println!("Proof is correct")
                 } else {
                     error!("Incorrect proof!")
                 }
