@@ -4,7 +4,7 @@ set -euo pipefail
 
 CLIAIN=./bin/cliain/target/release/cliain
 
-echo "Testing `xor` relation"
+echo "Testing 'xor' relation"
 ${CLIAIN} snark-relation generate-keys xor
 ${CLIAIN} snark-relation generate-proof -p xor.groth16.pk.bytes xor -a 10 -b 11 -c 1
 ${CLIAIN} snark-relation verify \
@@ -12,7 +12,7 @@ ${CLIAIN} snark-relation verify \
   --proof-file xor.groth16.proof.bytes \
   --public-input-file xor.groth16.public_input.bytes
 
-echo "Testing `linear equation` relation"
+echo "Testing 'linear equation' relation"
 ${CLIAIN} snark-relation generate-keys linear-equation
 ${CLIAIN} snark-relation generate-proof -p linear_equation.groth16.pk.bytes linear-equation
 ${CLIAIN} snark-relation verify \
@@ -20,7 +20,7 @@ ${CLIAIN} snark-relation verify \
   --proof-file linear_equation.groth16.proof.bytes \
   --public-input-file linear_equation.groth16.public_input.bytes
 
-echo "Testing `deposit` relation"
+echo "Testing 'deposit' relation"
 ${CLIAIN} snark-relation generate-keys deposit
 ${CLIAIN} snark-relation generate-proof -p deposit.groth16.pk.bytes deposit \
   --note "2257517311045912551,9329547706917600007,17678219388335595033,2758194574870438734" \
@@ -33,7 +33,7 @@ ${CLIAIN} snark-relation verify \
   --proof-file deposit.groth16.proof.bytes \
   --public-input-file deposit.groth16.public_input.bytes
 
-echo "Testing `deposit-and-merge` relation"
+echo "Testing 'deposit-and-merge' relation"
 ${CLIAIN} snark-relation generate-keys deposit-and-merge
 ${CLIAIN} snark-relation generate-proof -p deposit_and_merge.groth16.pk.bytes deposit-and-merge \
   --max-path-len 4 \
@@ -55,13 +55,13 @@ ${CLIAIN} snark-relation verify \
   --proof-file deposit.groth16.proof.bytes \
   --public-input-file deposit.groth16.public_input.bytes
 
-echo "Testing `merge` relation"
+echo "Testing 'merge' relation"
 ${CLIAIN} snark-relation generate-keys merge --max-path-len 4
 ${CLIAIN} snark-relation generate-proof -p merge.groth16.pk.bytes merge \
   --max-path-len 4 \
   --token-id 1 \
   --first-old-nullifier 19 \
-  --second-old-nullifier 29
+  --second-old-nullifier 29 \
   --new-note "16873374675910556188,7520532372021931293,2252601191743571102,1137408349476470620" \
   --merkle-root "7192045139731542264,1161130572820032929,11248828078021730941,7948961262277222795" \
   --first-old-trapdoor 17 \
@@ -82,7 +82,7 @@ ${CLIAIN} snark-relation verify \
   --proof-file merge.groth16.proof.bytes \
   --public-input-file merge.groth16.public_input.bytes
 
-echo "Testing `withdraw` relation"
+echo "Testing 'withdraw' relation"
 ${CLIAIN} snark-relation generate-keys withdraw
 ${CLIAIN} snark-relation generate-proof -p withdraw.groth16.pk.bytes withdraw \
   --max-path-len 4 \
