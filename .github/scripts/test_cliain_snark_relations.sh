@@ -83,7 +83,7 @@ ${CLIAIN} snark-relation verify \
   --public-input-file merge.groth16.public_input.bytes
 
 echo "Testing 'withdraw' relation"
-${CLIAIN} snark-relation generate-keys withdraw
+${CLIAIN} snark-relation generate-keys withdraw --max-path-len 4
 ${CLIAIN} snark-relation generate-proof -p withdraw.groth16.pk.bytes withdraw \
   --max-path-len 4 \
   --old-nullifier 19 \
