@@ -54,10 +54,10 @@ jobs:
         id: build-image
         env:
           RELEASE_IMAGE: >
-            ${{ matrix.runtime == 'standard' }} && 
-              public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main' && 'latest' 
+            ${{ matrix.runtime }} == 'standard' &&
+              public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main' && 'latest'
                 || steps.get_branch.outputs.branch_name }} ||
-            ${{ matrix.runtime == 'liminal' }} &&
+            ${{ matrix.runtime }} == 'liminal' &&
               public.ecr.aws/p6e8q1z1/cliain-liminal:${{ steps.get_branch.outputs.sha_short }}
         uses: docker/build-push-action@v3.3.0
         with:
