@@ -9,6 +9,9 @@
 
 set -euox pipefail
 
+# Move to the root of the repo
+cd "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[@]}")")/../.."
+
 export CONTRACTS_PATH
 CONTRACTS_PATH=$(pwd)/contracts
 
