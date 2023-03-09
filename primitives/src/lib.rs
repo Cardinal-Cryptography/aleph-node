@@ -5,12 +5,12 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::KeyTypeId;
+use sp_runtime::Perquintill;
 pub use sp_runtime::{
     generic::Header as GenericHeader,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
     BoundedVec, ConsensusEngineId, Perbill,
 };
-use sp_runtime::Perquintill;
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
@@ -258,7 +258,6 @@ pub trait EraManager {
     /// new era starts
     fn new_era_start(era: EraIndex);
 }
-
 
 pub mod staking {
     use sp_runtime::Perbill;
