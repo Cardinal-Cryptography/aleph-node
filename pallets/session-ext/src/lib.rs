@@ -1,4 +1,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+//!
+//! # Ban logic
+//! In case of insufficient validator's uptime, we need to remove such validators from
+//! the committee, so that the network is as healthy as possible. This is achieved by calculating
+//! number of _underperformance_ sessions, which means that number of blocks produced by the
+//! validator is less than some predefined threshold.
+//! In other words, if a validator:
+//! * performance in a session is less or equal to a configurable threshold
+//! `BanConfig::minimal_expected_performance` (from 0 to 100%), and,
+//! * it happened at least `BanConfig::underperformed_session_count_threshold` times,
+//! then the validator is considered an underperformer and hence removed (ie _banned out_) from the
+//! committee.
+//!
+//! ## Thresholds
+//! There are two ban thresholds described above, see [`BanConfig`].
+//!
+//! ### Next era vs current era
+//! Current and next era have distinct thresholds values, as we calculate bans during the start of the new era.
+//! They follow the same logic as next era committee seats: at the time of planning the first
+//! session of next the era, next values become current ones.
 
 mod impls;
 mod manager;
@@ -38,10 +58,15 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Something that handles bans
         type BanHandler: BanHandler<AccountId = Self::AccountId>;
+        /// Something that provides information about era.
         type EraInfoProvider: EraInfoProvider<AccountId = Self::AccountId>;
+        /// Something that provides information about validator.
         type ValidatorProvider: ValidatorProvider<AccountId = Self::AccountId>;
+        /// Something that handles addition of rewards for validators.
         type ValidatorRewardsHandler: ValidatorRewardsHandler<AccountId = Self::AccountId>;
+        /// Something that handles removal of the validators
         type ValidatorExtractor: ValidatorExtractor<AccountId = Self::AccountId>;
         /// Nr of blocks in the session.
         #[pallet::constant]

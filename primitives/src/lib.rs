@@ -232,13 +232,17 @@ sp_api::decl_runtime_apis! {
 
 pub trait BanHandler {
     type AccountId;
+    /// returns whether the account can be banned
     fn can_ban(who: &Self::AccountId) -> bool;
 }
 
 pub trait ValidatorProvider {
     type AccountId;
+    /// returns validators for the current era if present.
     fn current_era_validators() -> Option<EraValidators<Self::AccountId>>;
+    /// returns committe seats for the current era if present.
     fn current_era_committee_size() -> Option<CommitteeSeats>;
+    /// returns validators with distinction between validators in the committee and out of it.
     fn current_session_committee_and_non_committee() -> SessionValidators<Self::AccountId>;
 }
 
@@ -249,6 +253,7 @@ pub struct SessionValidators<T> {
 
 pub trait BannedValidators {
     type AccountId;
+    /// returns currently banned validators
     fn banned() -> Vec<Self::AccountId>;
 }
 

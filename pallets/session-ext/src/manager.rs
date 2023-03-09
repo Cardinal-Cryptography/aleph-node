@@ -9,6 +9,21 @@ use crate::{
     traits::EraInfoProvider,
 };
 
+/// We assume that block `B` ends session nr `S`, and current era index is `E`.
+///
+/// 1. Block `B` initialized
+/// 2. `end_session(S)` is called
+/// *  Based on block count we might mark the session for a given validator as underperformed
+/// *  We update rewards and clear block count for the session `S`.
+/// 3. `start_session(S + 1)` is called.
+/// *  if session `S+1` starts new era we populate totals and unban all validators whose ban expired.
+/// *  if session `S+1` % [`BanConfig::clean_session_counter_delay`] == 0, we
+///    clean up underperformed session counter
+/// 4. `new_session(S + 2)` is called.
+/// *  If session `S+2` starts new era we emit fresh bans events
+/// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
+///
+
 struct AlephSessionManager<T: SessionManager<C::AccountId>, E: EraManager, C: Config>(
     PhantomData<(T, E, C)>,
 );
@@ -61,6 +76,10 @@ where
     }
 }
 
+
+/// SessionManager that also fires EraManager functions.
+/// The order of the calls are as follows:
+/// First call is always from AlephSessionManager then the call to EraManager fn if applicable.
 pub struct SessionManagerExt<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
 where
     T: SessionManager<C::AccountId>,
