@@ -2,8 +2,6 @@
 
 use frame_election_provider_support::{ElectionProvider, Support};
 use frame_support::bounded_vec;
-#[cfg(feature = "try-runtime")]
-use pallets_support::StorageMigration;
 use primitives::CommitteeSeats;
 
 use crate::{
@@ -82,13 +80,4 @@ fn validators_are_elected_only_when_staking() {
                 ]
             );
         });
-}
-
-#[cfg(feature = "try-runtime")]
-mod migration_tests {
-    use frame_support::migration::put_storage_value;
-
-    use super::*;
-
-    const MODULE: &[u8] = b"Elections";
 }

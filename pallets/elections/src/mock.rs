@@ -205,12 +205,6 @@ impl TestExtBuilder {
         self
     }
 
-    #[cfg(feature = "try-runtime")]
-    pub fn with_storage_version(mut self, version: u16) -> Self {
-        self.storage_version = StorageVersion::new(version);
-        self
-    }
-
     pub fn build(self) -> sp_io::TestExternalities {
         let mut t = frame_system::GenesisConfig::default()
             .build_storage::<Test>()
