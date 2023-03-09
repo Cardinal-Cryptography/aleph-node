@@ -6,6 +6,7 @@ use ark_relations::{
     ns,
     r1cs::{ConstraintSystemRef, SynthesisError},
 };
+use paste::paste;
 
 use crate::{
     environment::FpVar, BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId,
@@ -52,125 +53,70 @@ impl NoteVarBuilder<false, false, false, false, false> {
 
 type Result<T> = core::result::Result<T, SynthesisError>;
 
-impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool>
-    NoteVarBuilder<false, _1, _2, _3, _4>
-{
-    pub fn with_token_id(
-        self,
-        token_id: Result<&BackendTokenId>,
-        mode: AllocationMode,
-    ) -> Result<NoteVarBuilder<true, _1, _2, _3, _4>> {
-        let token_id = FpVar::new_variable(ns!(self.cs, "token id"), || token_id, mode)?;
-        Ok(self.with_token_id_var(token_id))
-    }
-
-    pub fn with_token_id_var(self, token_id: FpVar) -> NoteVarBuilder<true, _1, _2, _3, _4> {
-        NoteVarBuilder {
-            token_id: Some(token_id),
-            token_amount: self.token_amount,
-            trapdoor: self.trapdoor,
-            nullifier: self.nullifier,
-            note: self.note,
-            cs: self.cs,
+macro_rules! impl_with_plain_arg {
+    ($item: ident, $item_type: ty, $target_type: ty) => {
+        paste! {
+            pub fn [<with_ $item>] (self, $item: Result<&$item_type>, mode: AllocationMode) -> Result<$target_type> {
+                let $item = FpVar::new_variable(ns!(self.cs, stringify!($item)), || $item, mode)?;
+                Ok(self. [<with_ $item _var>]($item))
+            }
         }
-    }
+    };
 }
 
-impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool>
-    NoteVarBuilder<_1, false, _2, _3, _4>
-{
-    pub fn with_token_amount(
-        self,
-        amount: Result<&BackendTokenAmount>,
-        mode: AllocationMode,
-    ) -> Result<NoteVarBuilder<_1, true, _2, _3, _4>> {
-        let amount = FpVar::new_variable(ns!(self.cs, "token amount"), || amount, mode)?;
-        Ok(self.with_token_amount_var(amount))
-    }
-
-    pub fn with_token_amount_var(self, amount: FpVar) -> NoteVarBuilder<_1, true, _2, _3, _4> {
-        NoteVarBuilder {
-            token_id: self.token_id,
-            token_amount: Some(amount),
-            trapdoor: self.trapdoor,
-            nullifier: self.nullifier,
-            note: self.note,
-            cs: self.cs,
+macro_rules! impl_with_var_arg {
+    ($item: ident, $target_type: ty) => {
+        paste! {
+            pub fn [<with_ $item _var>] (self, $item: FpVar) -> $target_type {
+                let mut note: $target_type = NoteVarBuilder {
+                    token_id: self.token_id,
+                    token_amount: self.token_amount,
+                    trapdoor: self.trapdoor,
+                    nullifier: self.nullifier,
+                    note: self.note,
+                    cs: self.cs,
+                };
+                note.$item = Some($item);
+                note
+            }
         }
-    }
+    };
 }
 
-impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool>
-    NoteVarBuilder<_1, _2, false, _3, _4>
-{
-    pub fn with_trapdoor(
-        self,
-        trapdoor: Result<&BackendTrapdoor>,
-        mode: AllocationMode,
-    ) -> Result<NoteVarBuilder<_1, _2, true, _3, _4>> {
-        let trapdoor = FpVar::new_variable(ns!(self.cs, "trapdoor"), || trapdoor, mode)?;
-        Ok(self.with_trapdoor_var(trapdoor))
-    }
-
-    pub fn with_trapdoor_var(self, trapdoor: FpVar) -> NoteVarBuilder<_1, _2, true, _3, _4> {
-        NoteVarBuilder {
-            token_id: self.token_id,
-            token_amount: self.token_amount,
-            trapdoor: Some(trapdoor),
-            nullifier: self.nullifier,
-            note: self.note,
-            cs: self.cs,
+macro_rules! impl_builder {
+    ($in_type: ty, $out_type: ty, $item: ident, $item_type: ty) => {
+        impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool> $in_type {
+            impl_with_plain_arg!($item, $item_type, $out_type);
+            impl_with_var_arg!($item, $out_type);
         }
-    }
+    };
 }
 
-impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool>
-    NoteVarBuilder<_1, _2, _3, false, _4>
-{
-    pub fn with_nullifier(
-        self,
-        nullifier: Result<&BackendNullifier>,
-        mode: AllocationMode,
-    ) -> Result<NoteVarBuilder<_1, _2, _3, true, _4>> {
-        let nullifier = FpVar::new_variable(ns!(self.cs, "nullifier"), || nullifier, mode)?;
-        Ok(self.with_nullifier_var(nullifier))
-    }
-
-    pub fn with_nullifier_var(self, nullifier: FpVar) -> NoteVarBuilder<_1, _2, _3, true, _4> {
-        NoteVarBuilder {
-            token_id: self.token_id,
-            token_amount: self.token_amount,
-            trapdoor: self.trapdoor,
-            nullifier: Some(nullifier),
-            note: self.note,
-            cs: self.cs,
-        }
-    }
-}
-
-impl<const _1: bool, const _2: bool, const _3: bool, const _4: bool>
-    NoteVarBuilder<_1, _2, _3, _4, false>
-{
-    pub fn with_note(
-        self,
-        note: Result<&BackendNote>,
-        mode: AllocationMode,
-    ) -> Result<NoteVarBuilder<_1, _2, _3, _4, true>> {
-        let note = FpVar::new_variable(ns!(self.cs, "note"), || note, mode)?;
-        Ok(self.with_note_var(note))
-    }
-
-    pub fn with_note_var(self, note: FpVar) -> NoteVarBuilder<_1, _2, _3, _4, true> {
-        NoteVarBuilder {
-            token_id: self.token_id,
-            token_amount: self.token_amount,
-            trapdoor: self.trapdoor,
-            nullifier: self.nullifier,
-            note: Some(note),
-            cs: self.cs,
-        }
-    }
-}
+impl_builder!(
+    NoteVarBuilder<false, _1, _2, _3, _4>,
+    NoteVarBuilder<true, _1, _2, _3, _4>,
+    token_id, BackendTokenId
+);
+impl_builder!(
+    NoteVarBuilder<_1, false, _2, _3, _4>,
+    NoteVarBuilder<_1, true, _2, _3, _4>,
+    token_amount, BackendTokenAmount
+);
+impl_builder!(
+    NoteVarBuilder<_1, _2, false, _3, _4>,
+    NoteVarBuilder<_1, _2, true, _3, _4>,
+    trapdoor, BackendTrapdoor
+);
+impl_builder!(
+    NoteVarBuilder<_1, _2, _3, false, _4>,
+    NoteVarBuilder<_1, _2, _3, true, _4>,
+    nullifier, BackendNullifier
+);
+impl_builder!(
+    NoteVarBuilder<_1, _2, _3, _4, false>,
+    NoteVarBuilder<_1, _2, _3, _4, true>,
+    note, BackendNote
+);
 
 impl NoteVarBuilder<true, true, true, true, true> {
     /// Verify that `note` is indeed the result of hashing `(token_id, token_amount, trapdoor,
