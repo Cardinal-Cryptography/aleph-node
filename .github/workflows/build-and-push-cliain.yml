@@ -57,10 +57,10 @@ jobs:
         env:
           REGISTRY: public.ecr.aws/p6e8q1z1/
           IMAGE_NAME: >
-            ${{ matrix.runtime == 'standard' && cliain ||
-                matrix.runtime == 'liminal'  && cliain-liminal }}
+            ${{ matrix.runtime == 'standard' && 'cliain' ||
+                matrix.runtime == 'liminal'  && 'cliain-liminal' }}
           TAG: >
-            ${{ matrix.runtime == 'standard' && 
+            ${{ matrix.runtime == 'standard' &&
                   (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
                   steps.get_branch.outputs.branch_name) ||
                 matrix.runtime == 'liminal' && steps.get_branch.outputs.sha_short }}
