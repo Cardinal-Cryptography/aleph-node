@@ -328,7 +328,7 @@ async fn main() -> anyhow::Result<()> {
                     println!("Proof is correct")
                 } else {
                     error!("Incorrect proof!");
-                    exit(1);
+                    std::process::exit(1);
                 }
             }
         },
