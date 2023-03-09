@@ -3,6 +3,8 @@ name: Build and push cliain docker image
 
 on:
   push:
+    branches:
+      - 'main'
     paths:
       - 'bin/cliain/**'
       - .github/workflows/build-and-push-cliain.yml
@@ -53,12 +55,16 @@ jobs:
       - name: Build and push latest docker image
         id: build-image
         env:
-          RELEASE_IMAGE: >
-            ${{ matrix.runtime }} == 'standard' &&
-              public.ecr.aws/p6e8q1z1/cliain:${{ steps.get_branch.outputs.branch_name == 'main' && 'latest'
-                || steps.get_branch.outputs.branch_name }} ||
-            ${{ matrix.runtime }} == 'liminal' &&
-              public.ecr.aws/p6e8q1z1/cliain-liminal:${{ steps.get_branch.outputs.sha_short }}
+          REGISTRY: public.ecr.aws/p6e8q1z1/
+          IMAGE_NAME: >
+            ${{ matrix.runtime == 'standard' && cliain ||
+                matrix.runtime == 'liminal'  && cliain-liminal }}
+          TAG: >
+            ${{ matrix.runtime == 'standard' && 
+                  (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
+                  steps.get_branch.outputs.branch_name) ||
+                matrix.runtime == 'liminal' && steps.get_branch.outputs.sha_short }}
+          RELEASE_IMAGE: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
         uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
