@@ -5,21 +5,28 @@ members = [
     "baby-liminal-extension",
     "bin/node",
     "bin/runtime",
+    "clique",
     "finality-aleph",
     "pallets/aleph",
     "pallets/baby-liminal",
     "pallets/elections",
     "pallets/support",
+    "poseidon",
     "primitives",
 ]
 
 exclude = [
     "aleph-client",
+    "benches/payout-stakers",
     "bin/cliain",
+    "contracts/adder",
     "contracts/poseidon_host_bench",
+    "e2e-tests",
+    "flooder",
+    "fork-off",
     "relations",
     "relations/src/proc_macro",
-    "poseidon",
+    "scripts/synthetic-network/synthetic-link",
 ]
 
 [profile.release]

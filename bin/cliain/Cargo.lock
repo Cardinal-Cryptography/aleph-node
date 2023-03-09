@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "2.13.0"
+version = "2.14.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -378,6 +378,24 @@ dependencies = [
  "ark-ff",
  "ark-relations",
  "ark-std",
+]
+
+[[package]]
+name = "ark-sponge"
+version = "0.3.0"
+source = "git+https://github.com/penumbra-zone/sponge?branch=r1cs#113469aef48a9c5f458dbf523a509d4769affbf2"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest 0.9.0",
+ "rand_chacha 0.3.1",
+ "tracing",
 ]
 
 [[package]]
@@ -704,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "cliain"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "aleph_client",
  "anyhow",
@@ -2310,6 +2328,9 @@ version = "0.1.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-sponge",
  "paste",
  "poseidon-parameters",
  "poseidon-permutation",
@@ -3031,10 +3052,8 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.5.5"
+version = "0.6.0"
 dependencies = [
- "ark-ff",
- "liminal-ark-poseidon",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -3042,7 +3061,6 @@ dependencies = [
  "sp-application-crypto 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
  "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
  "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
- "sp-runtime-interface 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
  "sp-staking",
  "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
 ]
