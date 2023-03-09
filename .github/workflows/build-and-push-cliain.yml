@@ -61,9 +61,7 @@ jobs:
         id: build-image
         env:
           REGISTRY: public.ecr.aws/p6e8q1z1/
-          IMAGE_NAME: >
-            ${{ matrix.runtime }} == 'standard' && 'cliain' ||
-            ${{ matrix.runtime }} == 'liminal' && 'cliain-liminal'
+          IMAGE_NAME: ${{ matrix.runtime == 'standard' && 'cliain' || 'cliain-liminal' }}
           TAG: >
             ${{ matrix.runtime == 'standard' &&
                   (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
