@@ -17,8 +17,7 @@ impl<T: SessionManager<C::AccountId>, E: EraManager, C: Config> SessionManager<C
     for AlephSessionManager<T, E, C>
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
-        T::new_session(new_index);
-        Pallet::<C>::rotate_committee(new_index)
+        T::new_session(new_index)
     }
 
     fn end_session(end_index: SessionIndex) {
@@ -105,10 +104,12 @@ where
     C: Config,
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
+        AlephSessionManager::<T, EM, C>::new_session(new_index);
         if let Some(era) = Self::session_starts_era(new_index, true) {
             AlephSessionManager::<T, EM, C>::on_new_era(era);
         }
-        AlephSessionManager::<T, EM, C>::new_session(new_index)
+
+        Pallet::<C>::rotate_committee(new_index)
     }
 
     fn end_session(end_index: SessionIndex) {
@@ -116,10 +117,9 @@ where
     }
 
     fn start_session(start_index: SessionIndex) {
+        AlephSessionManager::<T, EM, C>::start_session(start_index);
         if let Some(era) = Self::session_starts_era(start_index, false) {
             AlephSessionManager::<T, EM, C>::new_era_start(era)
         }
-
-        AlephSessionManager::<T, EM, C>::start_session(start_index)
     }
 }

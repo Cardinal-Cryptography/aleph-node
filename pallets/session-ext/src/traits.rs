@@ -1,5 +1,4 @@
 use frame_support::pallet_prelude::Get;
-use primitives::{CommitteeSeats, EraValidators};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 

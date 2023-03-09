@@ -1,6 +1,6 @@
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
-    BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
+    BanHandler, BanInfo, BanReason, CommitteeSeats, EraValidators,
     SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
 };
 use sp_runtime::{Perbill, Perquintill};

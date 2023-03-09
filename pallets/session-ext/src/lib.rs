@@ -10,7 +10,6 @@ pub use manager::SessionManagerExt;
 pub use pallet::*;
 use primitives::{BanConfig as BanConfigStruct, BanInfo};
 use scale_info::TypeInfo;
-use sp_staking::EraIndex;
 use sp_std::collections::btree_map::BTreeMap;
 pub use traits::*;
 
@@ -184,23 +183,16 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
+    #[derive(Default)]
     pub struct GenesisConfig {
         pub committee_ban_config: BanConfigStruct,
     }
 
-    #[cfg(feature = "std")]
-    impl Default for GenesisConfig {
-        fn default() -> Self {
-            Self {
-                committee_ban_config: Default::default(),
-            }
-        }
-    }
 
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig {
         fn build(&self) {
-            <BanConfig<T>>::put(&self.committee_ban_config.clone());
+            <BanConfig<T>>::put(self.committee_ban_config.clone());
         }
     }
 }
