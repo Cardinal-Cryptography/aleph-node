@@ -18,10 +18,9 @@ mod relation {
     use ark_relations::ns;
 
     use crate::shielder::{
-        check_merkle_proof,
-        circuit_utils::PathShapeVar,
-        convert_hash, convert_vec,
+        check_merkle_proof, convert_hash, convert_vec,
         note::check_note,
+        path_shape_var::PathShapeVar,
         types::{
             BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
             BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendLeafIndex,
