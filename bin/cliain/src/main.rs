@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, process::exit};
 
 use aleph_client::{account_from_keypair, aleph_keypair_from_string, keypair_from_string, Pair};
 use clap::Parser;
@@ -327,7 +327,8 @@ async fn main() -> anyhow::Result<()> {
                 if verify_proof(verifying_key_file, proof_file, public_input_file, system) {
                     println!("Proof is correct")
                 } else {
-                    error!("Incorrect proof!")
+                    error!("Incorrect proof!");
+                    exit(1);
                 }
             }
         },

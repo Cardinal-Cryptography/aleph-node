@@ -4,8 +4,6 @@ set -euo pipefail
 
 CLIAIN=./bin/cliain/target/release/cliain
 
-${CLIAIN} --help
-
 # Test xor relation
 ${CLIAIN} snark-relation generate-keys xor
 ${CLIAIN} snark-relation generate-proof -p xor.groth16.pk.bytes xor -a 11 -b 11 -c 1

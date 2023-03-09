@@ -69,11 +69,10 @@ jobs:
                   (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
                   steps.get_branch.outputs.branch_name) ||
                 matrix.runtime == 'liminal' && steps.get_branch.outputs.sha_short }}
-          RELEASE_IMAGE: ${REGISTRY}${IMAGE_NAME}:${env.TAG}
         uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
           push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
-          tags: ${{ env.RELEASE_IMAGE }}
+          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
