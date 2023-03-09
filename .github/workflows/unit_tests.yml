@@ -17,6 +17,7 @@ on:
       - 'pallets/support/**'
       - 'poseidon/**',
       - 'primitives/**',
+      - .github/workflows/unit_tests.yml
   push:
     branches:
       - 'release-*'
