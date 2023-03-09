@@ -28,6 +28,7 @@ pub fn parse_frontend_account(frontend_account: &str) -> Result<FrontendAccount>
     Ok(frontend_account
         .split(',')
         .map(|x| u8::from_str(x).expect("Each element should be a valid `u8`"))
+        .collect::<Vec<_>>()
         .try_into()
         .unwrap())
 }
