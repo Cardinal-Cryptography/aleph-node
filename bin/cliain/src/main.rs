@@ -1,4 +1,4 @@
-use std::{env, process::exit};
+use std::env;
 
 use aleph_client::{account_from_keypair, aleph_keypair_from_string, keypair_from_string, Pair};
 use clap::Parser;
