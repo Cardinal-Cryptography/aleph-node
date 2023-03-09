@@ -62,8 +62,8 @@ jobs:
         env:
           REGISTRY: public.ecr.aws/p6e8q1z1/
           IMAGE_NAME: >
-            ${{ matrix.runtime == 'standard' && 'cliain'
-            || matrix.runtime == 'liminal' && 'cliain-liminal' }}
+            ${{ (matrix.runtime == 'standard' && 'cliain') || \
+            (matrix.runtime == 'liminal' && 'cliain-liminal') }}
           TAG: >
             ${{ matrix.runtime == 'standard' &&
                   (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
@@ -75,4 +75,4 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
           push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
-          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME//[$'\t\r\n '] }}:${{ env.TAG }}
+          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
