@@ -188,7 +188,6 @@ pub mod pallet {
         pub committee_ban_config: BanConfigStruct,
     }
 
-
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig {
         fn build(&self) {

@@ -1,7 +1,7 @@
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
-    BanHandler, BanInfo, BanReason, CommitteeSeats, EraValidators,
-    SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
+    BanHandler, BanInfo, BanReason, CommitteeSeats, EraValidators, SessionValidators,
+    ValidatorProvider, LENIENT_THRESHOLD,
 };
 use sp_runtime::{Perbill, Perquintill};
 use sp_staking::{EraIndex, SessionIndex};
