@@ -91,6 +91,7 @@ pub enum ChainStatusNotification<H: Header> {
 }
 
 /// A stream of notifications about the chain status in the database changing.
+/// We assume that this will return all the events, otherwise we will end up with a broken state.
 #[async_trait::async_trait]
 pub trait ChainStatusNotifier<H: Header> {
     type Error: Display;
