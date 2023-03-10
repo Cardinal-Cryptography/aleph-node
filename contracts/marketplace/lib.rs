@@ -268,7 +268,7 @@ pub mod marketplace {
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
             PSP22BurnableRef::burn_builder(&self.reward_token, from, amount)
                 .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
-                .fire()???;
+                .invoke()?;
 
             Ok(())
         }
