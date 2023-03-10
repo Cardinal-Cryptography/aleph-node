@@ -457,7 +457,7 @@ mod simple_dex {
         ) -> Result<(), DexError> {
             PSP22Ref::transfer_from_builder(&token, from, to, amount, vec![0x0])
                 .call_flags(CallFlags::default().set_allow_reentry(true))
-                .fire()???;
+                .invoke()?;
 
             Ok(())
         }
