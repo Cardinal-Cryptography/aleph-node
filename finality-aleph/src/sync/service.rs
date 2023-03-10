@@ -146,21 +146,13 @@ impl<
     }
 
     fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: N::PeerId) {
-        use SyncAction::*;
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
                 .handle_justification(justification, peer.clone())
             {
-                Ok(action) => match action {
-                    Response(data) => {
-                        self.send_to(data, peer.clone());
-                        None
-                    }
-                    Task(block_id) => Some(block_id),
-                    Noop => None,
-                },
+                Ok(maybe_id) => maybe_id,
                 Err(e) => {
                     warn!(
                         target: LOG_TARGET,

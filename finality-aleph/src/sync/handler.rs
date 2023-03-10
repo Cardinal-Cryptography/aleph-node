@@ -154,17 +154,17 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         &mut self,
         justification: J,
         peer: I,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
         let id = justification.header().id();
-        let action = match self
+        let maybe_id = match self
             .forest
             .update_justification(justification, Some(peer))?
         {
-            true => Ok(SyncAction::task(id)),
-            false => Ok(SyncAction::noop()),
+            true => Some(id),
+            false => None,
         };
         self.try_finalize()?;
-        action
+        Ok(maybe_id)
     }
 
     /// Inform the handler that a block has been imported.
@@ -220,7 +220,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         &mut self,
         justification: J::Unverified,
         peer: I,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
         let justification = self
             .verifier
             .verify(justification)
@@ -255,11 +255,17 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         let local_session = session_id_from_block_num(local_top_number, self.period);
         match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
-            None => self.handle_justification(state.top_justification(), peer),
+            None => Ok(self
+                .handle_justification(state.top_justification(), peer)?
+                .map(SyncAction::Task)
+                .unwrap_or(SyncAction::Noop)),
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
-                true => self.handle_justification(state.top_justification(), peer),
+                true => Ok(self
+                    .handle_justification(state.top_justification(), peer)?
+                    .map(SyncAction::Task)
+                    .unwrap_or(SyncAction::Noop)),
                 // remote top justification lower than ours, we can send a response
                 false => Ok(SyncAction::state_broadcast_response(
                     local_top.into_unverified(),
@@ -350,7 +356,7 @@ mod tests {
             handler
                 .handle_justification(justification.clone().into_unverified(), peer)
                 .expect("correct justification"),
-            SyncAction::Noop
+            None
         ));
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -368,8 +374,8 @@ mod tests {
             .handle_justification(justification.clone().into_unverified(), peer)
             .expect("correct justification")
         {
-            SyncAction::Task(id) => assert_eq!(id, header.id()),
-            other_action => panic!("expected a task, got {:?}", other_action),
+            Some(id) => assert_eq!(id, header.id()),
+            None => panic!("expected an id, got nothing"),
         }
         handler.block_imported(header).expect("importing in order");
         assert_eq!(
