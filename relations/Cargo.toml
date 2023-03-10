@@ -30,6 +30,8 @@ blake2 = { version = "0.9.2", default-features = false }
 liminal-ark-relation-macro = { version = "0.1.1" }
 
 liminal-ark-poseidon = { path = "../poseidon", default-features = false, features = ["circuit"] }
+manta-crypto = {git = "https://github.com/Cardinal-Cryptography/manta-rs" , default-features = false, features = ["ark-bls12-381", "getrandom", "test"] }
+manta-pay = { git = "https://github.com/Cardinal-Cryptography/manta-rs", default-features = false, features = ["groth16", "parameters", "test"] }
 
 [dev-dependencies]
 criterion = "0.3"

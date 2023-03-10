@@ -23,6 +23,32 @@ macro_rules! n_to_one {
 
                 let mut state: PoseidonSpongeVar<Fr> = PoseidonSpongeVar::new(
                     cs.clone(),
+                    &to_ark_sponge_poseidon_parameters(&parameters),
+                );
+                let domain_separator = FpVar::new_constant(cs, domain_separator())?;
+                state.absorb(&[ark_ff::vec![domain_separator], input.to_vec()].concat())?;
+                let result = state.squeeze_field_elements(1)?;
+                Ok(result[0].clone())
+            }
+        }
+    };
+}
+
+// n_to_one!(1, "one");
+n_to_one!(2, "two");
+// n_to_one!(4, "four");
+
+macro_rules! n_to_one_cashed {
+    ($n: literal, $n_as_word: literal) => {
+        paste! {
+            #[doc = "Compute "]
+            #[doc = stringify!($n)]
+            #[doc = ":1 Poseidon hash of `input`."]
+            pub fn [<$n_as_word _to_one_hash>] (cs: ConstraintSystemRef<Fr>, input: [FpVar; $n]) -> Result<FpVar, SynthesisError> {
+                let parameters = &crate::[<RATE_ $n>];
+
+                let mut state: PoseidonSpongeVar<Fr> = PoseidonSpongeVar::new(
+                    cs.clone(),
                     &to_ark_sponge_poseidon_parameters(parameters),
                 );
                 let domain_separator = FpVar::new_constant(cs, domain_separator())?;
@@ -34,12 +60,12 @@ macro_rules! n_to_one {
     };
 }
 
-n_to_one!(1, "one");
-n_to_one!(2, "two");
-n_to_one!(4, "four");
+n_to_one_cashed!(1, "one");
+// n_to_one_cashed!(2, "two");
+n_to_one_cashed!(4, "four");
 
 fn to_ark_sponge_poseidon_parameters(
-    params: PoseidonParameters<Fr>,
+    params: &PoseidonParameters<Fr>,
 ) -> ArkSpongePoseidonParameters<Fr> {
     let alpha = match params.alpha {
         Alpha::Exponent(exp) => exp as u64,
@@ -54,8 +80,8 @@ fn to_ark_sponge_poseidon_parameters(
         full_rounds,
         partial_rounds,
         alpha,
-        ark: params.arc.into(),
-        mds: params.mds.into(),
+        ark: params.arc.clone().into(),
+        mds: params.mds.clone().into(),
         rate,
         capacity,
     }

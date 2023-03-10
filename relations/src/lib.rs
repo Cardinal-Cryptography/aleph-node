@@ -3,6 +3,7 @@
 mod environment;
 mod linear;
 mod preimage;
+mod preimage_manta;
 mod relation;
 mod serialization;
 mod shielder;
@@ -22,6 +23,10 @@ pub use linear::{
 pub use preimage::{
     preimage_proving, PreimageRelationWithFullInput, PreimageRelationWithPublicInput,
     PreimageRelationWithoutInput,
+};
+pub use preimage_manta::{
+    PreimageMantaRelationWithFullInput, PreimageMantaRelationWithPublicInput,
+    PreimageMantaRelationWithoutInput,
 };
 pub use relation::GetPublicInput;
 pub use serialization::serialize;

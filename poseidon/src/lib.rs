@@ -20,3 +20,9 @@ pub const DOMAIN_SEPARATOR: u64 = 2137;
 pub fn domain_separator() -> Fr {
     DOMAIN_SEPARATOR.into()
 }
+
+use once_cell::sync::Lazy;
+use poseidon_parameters::PoseidonParameters;
+pub static RATE_1: Lazy<PoseidonParameters<Fr>> = Lazy::new(parameters::rate_1);
+pub static RATE_2: Lazy<PoseidonParameters<Fr>> = Lazy::new(parameters::rate_2);
+pub static RATE_4: Lazy<PoseidonParameters<Fr>> = Lazy::new(parameters::rate_4);
