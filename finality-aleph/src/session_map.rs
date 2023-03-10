@@ -369,14 +369,16 @@ mod tests {
     use sc_client_api::FinalizeSummary;
     use sc_utils::mpsc::tracing_unbounded;
     use sp_consensus::BlockOrigin;
-    use substrate_test_runtime_client::{
-        ClientBlockImportExt, DefaultTestClientBuilderExt, TestClient, TestClientBuilder,
-        TestClientBuilderExt,
-    };
+    use substrate_test_runtime_client::ClientBlockImportExt;
     use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
-    use crate::{session::testing::authority_data, testing::mocks::TBlock};
+    use crate::{
+        session::testing::authority_data,
+        testing::mocks::{
+            TBlock, TBlockNumber, TestClient, TestClientBuilder, TestClientBuilderExt,
+        },
+    };
 
     struct MockProvider {
         pub session_map: HashMap<NumberFor<TBlock>, SessionAuthorityData>,
@@ -396,7 +398,7 @@ mod tests {
             }
         }
 
-        fn add_session(&mut self, session_id: u64) {
+        fn add_session(&mut self, session_id: TBlockNumber) {
             self.session_map
                 .insert(session_id, authority_data_for_session(session_id));
             self.next_session_map
@@ -435,7 +437,7 @@ mod tests {
         }
     }
 
-    fn n_new_blocks(client: &mut Arc<TestClient>, n: u64) -> Vec<TBlock> {
+    fn n_new_blocks(client: &mut Arc<TestClient>, n: TBlockNumber) -> Vec<TBlock> {
         (0..n)
             .map(|_| {
                 let block = client
@@ -452,7 +454,7 @@ mod tests {
             .collect()
     }
 
-    fn authority_data_for_session(session_id: u64) -> SessionAuthorityData {
+    fn authority_data_for_session(session_id: u32) -> SessionAuthorityData {
         authority_data(session_id * 4, (session_id + 1) * 4)
     }
 
@@ -579,7 +581,7 @@ mod tests {
         let mut mock_notificator = MockNotificator::new(receiver);
 
         for i in 0..=2 * PRUNING_THRESHOLD {
-            mock_provider.add_session(i as u64);
+            mock_provider.add_session(i);
         }
 
         mock_notificator.last_finalized = 20;
@@ -603,7 +605,7 @@ mod tests {
         for i in PRUNING_THRESHOLD + 1..=2 * PRUNING_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
-                Some(authority_data_for_session(i as u64)),
+                Some(authority_data_for_session(i)),
                 "Session {:?} should not be pruned",
                 i
             );
@@ -654,7 +656,7 @@ mod tests {
         let mock_notificator = MockNotificator::new(receiver);
 
         for i in 0..=2 * PRUNING_THRESHOLD {
-            mock_provider.add_session(i as u64);
+            mock_provider.add_session(i);
         }
 
         let updater = SessionMapUpdater::new(mock_provider, mock_notificator, SessionPeriod(1));
@@ -662,7 +664,7 @@ mod tests {
 
         let _handle = tokio::spawn(updater.run());
 
-        let mut blocks = n_new_blocks(&mut client, 2 * PRUNING_THRESHOLD as u64);
+        let mut blocks = n_new_blocks(&mut client, 2 * PRUNING_THRESHOLD);
 
         for block in blocks.drain(..PRUNING_THRESHOLD as usize) {
             sender.unbounded_send(to_notification(block)).unwrap();
@@ -674,7 +676,7 @@ mod tests {
         for i in 0..=PRUNING_THRESHOLD + 1 {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
-                Some(authority_data_for_session(i as u64)),
+                Some(authority_data_for_session(i)),
                 "Session {:?} should be available",
                 i
             );
@@ -707,7 +709,7 @@ mod tests {
         for i in PRUNING_THRESHOLD + 1..=21 {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
-                Some(authority_data_for_session(i as u64)),
+                Some(authority_data_for_session(i)),
                 "Session {:?} should be avalable",
                 i
             );
