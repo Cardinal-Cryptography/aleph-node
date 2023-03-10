@@ -1,15 +1,26 @@
+---
 name: unit-tests
 
 on:
   pull_request:
+    # all crates that are in cargo workspace should be listed here
     paths:
-      - aggregator/**
-      - bin/node/**
-      - bin/runtime/**
-      - finality-aleph/**
-      - pallets/**
-      - primitives/**
+      - 'aggregator/**'
+      - 'baby-liminal-extension/**'
+      - 'bin/node/**'
+      - 'bin/runtime/**'
+      - 'clique/**'
+      - 'finality-aleph/**'
+      - 'pallets/aleph/**'
+      - 'pallets/baby-liminal/**'
+      - 'pallets/elections/**'
+      - 'pallets/support/**'
+      - 'poseidon/**'
+      - 'primitives/**'
       - .github/workflows/unit_tests.yml
+  push:
+    branches:
+      - 'release-*'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -49,10 +60,10 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args:  --workspace --exclude finality-aleph --exclude aleph-node -- --no-deps -D warnings
+          args: --all-targets -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --features "try-runtime runtime-benchmarks" --workspace --exclude finality-aleph --exclude aleph-node
+          args: --lib --features "liminal-try-runtime liminal-runtime-benchmarks"

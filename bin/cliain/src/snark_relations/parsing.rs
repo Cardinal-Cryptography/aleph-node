@@ -4,8 +4,8 @@ use anyhow::{anyhow, Error, Result};
 use clap::ValueEnum;
 use liminal_ark_relations::{FrontendAccount, FrontendMerklePath, FrontendNote};
 
-use crate::{
-    snark_relations::systems::SomeProvingSystem, NonUniversalProvingSystem, UniversalProvingSystem,
+use crate::snark_relations::{
+    systems::SomeProvingSystem, NonUniversalProvingSystem, UniversalProvingSystem,
 };
 
 pub fn parse_frontend_note(frontend_note: &str) -> Result<FrontendNote> {
@@ -25,7 +25,12 @@ pub fn parse_frontend_merkle_path(frontend_merkle_path: &str) -> Result<Frontend
 }
 
 pub fn parse_frontend_account(frontend_account: &str) -> Result<FrontendAccount> {
-    Ok(frontend_account.as_bytes().try_into().unwrap())
+    Ok(frontend_account
+        .split(',')
+        .map(|x| u8::from_str(x).expect("Each element should be a valid `u8`"))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap())
 }
 
 pub fn parse_some_system(system: &str) -> Result<SomeProvingSystem> {
