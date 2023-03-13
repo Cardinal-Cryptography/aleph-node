@@ -1,5 +1,6 @@
 use std::{default::Default, sync::Arc};
 
+use aleph_primitives::BlockNumber;
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_api::BlockId;
@@ -9,10 +10,9 @@ use sp_runtime::{traits::Block as BlockT, Digest};
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
 use crate::{
-    testing::mocks::{TBlock, TBlockNumber, THeader, TestClient},
+    testing::mocks::{TBlock, THeader, TestClient},
     BlockHashNum,
 };
-
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
     pub client: Arc<TestClient>,
@@ -119,7 +119,7 @@ impl ClientChainBuilder {
         blocks
     }
 
-    pub fn get_header_at(&self, num: TBlockNumber) -> THeader {
+    pub fn get_header_at(&self, num: BlockNumber) -> THeader {
         self.client_builder
             .header(self.client_builder.hash(num).unwrap().unwrap())
             .unwrap()

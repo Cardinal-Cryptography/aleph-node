@@ -1,5 +1,6 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
+use aleph_primitives::BlockNumber;
 use futures::{
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -22,8 +23,8 @@ use crate::{
     testing::{
         client_chain_builder::ClientChainBuilder,
         mocks::{
-            aleph_data_from_blocks, aleph_data_from_headers, TBlock, TBlockNumber, THeader,
-            TestClientBuilder, TestClientBuilderExt,
+            aleph_data_from_blocks, aleph_data_from_headers, TBlock, THeader, TestClientBuilder,
+            TestClientBuilderExt,
         },
     },
     BlockHashNum, Recipient,
@@ -110,7 +111,7 @@ impl TestHandler {
         self.chain_builder.genesis_hash()
     }
 
-    fn get_header_at(&self, num: TBlockNumber) -> THeader {
+    fn get_header_at(&self, num: BlockNumber) -> THeader {
         self.chain_builder.get_header_at(num)
     }
 
@@ -530,7 +531,7 @@ async fn message_with_genesis_block_does_not_get_through() {
             let test_data: TestData = vec![aleph_data_from_headers(
                 (0..i)
                     .into_iter()
-                    .map(|num| test_handler.get_header_at(num as TBlockNumber))
+                    .map(|num| test_handler.get_header_at(num as BlockNumber))
                     .collect(),
             )];
             test_handler.send_data(test_data.clone());

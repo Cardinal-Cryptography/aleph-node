@@ -1,12 +1,12 @@
+use aleph_primitives::BlockNumber;
 use sp_blockchain::Error;
 use sp_runtime::{traits::Block, Justification};
 
 use crate::{
     finalization::BlockFinalizer,
-    testing::mocks::{single_action_mock::SingleActionMock, TBlock, TBlockNumber, THash},
+    testing::mocks::{single_action_mock::SingleActionMock, TBlock, THash},
 };
-
-type CallArgs = (THash, TBlockNumber, Option<Justification>);
+type CallArgs = (THash, BlockNumber, Option<Justification>);
 
 #[derive(Clone, Default)]
 pub struct MockedBlockFinalizer {
@@ -37,7 +37,7 @@ impl BlockFinalizer<TBlock> for MockedBlockFinalizer {
     fn finalize_block(
         &self,
         hash: THash,
-        block_number: TBlockNumber,
+        block_number: BlockNumber,
         justification: Option<Justification>,
     ) -> Result<(), Error> {
         self.mock.invoke_with((hash, block_number, justification));

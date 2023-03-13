@@ -13,9 +13,8 @@ use sp_runtime::traits::BlakeTwo256;
 use substrate_test_runtime::Extrinsic;
 
 type Hashing = BlakeTwo256;
-pub type TBlockNumber = BlockNumber;
 pub type TBlock = sp_runtime::generic::Block<THeader, Extrinsic>;
-pub type THeader = sp_runtime::generic::Header<TBlockNumber, Hashing>;
+pub type THeader = sp_runtime::generic::Header<BlockNumber, Hashing>;
 pub type THash = substrate_test_runtime::Hash;
 
 mod acceptance_policy;

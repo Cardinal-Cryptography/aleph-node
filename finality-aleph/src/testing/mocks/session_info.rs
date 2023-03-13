@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
 
+use aleph_primitives::BlockNumber;
+
 use crate::{
     justification::{AlephJustification, SessionInfo, SessionInfoProvider, Verifier},
     last_block_of_session, session_id_from_block_num,
-    testing::mocks::{AcceptancePolicy, TBlock, TBlockNumber, THash},
+    testing::mocks::{AcceptancePolicy, TBlock, THash},
     SessionPeriod,
 };
 
@@ -33,7 +35,7 @@ impl SessionInfoProviderImpl {
 
 #[async_trait::async_trait]
 impl SessionInfoProvider<TBlock, VerifierWrapper> for SessionInfoProviderImpl {
-    async fn for_block_num(&self, number: TBlockNumber) -> SessionInfo<TBlock, VerifierWrapper> {
+    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<TBlock, VerifierWrapper> {
         let current_session = session_id_from_block_num(number, self.session_period);
         SessionInfo {
             current_session,

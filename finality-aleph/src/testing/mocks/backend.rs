@@ -1,19 +1,19 @@
+use aleph_primitives::BlockNumber;
 use sp_api::BlockId;
 use sp_blockchain::Info;
 use sp_runtime::traits::Block;
 
 use crate::{
-    testing::mocks::{TBlock, TBlockNumber, THash, THeader},
+    testing::mocks::{TBlock, THash, THeader},
     BlockchainBackend,
 };
-
 #[derive(Clone)]
 pub struct Backend {
     blocks: Vec<TBlock>,
     next_block_to_finalize: TBlock,
 }
 
-pub fn create_block(parent_hash: THash, number: TBlockNumber) -> TBlock {
+pub fn create_block(parent_hash: THash, number: BlockNumber) -> TBlock {
     TBlock {
         header: THeader {
             parent_hash,
@@ -29,7 +29,7 @@ pub fn create_block(parent_hash: THash, number: TBlockNumber) -> TBlock {
 const GENESIS_HASH: [u8; 32] = [0u8; 32];
 
 impl Backend {
-    pub fn new(finalized_height: TBlockNumber) -> Self {
+    pub fn new(finalized_height: BlockNumber) -> Self {
         let mut blocks: Vec<TBlock> = vec![];
 
         for n in 1..=finalized_height {
@@ -102,7 +102,7 @@ impl BlockchainBackend<TBlock> for Backend {
             best_hash: self.next_block_to_finalize.hash(),
             best_number: self.next_block_to_finalize.header.number,
             finalized_hash: self.blocks.last().unwrap().hash(),
-            finalized_number: self.blocks.len() as TBlockNumber,
+            finalized_number: self.blocks.len() as BlockNumber,
             genesis_hash: GENESIS_HASH.into(),
             number_leaves: Default::default(),
             finalized_state: None,

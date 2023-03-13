@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::VecDeque, time::Duration};
 
+use aleph_primitives::BlockNumber;
 use futures::{
     channel::mpsc::{unbounded, UnboundedSender},
     Future,
@@ -13,14 +14,14 @@ use crate::{
     justification::{AlephJustification, JustificationHandler, JustificationHandlerConfig},
     testing::mocks::{
         create_block, AcceptancePolicy, Backend, JustificationRequestSchedulerImpl,
-        MockedBlockFinalizer, MockedBlockRequester, SessionInfoProviderImpl, TBlock, TBlockNumber,
+        MockedBlockFinalizer, MockedBlockRequester, SessionInfoProviderImpl, TBlock,
         VerifierWrapper,
     },
     JustificationNotification, SessionPeriod, SignatureSet,
 };
 
 const SESSION_PERIOD: SessionPeriod = SessionPeriod(5u32);
-const FINALIZED_HEIGHT: TBlockNumber = 22;
+const FINALIZED_HEIGHT: BlockNumber = 22;
 
 type TJustHandler = JustificationHandler<
     TBlock,
@@ -63,7 +64,7 @@ fn run_justification_handler(
 }
 
 fn prepare_env(
-    finalization_height: TBlockNumber,
+    finalization_height: BlockNumber,
     verification_policy: AcceptancePolicy,
     request_policy: AcceptancePolicy,
 ) -> Environment {

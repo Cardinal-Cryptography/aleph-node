@@ -364,6 +364,7 @@ where
 mod tests {
     use std::{sync::Mutex, time::Duration};
 
+    use aleph_primitives::BlockNumber;
     use futures_timer::Delay;
     use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::FinalizeSummary;
@@ -375,9 +376,7 @@ mod tests {
     use super::*;
     use crate::{
         session::testing::authority_data,
-        testing::mocks::{
-            TBlock, TBlockNumber, TestClient, TestClientBuilder, TestClientBuilderExt,
-        },
+        testing::mocks::{TBlock, TestClient, TestClientBuilder, TestClientBuilderExt},
     };
 
     struct MockProvider {
@@ -398,7 +397,7 @@ mod tests {
             }
         }
 
-        fn add_session(&mut self, session_id: TBlockNumber) {
+        fn add_session(&mut self, session_id: BlockNumber) {
             self.session_map
                 .insert(session_id, authority_data_for_session(session_id));
             self.next_session_map
@@ -437,7 +436,7 @@ mod tests {
         }
     }
 
-    fn n_new_blocks(client: &mut Arc<TestClient>, n: TBlockNumber) -> Vec<TBlock> {
+    fn n_new_blocks(client: &mut Arc<TestClient>, n: BlockNumber) -> Vec<TBlock> {
         (0..n)
             .map(|_| {
                 let block = client

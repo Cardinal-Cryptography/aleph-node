@@ -237,13 +237,13 @@ pub enum ProposalStatus<B: BlockT> {
 
 #[cfg(test)]
 mod tests {
+    use aleph_primitives::BlockNumber;
     use sp_core::hash::H256;
 
     use super::{UnvalidatedAlephProposal, ValidationError::*};
     use crate::{
-        data_io::MAX_DATA_BRANCH_LEN,
-        testing::mocks::{TBlock, TBlockNumber},
-        SessionBoundaries, SessionId, SessionPeriod,
+        data_io::MAX_DATA_BRANCH_LEN, testing::mocks::TBlock, SessionBoundaries, SessionId,
+        SessionPeriod,
     };
 
     #[test]
@@ -321,12 +321,12 @@ mod tests {
 
         let branch = vec![H256::default(); MAX_DATA_BRANCH_LEN];
         let proposal =
-            UnvalidatedAlephProposal::new(branch, (MAX_DATA_BRANCH_LEN + 1) as TBlockNumber);
+            UnvalidatedAlephProposal::new(branch, (MAX_DATA_BRANCH_LEN + 1) as BlockNumber);
         assert!(proposal.validate_bounds(&session_boundaries).is_ok());
 
         let branch = vec![H256::default(); 1];
         let proposal =
-            UnvalidatedAlephProposal::new(branch, (MAX_DATA_BRANCH_LEN + 1) as TBlockNumber);
+            UnvalidatedAlephProposal::new(branch, (MAX_DATA_BRANCH_LEN + 1) as BlockNumber);
         assert!(proposal.validate_bounds(&session_boundaries).is_ok());
     }
 }
