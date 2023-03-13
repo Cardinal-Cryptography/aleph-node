@@ -214,36 +214,42 @@ pub mod pallet {
             VerificationKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
                 // should never fail, since length is checked above
                 *value = Some(BoundedVec::try_from(key.clone()).unwrap());
-
                 Ok(())
             })?;
 
-            let previous_deposit = VerificationKeyDeposits::<T>::get((&who, &identifier))
-                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+            VerificationKeyDeposits::<T>::try_mutate_exists(
+                (&who, &identifier),
+                |maybe_previous_deposit| -> DispatchResult {
+                    let previous_deposit = maybe_previous_deposit
+                        .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
 
-            let deposit =
-                T::VerificationKeyDepositPerByte::get() * BalanceOf::<T>::from(key.len() as u32);
+                    let deposit = T::VerificationKeyDepositPerByte::get()
+                        * BalanceOf::<T>::from(key.len() as u32);
 
-            match deposit.cmp(&previous_deposit) {
-                Less => {
-                    // reimburse the prev - deposit difference
-                    // we know that the caller is the owner because we have checked that
-                    let difference = previous_deposit - deposit;
-                    T::Currency::unreserve(&who, difference);
-                }
-                Equal => {
-                    // do nothing
-                }
-                Greater => {
-                    // lock the difference deposit - prev
-                    let difference = deposit - previous_deposit;
-                    T::Currency::reserve(&who, difference)
-                        .map_err(|_| Error::<T>::CannotAffordDeposit)?;
-                }
-            };
+                    match deposit.cmp(&previous_deposit) {
+                        Less => {
+                            // reimburse the prev - deposit difference
+                            // we know that the caller is the owner because we have checked that
+                            let difference = previous_deposit - deposit;
+                            T::Currency::unreserve(&who, difference);
+                            *maybe_previous_deposit = Some(deposit);
+                        }
+                        Equal => {
+                            // do nothing
+                        }
+                        Greater => {
+                            // lock the difference deposit - prev
+                            let difference = deposit - previous_deposit;
+                            T::Currency::reserve(&who, difference)
+                                .map_err(|_| Error::<T>::CannotAffordDeposit)?;
+                            *maybe_previous_deposit = Some(deposit);
+                        }
+                    };
 
-            Self::deposit_event(Event::VerificationKeyOverwritten(identifier));
-            Ok(())
+                    Self::deposit_event(Event::VerificationKeyOverwritten(identifier));
+                    Ok(())
+                },
+            )
         }
 
         /// Verifies `proof` against `public_input` with a key that has been stored under
