@@ -18,7 +18,7 @@ use crate::{
     },
     mpsc,
     mpsc::UnboundedSender,
-    session::SessionInfo as SessionBoundInfo,
+    session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
     BlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
@@ -45,14 +45,14 @@ struct JustificationParams<B: Block, H: ExHashT, C, BB> {
 
 struct SessionInfoProviderImpl {
     session_authorities: ReadOnlySessionMap,
-    session_info: SessionBoundInfo,
+    session_info: SessionBoundaryInfo,
 }
 
 impl SessionInfoProviderImpl {
     fn new(session_authorities: ReadOnlySessionMap, session_period: SessionPeriod) -> Self {
         Self {
             session_authorities,
-            session_info: SessionBoundInfo::new(session_period),
+            session_info: SessionBoundaryInfo::new(session_period),
         }
     }
 }

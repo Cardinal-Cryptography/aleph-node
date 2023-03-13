@@ -39,18 +39,16 @@ fn session_id_from_block_num(num: BlockNumber, period: SessionPeriod) -> Session
     SessionId(num / period.0)
 }
 
-pub struct SessionInfo {
+pub struct SessionBoundaryInfo {
     session_period: SessionPeriod,
 }
 
-impl SessionInfo {
+/// Struct for getting the session boundaries.
+impl SessionBoundaryInfo {
     pub fn new(session_period: SessionPeriod) -> Self {
         Self { session_period }
     }
-}
 
-/// Struct for getting the session boundaries.
-impl SessionInfo {
     /// Returns session id of the session that block belongs to.
     pub fn session_id_from_block_num(&self, n: BlockNumber) -> SessionId {
         session_id_from_block_num(n, self.session_period)

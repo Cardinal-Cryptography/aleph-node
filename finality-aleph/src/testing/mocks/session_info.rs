@@ -4,7 +4,7 @@ use aleph_primitives::BlockNumber;
 
 use crate::{
     justification::{AlephJustification, SessionInfo, SessionInfoProvider, Verifier},
-    session::SessionInfo as SessionBoundInfo,
+    session::SessionBoundaryInfo as SessionBoundInfo,
     testing::mocks::{AcceptancePolicy, TBlock, THash},
     SessionPeriod,
 };

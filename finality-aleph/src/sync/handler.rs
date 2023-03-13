@@ -1,7 +1,7 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
 use crate::{
-    session::{SessionId, SessionInfo, SessionPeriod},
+    session::{SessionId, SessionBoundaryInfo, SessionPeriod},
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, Interest},
@@ -20,7 +20,7 @@ pub struct Handler<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<
     verifier: V,
     finalizer: F,
     forest: Forest<I, J>,
-    session_info: SessionInfo,
+    session_info: SessionBoundaryInfo,
 }
 
 /// What actions can the handler recommend as a reaction to some data.
@@ -116,7 +116,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
             verifier,
             finalizer,
             forest,
-            session_info: SessionInfo::new(period),
+            session_info: SessionBoundaryInfo::new(period),
         })
     }
 

@@ -7,7 +7,7 @@ use aleph_primitives::BlockNumber;
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    session::{SessionId, SessionInfo},
+    session::{SessionId, SessionBoundaryInfo},
     session_map::AuthorityProvider,
     sync::substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
     SessionPeriod,
@@ -56,7 +56,7 @@ where
     FI: FinalizationInfo,
 {
     sessions: HashMap<SessionId, SessionVerifier>,
-    session_info: SessionInfo,
+    session_info: SessionBoundaryInfo,
     finalization_info: FI,
     authority_provider: AP,
     cache_size: usize,
@@ -77,7 +77,7 @@ where
     ) -> Self {
         Self {
             sessions: HashMap::new(),
-            session_info: SessionInfo::new(session_period),
+            session_info: SessionBoundaryInfo::new(session_period),
             finalization_info,
             authority_provider,
             cache_size,
@@ -91,7 +91,7 @@ where
 fn download_session_verifier<AP: AuthorityProvider<BlockNumber>>(
     authority_provider: &AP,
     session_id: SessionId,
-    session_info: &SessionInfo,
+    session_info: &SessionBoundaryInfo,
 ) -> Option<SessionVerifier> {
     let maybe_authority_data = match session_id {
         SessionId(0) => authority_provider.authority_data(0),
@@ -176,7 +176,7 @@ mod tests {
         VerifierCache,
     };
     use crate::{
-        session::{testing::authority_data, SessionId, SessionInfo},
+        session::{testing::authority_data, SessionId, SessionBoundaryInfo},
         SessionPeriod,
     };
 
@@ -197,7 +197,7 @@ mod tests {
 
     struct MockAuthorityProvider {
         session_map: HashMap<SessionId, SessionAuthorityData>,
-        session_info: SessionInfo,
+        session_info: SessionBoundaryInfo,
     }
 
     fn authority_data_for_session(session_id: u32) -> SessionAuthorityData {
@@ -212,7 +212,7 @@ mod tests {
 
             Self {
                 session_map,
-                session_info: SessionInfo::new(SessionPeriod(SESSION_PERIOD)),
+                session_info: SessionBoundaryInfo::new(SessionPeriod(SESSION_PERIOD)),
             }
         }
     }

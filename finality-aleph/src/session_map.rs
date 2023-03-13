@@ -14,7 +14,7 @@ use tokio::sync::{
     RwLock,
 };
 
-use crate::{session::SessionInfo, ClientForAleph, SessionId, SessionPeriod};
+use crate::{session::SessionBoundaryInfo, ClientForAleph, SessionId, SessionPeriod};
 
 const PRUNING_THRESHOLD: u32 = 10;
 type SessionMap = HashMap<SessionId, SessionAuthorityData>;
@@ -241,7 +241,7 @@ where
     session_map: SharedSessionMap,
     authority_provider: AP,
     finality_notificator: FN,
-    session_info: SessionInfo,
+    session_info: SessionBoundaryInfo,
     _phantom: PhantomData<B>,
 }
 
@@ -257,7 +257,7 @@ where
             session_map: SharedSessionMap::new(),
             authority_provider,
             finality_notificator,
-            session_info: SessionInfo::new(period),
+            session_info: SessionBoundaryInfo::new(period),
             _phantom: PhantomData,
         }
     }

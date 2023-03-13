@@ -9,7 +9,7 @@ use crate::{
         manager::{Handle, SubtaskCommon as AuthoritySubtaskCommon, Task},
         traits::{ChainState, NodeSessionManager, SyncState},
     },
-    session::SessionInfo,
+    session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     SessionId,
 };
@@ -28,7 +28,7 @@ pub(crate) struct ConsensusPartyParams<ST, CS, NSM> {
     pub sync_state: ST,
     pub backup_saving_path: Option<PathBuf>,
     pub session_manager: NSM,
-    pub session_info: SessionInfo,
+    pub session_info: SessionBoundaryInfo,
 }
 
 pub(crate) struct ConsensusParty<ST, CS, NSM>
@@ -42,7 +42,7 @@ where
     sync_state: ST,
     backup_saving_path: Option<PathBuf>,
     session_manager: NSM,
-    session_info: SessionInfo,
+    session_info: SessionBoundaryInfo,
 }
 
 const SESSION_STATUS_CHECK_PERIOD: Duration = Duration::from_millis(1000);
@@ -271,7 +271,7 @@ mod tests {
             mocks::{MockChainState, MockNodeSessionManager, MockSyncState},
             ConsensusParty, ConsensusPartyParams, SESSION_STATUS_CHECK_PERIOD,
         },
-        session::SessionInfo,
+        session::SessionBoundaryInfo,
         session_map::SharedSessionMap,
         SessionId, SessionPeriod,
     };
@@ -509,7 +509,7 @@ mod tests {
         let chain_state = Arc::new(MockChainState::new());
         let sync_state = Arc::new(MockSyncState::new());
         let session_manager = Arc::new(MockNodeSessionManager::new());
-        let session_info = SessionInfo::new(session_period);
+        let session_info = SessionBoundaryInfo::new(session_period);
 
         let controller = MockController {
             shared_session_map: shared_map,
