@@ -1,4 +1,4 @@
-use frame_support::{assert_err, assert_ok, sp_runtime, BoundedVec};
+use frame_support::{assert_err, assert_ok, sp_runtime, traits::ReservableCurrency, BoundedVec};
 use frame_system::{pallet_prelude::OriginFor, Config};
 use sp_runtime::traits::Get;
 
@@ -33,12 +33,21 @@ fn not_owner() -> OriginFor<TestRuntime> {
     <TestRuntime as Config>::RuntimeOrigin::signed(2)
 }
 
-fn put_key() {
+fn reserved_balance(account_id: u128) -> u64 {
+    <TestRuntime as crate::Config>::Currency::reserved_balance(&account_id)
+}
+
+fn put_key() -> u64 {
     let owner = 1;
-    let deposit = 0;
-    VerificationKeys::<TestRuntime>::insert(IDENTIFIER, BoundedVec::try_from(vk()).unwrap());
+    let key = vk();
+    let per_byte_fee: u64 = <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
+    let deposit = key.len() as u64 * per_byte_fee;
+    VerificationKeys::<TestRuntime>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
     VerificationKeyOwners::<TestRuntime>::insert(IDENTIFIER, owner);
     VerificationKeyDeposits::<TestRuntime>::insert((owner, IDENTIFIER), deposit);
+    <TestRuntime as crate::Config>::Currency::reserve(&owner, deposit)
+        .expect("Could not reserve a deposit");
+    deposit
 }
 
 #[test]
@@ -99,6 +108,22 @@ fn owner_can_overwrite_key() {
     new_test_ext().execute_with(|| {
         put_key();
         assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, vk()));
+    });
+}
+
+#[test]
+fn key_deposits() {
+    new_test_ext().execute_with(|| {
+        let reserved_balance_before = reserved_balance(1);
+        let deposit = put_key();
+        let reserved_balance_after = reserved_balance(1);
+
+        assert_eq!(reserved_balance_after - reserved_balance_before, deposit);
+        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, vk()));
+
+        assert_eq!(reserved_balance_after, reserved_balance(1));
+        assert_ok!(BabyLiminal::delete_key(owner(), IDENTIFIER));
+        assert_eq!(reserved_balance_before, reserved_balance(1));
     });
 }
 
