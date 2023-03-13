@@ -33,7 +33,10 @@ pub mod pallet {
         dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
     };
     use frame_system::pallet_prelude::OriginFor;
-    use sp_std::prelude::Vec;
+    use sp_std::{
+        cmp::Ordering::{Equal, Greater, Less},
+        prelude::Vec,
+    };
 
     use super::*;
     use crate::systems::{Gm17, Groth16, Marlin, VerificationError, VerifyingSystem};
@@ -71,9 +74,8 @@ pub mod pallet {
         UnknownVerificationKeyIdentifier,
         /// Provided verification key is longer than `MaximumVerificationKeyLength` limit.
         VerificationKeyTooLong,
-        /// When you override a key new key stored must be of the same size in bytes
-        NewKeyMustHaveSameLength,
-
+        // /// When you override a key new key stored must be of the same size in bytes
+        // NewKeyMustHaveSameLength,
         /// Either proof or public input is longer than `MaximumDataLength` limit.
         DataTooLong,
         /// Couldn't deserialize proof.
@@ -188,6 +190,8 @@ pub mod pallet {
         ///
         /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
         /// Can only be called by the original owner of the key.
+        /// It will require the caller to lock up additional funds (if the new key occipies more storage)
+        /// or reimburse the difference if it is shorter in it's byte-length.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
         pub fn overwrite_key(
@@ -197,17 +201,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
             let owner = VerificationKeyOwners::<T>::get(identifier);
-            let previous_key = VerificationKeys::<T>::get(identifier);
 
             if let Some(owner) = owner {
                 ensure!(who == owner, Error::<T>::NotOwner)
-            };
-
-            if let Some(previous) = previous_key {
-                ensure!(
-                    previous.len() == key.len(),
-                    Error::<T>::NewKeyMustHaveSameLength
-                )
             };
 
             ensure!(
@@ -217,10 +213,35 @@ pub mod pallet {
 
             VerificationKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
                 // should never fail, since length is checked above
-                *value = Some(BoundedVec::try_from(key).unwrap());
+                *value = Some(BoundedVec::try_from(key.clone()).unwrap());
 
                 Ok(())
             })?;
+
+            // TODO : reimburse or lock additional funds
+            let previous_deposit = VerificationKeyDeposits::<T>::get((&who, &identifier))
+                .unwrap_or_else(|| 0u32.into());
+
+            let deposit =
+                T::VerificationKeyDepositPerByte::get() * BalanceOf::<T>::from(key.len() as u32);
+
+            match deposit.cmp(&previous_deposit) {
+                Less => {
+                    // reimburse the prev - deposit difference
+                    // we know that the caller is the owner because we have checked that
+                    let difference = previous_deposit - deposit;
+                    T::Currency::unreserve(&who, difference);
+                }
+                Equal => {
+                    // do nothing
+                }
+                Greater => {
+                    // lock the difference deposit - prev
+                    let difference = deposit - previous_deposit;
+                    T::Currency::reserve(&who, difference)
+                        .map_err(|_| Error::<T>::CannotAffordDeposit)?;
+                }
+            };
 
             Self::deposit_event(Event::VerificationKeyOverwritten(identifier));
             Ok(())
