@@ -59,6 +59,7 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
           packages="${{ steps.format_output.outputs.packages }}"
+          packages="${packages//'%0A'/$'\n'}"
           for p in ${packages[@]}
           do
             # skip checking the contracts for now
