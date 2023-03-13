@@ -77,7 +77,7 @@ impl pallet_baby_liminal::Config for TestRuntime {
     type Currency = Balances;
     type MaximumVerificationKeyLength = ConstU32<10_000>;
     type MaximumDataLength = ConstU32<10_000>;
-    type VerificationKeyDepositPerByte = ConstU64<0>;
+    type VerificationKeyDepositPerByte = ConstU64<10>;
 }
 
 pub fn new_test_ext() -> TestExternalities {
@@ -86,7 +86,7 @@ pub fn new_test_ext() -> TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<TestRuntime> {
-        balances: vec![(100, 1000), (200, 1000)],
+        balances: vec![(1, 1000000), (2, 1000000)],
     }
     .assimilate_storage(&mut t)
     .unwrap();

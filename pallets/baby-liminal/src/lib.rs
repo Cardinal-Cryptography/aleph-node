@@ -9,6 +9,7 @@ mod tests;
 mod weights;
 
 use frame_support::{
+    fail,
     pallet_prelude::StorageVersion,
     traits::{Currency, ReservableCurrency},
 };
@@ -188,7 +189,7 @@ pub mod pallet {
         ///
         /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
         /// Can only be called by the original owner of the key.
-        /// It will require the caller to lock up additional funds (if the new key occipies more storage)
+        /// It will require the caller to lock up additional funds (if the new key occupies more storage)
         /// or reimburse the difference if it is shorter in it's byte-length.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
@@ -200,8 +201,10 @@ pub mod pallet {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
             let owner = VerificationKeyOwners::<T>::get(identifier);
 
-            if let Some(owner) = owner {
-                ensure!(who == owner, Error::<T>::NotOwner)
+            match owner {
+                Some(owner) => ensure!(who == owner, Error::<T>::NotOwner),
+                // every key should have an owner therefore error is meaningful here
+                None => fail!(Error::<T>::UnknownVerificationKeyIdentifier),
             };
 
             ensure!(
@@ -217,7 +220,7 @@ pub mod pallet {
             })?;
 
             let previous_deposit = VerificationKeyDeposits::<T>::get((&who, &identifier))
-                .unwrap_or_else(|| 0u32.into());
+                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
 
             let deposit =
                 T::VerificationKeyDepositPerByte::get() * BalanceOf::<T>::from(key.len() as u32);
