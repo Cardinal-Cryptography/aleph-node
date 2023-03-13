@@ -203,7 +203,6 @@ pub mod pallet {
 
             match owner {
                 Some(owner) => ensure!(who == owner, Error::<T>::NotOwner),
-                // every key should have an owner therefore error is meaningful here
                 None => fail!(Error::<T>::UnknownVerificationKeyIdentifier),
             };
 
