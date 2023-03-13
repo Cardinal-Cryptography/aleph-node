@@ -1,3 +1,4 @@
+---
 name: contracts-e2e-tests-and-deploy
 
 on:
@@ -17,7 +18,11 @@ env:
 jobs:
   build_and_deploy_contracts:
     name: Deploy contracts on feature environment
-    if: (github.event_name == 'push' && github.ref_name == 'benjamin') || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    if: >
+      (github.event_name == 'push' && github.ref_name == 'benjamin') ||
+      (github.event_name == 'pull_request' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
@@ -26,7 +31,8 @@ jobs:
       - name: Check if environment is reachable
         shell: bash
         run: |
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
+          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && \
+          HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
       - name: Get branch name and commit SHA
         id: get_branch
@@ -50,11 +56,14 @@ jobs:
 
       - name: Install binaryen
         shell: bash
+        # yamllint disable rule:line-length
         run: |
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz \
+            -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
           tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
           sudo chmod +x /tmp/binaryen-version_110/bin/*
           sudo cp -rf /tmp/binaryen-version_110/* /usr/
+        # yamllint enable rule:line-length
 
       - name: Install node
         uses: actions/setup-node@v3
@@ -98,8 +107,10 @@ jobs:
 
       - name: Copy addresses.json file from S3 bucket
         shell: bash
+        # yamllint disable rule:line-length
         run: |
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+        # yamllint enable rule:line-length
 
       - name: Copy metadata.json files from S3 bucket
         shell: bash
@@ -107,7 +118,8 @@ jobs:
           DOWNLOAD_TMP_DIR: downloaded_metadata
         run: |
           mkdir -p $DOWNLOAD_TMP_DIR
-          aws s3 sync --exclude '*' --include '*metadata.json' s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/ ./$DOWNLOAD_TMP_DIR/
+          aws s3 sync --exclude '*' --include '*metadata.json' \
+            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/ ./$DOWNLOAD_TMP_DIR/
           for i in `find $DOWNLOAD_TMP_DIR -name "metadata.json" | awk -F/ '{print $2}'`; do \
             mkdir -p contracts/$i/target/ink; \
             cp $DOWNLOAD_TMP_DIR/$i/metadata.json contracts/$i/target/ink/metadata.json; \
@@ -128,25 +140,30 @@ jobs:
       - name: Copy metadata.json and addresses.json files onto S3 bucket
         shell: bash
         run: |
-          aws s3 cp contracts/addresses.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          aws s3 cp contracts/addresses.json \
+            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
 
           for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+            aws s3 cp contracts/"$i"/target/ink/metadata.json \
+              s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
           done
 
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
 
-          aws s3 cp commit_sha.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+          aws s3 cp commit_sha.txt \
+            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
-          aws s3 cp env_NODE.txt s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
+          aws s3 cp env_NODE.txt \
+            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
 
       - name: Rename metadata and addresses JSON files to artifact upload
         shell: bash
         run: |
           cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
           for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            cp contracts/"$i"/target/ink/metadata.json metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
+            cp contracts/"$i"/target/ink/metadata.json \
+              metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
           done
 
       - name: Upload artifact with contract addresses
@@ -167,7 +184,9 @@ jobs:
 
       - name: Remove deploy label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
-        if: github.event_name == 'pull_request' && contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
+        if: >
+          github.event_name == 'pull_request' &&
+            contains( github.event.pull_request.labels.*.name, '[AZERO] DEPLOY-CONTRACTS')
         with:
           labels: '[AZERO] DEPLOY-CONTRACTS'
           github_token: ${{ secrets.CI_GH_TOKEN }}

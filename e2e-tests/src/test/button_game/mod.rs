@@ -472,7 +472,7 @@ async fn button_game_play<F: Fn(u128, u128)>(
     );
 
     info!("Waiting before pressing again");
-    sleep(Duration::from_secs(5)).await;
+    sleep(Duration::from_secs(10)).await;
 
     button.press(&sign(&conn, player)).await?;
     let event = assert_recv_id(&mut events, "ButtonPressed").await;
