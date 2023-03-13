@@ -216,7 +216,6 @@ pub mod pallet {
                 Ok(())
             })?;
 
-            // TODO : reimburse or lock additional funds
             let previous_deposit = VerificationKeyDeposits::<T>::get((&who, &identifier))
                 .unwrap_or_else(|| 0u32.into());
 
