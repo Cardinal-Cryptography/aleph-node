@@ -50,8 +50,8 @@ jobs:
           packages="${packages//$'\n'/'%0A'}"
           targets="${targets//$'\n'/'%0A'}"
 
-          echo "::set-output name=packages::$packages"
-          echo "::set-output name=targets::$targets"
+          echo "packages=$packages" >> $GITHUB_OUTPUT
+          echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check excluded packages
         env:
