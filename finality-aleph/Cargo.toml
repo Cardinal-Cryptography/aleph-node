@@ -23,7 +23,7 @@ async-trait = "0.1"
 bytes = "1.0"
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 derive_more = "0.99"
-env_logger = "0.9"
+env_logger = "0.10"
 futures = "0.3"
 futures-timer = "3.0"
 hash-db = { version = "0.15.2", default-features = false }
@@ -58,7 +58,9 @@ sp-io = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch
 [dev-dependencies]
 substrate-test-runtime-client = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 substrate-test-runtime = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
+substrate-test-client = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 sc-block-builder = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
+aleph-runtime = { path = "../bin/runtime" }
 
 [features]
 only_legacy = []
