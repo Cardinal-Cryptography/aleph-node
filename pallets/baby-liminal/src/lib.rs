@@ -74,8 +74,6 @@ pub mod pallet {
         UnknownVerificationKeyIdentifier,
         /// Provided verification key is longer than `MaximumVerificationKeyLength` limit.
         VerificationKeyTooLong,
-        // /// When you override a key new key stored must be of the same size in bytes
-        // NewKeyMustHaveSameLength,
         /// Either proof or public input is longer than `MaximumDataLength` limit.
         DataTooLong,
         /// Couldn't deserialize proof.
