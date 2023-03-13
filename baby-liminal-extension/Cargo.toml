@@ -49,4 +49,3 @@ ink-as-dependency = []
 [[test]]
 name = "substrate"
 path = "tests/substrate.rs"
-required-features = ["substrate-std"]
