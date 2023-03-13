@@ -40,6 +40,7 @@ benchmarks! {
     overwrite_key {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
         let key = vec![0u8; l as usize];
+        let _ = insert_key::<T>(key);
     } : _(caller::<T>(), IDENTIFIER, key)
 
     delete_key {
