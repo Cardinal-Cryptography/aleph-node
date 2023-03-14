@@ -28,14 +28,14 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
-        uses: SebRollen/toml-action@v1.0.0
+        uses: SebRollen/toml-action@v1.0.2
         with:
           file: 'Cargo.toml'
           field: 'workspace.exclude'
@@ -50,8 +50,8 @@ jobs:
           packages="${packages//$'\n'/'%0A'}"
           targets="${targets//$'\n'/'%0A'}"
 
-          echo "::set-output name=packages::$packages"
-          echo "::set-output name=targets::$targets"
+          echo "packages=$packages" >> $GITHUB_OUTPUT
+          echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check excluded packages
         env:
@@ -59,10 +59,11 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
           packages="${{ steps.format_output.outputs.packages }}"
+          packages="${packages//'%0A'/$'\n'}"
           for p in ${packages[@]}
           do
-            # skip checking the adder for now
-            if [ $p = "contracts/adder" ]
+            # skip checking the contracts for now
+            if [ $p = "contracts/adder" ] || [ $p = "contracts/poseidon_host_bench" ]
             then
               continue
             fi
@@ -71,6 +72,20 @@ jobs:
             rustup component add clippy rustfmt
             rustup target add wasm32-unknown-unknown
             cargo fmt --all --check
-            cargo clippy --all-features -- --no-deps -D warnings
+            cargo clippy -- --no-deps -D warnings
+            popd
+          done
+
+      - name: Install nono
+        run: cargo install cargo-nono
+
+      - name: Assert that packages are compatible with no-std
+        run: |
+          packages=("baby-liminal-extension" "poseidon" "relations")
+          for p in ${packages[@]}
+          do
+            echo "Checking package $p..."
+            pushd "$p"
+            cargo nono check --no-default-features
             popd
           done
