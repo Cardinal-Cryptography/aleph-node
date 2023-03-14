@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         runtime: [standard, liminal]
-      fail-fast: false
+      fail-fast: true
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
