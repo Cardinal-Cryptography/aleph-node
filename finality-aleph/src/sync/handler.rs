@@ -4,7 +4,7 @@ use crate::{
     session::{last_block_of_session, session_id_from_block_num, SessionId, SessionPeriod},
     sync::{
         data::{NetworkData, Request, State},
-        forest::{Error as ForestError, Forest, Interest},
+        forest::{Error as ForestError, Forest, Interest, MAX_DEPTH as MAX_FOREST_DEPTH},
         BlockIdFor, BlockIdentifier, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
@@ -95,6 +95,32 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
+/// TODO: Remove after completing the sync rewrite.
+fn fresh_forest<
+    I: PeerId,
+    J: Justification,
+    CS: ChainStatus<J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+>(
+    chain_status: &CS,
+) -> Result<Forest<I, J>, Error<J, CS, V, F>> {
+    let top_finalized = chain_status
+        .top_finalized()
+        .map_err(Error::ChainStatus)?
+        .header()
+        .id();
+    let max_number = &(top_finalized.number() + MAX_FOREST_DEPTH);
+    let mut forest = Forest::new(top_finalized);
+    for header in chain_status
+        .non_finalized(max_number)
+        .map_err(Error::ChainStatus)?
+    {
+        forest.update_body(&header)?;
+    }
+    Ok(forest)
+}
+
 impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
     Handler<I, J, CS, V, F>
 {
@@ -105,12 +131,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         finalizer: F,
         period: SessionPeriod,
     ) -> Result<Self, Error<J, CS, V, F>> {
-        let top_finalized = chain_status
-            .top_finalized()
-            .map_err(Error::ChainStatus)?
-            .header()
-            .id();
-        let forest = Forest::new(top_finalized);
+        let forest = fresh_forest(&chain_status)?;
         Ok(Handler {
             chain_status,
             verifier,
@@ -118,6 +139,12 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
             forest,
             period,
         })
+    }
+
+    /// TODO: Remove after completing the sync rewrite.
+    pub fn refresh_forest(&mut self) -> Result<(), Error<J, CS, V, F>> {
+        self.forest = fresh_forest(&self.chain_status)?;
+        Ok(())
     }
 
     fn try_finalize(&mut self) -> Result<(), Error<J, CS, V, F>> {

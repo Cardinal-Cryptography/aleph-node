@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::sync::{
     mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
-    BlockIdentifier, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
+    BlockIdentifier, BlockNumber, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
     Justification as JustificationT,
 };
 
@@ -291,5 +291,9 @@ impl ChainStatus<MockJustification> for Backend {
             .get(&id)
             .and_then(|b| b.justification.clone())
             .ok_or(StatusError)
+    }
+
+    fn non_finalized(&self, _max_number: &BlockNumber) -> Result<Vec<MockHeader>, Self::Error> {
+        Ok(Vec::new())
     }
 }

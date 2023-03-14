@@ -3,6 +3,7 @@ use std::{
     hash::Hash,
 };
 
+use aleph_primitives::BlockNumber;
 use codec::Codec;
 
 mod data;
@@ -129,4 +130,8 @@ pub trait ChainStatus<J: Justification> {
 
     /// The justification of the top finalized block.
     fn top_finalized(&self) -> Result<J, Self::Error>;
+
+    /// List of all imported blocks that are above the top finalized block.
+    /// The list MUST be sorted by block number, the order of forks does not matter.
+    fn non_finalized(&self, max_number: &BlockNumber) -> Result<Vec<J::Header>, Self::Error>;
 }
