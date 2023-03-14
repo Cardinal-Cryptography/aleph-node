@@ -1,7 +1,7 @@
 ---
+#  This workflow builds production version of aleph-node and aleph-runtime, ie with some
+#  features enabled. Those binaries MUST be used in the production.
 name: Build aleph-node and aleph-runtime
-description: This workflow builds production version of aleph-node and aleph-runtime, ie with some
-             features enabled. Those binaries MUST be used in the production.
 on:
   workflow_call:
 
