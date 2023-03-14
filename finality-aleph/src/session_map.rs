@@ -22,9 +22,9 @@ type SessionSubscribers = HashMap<SessionId, Vec<OneShotSender<SessionAuthorityD
 
 pub trait AuthorityProvider<N> {
     /// returns authority data for block
-    fn authority_data(&self, block: N) -> Option<SessionAuthorityData>;
+    fn authority_data(&self, block_number: N) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
-    fn next_authority_data(&self, block: N) -> Option<SessionAuthorityData>;
+    fn next_authority_data(&self, block_number: N) -> Option<SessionAuthorityData>;
 }
 
 /// Default implementation of authority provider trait.
@@ -64,34 +64,34 @@ where
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
 {
-    fn authority_data(&self, num: NumberFor<B>) -> Option<SessionAuthorityData> {
+    fn authority_data(&self, block_number: NumberFor<B>) -> Option<SessionAuthorityData> {
         match self
             .client
             .runtime_api()
-            .authority_data(&BlockId::Number(num))
+            .authority_data(&BlockId::Number(block_number))
         {
             Ok(data) => Some(data),
             Err(_) => self
                 .client
                 .runtime_api()
-                .authorities(&BlockId::Number(num))
+                .authorities(&BlockId::Number(block_number))
                 .map(|authorities| SessionAuthorityData::new(authorities, None))
                 .ok(),
         }
     }
 
-    fn next_authority_data(&self, num: NumberFor<B>) -> Option<SessionAuthorityData> {
+    fn next_authority_data(&self, block_number: NumberFor<B>) -> Option<SessionAuthorityData> {
         match self
             .client
             .runtime_api()
-            .next_session_authority_data(&BlockId::Number(num))
+            .next_session_authority_data(&BlockId::Number(block_number))
             .map(|r| r.ok())
         {
             Ok(maybe_data) => maybe_data,
             Err(_) => self
                 .client
                 .runtime_api()
-                .next_session_authorities(&BlockId::Number(num))
+                .next_session_authorities(&BlockId::Number(block_number))
                 .map(|r| {
                     r.map(|authorities| SessionAuthorityData::new(authorities, None))
                         .ok()
@@ -418,12 +418,12 @@ mod tests {
     }
 
     impl AuthorityProvider<BlockNumber> for MockProvider {
-        fn authority_data(&self, b: BlockNumber) -> Option<SessionAuthorityData> {
-            self.session_map.get(&b).cloned()
+        fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
+            self.session_map.get(&block_number).cloned()
         }
 
-        fn next_authority_data(&self, b: BlockNumber) -> Option<SessionAuthorityData> {
-            self.next_session_map.get(&b).cloned()
+        fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
+            self.next_session_map.get(&block_number).cloned()
         }
     }
 

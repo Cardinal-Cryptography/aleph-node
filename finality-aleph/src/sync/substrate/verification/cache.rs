@@ -7,7 +7,7 @@ use aleph_primitives::BlockNumber;
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    session::{SessionId, SessionBoundaryInfo},
+    session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
     SessionPeriod,
@@ -176,7 +176,7 @@ mod tests {
         VerifierCache,
     };
     use crate::{
-        session::{testing::authority_data, SessionId, SessionBoundaryInfo},
+        session::{testing::authority_data, SessionBoundaryInfo, SessionId},
         SessionPeriod,
     };
 
@@ -218,16 +218,16 @@ mod tests {
     }
 
     impl AuthorityProvider<BlockNumber> for MockAuthorityProvider {
-        fn authority_data(&self, block: BlockNumber) -> Option<SessionAuthorityData> {
+        fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.session_map
-                .get(&self.session_info.session_id_from_block_num(block))
+                .get(&self.session_info.session_id_from_block_num(block_number))
                 .cloned()
         }
 
-        fn next_authority_data(&self, block: BlockNumber) -> Option<SessionAuthorityData> {
+        fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.session_map
                 .get(&SessionId(
-                    self.session_info.session_id_from_block_num(block).0 + 1,
+                    self.session_info.session_id_from_block_num(block_number).0 + 1,
                 ))
                 .cloned()
         }
