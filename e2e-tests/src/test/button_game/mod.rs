@@ -349,20 +349,9 @@ pub async fn button_game_reset() -> Result<()> {
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
 
-    let _ = assert_recv(
-        &mut events,
-        |event| {
-            event.contract == button.as_ref().into() && event.name == Some("GameReset".to_string())
-        },
-        "GameReset event",
-    );
-    let _ = assert_recv(
-        &mut events,
-        |event| {
-            event.contract == marketplace.as_ref().into() && event.name == Some("Reset".to_string())
-        },
-        "Marketplace Reset event",
-    );
+    assert_recv_id(&mut events, "GameReset").await;
+    assert_recv_id(&mut events, "Reset").await;
+
     let deadline_new = button.deadline(&conn).await?;
     assert!(deadline_new > deadline_old);
     assert!(
@@ -449,6 +438,8 @@ async fn button_game_play<F: Fn(u128, u128)>(
         .await?;
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
+    let event = assert_recv_id(&mut events, "GameReset").await;
+    let_assert!(Some(&Value::UInt(reset_at)) = event.data.get("when"));
     let old_button_balance = ticket_token
         .balance_of(&conn, &button.as_ref().into())
         .await?;
@@ -470,9 +461,11 @@ async fn button_game_play<F: Fn(u128, u128)>(
             .await?
             == old_button_balance + 1
     );
+    let_assert!(Some(&Value::UInt(pressed_at)) = event.data.get("when"));
+    let time_to_sleep = pressed_at - reset_at + 3;
 
-    info!("Waiting before pressing again");
-    sleep(Duration::from_secs(10)).await;
+    info!("Waiting {} seconds before pressing again", time_to_sleep);
+    sleep(Duration::from_secs(time_to_sleep as u64)).await;
 
     button.press(&sign(&conn, player)).await?;
     let event = assert_recv_id(&mut events, "ButtonPressed").await;
