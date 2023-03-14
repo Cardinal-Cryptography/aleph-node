@@ -43,7 +43,7 @@ jobs:
       - name: Call action get-ref-properties
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
-          
+
       - name: Login to ECR
         uses: docker/login-action@v2
         with:
