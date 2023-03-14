@@ -86,7 +86,11 @@ pub fn new_test_ext() -> TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<TestRuntime> {
-        balances: vec![(1, 1000000), (2, 1000000)],
+        balances: vec![
+            (1, 1000000),
+            (2, 1000000),
+            (201078993247613318810609354531638512790, 1000000), // seed 41 for benches
+        ],
     }
     .assimilate_storage(&mut t)
     .unwrap();
