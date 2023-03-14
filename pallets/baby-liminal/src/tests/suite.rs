@@ -37,6 +37,10 @@ fn reserved_balance(account_id: u128) -> u64 {
     <TestRuntime as crate::Config>::Currency::reserved_balance(&account_id)
 }
 
+fn free_balance(account_id: u128) -> u64 {
+    <TestRuntime as crate::Config>::Currency::free_balance(&account_id)
+}
+
 fn put_key() -> u64 {
     let owner = 1;
     let key = vk();
@@ -118,10 +122,20 @@ fn key_deposits() {
         let deposit = put_key();
         let reserved_balance_after = reserved_balance(1);
 
-        assert_eq!(reserved_balance_after - reserved_balance_before, deposit);
-        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, vk()));
+        assert_eq!(reserved_balance_before + deposit, reserved_balance_after);
 
-        assert_eq!(reserved_balance_after, reserved_balance(1));
+        let key_size = 1000;
+        let per_byte_fee: u64 =
+            <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
+        let long_key = vec![0u8; key_size];
+
+        let free_balance_before = free_balance(1);
+        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, long_key));
+        assert_eq!(
+            free_balance_before - free_balance(1),
+            (key_size as u64 * per_byte_fee) - deposit
+        );
+
         assert_ok!(BabyLiminal::delete_key(owner(), IDENTIFIER));
         assert_eq!(reserved_balance_before, reserved_balance(1));
     });
