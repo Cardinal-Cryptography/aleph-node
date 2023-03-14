@@ -26,7 +26,7 @@ jobs:
   build-test-docker:
     needs: [build-test-node]
     name: Build docker image with the test node artifact
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v3
@@ -506,64 +506,6 @@ jobs:
       - name: All e2e tests completed
         run: echo "All e2e tests completed."
 
-
-  push-image:
-    needs: [check-e2e-test-suite-completion]
-    name: Push node image to the ECR
-    if: github.event_name == 'push'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: GIT | Checkout Source code
-        uses: actions/checkout@v3
-
-      # get the release binary, build docker image
-      - name: Download release artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-release-node
-          path: target/release/
-
-      - name: Build docker image
-        id: build-image
-        run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Login to Public Amazon ECR
-        id: login-public-ecr
-        uses: docker/login-action@v2
-        with:
-          registry: public.ecr.aws
-          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-        env:
-          AWS_REGION: us-east-1
-
-      - name: GIT | Get branch info & current commit sha.
-        id: vars
-        shell: bash
-        run: |
-          echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Push aleph-node Current Image to Public ECR
-        env:
-          CURRENT_IMAGE: aleph-node
-          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
-        run: |
-          docker tag ${{ env.CURRENT_IMAGE }} \
-            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
-          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
-          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
-          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
-
   test-catch-up:
     name: Test catching up
     if: false
@@ -625,7 +567,7 @@ jobs:
   slack:
     name: Slack notification
     runs-on: ubuntu-20.04
-    needs: [push-image]
+    needs: [check-e2e-test-suite-completion]
     if: always()
     steps:
       - name: Checkout repository
