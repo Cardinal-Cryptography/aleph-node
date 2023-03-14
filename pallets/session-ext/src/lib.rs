@@ -22,6 +22,7 @@
 
 mod impls;
 mod manager;
+mod migration;
 mod traits;
 
 use codec::{Decode, Encode};
@@ -32,6 +33,7 @@ use primitives::{BanConfig as BanConfigStruct, BanInfo};
 use scale_info::TypeInfo;
 use sp_std::collections::btree_map::BTreeMap;
 pub use traits::*;
+pub use migration::PrefixMigration;
 
 pub type TotalReward = u32;
 #[derive(Decode, Encode, TypeInfo)]

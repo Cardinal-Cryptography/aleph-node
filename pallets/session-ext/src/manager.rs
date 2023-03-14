@@ -76,7 +76,6 @@ where
     }
 }
 
-
 /// SessionManager that also fires EraManager functions.
 /// The order of the calls are as follows:
 /// First call is always from AlephSessionManager then the call to EraManager fn if applicable.

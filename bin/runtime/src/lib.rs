@@ -378,8 +378,8 @@ impl pallet_elections::Config for Runtime {
 impl pallet_session_ext::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type BanHandler = Elections;
-    type ValidatorProvider = Elections;
     type EraInfoProvider = Staking;
+    type ValidatorProvider = Elections;
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
     type SessionPeriod = SessionPeriod;
@@ -415,7 +415,7 @@ parameter_types! {
 }
 
 use sp_runtime::traits::Convert;
-use pallet_session_ext::SessionManagerExt;
+use pallet_session_ext::{PrefixMigration, SessionManagerExt};
 
 pub struct BalanceToU256;
 
@@ -792,6 +792,7 @@ construct_runtime!(
         SessionExt: pallet_session_ext,
     }
 );
+
 #[cfg(feature = "liminal")]
 construct_runtime!(
     pub enum Runtime where
