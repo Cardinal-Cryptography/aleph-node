@@ -118,26 +118,38 @@ fn owner_can_overwrite_key() {
 #[test]
 fn key_deposits() {
     new_test_ext().execute_with(|| {
-        let reserved_balance_before = reserved_balance(1);
+        let per_byte_fee: u64 =
+            <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
+
+        let reserved_balance_begin = reserved_balance(1);
         let deposit = put_key();
         let reserved_balance_after = reserved_balance(1);
 
-        assert_eq!(reserved_balance_before + deposit, reserved_balance_after);
+        assert_eq!(reserved_balance_begin + deposit, reserved_balance_after);
 
-        let key_size = 1000;
-        let per_byte_fee: u64 =
-            <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
-        let long_key = vec![0u8; key_size];
+        let long_key_size = 2 * vk().len();
+        let long_key = vec![0u8; long_key_size];
 
         let free_balance_before = free_balance(1);
         assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, long_key));
         assert_eq!(
             free_balance_before - free_balance(1),
-            (key_size as u64 * per_byte_fee) - deposit
+            (long_key_size as u64 * per_byte_fee) - deposit
+        );
+
+        let short_key_size = vk().len() / 2;
+        let short_key = vec![0u8; short_key_size];
+
+        let reserved_balance_before = reserved_balance(1);
+        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, short_key));
+        let reserved_balance_after = reserved_balance(1);
+        assert_eq!(
+            reserved_balance_before - reserved_balance_after,
+            ((long_key_size - short_key_size) as u64 * per_byte_fee)
         );
 
         assert_ok!(BabyLiminal::delete_key(owner(), IDENTIFIER));
-        assert_eq!(reserved_balance_before, reserved_balance(1));
+        assert_eq!(reserved_balance_begin, reserved_balance(1));
     });
 }
 
