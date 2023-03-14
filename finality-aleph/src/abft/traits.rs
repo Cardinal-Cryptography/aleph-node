@@ -4,6 +4,7 @@ use std::{cmp::Ordering, fmt::Debug, hash::Hash as StdHash, marker::PhantomData,
 
 use codec::{Codec, Decode, Encode};
 use futures::{channel::oneshot, Future, TryFutureExt};
+use network_clique::SpawnHandleT;
 use sc_service::SpawnTaskHandle;
 use sp_api::BlockT;
 use sp_blockchain::HeaderBackend;
@@ -108,7 +109,7 @@ impl<H: SpHash> legacy_aleph_bft::Hasher for Wrapper<H> {
 
 /// A wrapper for spawning tasks in a way compatible with AlephBFT.
 #[derive(Clone)]
-pub struct SpawnHandle(SpawnTaskHandle);
+pub struct SpawnHandle(pub SpawnTaskHandle);
 
 impl SpawnHandle {
     pub fn spawn_essential_with_result(
@@ -138,19 +139,6 @@ impl From<SpawnTaskHandle> for SpawnHandle {
     fn from(sth: SpawnTaskHandle) -> Self {
         SpawnHandle(sth)
     }
-}
-
-/// Trait abstracting spawning tasks
-pub trait SpawnHandleT {
-    /// Run task
-    fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static);
-
-    /// Run an essential task
-    fn spawn_essential(
-        &self,
-        name: &'static str,
-        task: impl Future<Output = ()> + Send + 'static,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ()>> + Send>>;
 }
 
 impl SpawnHandleT for SpawnHandle {

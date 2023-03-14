@@ -12,7 +12,6 @@ use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, Transac
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
-use sc_service::SpawnTaskHandle;
 use sp_api::{NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
@@ -247,7 +246,7 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub client: Arc<C>,
     pub blockchain_backend: BB,
     pub select_chain: SC,
-    pub spawn_handle: SpawnTaskHandle,
+    pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
     pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,

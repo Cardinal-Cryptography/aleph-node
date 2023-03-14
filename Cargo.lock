@@ -273,6 +273,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph-bft-mock"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9a27e8a6a071f4707b2a8f67034d6f55bec43dbf6f9d91782fb386859f8625b"
+dependencies = [
+ "aleph-bft-types 0.8.1",
+ "async-trait",
+ "futures",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "tokio",
+]
+
+[[package]]
 name = "aleph-bft-rmc"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5137,10 +5153,13 @@ dependencies = [
 name = "network-clique"
 version = "0.1.0"
 dependencies = [
+ "aleph-bft-mock",
+ "aleph-bft-types 0.8.1",
  "async-trait",
  "bytes",
  "derive_more",
  "env_logger",
+ "exit-future",
  "futures",
  "futures-timer",
  "hash-db",
@@ -5150,7 +5169,6 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "rand 0.8.5",
- "sc-service",
  "serde",
  "tiny-bip39",
  "tokio",
@@ -9981,7 +9999,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.6",
- "rand 0.7.3",
+ "rand 0.8.5",
  "static_assertions",
 ]
 

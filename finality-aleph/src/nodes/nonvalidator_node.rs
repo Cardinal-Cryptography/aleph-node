@@ -1,4 +1,5 @@
 use log::{debug, error};
+use network_clique::SpawnHandleT;
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
@@ -37,7 +38,7 @@ where
         session_period,
     );
     let session_authorities = map_updater.readonly_session_map();
-    spawn_handle.spawn("aleph/updater", None, async move {
+    spawn_handle.spawn("aleph/updater", async move {
         debug!(target: "aleph-party", "SessionMapUpdater has started.");
         map_updater.run().await
     });

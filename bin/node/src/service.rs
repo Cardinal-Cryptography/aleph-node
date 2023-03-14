@@ -10,6 +10,7 @@ use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
     run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
     JustificationNotification, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
+    SpawnHandle,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -400,7 +401,7 @@ pub fn new_authority(
         select_chain,
         session_period,
         millisecs_per_block,
-        spawn_handle: task_manager.spawn_handle(),
+        spawn_handle: SpawnHandle(task_manager.spawn_handle()),
         keystore: keystore_container.keystore(),
         justification_rx,
         metrics,
@@ -480,7 +481,7 @@ pub fn new_full(
         select_chain,
         session_period,
         millisecs_per_block,
-        spawn_handle: task_manager.spawn_handle(),
+        spawn_handle: SpawnHandle(task_manager.spawn_handle()),
         keystore: keystore_container.keystore(),
         justification_rx,
         metrics,

@@ -6,6 +6,8 @@ edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
+aleph-bft-mock = "0.8.3"
+aleph-bft-types = "0.8.1"
 async-trait = "0.1"
 bytes = "1.0"
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["std", "derive"] }
@@ -23,4 +25,5 @@ serde = "1.0"
 tiny-bip39 = "1.0"
 tokio = { version = "1.25", features = [ "sync", "macros", "time", "rt-multi-thread", "io-util", "net" ] }
 
-sc-service = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
+[dev-dependencies]
+exit-future = "0.2.0"
