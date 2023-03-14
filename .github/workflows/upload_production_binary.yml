@@ -1,12 +1,13 @@
 ---
+#  This workflow builds production aleph-node and runtime, check runtime determinism,
+#  and uploads both aleph-node runtime to ECR. It is intended to work only on pushes
+#  to main and release branches. Those branches must be set as protected branches with
+#  following restrictions:
+#  * Require a pull request before merging,
+#  * Require status checks to pass before merging (e2e tests),
+#  * Require branches to be up to date before merging.
 name: Upload production aleph-node to ECR
-description: "This workflow builds production aleph-node and runtime, check runtime determinism,
-             and uploads both aleph-node runtime to ECR. It is intended to work only on pushes
-             to main and release branches. Those branches must be set as protected branches with
-             following restrictions:
-            * Require a pull request before merging,
-            * Require status checks to pass before merging (e2e tests),
-            * Require branches to be up to date before merging."
+
 on:
   push:
     branches:

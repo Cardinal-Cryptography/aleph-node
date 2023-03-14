@@ -1,11 +1,11 @@
 ---
+#  This workflow is intended to run only for PRs on main and release branches,
+#  and does following
+#  * it builds test aleph-node and runtime, wraps it in Docker,
+#  * it builds e2e test client, wraps it in Docker,
+#  * in paraller, it starts a aleph-node consensus and run an e2e test on it
+#  The whole workflow passes only if all e2e tests pass.
 name: Run e2e tests
-description: This workflow is intended to run only for PRs on main and release branches,
-  and does following
-  * it builds test aleph-node and runtime, wraps it in Docker,
-  * it builds e2e test client, wraps it in Docker,
-  * in paraller, it starts a aleph-node consensus and run an e2e test on it
-  The whole workflow passes only if all e2e tests pass.
 
 on:
   pull_request:
