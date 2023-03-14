@@ -768,36 +768,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
-    }
-);
-#[cfg(feature = "liminal")]
-construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = opaque::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
-        Scheduler: pallet_scheduler,
-        Aura: pallet_aura,
-        Timestamp: pallet_timestamp,
-        Balances: pallet_balances,
-        TransactionPayment: pallet_transaction_payment,
-        Authorship: pallet_authorship,
-        Staking: pallet_staking,
-        History: pallet_session::historical,
-        Session: pallet_session,
-        Aleph: pallet_aleph,
-        Elections: pallet_elections,
-        Treasury: pallet_treasury,
-        Vesting: pallet_vesting,
-        Utility: pallet_utility,
-        Multisig: pallet_multisig,
-        Sudo: pallet_sudo,
-        Contracts: pallet_contracts,
-        NominationPools: pallet_nomination_pools,
-        Identity: pallet_identity,
+        #[cfg(feature = "liminal")]
         BabyLiminal: pallet_baby_liminal,
     }
 );
