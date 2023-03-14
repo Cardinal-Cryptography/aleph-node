@@ -190,7 +190,7 @@ pub mod pallet {
         /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
         /// Can only be called by the original owner of the key.
         /// It will require the caller to lock up additional funds (if the new key occupies more storage)
-        /// or reimburse the difference if it is shorter in it's byte-length.
+        /// or reimburse the difference if it is shorter in its byte-length.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
         pub fn overwrite_key(
