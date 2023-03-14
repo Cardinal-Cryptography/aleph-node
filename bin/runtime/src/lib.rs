@@ -415,7 +415,7 @@ parameter_types! {
 }
 
 use sp_runtime::traits::Convert;
-use pallet_session_ext::{PrefixMigration, SessionManagerExt};
+use pallet_session_ext::SessionManagerExt;
 
 pub struct BalanceToU256;
 

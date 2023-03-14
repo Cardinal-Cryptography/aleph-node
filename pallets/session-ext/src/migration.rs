@@ -9,16 +9,16 @@ use frame_support::{
 };
 #[cfg(feature = "try-runtime")]
 use {
-    frame_support::{
-        ensure,
-        traits::STORAGE_VERSION_STORAGE_KEY_POSTFIX
-    },
+    frame_support::{ensure, traits::STORAGE_VERSION_STORAGE_KEY_POSTFIX},
     pallets_support::ensure_storage_version,
-    sp_std::vec::Vec,
     sp_io::hashing::twox_128,
+    sp_std::vec::Vec,
 };
 
-use crate::{BanConfig, Banned, Config, Pallet, SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward};
+use crate::{
+    BanConfig, Banned, Config, Pallet, SessionValidatorBlockCount,
+    UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+};
 
 const LOG_TARGET: &str = "pallet-session-ext";
 const OLD_PREFIX: &str = "Elections";

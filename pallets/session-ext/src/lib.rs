@@ -28,12 +28,12 @@ mod traits;
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
 pub use manager::SessionManagerExt;
+pub use migration::PrefixMigration;
 pub use pallet::*;
 use primitives::{BanConfig as BanConfigStruct, BanInfo};
 use scale_info::TypeInfo;
 use sp_std::collections::btree_map::BTreeMap;
 pub use traits::*;
-pub use migration::PrefixMigration;
 
 pub type TotalReward = u32;
 #[derive(Decode, Encode, TypeInfo)]
