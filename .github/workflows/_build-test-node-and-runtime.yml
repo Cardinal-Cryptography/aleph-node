@@ -1,20 +1,12 @@
 ---
-name: Build aleph-node and aleph-runtime
-
+name: Build test aleph-node and test aleph-runtime
+description: This workflow builds test version of aleph-node and aleph-runtime, ie with some
+              features enabled. Those binaries MUST NOT be used in the production.
 on:
   workflow_call:
-    inputs:
-      ref:
-        description: 'The `ref` argument for `actions/checkout@v2`'
-        required: false
-        type: string
-      artifact-prefix:
-        description: 'A string that will be prepended to the artifact names'
-        required: false
-        type: string
 
 jobs:
-  build:
+  main:
     name: Build binary artifacts
     runs-on: self-hosted
     env:
@@ -27,8 +19,6 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Get branch name and commit SHA
         id: get_branch
@@ -40,26 +30,26 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Build test binary
+        run: |
+          cargo build --release -p aleph-node \
+          --features "short_session enable_treasury_proposals only_legacy"
 
-      - name: Build binary and runtime
-        run: cargo build --profile production -p aleph-node
-
-      - name: Upload release binary
+      - name: Upload test binary
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-release-node
-          path: target/production/aleph-node
+          name: aleph-test-node
+          path: target/release/aleph-node
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload release runtime
+      - name: Upload test runtime
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-release-runtime
-          path: target/production/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          name: aleph-test-runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
-
 
       - name: S3 CI MAINNET | Configure AWS credentials
         if: >
@@ -76,58 +66,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: S3 CI MAINNET | Copy release binary to S3 bucket
-        if: >
-          env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
-          env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
-        shell: bash
-        env:
-          BINARY_DIR: target/production
-          BINARY_FILE: aleph-node
-          # yamllint disable-line rule:line-length
-          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-node
-          S3BUCKET_FILE: aleph-node-${{ steps.get_branch.outputs.sha_short }}.tar.gz
-        run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
-
-      - name: S3 CI MAINNET | Copy release runtime to S3 bucket
-        if: >
-          env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
-          env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
-        shell: bash
-        env:
-          BINARY_DIR: target/production/wbuild/aleph-runtime
-          BINARY_FILE: aleph_runtime.compact.wasm
-          # yamllint disable-line rule:line-length
-          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get_branch.outputs.sha_short }}/aleph-runtime
-          S3BUCKET_FILE: aleph-runtime-${{ steps.get_branch.outputs.sha_short }}.tar.gz
-        run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
-
-
-      - name: Build test binary
-        run: |
-          cargo build --release -p aleph-node \
-          --features "short_session enable_treasury_proposals only_legacy"
-
-      - name: Upload test binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ inputs.artifact-prefix }}aleph-test-node
-          path: target/release/aleph-node
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload test runtime
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ inputs.artifact-prefix }}aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
-          if-no-files-found: error
-          retention-days: 7
 
       - name: S3 CI MAINNET | Copy test binary to S3 bucket
         if: >

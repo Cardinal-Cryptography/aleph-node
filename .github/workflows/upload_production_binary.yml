@@ -1,0 +1,132 @@
+---
+name: Upload production aleph-node to ECR
+description: "This workflow builds production aleph-node and runtime, check runtime determinism,
+             and uploads both aleph-node runtime to ECR. It is intended to work only on pushes
+             to main and release branches. Those branches must be set as protected branches with
+             following restrictions:
+            * Require a pull request before merging,
+            * Require status checks to pass before merging (e2e tests),
+            * Require branches to be up to date before merging."
+on:
+  push:
+    branches:
+      - main
+      - 'release-*'
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-new-node:
+    name: Build production node and runtime
+    uses: ./.github/workflows/_build-production-node-and-runtime.yml
+    secrets: inherit
+
+  check-determinism:
+    needs: [build-new-node]
+    name: Verify runtime build determinism
+    runs-on: self-hosted
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v3
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-release-runtime
+
+      - name: Build runtime and compare checksum with artifact
+        env:
+          ARTIFACT: aleph_runtime.compact.wasm
+          TARGET_DIR: target/production/wbuild/aleph-runtime
+        run: |
+          mkdir -p "$TARGET_DIR"
+          mv "$ARTIFACT" "$TARGET_DIR"
+          sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
+          cargo clean
+          cargo build --profile production -p aleph-runtime
+          sha256sum -c checksum.sha256
+
+  push-image:
+    needs: [check-determinism]
+    name: Push node image to the ECR
+    if: github.event_name == 'push'
+    runs-on: ubuntu-20.04
+    steps:
+      - name: GIT | Checkout Source code
+        uses: actions/checkout@v3
+
+      # get the release binary, build docker image
+      - name: Download release artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-release-node
+          path: target/release/
+
+      - name: Build docker image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr
+        uses: docker/login-action@v2
+        with:
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+
+      - name: GIT | Get branch info & current commit sha.
+        id: vars
+        shell: bash
+        run: |
+          echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Push aleph-node Current Image to Public ECR
+        env:
+          CURRENT_IMAGE: aleph-node
+          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
+        run: |
+          docker tag ${{ env.CURRENT_IMAGE }} \
+            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
+          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
+
+  slack:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [push-image]
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
