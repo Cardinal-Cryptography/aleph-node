@@ -1,12 +1,17 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::{
+    collections::VecDeque,
+    fmt::{Display, Error as FmtError, Formatter},
+};
+
+use log::warn;
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
     sync::{
         data::{NetworkData, Request, State},
-        forest::{Error as ForestError, Forest, Interest, MAX_DEPTH as MAX_FOREST_DEPTH},
+        forest::{Error as ForestError, Forest, Interest},
         BlockIdFor, BlockIdentifier, ChainStatus, Finalizer, Header, Justification, PeerId,
-        Verifier,
+        Verifier, LOG_TARGET,
     },
 };
 
@@ -95,7 +100,7 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-/// TODO: Remove after completing the sync rewrite.
+/// TODO: Move to `Handler::new` after completing the sync rewrite.
 fn fresh_forest<
     I: PeerId,
     J: Justification,
@@ -110,13 +115,24 @@ fn fresh_forest<
         .map_err(Error::ChainStatus)?
         .header()
         .id();
-    let max_number = &(top_finalized.number() + MAX_FOREST_DEPTH);
-    let mut forest = Forest::new(top_finalized);
-    for header in chain_status
-        .non_finalized(max_number)
-        .map_err(Error::ChainStatus)?
-    {
-        forest.update_body(&header)?;
+    let mut forest = Forest::new(top_finalized.clone());
+    let mut deque = VecDeque::from([top_finalized]);
+    while let Some(hash) = deque.pop_front() {
+        let children = chain_status.children(hash).map_err(Error::ChainStatus)?;
+        for header in children.iter() {
+            if let Err(e) = forest.update_body(header) {
+                if let ForestError::TooNew = e {
+                    warn!(
+                        target: LOG_TARGET,
+                        "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
+                    );
+                    return Ok(forest);
+                } else {
+                    return Err(Error::Forest(e));
+                }
+            }
+        }
+        deque.extend(children.into_iter().map(|header| header.id()));
     }
     Ok(forest)
 }

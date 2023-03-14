@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::sync::{
     mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
-    BlockIdentifier, BlockNumber, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
+    BlockIdentifier, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
     Justification as JustificationT,
 };
 
@@ -293,7 +293,18 @@ impl ChainStatus<MockJustification> for Backend {
             .ok_or(StatusError)
     }
 
-    fn non_finalized(&self, _max_number: &BlockNumber) -> Result<Vec<MockHeader>, Self::Error> {
-        Ok(Vec::new())
+    fn children(&self, id: MockIdentifier) -> Result<Vec<MockHeader>, Self::Error> {
+        match self.status_of(id.clone())? {
+            BlockStatus::Unknown => Err(StatusError),
+            _ => {
+                let storage = self.inner.lock();
+                for (stored_id, block) in storage.blockchain.iter() {
+                    if stored_id.number() == id.number + 1 {
+                        return Ok(Vec::from([block.header()]));
+                    }
+                }
+                Ok(Vec::new())
+            }
+        }
     }
 }

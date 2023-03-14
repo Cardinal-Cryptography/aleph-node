@@ -94,7 +94,7 @@ impl<I: PeerId, J: Justification> VertexWithChildren<I, J> {
 
 // How deep can the forest be, vaguely based on two sessions ahead, which is the most we expect to
 // ever need worst case scenario.
-pub const MAX_DEPTH: u32 = 1800;
+const MAX_DEPTH: u32 = 1800;
 
 pub struct Forest<I: PeerId, J: Justification> {
     vertices: HashMap<BlockIdFor<J>, VertexWithChildren<I, J>>,

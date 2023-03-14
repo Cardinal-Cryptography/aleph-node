@@ -1,5 +1,4 @@
 use std::{
-    collections::VecDeque,
     fmt::{Display, Error as FmtError, Formatter},
     marker::PhantomData,
 };
@@ -177,23 +176,18 @@ where
         })
     }
 
-    fn non_finalized(&self, max_number: &BlockNumber) -> Result<Vec<B::Header>, Self::Error> {
-        let mut deque = VecDeque::from([self.finalized_hash()]);
-        let mut non_finalized = Vec::new();
-        while let Some(hash) = deque.pop_front() {
-            if let Some(header) = self.client.header(hash)? {
-                if header.number() >= max_number {
-                    break;
-                }
-            }
-            let children = self.client.children(hash)?;
-            for child_hash in children.iter() {
-                if let Some(header) = self.header(*child_hash)? {
-                    non_finalized.push(header);
-                }
-            }
-            deque.extend(children);
-        }
-        Ok(non_finalized)
+    fn children(
+        &self,
+        id: <B::Header as Header>::Identifier,
+    ) -> Result<Vec<B::Header>, Self::Error> {
+        Ok(self
+            .client
+            .children(id.hash)?
+            .into_iter()
+            .map(|hash| self.header(hash))
+            .collect::<Result<Vec<Option<B::Header>>, ClientError>>()?
+            .into_iter()
+            .flatten()
+            .collect())
     }
 }
