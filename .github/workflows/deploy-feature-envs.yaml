@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get branch name and commit SHA
         id: get_branch
@@ -69,7 +69,7 @@ jobs:
             -f ./docker/Dockerfile .
 
       - name: Login to ECR
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -93,7 +93,7 @@ jobs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Delete old FE when redeploying
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOYED)
@@ -129,7 +129,7 @@ jobs:
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: public.ecr.aws
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -353,7 +353,7 @@ jobs:
             ${{ secrets.ARGO_SYNC_USER_TOKEN }} --server ${{ env.ARGOCD_URL }}
 
       - name: Wait for the testnet aleph-node binary to accept some blocks
-        uses: juliangruber/sleep-action@v1.0.1
+        uses: juliangruber/sleep-action@v2.0.0
         with:
           time: 5m
 
@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Get branch name and commit SHA
         id: get_branch
@@ -498,7 +498,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Delete FE
         uses: ./.github/actions/destroy-feature-environment
@@ -559,7 +559,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
 
       - name: Delete FE
         uses: ./.github/actions/destroy-feature-environment

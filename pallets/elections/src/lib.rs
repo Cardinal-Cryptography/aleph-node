@@ -12,7 +12,6 @@
 //! - `Permissionless`: choose all validators that bonded enough amount and are not banned.
 //! - `Permissioned`: choose `EraValidators::reserved` and all `EraValidators::non_reserved` that are not banned.
 
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod impls;

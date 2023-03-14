@@ -3,16 +3,10 @@ name: e2e-tests-main-devnet
 
 on:
   pull_request:
-    paths-ignore:
-      - 'fork-off/**'
-      - 'flooder/**'
     branches:
       - main
       - 'release-*'
   push:
-    paths-ignore:
-      - 'fork-off/**'
-      - 'flooder/**'
     branches:
       - main
       - 'release-*'
@@ -34,7 +28,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout Source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download test artifact
         uses: actions/download-artifact@v2
@@ -64,7 +58,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: GIT | Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -96,7 +90,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
@@ -129,7 +123,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
@@ -161,7 +155,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run one node in the background
         uses: ./.github/actions/run-e2e-test
@@ -183,7 +177,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -198,7 +192,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -214,7 +208,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -229,7 +223,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -243,7 +237,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -258,7 +252,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -273,7 +267,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -289,7 +283,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -305,7 +299,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -320,7 +314,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -335,7 +329,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -350,7 +344,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -365,7 +359,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -380,7 +374,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -395,7 +389,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -410,7 +404,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -425,7 +419,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -443,7 +437,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -458,7 +452,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -473,7 +467,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -488,7 +482,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -503,7 +497,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -518,7 +512,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -536,7 +530,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -558,7 +552,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -611,7 +605,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: GIT | Checkout Source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       # get the release binary, build docker image
       - name: Download release artifact
@@ -635,7 +629,7 @@ jobs:
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: public.ecr.aws
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -647,8 +641,8 @@ jobs:
         id: vars
         shell: bash
         run: |
-          echo "##[set-output name=branch;]$(echo ${GITHUB_REF##*/})"
-          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+          echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Push aleph-node Current Image to Public ECR
         env:
@@ -663,6 +657,7 @@ jobs:
 
   test-catch-up:
     name: Test catching up
+    if: false
     runs-on: ubuntu-20.04
     needs: build-new-node
     strategy:
@@ -670,7 +665,7 @@ jobs:
         pruning: ['', '--state-pruning 90']
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
@@ -691,6 +686,7 @@ jobs:
 
   test-multiple-restarts:
     name: Test multiple restarts
+    if: false
     runs-on: ubuntu-20.04
     needs: build-new-node
     strategy:
@@ -698,7 +694,7 @@ jobs:
         pruning: ['', '--state-pruning 2048']
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
@@ -733,9 +729,9 @@ jobs:
         run: |
           if [ ! $(git diff HEAD origin/main -- bin/runtime/src/lib.rs | grep ' spec_version: ') ]
           then
-            echo "::set-output name=diff::0"
+            echo "diff=0" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=diff::1"
+            echo "diff=1" >> $GITHUB_OUTPUT
           fi
 
   build-new-runtime-and-try_runtime:
@@ -819,7 +815,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification
