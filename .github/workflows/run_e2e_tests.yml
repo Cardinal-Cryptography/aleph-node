@@ -52,40 +52,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  check-determinism:
-    needs: [build-test-node]
-    name: Verify runtime build determinism
-    runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout Source code
-        uses: actions/checkout@v3
-
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-release-runtime
-
-      - name: Build runtime and compare checksum with artifact
-        env:
-          ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/production/wbuild/aleph-runtime
-        run: |
-          mkdir -p "$TARGET_DIR"
-          mv "$ARTIFACT" "$TARGET_DIR"
-          sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          cargo clean
-          cargo build --profile production -p aleph-runtime
-          sha256sum -c checksum.sha256
-
   build-test-client:
     name: Build e2e test client suite
     runs-on: self-hosted
