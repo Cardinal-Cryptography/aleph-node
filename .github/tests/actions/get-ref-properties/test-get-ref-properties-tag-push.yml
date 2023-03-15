@@ -39,11 +39,13 @@ jobs:
             echo "Action returned wrong 'branch'"
             exit 1
           fi
-          if [[ "${{ steps.get-ref-properties.outputs.sha }}" != "${{ steps.valid-outputs.outputs.sha }}" ]]; then
+          if [[ "${{ steps.get-ref-properties.outputs.sha }}" != \
+          "${{ steps.valid-outputs.outputs.sha }}" ]]; then
             echo "Action returned wrong 'branch'"
             exit 1
           fi
-          if [[ "${{ steps.get-ref-properties.outputs.tag }}" != "${{ steps.valid-outputs.outputs.tag }}" ]]; then
+          if [[ "${{ steps.get-ref-properties.outputs.tag }}" != \
+          "${{ steps.valid-outputs.outputs.tag }}" ]]; then
             echo "Action returned wrong 'tag'"
             exit 1
           fi

@@ -33,11 +33,13 @@ jobs:
 
       - name: Test get-ref-properties outputs
         run: |
-          if [[ "${{ steps.get-ref-properties.outputs.branch }}" != "${{ steps.valid-outputs.outputs.branch }}" ]]; then
+          if [[ "${{ steps.get-ref-properties.outputs.branch }}" != \
+          "${{ steps.valid-outputs.outputs.branch }}" ]]; then
             echo "Action returned wrong 'branch'"
             exit 1
           fi
-          if [[ "${{ steps.get-ref-properties.outputs.sha }}" != "${{ steps.valid-outputs.outputs.sha }}" ]]; then
+          if [[ "${{ steps.get-ref-properties.outputs.sha }}" != \
+          "${{ steps.valid-outputs.outputs.sha }}" ]]; then
             echo "Action returned wrong 'sha'"
             exit 1
           fi
