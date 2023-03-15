@@ -861,6 +861,7 @@ dependencies = [
  "criterion",
  "liminal-ark-poseidon",
  "liminal-ark-relation-macro",
+ "paste",
 ]
 
 [[package]]
