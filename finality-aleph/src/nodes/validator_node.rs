@@ -1,28 +1,29 @@
 use std::{marker::PhantomData, sync::Arc};
 
+use aleph_primitives::BlockNumber;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
+use network_clique::Service;
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::traits::Block;
+use sp_runtime::traits::{Block, Header};
 
 use crate::{
     crypto::AuthorityPen,
     network::{
-        clique::Service,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
     },
     nodes::{setup_justification_handler, JustificationParams},
     party::{
-        impls::{ChainStateImpl, SessionInfoImpl},
-        manager::NodeSessionManagerImpl,
-        ConsensusParty, ConsensusPartyParams,
+        impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
+        ConsensusPartyParams,
     },
+    session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
     AlephConfig, BlockchainBackend,
 };
@@ -40,6 +41,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
 pub async fn run_validator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
 where
     B: Block,
+    B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -163,8 +165,7 @@ where
             connection_manager,
             keystore,
         ),
-        _phantom: PhantomData,
-        session_info: SessionInfoImpl::new(session_period),
+        session_info: SessionBoundaryInfo::new(session_period),
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");
