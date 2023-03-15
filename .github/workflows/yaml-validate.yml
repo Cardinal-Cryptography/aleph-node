@@ -6,9 +6,6 @@ on:
     paths:
       - '.github/**.yml'
       - '.github/**.yaml'
-  push:
-    branches:
-      - 'A0-2002-add-simple-validation-for-gh-workflows'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
