@@ -130,6 +130,13 @@ runs:
 
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
 
+        CLEAN_BUTTON="${{ inputs.clean-button }}"
+
+        if [[ "${CLEAN_BUTTON}" = "true" ]]; then
+          source contracts/env/dev
+          contracts/scripts/clean.sh
+        fi
+
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
       shell: bash

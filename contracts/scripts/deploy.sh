@@ -278,8 +278,8 @@ cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/access_control
 
-ACCESS_CONTROL_CODE_HASH=$(cargo contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -s . | jq -r '.[1].code_hash')
-ACCESS_CONTROL=$(cargo contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json | jq -r '.contract')
+ACCESS_CONTROL_CODE_HASH=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -s . | jq -r '.[1].code_hash')
+ACCESS_CONTROL=$(cargo_contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json | jq -r '.contract')
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
 echo "access control contract address: $ACCESS_CONTROL"
