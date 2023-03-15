@@ -10,9 +10,9 @@ use tokio::time::sleep;
 use crate::{
     config::{setup_test, Config},
     test::button_game::helpers::{
-        alephs, assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test,
-        setup_dex_test, setup_wrapped_azero_test, wait_for_death, ButtonTestContext,
-        DexTestContext, WAzeroTestContext,
+        alephs, assert_recv_id, mega, refute_recv_id, setup_button_test, setup_dex_test,
+        setup_wrapped_azero_test, wait_for_death, ButtonTestContext, DexTestContext,
+        WAzeroTestContext,
     },
 };
 
