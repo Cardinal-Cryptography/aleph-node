@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   main:
-    name: YAML Lint
+    name: YAML Validate
     runs-on: ubuntu-20.04
     steps:
       - name: GIT | Checkout source code
