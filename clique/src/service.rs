@@ -84,7 +84,7 @@ pub trait SpawnHandleT {
 }
 
 /// A service that has to be run for the clique network to work.
-pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener, SPH: SpawnHandleT>
+pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
 where
     SK::PublicKey: PeerId,
 {
@@ -93,12 +93,12 @@ where
     manager: Manager<SK::PublicKey, A, D>,
     dialer: ND,
     listener: NL,
-    spawn_handle: SPH,
+    spawn_handle: SH,
     secret_key: SK,
 }
 
-impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SPH: SpawnHandleT>
-    Service<SK, D, A, ND, NL, SPH>
+impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
+    Service<SK, D, A, ND, NL, SH>
 where
     SK::PublicKey: PeerId,
 {
@@ -107,7 +107,7 @@ where
         dialer: ND,
         listener: NL,
         secret_key: SK,
-        spawn_handle: SPH,
+        spawn_handle: SH,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
