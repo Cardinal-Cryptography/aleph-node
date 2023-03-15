@@ -22,48 +22,6 @@ use crate::{
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era we emit fresh bans events
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
-///
-
-struct AlephSessionManager<T: SessionManager<C::AccountId>, E: EraManager, C: Config>(
-    PhantomData<(T, E, C)>,
-);
-
-impl<T: SessionManager<C::AccountId>, E: EraManager, C: Config> SessionManager<C::AccountId>
-    for AlephSessionManager<T, E, C>
-{
-    fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
-        T::new_session(new_index)
-    }
-
-    fn end_session(end_index: SessionIndex) {
-        T::end_session(end_index);
-        Pallet::<C>::adjust_rewards_for_session();
-        Pallet::<C>::calculate_underperforming_validators();
-        // clear block count after calculating stats for underperforming validators, as they use
-        // SessionValidatorBlockCount for that
-        let result = SessionValidatorBlockCount::<C>::clear(u32::MAX, None);
-        debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
-    }
-
-    fn start_session(start_index: SessionIndex) {
-        T::start_session(start_index);
-        Pallet::<C>::clear_underperformance_session_counter(start_index);
-    }
-}
-impl<T: SessionManager<C::AccountId>, E: EraManager, C: Config> EraManager
-    for AlephSessionManager<T, E, C>
-{
-    fn on_new_era(era: EraIndex) {
-        E::on_new_era(era);
-        Pallet::<C>::emit_fresh_bans_event();
-    }
-
-    fn new_era_start(era: EraIndex) {
-        E::new_era_start(era);
-        Pallet::<C>::update_validator_total_rewards(era);
-        Pallet::<C>::clear_expired_bans(era);
-    }
-}
 
 impl<T> pallet_authorship::EventHandler<T::AccountId, T::BlockNumber> for Pallet<T>
 where
@@ -78,7 +36,7 @@ where
 
 /// SessionManager that also fires EraManager functions.
 /// The order of the calls are as follows:
-/// First call is always from AlephSessionManager then the call to EraManager fn if applicable.
+/// First call is always from the inner SessionManager then the call to EraManager fn if applicable.
 pub struct SessionManagerExt<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
 where
     T: SessionManager<C::AccountId>,
@@ -122,22 +80,33 @@ where
     C: Config,
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
-        AlephSessionManager::<T, EM, C>::new_session(new_index);
+        T::new_session(new_index);
         if let Some(era) = Self::session_starts_era(new_index, true) {
-            AlephSessionManager::<T, EM, C>::on_new_era(era);
+            EM::on_new_era(era);
+            Pallet::<C>::emit_fresh_bans_event();
         }
 
         Pallet::<C>::rotate_committee(new_index)
     }
 
     fn end_session(end_index: SessionIndex) {
-        AlephSessionManager::<T, EM, C>::end_session(end_index)
+        T::end_session(end_index);
+        Pallet::<C>::adjust_rewards_for_session();
+        Pallet::<C>::calculate_underperforming_validators();
+        // clear block count after calculating stats for underperforming validators, as they use
+        // SessionValidatorBlockCount for that
+        let result = SessionValidatorBlockCount::<C>::clear(u32::MAX, None);
+        debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
     }
 
     fn start_session(start_index: SessionIndex) {
-        AlephSessionManager::<T, EM, C>::start_session(start_index);
+        T::start_session(start_index);
+        Pallet::<C>::clear_underperformance_session_counter(start_index);
+
         if let Some(era) = Self::session_starts_era(start_index, false) {
-            AlephSessionManager::<T, EM, C>::new_era_start(era)
+            EM::new_era_start(era);
+            Pallet::<C>::update_validator_total_rewards(era);
+            Pallet::<C>::clear_expired_bans(era);
         }
     }
 }
