@@ -4,6 +4,19 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function ink_build() {
+  contract_dir=$(basename "${PWD}")
+
+  docker exec \
+    -u "$(id -u):$(id -g)" \
+    -w "/code/contracts/$contract_dir" \
+    ink_builder "$@"
+}
+
+function cargo_contract() {
+  ink_build cargo contract "$@"
+}
+
 function terminate_contract {
   local contract_name=$1
   local contract_dir=$2
@@ -13,7 +26,7 @@ function terminate_contract {
   cd "$CONTRACTS_PATH"/"$contract_dir"
   # When 'ContractNotFound' occurs, ignore it and continue
   set +e
-  cargo contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED" --skip-confirm 2>&1 | tee $tmp_output_file
+  cargo_contract call --url "$NODE" --contract $contract_address --message terminate --suri "$AUTHORITY_SEED" --skip-confirm 2>&1 | tee $tmp_output_file
   if [ $? -ne 0 ]; then
     grep -q "ContractNotFound" $tmp_output_file
     if [ $? -ne 0 ]; then

@@ -31,6 +31,10 @@ inputs:
     description: 'Whether to deploy the adder sample contract to the node.'
     required: false
     default: 'false'
+  clean-button:
+    description: 'Whether to remove the button game contracts after running test suite.'
+    required: false
+    default: 'false'
   deploy-button:
     description: 'Whether to deploy the button game contracts to the node.'
     required: false
