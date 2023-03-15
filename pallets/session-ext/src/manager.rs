@@ -37,6 +37,18 @@ where
 /// SessionManager that also fires EraManager functions.
 /// The order of the calls are as follows:
 /// First call is always from the inner SessionManager then the call to EraManager fn if applicable.
+/// * New session is planned:
+/// 1. Inner T::new_session invoked
+/// 2. If session starts era EM::on_new_era invoked
+/// 3. Logic related to new session from this pallet is invoked
+/// * Session ends:
+/// 1. Inner T::end_session invoked
+/// 2. Logic related to new session from this pallet is invoked
+/// * Session starts:
+/// 1. Inner T::start_session invoked
+/// 2. Logic related to new session from this pallet is invoked
+/// 3. If session starts era EM::new_era_start invoked
+/// 4. If session starts era logic related to new era from this pallet is invoked
 pub struct SessionManagerExt<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
 where
     T: SessionManager<C::AccountId>,
