@@ -457,6 +457,22 @@ jobs:
           test-case: adder
         timeout-minutes: 10
 
+  run-e2e-button-contract-tests:
+    needs: [build-test-docker, build-test-client]
+    name: Run e2e button game contract tests
+    runs-on: self-hosted
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          deploy-button: true
+          clean-button: true
+          test-case: button
+        timeout-minutes: 60
+
   run-e2e-finality-version-change:
     needs: [build-test-docker, build-test-client]
     name: Run finality version change test
@@ -497,7 +513,6 @@ jobs:
       run-e2e-ban-threshold,
       run-e2e-version-upgrade,
       run-e2e-permissionless-ban,
-      run-e2e-adder-contract-test,
       run-e2e-finality-version-change,
     ]
     name: Check e2e test suite completion
