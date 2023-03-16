@@ -553,8 +553,9 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           deploy-button: true
+          clean-button: true
           test-case: button
-        timeout-minutes: 60
+        timeout-minutes: 20
 
   run-e2e-finality-version-change:
     needs: [build-test-docker, build-test-client]
@@ -830,6 +831,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [push-image]
     if: always()
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

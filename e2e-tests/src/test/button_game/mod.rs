@@ -5,14 +5,15 @@ use anyhow::Result;
 use assert2::{assert, let_assert};
 use helpers::sign;
 use log::info;
+use serial_test::serial;
 use tokio::time::sleep;
 
 use crate::{
     config::{setup_test, Config},
     test::button_game::helpers::{
-        alephs, assert_recv, assert_recv_id, mega, refute_recv_id, setup_button_test,
-        setup_dex_test, setup_wrapped_azero_test, wait_for_death, ButtonTestContext,
-        DexTestContext, WAzeroTestContext,
+        alephs, assert_recv_id, mega, refute_recv_id, setup_button_test, setup_dex_test,
+        setup_wrapped_azero_test, wait_for_death, ButtonTestContext, DexTestContext,
+        WAzeroTestContext,
     },
 };
 
@@ -27,6 +28,7 @@ mod helpers;
 /// 2. Unwraps half of the amount, checks that some wrapped funds remained while the rest has been returned to azero,
 ///    minus fees.
 #[tokio::test]
+#[serial]
 pub async fn wrapped_azero() -> Result<()> {
     let config = setup_test();
     let WAzeroTestContext {
@@ -83,6 +85,7 @@ pub async fn wrapped_azero() -> Result<()> {
 /// 5. Checks that the price after the two swaps is the same as before (with a dust allowance of 1 for rounding).
 /// 6. Checks that it's possible to make an A -> C swap, but impossible to make a C -> A swap.
 #[tokio::test]
+#[serial]
 pub async fn simple_dex() -> Result<()> {
     let config = setup_test();
     let DexTestContext {
@@ -249,6 +252,7 @@ pub async fn simple_dex() -> Result<()> {
 /// 2. Tries to buy a ticket with setting the max price too low (this should fail).
 /// 3. Tries to buy a ticket with setting the max price appropriately (this should succeed).
 #[tokio::test]
+#[serial]
 pub async fn marketplace() -> Result<()> {
     let config = setup_test();
     let ButtonTestContext {
@@ -326,6 +330,7 @@ pub async fn marketplace() -> Result<()> {
 
 /// Tests resetting the button game.
 #[tokio::test]
+#[serial]
 pub async fn button_game_reset() -> Result<()> {
     let config = setup_test();
     let ButtonTestContext {
@@ -365,6 +370,7 @@ pub async fn button_game_reset() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 pub async fn early_bird_special() -> Result<()> {
     let config = setup_test();
     button_game_play(
@@ -378,6 +384,7 @@ pub async fn early_bird_special() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 pub async fn back_to_the_future() -> Result<()> {
     let config = setup_test();
     button_game_play(
@@ -391,6 +398,7 @@ pub async fn back_to_the_future() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 pub async fn the_pressiah_cometh() -> Result<()> {
     let config = setup_test();
     button_game_play(
@@ -450,10 +458,10 @@ async fn button_game_play<F: Fn(u128, u128)>(
     button.press(&sign(&conn, player)).await?;
 
     let event = assert_recv_id(&mut events, "ButtonPressed").await;
-    let_assert!(Some(&Value::UInt(early_presser_score)) = event.data.get("score"));
+    let_assert!(Some(&Value::UInt(first_presser_score)) = event.data.get("score"));
     assert!(event.data.get("by") == Some(&Value::Literal(player.account_id().to_string())));
-    assert!(reward_token.balance_of(&conn, player.account_id()).await? == early_presser_score);
-    assert!(early_presser_score > 0);
+    assert!(reward_token.balance_of(&conn, player.account_id()).await? == first_presser_score);
+    assert!(first_presser_score > 0);
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
     assert!(
         ticket_token
@@ -461,15 +469,22 @@ async fn button_game_play<F: Fn(u128, u128)>(
             .await?
             == old_button_balance + 1
     );
-    let_assert!(Some(&Value::UInt(pressed_at)) = event.data.get("when"));
-    let time_to_sleep = pressed_at - reset_at + 3;
+    let_assert!(Some(&Value::UInt(first_press_at)) = event.data.get("when"));
 
-    info!("Waiting {} seconds before pressing again", time_to_sleep);
-    sleep(Duration::from_secs(time_to_sleep as u64)).await;
+    info!("Waiting before pressing again");
+    sleep(Duration::from_secs(3)).await;
 
     button.press(&sign(&conn, player)).await?;
     let event = assert_recv_id(&mut events, "ButtonPressed").await;
-    let_assert!(Some(&Value::UInt(late_presser_score)) = event.data.get("score"));
+    let_assert!(Some(&Value::UInt(second_presser_score)) = event.data.get("score"));
+    let_assert!(Some(&Value::UInt(second_press_at)) = event.data.get("when"));
+    let (early_presser_score, late_presser_score) =
+        if (first_press_at - reset_at) < (second_press_at - first_press_at) {
+            (first_presser_score, second_presser_score)
+        } else {
+            (second_presser_score, first_presser_score)
+        };
+
     score_check(early_presser_score, late_presser_score);
     let total_score = early_presser_score + late_presser_score;
     assert!(reward_token.balance_of(&conn, player.account_id()).await? == total_score);
