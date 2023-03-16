@@ -247,7 +247,7 @@ pub mod button_game {
         pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            let required_role = Role::Owner(this);
+            let required_role = Role::Admin(this);
             ButtonGame::check_role(&self.access_control, caller, required_role)?;
             self.access_control = AccessControlRef::from_account_id(new_access_control);
             Ok(())
@@ -260,7 +260,7 @@ pub mod button_game {
         pub fn terminate(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            let required_role = Role::Owner(this);
+            let required_role = Role::Admin(this);
             ButtonGame::check_role(&self.access_control, caller, required_role)?;
             self.env().terminate_contract(caller)
         }

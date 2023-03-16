@@ -195,7 +195,7 @@ pub mod wrapped_azero {
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            let required_role = Role::Owner(this);
+            let required_role = Role::Admin(this);
 
             self.check_role(caller, required_role)?;
             self.env().terminate_contract(caller)
@@ -215,7 +215,7 @@ pub mod wrapped_azero {
             let caller = self.env().caller();
             let this = self.env().account_id();
 
-            self.check_role(caller, Role::Owner(this))?;
+            self.check_role(caller, Role::Admin(this))?;
 
             self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())

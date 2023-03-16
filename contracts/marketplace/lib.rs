@@ -246,7 +246,7 @@ pub mod marketplace {
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
             let this = self.env().account_id();
-            self.ensure_role(Role::Owner(this))?;
+            self.ensure_role(Role::Admin(this))?;
             self.env().terminate_contract(caller)
         }
 
