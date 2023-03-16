@@ -6,7 +6,7 @@
 #  * Require a pull request before merging,
 #  * Require status checks to pass before merging (e2e tests),
 #  * Require branches to be up to date before merging.
-name: Upload production aleph-node to ECR
+name:  Build and upload production aleph-node to ECR
 
 on:
   push:
@@ -19,34 +19,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-new-node:
+  build-production-node-and-runtime:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
 
-  check-determinism:
-    needs: [build-new-node]
+  check-runtime-determinism:
+    needs: [build-production-node-and-runtime]
     name: Verify runtime build determinism
     runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
     steps:
-      - name: Checkout Source code
+      - name: Checkout aleph-node source code
         uses: actions/checkout@v3
 
-      - name: Install Rust Toolchain
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
 
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Download artifact
+      - name: Download production runtime from artifacts
         uses: actions/download-artifact@v2
         with:
           name: aleph-release-runtime
 
-      - name: Build runtime and compare checksum with artifact
+      - name: Build runtime 2nd time and compare checksum with previous build
         env:
           ARTIFACT: aleph_runtime.compact.wasm
           TARGET_DIR: target/production/wbuild/aleph-runtime
@@ -58,29 +58,31 @@ jobs:
           cargo build --profile production -p aleph-runtime
           sha256sum -c checksum.sha256
 
-  push-image:
-    needs: [check-determinism]
-    name: Push node image to the ECR
-    if: github.event_name == 'push'
+  push-image-to-ecr:
+    needs: [check-runtime-determinism]
+    name: Push production node docker image to the ECR
     runs-on: ubuntu-20.04
     steps:
-      - name: GIT | Checkout Source code
+      - name: Checkout aleph-node source from git
         uses: actions/checkout@v3
 
-      # get the release binary, build docker image
-      - name: Download release artifact
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Download node production binary from artifacts
         uses: actions/download-artifact@v2
         with:
           name: aleph-release-node
           path: target/release/
 
-      - name: Build docker image
+      - name: Build production docker node image
         id: build-image
         run: |
           chmod +x target/release/aleph-node
           docker build --tag aleph-node:latest -f ./docker/Dockerfile .
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Mainnet credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -97,28 +99,22 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: GIT | Get branch info & current commit sha.
-        id: vars
-        shell: bash
-        run: |
-          echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
       - name: Push aleph-node Current Image to Public ECR
         env:
           CURRENT_IMAGE: aleph-node
           ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
         run: |
           docker tag ${{ env.CURRENT_IMAGE }} \
-            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
-          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
-          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.vars.outputs.sha_short }}
-          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
-
-  slack:
-    name: Slack notification
+            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
+          if [[ ${{ steps.get-ref-properties.outputs.branch }} -eq "main" ]]; then
+            docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
+            docker push ${{ env.ECR_PUSH_IMAGE }}:latest
+          fi
+  send-slack-notification:
+    name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
-    needs: [push-image]
+    needs: [push-image-to-ecr]
     if: always()
     steps:
       - name: Checkout repository

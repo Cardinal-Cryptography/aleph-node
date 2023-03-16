@@ -1,13 +1,13 @@
 ---
 #  This workflow builds production version of aleph-node and aleph-runtime, ie with some
 #  features enabled. Those binaries MUST be used in the production.
-name: Build aleph-node and aleph-runtime
+name: Build production node and runtime
 on:
   workflow_call:
 
 jobs:
   main:
-    name: Build binary artifacts
+    name: Build production node and runtime
     runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
@@ -17,10 +17,8 @@ jobs:
       SECRETS_AWS_DEVNET_ACCESS_KEY_ID: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
       SECRETS_AWS_DEVNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
     steps:
-      - name: Checkout source code
+      - name: Checkout aleph-node source code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Call action get-ref-properties
         id: get-ref-properties
@@ -32,10 +30,10 @@ jobs:
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Build binary and runtime
+      - name: Build production binary and runtime
         run: cargo build --profile production -p aleph-node
 
-      - name: Upload release binary
+      - name: Upload release binary to GH artifacts
         uses: actions/upload-artifact@v2
         with:
           name: aleph-release-node
@@ -43,15 +41,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload release runtime
+      - name: Upload release runtime to GH artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.artifact-prefix }}aleph-release-runtime
+          name: aleph-release-runtime
           path: target/production/wbuild/aleph-runtime/aleph_runtime.compact.wasm
           if-no-files-found: error
           retention-days: 7
 
-      - name: S3 CI MAINNET | Configure AWS credentials
+      - name: Configure AWS credentials for S3 Mainnet AWS
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
@@ -67,7 +65,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: S3 CI MAINNET | Copy release binary to S3 bucket
+      - name: Copy production binary to S3 Mainnet AWS bucket
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
@@ -82,7 +80,7 @@ jobs:
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
 
-      - name: S3 CI MAINNET | Copy release runtime to S3 bucket
+      - name: Copy production runtime to S3 Mainnet AWS bucket
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''

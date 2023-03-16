@@ -32,7 +32,7 @@ jobs:
     if: >
       (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') ||
       (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV')
-    name: Build production runtime and aleph-node binary artefacts
+    name: Build production artifacts
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
 
