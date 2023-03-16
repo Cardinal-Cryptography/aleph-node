@@ -1,0 +1,40 @@
+---
+name: Build and push aleph-node liminal image.
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-image:
+    name: Build binary
+    runs-on: self-hosted
+    continue-on-error: true
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+      
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cargo | Build release binary
+        run: cargo build -p aleph-node --release --features liminal
+
+      - name: GIT | Get branch info & current commit sha.
+        id: vars
+        shell: bash
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build docker image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node-liminal:${{ steps.vars.outputs.sha_short }} \
+            -f ./docker/Dockerfile .
+
