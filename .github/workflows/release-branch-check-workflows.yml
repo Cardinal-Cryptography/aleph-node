@@ -1,5 +1,6 @@
 ---
-name: Release - Check if workflows consistent with main
+name: Release branch workflows check
+description: Checks if deployment workflows on release branch are identical to the ones on main branch
 
 on:
   push:
