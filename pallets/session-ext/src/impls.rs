@@ -1,16 +1,19 @@
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
-    BanHandler, BanInfo, BanReason, CommitteeSeats, EraValidators, SessionValidators,
-    ValidatorProvider, LENIENT_THRESHOLD,
+    BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
+    SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
 };
 use sp_runtime::{Perbill, Perquintill};
 use sp_staking::{EraIndex, SessionIndex};
-use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+use sp_std::{
+    collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+    vec::Vec,
+};
 
 use crate::{
     pallet::{
-        BanConfig, Banned, Config, Event, Pallet, SessionValidatorBlockCount,
-        UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+        BanConfig, Banned, Config, CurrentSessionValidators, Event, Pallet,
+        SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
     BanConfigStruct, ValidatorExtractor, ValidatorTotalRewards,
@@ -18,11 +21,21 @@ use crate::{
 
 const MAX_REWARD: u32 = 1_000_000_000;
 
-fn choose_for_session<T: Clone>(
-    validators: Vec<T>,
-    count: usize,
-    session: usize,
-) -> Option<Vec<T>> {
+impl<T: Config> BannedValidators for Pallet<T> {
+    type AccountId = T::AccountId;
+
+    fn banned() -> Vec<Self::AccountId> {
+        let active_era = T::EraInfoProvider::active_era().unwrap_or(0);
+        let ban_period = BanConfig::<T>::get().ban_period;
+
+        Banned::<T>::iter()
+            .filter(|(_, info)| !ban_expired(info.start, ban_period, active_era + 1))
+            .map(|(v, _)| v)
+            .collect()
+    }
+}
+
+fn choose_for_session<T: Clone>(validators: &[T], count: usize, session: usize) -> Option<Vec<T>> {
     if validators.is_empty() || count == 0 {
         return None;
     }
@@ -42,8 +55,8 @@ fn rotate<AccountId: Clone + PartialEq>(
     current_session: SessionIndex,
     reserved_seats: usize,
     non_reserved_seats: usize,
-    reserved: Vec<AccountId>,
-    non_reserved: Vec<AccountId>,
+    reserved: &[AccountId],
+    non_reserved: &[AccountId],
 ) -> Option<Vec<AccountId>> {
     // The validators for the committee at the session `n` are chosen as follow:
     // 1. `reserved_seats` validators are chosen from the reserved set while `non_reserved_seats` from the non_reserved set.
@@ -172,7 +185,7 @@ impl<T: Config> Pallet<T> {
         let SessionValidators {
             committee,
             non_committee,
-        } = T::ValidatorProvider::current_session_committee_and_non_committee();
+        } = CurrentSessionValidators::<T>::get();
         let nr_of_sessions = T::EraInfoProvider::sessions_per_era();
         let blocks_per_session = Self::blocks_to_produce_per_session();
         let validator_total_rewards = ValidatorEraTotalReward::<T>::get()
@@ -199,6 +212,26 @@ impl<T: Config> Pallet<T> {
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
 
+    fn store_session_validators(
+        committee: &[T::AccountId],
+        reserved: Vec<T::AccountId>,
+        non_reserved: Vec<T::AccountId>,
+    ) {
+        let committee: BTreeSet<T::AccountId> =
+            committee.iter().cloned().map(|a| a.into()).collect();
+
+        let non_committee = non_reserved
+            .into_iter()
+            .chain(reserved.into_iter())
+            .filter(|a| !committee.contains(a))
+            .collect();
+
+        CurrentSessionValidators::<T>::put(SessionValidators {
+            committee: committee.into_iter().collect(),
+            non_committee,
+        });
+    }
+
     pub fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>>
     where
         T::AccountId: Clone + PartialEq,
@@ -212,13 +245,19 @@ impl<T: Config> Pallet<T> {
             non_reserved_seats,
         } = T::ValidatorProvider::current_era_committee_size()?;
 
-        rotate(
+        let committee = rotate(
             current_session,
             reserved_seats as usize,
             non_reserved_seats as usize,
-            reserved,
-            non_reserved,
-        )
+            &reserved,
+            &non_reserved,
+        );
+
+        if let Some(c) = &committee {
+            Self::store_session_validators(&c, reserved, non_reserved);
+        }
+
+        committee
     }
 
     pub(crate) fn calculate_underperforming_validators() {
@@ -226,7 +265,7 @@ impl<T: Config> Pallet<T> {
         let SessionValidators {
             committee: current_committee,
             ..
-        } = T::ValidatorProvider::current_session_committee_and_non_committee();
+        } = CurrentSessionValidators::<T>::get();
         let expected_blocks_per_validator = Self::blocks_to_produce_per_session();
         for validator in current_committee {
             let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {

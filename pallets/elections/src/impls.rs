@@ -1,4 +1,4 @@
-use primitives::{CommitteeSeats, EraValidators, SessionValidators};
+use primitives::{CommitteeSeats, EraValidators};
 use sp_staking::EraIndex;
 use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
@@ -36,7 +36,6 @@ impl<T: Config> primitives::EraManager for Pallet<T> {
     fn on_new_era(era: EraIndex) {
         Self::populate_next_era_validators_on_next_era_start(era);
     }
-    fn new_era_start(_: EraIndex) {}
 }
 
 impl<T: Config> primitives::BanHandler for Pallet<T> {
@@ -46,11 +45,7 @@ impl<T: Config> primitives::BanHandler for Pallet<T> {
     }
 }
 
-impl<T: Config + pallet_staking::Config + pallet_session::Config> primitives::ValidatorProvider
-    for Pallet<T>
-where
-    T::ValidatorId: Into<T::AccountId>,
-{
+impl<T: Config + pallet_staking::Config> primitives::ValidatorProvider for Pallet<T> {
     type AccountId = T::AccountId;
     fn current_era_validators() -> Option<EraValidators<Self::AccountId>> {
         if pallet_staking::ActiveEra::<T>::get().map(|ae| ae.index) == Some(0) {
@@ -63,26 +58,5 @@ where
             return None;
         }
         Some(CommitteeSize::<T>::get())
-    }
-    fn current_session_committee_and_non_committee() -> SessionValidators<Self::AccountId> {
-        let committee: BTreeSet<T::AccountId> = pallet_session::Validators::<T>::get()
-            .into_iter()
-            .map(|a| a.into())
-            .collect();
-        let EraValidators {
-            reserved,
-            non_reserved,
-        } = CurrentEraValidators::<T>::get();
-
-        let non_committee = non_reserved
-            .into_iter()
-            .chain(reserved.into_iter())
-            .filter(|a| !committee.contains(a))
-            .collect();
-
-        SessionValidators {
-            committee: committee.into_iter().collect(),
-            non_committee,
-        }
     }
 }

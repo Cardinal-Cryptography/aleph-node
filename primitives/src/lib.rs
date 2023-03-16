@@ -247,13 +247,21 @@ pub trait ValidatorProvider {
     fn current_era_validators() -> Option<EraValidators<Self::AccountId>>;
     /// returns committe seats for the current era if present.
     fn current_era_committee_size() -> Option<CommitteeSeats>;
-    /// returns validators with distinction between validators in the committee and out of it.
-    fn current_session_committee_and_non_committee() -> SessionValidators<Self::AccountId>;
 }
 
+#[derive(Decode, Encode, TypeInfo)]
 pub struct SessionValidators<T> {
     pub committee: Vec<T>,
     pub non_committee: Vec<T>,
+}
+
+impl<T> Default for SessionValidators<T> {
+    fn default() -> Self {
+        Self {
+            committee: Vec::new(),
+            non_committee: Vec::new(),
+        }
+    }
 }
 
 pub trait BannedValidators {
@@ -265,8 +273,6 @@ pub trait BannedValidators {
 pub trait EraManager {
     /// new era has been planned
     fn on_new_era(era: EraIndex);
-    /// new era starts
-    fn new_era_start(era: EraIndex);
 }
 
 pub mod staking {

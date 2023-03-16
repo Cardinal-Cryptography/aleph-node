@@ -6288,10 +6288,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            235u8, 18u8, 160u8, 211u8, 140u8, 97u8, 59u8, 120u8, 113u8, 67u8,
-                            187u8, 252u8, 113u8, 242u8, 123u8, 106u8, 145u8, 47u8, 131u8, 229u8,
-                            19u8, 134u8, 91u8, 146u8, 107u8, 231u8, 152u8, 160u8, 122u8, 87u8,
-                            61u8, 35u8,
+                            92u8, 197u8, 179u8, 163u8, 221u8, 99u8, 68u8, 155u8, 97u8, 14u8, 227u8,
+                            118u8, 69u8, 60u8, 88u8, 148u8, 253u8, 171u8, 72u8, 213u8, 7u8, 80u8,
+                            185u8, 204u8, 8u8, 208u8, 32u8, 163u8, 112u8, 92u8, 3u8, 229u8,
                         ],
                     )
                 }
@@ -13066,6 +13065,31 @@ pub mod api {
                         ],
                     )
                 }
+                #[doc = " SessionValidators in the current session."]
+                pub fn current_session_validators(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::primitives::SessionValidators<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                        >,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "SessionExt",
+                        "CurrentSessionValidators",
+                        vec![],
+                        [
+                            81u8, 199u8, 195u8, 16u8, 140u8, 135u8, 215u8, 124u8, 160u8, 105u8,
+                            36u8, 39u8, 88u8, 90u8, 168u8, 158u8, 240u8, 211u8, 207u8, 251u8,
+                            166u8, 73u8, 15u8, 127u8, 54u8, 201u8, 239u8, 212u8, 49u8, 154u8, 62u8,
+                            30u8,
+                        ],
+                    )
+                }
             }
         }
         pub mod constants {
@@ -18551,6 +18575,18 @@ pub mod api {
                 Eq,
                 PartialEq,
             )]
+            pub struct SessionValidators<_0> {
+                pub committee: ::std::vec::Vec<_0>,
+                pub non_committee: ::std::vec::Vec<_0>,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
             pub struct VersionChange {
                 pub version_incoming: ::core::primitive::u32,
                 pub session: ::core::primitive::u32,
@@ -19747,9 +19783,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                88u8, 178u8, 158u8, 62u8, 24u8, 106u8, 252u8, 137u8, 245u8, 28u8, 30u8, 28u8,
-                221u8, 231u8, 232u8, 74u8, 236u8, 222u8, 158u8, 166u8, 150u8, 150u8, 212u8, 168u8,
-                0u8, 154u8, 244u8, 153u8, 150u8, 195u8, 214u8, 225u8,
+                102u8, 84u8, 109u8, 81u8, 147u8, 151u8, 15u8, 125u8, 144u8, 43u8, 17u8, 55u8,
+                119u8, 190u8, 252u8, 242u8, 58u8, 100u8, 150u8, 110u8, 170u8, 199u8, 130u8, 134u8,
+                181u8, 194u8, 171u8, 83u8, 79u8, 190u8, 202u8, 76u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)

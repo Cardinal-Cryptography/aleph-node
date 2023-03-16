@@ -51,16 +51,16 @@ where
 /// 4. If session starts era logic related to new era from this pallet is invoked
 pub struct SessionAndEraManager<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
 where
-    T: SessionManager<C::AccountId>,
-    EM: EraManager,
     E: EraInfoProvider,
+    EM: EraManager,
+    T: SessionManager<C::AccountId>,
     C: Config;
 
 impl<E, EM, T, C> SessionAndEraManager<E, EM, T, C>
 where
-    T: SessionManager<C::AccountId>,
     E: EraInfoProvider,
     EM: EraManager,
+    T: SessionManager<C::AccountId>,
     C: Config,
 {
     fn session_starts_era(session: SessionIndex, next_era: bool) -> Option<EraIndex> {
@@ -86,9 +86,9 @@ where
 
 impl<E, EM, T, C> SessionManager<C::AccountId> for SessionAndEraManager<E, EM, T, C>
 where
-    T: SessionManager<C::AccountId>,
     E: EraInfoProvider,
     EM: EraManager,
+    T: SessionManager<C::AccountId>,
     C: Config,
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
@@ -116,7 +116,6 @@ where
         Pallet::<C>::clear_underperformance_session_counter(start_index);
 
         if let Some(era) = Self::session_starts_era(start_index, false) {
-            EM::new_era_start(era);
             Pallet::<C>::update_validator_total_rewards(era);
             Pallet::<C>::clear_expired_bans(era);
         }

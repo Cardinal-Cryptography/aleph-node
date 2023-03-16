@@ -47,7 +47,9 @@ pub mod pallet {
         dispatch::DispatchResult, ensure, pallet_prelude::*, BoundedVec, Twox64Concat,
     };
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
-    use primitives::{BanHandler, BanReason, BlockCount, SessionCount, ValidatorProvider};
+    use primitives::{
+        BanHandler, BanReason, BlockCount, SessionCount, SessionValidators, ValidatorProvider,
+    };
     use sp_runtime::Perbill;
     use sp_staking::EraIndex;
     use sp_std::vec::Vec;
@@ -102,6 +104,11 @@ pub mod pallet {
     /// Validators to be removed from non reserved list in the next era
     #[pallet::storage]
     pub type Banned<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BanInfo>;
+
+    /// SessionValidators in the current session.
+    #[pallet::storage]
+    pub(crate) type CurrentSessionValidators<T: Config> =
+        StorageValue<_, SessionValidators<T::AccountId>, ValueQuery>;
 
     #[pallet::error]
     pub enum Error<T> {

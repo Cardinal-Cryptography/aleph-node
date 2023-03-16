@@ -40,9 +40,9 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, BannedValidators, BlockNumber, SessionAuthorityData,
-    Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS,
-    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
+    AuthorityId as AlephId, BlockNumber, SessionAuthorityData, Version as FinalityVersion,
+    ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -358,22 +358,12 @@ parameter_types! {
     pub const MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
-pub struct BannedValidatorsImpl;
-
-impl BannedValidators for BannedValidatorsImpl {
-    type AccountId = AccountId;
-
-    fn banned() -> Vec<Self::AccountId> {
-        pallet_session_ext::Banned::<Runtime>::iter_keys().collect()
-    }
-}
-
 impl pallet_elections::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type DataProvider = Staking;
     type ValidatorProvider = Staking;
     type MaxWinners = MaxWinners;
-    type BannedValidators = BannedValidatorsImpl;
+    type BannedValidators = SessionExt;
 }
 
 impl pallet_session_ext::Config for Runtime {
