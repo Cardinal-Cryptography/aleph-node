@@ -217,8 +217,7 @@ impl<T: Config> Pallet<T> {
         reserved: Vec<T::AccountId>,
         non_reserved: Vec<T::AccountId>,
     ) {
-        let committee: BTreeSet<T::AccountId> =
-            committee.iter().cloned().collect();
+        let committee: BTreeSet<T::AccountId> = committee.iter().cloned().collect();
 
         let non_committee = non_reserved
             .into_iter()
