@@ -298,8 +298,7 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
                 );
             }
             StreamClosed(peer, protocol) => {
-                trace!(target: "aleph-    abft::SpawnHandleT,
-network", "StreamClosed event for peer {:?} and protocol {:?}", peer, protocol);
+                trace!(target: "aleph-network", "StreamClosed event for peer {:?} and protocol {:?}", peer, protocol);
                 match protocol {
                     Protocol::Authentication => {
                         self.authentication_connected_peers.remove(&peer);
