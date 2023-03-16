@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn proposal_starting_at_zero_block_is_invalid() {
         let session_boundaries =
-            SessionBoundaryInfo::new(SessionPeriod(20)).boundaries_for_session(SessionId(1));
+            SessionBoundaryInfo::new(SessionPeriod(20)).boundaries_for_session(SessionId(0));
         let branch = vec![H256::default(); 2];
 
         let proposal = UnvalidatedAlephProposal::<TBlock>::new(branch, 1);
@@ -330,7 +330,7 @@ mod tests {
     #[test]
     fn valid_proposal_is_validated_positively() {
         let session_boundaries =
-            SessionBoundaryInfo::new(SessionPeriod(20)).boundaries_for_session(SessionId(1));
+            SessionBoundaryInfo::new(SessionPeriod(20)).boundaries_for_session(SessionId(0));
 
         let branch = vec![H256::default(); MAX_DATA_BRANCH_LEN];
         let proposal = UnvalidatedAlephProposal::<TBlock>::new(
