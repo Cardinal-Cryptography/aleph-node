@@ -12,7 +12,6 @@ jobs:
   build-image:
     name: Build binary
     runs-on: self-hosted
-    continue-on-error: true
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
@@ -26,15 +25,33 @@ jobs:
       - name: Cargo | Build release binary
         run: cargo build -p aleph-node --release --features liminal
 
-      - name: GIT | Get branch info & current commit sha.
-        id: vars
-        shell: bash
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
 
-      - name: Build docker image
+      - name: AWS | Login to ECR
+        uses: docker/login-action@v1
+        with:
+          registry: public.ecr.aws
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+
+      - name: DOCKER | Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          version: v0.9.1
+
+      - name: DOCKER | Build and push docker image
         id: build-image
-        run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node-liminal:${{ steps.vars.outputs.sha_short }} \
-            -f ./docker/Dockerfile .
-
+        uses: docker/build-push-action@v3
+        env:
+          REGISTRY: public.ecr.aws/p6e8q1z1/
+          IMAGE_NAME: aleph-node-liminal
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
