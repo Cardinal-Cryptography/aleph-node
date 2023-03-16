@@ -22,7 +22,7 @@ jobs:
         with:
           ref: main
           path: aleph-node-main
-      
+
       - name: Run diff
         run: |
           set +e
