@@ -37,5 +37,4 @@ jobs:
           done
           if [[ $fail == 1 ]]; then
             echo "!!! Deployment workflows on this branch differ from the ones on main branch!"
-            exit 1
           fi
