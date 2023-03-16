@@ -18,7 +18,7 @@ jobs:
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
-      
+
       - name: Install WASM target
         run: rustup target add wasm32-unknown-unknown
 
@@ -53,5 +53,5 @@ jobs:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/Dockerfile
-          push: ${{ github.event_name == 'push' }}
+          push: true
           tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
