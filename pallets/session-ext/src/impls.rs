@@ -468,8 +468,8 @@ mod tests {
                     session_index,
                     reserved_seats,
                     non_reserved_seats,
-                    reserved.clone(),
-                    non_reserved.clone(),
+                    &reserved,
+                    &non_reserved,
                 )
                 .expect("Expected non-empty rotated committee!")
             );
