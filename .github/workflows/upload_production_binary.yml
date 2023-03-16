@@ -6,7 +6,7 @@
 #  * Require a pull request before merging,
 #  * Require status checks to pass before merging (e2e tests),
 #  * Require branches to be up to date before merging.
-name:  Build and upload production aleph-node to ECR
+name: Build and upload production aleph-node to ECR
 
 on:
   push:
