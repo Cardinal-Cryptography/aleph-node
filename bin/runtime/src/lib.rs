@@ -34,6 +34,7 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
+use pallet_session_ext::SessionAndEraManager;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 pub use primitives::Balance;
@@ -320,7 +321,7 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = Session;
-    type SessionManager = SessionManagerExt<
+    type SessionManager = SessionAndEraManager<
         Staking,
         Elections,
         pallet_session::historical::NoteHistoricalRoot<Runtime, Staking>,
@@ -414,7 +415,6 @@ parameter_types! {
     pub const MaxPointsToBalance: u8 = 10;
 }
 
-use pallet_session_ext::SessionManagerExt;
 use sp_runtime::traits::Convert;
 
 pub struct BalanceToU256;

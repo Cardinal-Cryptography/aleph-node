@@ -49,14 +49,14 @@ where
 /// 2. Logic related to new session from this pallet is invoked
 /// 3. If session starts era EM::new_era_start invoked
 /// 4. If session starts era logic related to new era from this pallet is invoked
-pub struct SessionManagerExt<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
+pub struct SessionAndEraManager<E, EM, T, C>(PhantomData<(E, EM, T, C)>)
 where
     T: SessionManager<C::AccountId>,
     EM: EraManager,
     E: EraInfoProvider,
     C: Config;
 
-impl<E, EM, T, C> SessionManagerExt<E, EM, T, C>
+impl<E, EM, T, C> SessionAndEraManager<E, EM, T, C>
 where
     T: SessionManager<C::AccountId>,
     E: EraInfoProvider,
@@ -84,7 +84,7 @@ where
     }
 }
 
-impl<E, EM, T, C> SessionManager<C::AccountId> for SessionManagerExt<E, EM, T, C>
+impl<E, EM, T, C> SessionManager<C::AccountId> for SessionAndEraManager<E, EM, T, C>
 where
     T: SessionManager<C::AccountId>,
     E: EraInfoProvider,

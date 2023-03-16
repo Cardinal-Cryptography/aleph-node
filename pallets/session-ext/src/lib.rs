@@ -27,7 +27,7 @@ mod traits;
 
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
-pub use manager::SessionManagerExt;
+pub use manager::SessionAndEraManager;
 pub use migration::PrefixMigration;
 pub use pallet::*;
 use primitives::{BanConfig as BanConfigStruct, BanInfo};
