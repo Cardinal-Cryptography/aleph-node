@@ -218,7 +218,7 @@ impl<T: Config> Pallet<T> {
         non_reserved: Vec<T::AccountId>,
     ) {
         let committee: BTreeSet<T::AccountId> =
-            committee.iter().cloned().map(|a| a.into()).collect();
+            committee.iter().cloned().collect();
 
         let non_committee = non_reserved
             .into_iter()
@@ -254,7 +254,7 @@ impl<T: Config> Pallet<T> {
         );
 
         if let Some(c) = &committee {
-            Self::store_session_validators(&c, reserved, non_reserved);
+            Self::store_session_validators(c, reserved, non_reserved);
         }
 
         committee
