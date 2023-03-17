@@ -30,15 +30,29 @@ use frame_support::traits::StorageVersion;
 pub use manager::SessionAndEraManager;
 pub use migration::PrefixMigration;
 pub use pallet::*;
-use primitives::{BanConfig as BanConfigStruct, BanInfo};
+use primitives::{BanConfig as BanConfigStruct, BanInfo, SessionValidators};
 use scale_info::TypeInfo;
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, default::Default};
 pub use traits::*;
 
 pub type TotalReward = u32;
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
+#[derive(Decode, Encode, TypeInfo)]
+struct ValidatorsOfLast2Sessions<T> {
+    pub next: SessionValidators<T>,
+    pub current: SessionValidators<T>,
+}
+
+impl<T> Default for ValidatorsOfLast2Sessions<T> {
+    fn default() -> Self {
+        Self {
+            next: Default::default(),
+            current: Default::default(),
+        }
+    }
+}
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
@@ -56,7 +70,8 @@ pub mod pallet {
 
     use crate::{
         traits::{EraInfoProvider, ValidatorRewardsHandler},
-        BanConfigStruct, BanInfo, ValidatorExtractor, ValidatorTotalRewards, STORAGE_VERSION,
+        BanConfigStruct, BanInfo, ValidatorExtractor, ValidatorTotalRewards,
+        ValidatorsOfLast2Sessions, STORAGE_VERSION,
     };
 
     #[pallet::config]
@@ -107,8 +122,8 @@ pub mod pallet {
 
     /// SessionValidators in the current session.
     #[pallet::storage]
-    pub(crate) type CurrentSessionValidators<T: Config> =
-        StorageValue<_, SessionValidators<T::AccountId>, ValueQuery>;
+    pub(crate) type Last2SessionValidators<T: Config> =
+        StorageValue<_, ValidatorsOfLast2Sessions<T::AccountId>, ValueQuery>;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -236,7 +251,10 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <BanConfig<T>>::put(self.committee_ban_config.clone());
-            <CurrentSessionValidators<T>>::put(self.session_validators.clone())
+            <Last2SessionValidators<T>>::put(ValidatorsOfLast2Sessions {
+                current: self.session_validators.clone(),
+                next: self.session_validators.clone(),
+            })
         }
     }
 }

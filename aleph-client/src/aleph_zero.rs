@@ -13066,11 +13066,11 @@ pub mod api {
                     )
                 }
                 #[doc = " SessionValidators in the current session."]
-                pub fn current_session_validators(
+                pub fn last2_session_validators(
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
                     ::subxt::metadata::DecodeStaticType<
-                        runtime_types::primitives::SessionValidators<
+                        runtime_types::pallet_session_ext::ValidatorsOfLast2Sessions<
                             ::subxt::ext::sp_core::crypto::AccountId32,
                         >,
                     >,
@@ -13080,13 +13080,13 @@ pub mod api {
                 > {
                     ::subxt::storage::address::StaticStorageAddress::new(
                         "SessionExt",
-                        "CurrentSessionValidators",
+                        "Last2SessionValidators",
                         vec![],
                         [
-                            81u8, 199u8, 195u8, 16u8, 140u8, 135u8, 215u8, 124u8, 160u8, 105u8,
-                            36u8, 39u8, 88u8, 90u8, 168u8, 158u8, 240u8, 211u8, 207u8, 251u8,
-                            166u8, 73u8, 15u8, 127u8, 54u8, 201u8, 239u8, 212u8, 49u8, 154u8, 62u8,
-                            30u8,
+                            230u8, 210u8, 41u8, 120u8, 184u8, 17u8, 183u8, 62u8, 112u8, 70u8, 13u8,
+                            99u8, 130u8, 159u8, 214u8, 116u8, 208u8, 236u8, 7u8, 224u8, 91u8,
+                            121u8, 107u8, 46u8, 26u8, 29u8, 65u8, 114u8, 110u8, 234u8, 159u8,
+                            232u8,
                         ],
                     )
                 }
@@ -16775,6 +16775,18 @@ pub mod api {
             pub struct ValidatorTotalRewards<_0>(
                 pub ::subxt::utils::KeyedVec<_0, ::core::primitive::u32>,
             );
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ValidatorsOfLast2Sessions<_0> {
+                pub next: runtime_types::primitives::SessionValidators<_0>,
+                pub current: runtime_types::primitives::SessionValidators<_0>,
+            }
         }
         pub mod pallet_staking {
             use super::runtime_types;
@@ -19783,9 +19795,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                102u8, 84u8, 109u8, 81u8, 147u8, 151u8, 15u8, 125u8, 144u8, 43u8, 17u8, 55u8,
-                119u8, 190u8, 252u8, 242u8, 58u8, 100u8, 150u8, 110u8, 170u8, 199u8, 130u8, 134u8,
-                181u8, 194u8, 171u8, 83u8, 79u8, 190u8, 202u8, 76u8,
+                232u8, 234u8, 99u8, 234u8, 44u8, 250u8, 86u8, 141u8, 66u8, 14u8, 174u8, 10u8,
+                253u8, 148u8, 237u8, 123u8, 118u8, 82u8, 173u8, 165u8, 66u8, 238u8, 187u8, 33u8,
+                159u8, 197u8, 100u8, 201u8, 87u8, 99u8, 57u8, 123u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
