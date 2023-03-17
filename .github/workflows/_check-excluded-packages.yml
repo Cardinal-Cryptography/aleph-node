@@ -4,10 +4,6 @@ name: Check excluded packages
 on:
   workflow_call:
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   build:
     name: Check excluded packages

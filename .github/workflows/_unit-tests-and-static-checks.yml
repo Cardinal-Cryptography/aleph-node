@@ -4,10 +4,6 @@ name: Builds unit test binary and run unit tests, runs static rust code analysis
 on:
   workflow_call:
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   check-test-and-lint:
     name: Run check, test and lints
