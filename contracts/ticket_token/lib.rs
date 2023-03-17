@@ -139,7 +139,7 @@ pub mod ticket_token {
 
         /// Terminates the contract.
         ///
-        /// can only be called by the contract's Owner
+        /// can only be called by the contract's Admin
         #[ink(message, selector = 7)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
@@ -168,7 +168,7 @@ pub mod ticket_token {
 
         /// Sets new access control contract address
         ///
-        /// Can only be called by the contract's Owner
+        /// Can only be called by the contract's Admin
         #[ink(message, selector = 9)]
         pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
             let caller = self.env().caller();

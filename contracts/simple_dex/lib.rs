@@ -298,7 +298,7 @@ mod simple_dex {
 
         /// Sets access_control to a new contract address
         ///
-        /// Potentially very destructive, can only be called by the contract's Owner.
+        /// Potentially very destructive, can only be called by the contract's Admin.
         #[ink(message)]
         pub fn set_access_control(&mut self, access_control: AccountId) -> Result<(), DexError>
         where
@@ -363,7 +363,7 @@ mod simple_dex {
 
         /// Terminates the contract.
         ///
-        /// Can only be called by the contract's Owner.
+        /// Can only be called by the contract's Admin.
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), DexError> {
             let caller = self.env().caller();

@@ -241,7 +241,7 @@ pub mod marketplace {
 
         /// Terminates the contract
         ///
-        /// Should only be called by the contract Owner
+        /// Should only be called by the contract Admin
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
