@@ -6,7 +6,7 @@
 #  * it builds an e2e test client, wraps it in Docker,
 #  * in parallel, it starts an aleph-node consensus and run an e2e test on it
 #  The whole workflow passes only if all e2e tests pass.
-name: Run e2e tests
+name: PR
 
 on:
   pull_request:
