@@ -421,7 +421,7 @@ fn generate_genesis_config(
         session_ext: SessionExtConfig {
             committee_ban_config: Default::default(),
             session_validators: SessionValidators {
-                committee: accounts_config.members.clone(),
+                committee: accounts_config.members,
                 non_committee: vec![],
             },
         },
