@@ -5,13 +5,7 @@ on:
   push:
     branches:
       - 'main'
-    paths:
-      - 'bin/cliain/**'
-      - .github/workflows/build-and-push-cliain.yml
   pull_request:
-    paths:
-      - 'bin/cliain/**'
-      - .github/workflows/build-and-push-cliain.yml
   workflow_dispatch:
 
 jobs:
@@ -40,9 +34,9 @@ jobs:
         if: ${{ matrix.runtime == 'liminal' }}
         run: ./.github/scripts/test_cliain_snark_relations.sh
 
-      - name: GIT | Get branch name and commit SHA
-        id: get_branch
-        uses: ./.github/actions/get-branch
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
 
       - name: Login to ECR
         uses: docker/login-action@v2
@@ -64,9 +58,9 @@ jobs:
           IMAGE_NAME: ${{ matrix.runtime == 'standard' && 'cliain' || 'cliain-liminal' }}
           TAG: >
             ${{ matrix.runtime == 'standard' &&
-                  (steps.get_branch.outputs.branch_name == 'main' && 'latest' ||
-                  steps.get_branch.outputs.branch_name) ||
-                matrix.runtime == 'liminal' && steps.get_branch.outputs.sha_short }}
+                  (steps.get-ref-properties.outputs.branch-name-flattened == 'main' && 'latest' ||
+                  steps.get-ref-properties.outputs.branch-name-flattened) ||
+                matrix.runtime == 'liminal' && steps.get-ref-properties.outputs.sha }}
         uses: docker/build-push-action@v3.3.0
         with:
           context: ./bin/cliain
