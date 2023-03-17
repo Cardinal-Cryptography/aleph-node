@@ -413,12 +413,40 @@ mod tests {
     }
 
     #[test]
+    fn initializes_forest_properly() {
+        let (backend, _keep) = Backend::setup(SESSION_PERIOD);
+        let header = import_branch(&backend, 1)[0].clone();
+        // header already imported, Handler should initialize Forest properly
+        let verifier = MockVerifier {};
+        let mut handler = Handler::new(
+            backend.clone(),
+            verifier,
+            backend.clone(),
+            SessionPeriod(20),
+        )
+        .expect("mock backend works");
+        let justification = MockJustification::for_header(header);
+        let peer: MockPeerId = rand::random();
+        // should be auto-finalized, if Forest knows about imported body
+        assert!(matches!(
+            handler
+                .handle_justification(justification.clone().into_unverified(), peer)
+                .expect("correct justification"),
+            None
+        ));
+        assert_eq!(
+            backend.top_finalized().expect("mock backend works"),
+            justification
+        );
+    }
+
+    #[test]
     fn refreshes_forest() {
         let (mut handler, backend, _keep) = setup();
+        let header = import_branch(&backend, 1)[0].clone();
         // handler doesn't know about the impotred block, neither does the forest
         handler.refresh_forest().expect("should refresh forest");
         // now forest should know about the imported block
-        let header = import_branch(&backend, 1)[0].clone();
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
         assert!(matches!(
