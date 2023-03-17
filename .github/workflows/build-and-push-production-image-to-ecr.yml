@@ -5,7 +5,7 @@
 #  * Require a pull request before merging,
 #  * Require status checks to pass before merging (e2e tests),
 #  * Require branches to be up to date before merging.
-name: Upload production aleph-node image to ECR
+name: Build and push production image to ECR
 
 on:
   push:
@@ -66,7 +66,7 @@ jobs:
           docker tag ${{ env.CURRENT_IMAGE }} \
             ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
           docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
-          if [[ ${{ steps.get-ref-properties.outputs.branch }} -eq "main" ]]; then
+          if [[ "${{ steps.get-ref-properties.outputs.branch }}" -eq "main" ]]; then
             docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
             docker push ${{ env.ECR_PUSH_IMAGE }}:latest
           fi
