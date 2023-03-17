@@ -63,10 +63,13 @@ jobs:
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
-  build-test-node-docker:
+  build-test-node-image-and-e2e-client-image:
     needs: [build-test-node-and-runtime]
-    name: Build docker image with the test node artifact
-    runs-on: ubuntu-20.04
+    name: Build test node docker image and e2e client image
+    runs-on: self-hosted
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v3
@@ -92,19 +95,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  build-test-client:
-    name: Build e2e test client suite
-    runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout Source code
-        uses: actions/checkout@v3
-
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
@@ -123,7 +113,7 @@ jobs:
           retention-days: 7
 
   run-e2e-finalization-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e finalization test
     runs-on: ubuntu-20.04
     steps:
@@ -138,7 +128,7 @@ jobs:
 
 
   run-e2e-rewards-disable-node-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e reward points - disable node test
     runs-on: ubuntu-20.04
     steps:
@@ -154,7 +144,7 @@ jobs:
 
 
   run-e2e-token-transfer-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e token transfer test
     runs-on: ubuntu-20.04
     steps:
@@ -169,7 +159,7 @@ jobs:
 
 
   run-e2e-channeling-fee-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e channeling fee test
     runs-on: ubuntu-20.04
     steps:
@@ -183,7 +173,7 @@ jobs:
         timeout-minutes: 4
 
   run-e2e-treasury-access-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e treasury access test
     runs-on: ubuntu-20.04
     steps:
@@ -198,7 +188,7 @@ jobs:
 
 
   run-e2e-batch-transactions-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e batch transactions test
     runs-on: ubuntu-20.04
     steps:
@@ -213,7 +203,7 @@ jobs:
 
 
   run-e2e-staking-era-payouts-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e staking era payouts test
     runs-on: ubuntu-20.04
     steps:
@@ -229,7 +219,7 @@ jobs:
 
 
   run-e2e-staking-new-validator-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e staking new validator test
     runs-on: ubuntu-20.04
     steps:
@@ -245,7 +235,7 @@ jobs:
 
 
   run-e2e-change-validators-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e change validators test
     runs-on: ubuntu-20.04
     steps:
@@ -260,7 +250,7 @@ jobs:
         timeout-minutes: 3
 
   run-e2e-validators-rotate:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run validators rotation test
     runs-on: ubuntu-20.04
     steps:
@@ -275,7 +265,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-era-payout:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run era payout test
     runs-on: ubuntu-20.04
     steps:
@@ -290,7 +280,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-era-validators:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run era validators test
     runs-on: ubuntu-20.04
     steps:
@@ -305,7 +295,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-rewards-force-new-era:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run force new era test to check rewards
     runs-on: ubuntu-20.04
     steps:
@@ -320,7 +310,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-rewards-stake-change:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run reward points with stake changed test
     runs-on: ubuntu-20.04
     steps:
@@ -335,7 +325,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-rewards-change-stake-force-new-era:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run reward points with stake changed and new era forced test
     runs-on: ubuntu-20.04
     steps:
@@ -350,7 +340,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-rewards-points-basic:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run basic reward points calculation test
     runs-on: ubuntu-20.04
     steps:
@@ -365,7 +355,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-authorities-are-staking:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run authorities are staking test
     runs-on: ubuntu-20.04
     steps:
@@ -383,7 +373,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-ban-automatic:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run ban automatic test
     runs-on: ubuntu-20.04
     steps:
@@ -398,7 +388,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-ban-manual:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run ban manual test
     runs-on: ubuntu-20.04
     steps:
@@ -413,7 +403,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-ban-counter-clearing:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run ban counter clearing test
     runs-on: ubuntu-20.04
     steps:
@@ -428,7 +418,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-ban-threshold:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run ban threshold test
     runs-on: ubuntu-20.04
     steps:
@@ -443,7 +433,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-permissionless-ban:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run permissionless ban test
     runs-on: ubuntu-20.04
     steps:
@@ -458,7 +448,7 @@ jobs:
         timeout-minutes: 15
 
   run-e2e-version-upgrade:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run basic (positive) version-upgrade test
     runs-on: ubuntu-20.04
     steps:
@@ -476,7 +466,7 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-adder-contract-test:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e adder contract test
     runs-on: self-hosted
     steps:
@@ -498,8 +488,10 @@ jobs:
         timeout-minutes: 10
 
   run-e2e-button-contract-tests:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e button game contract tests
+    # temp disable, will move to commit phase
+    if: false
     runs-on: self-hosted
     steps:
       - name: Checkout source code
@@ -514,7 +506,7 @@ jobs:
         timeout-minutes: 20
 
   run-e2e-finality-version-change:
-    needs: [build-test-node-docker, build-test-client]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run finality version change test
     runs-on: ubuntu-20.04
     steps:
@@ -554,6 +546,7 @@ jobs:
       run-e2e-version-upgrade,
       run-e2e-permissionless-ban,
       run-e2e-finality-version-change,
+      run-e2e-adder-contract-test,
     ]
     name: Check e2e test suite completion
     runs-on: ubuntu-20.04
