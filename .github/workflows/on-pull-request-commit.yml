@@ -1,21 +1,8 @@
 ---
-#  This workflow is intended to run either for PRs on main and release branches, or pushes to
-#  main or release branches, and does following
-#  * it builds test an aleph-node and runtime, wraps it in Docker,
-#  * in parallel, it builds production node and runtime, and check runtime determinism
-#  * it builds an e2e test client, wraps it in Docker,
-#  * in parallel, it starts an aleph-node consensus and run an e2e test on it
-#  * also in parallel, it checks clippy, unit tests and compiles excluded packages
-#  The whole workflow passes only if all e2e tests pass.
-#  In case
-name: Run e2e tests and push node image to ECR
+name: PR commit
 
 on:
   pull_request:
-    branches:
-      - main
-      - 'release-*'
-  push:
     branches:
       - main
       - 'release-*'
@@ -27,16 +14,12 @@ concurrency:
 jobs:
   check-excluded-packages:
     name: Check excluded packages
-    if: github.event_name != 'push'
     uses: ./.github/workflows/_check-excluded-packages.yml
 
   unit-tests-and-static-checks:
     name: Unit tests and clippy
-    if: github.event_name != 'push'
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 
-  # this needs to be done on both push and pull_request, since production binary is required
-  # for uploading to ECR
   build-production-node-and-runtime:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
@@ -48,7 +31,6 @@ jobs:
 
   build-test-node-and-runtime:
     name: Build test node and runtime
-    if: github.event_name != 'push'
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
@@ -434,8 +416,6 @@ jobs:
   run-e2e-button-contract-tests:
     needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e button game contract tests
-    # temp disable, will move to commit phase
-    if: false
     runs-on: self-hosted
     steps:
       - name: Checkout source code
@@ -555,78 +535,3 @@ jobs:
           # Relative to local-tests/ directory
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_multiple_restarts.sh ${{ matrix.pruning }}
-
-  push-node-image-to-ecr:
-    name: Push production node docker image to the ECR
-    # TODO uncomment this before merge
-    # if: github.event_name == 'push'
-    needs: [build-production-node-and-runtime]
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout aleph-node sources
-        uses: actions/checkout@v3
-
-      - name: Call action get-ref-properties
-        id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
-
-      - name: Download node production binary from artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-release-node
-          path: target/release/
-
-      - name: Build production docker node image
-        id: build-image
-        run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-
-      - name: Configure AWS Mainnet credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Login to Public Amazon ECR
-        id: login-public-ecr
-        uses: docker/login-action@v2
-        with:
-          registry: public.ecr.aws
-          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-        env:
-          AWS_REGION: us-east-1
-
-      - name: Push aleph-node image to ECR
-        env:
-          CURRENT_IMAGE: aleph-node
-          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
-        run: |
-          docker tag ${{ env.CURRENT_IMAGE }} \
-            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
-          # docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
-          echo "will push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}"
-          if [[ "${{ steps.get-ref-properties.outputs.branch }}" -eq "main" ]]; then
-            docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
-            # docker push ${{ env.ECR_PUSH_IMAGE }}:latest
-          fi
-
-  send-slack-notification:
-    name: Send Slack notification about workflow status
-    # TODO uncomment this before merge
-    # if: github.event_name == 'push'
-    runs-on: ubuntu-20.04
-    needs: [push-node-image-to-ecr]
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}
