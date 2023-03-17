@@ -1,12 +1,11 @@
 ---
-#  This workflow builds production aleph-node and runtime, check runtime determinism,
-#  and uploads both aleph-node runtime to ECR. It is intended to work only on pushes
+#  This workflow uploads production aleph-node image to ECR. It is intended to work only on pushes
 #  to main and release branches. Those branches must be set as protected branches with
 #  following restrictions:
 #  * Require a pull request before merging,
 #  * Require status checks to pass before merging (e2e tests),
 #  * Require branches to be up to date before merging.
-name: Build and upload production aleph-node to ECR
+name: Upload production aleph-node image to ECR
 
 on:
   push:
@@ -19,51 +18,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-production-node-and-runtime:
-    name: Build production node and runtime
-    uses: ./.github/workflows/_build-production-node-and-runtime.yml
-    secrets: inherit
-
-  check-runtime-determinism:
-    needs: [build-production-node-and-runtime]
-    name: Verify runtime build determinism
-    runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout aleph-node source code
-        uses: actions/checkout@v3
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Download production runtime from artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-release-runtime
-
-      - name: Build runtime 2nd time and compare checksum with previous build
-        env:
-          ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/production/wbuild/aleph-runtime
-        run: |
-          mkdir -p "$TARGET_DIR"
-          mv "$ARTIFACT" "$TARGET_DIR"
-          sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          cargo clean
-          cargo build --profile production -p aleph-runtime
-          sha256sum -c checksum.sha256
-
-  push-image-to-ecr:
-    needs: [check-runtime-determinism]
+  push-node-image-to-ecr:
     name: Push production node docker image to the ECR
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout aleph-node source from git
+      - name: Checkout aleph-node sources
         uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
@@ -99,7 +58,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Push aleph-node Current Image to Public ECR
+      - name: Push aleph-node image to ECR
         env:
           CURRENT_IMAGE: aleph-node
           ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
@@ -111,10 +70,11 @@ jobs:
             docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
             docker push ${{ env.ECR_PUSH_IMAGE }}:latest
           fi
+
   send-slack-notification:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
-    needs: [push-image-to-ecr]
+    needs: [push-node-image-to-ecr]
     if: always()
     steps:
       - name: Checkout repository
@@ -123,7 +83,6 @@ jobs:
       - name: Send Slack message
         uses: ./.github/actions/slack-notification
         with:
-          notify-on: "failure"
+          notify-on: "always"
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}
