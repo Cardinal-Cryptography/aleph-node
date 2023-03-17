@@ -109,7 +109,7 @@ impl<H: SpHash> legacy_aleph_bft::Hasher for Wrapper<H> {
 
 /// A wrapper for spawning tasks in a way compatible with AlephBFT.
 #[derive(Clone)]
-pub struct SpawnHandle(pub SpawnTaskHandle);
+pub struct SpawnHandle(SpawnTaskHandle);
 
 impl SpawnHandle {
     pub fn spawn_essential_with_result(

@@ -397,16 +397,13 @@ mod tests {
     use tokio::runtime::Handle;
 
     use super::{Error, Service};
-    use crate::{
-        network::{
-            gossip::{
-                mock::{MockEvent, MockRawNetwork, MockSenderError},
-                Network,
-            },
-            mock::MockData,
-            Protocol,
+    use crate::network::{
+        gossip::{
+            mock::{MockEvent, MockRawNetwork, MockSenderError},
+            Network,
         },
-        SpawnHandle,
+        mock::MockData,
+        Protocol,
     };
 
     const PROTOCOL: Protocol = Protocol::Authentication;
@@ -429,7 +426,7 @@ mod tests {
             // Prepare service
             let network = MockRawNetwork::new(event_stream_oneshot_tx);
             let (service, gossip_network, _) =
-                Service::new(network.clone(), SpawnHandle(task_manager.spawn_handle()));
+                Service::new(network.clone(), task_manager.spawn_handle().into());
             let gossip_network = Box::new(gossip_network);
 
             // `TaskManager` needs to be passed, so sender threads are running in background.

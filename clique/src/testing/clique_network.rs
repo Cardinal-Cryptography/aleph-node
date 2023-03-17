@@ -50,7 +50,7 @@ fn spawn_peer(
     dialer: MockDialer,
     listener: MockListener,
     report: mpsc::UnboundedSender<(MockPublicKey, usize)>,
-    spawn_handle: impl SpawnHandleT + Send + 'static,
+    spawn_handle: Spawner,
 ) {
     let our_id = secret_key.public_key();
     let (service, mut interface) = Service::new(dialer, listener, secret_key, spawn_handle);
@@ -144,7 +144,7 @@ async fn scenario(
             dialer,
             listener,
             tx_report.clone(),
-            Spawner {},
+            Spawner,
         );
     }
     let mut status_ticker = interval(status_report_interval);

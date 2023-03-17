@@ -6,8 +6,6 @@ edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
-aleph-bft-mock = "0.8.3"
-aleph-bft-types = "0.8.1"
 async-trait = "0.1"
 bytes = "1.0"
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = [
@@ -18,7 +16,7 @@ derive_more = "0.99"
 env_logger = "0.10"
 futures = "0.3"
 futures-timer = "3.0"
-hash-db = { version = "0.15.2", default-features = false }
+hash-db = { version = "0.16", default-features = false }
 ip_network = "0.4"
 log = "0.4"
 lru = "0.10"
@@ -36,4 +34,5 @@ tokio = { version = "1.25", features = [
 ] }
 
 [dev-dependencies]
-exit-future = "0.2.0"
+aleph-bft-types = "0.8.1"
+aleph-bft-mock = "0.8.3"
