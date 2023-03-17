@@ -2,7 +2,7 @@
 name: Check excluded packages
 
 on:
-  pull_request:
+  workflow_call:
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}

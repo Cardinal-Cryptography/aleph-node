@@ -19,6 +19,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-excluded-packages:
+    name: Check excluded packages
+    uses: ./.github/workflows/_check-runtime-determimism.yml
+
+  unit-tests-and-static-checks:
+    name: Unit tests and clippy
+    uses: ./.github/workflows/_unit-tests-and-static-checks.yml
+
   build-production-node-and-runtime:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
@@ -26,37 +34,7 @@ jobs:
 
   check-runtime-determinism:
     needs: [build-production-node-and-runtime]
-    name: Verify runtime build determinism
-    runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout aleph-node source code
-        uses: actions/checkout@v3
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Download production runtime from artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-release-runtime
-
-      - name: Build runtime 2nd time and compare checksum with previous build
-        env:
-          ARTIFACT: aleph_runtime.compact.wasm
-          TARGET_DIR: target/production/wbuild/aleph-runtime
-        run: |
-          mkdir -p "$TARGET_DIR"
-          mv "$ARTIFACT" "$TARGET_DIR"
-          sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
-          cargo clean
-          cargo build --profile production -p aleph-runtime
-          sha256sum -c checksum.sha256
+    uses: ./.github/workflows/_check-runtime-determimism.yml
 
   build-test-node-and-runtime:
     name: Build test node and runtime
@@ -65,52 +43,7 @@ jobs:
 
   build-test-node-image-and-e2e-client-image:
     needs: [build-test-node-and-runtime]
-    name: Build test node docker image and e2e client image
-    runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout Source code
-        uses: actions/checkout@v3
-
-      - name: Download test artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-test-node
-          path: target/release/
-
-      - name: Build test docker image
-        id: build-image
-        run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-          docker save -o aleph-node.tar aleph-node:latest
-
-      - name: Upload test docker image
-        uses: actions/upload-artifact@v2
-        with:
-          name: aleph-test-docker
-          path: aleph-node.tar
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Build binary and docker image
-        run: |
-          cd e2e-tests/
-          rm -f target/release/deps/aleph_e2e_client*
-          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
-            grep aleph_e2e_client) target/release/aleph-e2e-client
-          docker build --tag aleph-e2e-client:latest -f Dockerfile .
-          docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: aleph-e2e-client
-          path: e2e-tests/aleph-e2e-client.tar
-          if-no-files-found: error
-          retention-days: 7
+    uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml.yml
 
   run-e2e-finalization-test:
     needs: [build-test-node-image-and-e2e-client-image]
@@ -624,6 +557,6 @@ jobs:
       - name: Send Slack message
         uses: ./.github/actions/slack-notification
         with:
-          notify-on: "failure"
+          notify-on: "always"
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}

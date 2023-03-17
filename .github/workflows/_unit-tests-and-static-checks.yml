@@ -1,11 +1,8 @@
 ---
-name: unit-tests
+name: Builds unit test binary and run unit tests, runs static rust code analysis and code formatting
 
 on:
-  pull_request:
-  push:
-    branches:
-      - 'release-*'
+  workflow_call:
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
