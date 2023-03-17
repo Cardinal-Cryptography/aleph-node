@@ -100,43 +100,6 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-/// TODO: Move to `Handler::new` after completing the sync rewrite.
-fn fresh_forest<
-    I: PeerId,
-    J: Justification,
-    CS: ChainStatus<J>,
-    V: Verifier<J>,
-    F: Finalizer<J>,
->(
-    chain_status: &CS,
-) -> Result<Forest<I, J>, Error<J, CS, V, F>> {
-    let top_finalized = chain_status
-        .top_finalized()
-        .map_err(Error::ChainStatus)?
-        .header()
-        .id();
-    let mut forest = Forest::new(top_finalized.clone());
-    let mut deque = VecDeque::from([top_finalized]);
-    while let Some(hash) = deque.pop_front() {
-        let children = chain_status.children(hash).map_err(Error::ChainStatus)?;
-        for header in children.iter() {
-            if let Err(e) = forest.update_body(header) {
-                if let ForestError::TooNew = e {
-                    warn!(
-                        target: LOG_TARGET,
-                        "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
-                    );
-                    return Ok(forest);
-                } else {
-                    return Err(Error::Forest(e));
-                }
-            }
-        }
-        deque.extend(children.into_iter().map(|header| header.id()));
-    }
-    Ok(forest)
-}
-
 impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
     Handler<I, J, CS, V, F>
 {
@@ -147,19 +110,57 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         finalizer: F,
         period: SessionPeriod,
     ) -> Result<Self, Error<J, CS, V, F>> {
-        let forest = fresh_forest(&chain_status)?;
-        Ok(Handler {
+        let forest = Forest::new(
+            chain_status
+                .top_finalized()
+                .map_err(Error::ChainStatus)?
+                .header()
+                .id(),
+        );
+        let mut handler = Handler {
             chain_status,
             verifier,
             finalizer,
             forest,
             session_info: SessionBoundaryInfo::new(period),
-        })
+        };
+        handler.refresh_forest()?;
+        Ok(handler)
     }
 
     /// TODO: Remove after completing the sync rewrite.
+    /// Move the code to `Self::new` to initialize the `Forest` properly.
     pub fn refresh_forest(&mut self) -> Result<(), Error<J, CS, V, F>> {
-        self.forest = fresh_forest(&self.chain_status)?;
+        let top_finalized = self
+            .chain_status
+            .top_finalized()
+            .map_err(Error::ChainStatus)?
+            .header()
+            .id();
+        let mut forest = Forest::new(top_finalized.clone());
+        let mut deque = VecDeque::from([top_finalized]);
+        while let Some(hash) = deque.pop_front() {
+            let children = self
+                .chain_status
+                .children(hash)
+                .map_err(Error::ChainStatus)?;
+            for header in children.iter() {
+                if let Err(e) = forest.update_body(header) {
+                    if let ForestError::TooNew = e {
+                        warn!(
+                            target: LOG_TARGET,
+                            "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
+                        );
+                        self.forest = forest;
+                        return Ok(());
+                    } else {
+                        return Err(Error::Forest(e));
+                    }
+                }
+            }
+            deque.extend(children.into_iter().map(|header| header.id()));
+        }
+        self.forest = forest;
         Ok(())
     }
 
@@ -397,6 +398,27 @@ mod tests {
         handler
             .block_imported(header.clone())
             .expect("importing in order");
+        let justification = MockJustification::for_header(header);
+        let peer = rand::random();
+        assert!(matches!(
+            handler
+                .handle_justification(justification.clone().into_unverified(), peer)
+                .expect("correct justification"),
+            None
+        ));
+        assert_eq!(
+            backend.top_finalized().expect("mock backend works"),
+            justification
+        );
+    }
+
+    #[test]
+    fn refreshes_forest() {
+        let (mut handler, backend, _keep) = setup();
+        // handler doesn't know about the impotred block, neither does the forest
+        handler.refresh_forest().expect("should refresh forest");
+        // now forest should know about the imported block
+        let header = import_branch(&backend, 1)[0].clone();
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
         assert!(matches!(
