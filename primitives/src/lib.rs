@@ -249,7 +249,8 @@ pub trait ValidatorProvider {
     fn current_era_committee_size() -> Option<CommitteeSeats>;
 }
 
-#[derive(Decode, Encode, TypeInfo)]
+#[derive(Decode, Encode, TypeInfo, Clone)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct SessionValidators<T> {
     pub committee: Vec<T>,
     pub non_committee: Vec<T>,
