@@ -228,7 +228,7 @@ mod access_control {
                     bob,
                     Role::Custom(contract_address, [0x43, 0x53, 0x54, 0x4D])
                 ),
-                "charlie should have a custom role"
+                "bob should have a custom role"
             );
 
             // test terminating
