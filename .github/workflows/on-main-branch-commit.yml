@@ -34,12 +34,12 @@ jobs:
           deploy-button: true
           clean-button: true
           test-case: button
-        timeout-minutes: 20
+        timeout-minutes: 15
 
   send-slack-notification:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
-    needs: [push-node-image-to-ecr]
+    needs: [run-e2e-button-contract-tests]
     if: always()
     steps:
       - name: Checkout repository
