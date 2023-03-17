@@ -610,11 +610,13 @@ jobs:
           echo "will push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}"
           if [[ "${{ steps.get-ref-properties.outputs.branch }}" -eq "main" ]]; then
             docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
-            docker push ${{ env.ECR_PUSH_IMAGE }}:latest
+            # docker push ${{ env.ECR_PUSH_IMAGE }}:latest
           fi
 
   send-slack-notification:
     name: Send Slack notification about workflow status
+    # TODO uncomment this before merge
+    # if: github.event_name == 'push'
     runs-on: ubuntu-20.04
     needs: [push-node-image-to-ecr]
     if: always()
