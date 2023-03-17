@@ -40,12 +40,12 @@ pub type TotalReward = u32;
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
 #[derive(Decode, Encode, TypeInfo)]
-struct ValidatorsOfLast2Sessions<T> {
+struct CurrentAndNextSessionValidators<T> {
     pub next: SessionValidators<T>,
     pub current: SessionValidators<T>,
 }
 
-impl<T> Default for ValidatorsOfLast2Sessions<T> {
+impl<T> Default for CurrentAndNextSessionValidators<T> {
     fn default() -> Self {
         Self {
             next: Default::default(),
@@ -70,8 +70,8 @@ pub mod pallet {
 
     use crate::{
         traits::{EraInfoProvider, ValidatorRewardsHandler},
-        BanConfigStruct, BanInfo, ValidatorExtractor, ValidatorTotalRewards,
-        ValidatorsOfLast2Sessions, STORAGE_VERSION,
+        BanConfigStruct, BanInfo, CurrentAndNextSessionValidators, ValidatorExtractor,
+        ValidatorTotalRewards, STORAGE_VERSION,
     };
 
     #[pallet::config]
@@ -122,8 +122,8 @@ pub mod pallet {
 
     /// SessionValidators in the current session.
     #[pallet::storage]
-    pub(crate) type Last2SessionValidators<T: Config> =
-        StorageValue<_, ValidatorsOfLast2Sessions<T::AccountId>, ValueQuery>;
+    pub(crate) type CurrentAndNextSessionValidatorsStorage<T: Config> =
+        StorageValue<_, CurrentAndNextSessionValidators<T::AccountId>, ValueQuery>;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -251,7 +251,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <BanConfig<T>>::put(self.committee_ban_config.clone());
-            <Last2SessionValidators<T>>::put(ValidatorsOfLast2Sessions {
+            <CurrentAndNextSessionValidatorsStorage<T>>::put(CurrentAndNextSessionValidators {
                 current: self.session_validators.clone(),
                 next: self.session_validators.clone(),
             })

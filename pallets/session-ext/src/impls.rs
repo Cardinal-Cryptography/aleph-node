@@ -12,11 +12,11 @@ use sp_std::{
 
 use crate::{
     pallet::{
-        BanConfig, Banned, Config, Event, Last2SessionValidators, Pallet,
+        BanConfig, Banned, Config, CurrentAndNextSessionValidatorsStorage, Event, Pallet,
         SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, ValidatorExtractor, ValidatorTotalRewards, ValidatorsOfLast2Sessions,
+    BanConfigStruct, CurrentAndNextSessionValidators, ValidatorExtractor, ValidatorTotalRewards,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -182,14 +182,14 @@ impl<T: Config> Pallet<T> {
             return;
         }
 
-        let ValidatorsOfLast2Sessions {
+        let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
                     committee,
                     non_committee,
                 },
             ..
-        } = Last2SessionValidators::<T>::get();
+        } = CurrentAndNextSessionValidatorsStorage::<T>::get();
         let nr_of_sessions = T::EraInfoProvider::sessions_per_era();
         let blocks_per_session = Self::blocks_to_produce_per_session();
         let validator_total_rewards = ValidatorEraTotalReward::<T>::get()
@@ -229,7 +229,7 @@ impl<T: Config> Pallet<T> {
             .filter(|a| !committee.contains(a))
             .collect();
 
-        let mut session_validators = Last2SessionValidators::<T>::get();
+        let mut session_validators = CurrentAndNextSessionValidatorsStorage::<T>::get();
 
         session_validators.current = session_validators.next;
         session_validators.next = SessionValidators {
@@ -237,7 +237,7 @@ impl<T: Config> Pallet<T> {
             non_committee,
         };
 
-        Last2SessionValidators::<T>::put(session_validators);
+        CurrentAndNextSessionValidatorsStorage::<T>::put(session_validators);
     }
 
     pub fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>>
@@ -270,14 +270,14 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn calculate_underperforming_validators() {
         let thresholds = BanConfig::<T>::get();
-        let ValidatorsOfLast2Sessions {
+        let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
                     committee: current_committee,
                     ..
                 },
             ..
-        } = Last2SessionValidators::<T>::get();
+        } = CurrentAndNextSessionValidatorsStorage::<T>::get();
         let expected_blocks_per_validator = Self::blocks_to_produce_per_session();
         for validator in current_committee {
             let underperformance = match SessionValidatorBlockCount::<T>::try_get(&validator) {
