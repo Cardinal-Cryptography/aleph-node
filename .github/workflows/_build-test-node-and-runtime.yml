@@ -92,7 +92,7 @@ jobs:
           BINARY_FILE: aleph_runtime.compact.wasm
           # yamllint disable-line rule:line-length
           S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
-          S3BUCKET_FILE: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha_short }}.tar.gz
+          S3BUCKET_FILE: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
         run: |
           tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
           aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}

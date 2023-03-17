@@ -5,6 +5,7 @@
 #  * in parallel, it builds production node and runtime, and check runtime determinism
 #  * it builds an e2e test client, wraps it in Docker,
 #  * in parallel, it starts an aleph-node consensus and run an e2e test on it
+#  * also in parallel, it checks clippy, unit tests and compiles excluded packages
 #  The whole workflow passes only if all e2e tests pass.
 name: PR
 
@@ -545,18 +546,3 @@ jobs:
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_multiple_restarts.sh ${{ matrix.pruning }}
 
-  slack:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [check-e2e-test-suite-completion]
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "always"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}
