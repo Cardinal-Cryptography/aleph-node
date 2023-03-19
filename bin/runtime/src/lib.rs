@@ -82,6 +82,8 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+mod migrations;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -781,9 +783,11 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, Si
 /// Executive: handles dispatch to the various modules.
 // Migrations
 use pallet_balances::migration::MigrateManyToTrackInactive as BalancesV1Migration;
+use pallet_multisig::migrations::v1::MigrateToV1 as MultisigV1Migration;
 use pallet_scheduler::migration::v3::MigrateToV4 as SchedulerV3V4Migration;
 use pallet_staking::migrations::v13::MigrateToV13 as StakingV13Migration;
-use pallet_multisig::migrations::v1::MigrateToV1 as MultisigV1Migration;
+
+use crate::migrations::contracts_set_version::ContractsSetVersion9;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
@@ -800,6 +804,8 @@ pub type Executive = frame_executive::Executive<
         SchedulerV3V4Migration<Runtime>,
         // This only kills the custom versioning enum, and sets StorageVersion to 13
         StakingV13Migration<Runtime>,
+        // We are adding the pallet to runtime. Need to set the version 9 manually.
+        ContractsSetVersion9<Runtime>,
     ),
 >;
 
