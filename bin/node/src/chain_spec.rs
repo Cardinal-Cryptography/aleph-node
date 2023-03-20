@@ -6,8 +6,8 @@ use aleph_primitives::{
     LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
-    AccountId, AlephConfig, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill,
-    SessionConfig, SessionExtConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
+    AccountId, AlephConfig, AlephSessionManagerConfig, AuraConfig, BalancesConfig, ElectionsConfig,
+    GenesisConfig, Perbill, SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
     VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
@@ -418,7 +418,7 @@ fn generate_genesis_config(
         vesting: VestingConfig { vesting: vec![] },
         nomination_pools: Default::default(),
         transaction_payment: Default::default(),
-        session_ext: SessionExtConfig {
+        aleph_session_manager: AlephSessionManagerConfig {
             committee_ban_config: Default::default(),
             session_validators: SessionValidators {
                 committee: accounts_config.members,

@@ -1,5 +1,7 @@
 /// Pallet aleph API
 pub mod aleph;
+/// Pallet aleph-session-manager API
+pub mod aleph_session_manager;
 /// Pallet author API
 pub mod author;
 /// Pallet baby liminal API
@@ -17,8 +19,6 @@ pub mod fee;
 pub mod multisig;
 /// Pallet session API
 pub mod session;
-/// Pallet session-ext API
-pub mod session_ext;
 /// Pallet staking API
 pub mod staking;
 /// Pallet system API

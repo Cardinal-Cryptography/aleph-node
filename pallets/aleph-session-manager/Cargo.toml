@@ -1,5 +1,5 @@
 [package]
-name = "pallet-session-ext"
+name = "pallet-aleph-session-manager"
 version = "0.1.0"
 edition = "2021"
 

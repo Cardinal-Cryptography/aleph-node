@@ -220,7 +220,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Schedule a non-reserved node to be banned out from the committee at the end of the era
+        /// Cancel the ban of the node
         #[pallet::call_index(3)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn cancel_ban(origin: OriginFor<T>, banned: T::AccountId) -> DispatchResult {

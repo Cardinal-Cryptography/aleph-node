@@ -1,21 +1,21 @@
 use primitives::{EraIndex, SessionCount};
 
 use crate::{
-    aleph_runtime::RuntimeCall::SessionExt,
+    aleph_runtime::RuntimeCall::AlephSessionManager,
     api,
-    pallet_session_ext::pallet::Call::{ban_from_committee, set_ban_config},
+    pallet_aleph_session_manager::pallet::Call::{ban_from_committee, set_ban_config},
     primitives::{BanConfig, BanInfo, BanReason},
     AccountId, AsConnection, BlockHash, ConnectionApi, RootConnection, SudoCall, TxInfo, TxStatus,
 };
 
-/// Pallet SessionExt read-only api.
+/// Pallet AlephSessionManager read-only api.
 #[async_trait::async_trait]
-pub trait SessionExtApi {
-    /// Returns `session-ext.ban_config` storage of the session-ext pallet.
+pub trait AlephSessionManagerApi {
+    /// Returns `aleph-session-manager.ban_config` storage of the aleph-session-manager pallet.
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig;
 
-    /// Returns `session-ext.session_validator_block_count` of a given validator.
+    /// Returns `aleph-session-manager.session_validator_block_count` of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_validator_block_count(
@@ -24,7 +24,7 @@ pub trait SessionExtApi {
         at: Option<BlockHash>,
     ) -> Option<u32>;
 
-    /// Returns `session-ext.underperformed_validator_session_count` storage of a given validator.
+    /// Returns `aleph-session-manager.underperformed_validator_session_count` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_underperformed_validator_session_count(
@@ -33,7 +33,7 @@ pub trait SessionExtApi {
         at: Option<BlockHash>,
     ) -> Option<SessionCount>;
 
-    /// Returns `session-ext.banned.reason` storage of a given validator.
+    /// Returns `aleph-session-manager.banned.reason` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_reason_for_validator(
@@ -42,7 +42,7 @@ pub trait SessionExtApi {
         at: Option<BlockHash>,
     ) -> Option<BanReason>;
 
-    /// Returns `session-ext.banned` storage of a given validator.
+    /// Returns `aleph-session-manager.banned` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_info_for_validator(
@@ -50,14 +50,14 @@ pub trait SessionExtApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
-    /// Returns `session-ext.session_period` const of the session-ext pallet.
+    /// Returns `aleph-session-manager.session_period` const of the aleph-session-manager pallet.
     async fn get_session_period(&self) -> anyhow::Result<u32>;
 }
 
-/// any object that implements pallet session-ext api that requires sudo
+/// any object that implements pallet aleph-session-manager api that requires sudo
 #[async_trait::async_trait]
-pub trait SessionExtSudoApi {
-    /// Issues `session-ext.set_ban_config`. It has an immediate effect.
+pub trait AlephSessionManagerSudoApi {
+    /// Issues `aleph-session-manager.set_ban_config`. It has an immediate effect.
     /// * `minimal_expected_performance` - performance ratio threshold in a session
     /// * `underperformed_session_count_threshold` - how many bad uptime sessions force validator to be removed from the committee
     /// * `clean_session_counter_delay` - underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
@@ -85,9 +85,9 @@ pub trait SessionExtSudoApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
+impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig {
-        let addrs = api::storage().session_ext().ban_config();
+        let addrs = api::storage().aleph_session_manager().ban_config();
 
         self.get_storage_entry(&addrs, at).await
     }
@@ -98,7 +98,7 @@ impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
         at: Option<BlockHash>,
     ) -> Option<u32> {
         let addrs = api::storage()
-            .session_ext()
+            .aleph_session_manager()
             .session_validator_block_count(&validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
@@ -110,7 +110,7 @@ impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
         at: Option<BlockHash>,
     ) -> Option<SessionCount> {
         let addrs = api::storage()
-            .session_ext()
+            .aleph_session_manager()
             .underperformed_validator_session_count(&validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
@@ -121,7 +121,7 @@ impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanReason> {
-        let addrs = api::storage().session_ext().banned(validator);
+        let addrs = api::storage().aleph_session_manager().banned(validator);
 
         match self.get_storage_entry_maybe(&addrs, at).await {
             None => None,
@@ -134,13 +134,13 @@ impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo> {
-        let addrs = api::storage().session_ext().banned(validator);
+        let addrs = api::storage().aleph_session_manager().banned(validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
     async fn get_session_period(&self) -> anyhow::Result<u32> {
-        let addrs = api::constants().session_ext().session_period();
+        let addrs = api::constants().aleph_session_manager().session_period();
         self.as_connection()
             .as_client()
             .constants()
@@ -150,7 +150,7 @@ impl<C: ConnectionApi + AsConnection> SessionExtApi for C {
 }
 
 #[async_trait::async_trait]
-impl SessionExtSudoApi for RootConnection {
+impl AlephSessionManagerSudoApi for RootConnection {
     async fn set_ban_config(
         &self,
         minimal_expected_performance: Option<u8>,
@@ -159,7 +159,7 @@ impl SessionExtSudoApi for RootConnection {
         ban_period: Option<EraIndex>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        let call = SessionExt(set_ban_config {
+        let call = AlephSessionManager(set_ban_config {
             minimal_expected_performance,
             underperformed_session_count_threshold,
             clean_session_counter_delay,
@@ -175,7 +175,7 @@ impl SessionExtSudoApi for RootConnection {
         ban_reason: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        let call = SessionExt(ban_from_committee {
+        let call = AlephSessionManager(ban_from_committee {
             banned: account,
             ban_reason,
         });

@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use aleph_client::{
     api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
     pallets::{
+        aleph_session_manager::{AlephSessionManagerApi, AlephSessionManagerSudoApi},
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
-        session_ext::{SessionExtApi, SessionExtSudoApi},
         staking::{StakingApi, StakingUserApi},
     },
     primitives::{BanInfo, BanReason, CommitteeSeats, ElectionOpenness},

@@ -11,7 +11,7 @@ members = [
     "pallets/baby-liminal",
     "pallets/elections",
     "pallets/support",
-    "pallets/session-ext",
+    "pallets/aleph-session-manager",
     "poseidon",
     "primitives",
 ]

@@ -393,6 +393,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "pallet-aleph",
+ "pallet-aleph-session-manager",
  "pallet-aura",
  "pallet-authorship",
  "pallet-baby-liminal",
@@ -407,7 +408,6 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-session",
- "pallet-session-ext",
  "pallet-staking",
  "pallet-sudo",
  "pallet-timestamp",
@@ -5480,6 +5480,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-aleph-session-manager"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-authorship",
+ "pallet-session",
+ "pallet-staking",
+ "pallets-support",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-aura"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38#0d25bff2ff35d900a27efc93538d8b9d291f7381"
@@ -5760,25 +5779,6 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
-]
-
-[[package]]
-name = "pallet-session-ext"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-authorship",
- "pallet-session",
- "pallet-staking",
- "pallets-support",
- "parity-scale-codec",
- "primitives",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-std",
 ]
 
 [[package]]

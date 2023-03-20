@@ -34,7 +34,9 @@ where
     }
 }
 
-/// SessionManager that also fires EraManager functions.
+/// SessionManager that also fires EraManager functions. It is responsible for rotation of the committee,
+/// bans and rewards logic.
+///
 /// The order of the calls are as follows:
 /// First call is always from the inner SessionManager then the call to EraManager fn if applicable.
 /// * New session is planned:
@@ -63,24 +65,40 @@ where
     T: SessionManager<C::AccountId>,
     C: Config,
 {
-    fn session_starts_era(session: SessionIndex, next_era: bool) -> Option<EraIndex> {
-        let mut active_era = match E::active_era() {
+    fn session_starts_era(session: SessionIndex) -> Option<EraIndex> {
+        let active_era = match E::active_era() {
             Some(ae) => ae,
             // no active era, session can't start it
             _ => return None,
         };
-        if next_era {
-            active_era += 1;
-        }
-        if let Some(era_start_index) = E::era_start_session_index(active_era) {
-            return if era_start_index == session {
-                Some(active_era)
-            } else {
-                None
-            };
+
+        if Self::is_start_of_the_era(active_era, session) {
+            return Some(active_era);
         }
 
         None
+    }
+
+    fn session_starts_next_era(session: SessionIndex) -> Option<EraIndex> {
+        let active_era = match E::active_era() {
+            Some(ae) => ae + 1,
+            // no active era, session can't start it
+            _ => return None,
+        };
+
+        if Self::is_start_of_the_era(active_era, session) {
+            return Some(active_era);
+        }
+
+        None
+    }
+
+    fn is_start_of_the_era(era: EraIndex, session: SessionIndex) -> bool {
+        if let Some(era_start_index) = E::era_start_session_index(era) {
+            return era_start_index == session;
+        }
+
+        false
     }
 }
 
@@ -93,7 +111,7 @@ where
 {
     fn new_session(new_index: SessionIndex) -> Option<Vec<C::AccountId>> {
         T::new_session(new_index);
-        if let Some(era) = Self::session_starts_era(new_index, true) {
+        if let Some(era) = Self::session_starts_next_era(new_index) {
             EM::on_new_era(era);
             Pallet::<C>::emit_fresh_bans_event();
         }
@@ -115,7 +133,7 @@ where
         T::start_session(start_index);
         Pallet::<C>::clear_underperformance_session_counter(start_index);
 
-        if let Some(era) = Self::session_starts_era(start_index, false) {
+        if let Some(era) = Self::session_starts_era(start_index) {
             Pallet::<C>::update_validator_total_rewards(era);
             Pallet::<C>::clear_expired_bans(era);
         }

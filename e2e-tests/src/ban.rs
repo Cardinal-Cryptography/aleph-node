@@ -1,8 +1,8 @@
 use aleph_client::{
-    api::session_ext::events::BanValidators,
+    api::aleph_session_manager::events::BanValidators,
     pallets::{
+        aleph_session_manager::AlephSessionManagerApi,
         elections::{ElectionsApi, ElectionsSudoApi},
-        session_ext::SessionExtApi,
     },
     primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators},
     utility::BlocksApi,
@@ -71,7 +71,7 @@ pub fn check_validators(
     era_validators
 }
 
-pub async fn check_ban_config<C: SessionExtApi>(
+pub async fn check_ban_config<C: AlephSessionManagerApi>(
     connection: &C,
     expected_minimal_expected_performance: Perbill,
     expected_session_count_threshold: SessionCount,
@@ -95,7 +95,7 @@ pub async fn check_ban_config<C: SessionExtApi>(
     ban_config
 }
 
-pub async fn check_underperformed_validator_session_count<C: SessionExtApi>(
+pub async fn check_underperformed_validator_session_count<C: AlephSessionManagerApi>(
     connection: &C,
     validator: &AccountId,
     expected_session_count: SessionCount,
@@ -113,7 +113,7 @@ pub async fn check_underperformed_validator_session_count<C: SessionExtApi>(
     underperformed_validator_session_count
 }
 
-pub async fn check_underperformed_validator_reason<C: SessionExtApi>(
+pub async fn check_underperformed_validator_reason<C: AlephSessionManagerApi>(
     connection: &C,
     validator: &AccountId,
     expected_info: Option<&BanInfo>,
@@ -126,7 +126,7 @@ pub async fn check_underperformed_validator_reason<C: SessionExtApi>(
     validator_ban_info
 }
 
-pub async fn check_ban_info_for_validator<C: SessionExtApi>(
+pub async fn check_ban_info_for_validator<C: AlephSessionManagerApi>(
     connection: &C,
     validator: &AccountId,
     expected_info: Option<&BanInfo>,
@@ -178,7 +178,7 @@ pub fn get_members_for_session(
 /// sessions checked are in the past, (b) that all the checked validators are underperforming in
 /// those sessions (e.g. due to a prohibitively high performance threshold).
 pub async fn check_underperformed_count_for_sessions<
-    C: ElectionsApi + SessionExtApi + BlocksApi,
+    C: ElectionsApi + AlephSessionManagerApi + BlocksApi,
 >(
     connection: &C,
     reserved_validators: &[AccountId],

@@ -7,7 +7,7 @@ use crate::{
     api,
     connections::{AsConnection, TxInfo},
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
-    pallets::{session_ext::SessionExtApi, staking::StakingApi},
+    pallets::{aleph_session_manager::AlephSessionManagerApi, staking::StakingApi},
     AccountId, BlockHash,
     Call::Treasury,
     ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
