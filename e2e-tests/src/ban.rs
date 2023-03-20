@@ -1,7 +1,7 @@
 use aleph_client::{
-    api::aleph_session_manager::events::BanValidators,
+    api::committee_management::events::BanValidators,
     pallets::{
-        aleph_session_manager::AlephSessionManagerApi,
+        committee_management::CommitteeManagementApi,
         elections::{ElectionsApi, ElectionsSudoApi},
     },
     primitives::{BanConfig, BanInfo, CommitteeSeats, EraValidators},
@@ -71,7 +71,7 @@ pub fn check_validators(
     era_validators
 }
 
-pub async fn check_ban_config<C: AlephSessionManagerApi>(
+pub async fn check_ban_config<C: CommitteeManagementApi>(
     connection: &C,
     expected_minimal_expected_performance: Perbill,
     expected_session_count_threshold: SessionCount,
@@ -95,7 +95,7 @@ pub async fn check_ban_config<C: AlephSessionManagerApi>(
     ban_config
 }
 
-pub async fn check_underperformed_validator_session_count<C: AlephSessionManagerApi>(
+pub async fn check_underperformed_validator_session_count<C: CommitteeManagementApi>(
     connection: &C,
     validator: &AccountId,
     expected_session_count: SessionCount,
@@ -113,7 +113,7 @@ pub async fn check_underperformed_validator_session_count<C: AlephSessionManager
     underperformed_validator_session_count
 }
 
-pub async fn check_underperformed_validator_reason<C: AlephSessionManagerApi>(
+pub async fn check_underperformed_validator_reason<C: CommitteeManagementApi>(
     connection: &C,
     validator: &AccountId,
     expected_info: Option<&BanInfo>,
@@ -126,7 +126,7 @@ pub async fn check_underperformed_validator_reason<C: AlephSessionManagerApi>(
     validator_ban_info
 }
 
-pub async fn check_ban_info_for_validator<C: AlephSessionManagerApi>(
+pub async fn check_ban_info_for_validator<C: CommitteeManagementApi>(
     connection: &C,
     validator: &AccountId,
     expected_info: Option<&BanInfo>,
@@ -178,7 +178,7 @@ pub fn get_members_for_session(
 /// sessions checked are in the past, (b) that all the checked validators are underperforming in
 /// those sessions (e.g. due to a prohibitively high performance threshold).
 pub async fn check_underperformed_count_for_sessions<
-    C: ElectionsApi + AlephSessionManagerApi + BlocksApi,
+    C: ElectionsApi + CommitteeManagementApi + BlocksApi,
 >(
     connection: &C,
     reserved_validators: &[AccountId],

@@ -6,7 +6,7 @@ use aleph_primitives::{
     LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
-    AccountId, AlephConfig, AlephSessionManagerConfig, AuraConfig, BalancesConfig, ElectionsConfig,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, CommitteeManagementConfig, ElectionsConfig,
     GenesisConfig, Perbill, SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
     VestingConfig, WASM_BINARY,
 };
@@ -418,7 +418,7 @@ fn generate_genesis_config(
         vesting: VestingConfig { vesting: vec![] },
         nomination_pools: Default::default(),
         transaction_payment: Default::default(),
-        aleph_session_manager: AlephSessionManagerConfig {
+        committee_management: CommitteeManagementConfig {
             committee_ban_config: Default::default(),
             session_validators: SessionValidators {
                 committee: accounts_config.members,

@@ -20,7 +20,7 @@ use crate::{
     UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
 };
 
-const LOG_TARGET: &str = "pallet-aleph-session-manager";
+const LOG_TARGET: &str = "pallet-committee-management";
 const OLD_PREFIX: &str = "Elections";
 
 /// migrate prefixes from Elections to this pallet.

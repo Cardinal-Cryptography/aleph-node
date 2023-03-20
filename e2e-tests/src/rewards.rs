@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use aleph_client::{
     account_from_keypair,
     pallets::{
-        aleph_session_manager::AlephSessionManagerApi,
+        committee_management::CommitteeManagementApi,
         author::AuthorRpc,
         balances::{BalanceUserApi, BalanceUserBatchExtApi},
         elections::{ElectionsApi, ElectionsSudoApi},
@@ -124,7 +124,7 @@ fn check_rewards(
     Ok(())
 }
 
-async fn get_node_performance<S: ElectionsApi + AlephSessionManagerApi>(
+async fn get_node_performance<S: ElectionsApi + CommitteeManagementApi>(
     connection: &S,
     account_id: &AccountId,
     before_end_of_session_block_hash: BlockHash,
@@ -153,7 +153,7 @@ async fn get_node_performance<S: ElectionsApi + AlephSessionManagerApi>(
 }
 
 pub async fn check_points<
-    S: ElectionsApi + AlephSessionManagerApi + AlephWaiting + BlocksApi + StakingApi,
+    S: ElectionsApi + CommitteeManagementApi + AlephWaiting + BlocksApi + StakingApi,
 >(
     connection: &S,
     session: SessionIndex,

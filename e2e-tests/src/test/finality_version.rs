@@ -1,6 +1,6 @@
 use aleph_client::{
     pallets::{
-        aleph::AlephSudoApi, aleph_session_manager::AlephSessionManagerApi, session::SessionApi,
+        aleph::AlephSudoApi, committee_management::CommitteeManagementApi, session::SessionApi,
     },
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},

@@ -1,7 +1,5 @@
 /// Pallet aleph API
 pub mod aleph;
-/// Pallet aleph-session-manager API
-pub mod aleph_session_manager;
 /// Pallet author API
 pub mod author;
 /// Pallet baby liminal API
@@ -9,6 +7,8 @@ pub mod author;
 pub mod baby_liminal;
 /// Pallet balances API
 pub mod balances;
+/// Pallet committee-management API
+pub mod committee_management;
 /// Pallet contracts API
 pub mod contract;
 /// Pallet elections API

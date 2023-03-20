@@ -1,21 +1,21 @@
 use primitives::{EraIndex, SessionCount};
 
 use crate::{
-    aleph_runtime::RuntimeCall::AlephSessionManager,
+    aleph_runtime::RuntimeCall::CommitteeManagement,
     api,
-    pallet_aleph_session_manager::pallet::Call::{ban_from_committee, set_ban_config},
+    pallet_committee_management::pallet::Call::{ban_from_committee, set_ban_config},
     primitives::{BanConfig, BanInfo, BanReason},
     AccountId, AsConnection, BlockHash, ConnectionApi, RootConnection, SudoCall, TxInfo, TxStatus,
 };
 
-/// Pallet AlephSessionManager read-only api.
+/// Pallet CommitteeManagement read-only api.
 #[async_trait::async_trait]
-pub trait AlephSessionManagerApi {
-    /// Returns `aleph-session-manager.ban_config` storage of the aleph-session-manager pallet.
+pub trait CommitteeManagementApi {
+    /// Returns `committee-management.ban_config` storage of the committee-management pallet.
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig;
 
-    /// Returns `aleph-session-manager.session_validator_block_count` of a given validator.
+    /// Returns `committee-management.session_validator_block_count` of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_validator_block_count(
@@ -24,7 +24,7 @@ pub trait AlephSessionManagerApi {
         at: Option<BlockHash>,
     ) -> Option<u32>;
 
-    /// Returns `aleph-session-manager.underperformed_validator_session_count` storage of a given validator.
+    /// Returns `committee-management.underperformed_validator_session_count` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_underperformed_validator_session_count(
@@ -33,7 +33,7 @@ pub trait AlephSessionManagerApi {
         at: Option<BlockHash>,
     ) -> Option<SessionCount>;
 
-    /// Returns `aleph-session-manager.banned.reason` storage of a given validator.
+    /// Returns `committee-management.banned.reason` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_reason_for_validator(
@@ -42,7 +42,7 @@ pub trait AlephSessionManagerApi {
         at: Option<BlockHash>,
     ) -> Option<BanReason>;
 
-    /// Returns `aleph-session-manager.banned` storage of a given validator.
+    /// Returns `committee-management.banned` storage of a given validator.
     /// * `validator` - a validator stash account id
     /// * `at` - optional hash of a block to query state from
     async fn get_ban_info_for_validator(
@@ -50,14 +50,14 @@ pub trait AlephSessionManagerApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
-    /// Returns `aleph-session-manager.session_period` const of the aleph-session-manager pallet.
+    /// Returns `committee-management.session_period` const of the committee-management pallet.
     async fn get_session_period(&self) -> anyhow::Result<u32>;
 }
 
-/// any object that implements pallet aleph-session-manager api that requires sudo
+/// any object that implements pallet committee-management api that requires sudo
 #[async_trait::async_trait]
-pub trait AlephSessionManagerSudoApi {
-    /// Issues `aleph-session-manager.set_ban_config`. It has an immediate effect.
+pub trait CommitteeManagementSudoApi {
+    /// Issues `committee-management.set_ban_config`. It has an immediate effect.
     /// * `minimal_expected_performance` - performance ratio threshold in a session
     /// * `underperformed_session_count_threshold` - how many bad uptime sessions force validator to be removed from the committee
     /// * `clean_session_counter_delay` - underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
@@ -85,9 +85,9 @@ pub trait AlephSessionManagerSudoApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
+impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> BanConfig {
-        let addrs = api::storage().aleph_session_manager().ban_config();
+        let addrs = api::storage().committee_management().ban_config();
 
         self.get_storage_entry(&addrs, at).await
     }
@@ -98,7 +98,7 @@ impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
         at: Option<BlockHash>,
     ) -> Option<u32> {
         let addrs = api::storage()
-            .aleph_session_manager()
+            .committee_management()
             .session_validator_block_count(&validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
@@ -110,7 +110,7 @@ impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
         at: Option<BlockHash>,
     ) -> Option<SessionCount> {
         let addrs = api::storage()
-            .aleph_session_manager()
+            .committee_management()
             .underperformed_validator_session_count(&validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
@@ -121,7 +121,7 @@ impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanReason> {
-        let addrs = api::storage().aleph_session_manager().banned(validator);
+        let addrs = api::storage().committee_management().banned(validator);
 
         match self.get_storage_entry_maybe(&addrs, at).await {
             None => None,
@@ -134,13 +134,13 @@ impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo> {
-        let addrs = api::storage().aleph_session_manager().banned(validator);
+        let addrs = api::storage().committee_management().banned(validator);
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
 
     async fn get_session_period(&self) -> anyhow::Result<u32> {
-        let addrs = api::constants().aleph_session_manager().session_period();
+        let addrs = api::constants().committee_management().session_period();
         self.as_connection()
             .as_client()
             .constants()
@@ -150,7 +150,7 @@ impl<C: ConnectionApi + AsConnection> AlephSessionManagerApi for C {
 }
 
 #[async_trait::async_trait]
-impl AlephSessionManagerSudoApi for RootConnection {
+impl CommitteeManagementSudoApi for RootConnection {
     async fn set_ban_config(
         &self,
         minimal_expected_performance: Option<u8>,
@@ -159,7 +159,7 @@ impl AlephSessionManagerSudoApi for RootConnection {
         ban_period: Option<EraIndex>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        let call = AlephSessionManager(set_ban_config {
+        let call = CommitteeManagement(set_ban_config {
             minimal_expected_performance,
             underperformed_session_count_threshold,
             clean_session_counter_delay,
@@ -175,7 +175,7 @@ impl AlephSessionManagerSudoApi for RootConnection {
         ban_reason: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        let call = AlephSessionManager(ban_from_committee {
+        let call = CommitteeManagement(ban_from_committee {
             banned: account,
             ban_reason,
         });

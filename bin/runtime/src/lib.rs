@@ -33,8 +33,8 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
-use pallet_aleph_session_manager::SessionAndEraManager;
 pub use pallet_balances::Call as BalancesCall;
+use pallet_committee_management::SessionAndEraManager;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 pub use primitives::Balance;
@@ -226,7 +226,7 @@ parameter_types! {
 
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-    type EventHandler = (AlephSessionManager,);
+    type EventHandler = (CommitteeManagement,);
 }
 
 parameter_types! {
@@ -363,10 +363,10 @@ impl pallet_elections::Config for Runtime {
     type DataProvider = Staking;
     type ValidatorProvider = Staking;
     type MaxWinners = MaxWinners;
-    type BannedValidators = AlephSessionManager;
+    type BannedValidators = CommitteeManagement;
 }
 
-impl pallet_aleph_session_manager::Config for Runtime {
+impl pallet_committee_management::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type BanHandler = Elections;
     type EraInfoProvider = Staking;
@@ -779,7 +779,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
-        AlephSessionManager: pallet_aleph_session_manager,
+        CommitteeManagement: pallet_committee_management,
     }
 );
 
@@ -811,7 +811,7 @@ construct_runtime!(
         Contracts: pallet_contracts,
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
-        AlephSessionManager: pallet_aleph_session_manager,
+        CommitteeManagement: pallet_committee_management,
         BabyLiminal: pallet_baby_liminal,
     }
 );

@@ -1,6 +1,6 @@
 use aleph_client::{
     pallets::{
-        aleph_session_manager::AlephSessionManagerApi,
+        committee_management::CommitteeManagementApi,
         elections::ElectionsApi,
         session::SessionApi,
         staking::{StakingApi, StakingSudoApi},
@@ -268,7 +268,7 @@ async fn check_points_after_force_new_era<
     S: SignedConnectionApi
         + BlocksApi
         + ElectionsApi
-        + AlephSessionManagerApi
+        + CommitteeManagementApi
         + AlephWaiting
         + StakingApi,
 >(

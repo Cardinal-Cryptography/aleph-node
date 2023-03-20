@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use aleph_client::{
     api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
     pallets::{
-        aleph_session_manager::{AlephSessionManagerApi, AlephSessionManagerSudoApi},
+        committee_management::{CommitteeManagementApi, CommitteeManagementSudoApi},
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
         staking::{StakingApi, StakingUserApi},
