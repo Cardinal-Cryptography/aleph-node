@@ -145,18 +145,17 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
                 .children(hash)
                 .map_err(Error::ChainStatus)?;
             for header in children.iter() {
-                if let Err(e) = forest.update_body(header) {
-                    match e {
-                        ForestError::TooNew => {
-                            warn!(
+                match forest.update_body(header) {
+                    Err(ForestError::TooNew) => {
+                        warn!(
                                 target: LOG_TARGET,
-                                "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
+                                "There are more imported non-finalized blocks that can fit into the Forest: {}.", ForestError::TooNew
                             );
-                            self.forest = forest;
-                            return Ok(());
-                        }
-                        _ => return Err(Error::Forest(e)),
+                        self.forest = forest;
+                        return Ok(());
                     }
+                    Err(e) => return Err(Error::Forest(e)),
+                    _ => (),
                 }
             }
             deque.extend(children.into_iter().map(|header| header.id()));
