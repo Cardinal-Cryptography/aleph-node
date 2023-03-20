@@ -45,11 +45,11 @@ jobs:
   build_and_deploy_contracts:
     needs: changes
     name: Deploy contracts on devnet
-    # if: >
-    #   (needs.changes.outputs.button == 'true' && github.event_name == 'push' && github.ref_name == 'main') ||
-    #   (github.event_name == 'pull_request' &&
-    #    github.event.action == 'labeled' &&
-    #    github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
+    if: >
+      (needs.changes.outputs.button == 'true' && github.event_name == 'push' && github.ref_name == 'main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
@@ -90,7 +90,7 @@ jobs:
          CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
          for C in "${CONTRACTS[@]}"; do
-           mkdir -p contracts/$i/target/ink;
+           mkdir -p contracts/$C/target/ink;
            aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json;
          done
 
