@@ -15,7 +15,6 @@ env:
   NODE_VERSION: 18
   CI_S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/devnet-button
-  # RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
 
 jobs:
 
@@ -66,63 +65,15 @@ jobs:
         id: get_branch
         uses: ./.github/actions/get-branch
 
-      # Use of 'actions-rs/toolchain@v1' has been removed as it was causing some unknown problems
-      # Also, there is a ticket to replace it with custom solution anyway
-
-      # - name: Setup rust toolchain
-      #   run: |
-      #     . "$HOME/.cargo/env"
-      #     rustup target add wasm32-unknown-unknown
-      #     rustup toolchain install $RUST_TOOLCHAIN
-      #     rustup component add rust-src --toolchain $RUST_TOOLCHAIN
-      #     rustup default $RUST_TOOLCHAIN
-
       - name: Install jq
         shell: bash
         run: |
           sudo apt-get install -y jq
 
-      # - name: Install binaryen
-      #   shell: bash
-      #   # yamllint disable rule:line-length
-      #   run: |
-      #     wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz \
-      #       -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
-      #     tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
-      #     sudo chmod +x /tmp/binaryen-version_110/bin/*
-      #     sudo cp -rf /tmp/binaryen-version_110/* /usr/
-      #   # yamllint enable rule:line-length
-
       - name: Install node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      # - name: Restore cache
-      #   uses: ./.github/actions/restore-cache
-      #   with:
-      #     target-key: ${{ env.CACHE_KEY }}
-      #     cargo-key: ${{ env.CACHE_KEY }}
-      #     cache-version: v3
-      #     cargo-targets: |
-      #       contracts/access_control/target/
-      #       contracts/button/target/
-      #       contracts/game_token/target/
-      #       contracts/marketplace/target/
-      #       contracts/simple_dex/target/
-      #       contracts/ticket_token/target/
-      #       contracts/wrapped_azero/target/
-
-      # - name: Install cargo additional libs
-      #   run: |
-      #     . "$HOME/.cargo/env"
-      #     cargo install dylint-link cargo-dylint
-
-      # - name: Install cargo-contract
-      #   uses: baptiste0928/cargo-install@v1
-      #   with:
-      #     crate: cargo-contract
-      #     version: "2.0.1"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -146,10 +97,12 @@ jobs:
           DOWNLOAD_TMP_DIR: downloaded_metadata
         run: |
          CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+
          for C in "${CONTRACTS[@]}"; do
            mkdir -p contracts/$i/target/ink;
            aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json;
          done
+
          aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json addresses.json
 
       - name: Run clean.sh script
@@ -164,50 +117,21 @@ jobs:
           . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-      - name: Copy metadata.json and addresses.json files onto S3 bucket
+      - name: Copy ABI arifacts and addresses.json file into the S3 bucket
         shell: bash
         run: |
-          aws s3 cp contracts/addresses.json \
-            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
-          for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            aws s3 cp contracts/"$i"/target/ink/metadata.json \
-              s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/"$i"/metadata.json; \
+          for C in "${CONTRACTS[@]}"; do
+            aws s3 cp ./aleph-node/contracts/$C/target/ink/$C.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
           done
+
+          aws s3 cp ./aleph-node/contracts/addresses.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
 
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
 
           aws s3 cp commit_sha.txt \
-            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
-
-          source contracts/env/${{ env.CONTRACTS_ENVFILE }} && echo -n "$NODE" > env_NODE.txt
-          aws s3 cp env_NODE.txt \
-            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/env_NODE.txt
-
-      - name: Rename metadata and addresses JSON files to artifact upload
-        shell: bash
-        run: |
-          cp contracts/addresses.json addresses.${{ env.CONTRACTS_ENVFILE }}.json
-          for i in `find contracts -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            cp contracts/"$i"/target/ink/metadata.json \
-              metadata_"$i".${{ env.CONTRACTS_ENVFILE }}.json; \
-          done
-
-      - name: Upload artifact with contract addresses
-        uses: actions/upload-artifact@v3
-        with:
-          name: contracts-addresses
-          path: addresses.${{ env.CONTRACTS_ENVFILE }}.json
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Upload artifact with contract metadata
-        uses: actions/upload-artifact@v3
-        with:
-          name: contracts-metadata
-          path: metadata_*.${{ env.CONTRACTS_ENVFILE }}.json
-          if-no-files-found: error
-          retention-days: 90
+            s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
       - name: Remove deploy label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
