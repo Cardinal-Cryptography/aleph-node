@@ -113,10 +113,10 @@ jobs:
           CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
           for C in "${CONTRACTS[@]}"; do
-            aws s3 cp ./aleph-node/contracts/$C/target/ink/$C.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
+            aws s3 cp contracts/$C/target/ink/$C.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
           done
 
-          aws s3 cp ./aleph-node/contracts/addresses.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+          aws s3 cp contracts/addresses.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
 
           echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
 
