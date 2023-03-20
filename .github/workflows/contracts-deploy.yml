@@ -123,7 +123,16 @@ jobs:
       - name: Update ABI arifacts and addresses.json file in the S3 bucket
         shell: bash
         run: |
-         CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+         CONTRACTS=(
+          access_control
+          access_control
+          button
+          marketplace
+          wrapped_azero
+          simple_dex
+          game_token
+          ticket_token
+         )
 
          for C in "${CONTRACTS[@]}"; do
           aws s3 cp contracts/$C/target/ink/$C.json \
