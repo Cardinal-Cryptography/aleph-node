@@ -26,12 +26,12 @@ jobs:
     outputs:
       button: ${{ steps.filter.outputs.button }}
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v2.3.4
-    - uses: dorny/paths-filter@v2
-      id: filter
-      with:
-        filters: |
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
           button:
             - 'contracts/access_control/**'
             - 'contracts/button/**'
@@ -46,7 +46,9 @@ jobs:
     needs: changes
     name: Deploy contracts on devnet
     if: >
-      (needs.changes.outputs.button == 'true' && github.event_name == 'push' && github.ref_name == 'main') ||
+      (needs.changes.outputs.button == 'true' &&
+      github.event_name == 'push' &&
+      github.ref_name == 'main') ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'labeled' &&
        github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
@@ -87,11 +89,20 @@ jobs:
       - name: Copy ABI artifacts and addresses.json file from the S3 bucket
         shell: bash
         run: |
-         CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+         CONTRACTS=(
+           access_control
+           access_control
+           button
+           marketplace
+           wrapped_azero
+           simple_dex
+           game_token
+           ticket_token
+         )
 
          for C in "${CONTRACTS[@]}"; do
-           mkdir -p contracts/$C/target/ink;
-           aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json;
+          mkdir -p contracts/$C/target/ink;
+          aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json
          done
 
          aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
@@ -110,18 +121,18 @@ jobs:
       - name: Update ABI arifacts and addresses.json file in the S3 bucket
         shell: bash
         run: |
-          CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+         CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
-          for C in "${CONTRACTS[@]}"; do
-            aws s3 cp contracts/$C/target/ink/$C.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
-          done
+         for C in "${CONTRACTS[@]}"; do
+          aws s3 cp contracts/$C/target/ink/$C.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
+         done
 
-          aws s3 cp contracts/addresses.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
+         aws s3 cp contracts/addresses.json s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
 
-          echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+         echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
 
-          aws s3 cp commit_sha.txt \
-            s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
+         aws s3 cp commit_sha.txt \
+          s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
 
       - name: Remove deploy label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
