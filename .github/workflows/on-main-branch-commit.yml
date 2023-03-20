@@ -48,7 +48,7 @@ jobs:
   send-slack-notification:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
-    needs: [run-e2e-button-contract-tests]
+    needs: [deploy-button]
     if: always()
     steps:
       - name: Checkout repository
