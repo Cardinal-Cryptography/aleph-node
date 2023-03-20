@@ -84,17 +84,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Copy addresses.json file from S3 bucket
+      - name: Copy ABI artifacts and addresses.json file from the S3 bucket
         shell: bash
-        # yamllint disable rule:line-length
-        run: |
-          aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
-        # yamllint enable rule:line-length
-
-      - name: Copy metadata.json files from S3 bucket
-        shell: bash
-        env:
-          DOWNLOAD_TMP_DIR: downloaded_metadata
         run: |
          CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
@@ -103,12 +94,11 @@ jobs:
            aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json;
          done
 
-         aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json addresses.json
+         aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
 
       - name: Run clean.sh script
         shell: bash
         run: |
-          . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/clean.sh
 
       - name: Run deploy.sh script
@@ -117,7 +107,7 @@ jobs:
           . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
-      - name: Copy ABI arifacts and addresses.json file into the S3 bucket
+      - name: Update ABI arifacts and addresses.json file in the S3 bucket
         shell: bash
         run: |
           CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
@@ -148,9 +138,6 @@ jobs:
         with:
           labels: 'DEPLOYED-CONTRACTS'
           github_token: ${{ secrets.CI_GH_TOKEN }}
-
-      - name: Cleanup cache
-        uses: ./.github/actions/post-cache
 
       - name: GIT | Checkout aleph-apps repo
         uses: actions/checkout@master
