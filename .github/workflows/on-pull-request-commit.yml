@@ -12,6 +12,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  deploy-button:
+    name: Deploy the button contracts to devnet and trigger services update
+    uses: ./.github/workflows/contracts-deploy.yml
+    secrets: inherit
+
   check-excluded-packages:
     name: Check excluded packages
     uses: ./.github/workflows/_check-excluded-packages.yml
