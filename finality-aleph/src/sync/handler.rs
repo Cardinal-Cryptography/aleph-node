@@ -146,15 +146,16 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
                 .map_err(Error::ChainStatus)?;
             for header in children.iter() {
                 if let Err(e) = forest.update_body(header) {
-                    if let ForestError::TooNew = e {
-                        warn!(
-                            target: LOG_TARGET,
-                            "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
-                        );
-                        self.forest = forest;
-                        return Ok(());
-                    } else {
-                        return Err(Error::Forest(e));
+                    match e {
+                        ForestError::TooNew => {
+                            warn!(
+                                target: LOG_TARGET,
+                                "There are more imported non-finalized blocks that can fit into the Forest: {}.", e
+                            );
+                            self.forest = forest;
+                            return Ok(());
+                        }
+                        _ => return Err(Error::Forest(e)),
                     }
                 }
             }

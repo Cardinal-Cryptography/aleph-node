@@ -21,6 +21,8 @@ use crate::{
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
+// TODO: Remove after finishing the sync rewrite.
+const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
@@ -250,7 +252,7 @@ impl<
     /// Stay synchronized.
     pub async fn run(mut self) {
         // TODO: Remove after finishing the sync rewrite.
-        let mut stall_ticker = interval(Duration::from_secs(30));
+        let mut stall_ticker = interval(FINALIZATION_STALL_CHECK_PERIOD);
         let mut last_top_number = 0;
         loop {
             tokio::select! {
