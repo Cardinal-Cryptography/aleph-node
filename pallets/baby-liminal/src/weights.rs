@@ -28,6 +28,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_baby_liminal.
 pub trait WeightInfo {
     fn store_key(key_length: u32) -> Weight;
+    fn overwrite_equal_key(key_length: u32) -> Weight;
     fn overwrite_key(key_length: u32) -> Weight;
     fn delete_key(key_length: u32) -> Weight;
     fn verify_groth16() -> Weight;
@@ -52,6 +53,10 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 
         fn overwrite_key(key_length: u32) -> Weight {
                 <I as BenchmarkInfo>::overwrite_key(key_length)
+        }
+
+        fn overwrite_equal_key(key_length: u32) -> Weight {
+                <I as BenchmarkInfo>::overwrite_equal_key(key_length)
         }
 
         fn delete_key(key_length: u32) -> Weight {
@@ -124,6 +129,7 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 trait BenchmarkInfo {
         fn store_key(l: u32, ) -> Weight;
         fn overwrite_key(l: u32, ) -> Weight;
+        fn overwrite_equal_key(l: u32, ) -> Weight;
         fn delete_key(l: u32, ) -> Weight;
         fn verify_groth16_xor() -> Weight;
         fn verify_groth16_linear_equation() -> Weight;
@@ -173,8 +179,23 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
         // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
         // Storage: BabyLiminal VerificationKeys (r:1 w:1)
         // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-        /// The range of component `l` is `[1, 10000]`.
+        // Storage: Currency (r:0 w:1)
+        // Proof Skipped: Currency (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 9999]`.
         fn overwrite_key(l: u32, ) -> Weight {
+                // Minimum execution time: 20_745 nanoseconds.
+                Weight::from_ref_time(21_054_002_u64)
+                        // Standard Error: 3
+                        .saturating_add(Weight::from_ref_time(553_u64).saturating_mul(l as u64))
+                        .saturating_add(T::DbWeight::get().reads(2_u64))
+                        .saturating_add(T::DbWeight::get().writes(2_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 10000]`.
+        fn overwrite_equal_key(l: u32, ) -> Weight {
                 // Minimum execution time: 18_975 nanoseconds.
                 Weight::from_ref_time(20_019_317_u64)
                         // Standard Error: 3
@@ -414,6 +435,19 @@ impl BenchmarkInfo for () {
         // Storage: BabyLiminal VerificationKeys (r:1 w:1)
         // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
         /// The range of component `l` is `[1, 10000]`.
+        fn overwrite_equal_key(l: u32, ) -> Weight {
+                // Minimum execution time: 18_975 nanoseconds.
+                Weight::from_ref_time(20_019_317_u64)
+                        // Standard Error: 3
+                        .saturating_add(Weight::from_ref_time(725_u64).saturating_mul(l as u64))
+                        .saturating_add(RocksDbWeight::get().reads(2_u64))
+                        .saturating_add(RocksDbWeight::get().writes(1_u64))
+        }
+        // Storage: BabyLiminal VerificationKeyOwners (r:1 w:0)
+        // Proof Skipped: BabyLiminal VerificationKeyOwners (max_values: None, max_size: None, mode: Measured)
+        // Storage: BabyLiminal VerificationKeys (r:1 w:1)
+        // Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
+        /// The range of component `l` is `[1, 9999]`.
         fn overwrite_key(l: u32, ) -> Weight {
                 // Minimum execution time: 18_975 nanoseconds.
                 Weight::from_ref_time(20_019_317_u64)

@@ -192,7 +192,10 @@ pub mod pallet {
         /// It will require the caller to lock up additional funds (if the new key occupies more storage)
         /// or reimburse the difference if it is shorter in its byte-length.
         #[pallet::call_index(2)]
-        #[pallet::weight(T::WeightInfo::overwrite_key(key.len() as u32))]
+        #[pallet::weight(
+            T::WeightInfo::overwrite_key(key.len() as u32)
+                .max (T::WeightInfo::overwrite_equal_key(key.len() as u32))
+        )]
         pub fn overwrite_key(
             origin: OriginFor<T>,
             identifier: VerificationKeyIdentifier,

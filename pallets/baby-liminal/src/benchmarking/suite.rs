@@ -37,11 +37,17 @@ benchmarks! {
         let key = vec![0u8; l as usize];
     } : _(caller::<T>(), IDENTIFIER, key)
 
-    overwrite_key {
+    overwrite_equal_key {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
         let key = vec![0u8; l as usize];
-        let _ = insert_key::<T>(key.clone ());
-    } : _(caller::<T>(), IDENTIFIER, key)
+        let _ = insert_key::<T>(key.clone ())
+    } : overwrite_key(caller::<T>(), IDENTIFIER, key)
+
+    overwrite_key {
+        let l in 1 .. T::MaximumVerificationKeyLength::get() - 1;
+        let _ = insert_key::<T>(vec![0u8; l as usize])
+        let longer_key = vec![0u8; (l + 1) as usize];
+    } : overwrite_key(caller::<T>(), IDENTIFIER, longer_key)
 
     delete_key {
         let l in 1 .. T::MaximumVerificationKeyLength::get();
