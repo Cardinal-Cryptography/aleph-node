@@ -2,11 +2,7 @@
 name: Check excluded packages
 
 on:
-  pull_request:
-
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   build:
@@ -65,16 +61,19 @@ jobs:
             popd
           done
 
-      # - name: Install nono
-      #   run: cargo install cargo-nono
+      - name: Install nono
+        # compilation of cargo no-no is broken
+        if: false
+        run: cargo install cargo-nono
 
-      # - name: Assert that packages are compatible with no-std
-      #   run: |
-      #     packages=("baby-liminal-extension" "poseidon" "relations")
-      #     for p in ${packages[@]}
-      #     do
-      #       echo "Checking package $p..."
-      #       pushd "$p"
-      #       cargo nono check --no-default-features
-      #       popd
-      #     done
+      - name: Assert that packages are compatible with no-std
+        if: false
+        run: |
+          packages=("baby-liminal-extension" "poseidon" "relations")
+          for p in ${packages[@]}
+          do
+            echo "Checking package $p..."
+            pushd "$p"
+            cargo nono check --no-default-features
+            popd
+          done
