@@ -45,7 +45,7 @@ impl<T: Config> OnRuntimeUpgrade for ContractsSetVersion9<T> {
     }
 
     #[cfg(feature = "try-runtime")]
-    fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+    fn post_upgrade(_: Vec<u8>) -> Result<(), &'static str> {
         let version = StorageVersion::get::<Pallet<T>>();
         log::warn!(
             target: TARGET,
