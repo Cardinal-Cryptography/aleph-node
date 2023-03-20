@@ -6,6 +6,8 @@ use frame_support::{
 };
 use pallet_contracts::{Config, Pallet};
 use sp_std::marker::PhantomData;
+#[cfg(feature = "try-runtime")]
+use sp_std::vec::Vec;
 
 const TARGET: &str = "runtime::custom_contract_migration";
 
@@ -39,7 +41,7 @@ impl<T: Config> OnRuntimeUpgrade for ContractsSetVersion9<T> {
             return Err("Version should be 0, because pallet contracts is not present.");
         }
 
-        Ok(vec![])
+        Ok(Vec::new())
     }
 
     #[cfg(feature = "try-runtime")]
