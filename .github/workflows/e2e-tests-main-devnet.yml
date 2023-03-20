@@ -572,12 +572,11 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
-  # TODO: new dev env needed
-  # deploy-button:
-  #   name: Deploy button contracts
-  #   needs: run-e2e-button-contract-tests
-  #   uses: ./.github/workflows/contracts-deploy.yml
-  #   secrets: inherit
+  deploy-button:
+    name: Deploy the button contracts to devnet and trigger services update
+    needs: run-e2e-button-contract-tests
+    uses: ./.github/workflows/contracts-deploy.yml
+    secrets: inherit
 
   check-e2e-test-suite-completion:
 #      run-e2e-failing-version-upgrade,

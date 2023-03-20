@@ -10,16 +10,43 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CACHE_KEY: fe-benjamin-button
-  CONTRACTS_ENVFILE: fe-benjamin
+  CACHE_KEY: the-button
+  CONTRACTS_ENVFILE: devnet
   NODE_VERSION: 16
   S3BUCKET_PATH: contracts/fe-benjamin-button
+  RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
 
 jobs:
+
+  # JOB to run changes detection
+  changes:
+    runs-on: ubuntu-20.04
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    outputs:
+      button: ${{ steps.filter.outputs.button }}
+    steps:
+    # For pull requests it's not necessary to checkout the code
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          button:
+            - 'contracts/access_control/**'
+            - 'contracts/button/**'
+            - 'contracts/game_token/**'
+            - 'contracts/marketplace/**'
+            - 'contracts/simple_dex/**'
+            - 'contracts/ticket_token/**'
+            - 'contracts/wrapped_azero/**'
+            - 'workflows/contracts-deploy.yml'
+
   build_and_deploy_contracts:
-    name: Deploy contracts on feature environment
+    needs: changes
+    name: Deploy contracts on devnet
     if: >
-      (github.event_name == 'push' && github.ref_name == 'benjamin') ||
+      (needs.changes.outputs.button == 'true' && github.event_name == 'push' && github.ref_name == 'main') ||
       (github.event_name == 'pull_request' &&
         github.event.action == 'labeled' &&
         github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
@@ -45,9 +72,9 @@ jobs:
         run: |
           . "$HOME/.cargo/env"
           rustup target add wasm32-unknown-unknown
-          rustup toolchain install nightly-2022-08-12-x86_64-unknown-linux-gnu
-          rustup component add rust-src --toolchain nightly-2022-08-12-x86_64-unknown-linux-gnu
-          rustup default nightly-2022-08-12-x86_64-unknown-linux-gnu
+          rustup toolchain install $RUST_TOOLCHAIN
+          rustup component add rust-src --toolchain $RUST_TOOLCHAIN
+          rustup default $RUST_TOOLCHAIN
 
       - name: Install jq
         shell: bash
