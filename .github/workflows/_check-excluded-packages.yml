@@ -18,6 +18,10 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
 
+      - name: Install nono
+        run: |
+          cargo install cargo-nono
+
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
         uses: SebRollen/toml-action@v1.0.2
@@ -60,9 +64,6 @@ jobs:
             cargo clippy -- --no-deps -D warnings
             popd
           done
-
-      - name: Install nono
-        run: cargo install cargo-nono
 
       - name: Assert that packages are compatible with no-std
         run: |
