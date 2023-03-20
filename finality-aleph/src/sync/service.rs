@@ -277,9 +277,10 @@ impl<
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
                 },
                 maybe_justification = self.justifications_from_user.next() => match maybe_justification {
-                    // if the Justification comes from user, then it means we already have the
-                    // corresponding block, and it is or will soon be imported independently,
-                    // therefore we do not create a task
+                    // If the Justification comes from user (i.e. AlephBFT), then it means we already
+                    // have received the corresponding block, and it is or soon will be imported,
+                    // independently, into the Substrate database.
+                    // Therefore, we do not create a task requesting the block from peers.
                     Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
                         warn!(
                             target: LOG_TARGET,
