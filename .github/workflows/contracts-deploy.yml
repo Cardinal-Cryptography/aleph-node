@@ -12,9 +12,9 @@ concurrency:
 env:
   CACHE_KEY: the-button
   CONTRACTS_ENVFILE: devnet
-  NODE_VERSION: 16
+  NODE_VERSION: 18
   S3BUCKET_PATH: contracts/fe-benjamin-button
-  RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
+  # RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
 
 jobs:
 
@@ -68,29 +68,29 @@ jobs:
       # Use of 'actions-rs/toolchain@v1' has been removed as it was causing some unknown problems
       # Also, there is a ticket to replace it with custom solution anyway
 
-      - name: Setup rust toolchain
-        run: |
-          . "$HOME/.cargo/env"
-          rustup target add wasm32-unknown-unknown
-          rustup toolchain install $RUST_TOOLCHAIN
-          rustup component add rust-src --toolchain $RUST_TOOLCHAIN
-          rustup default $RUST_TOOLCHAIN
+      # - name: Setup rust toolchain
+      #   run: |
+      #     . "$HOME/.cargo/env"
+      #     rustup target add wasm32-unknown-unknown
+      #     rustup toolchain install $RUST_TOOLCHAIN
+      #     rustup component add rust-src --toolchain $RUST_TOOLCHAIN
+      #     rustup default $RUST_TOOLCHAIN
 
       - name: Install jq
         shell: bash
         run: |
           sudo apt-get install -y jq
 
-      - name: Install binaryen
-        shell: bash
-        # yamllint disable rule:line-length
-        run: |
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz \
-            -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
-          tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
-          sudo chmod +x /tmp/binaryen-version_110/bin/*
-          sudo cp -rf /tmp/binaryen-version_110/* /usr/
-        # yamllint enable rule:line-length
+      # - name: Install binaryen
+      #   shell: bash
+      #   # yamllint disable rule:line-length
+      #   run: |
+      #     wget https://github.com/WebAssembly/binaryen/releases/download/version_110/binaryen-version_110-x86_64-linux.tar.gz \
+      #       -O /tmp/binaryen-version_110-x86_64-linux.tar.gz
+      #     tar -zxvf /tmp/binaryen-version_110-x86_64-linux.tar.gz -C /tmp
+      #     sudo chmod +x /tmp/binaryen-version_110/bin/*
+      #     sudo cp -rf /tmp/binaryen-version_110/* /usr/
+      #   # yamllint enable rule:line-length
 
       - name: Install node
         uses: actions/setup-node@v3
@@ -136,6 +136,7 @@ jobs:
         shell: bash
         # yamllint disable rule:line-length
         run: |
+          echo "@@@ PATH @@@" "s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}"
           aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
         # yamllint enable rule:line-length
 
