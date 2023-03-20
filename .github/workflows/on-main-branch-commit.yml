@@ -38,7 +38,7 @@ jobs:
 
   deploy-button:
     name: Deploy the button contracts to devnet and trigger services update
-    needs: run-e2e-button-contract-tests
+    needs: [run-e2e-button-contracts-tests]
     uses: ./.github/workflows/contracts-deploy.yml
     secrets: inherit
 
