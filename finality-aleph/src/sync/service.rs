@@ -1,6 +1,7 @@
 use std::{collections::HashSet, iter, time::Duration};
 
 use log::{error, warn};
+use futures::{channel::mpsc};
 
 use crate::{
     network::GossipNetwork,
@@ -13,7 +14,7 @@ use crate::{
         task_queue::TaskQueue,
         ticker::Ticker,
         BlockIdFor, ChainStatus, ChainStatusNotification, ChainStatusNotifier, Finalizer,
-        Justification, Verifier, LOG_TARGET,
+        Justification, JustificationSubmissions, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };
@@ -35,6 +36,15 @@ pub struct Service<
     tasks: TaskQueue<BlockIdFor<J>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
+    justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+}
+
+impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
+    type Error = mpsc::TrySendError<J::Unverified>;
+
+    fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error> {
+        self.unbounded_send(justification)
+    }
 }
 
 impl<
@@ -46,7 +56,8 @@ impl<
         F: Finalizer<J>,
     > Service<J, N, CE, CS, V, F>
 {
-    /// Create a new service using the provided network for communication.
+    /// Create a new service using the provided network for communication. Also returns an
+    /// interface for submitting additional justifications.
     pub fn new(
         network: N,
         chain_events: CE,
@@ -54,18 +65,20 @@ impl<
         verifier: V,
         finalizer: F,
         period: SessionPeriod,
-    ) -> Result<Self, HandlerError<J, CS, V, F>> {
+    ) -> Result<(Self, impl JustificationSubmissions<J>), HandlerError<J, CS, V, F>> {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
-        Ok(Service {
+        let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
+        Ok((Service {
             network,
             handler,
             tasks,
             broadcast_ticker,
             chain_events,
-        })
+            justifications_from_user,
+        }, justifications_for_sync))
     }
 
     fn backup_request(&mut self, block_id: BlockIdFor<J>) {
@@ -259,6 +272,11 @@ impl<
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
+                }
+                maybe_justification = self.justifications_from_user.next() => match maybe_justification {
+                    //TODO
+                    Some(justification) => todo!(),
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 }
             }
         }

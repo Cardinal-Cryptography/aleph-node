@@ -130,3 +130,12 @@ pub trait ChainStatus<J: Justification> {
     /// The justification of the top finalized block.
     fn top_finalized(&self) -> Result<J, Self::Error>;
 }
+
+/// An interface for submitting additional justifications to the justification sync. Chiefly ones
+/// created by ABFT, but others will also be handled appropriately.
+pub trait JustificationSubmissions<J: Justification> {
+    type Error: Display;
+
+    /// Submit a justification to the underlying justification sync.
+    fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error>;
+}
