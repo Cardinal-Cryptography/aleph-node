@@ -2,6 +2,7 @@ use std::{collections::HashSet, iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use log::{error, warn};
+use tokio::time::interval;
 
 use crate::{
     network::GossipNetwork,
@@ -13,14 +14,16 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        BlockIdFor, ChainStatus, ChainStatusNotification, ChainStatusNotifier, Finalizer,
-        Justification, JustificationSubmissions, Verifier, LOG_TARGET,
+        BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
+        Finalizer, Header, Justification, JustificationSubmissions, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
+// TODO: Remove after finishing the sync rewrite.
+const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
@@ -264,6 +267,9 @@ impl<
 
     /// Stay synchronized.
     pub async fn run(mut self) {
+        // TODO: Remove after finishing the sync rewrite.
+        let mut stall_ticker = interval(FINALIZATION_STALL_CHECK_PERIOD);
+        let mut last_top_number = 0;
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => match maybe_data {
@@ -288,6 +294,32 @@ impl<
                         );
                     },
                     None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+                },
+                _ = stall_ticker.tick() => {
+                    match self.handler.state() {
+                        Ok(state) => {
+                            let top_number = state.top_justification().id().number();
+                            if top_number == last_top_number {
+                                error!(
+                                    target: LOG_TARGET,
+                                    "Sync stall detected, recreating the Forest."
+                                );
+                                if let Err(e) = self.handler.refresh_forest() {
+                                    error!(
+                                        target: LOG_TARGET,
+                                        "Error when recreating the Forest: {}.", e
+                                    );
+                                }
+                                last_top_number = 0;
+                            } else {
+                                last_top_number = top_number;
+                            }
+                        },
+                        Err(e) => error!(
+                                        target: LOG_TARGET,
+                                        "Error when retrieving Handler state: {}.", e
+                                    ),
+                    }
                 }
             }
         }
