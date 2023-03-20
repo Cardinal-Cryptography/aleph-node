@@ -13,7 +13,8 @@ env:
   CACHE_KEY: the-button
   CONTRACTS_ENVFILE: devnet
   NODE_VERSION: 18
-  S3BUCKET_PATH: contracts/fe-benjamin-button
+  CI_S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
+  S3BUCKET_PATH: contracts/devnet-button
   # RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
 
 jobs:
@@ -136,8 +137,7 @@ jobs:
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          echo "@@@ PATH @@@" "s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}"
-          aws s3 cp s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
+          aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json contracts/addresses.json
         # yamllint enable rule:line-length
 
       - name: Copy metadata.json files from S3 bucket
@@ -145,13 +145,12 @@ jobs:
         env:
           DOWNLOAD_TMP_DIR: downloaded_metadata
         run: |
-          mkdir -p $DOWNLOAD_TMP_DIR
-          aws s3 sync --exclude '*' --include '*metadata.json' \
-            s3://${{ secrets.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/ ./$DOWNLOAD_TMP_DIR/
-          for i in `find $DOWNLOAD_TMP_DIR -name "metadata.json" | awk -F/ '{print $2}'`; do \
-            mkdir -p contracts/$i/target/ink; \
-            cp $DOWNLOAD_TMP_DIR/$i/metadata.json contracts/$i/target/ink/metadata.json; \
-          done
+         CONTRACTS=(access_control access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+         for C in "${CONTRACTS[@]}"; do
+           mkdir -p contracts/$i/target/ink;
+           aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json contracts/$C/target/ink/$C.json;
+         done
+         aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json addresses.json
 
       - name: Run clean.sh script
         shell: bash
