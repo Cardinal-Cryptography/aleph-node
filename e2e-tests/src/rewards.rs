@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use aleph_client::{
     account_from_keypair,
     pallets::{
-        committee_management::CommitteeManagementApi,
         author::AuthorRpc,
         balances::{BalanceUserApi, BalanceUserBatchExtApi},
+        committee_management::CommitteeManagementApi,
         elections::{ElectionsApi, ElectionsSudoApi},
         session::{SessionApi, SessionUserApi},
         staking::{StakingApi, StakingUserApi},
