@@ -18,14 +18,14 @@ use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
-
+use aleph_primitives::BlockNumber;
 use crate::{
     abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
     network::data::split::Split,
     session::{SessionBoundaries, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
-    sync::Justification,
+    sync::substrate::Justification,
 };
 
 mod abft;
@@ -240,14 +240,18 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB, J: Justification> {
+pub struct AlephConfig<B, H, C, SC, BB> where
+    B: Block,
+    B::Header: Header<Number = BlockNumber>,
+    H: ExHashT,
+{
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<J::Unverified>,
+    pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,

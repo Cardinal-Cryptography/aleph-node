@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData, sync::Arc, time::Instant};
 
-use aleph_primitives::ALEPH_ENGINE_ID;
+use aleph_primitives::{ALEPH_ENGINE_ID, BlockNumber};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
 use sc_client_api::backend::Backend;
@@ -10,25 +10,25 @@ use sc_consensus::{
 use sp_api::TransactionFor;
 use sp_consensus::Error as ConsensusError;
 use sp_runtime::{
-    traits::{Block as BlockT, Header, NumberFor},
+    traits::{Block as BlockT, Header},
     Justification,
 };
 
 use crate::{
     justification::{backwards_compatible_decode, DecodeError, JustificationNotification},
     metrics::{Checkpoint, Metrics},
-    Justification as JustificationT,
+    sync::substrate::Justification as JustificationS,
 };
 
-pub struct AlephBlockImport<Block, Be, I, J>
+pub struct AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
+    Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
-    J: JustificationT,
 {
     inner: Arc<I>,
-    justification_tx: UnboundedSender<J::Unverified>,
+    justification_tx: UnboundedSender<JustificationS<<Block as BlockT>::Header>>,
     metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
     _phantom: PhantomData<Be>,
 }
@@ -49,18 +49,18 @@ impl<Block: BlockT> From<DecodeError> for SendJustificationError<Block> {
     }
 }
 
-impl<Block, Be, I, J> AlephBlockImport<Block, Be, I, J>
+impl<Block, Be, I> AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
+    Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
-    J: JustificationT,
 {
     pub fn new(
         inner: Arc<I>,
-        justification_tx: UnboundedSender<J::Unverified>,
+        justification_tx: UnboundedSender<JustificationS<<Block as BlockT>::Header>>,
         metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
-    ) -> AlephBlockImport<Block, Be, I, J> {
+    ) -> AlephBlockImport<Block, Be, I> {
         AlephBlockImport {
             inner,
             justification_tx,
@@ -72,7 +72,7 @@ where
     fn send_justification(
         &mut self,
         hash: Block::Hash,
-        number: NumberFor<Block>,
+        number: BlockNumber,
         justification: Justification,
     ) -> Result<(), SendJustificationError<Block>> {
         debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
@@ -96,12 +96,12 @@ where
     }
 }
 
-impl<Block, Be, I, J> Clone for AlephBlockImport<Block, Be, I, J>
+impl<Block, Be, I> Clone for AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
+    Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
-    J: JustificationT,
 {
     fn clone(&self) -> Self {
         AlephBlockImport {
@@ -114,15 +114,15 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I, J> BlockImport<Block> for AlephBlockImport<Block, Be, I, J>
+impl<Block, Be, I> BlockImport<Block> for AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
+    Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be> + Send,
     for<'a> &'a I:
         BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<I, Block>>,
     TransactionFor<I, Block>: Send + 'static,
-    J: JustificationT,
 {
     type Error = <I as BlockImport<Block>>::Error;
     type Transaction = TransactionFor<I, Block>;
@@ -177,16 +177,16 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I, J> JustificationImport<Block> for AlephBlockImport<Block, Be, I, J>
+impl<Block, Be, I> JustificationImport<Block> for AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
+    Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
-    J: JustificationT,
 {
     type Error = ConsensusError;
 
-    async fn on_start(&mut self) -> Vec<(Block::Hash, NumberFor<Block>)> {
+    async fn on_start(&mut self) -> Vec<(Block::Hash, BlockNumber)> {
         debug!(target: "aleph-justification", "On start called");
         Vec::new()
     }
@@ -194,7 +194,7 @@ where
     async fn import_justification(
         &mut self,
         hash: Block::Hash,
-        number: NumberFor<Block>,
+        number: BlockNumber,
         justification: Justification,
     ) -> Result<(), Self::Error> {
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);

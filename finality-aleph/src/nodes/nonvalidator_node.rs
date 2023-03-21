@@ -10,13 +10,13 @@ use crate::{
     AlephConfig, BlockchainBackend,
     sync::Service as SyncService,
     finalization::AlephFinalizer,
-    sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, Justification},
+    sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier},
     network::{
         GossipService, SubstrateNetwork,
     },
 };
 
-pub async fn run_nonvalidator_node<B, H, C, BB, BE, SC, J>(aleph_config: AlephConfig<B, H, C, SC, BB, J>)
+pub async fn run_nonvalidator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
@@ -26,7 +26,6 @@ where
     BE: Backend<B> + 'static,
     BB: BlockchainBackend<B> + Send + 'static,
     SC: SelectChain<B> + 'static,
-    J: Justification,
 {
     let AlephConfig {
         network,

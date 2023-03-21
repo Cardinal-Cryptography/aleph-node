@@ -40,7 +40,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<B, H, C, BB, BE, SC, J>(aleph_config: AlephConfig<B, H, C, SC, BB, J>)
+pub async fn run_validator_node<B, H, C, BB, BE, SC, J>(aleph_config: AlephConfig<B, H, C, SC, BB>)
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,

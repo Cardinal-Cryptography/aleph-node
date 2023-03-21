@@ -11,7 +11,7 @@ mod handler;
 #[cfg(test)]
 mod mock;
 mod service;
-mod substrate;
+pub mod substrate;
 mod task_queue;
 mod ticker;
 
