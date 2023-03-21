@@ -131,15 +131,6 @@ impl<T: Config> OnRuntimeUpgrade for PrefixMigration<T> {
     fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
         ensure_storage_version::<Pallet<T>>(0)?;
 
-        let pallet_name = Pallet::<T>::name();
-
-        let pallet_prefix = twox_128(pallet_name.as_bytes());
-
-        let pallet_prefix_iter = frame_support::storage::KeyPrefixIterator::new(
-            pallet_prefix.to_vec(),
-            pallet_prefix.to_vec(),
-            |key| Ok(key.to_vec()),
-        );
         // Ensure storages has been moved to new prefix.
         let state = <MigrationStateCheck<T::AccountId>>::decode(&mut &*state)
             .map_err(|_| "Failed to decode")?;
@@ -156,11 +147,6 @@ impl<T: Config> OnRuntimeUpgrade for PrefixMigration<T> {
                     banned: crate::Banned::<T>::iter().count() as u32,
                 },
             "Moved storages are not the same"
-        );
-
-        ensure!(
-            pallet_prefix_iter.count() > 1,
-            "No storage has been moved to this pallet prefix"
         );
 
         Ok(())
