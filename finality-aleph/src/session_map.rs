@@ -374,6 +374,9 @@ mod tests {
     use super::*;
     use crate::session::testing::authority_data;
 
+    const FIRST_THRESHOLD: u32 = PRUNING_THRESHOLD + 1;
+    const SECOND_THRESHOLD: u32 = 2 * PRUNING_THRESHOLD + 1;
+
     struct MockProvider {
         pub session_map: HashMap<BlockNumber, SessionAuthorityData>,
         pub next_session_map: HashMap<BlockNumber, SessionAuthorityData>,
@@ -543,7 +546,7 @@ mod tests {
         let mut mock_provider = MockProvider::new();
         let mut mock_notificator = MockNotifier::new(receiver);
 
-        for i in 0..=2 * PRUNING_THRESHOLD {
+        for i in 0..SECOND_THRESHOLD {
             mock_provider.add_session(i);
         }
 
@@ -557,7 +560,7 @@ mod tests {
         // wait a bit
         Delay::new(Duration::from_millis(50)).await;
 
-        for i in 0..=PRUNING_THRESHOLD {
+        for i in 0..FIRST_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
@@ -565,7 +568,7 @@ mod tests {
                 i
             );
         }
-        for i in PRUNING_THRESHOLD + 1..=2 * PRUNING_THRESHOLD {
+        for i in FIRST_THRESHOLD..SECOND_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
@@ -617,7 +620,7 @@ mod tests {
         let mut mock_provider = MockProvider::new();
         let mock_notificator = MockNotifier::new(receiver);
 
-        for i in 0..=2 * PRUNING_THRESHOLD {
+        for i in 0..SECOND_THRESHOLD {
             mock_provider.add_session(i);
         }
 
@@ -626,14 +629,14 @@ mod tests {
 
         let _handle = tokio::spawn(updater.run());
 
-        for n in 1..PRUNING_THRESHOLD + 1 {
+        for n in 1..FIRST_THRESHOLD {
             sender.unbounded_send(n).unwrap();
         }
 
         // wait a bit
         Delay::new(Duration::from_millis(50)).await;
 
-        for i in 0..=PRUNING_THRESHOLD + 1 {
+        for i in 0..=FIRST_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
@@ -642,7 +645,7 @@ mod tests {
             );
         }
 
-        for i in PRUNING_THRESHOLD + 2..=21 {
+        for i in (FIRST_THRESHOLD + 1)..=SECOND_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
@@ -651,13 +654,13 @@ mod tests {
             );
         }
 
-        for n in PRUNING_THRESHOLD + 1..2 * PRUNING_THRESHOLD + 1 {
+        for n in FIRST_THRESHOLD..SECOND_THRESHOLD {
             sender.unbounded_send(n).unwrap();
         }
 
         Delay::new(Duration::from_millis(50)).await;
 
-        for i in 0..PRUNING_THRESHOLD {
+        for i in 0..(FIRST_THRESHOLD - 1) {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
@@ -666,7 +669,7 @@ mod tests {
             );
         }
 
-        for i in PRUNING_THRESHOLD + 1..=21 {
+        for i in FIRST_THRESHOLD..=SECOND_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
