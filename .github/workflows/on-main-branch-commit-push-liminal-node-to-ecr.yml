@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build-liminal-node:
     name: Build liminal node
-    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    uses: ./.github/workflows/_build-liminal-node.yml
     secrets: inherit
 
   push-liminal-node-image-to-ecr:
