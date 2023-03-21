@@ -26,7 +26,7 @@ impl<T: Config> OnRuntimeUpgrade for ContractsSetVersion9<T> {
             StorageVersion::new(9).put::<Pallet<T>>();
             log::info!(
                 target: TARGET,
-                "Setting the version of pallet conracts to 9."
+                "Setting the version of pallet contracts to 9."
             );
         }
 
