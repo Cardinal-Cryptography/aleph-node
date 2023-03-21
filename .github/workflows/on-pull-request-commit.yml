@@ -20,6 +20,10 @@ jobs:
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 
+  check-build-node-liminal:
+    name: Check build of aleph-node with feature liminal
+    uses: ./.github/workflows/_build-liminal-node-and-runtime.yml
+
   build-production-node-and-runtime:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
