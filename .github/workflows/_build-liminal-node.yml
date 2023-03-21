@@ -1,7 +1,7 @@
 ---
 #  This workflow builds aleph-node with feature liminal
 #  features enabled. Those binaries MUST NOT be used in the production.
-name: Build liminal test node
+name: Build liminal node
 on:
   workflow_call:
 

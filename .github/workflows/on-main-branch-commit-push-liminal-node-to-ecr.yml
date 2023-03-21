@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-liminal-node:
-    name: Build test node and runtime
+    name: Build liminal node
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
