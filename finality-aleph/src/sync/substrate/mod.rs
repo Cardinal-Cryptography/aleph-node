@@ -14,7 +14,9 @@ mod finalizer;
 mod status_notifier;
 mod verification;
 
-pub use verification::SessionVerifier;
+pub use verification::{VerifierCache, SubstrateFinalizationInfo, SessionVerifier};
+pub use chain_status::SubstrateChainStatus;
+pub use status_notifier::SubstrateChainStatusNotifier;
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {

@@ -34,6 +34,7 @@ use crate::{
     AuthorityId, CurrentRmcNetworkData, JustificationNotification, Keychain, LegacyRmcNetworkData,
     Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
     VersionedNetworkData,
+    sync::{JustificationSubmissions, Justification},
 };
 
 mod aggregator;
@@ -88,7 +89,7 @@ where
     phantom: PhantomData<BE>,
 }
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -96,21 +97,23 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
+    J: Justification,
+    JS: JustificationSubmissions<J>,
 {
     client: Arc<C>,
     select_chain: SC,
     session_period: SessionPeriod,
     unit_creation_delay: UnitCreationDelay,
-    authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+    justifications_for_sync: JS,
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<dyn CryptoStore>,
-    _phantom: PhantomData<BE>,
+    _phantom: PhantomData<(J, BE)>,
 }
 
-impl<C, SC, B, RB, BE, SM> NodeSessionManagerImpl<C, SC, B, RB, BE, SM>
+impl<C, SC, B, RB, BE, SM, J, JS> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -119,6 +122,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
+    J: Justification,
+    JS: JustificationSubmissions<J>,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -126,7 +131,7 @@ where
         select_chain: SC,
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
-        authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+        justifications_for_sync: JS,
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as Header>::Hash>>,
         spawn_handle: SpawnHandle,
@@ -138,7 +143,7 @@ where
             select_chain,
             session_period,
             unit_creation_delay,
-            authority_justification_tx,
+            justifications_for_sync,
             block_requester,
             metrics,
             spawn_handle,
@@ -377,7 +382,7 @@ where
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE, SM> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, SM>
+impl<C, SC, B, RB, BE, SM, J, JS> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS>
 where
     B: BlockT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
@@ -386,6 +391,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
+    J: Justification,
+    JS: JustificationSubmissions<J>,
 {
     type Error = SM::Error;
 

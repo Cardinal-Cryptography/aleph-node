@@ -15,7 +15,8 @@ mod substrate;
 mod task_queue;
 mod ticker;
 
-pub use substrate::SessionVerifier;
+pub use substrate::{SubstrateFinalizationInfo, VerifierCache, SessionVerifier, SubstrateChainStatus, SubstrateChainStatusNotifier};
+pub use service::Service;
 
 const LOG_TARGET: &str = "aleph-block-sync";
 

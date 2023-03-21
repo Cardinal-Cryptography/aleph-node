@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{
     fmt::{Display, Error as FmtError, Formatter},
     marker::PhantomData,
@@ -63,7 +64,7 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    client: BE,
+    client: Arc<BE>,
     _phantom: PhantomData<B>,
 }
 
@@ -73,6 +74,10 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
+    pub fn new(client: Arc<BE>) -> Self {
+        Self { client, _phantom: PhantomData }
+    }
+
     fn hash_for_number(&self, number: BlockNumber) -> Result<Option<B::Hash>, ClientError> {
         self.client.hash(number)
     }

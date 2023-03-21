@@ -25,6 +25,7 @@ use crate::{
     network::data::split::Split,
     session::{SessionBoundaries, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
+    sync::Justification,
 };
 
 mod abft;
@@ -41,8 +42,6 @@ mod nodes;
 mod party;
 mod session;
 mod session_map;
-// TODO: remove when module is used
-#[allow(dead_code)]
 mod sync;
 #[cfg(test)]
 pub mod testing;
@@ -197,6 +196,7 @@ pub trait ClientForAleph<B, BE>:
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
+    + Backend<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -213,6 +213,7 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
+        + Backend<B>
         + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
 {
 }
@@ -239,14 +240,14 @@ impl<H, N> From<(H, N)> for HashNum<H, N> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB, J: Justification> {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub justification_rx: mpsc::UnboundedReceiver<J::Unverified>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,

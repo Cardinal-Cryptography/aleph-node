@@ -40,6 +40,7 @@ pub struct Service<
     broadcast_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -68,6 +69,7 @@ impl<
         verifier: V,
         finalizer: F,
         period: SessionPeriod,
+        additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     ) -> Result<(Self, impl JustificationSubmissions<J>), HandlerError<J, CS, V, F>> {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
@@ -82,6 +84,7 @@ impl<
                 broadcast_ticker,
                 chain_events,
                 justifications_from_user,
+                additional_justifications_from_user,
             },
             justifications_for_sync,
         ))
@@ -164,12 +167,12 @@ impl<
         }
     }
 
-    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: N::PeerId) {
+    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: Option<N::PeerId>) {
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
-                .handle_justification(justification, Some(peer.clone()))
+                .handle_justification(justification, peer.clone())
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => {
@@ -213,7 +216,7 @@ impl<
                     iter::once(justification)
                         .chain(maybe_justification)
                         .collect(),
-                    peer,
+                    Some(peer),
                 );
             }
             Request(request) => {
@@ -221,7 +224,7 @@ impl<
                 self.handle_request(request, peer.clone());
                 self.handle_state(state, peer)
             }
-            RequestResponse(justifications) => self.handle_justifications(justifications, peer),
+            RequestResponse(justifications) => self.handle_justifications(justifications, Some(peer)),
         }
     }
 
@@ -291,6 +294,10 @@ impl<
                             "Error while handling justification from user: {}.", e
                         );
                     },
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+                },
+                maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
+                    Some(justification) => self.handle_justifications(Vec::from([justification]), None),
                     None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
                 _ = stall_ticker.tick() => {

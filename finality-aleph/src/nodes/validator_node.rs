@@ -18,7 +18,6 @@ use crate::{
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
     },
-    nodes::{setup_justification_handler, JustificationParams},
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
         ConsensusPartyParams,
@@ -26,6 +25,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
     AlephConfig, BlockchainBackend,
+    sync::Service as SyncService,
+    finalization::AlephFinalizer,
+    sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, Justification},
 };
 
 pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
@@ -38,7 +40,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
+pub async fn run_validator_node<B, H, C, BB, BE, SC, J>(aleph_config: AlephConfig<B, H, C, SC, BB, J>)
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
@@ -48,6 +50,7 @@ where
     BE: Backend<B> + 'static,
     BB: BlockchainBackend<B> + Send + 'static,
     SC: SelectChain<B> + 'static,
+    J: Justification,
 {
     let AlephConfig {
         network,
@@ -95,7 +98,7 @@ where
         validator_network_service.run(exit).await
     });
 
-    let (gossip_network_service, authentication_network, _block_sync_network) = GossipService::new(
+    let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
         SubstrateNetwork::new(network.clone(), protocol_naming),
         spawn_handle.clone(),
     );
@@ -113,17 +116,33 @@ where
         map_updater.run().await
     });
 
-    let (authority_justification_tx, handler_task) =
-        setup_justification_handler(JustificationParams {
-            justification_rx,
-            network,
-            client: client.clone(),
-            blockchain_backend,
-            metrics: metrics.clone(),
-            session_period,
-            millisecs_per_block,
-            session_map: session_authorities.clone(),
-        });
+    const VERIFIER_CACHE_SIZE: usize = 43; // TODO - how much?
+
+    let chain_events = SubstrateChainStatusNotifier::new(
+        client.finality_notification_stream(),
+        client.import_notification_stream(),
+    );
+    let chain_status = SubstrateChainStatus::new(client.clone());
+    let verifier = VerifierCache::new(
+        session_period,
+        SubstrateFinalizationInfo::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone()),
+        VERIFIER_CACHE_SIZE
+    );
+    let finalizer = AlephFinalizer::new(client.clone());
+    let (sync_service, justifications_for_sync) = match SyncService::new(
+        block_sync_network,
+        chain_events,
+        chain_status,
+        verifier,
+        finalizer,
+        session_period,
+        justification_rx,
+    ) {
+        Ok(sync_service, justifications_for_sync) => (sync_service, justifications_for_sync),
+        Err(e) => panic!("Failed to run Sync service: {}", e),
+    };
+    let sync_task = async move { sync_service.run().await };
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
         network_identity,
@@ -138,8 +157,8 @@ where
         }
     };
 
-    spawn_handle.spawn("aleph/justification_handler", None, handler_task);
-    debug!(target: "aleph-party", "JustificationHandler has started.");
+    spawn_handle.spawn("aleph/sync", None, sync_task);
+    debug!(target: "aleph-party", "Sync has started.");
 
     spawn_handle.spawn("aleph/connection_manager", None, connection_manager_task);
     spawn_handle.spawn("aleph/gossip_network", None, gossip_network_task);
@@ -158,7 +177,7 @@ where
             select_chain,
             session_period,
             unit_creation_delay,
-            authority_justification_tx,
+            justifications_for_sync,
             block_requester,
             metrics,
             spawn_handle.into(),
