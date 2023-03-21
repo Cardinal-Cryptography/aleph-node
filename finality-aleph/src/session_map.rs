@@ -20,11 +20,11 @@ const PRUNING_THRESHOLD: u32 = 10;
 type SessionMap = HashMap<SessionId, SessionAuthorityData>;
 type SessionSubscribers = HashMap<SessionId, Vec<OneShotSender<SessionAuthorityData>>>;
 
-pub trait AuthorityProvider<N> {
+pub trait AuthorityProvider {
     /// returns authority data for block
-    fn authority_data(&self, block_number: N) -> Option<SessionAuthorityData>;
+    fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
-    fn next_authority_data(&self, block_number: N) -> Option<SessionAuthorityData>;
+    fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
 }
 
 /// Default implementation of authority provider trait.
@@ -56,7 +56,7 @@ where
     }
 }
 
-impl<C, B, BE> AuthorityProvider<NumberFor<B>> for AuthorityProviderImpl<C, B, BE>
+impl<C, B, BE> AuthorityProvider for AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -102,13 +102,14 @@ where
     }
 }
 
-pub trait FinalityNotificator<B> {
-    fn notification_stream(&mut self) -> TracingUnboundedReceiver<B>;
+#[async_trait::async_trait]
+pub trait FinalityNotifier {
+    async fn next(&mut self) -> Option<BlockNumber>;
     fn last_finalized(&self) -> BlockNumber;
 }
 
 /// Default implementation of finality notificator trait.
-pub struct FinalityNotificatorImpl<C, B, BE>
+pub struct FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -116,11 +117,12 @@ where
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
 {
+    notification_stream: TracingUnboundedReceiver<FinalityNotification<B>>,
     client: Arc<C>,
     _phantom: PhantomData<(B, BE)>,
 }
 
-impl<C, B, BE> FinalityNotificatorImpl<C, B, BE>
+impl<C, B, BE> FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -130,13 +132,15 @@ where
 {
     pub fn new(client: Arc<C>) -> Self {
         Self {
+            notification_stream: client.finality_notification_stream(),
             client,
             _phantom: PhantomData,
         }
     }
 }
 
-impl<C, B, BE> FinalityNotificator<FinalityNotification<B>> for FinalityNotificatorImpl<C, B, BE>
+#[async_trait::async_trait]
+impl<C, B, BE> FinalityNotifier for FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -144,11 +148,14 @@ where
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
 {
-    fn notification_stream(&mut self) -> TracingUnboundedReceiver<FinalityNotification<B>> {
-        self.client.finality_notification_stream()
+    async fn next(&mut self) -> Option<BlockNumber> {
+        self.notification_stream
+            .next()
+            .await
+            .map(|block| *block.header.number())
     }
 
-    fn last_finalized(&self) -> NumberFor<B> {
+    fn last_finalized(&self) -> BlockNumber {
         self.client.info().finalized_number
     }
 }
@@ -231,34 +238,28 @@ impl ReadOnlySessionMap {
 }
 
 /// Struct responsible for updating session map
-pub struct SessionMapUpdater<AP, FN, B>
+pub struct SessionMapUpdater<AP, FN>
 where
-    AP: AuthorityProvider<NumberFor<B>>,
-    FN: FinalityNotificator<FinalityNotification<B>>,
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
+    AP: AuthorityProvider,
+    FN: FinalityNotifier,
 {
     session_map: SharedSessionMap,
     authority_provider: AP,
-    finality_notificator: FN,
+    finality_notifier: FN,
     session_info: SessionBoundaryInfo,
-    _phantom: PhantomData<B>,
 }
 
-impl<AP, FN, B> SessionMapUpdater<AP, FN, B>
+impl<AP, FN> SessionMapUpdater<AP, FN>
 where
-    AP: AuthorityProvider<NumberFor<B>>,
-    FN: FinalityNotificator<FinalityNotification<B>>,
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
+    AP: AuthorityProvider,
+    FN: FinalityNotifier,
 {
-    pub fn new(authority_provider: AP, finality_notificator: FN, period: SessionPeriod) -> Self {
+    pub fn new(authority_provider: AP, finality_notifier: FN, period: SessionPeriod) -> Self {
         Self {
             session_map: SharedSessionMap::new(),
             authority_provider,
-            finality_notificator,
+            finality_notifier,
             session_info: SessionBoundaryInfo::new(period),
-            _phantom: PhantomData,
         }
     }
 
@@ -302,7 +303,7 @@ where
     /// Puts current and next session authorities in the session map.
     /// If previous authorities are still available in `AuthorityProvider`, also puts them in the session map.
     async fn catch_up(&mut self) -> SessionId {
-        let last_finalized = self.finality_notificator.last_finalized();
+        let last_finalized = self.finality_notifier.last_finalized();
 
         let current_session = self.session_info.session_id_from_block_num(last_finalized);
         let starting_session = SessionId(current_session.0.saturating_sub(PRUNING_THRESHOLD - 1));
@@ -341,14 +342,12 @@ where
     }
 
     pub async fn run(mut self) {
-        let mut notifications = self.finality_notificator.notification_stream();
         let mut last_updated = self.catch_up().await;
 
-        while let Some(FinalityNotification { header, .. }) = notifications.next().await {
-            let last_finalized = header.number();
+        while let Some(last_finalized) = self.finality_notifier.next().await {
             trace!(target: "aleph-session-updater", "got FinalityNotification about #{:?}", last_finalized);
 
-            let session_id = self.session_info.session_id_from_block_num(*last_finalized);
+            let session_id = self.session_info.session_id_from_block_num(last_finalized);
 
             if last_updated >= session_id {
                 continue;
@@ -365,31 +364,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Mutex, time::Duration};
+    use std::time::Duration;
 
     use aleph_primitives::BlockNumber;
     use futures_timer::Delay;
-    use sc_block_builder::BlockBuilderProvider;
-    use sc_client_api::FinalizeSummary;
     use sc_utils::mpsc::tracing_unbounded;
-    use sp_consensus::BlockOrigin;
-    use substrate_test_runtime_client::ClientBlockImportExt;
     use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
-    use crate::{
-        session::testing::authority_data,
-        testing::mocks::{TBlock, TestClient, TestClientBuilder, TestClientBuilderExt},
-    };
+    use crate::session::testing::authority_data;
 
     struct MockProvider {
         pub session_map: HashMap<BlockNumber, SessionAuthorityData>,
         pub next_session_map: HashMap<BlockNumber, SessionAuthorityData>,
-    }
-
-    struct MockNotificator {
-        pub last_finalized: BlockNumber,
-        pub receiver: Mutex<Option<TracingUnboundedReceiver<FinalityNotification<TBlock>>>>,
     }
 
     impl MockProvider {
@@ -407,17 +394,7 @@ mod tests {
                 .insert(session_id, authority_data_for_session(session_id + 1));
         }
     }
-
-    impl MockNotificator {
-        fn new(receiver: TracingUnboundedReceiver<FinalityNotification<TBlock>>) -> Self {
-            Self {
-                receiver: std::sync::Mutex::new(Some(receiver)),
-                last_finalized: 0,
-            }
-        }
-    }
-
-    impl AuthorityProvider<BlockNumber> for MockProvider {
+    impl AuthorityProvider for MockProvider {
         fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.session_map.get(&block_number).cloned()
         }
@@ -427,11 +404,24 @@ mod tests {
         }
     }
 
-    impl FinalityNotificator<FinalityNotification<TBlock>> for MockNotificator {
-        fn notification_stream(
-            &mut self,
-        ) -> TracingUnboundedReceiver<FinalityNotification<TBlock>> {
-            self.receiver.get_mut().unwrap().take().unwrap()
+    struct MockNotifier {
+        pub last_finalized: BlockNumber,
+        pub receiver: TracingUnboundedReceiver<BlockNumber>,
+    }
+
+    impl MockNotifier {
+        fn new(receiver: TracingUnboundedReceiver<BlockNumber>) -> Self {
+            Self {
+                receiver,
+                last_finalized: 0,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FinalityNotifier for MockNotifier {
+        async fn next(&mut self) -> Option<BlockNumber> {
+            self.receiver.next().await
         }
 
         fn last_finalized(&self) -> BlockNumber {
@@ -439,47 +429,19 @@ mod tests {
         }
     }
 
-    fn n_new_blocks(client: &mut Arc<TestClient>, n: BlockNumber) -> Vec<TBlock> {
-        (0..n)
-            .map(|_| {
-                let block = client
-                    .new_block(Default::default())
-                    .unwrap()
-                    .build()
-                    .unwrap()
-                    .block;
-
-                futures::executor::block_on(client.import(BlockOrigin::Own, block.clone()))
-                    .unwrap();
-                block
-            })
-            .collect()
-    }
-
     fn authority_data_for_session(session_id: u32) -> SessionAuthorityData {
         authority_data(session_id * 4, (session_id + 1) * 4)
-    }
-
-    fn to_notification(block: TBlock) -> FinalityNotification<TBlock> {
-        let (sender, _) = tracing_unbounded("test", 1);
-        let summary = FinalizeSummary {
-            header: block.header,
-            finalized: vec![],
-            stale_heads: vec![],
-        };
-
-        FinalityNotification::from_summary(summary, sender)
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn genesis_catch_up() {
         let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mock_notificator = MockNotificator::new(receiver);
+        let mock_notifier = MockNotifier::new(receiver);
 
         mock_provider.add_session(0);
 
-        let updater = SessionMapUpdater::new(mock_provider, mock_notificator, SessionPeriod(1));
+        let updater = SessionMapUpdater::new(mock_provider, mock_notifier, SessionPeriod(1));
         let session_map = updater.readonly_session_map();
 
         let _handle = tokio::spawn(updater.run());
@@ -499,10 +461,9 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn updates_session_map_on_notifications() {
-        let mut client = Arc::new(TestClientBuilder::new().build());
         let (sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mock_notificator = MockNotificator::new(receiver);
+        let mock_notificator = MockNotifier::new(receiver);
 
         mock_provider.add_session(0);
         mock_provider.add_session(1);
@@ -511,8 +472,8 @@ mod tests {
         let updater = SessionMapUpdater::new(mock_provider, mock_notificator, SessionPeriod(1));
         let session_map = updater.readonly_session_map();
 
-        for block in n_new_blocks(&mut client, 2) {
-            sender.unbounded_send(to_notification(block)).unwrap();
+        for n in 1..3 {
+            sender.unbounded_send(n).unwrap();
         }
 
         let _handle = tokio::spawn(updater.run());
@@ -542,7 +503,7 @@ mod tests {
     async fn catch_up() {
         let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mut mock_notificator = MockNotificator::new(receiver);
+        let mut mock_notificator = MockNotifier::new(receiver);
 
         mock_provider.add_session(0);
         mock_provider.add_session(1);
@@ -580,7 +541,7 @@ mod tests {
     async fn catch_up_old_sessions() {
         let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mut mock_notificator = MockNotificator::new(receiver);
+        let mut mock_notificator = MockNotifier::new(receiver);
 
         for i in 0..=2 * PRUNING_THRESHOLD {
             mock_provider.add_session(i);
@@ -618,7 +579,7 @@ mod tests {
     async fn deals_with_database_pruned_authorities() {
         let (_sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mut mock_notificator = MockNotificator::new(receiver);
+        let mut mock_notificator = MockNotifier::new(receiver);
 
         mock_provider.add_session(5);
         mock_notificator.last_finalized = 5;
@@ -652,10 +613,9 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn prunes_old_sessions() {
-        let mut client = Arc::new(TestClientBuilder::new().build());
         let (sender, receiver) = tracing_unbounded("test", 1_000);
         let mut mock_provider = MockProvider::new();
-        let mock_notificator = MockNotificator::new(receiver);
+        let mock_notificator = MockNotifier::new(receiver);
 
         for i in 0..=2 * PRUNING_THRESHOLD {
             mock_provider.add_session(i);
@@ -666,10 +626,8 @@ mod tests {
 
         let _handle = tokio::spawn(updater.run());
 
-        let mut blocks = n_new_blocks(&mut client, 2 * PRUNING_THRESHOLD);
-
-        for block in blocks.drain(..PRUNING_THRESHOLD as usize) {
-            sender.unbounded_send(to_notification(block)).unwrap();
+        for n in 1..PRUNING_THRESHOLD + 1 {
+            sender.unbounded_send(n).unwrap();
         }
 
         // wait a bit
@@ -693,8 +651,8 @@ mod tests {
             );
         }
 
-        for block in blocks {
-            sender.unbounded_send(to_notification(block)).unwrap();
+        for n in PRUNING_THRESHOLD + 1..2 * PRUNING_THRESHOLD + 1 {
+            sender.unbounded_send(n).unwrap();
         }
 
         Delay::new(Duration::from_millis(50)).await;
