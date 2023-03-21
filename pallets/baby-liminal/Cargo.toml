@@ -23,7 +23,7 @@ ark-r1cs-std = { version = "^0.3.0", default-features = false }
 ark-snark = { version = "^0.3.0", default-features = false }
 
 ark-bls12-381 = { version = "^0.3.0" }
-ark-groth16 = { version = "^0.3.0", default-features = false }
+ark-groth16 = { version = "^0.4.0", default-features = false }
 ark-gm17 = { version = "^0.3.0", default-features = false }
 ark-marlin = { version = "^0.3.0", default-features = false }
 
