@@ -4,7 +4,8 @@ name: contracts-e2e-tests-and-deploy
 on:
   workflow_call:
 
-# DO NOT TOUCH THIS:
+# DO NOT TOUCH THIS !
+# cancelling workflow when contracts deployment is in progress will leave the environment in a bad state
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
