@@ -20,6 +20,8 @@
 //! They follow the same logic as next era committee seats: at the time of planning the first
 //! session of next the era, next values become current ones.
 
+extern crate core;
+
 mod impls;
 mod manager;
 mod migration;
@@ -36,7 +38,7 @@ use sp_std::{collections::btree_map::BTreeMap, default::Default};
 pub use traits::*;
 
 pub type TotalReward = u32;
-#[derive(Decode, Encode, TypeInfo)]
+#[derive(Decode, Encode, TypeInfo, PartialEq, Eq)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
 #[derive(Decode, Encode, TypeInfo)]
@@ -54,6 +56,7 @@ impl<T> Default for CurrentAndNextSessionValidators<T> {
     }
 }
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+pub(crate) const LOG_TARGET: &str = "pallet-committee-management";
 
 #[frame_support::pallet]
 pub mod pallet {

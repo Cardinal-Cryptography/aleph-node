@@ -17,6 +17,7 @@ use crate::{
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
     BanConfigStruct, CurrentAndNextSessionValidators, ValidatorExtractor, ValidatorTotalRewards,
+    LOG_TARGET,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -308,7 +309,10 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn clear_underperformance_session_counter(session: SessionIndex) {
         let clean_session_counter_delay = BanConfig::<T>::get().clean_session_counter_delay;
         if session % clean_session_counter_delay == 0 {
-            info!(target: "pallet_elections", "Clearing UnderperformedValidatorSessionCount");
+            info!(
+                target: LOG_TARGET,
+                "Clearing UnderperformedValidatorSessionCount"
+            );
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
         }
     }
@@ -342,7 +346,10 @@ impl<T: Config> Pallet<T> {
             .filter(|(_acc, info)| info.start == active_era + 1)
             .collect::<Vec<_>>();
         if !fresh_bans.is_empty() {
-            info!(target: "pallet_elections", "Fresh bans in era {}: {:?}",active_era, fresh_bans);
+            info!(
+                target: LOG_TARGET,
+                "Fresh bans in era {}: {:?}", active_era, fresh_bans
+            );
             Self::deposit_event(Event::BanValidators(fresh_bans));
         }
     }

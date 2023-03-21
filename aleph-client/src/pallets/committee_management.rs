@@ -123,10 +123,7 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     ) -> Option<BanReason> {
         let addrs = api::storage().committee_management().banned(validator);
 
-        match self.get_storage_entry_maybe(&addrs, at).await {
-            None => None,
-            Some(x) => Some(x.reason),
-        }
+        self.get_storage_entry_maybe(&addrs, at).await.map(|x| x.reason)
     }
 
     async fn get_ban_info_for_validator(
