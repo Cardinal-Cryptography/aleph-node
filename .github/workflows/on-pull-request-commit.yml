@@ -22,7 +22,8 @@ jobs:
 
   check-build-node-liminal:
     name: Check build of aleph-node with feature liminal
-    uses: ./.github/workflows/_build-liminal-node-and-runtime.yml
+    uses: ./.github/workflows/_check-build-liminal-node.yml
+    secrets: inherit
 
   build-production-node-and-runtime:
     name: Build production node and runtime
