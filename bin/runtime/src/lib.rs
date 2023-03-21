@@ -780,7 +780,6 @@ pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
-/// Executive: handles dispatch to the various modules.
 // Migrations
 use pallet_balances::migration::MigrateManyToTrackInactive as BalancesV1Migration;
 use pallet_multisig::migrations::v1::MigrateToV1 as MultisigV1Migration;
@@ -801,6 +800,7 @@ pub type Executive = frame_executive::Executive<
         BalancesV1Migration<Runtime, ()>,
         // Removes the `Calls` map, and unreserves all the funds locked there.
         MultisigV1Migration<Runtime>,
+        // In our case, this is migrating 0 agendas.
         SchedulerV3V4Migration<Runtime>,
         // This only kills the custom versioning enum, and sets StorageVersion to 13
         StakingV13Migration<Runtime>,

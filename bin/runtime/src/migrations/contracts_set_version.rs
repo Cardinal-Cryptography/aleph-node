@@ -24,6 +24,10 @@ impl<T: Config> OnRuntimeUpgrade for ContractsSetVersion9<T> {
         if version < 9 {
             weight += T::DbWeight::get().reads_writes(0, 1);
             StorageVersion::new(9).put::<Pallet<T>>();
+            log::info!(
+                target: TARGET,
+                "Setting the version of pallet conracts to 9."
+            );
         }
 
         weight
