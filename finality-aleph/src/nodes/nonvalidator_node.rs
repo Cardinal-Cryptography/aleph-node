@@ -86,7 +86,7 @@ where
         session_period,
         justification_rx,
     ) {
-        Ok(sync_service, justifications_for_sync) => (sync_service, justifications_for_sync),
+        Ok(x) => x,
         Err(e) => panic!("Failed to run Sync service: {}", e),
     };
 

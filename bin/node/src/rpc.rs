@@ -18,14 +18,14 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 /// Full client dependencies.
-pub struct FullDeps<B: BlockT, C, P> {
+pub struct FullDeps<B: BlockT, C, P, JU> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
-    pub import_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+    pub import_justification_tx: mpsc::UnboundedSender<JU>,
 }
 
 /// Instantiate all full RPC extensions.
@@ -55,7 +55,7 @@ where
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
 
-    module.merge(TransactionPayment::new(client).into_rpc())?;
+    module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
     module.merge(AlephNode::new(import_justification_tx).into_rpc())?;

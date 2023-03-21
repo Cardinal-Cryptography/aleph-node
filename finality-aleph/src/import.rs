@@ -17,16 +17,18 @@ use sp_runtime::{
 use crate::{
     justification::{backwards_compatible_decode, DecodeError, JustificationNotification},
     metrics::{Checkpoint, Metrics},
+    Justification as JustificationT,
 };
 
-pub struct AlephBlockImport<Block, Be, I>
+pub struct AlephBlockImport<Block, Be, I, J>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    J: JustificationT,
 {
     inner: Arc<I>,
-    justification_tx: UnboundedSender<JustificationNotification<Block>>,
+    justification_tx: UnboundedSender<J::Unverified>,
     metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
     _phantom: PhantomData<Be>,
 }
@@ -47,17 +49,18 @@ impl<Block: BlockT> From<DecodeError> for SendJustificationError<Block> {
     }
 }
 
-impl<Block, Be, I> AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, J> AlephBlockImport<Block, Be, I, J>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    J: JustificationT,
 {
     pub fn new(
         inner: Arc<I>,
-        justification_tx: UnboundedSender<JustificationNotification<Block>>,
+        justification_tx: UnboundedSender<J::Unverified>,
         metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
-    ) -> AlephBlockImport<Block, Be, I> {
+    ) -> AlephBlockImport<Block, Be, I, J> {
         AlephBlockImport {
             inner,
             justification_tx,
@@ -81,21 +84,24 @@ where
         let justification_raw = justification.1;
         let aleph_justification = backwards_compatible_decode(justification_raw)?;
 
-        self.justification_tx
-            .unbounded_send(JustificationNotification {
-                hash,
-                number,
-                justification: aleph_justification,
-            })
-            .map_err(SendJustificationError::Send)
+        // TODO - pack and send
+        // self.justification_tx
+        //     .unbounded_send(JustificationNotification {
+        //         hash,
+        //         number,
+        //         justification: aleph_justification,
+        //     })
+        //     .map_err(SendJustificationError::Send)
+        Ok(())
     }
 }
 
-impl<Block, Be, I> Clone for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, J> Clone for AlephBlockImport<Block, Be, I, J>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    J: JustificationT,
 {
     fn clone(&self) -> Self {
         AlephBlockImport {
@@ -108,7 +114,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I> BlockImport<Block> for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, J> BlockImport<Block> for AlephBlockImport<Block, Be, I, J>
 where
     Block: BlockT,
     Be: Backend<Block>,
@@ -116,6 +122,7 @@ where
     for<'a> &'a I:
         BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<I, Block>>,
     TransactionFor<I, Block>: Send + 'static,
+    J: JustificationT,
 {
     type Error = <I as BlockImport<Block>>::Error;
     type Transaction = TransactionFor<I, Block>;
@@ -170,11 +177,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I> JustificationImport<Block> for AlephBlockImport<Block, Be, I>
+impl<Block, Be, I, J> JustificationImport<Block> for AlephBlockImport<Block, Be, I, J>
 where
     Block: BlockT,
     Be: Backend<Block>,
     I: crate::ClientForAleph<Block, Be>,
+    J: JustificationT,
 {
     type Error = ConsensusError;
 

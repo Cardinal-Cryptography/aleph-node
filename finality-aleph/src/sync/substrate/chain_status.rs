@@ -7,6 +7,7 @@ use std::{
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
 use sp_blockchain::{Backend, Error as ClientError};
+
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 
 use crate::{

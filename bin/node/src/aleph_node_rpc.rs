@@ -60,23 +60,23 @@ use sp_api::BlockT;
 use sp_runtime::traits::NumberFor;
 
 /// Aleph Node API implementation
-pub struct AlephNode<B>
+pub struct AlephNode<B, JU>
 where
     B: BlockT,
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
 {
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+    import_justification_tx: mpsc::UnboundedSender<JU>,
 }
 
-impl<B> AlephNode<B>
+impl<B, JU> AlephNode<B, JU>
 where
     B: BlockT,
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
 {
     pub fn new(
-        import_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+        import_justification_tx: mpsc::UnboundedSender<JU>,
     ) -> Self {
         AlephNode {
             import_justification_tx,
@@ -102,18 +102,20 @@ where
                     "Provided justification cannot be converted into correct type".into(),
                 )
             })?);
-        self.import_justification_tx
-            .unbounded_send(JustificationNotification {
-                justification,
-                hash,
-                number,
-            })
-            .map_err(|_| {
-                Error::FailedJustificationSend(
-                    "AlephNodeApiServer failed to send JustifictionNotification via its channel"
-                        .into(),
-                )
-                .into()
-            })
+        // TODO - turn on
+        // self.import_justification_tx
+        //     .unbounded_send(JustificationNotification {
+        //         justification,
+        //         hash,
+        //         number,
+        //     })
+        //     .map_err(|_| {
+        //         Error::FailedJustificationSend(
+        //             "AlephNodeApiServer failed to send JustifictionNotification via its channel"
+        //                 .into(),
+        //         )
+        //         .into()
+        //     })
+        Ok(())
     }
 }

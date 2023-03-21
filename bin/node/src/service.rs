@@ -208,7 +208,7 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
+    import_justification_tx: mpsc::UnboundedSender<J::Unverified>,
 ) -> Result<
     (
         RpcHandlers,

@@ -196,7 +196,7 @@ pub trait ClientForAleph<B, BE>:
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
-    + Backend<B>
+    + sp_blockchain::Backend<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -213,7 +213,7 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + Backend<B>
+        + sp_blockchain::Backend<B>
         + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
 {
 }
