@@ -5597,6 +5597,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "liminal-ark-poseidon",
+ "pallet-balances",
  "parity-scale-codec",
  "primitives",
  "scale-info",
