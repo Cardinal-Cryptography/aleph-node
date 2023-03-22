@@ -61,6 +61,7 @@ impl<B: BlockT> From<ClientError> for Error<B> {
 }
 
 /// Substrate implementation of ChainStatus trait
+#[derive(Clone)]
 pub struct SubstrateChainStatus<B, BE>
 where
     BE: Backend<B>,

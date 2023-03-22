@@ -31,10 +31,11 @@ use crate::{
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
     },
-    AuthorityId, CurrentRmcNetworkData, JustificationNotification, Keychain, LegacyRmcNetworkData,
+    AuthorityId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData,
     Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
     VersionedNetworkData, SessionBoundaryInfo,
-    sync::{JustificationSubmissions, Justification, JustificationTranslator},
+    sync::{JustificationSubmissions, JustificationTranslator},
+    sync::substrate::Justification,
 };
 
 mod aggregator;
@@ -65,7 +66,7 @@ type CurrentNetworkType<B> = SimpleNetwork<
     SessionSender<CurrentRmcNetworkData<B>>,
 >;
 
-struct SubtasksParams<C, SC, B, N, BE>
+struct SubtasksParams<C, SC, B, N, BE, JS, JT>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -73,6 +74,8 @@ where
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     N: Network<VersionedNetworkData<B>> + 'static,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
 {
     n_members: usize,
     node_id: NodeIndex,
@@ -82,7 +85,7 @@ where
     subtask_common: SubtaskCommon,
     data_provider: DataProvider<B>,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    aggregator_io: aggregator::IO<B>,
+    aggregator_io: aggregator::IO<B, JS, JT>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
     backup: ABFTBackup,
@@ -90,7 +93,7 @@ where
     phantom: PhantomData<BE>,
 }
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS, JT>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -99,9 +102,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
-    J: Justification,
-    JS: JustificationSubmissions<J> + Send + Sync,
-    JT: JustificationTranslator<B::Header> + Send + Sync,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
 {
     client: Arc<C>,
     select_chain: SC,
@@ -114,10 +116,10 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<dyn CryptoStore>,
-    _phantom: PhantomData<(J, BE)>,
+    _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE, SM, J, JS, JT> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -127,9 +129,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    J: Justification,
-    JS: JustificationSubmissions<J> + Send + Sync,
-    JT: JustificationTranslator<B::Header> + Send + Sync,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -163,7 +164,7 @@ where
 
     fn legacy_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE>,
+        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -221,7 +222,7 @@ where
 
     fn current_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE>,
+        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -318,7 +319,8 @@ where
         };
         let aggregator_io = aggregator::IO {
             blocks_from_interpreter,
-            justifications_for_chain: self.authority_justification_tx.clone(),
+            justifications_for_chain: self.justifications_for_sync.clone(),
+            justification_translator: self.justification_translator.clone(),
         };
 
         let data_network = match self
@@ -388,7 +390,7 @@ where
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE, SM, J, JS, JT> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, J, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -398,9 +400,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    J: Justification,
-    JS: JustificationSubmissions<J> + Send + Sync,
-    JT: JustificationTranslator<B::Header> + Send + Sync,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
 {
     type Error = SM::Error;
 

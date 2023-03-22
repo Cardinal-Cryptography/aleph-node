@@ -1,27 +1,24 @@
 mod nonvalidator_node;
 mod validator_node;
 
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use aleph_primitives::BlockNumber;
 pub use nonvalidator_node::run_nonvalidator_node;
-use sc_client_api::Backend;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
 use sp_runtime::traits::{Block, Header, NumberFor};
 pub use validator_node::run_validator_node;
 
 use crate::{
-    finalization::AlephFinalizer,
     justification::{
-        JustificationHandler, JustificationRequestSchedulerImpl, SessionInfo, SessionInfoProvider,
+        SessionInfo, SessionInfoProvider,
     },
     mpsc,
-    mpsc::UnboundedSender,
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
-    BlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
+    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 
 #[cfg(test)]

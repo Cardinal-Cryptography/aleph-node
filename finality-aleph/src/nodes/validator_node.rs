@@ -30,6 +30,8 @@ use crate::{
     sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, Justification},
 };
 
+const VERIFIER_CACHE_SIZE: usize = 2;
+
 pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
     let validator_peer_id = keystore
         .ed25519_generate_new(KEY_TYPE, Some(mnemonic))
@@ -45,7 +47,7 @@ where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + Clone + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     BB: BlockchainBackend<B> + Send + 'static,
@@ -115,8 +117,6 @@ where
         debug!(target: "aleph-party", "SessionMapUpdater has started.");
         map_updater.run().await
     });
-
-    const VERIFIER_CACHE_SIZE: usize = 43; // TODO - how much?
 
     let chain_events = SubstrateChainStatusNotifier::new(
         client.finality_notification_stream(),

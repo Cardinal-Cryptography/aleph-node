@@ -70,7 +70,7 @@ impl<
         finalizer: F,
         period: SessionPeriod,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    ) -> Result<(Self, impl JustificationSubmissions<J>), HandlerError<J, CS, V, F>> {
+    ) -> Result<(Self, impl JustificationSubmissions<J> + Clone), HandlerError<J, CS, V, F>> {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
         let tasks = TaskQueue::new();
