@@ -397,6 +397,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-baby-liminal",
  "pallet-balances",
+ "pallet-committee-management",
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-elections",
@@ -4641,6 +4642,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "liminal-ark-poseidon"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ff555fb3914d246c1d478b66d248d4e59daac3784f05c24a707a55d9a6bd2b"
+dependencies = [
+ "ark-bls12-381",
+ "ark-ff",
+ "liminal-ark-pnbr-poseidon-parameters",
+ "liminal-ark-pnbr-poseidon-permutation",
+ "paste",
+]
+
+[[package]]
 name = "link-cplusplus"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5595,7 +5609,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "liminal-ark-poseidon",
+ "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-balances",
  "parity-scale-codec",
  "primitives",
@@ -5618,6 +5632,25 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-committee-management"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-authorship",
+ "pallet-session",
+ "pallet-staking",
+ "pallets-support",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 
@@ -5680,7 +5713,6 @@ dependencies = [
  "frame-system",
  "pallet-authorship",
  "pallet-balances",
- "pallet-session",
  "pallet-staking",
  "pallets-support",
  "parity-scale-codec",
@@ -6358,7 +6390,7 @@ dependencies = [
 name = "primitives"
 version = "0.6.0"
 dependencies = [
- "liminal-ark-poseidon",
+ "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
  "scale-info",
  "serde",
