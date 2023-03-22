@@ -5,7 +5,8 @@ on:
   workflow_call:
 
 # DO NOT TOUCH THIS !
-# cancelling workflow when contracts deployment is in progress will leave the environment in a bad state
+# cancelling workflow when contracts deployment is in progress
+# will leave the environment in a bad state
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -16,6 +17,7 @@ env:
   NODE_VERSION: 18
   CI_S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/devnet-button
+  CONTRACTS: (access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
 
 jobs:
 
@@ -90,18 +92,8 @@ jobs:
       - name: Copy ABI artifacts and addresses.json file from the S3 bucket
         shell: bash
         run: |
-         CONTRACTS=(
-           access_control
-           access_control
-           button
-           marketplace
-           wrapped_azero
-           simple_dex
-           game_token
-           ticket_token
-         )
 
-         for C in "${CONTRACTS[@]}"; do
+         for C in "${env.CONTRACTS[@]}"; do
           mkdir -p contracts/$C/target/ink;
           aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json \
            contracts/$C/target/ink/$C.json
@@ -124,18 +116,8 @@ jobs:
       - name: Update ABI arifacts and addresses.json file in the S3 bucket
         shell: bash
         run: |
-         CONTRACTS=(
-          access_control
-          access_control
-          button
-          marketplace
-          wrapped_azero
-          simple_dex
-          game_token
-          ticket_token
-         )
 
-         for C in "${CONTRACTS[@]}"; do
+         for C in "${env.CONTRACTS[@]}"; do
           aws s3 cp contracts/$C/target/ink/$C.json \
            s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
          done
