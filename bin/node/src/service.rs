@@ -148,7 +148,7 @@ pub fn new_partial(
     });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
-    let tracing_block_import = TracingBlockImport::new(client.clone() as Arc<_>, metrics.clone());
+    let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
     let aleph_block_import =
         AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone());
 
