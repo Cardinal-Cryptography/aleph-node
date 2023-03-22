@@ -92,8 +92,8 @@ jobs:
       - name: Copy ABI artifacts and addresses.json file from the S3 bucket
         shell: bash
         run: |
-
-         for C in "${env.CONTRACTS[@]}"; do
+         contracts=${{ env.CONTRACTS }}
+         for C in "${contracts[@]}"; do
           mkdir -p contracts/$C/target/ink;
           aws s3 cp s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json \
            contracts/$C/target/ink/$C.json
@@ -116,8 +116,8 @@ jobs:
       - name: Update ABI arifacts and addresses.json file in the S3 bucket
         shell: bash
         run: |
-
-         for C in "${env.CONTRACTS[@]}"; do
+         contracts=${{ env.CONTRACTS }}
+         for C in "${contracts[@]}"; do
           aws s3 cp contracts/$C/target/ink/$C.json \
            s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/$C/$C.json
          done
