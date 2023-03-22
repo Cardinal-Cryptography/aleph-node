@@ -1,6 +1,6 @@
 #[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 use aleph_node::ExecutorDispatch;
-use aleph_node::{new_authority, new_full, new_partial, Cli, Subcommand};
+use aleph_node::{new_authority, new_partial, Cli, Subcommand};
 use aleph_primitives::HEAP_PAGES;
 #[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 use aleph_runtime::Block;
@@ -156,18 +156,17 @@ fn main() -> sc_cli::Result<()> {
                 warn!("Pruning not supported. Switching to keeping all block bodies and states.");
             }
 
-            let aleph_cli_config = cli.aleph;
+            let mut aleph_cli_config = cli.aleph;
             runner.run_node_until_exit(|mut config| async move {
-                enforce_heap_pages(&mut config);
-
-                match config.role {
-                    Role::Authority => {
-                        new_authority(config, aleph_cli_config).map_err(sc_cli::Error::Service)
-                    }
-                    Role::Full => {
-                        new_full(config, aleph_cli_config).map_err(sc_cli::Error::Service)
-                    }
+                if matches!(config.role, Role::Full) {
+                    // We ensure that external addresses for non-validator nodes are set, but to a
+                    // value that is not routable. This will no longer be neccessary once we have
+                    // proper support for non-validator nodes, but this requires a major
+                    // refactor.
+                    aleph_cli_config.set_dummy_external_addresses();
                 }
+                enforce_heap_pages(&mut config);
+                new_authority(config, aleph_cli_config).map_err(sc_cli::Error::Service)
             })
         }
     }
