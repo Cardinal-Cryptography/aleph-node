@@ -253,6 +253,7 @@ fn setup(
             warp_sync: None,
         })?;
 
+    let justification_translator = SubstrateChainStatus::new(client.clone());
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -262,7 +263,8 @@ fn setup(
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                import_justification_tx: import_justification_tx.clone(),
+                import_justification_tx,
+                justification_translator,
             };
 
             Ok(crate::rpc::create_full(deps)?)

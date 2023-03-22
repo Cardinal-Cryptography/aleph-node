@@ -18,14 +18,22 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 /// Full client dependencies.
-pub struct FullDeps<B: BlockT, C, P, JU> {
+pub struct FullDeps<B, C, P, JS, JT> where
+    B: BlockT,
+    // todo
+    // JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    // JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification<B::Header>>,
+    JT: JustificationTranslator<B::Header>,
+{
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
-    pub import_justification_tx: mpsc::UnboundedSender<JU>,
+    pub import_justification_tx: JS,
+    pub justification_translator: JT,
 }
 
 /// Instantiate all full RPC extensions.
@@ -51,6 +59,7 @@ where
         pool,
         deny_unsafe,
         import_justification_tx,
+        justification_translator,
     } = deps;
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
@@ -58,7 +67,7 @@ where
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
-    module.merge(AlephNode::new(import_justification_tx).into_rpc())?;
+    module.merge(AlephNode::new(import_justification_tx, justification_translator).into_rpc())?;
 
     Ok(module)
 }
