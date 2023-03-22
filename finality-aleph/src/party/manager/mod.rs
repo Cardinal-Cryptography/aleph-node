@@ -129,8 +129,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -400,8 +400,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<B>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 {
     type Error = SM::Error;
 

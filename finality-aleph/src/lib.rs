@@ -25,7 +25,6 @@ use crate::{
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
-    sync::substrate::Justification,
 };
 
 mod abft;
@@ -56,6 +55,8 @@ pub use session::SessionPeriod;
 
 use crate::compatibility::{Version, Versioned};
 pub use crate::metrics::Metrics;
+pub use crate::sync::substrate::Justification;
+pub use crate::sync::{JustificationTranslator, SubstrateChainStatus};
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);

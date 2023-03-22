@@ -5,9 +5,12 @@ use jsonrpsee::{
     types::error::{CallError, ErrorObject},
 };
 use serde::Serialize;
-use finality_aleph::{AlephJustification, JustificationNotification};
+use finality_aleph::AlephJustification;
 use sp_api::BlockT;
 use sp_runtime::traits::NumberFor;
+use finality_aleph::{Justification, JustificationTranslator};
+use aleph_primitives::BlockNumber;
+use sp_runtime::traits::Header;
 
 /// System RPC errors.
 #[derive(Debug, thiserror::Error)]
@@ -59,32 +62,29 @@ pub trait AlephNodeApi<Hash, Number> {
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<B, JS, JT>
+pub struct AlephNode<B, JT>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-    JS: JustificationSubmissions<Justification<B::Header>>,
-    JT: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 {
-    import_justification_tx: JS,
+    import_justification_tx: mpsc::UnboundedSender<Justification<B::Header>>,
     justification_translator: JT
 }
 
-impl<B, JS, JT> AlephNode<B, JS, JT>
+impl<B, JT> AlephNode<B, JT>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-    // todo
-    // JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    // JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
-    JS: JustificationSubmissions<Justification<B::Header>>,
-    JT: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 
 {
     pub fn new(
-        import_justification_tx: JS,
+        import_justification_tx: mpsc::UnboundedSender<Justification<B::Header>>,
         justification_translator: JT,
     ) -> Self {
         AlephNode {
@@ -94,13 +94,13 @@ where
     }
 }
 
-impl<B, JS, JT> AlephNodeApiServer<B::Hash, NumberFor<B>> for AlephNode<B, JS, JT>
+impl<B, JT> AlephNodeApiServer<B::Hash, NumberFor<B>> for AlephNode<B, JT>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-    JS: JustificationSubmissions<Justification<B::Header>>,
-    JT: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 {
     fn aleph_node_emergency_finalize(
         &self,
@@ -114,18 +114,18 @@ where
                     "Provided justification cannot be converted into correct type".into(),
                 )
             })?);
-        self.import_justification_tx.submit(self.justification_translator.translate(
-                justification,
-                hash,
-                number,
-        ))
+        let justification = self.justification_translator.translate(
+            justification,
+            hash,
+            number,
+        ).map_err(|e| Error::MalformattedJustificationArg("todo".into()))?;
+        self.import_justification_tx.unbounded_send(justification)
             .map_err(|_| {
                 Error::FailedJustificationSend(
                     "AlephNodeApiServer failed to send JustifictionNotification via its channel"
                         .into(),
                 )
-                .into()
-            });
+            })?;
         Ok(())
     }
 }

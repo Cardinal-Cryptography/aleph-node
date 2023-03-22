@@ -60,7 +60,7 @@ async fn process_new_block_data<B, CN, LN>(
 fn process_hash<B, C, JS, JT>(
     hash: B::Hash,
     multisignature: SignatureSet<Signature>,
-    justifications_for_chain: &JS,
+    justifications_for_chain: &mut JS,
     justification_translator: &JT,
     client: &Arc<C>,
 ) -> Result<(), ()>
@@ -111,7 +111,7 @@ where
 {
     let IO {
         blocks_from_interpreter,
-        justifications_for_chain,
+        mut justifications_for_chain,
         justification_translator,
     } = io;
 
@@ -148,7 +148,7 @@ where
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
                 if let Some((hash, multisignature)) = multisigned_hash {
-                    process_hash(hash, multisignature, &justifications_for_chain, &justification_translator, &client)?;
+                    process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client)?;
                     if Some(hash) == hash_of_last_block {
                         hash_of_last_block = None;
                     }
@@ -192,8 +192,8 @@ pub fn task<B, C, CN, LN, JS, JT>(
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
     C: HeaderBackend<B> + Send + Sync + 'static,
     LN: Network<LegacyRmcNetworkData<B>> + 'static,
     CN: Network<CurrentRmcNetworkData<B>> + 'static,
