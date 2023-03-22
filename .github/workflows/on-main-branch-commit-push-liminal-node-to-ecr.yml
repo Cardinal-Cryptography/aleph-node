@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - main
-  # temp for testing
-  workflow_dispatch:
+      # temp for testing
+      - add-test-liminal-binary-to-workflows
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
