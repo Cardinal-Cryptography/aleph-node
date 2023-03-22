@@ -397,6 +397,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-baby-liminal",
  "pallet-balances",
+ "pallet-committee-management",
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-elections",
@@ -712,24 +713,6 @@ dependencies = [
  "ark-ff",
  "ark-relations",
  "ark-std",
-]
-
-[[package]]
-name = "ark-sponge"
-version = "0.3.0"
-source = "git+https://github.com/penumbra-zone/sponge?branch=r1cs#113469aef48a9c5f458dbf523a509d4769affbf2"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-nonnative-field",
- "ark-r1cs-std",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "derivative",
- "digest 0.9.0",
- "rand_chacha 0.3.1",
- "tracing",
 ]
 
 [[package]]
@@ -4586,6 +4569,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "liminal-ark-pnbr-poseidon-parameters"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8723da56ab98f2182cbd27b9c510ca3c7f7bd616a56ca0e6b8f1b4bbc2c5f2ee"
+dependencies = [
+ "anyhow",
+ "ark-ff",
+ "num-integer",
+]
+
+[[package]]
+name = "liminal-ark-pnbr-poseidon-paramgen"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1e7de36eb888e7ba29bcc4dcd664db0df190f073e807baa230054abbbadaf6d"
+dependencies = [
+ "anyhow",
+ "ark-ff",
+ "ark-std",
+ "getrandom 0.2.8",
+ "liminal-ark-pnbr-poseidon-parameters",
+ "merlin 3.0.0",
+ "num",
+ "num-bigint",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "liminal-ark-pnbr-poseidon-permutation"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc0419b780a13b09a1ed2db09c6c61752f24e5f341f77a93719cd8bc963b72d3"
+dependencies = [
+ "ark-ff",
+ "ark-std",
+ "liminal-ark-pnbr-poseidon-parameters",
+]
+
+[[package]]
+name = "liminal-ark-pnbr-sponge"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6c178b0470950ac7fb73646df0f6ef60452d7b0fb0819e41dbe66674abc622f"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest 0.9.0",
+ "rand_chacha 0.3.1",
+ "tracing",
+]
+
+[[package]]
 name = "liminal-ark-poseidon"
 version = "0.1.0"
 dependencies = [
@@ -4593,11 +4634,24 @@ dependencies = [
  "ark-ff",
  "ark-r1cs-std",
  "ark-relations",
- "ark-sponge",
+ "liminal-ark-pnbr-poseidon-parameters",
+ "liminal-ark-pnbr-poseidon-paramgen",
+ "liminal-ark-pnbr-poseidon-permutation",
+ "liminal-ark-pnbr-sponge",
  "paste",
- "poseidon-parameters",
- "poseidon-paramgen",
- "poseidon-permutation",
+]
+
+[[package]]
+name = "liminal-ark-poseidon"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ff555fb3914d246c1d478b66d248d4e59daac3784f05c24a707a55d9a6bd2b"
+dependencies = [
+ "ark-bls12-381",
+ "ark-ff",
+ "liminal-ark-pnbr-poseidon-parameters",
+ "liminal-ark-pnbr-poseidon-permutation",
+ "paste",
 ]
 
 [[package]]
@@ -5318,7 +5372,7 @@ dependencies = [
 [[package]]
 name = "obce"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
+source = "git+https://github.com/727-Ventures/obce?rev=5e3da417c2189ddd4e9ef82cd586f8ec94b8952a#5e3da417c2189ddd4e9ef82cd586f8ec94b8952a"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5336,9 +5390,10 @@ dependencies = [
 [[package]]
 name = "obce-codegen"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
+source = "git+https://github.com/727-Ventures/obce?rev=5e3da417c2189ddd4e9ef82cd586f8ec94b8952a#5e3da417c2189ddd4e9ef82cd586f8ec94b8952a"
 dependencies = [
  "blake2 0.10.6",
+ "darling",
  "itertools",
  "proc-macro2",
  "quote",
@@ -5349,12 +5404,9 @@ dependencies = [
 [[package]]
 name = "obce-macro"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=aleph-v0.9.38#a225752f05ed9c368e6bca3cfdce0579bf46eaa6"
+source = "git+https://github.com/727-Ventures/obce?rev=5e3da417c2189ddd4e9ef82cd586f8ec94b8952a#5e3da417c2189ddd4e9ef82cd586f8ec94b8952a"
 dependencies = [
  "obce-codegen",
- "proc-macro2",
- "syn",
- "synstructure",
 ]
 
 [[package]]
@@ -5555,7 +5607,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "liminal-ark-poseidon",
+ "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -5577,6 +5630,25 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-committee-management"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-authorship",
+ "pallet-session",
+ "pallet-staking",
+ "pallets-support",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
  "sp-std",
 ]
 
@@ -5639,7 +5711,6 @@ dependencies = [
  "frame-system",
  "pallet-authorship",
  "pallet-balances",
- "pallet-session",
  "pallet-staking",
  "pallets-support",
  "parity-scale-codec",
@@ -6255,42 +6326,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "poseidon-parameters"
-version = "0.1.0"
-source = "git+https://github.com/penumbra-zone/poseidon377?rev=50699746#50699746c031a915d5434088a1240f4b568d9ee8"
-dependencies = [
- "anyhow",
- "ark-ff",
- "num-integer",
-]
-
-[[package]]
-name = "poseidon-paramgen"
-version = "0.1.1"
-source = "git+https://github.com/penumbra-zone/poseidon377?rev=50699746#50699746c031a915d5434088a1240f4b568d9ee8"
-dependencies = [
- "anyhow",
- "ark-ff",
- "ark-std",
- "getrandom 0.2.8",
- "merlin 3.0.0",
- "num",
- "num-bigint",
- "poseidon-parameters",
- "rand_core 0.6.4",
-]
-
-[[package]]
-name = "poseidon-permutation"
-version = "0.1.1"
-source = "git+https://github.com/penumbra-zone/poseidon377?rev=50699746#50699746c031a915d5434088a1240f4b568d9ee8"
-dependencies = [
- "ark-ff",
- "ark-std",
- "poseidon-parameters",
-]
-
-[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6353,7 +6388,7 @@ dependencies = [
 name = "primitives"
 version = "0.6.0"
 dependencies = [
- "liminal-ark-poseidon",
+ "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
  "scale-info",
  "serde",

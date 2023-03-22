@@ -1,6 +1,8 @@
 use std::{collections::HashSet, iter, time::Duration};
 
+use futures::{channel::mpsc, StreamExt};
 use log::{error, warn};
+use tokio::time::interval;
 
 use crate::{
     network::GossipNetwork,
@@ -12,14 +14,16 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        BlockIdFor, ChainStatus, ChainStatusNotification, ChainStatusNotifier, Finalizer,
-        Justification, Verifier, LOG_TARGET,
+        BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
+        Finalizer, Header, Justification, JustificationSubmissions, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
+// TODO: Remove after finishing the sync rewrite.
+const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
@@ -35,6 +39,15 @@ pub struct Service<
     tasks: TaskQueue<BlockIdFor<J>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
+    justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+}
+
+impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
+    type Error = mpsc::TrySendError<J::Unverified>;
+
+    fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error> {
+        self.unbounded_send(justification)
+    }
 }
 
 impl<
@@ -46,7 +59,8 @@ impl<
         F: Finalizer<J>,
     > Service<J, N, CE, CS, V, F>
 {
-    /// Create a new service using the provided network for communication.
+    /// Create a new service using the provided network for communication. Also returns an
+    /// interface for submitting additional justifications.
     pub fn new(
         network: N,
         chain_events: CE,
@@ -54,18 +68,23 @@ impl<
         verifier: V,
         finalizer: F,
         period: SessionPeriod,
-    ) -> Result<Self, HandlerError<J, CS, V, F>> {
+    ) -> Result<(Self, impl JustificationSubmissions<J>), HandlerError<J, CS, V, F>> {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
-        Ok(Service {
-            network,
-            handler,
-            tasks,
-            broadcast_ticker,
-            chain_events,
-        })
+        let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
+        Ok((
+            Service {
+                network,
+                handler,
+                tasks,
+                broadcast_ticker,
+                chain_events,
+                justifications_from_user,
+            },
+            justifications_for_sync,
+        ))
     }
 
     fn backup_request(&mut self, block_id: BlockIdFor<J>) {
@@ -150,7 +169,7 @@ impl<
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
-                .handle_justification(justification, peer.clone())
+                .handle_justification(justification, Some(peer.clone()))
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => {
@@ -248,6 +267,9 @@ impl<
 
     /// Stay synchronized.
     pub async fn run(mut self) {
+        // TODO: Remove after finishing the sync rewrite.
+        let mut stall_ticker = interval(FINALIZATION_STALL_CHECK_PERIOD);
+        let mut last_top_number = 0;
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => match maybe_data {
@@ -259,6 +281,43 @@ impl<
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
+                },
+                maybe_justification = self.justifications_from_user.next() => match maybe_justification {
+                    // The block will be imported independently due to `JustificationSubmissions` requirements.
+                    // Therefore, we do not create a task requesting the block from peers.
+                    Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Error while handling justification from user: {}.", e
+                        );
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+                },
+                _ = stall_ticker.tick() => {
+                    match self.handler.state() {
+                        Ok(state) => {
+                            let top_number = state.top_justification().id().number();
+                            if top_number == last_top_number {
+                                error!(
+                                    target: LOG_TARGET,
+                                    "Sync stall detected, recreating the Forest."
+                                );
+                                if let Err(e) = self.handler.refresh_forest() {
+                                    error!(
+                                        target: LOG_TARGET,
+                                        "Error when recreating the Forest: {}.", e
+                                    );
+                                }
+                                last_top_number = 0;
+                            } else {
+                                last_top_number = top_number;
+                            }
+                        },
+                        Err(e) => error!(
+                                        target: LOG_TARGET,
+                                        "Error when retrieving Handler state: {}.", e
+                                    ),
+                    }
                 }
             }
         }

@@ -4,7 +4,7 @@ use aleph_runtime::Runtime;
 use baby_liminal_extension::{
     executor::Executor,
     substrate::{weight_of_store_key, weight_of_verify, Extension},
-    ProvingSystem, VerificationKeyIdentifier,
+    BabyLiminalExtension, ProvingSystem, VerificationKeyIdentifier,
 };
 use obce::substrate::{
     frame_support::weights::Weight, pallet_contracts::chain_extension::RetVal,
@@ -19,16 +19,10 @@ pub use environment::{
     StoreKeyOkayer, VerifyErrorer, VerifyOkayer,
 };
 
-pub const STORE_KEY_ID: u16 =
-    <dyn baby_liminal_extension::BabyLiminalExtension as obce::codegen::MethodDescription<
-        2390688905,
-    >>::ID;
-pub const VERIFY_ID: u16 =
-    <dyn baby_liminal_extension::BabyLiminalExtension as obce::codegen::MethodDescription<
-        409009979,
-    >>::ID;
+pub const STORE_KEY_ID: u16 = obce::id!(BabyLiminalExtension::store_key);
+pub const VERIFY_ID: u16 = obce::id!(BabyLiminalExtension::verify);
 
-const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9];
+const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9, 1, 7, 2, 9];
 const VK: [u8; 2] = [4, 1];
 const PROOF: [u8; 20] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4];
 const INPUT: [u8; 11] = [0, 5, 7, 7, 2, 1, 5, 6, 6, 4, 9];
