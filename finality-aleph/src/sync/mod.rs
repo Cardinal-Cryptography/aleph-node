@@ -1,4 +1,5 @@
 use std::{
+    marker::Send,
     fmt::{Debug, Display},
     hash::Hash,
 };
@@ -15,7 +16,7 @@ pub mod substrate;
 mod task_queue;
 mod ticker;
 
-pub use substrate::{SubstrateFinalizationInfo, VerifierCache, SessionVerifier, SubstrateChainStatus, SubstrateChainStatusNotifier};
+pub use substrate::{JustificationTranslator, SubstrateFinalizationInfo, VerifierCache, SessionVerifier, SubstrateChainStatus, SubstrateChainStatusNotifier};
 pub use service::Service;
 
 const LOG_TARGET: &str = "aleph-block-sync";

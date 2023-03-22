@@ -80,10 +80,11 @@ where
 pub struct AlephBlockImport<B, I>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     inner: I,
-    justification_tx: UnboundedSender<JustificationNotification<B>>,
+    justification_tx: UnboundedSender<JustificationS<<B as BlockT>::Header>>,
 }
 
 #[derive(Debug)]
@@ -101,26 +102,14 @@ impl<B: BlockT> From<DecodeError> for SendJustificationError<B> {
 
 impl<B, I> AlephBlockImport<B, I>
 where
-<<<<<<< HEAD
-    Block: BlockT,
-    Block::Header: Header<Number = BlockNumber>,
-    Be: Backend<Block>,
-    I: crate::ClientForAleph<Block, Be>,
-{
-    pub fn new(
-        inner: Arc<I>,
-        justification_tx: UnboundedSender<JustificationS<<Block as BlockT>::Header>>,
-        metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
-    ) -> AlephBlockImport<Block, Be, I> {
-=======
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     pub fn new(
         inner: I,
-        justification_tx: UnboundedSender<JustificationNotification<B>>,
+        justification_tx: UnboundedSender<JustificationS<<B as BlockT>::Header>>,
     ) -> AlephBlockImport<B, I> {
->>>>>>> main
         AlephBlockImport {
             inner,
             justification_tx,
@@ -129,13 +118,8 @@ where
 
     fn send_justification(
         &mut self,
-<<<<<<< HEAD
-        hash: Block::Hash,
-        number: BlockNumber,
-=======
         hash: B::Hash,
-        number: NumberFor<B>,
->>>>>>> main
+        number: BlockNumber,
         justification: Justification,
     ) -> Result<(), SendJustificationError<B>> {
         debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
@@ -159,41 +143,12 @@ where
     }
 }
 
-<<<<<<< HEAD
-impl<Block, Be, I> Clone for AlephBlockImport<Block, Be, I>
-where
-    Block: BlockT,
-    Block::Header: Header<Number = BlockNumber>,
-    Be: Backend<Block>,
-    I: crate::ClientForAleph<Block, Be>,
-{
-    fn clone(&self) -> Self {
-        AlephBlockImport {
-            inner: self.inner.clone(),
-            justification_tx: self.justification_tx.clone(),
-            metrics: self.metrics.clone(),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-=======
->>>>>>> main
 #[async_trait::async_trait]
 impl<B, I> BlockImport<B> for AlephBlockImport<B, I>
 where
-<<<<<<< HEAD
-    Block: BlockT,
-    Block::Header: Header<Number = BlockNumber>,
-    Be: Backend<Block>,
-    I: crate::ClientForAleph<Block, Be> + Send,
-    for<'a> &'a I:
-        BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<I, Block>>,
-    TransactionFor<I, Block>: Send + 'static,
-=======
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
->>>>>>> main
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
@@ -239,36 +194,21 @@ where
 #[async_trait::async_trait]
 impl<B, I> JustificationImport<B> for AlephBlockImport<B, I>
 where
-<<<<<<< HEAD
-    Block: BlockT,
-    Block::Header: Header<Number = BlockNumber>,
-    Be: Backend<Block>,
-    I: crate::ClientForAleph<Block, Be>,
-{
-    type Error = ConsensusError;
-
-    async fn on_start(&mut self) -> Vec<(Block::Hash, BlockNumber)> {
-=======
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     type Error = ConsensusError;
 
-    async fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> {
->>>>>>> main
+    async fn on_start(&mut self) -> Vec<(B::Hash, BlockNumber)> {
         debug!(target: "aleph-justification", "On start called");
         Vec::new()
     }
 
     async fn import_justification(
         &mut self,
-<<<<<<< HEAD
-        hash: Block::Hash,
-        number: BlockNumber,
-=======
         hash: B::Hash,
-        number: NumberFor<B>,
->>>>>>> main
+        number: BlockNumber,
         justification: Justification,
     ) -> Result<(), Self::Error> {
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);

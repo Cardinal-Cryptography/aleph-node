@@ -6,7 +6,6 @@ use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
-    nodes::{setup_justification_handler, JustificationParams},
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     AlephConfig, BlockchainBackend,
     sync::Service as SyncService,

@@ -164,6 +164,7 @@ where
     spawn_handle.spawn("aleph/gossip_network", None, gossip_network_task);
     debug!(target: "aleph-party", "Gossip network has started.");
 
+    let justification_translator = SubstrateChainStatus::new(client.clone());
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
         sync_state: block_requester.clone(),
@@ -178,6 +179,7 @@ where
             session_period,
             unit_creation_delay,
             justifications_for_sync,
+            justification_translator,
             block_requester,
             metrics,
             spawn_handle.into(),

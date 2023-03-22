@@ -19,7 +19,6 @@ use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
-use aleph_primitives::BlockNumber;
 use crate::{
     abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
