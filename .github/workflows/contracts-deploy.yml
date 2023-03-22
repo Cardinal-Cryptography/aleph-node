@@ -17,11 +17,11 @@ env:
   NODE_VERSION: 18
   CI_S3BUCKET_NAME: alephzero-devnet-eu-central-1-ci
   S3BUCKET_PATH: contracts/devnet-button
-  CONTRACTS: (access_control button marketplace wrapped_azero simple_dex game_token ticket_token)
+  CONTRACTS: (access_control button game_token marketplace simple_dex ticket_token wrapped_azero)
 
 jobs:
 
-  changes:
+  detect-contracts-changes:
     name: Detect changes
     runs-on: ubuntu-20.04
     permissions:
@@ -43,10 +43,10 @@ jobs:
              - 'contracts/simple_dex/**'
              - 'contracts/ticket_token/**'
              - 'contracts/wrapped_azero/**'
-             - 'workflows/contracts-deploy.yml'
+             - '.github/workflows/contracts-deploy.yml'
 
   build-and-deploy-contracts:
-    needs: [changes]
+    needs: [detect-contracts-changes]
     name: Deploy contracts on devnet
     if: >
       (needs.changes.outputs.button == 'true' &&
@@ -66,9 +66,9 @@ jobs:
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && \
           HOSTPORT=${NODE/wss:\/\//} && nc -zvw5 ${HOSTPORT/:*/} ${HOSTPORT/*:/}
 
-      - name: Get branch name and commit SHA
-        id: get_branch
-        uses: ./.github/actions/get-branch
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
 
       - name: Install jq
         shell: bash
@@ -125,7 +125,7 @@ jobs:
          aws s3 cp contracts/addresses.json \
           s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/addresses.json
 
-         echo -n "${{ steps.get_branch.outputs.sha_short }}" > commit_sha.txt
+         echo -n "${{ steps.get-ref-properties.outputs.sha }}" > commit_sha.txt
 
          aws s3 cp commit_sha.txt \
           s3://${{ env.CI_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/commit_sha.txt
