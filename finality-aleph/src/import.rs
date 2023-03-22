@@ -1,13 +1,11 @@
-use std::{collections::HashMap, marker::PhantomData, sync::Arc, time::Instant};
+use std::{collections::HashMap, time::Instant};
 
 use aleph_primitives::{ALEPH_ENGINE_ID, BlockNumber};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
-use sc_client_api::backend::Backend;
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
-use sp_api::TransactionFor;
 use sp_consensus::Error as ConsensusError;
 use sp_runtime::{
     traits::{Block as BlockT, Header},
@@ -20,37 +18,90 @@ use crate::{
     sync::substrate::Justification as JustificationS,
 };
 
-pub struct AlephBlockImport<Block, Be, I>
+/// A wrapper around a block import that also marks the start and end of the import of every block
+/// in the metrics, if provided.
+#[derive(Clone)]
+pub struct TracingBlockImport<B, I>
 where
-    Block: BlockT,
-    Block::Header: Header<Number = BlockNumber>,
-    Be: Backend<Block>,
-    I: crate::ClientForAleph<Block, Be>,
+    B: BlockT,
+    I: BlockImport<B> + Send + Sync,
 {
-    inner: Arc<I>,
-    justification_tx: UnboundedSender<JustificationS<<Block as BlockT>::Header>>,
-    metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
-    _phantom: PhantomData<Be>,
+    inner: I,
+    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+}
+
+impl<B, I> TracingBlockImport<B, I>
+where
+    B: BlockT,
+    I: BlockImport<B> + Send + Sync,
+{
+    pub fn new(inner: I, metrics: Option<Metrics<<B::Header as Header>::Hash>>) -> Self {
+        TracingBlockImport { inner, metrics }
+    }
+}
+#[async_trait::async_trait]
+impl<B, I> BlockImport<B> for TracingBlockImport<B, I>
+where
+    B: BlockT,
+    I: BlockImport<B> + Send + Sync,
+{
+    type Error = I::Error;
+    type Transaction = I::Transaction;
+
+    async fn check_block(
+        &mut self,
+        block: BlockCheckParams<B>,
+    ) -> Result<ImportResult, Self::Error> {
+        self.inner.check_block(block).await
+    }
+
+    async fn import_block(
+        &mut self,
+        block: BlockImportParams<B, Self::Transaction>,
+        cache: HashMap<[u8; 4], Vec<u8>>,
+    ) -> Result<ImportResult, Self::Error> {
+        let post_hash = block.post_hash();
+        if let Some(m) = &self.metrics {
+            m.report_block(post_hash, Instant::now(), Checkpoint::Importing);
+        };
+
+        let result = self.inner.import_block(block, cache).await;
+
+        if let (Some(m), Ok(ImportResult::Imported(_))) = (&self.metrics, &result) {
+            m.report_block(post_hash, Instant::now(), Checkpoint::Imported);
+        }
+        result
+    }
+}
+
+/// A wrapper around a block import that also extracts any present jsutifications and send them to
+/// our components which will process them further and possibly finalize the block.
+#[derive(Clone)]
+pub struct AlephBlockImport<B, I>
+where
+    B: BlockT,
+    I: BlockImport<B> + Clone + Send,
+{
+    inner: I,
+    justification_tx: UnboundedSender<JustificationNotification<B>>,
 }
 
 #[derive(Debug)]
-enum SendJustificationError<Block>
-where
-    Block: BlockT,
-{
-    Send(TrySendError<JustificationNotification<Block>>),
+enum SendJustificationError<B: BlockT> {
+    Send(TrySendError<JustificationNotification<B>>),
     Consensus(Box<ConsensusError>),
     Decode(DecodeError),
 }
 
-impl<Block: BlockT> From<DecodeError> for SendJustificationError<Block> {
+impl<B: BlockT> From<DecodeError> for SendJustificationError<B> {
     fn from(decode_error: DecodeError) -> Self {
         Self::Decode(decode_error)
     }
 }
 
-impl<Block, Be, I> AlephBlockImport<Block, Be, I>
+impl<B, I> AlephBlockImport<B, I>
 where
+<<<<<<< HEAD
     Block: BlockT,
     Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
@@ -61,20 +112,32 @@ where
         justification_tx: UnboundedSender<JustificationS<<Block as BlockT>::Header>>,
         metrics: Option<Metrics<<Block::Header as Header>::Hash>>,
     ) -> AlephBlockImport<Block, Be, I> {
+=======
+    B: BlockT,
+    I: BlockImport<B> + Clone + Send,
+{
+    pub fn new(
+        inner: I,
+        justification_tx: UnboundedSender<JustificationNotification<B>>,
+    ) -> AlephBlockImport<B, I> {
+>>>>>>> main
         AlephBlockImport {
             inner,
             justification_tx,
-            metrics,
-            _phantom: PhantomData,
         }
     }
 
     fn send_justification(
         &mut self,
+<<<<<<< HEAD
         hash: Block::Hash,
         number: BlockNumber,
+=======
+        hash: B::Hash,
+        number: NumberFor<B>,
+>>>>>>> main
         justification: Justification,
-    ) -> Result<(), SendJustificationError<Block>> {
+    ) -> Result<(), SendJustificationError<B>> {
         debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
@@ -96,6 +159,7 @@ where
     }
 }
 
+<<<<<<< HEAD
 impl<Block, Be, I> Clone for AlephBlockImport<Block, Be, I>
 where
     Block: BlockT,
@@ -113,9 +177,12 @@ where
     }
 }
 
+=======
+>>>>>>> main
 #[async_trait::async_trait]
-impl<Block, Be, I> BlockImport<Block> for AlephBlockImport<Block, Be, I>
+impl<B, I> BlockImport<B> for AlephBlockImport<B, I>
 where
+<<<<<<< HEAD
     Block: BlockT,
     Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
@@ -123,62 +190,56 @@ where
     for<'a> &'a I:
         BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<I, Block>>,
     TransactionFor<I, Block>: Send + 'static,
+=======
+    B: BlockT,
+    I: BlockImport<B> + Clone + Send,
+>>>>>>> main
 {
-    type Error = <I as BlockImport<Block>>::Error;
-    type Transaction = TransactionFor<I, Block>;
+    type Error = I::Error;
+    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
-        block: BlockCheckParams<Block>,
+        block: BlockCheckParams<B>,
     ) -> Result<ImportResult, Self::Error> {
         self.inner.check_block(block).await
     }
 
     async fn import_block(
         &mut self,
-        mut block: BlockImportParams<Block, Self::Transaction>,
+        mut block: BlockImportParams<B, Self::Transaction>,
         cache: HashMap<[u8; 4], Vec<u8>>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
         let post_hash = block.post_hash();
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Importing);
-        };
 
         let justifications = block.justifications.take();
 
         debug!(target: "aleph-justification", "Importing block {:?} {:?} {:?}", number, block.header.hash(), block.post_hash());
-        let import_result = self.inner.import_block(block, cache).await;
+        let result = self.inner.import_block(block, cache).await;
 
-        let imported_aux = match import_result {
-            Ok(ImportResult::Imported(aux)) => aux,
-            Ok(r) => return Ok(r),
-            Err(e) => return Err(e),
-        };
-
-        if let Some(justification) =
-            justifications.and_then(|just| just.into_justification(ALEPH_ENGINE_ID))
-        {
-            debug!(target: "aleph-justification", "Got justification along imported block {:?}", number);
-
-            if let Err(e) =
-                self.send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
+        if let Ok(ImportResult::Imported(_)) = result {
+            if let Some(justification) =
+                justifications.and_then(|just| just.into_justification(ALEPH_ENGINE_ID))
             {
-                warn!(target: "aleph-justification", "Error while receiving justification for block {:?}: {:?}", post_hash, e);
+                debug!(target: "aleph-justification", "Got justification along imported block {:?}", number);
+
+                if let Err(e) =
+                    self.send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
+                {
+                    warn!(target: "aleph-justification", "Error while receiving justification for block {:?}: {:?}", post_hash, e);
+                }
             }
         }
 
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Imported);
-        };
-
-        Ok(ImportResult::Imported(imported_aux))
+        result
     }
 }
 
 #[async_trait::async_trait]
-impl<Block, Be, I> JustificationImport<Block> for AlephBlockImport<Block, Be, I>
+impl<B, I> JustificationImport<B> for AlephBlockImport<B, I>
 where
+<<<<<<< HEAD
     Block: BlockT,
     Block::Header: Header<Number = BlockNumber>,
     Be: Backend<Block>,
@@ -187,14 +248,27 @@ where
     type Error = ConsensusError;
 
     async fn on_start(&mut self) -> Vec<(Block::Hash, BlockNumber)> {
+=======
+    B: BlockT,
+    I: BlockImport<B> + Clone + Send,
+{
+    type Error = ConsensusError;
+
+    async fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> {
+>>>>>>> main
         debug!(target: "aleph-justification", "On start called");
         Vec::new()
     }
 
     async fn import_justification(
         &mut self,
+<<<<<<< HEAD
         hash: Block::Hash,
         number: BlockNumber,
+=======
+        hash: B::Hash,
+        number: NumberFor<B>,
+>>>>>>> main
         justification: Justification,
     ) -> Result<(), Self::Error> {
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);
