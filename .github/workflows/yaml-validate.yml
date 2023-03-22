@@ -23,6 +23,7 @@ jobs:
         env:
           DOCKER_IMAGE: public.ecr.aws/p6e8q1z1/github-workflows-validator:0.3.1
         run: |
+          set +e
           docker pull ${DOCKER_IMAGE}
           docker run --rm --name tmp-ghv -v $(pwd)/.github:/dot-github \
             ${DOCKER_IMAGE} \
