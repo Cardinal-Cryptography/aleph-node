@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+  # temp for testing
+  workflow_call:
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -37,15 +39,8 @@ jobs:
       - name: Build production docker node image
         id: build-image
         run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-
-      - name: Configure AWS Mainnet credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          chmod +x target/release/aleph-node-liminal
+          docker build --tag aleph-node-liminal:latest -f ./docker/Dockerfile .
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
@@ -57,14 +52,16 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
-      - name: Push aleph-node image to ECR
+      - name: Push aleph-node-liminal image to ECR
         env:
           CURRENT_IMAGE: aleph-node-liminal
           ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node-liminal
+          COMMIT_SHA: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
-          docker tag ${{ env.CURRENT_IMAGE }} \
-            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
-          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}
+          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
+          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
 
   send-slack-notification:
     name: Send Slack notification about workflow status
