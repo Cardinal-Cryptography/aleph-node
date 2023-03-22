@@ -68,7 +68,7 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    client: Arc<BE>,
+    client: BE,
     _phantom: PhantomData<B>,
 }
 
@@ -78,7 +78,7 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    pub fn new(client: Arc<BE>) -> Self {
+    pub fn new(client: BE) -> Self {
         Self { client, _phantom: PhantomData }
     }
 

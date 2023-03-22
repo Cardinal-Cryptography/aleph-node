@@ -212,17 +212,19 @@ where
         number: BlockNumber,
         justification: SubstrateJustification,
     ) -> Result<(), Self::Error> {
+        use SendJustificationError::*;
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);
         self.send_justification(hash, number, justification)
             .map_err(|error| match error {
-                SendJustificationError::Send(_) => ConsensusError::ClientImport(String::from(
+                Send(_) => ConsensusError::ClientImport(String::from(
                     "Could not send justification to ConsensusParty",
                 )),
-                SendJustificationError::Consensus(e) => *e,
-                SendJustificationError::Decode(e) => {
+                Consensus(e) => *e,
+                Decode(e) => {
                     warn!(target: "aleph-justification", "Justification for block {:?} decoded incorrectly: {}", number, e);
                     ConsensusError::ClientImport(String::from("Could not decode justification"))
-                }
+                },
+                Translate(_) => ConsensusError::ClientImport(String::from("Could not translate justification")), //todo
             })
     }
 }

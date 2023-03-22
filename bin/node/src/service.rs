@@ -9,7 +9,7 @@ use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig,
-    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
+    Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
     TracingBlockImport,
     Justification,
     SubstrateChainStatus,
@@ -88,8 +88,8 @@ pub fn new_partial(
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
             TracingBlockImport<Block, Arc<FullClient>>,
-            mpsc::UnboundedSender<JustificationNotification<Block>>,
-            mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+            mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
+            mpsc::UnboundedReceiver<Justification<<Block as BlockT>::Header>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
         ),
@@ -150,8 +150,9 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
+    let justification_translator = SubstrateChainStatus::new(client.clone());
     let aleph_block_import =
-        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone());
+        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone(), justification_translator);
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
