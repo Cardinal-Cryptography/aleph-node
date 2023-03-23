@@ -39,7 +39,7 @@ jobs:
       - name: Build production docker node image
         id: build-image
         run: |
-          chmod +x target/release/aleph-node-liminal
+          chmod +x target/release/aleph-node
           docker build --tag aleph-node-liminal:latest -f ./docker/Dockerfile .
 
       - name: Login to Public Amazon ECR
