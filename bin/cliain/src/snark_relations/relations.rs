@@ -1,15 +1,22 @@
 use clap::Subcommand;
 use liminal_ark_relations::{
-    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositAndMergeRelationWithFullInput,
-    DepositAndMergeRelationWithPublicInput, DepositAndMergeRelationWithoutInput,
-    DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
-    FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-    FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
-    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
-    MergeRelationWithFullInput, MergeRelationWithPublicInput, MergeRelationWithoutInput,
-    PreimageRelationWithFullInput, PreimageRelationWithPublicInput, Result as R1CsResult,
-    WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
-    XorRelationWithFullInput, XorRelationWithPublicInput,
+    environment::CircuitField,
+    linear::{LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput},
+    preimage::{PreimageRelationWithFullInput, PreimageRelationWithPublicInput},
+    shielder::{
+        types::{
+            FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot,
+            FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
+            FrontendTrapdoor,
+        },
+        DepositAndMergeRelationWithFullInput, DepositAndMergeRelationWithPublicInput,
+        DepositAndMergeRelationWithoutInput, DepositRelationWithFullInput,
+        DepositRelationWithPublicInput, DepositRelationWithoutInput, MergeRelationWithFullInput,
+        MergeRelationWithPublicInput, MergeRelationWithoutInput, WithdrawRelationWithFullInput,
+        WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
+    },
+    xor::{XorRelationWithFullInput, XorRelationWithPublicInput},
+    ConstraintSynthesizer, ConstraintSystemRef, SynthesisError,
 };
 
 use crate::snark_relations::{
@@ -256,7 +263,10 @@ impl RelationArgs {
 }
 
 impl ConstraintSynthesizer<CircuitField> for RelationArgs {
-    fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> R1CsResult<()> {
+    fn generate_constraints(
+        self,
+        cs: ConstraintSystemRef<CircuitField>,
+    ) -> Result<(), SynthesisError> {
         match self {
             RelationArgs::Xor {
                 public_xoree,

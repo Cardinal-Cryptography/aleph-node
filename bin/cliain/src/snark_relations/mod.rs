@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use liminal_ark_relations::{serialize, CircuitField};
 pub use systems::{NonUniversalProvingSystem, SomeProvingSystem, UniversalProvingSystem};
 
 pub use self::relations::RelationArgs;
@@ -13,9 +12,7 @@ pub mod parsing;
 mod relations;
 mod systems;
 
-use ark_ff::PrimeField;
-use ark_serialize::CanonicalSerialize;
-use ark_std::{vec, vec::Vec};
+use liminal_ark_relations::{environment::CircuitField, serialization::serialize};
 
 trait GetPublicInput {
     fn public_input(&self) -> Vec<CircuitField> {
