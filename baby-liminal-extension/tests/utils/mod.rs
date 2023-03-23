@@ -4,11 +4,11 @@ use aleph_runtime::Runtime;
 use baby_liminal_extension::{
     executor::Executor,
     substrate::{weight_of_store_key, weight_of_verify, Extension},
-    ProvingSystem, VerificationKeyIdentifier,
+    BabyLiminalExtension, ProvingSystem, VerificationKeyIdentifier,
 };
 use obce::substrate::{
     frame_support::weights::Weight, pallet_contracts::chain_extension::RetVal,
-    CallableChainExtension, ChainExtensionEnvironment,
+    sp_runtime::AccountId32, CallableChainExtension, ChainExtensionEnvironment,
 };
 use scale::{Decode, Encode};
 
@@ -19,14 +19,8 @@ pub use environment::{
     StoreKeyOkayer, VerifyErrorer, VerifyOkayer,
 };
 
-pub const STORE_KEY_ID: u16 =
-    <dyn baby_liminal_extension::BabyLiminalExtension as obce::codegen::MethodDescription<
-        2390688905,
-    >>::ID;
-pub const VERIFY_ID: u16 =
-    <dyn baby_liminal_extension::BabyLiminalExtension as obce::codegen::MethodDescription<
-        409009979,
-    >>::ID;
+pub const STORE_KEY_ID: u16 = obce::id!(BabyLiminalExtension::store_key);
+pub const VERIFY_ID: u16 = obce::id!(BabyLiminalExtension::verify);
 
 const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9, 1, 7, 2, 9];
 const VK: [u8; 2] = [4, 1];
@@ -42,6 +36,7 @@ const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
 #[derive(Decode, Encode)]
 struct StoreKeyArgs {
+    pub origin: AccountId32,
     pub identifier: VerificationKeyIdentifier,
     pub key: Vec<u8>,
 }
@@ -63,6 +58,7 @@ struct VerifyArgs {
 /// Returns encoded arguments to `store_key`.
 pub fn store_key_args() -> Vec<u8> {
     StoreKeyArgs {
+        origin: AccountId32::from([0; 32]),
         identifier: IDENTIFIER,
         key: VK.to_vec(),
     }
