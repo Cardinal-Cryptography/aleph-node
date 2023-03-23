@@ -4,7 +4,7 @@ use liminal_ark_relations::{
     DepositAndMergeRelationWithPublicInput, DepositAndMergeRelationWithoutInput,
     DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
     FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-    FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput,
+    FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
     LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
     MergeRelationWithFullInput, MergeRelationWithPublicInput, MergeRelationWithoutInput,
     PreimageRelationWithFullInput, PreimageRelationWithPublicInput, Result as R1CsResult,
@@ -12,8 +12,9 @@ use liminal_ark_relations::{
     XorRelationWithFullInput, XorRelationWithPublicInput,
 };
 
-use crate::snark_relations::parsing::{
-    parse_frontend_account, parse_frontend_merkle_path, parse_frontend_note,
+use crate::snark_relations::{
+    parsing::{parse_frontend_account, parse_frontend_merkle_path, parse_frontend_note},
+    GetPublicInput,
 };
 
 /// All available relations from `relations` crate.
@@ -441,7 +442,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
     }
 }
 
-impl GetPublicInput<CircuitField> for RelationArgs {
+impl GetPublicInput for RelationArgs {
     fn public_input(&self) -> Vec<CircuitField> {
         match self {
             RelationArgs::Xor {

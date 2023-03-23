@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use liminal_ark_relations::{serialize, GetPublicInput};
+use liminal_ark_relations::{serialize, CircuitField};
 pub use systems::{NonUniversalProvingSystem, SomeProvingSystem, UniversalProvingSystem};
 
 pub use self::relations::RelationArgs;
@@ -12,6 +12,16 @@ mod io;
 pub mod parsing;
 mod relations;
 mod systems;
+
+use ark_ff::PrimeField;
+use ark_serialize::CanonicalSerialize;
+use ark_std::{vec, vec::Vec};
+
+trait GetPublicInput {
+    fn public_input(&self) -> Vec<CircuitField> {
+        vec![]
+    }
+}
 
 pub fn generate_srs(
     system: UniversalProvingSystem,

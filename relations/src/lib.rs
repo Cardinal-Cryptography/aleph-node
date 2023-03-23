@@ -3,7 +3,6 @@
 mod environment;
 mod linear;
 mod preimage;
-mod relation;
 mod serialization;
 mod shielder;
 mod utils;
@@ -23,7 +22,6 @@ pub use preimage::{
     preimage_proving, PreimageRelationWithFullInput, PreimageRelationWithPublicInput,
     PreimageRelationWithoutInput,
 };
-pub use relation::GetPublicInput;
 pub use serialization::serialize;
 pub use shielder::{
     bytes_from_note, compute_note, compute_parent_hash, note_from_bytes, note_var::NoteVarBuilder,
