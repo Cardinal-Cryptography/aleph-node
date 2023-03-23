@@ -6,7 +6,7 @@ on:
 
 jobs:
   main:
-    name: Build liminal node
+    name: Check build of liminal node
     runs-on: self-hosted
     steps:
       - name: Checkout aleph-node source code

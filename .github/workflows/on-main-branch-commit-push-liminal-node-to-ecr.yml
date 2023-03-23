@@ -1,5 +1,5 @@
 ---
-name: Builds and pushes aleph-node liminal to ECR on push to main branch
+name: Builds and pushes aleph-node-liminal to ECR on push to main branch
 
 on:
   push:
