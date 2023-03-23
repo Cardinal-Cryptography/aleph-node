@@ -181,6 +181,18 @@ pub mod marketplace {
             Ok(())
         }
 
+        /// Update the length of the auction.
+        ///
+        /// Can only be called by an account with an Admin role
+        #[ink(message)]
+        pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
+            self.ensure_role(self.admin())?;
+
+            self.auction_length = new_auction_length;
+
+            Ok(())
+        }
+
         /// Address of the reward token contract this contract will accept as payment.
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
