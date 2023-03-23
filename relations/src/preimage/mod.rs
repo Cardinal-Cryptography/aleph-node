@@ -4,7 +4,7 @@ mod tests;
 
 #[cfg(feature = "circuit")]
 use {
-    crate::CircuitField,
+    crate::environment::CircuitField,
     ark_bls12_381::Bls12_381,
     ark_crypto_primitives::SNARK,
     ark_ec::bls12::Bls12,

@@ -12,7 +12,7 @@ mod relation {
     #[cfg(feature = "circuit")]
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, uint8::UInt8};
 
-    use crate::byte_to_bits;
+    use crate::utils::byte_to_bits;
 
     #[relation_object_definition]
     struct XorRelation {
@@ -50,7 +50,7 @@ mod tests {
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::CircuitField;
+    use crate::environment::CircuitField;
 
     const A: u8 = 2;
     const B: u8 = 3;

@@ -1,36 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod environment;
-mod linear;
-mod preimage;
-mod serialization;
-mod shielder;
-mod utils;
-mod xor;
+pub mod environment;
+pub mod linear;
+pub mod preimage;
+pub mod serialization;
+pub mod shielder;
+pub mod utils;
+pub mod xor;
 
 pub use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, Result, SynthesisError};
 pub use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-pub use environment::{
-    CircuitField, Groth16, Marlin, MarlinPolynomialCommitment, NonUniversalSystem, ProvingSystem,
-    RawKeys, UniversalSystem, GM17,
-};
-pub use linear::{
-    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
-    LinearEquationRelationWithoutInput,
-};
-#[cfg(feature = "circuit")]
-pub use preimage::preimage_proving;
-pub use preimage::{
-    PreimageRelationWithFullInput, PreimageRelationWithPublicInput, PreimageRelationWithoutInput,
-};
-pub use serialization::serialize;
-pub use shielder::{
-    bytes_from_note, compute_note, compute_parent_hash, note_from_bytes, note_var::NoteVarBuilder,
-    types::*, DepositAndMergeRelationWithFullInput, DepositAndMergeRelationWithPublicInput,
-    DepositAndMergeRelationWithoutInput, DepositRelationWithFullInput,
-    DepositRelationWithPublicInput, DepositRelationWithoutInput, MergeRelationWithFullInput,
-    MergeRelationWithPublicInput, MergeRelationWithoutInput, WithdrawRelationWithFullInput,
-    WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
-};
-pub use utils::*;
-pub use xor::{XorRelationWithFullInput, XorRelationWithPublicInput, XorRelationWithoutInput};
