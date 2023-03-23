@@ -18,21 +18,16 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
 
-  build-test-node:
-    name: Build test node and runtime artifacts (PR version)
-    uses: ./.github/workflows/_build-test-node-and-runtime.yml
-    secrets: inherit
-
-  build-test-node-and-e2e-client-image:
-    needs: [build-test-node]
-    name: Build test node and e2e client docker image
-    uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml
+  build-production-node-and-e2e-client-image:
+    needs: [build-production-node]
+    name: Build production node and e2e client docker image
+    uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
     secrets: inherit
     with:
       build-synthetic-network-docker: true
 
   run-e2e-high-out-latency:
-    needs: [build-test-node-and-e2e-client-image]
+    needs: [build-production-node-and-e2e-client-image]
     name: Run high out-latency test
     runs-on: ubuntu-20.04
     steps:
@@ -43,7 +38,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: high_out_latency_for_all
-          image-path: aleph-test-synthetic-docker
+          image-path: aleph-production-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
         timeout-minutes: 40
@@ -60,7 +55,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: high_out_latency_for_each_quorum
-          image-path: aleph-test-synthetic-docker
+          image-path: aleph-production-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
         timeout-minutes: 25
