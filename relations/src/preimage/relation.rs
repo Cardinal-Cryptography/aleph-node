@@ -2,8 +2,7 @@ use liminal_ark_relation_macro::snark_relation;
 
 /// This relation showcases how to use Poseidon in r1cs circuits
 #[snark_relation]
-mod dummy_module {
-
+mod relation {
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
     use ark_relations::ns;
     use liminal_ark_poseidon::circuit;

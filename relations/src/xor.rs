@@ -9,6 +9,7 @@ use liminal_ark_relation_macro::snark_relation;
 /// such that: a ^ b = c.
 #[snark_relation]
 mod relation {
+    #[cfg(feature = "circuit")]
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, uint8::UInt8};
 
     use crate::byte_to_bits;
@@ -25,6 +26,7 @@ mod relation {
         result: u8,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         let public_xoree = UInt8::new_input(ark_relations::ns!(cs, "public_xoree"), || {
@@ -40,7 +42,7 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;

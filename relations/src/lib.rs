@@ -18,9 +18,10 @@ pub use linear::{
     LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
     LinearEquationRelationWithoutInput,
 };
+#[cfg(feature = "circuit")]
+pub use preimage::preimage_proving;
 pub use preimage::{
-    preimage_proving, PreimageRelationWithFullInput, PreimageRelationWithPublicInput,
-    PreimageRelationWithoutInput,
+    PreimageRelationWithFullInput, PreimageRelationWithPublicInput, PreimageRelationWithoutInput,
 };
 pub use serialization::serialize;
 pub use shielder::{
