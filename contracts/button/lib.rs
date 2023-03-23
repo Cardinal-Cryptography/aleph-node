@@ -328,7 +328,7 @@ pub mod button_game {
             self.last_presser = None;
             self.last_press = now;
             self.total_rewards = 0;
-            self.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+            self.round = self.round.checked_add(1).ok_or(GameError::Arithmethic)?;
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())

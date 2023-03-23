@@ -18,7 +18,7 @@ pub mod wrapped_azero {
     };
     use num_traits::identities::Zero;
     use openbrush::{
-        contracts::psp22::{extensions::metadata::*, Internal},
+        contracts::psp22::{extensions::metadata::*, Internal, PSP22Error},
         traits::Storage,
     };
 
@@ -35,6 +35,7 @@ pub mod wrapped_azero {
         #[storage_field]
         metadata: metadata::Data,
         access_control: AccessControlRef,
+        halted: bool,
     }
 
     impl Default for WrappedAzero {
@@ -82,6 +83,12 @@ pub mod wrapped_azero {
     pub type Result<T> = core::result::Result<T, PSP22Error>;
     /// Event type
     pub type Event = <WrappedAzero as ContractEventBase>::Type;
+
+    #[ink(event)]
+    pub struct Halted {}
+
+    #[ink(event)]
+    pub struct Resumed {}
 
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
@@ -148,15 +155,55 @@ pub mod wrapped_azero {
                     psp22: psp22::Data::default(),
                     metadata,
                     access_control,
+                    halted: false,
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");
             }
         }
 
+        /// Emergency halt of all operations
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        pub fn halt(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
+            self.halted = true;
+
+            // emit event
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+
+            Ok(())
+        }
+
+        /// Resume after emergency halt
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        pub fn resume(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            let this = self.env().account_id();
+            self.check_role(caller, Role::Admin(this))?;
+            self.halted = false;
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        /// Is the contract in a halted state
+        #[ink(message)]
+        pub fn is_halted(&mut self) -> bool {
+            self.halted
+        }
+
         /// Wraps the transferred amount of native token and mints it to the callers account
         #[ink(message, payable)]
         pub fn wrap(&mut self) -> Result<()> {
+            if self.halted {
+                return Err(PSP22Error::Custom("ContractIsHalted".into()));
+            }
+
             let caller = self.env().caller();
             let amount = self.env().transferred_value();
             if !amount.eq(&Balance::zero()) {
@@ -170,6 +217,10 @@ pub mod wrapped_azero {
         /// Unwraps a specified amount
         #[ink(message)]
         pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
+            if self.halted {
+                return Err(PSP22Error::Custom("ContractIsHalted".into()));
+            }
+
             if amount.eq(&Balance::zero()) {
                 return Ok(());
             }
