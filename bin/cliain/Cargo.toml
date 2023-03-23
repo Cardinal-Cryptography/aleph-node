@@ -25,7 +25,8 @@ sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", bran
 
 aleph_client = { path = "../../aleph-client" }
 primitives = { path = "../../primitives" }
-liminal-ark-relations = { path = "../../relations", optional = true }
+# todo: remove path after publishing
+liminal-ark-relations = { version = "0.2.0", path = "../../relations", optional = true }
 
 [features]
 default = ["std"]
