@@ -112,7 +112,6 @@ jobs:
       - name: Run deploy.sh script
         shell: bash
         run: |
-          . "$HOME/.cargo/env"
           source contracts/env/${{ env.CONTRACTS_ENVFILE }} && ./contracts/scripts/deploy.sh
 
       - name: Update ABI arifacts and addresses.json file in the S3 bucket
