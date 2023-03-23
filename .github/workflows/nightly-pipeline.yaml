@@ -2,9 +2,8 @@
 name: Nightly pipeline
 
 on:
-  push:
-    branches:
-      - A0-2174-fix-nightly-pipeline-failing-due-to-missing-artifact
+  schedule:
+    - cron: '00 23 * * *'
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}-nightly"
@@ -160,7 +159,7 @@ jobs:
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
-        timeout-minutes: 30
+        timeout-minutes: 40
 
   run-e2e-no-quorum-without-high-out-latency:
     needs: [build-synthetic-network-docker, build-test-client]
@@ -177,7 +176,7 @@ jobs:
           image-path: aleph-test-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
-        timeout-minutes: 15
+        timeout-minutes: 25
 
   check-e2e-test-suite-completion:
     needs: [
