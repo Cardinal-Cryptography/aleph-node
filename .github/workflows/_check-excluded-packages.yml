@@ -58,6 +58,7 @@ jobs:
             rustup target add wasm32-unknown-unknown
             cargo fmt --all --check
             cargo clippy -- --no-deps -D warnings
+            cargo test
             popd
           done
 
