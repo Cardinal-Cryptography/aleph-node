@@ -78,6 +78,7 @@ jobs:
           # yamllint disable-line rule:line-length
           S3BUCKET_PATH: builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-node
           S3BUCKET_FILE: aleph-test-node-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
         run: |
           aws s3api head-object \
             --bucket '${{ secrets.CI_MAINNET_S3BUCKET_NAME }}' \
@@ -85,7 +86,8 @@ jobs:
           if [[ "${not_exist}" ]]; then
             tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
             # yamllint disable-line rule:line-length
-            aws s3 cp ${{ env.S3BUCKET_FILE }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
+            aws s3 cp ${{ env.S3BUCKET_FILE }} \
+              ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
           else
             echo "File ${{ env.S3BUCKET_FILE }} already exists on CI S3 bucket"
           fi
@@ -101,6 +103,7 @@ jobs:
           # yamllint disable-line rule:line-length
           S3BUCKET_PATH: builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
           S3BUCKET_FILE: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
         run: |
           aws s3api head-object \
             --bucket '${{ secrets.CI_MAINNET_S3BUCKET_NAME }}' \
@@ -108,7 +111,8 @@ jobs:
           if [[ "${not_exist}" ]]; then
             tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
             # yamllint disable-line rule:line-length
-            aws s3 cp ${{ env.S3BUCKET_FILE }} s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
+            aws s3 cp ${{ env.S3BUCKET_FILE }} \
+              ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
           else
             echo "File ${{ env.S3BUCKET_FILE }} already exists on CI S3 bucket"
           fi
