@@ -22,7 +22,7 @@ jobs:
     secrets: inherit
 
   build-test-docker:
-    needs: [build-new-node]
+    needs: [build-new-test-node]
     name: Build docker image with the test node artifact
     runs-on: ubuntu-20.04
     steps:
@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download test artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: aleph-test-node
           path: target/release
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifact with docker image for aleph-node
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: aleph-test-docker
 
@@ -82,7 +82,7 @@ jobs:
           retention-days: 7
 
   check-determinism:
-    needs: [build-new-node]
+    needs: [build-new-production-node]
     name: Verify runtime build determinism
     runs-on: self-hosted
     env:
@@ -99,7 +99,7 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
 
       - name: Download artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: aleph-release-runtime
 
