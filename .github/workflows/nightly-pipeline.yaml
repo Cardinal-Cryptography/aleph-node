@@ -2,6 +2,9 @@
 name: Nightly pipeline
 
 on:
+  push:
+    branches:
+      - A0-2174-fix-nightly-pipeline-failing-due-to-missing-artifact
   schedule:
     - cron: '00 23 * * *'
 
@@ -10,9 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-new-node:
-    name: Build node and runtime artifacts (PR version)
+  build-new-production-node:
+    name: Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
+    secrets: inherit
+
+  build-new-test-node:
+    name: Build test node and runtime artifacts (PR version)
+    uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
   build-test-docker:
