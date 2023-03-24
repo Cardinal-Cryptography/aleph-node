@@ -1,0 +1,16 @@
+---
+name: Install rust toolchain
+description: |
+  Reads rust toolchain from rust-toolchain file, installs it with wasm32-unknown-unknown target
+runs:
+  using: composite
+  steps:
+    - name: Read rust-toolchain file
+      uses: andstor/file-reader-action@v1
+      with:
+        path: "rust-toolchain"
+    - name: Install rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install --target wasm32-unknown-unknown \
+          ${{ steps.read_file.outputs.contents }}
