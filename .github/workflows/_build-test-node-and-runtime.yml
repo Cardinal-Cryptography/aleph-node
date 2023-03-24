@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          - target: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
         run: |
