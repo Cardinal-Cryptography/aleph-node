@@ -10,8 +10,17 @@ runs:
       uses: andstor/file-reader-action@v1
       with:
         path: "rust-toolchain"
+
+    # This step needs to be extracted either to docker image
+    - name: Install rustup
+      shell: bash
+      run: |
+        if ! command -v rustup &>/dev/null; then
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL \
+            "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+        fi
+
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install --target wasm32-unknown-unknown \
-          ${{ steps.read-toolchain-file.outputs.contents }}
+        rustup toolchain install --target wasm32-unknown-unknown $(cat rust-toolchain)
