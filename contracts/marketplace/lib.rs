@@ -35,6 +35,7 @@ pub mod marketplace {
     use openbrush::contracts::psp22::{
         extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
     };
+    use shared_traits::{Haltable, HaltableError, HaltableResult};
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
@@ -55,7 +56,7 @@ pub mod marketplace {
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
-        ContractIsHalted,
+        HaltableError(HaltableError),
         MissingRole(Role),
         ContractCall(String),
         PSP22TokenCall(PSP22Error),
@@ -99,6 +100,60 @@ pub mod marketplace {
         }
     }
 
+    impl From<Error> for HaltableError {
+        fn from(inner: Error) -> Self {
+            HaltableError::Custom(format!("{:?}", inner))
+        }
+    }
+
+    impl From<HaltableError> for Error {
+        fn from(inner: HaltableError) -> Self {
+            Error::HaltableError(inner)
+        }
+    }
+
+    impl Haltable for Marketplace {
+        /// Emergency halt of all operations
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn halt(&mut self) -> HaltableResult<()> {
+            self.ensure_role(self.admin())?;
+            self.halted = true;
+
+            // emit event
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+
+            Ok(())
+        }
+
+        /// Resume after emergency halt
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn resume(&mut self) -> HaltableResult<()> {
+            self.ensure_role(self.admin())?;
+            self.halted = false;
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        /// Is the contract in a halted state
+        #[ink(message)]
+        fn is_halted(&self) -> bool {
+            self.halted
+        }
+
+        /// Returns an error if the contract in a halted state
+        #[ink(message)]
+        fn check_halted(&self) -> HaltableResult<()> {
+            if self.is_halted() {
+                return Err(HaltableError::InHaltedState);
+            }
+            Ok(())
+        }
+    }
+
     impl Marketplace {
         #[ink(constructor)]
         pub fn new(
@@ -127,37 +182,6 @@ pub mod marketplace {
             } else {
                 panic!("Caller is not allowed to initialize this contract");
             }
-        }
-
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn halt(&mut self) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
-            self.halted = true;
-
-            // emit event
-            Self::emit_event(self.env(), Event::Halted(Halted {}));
-
-            Ok(())
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn resume(&mut self) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
-            self.halted = false;
-            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            Ok(())
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        pub fn is_halted(&mut self) -> bool {
-            self.halted
         }
 
         /// The length of each auction of a single ticket in blocks.
@@ -252,9 +276,7 @@ pub mod marketplace {
         /// current price is greater than that.
         #[ink(message)]
         pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
-            if self.halted {
-                return Err(Error::ContractIsHalted);
-            }
+            self.check_halted()?;
 
             if self.ticket_balance() == 0 {
                 return Err(Error::MarketplaceEmpty);

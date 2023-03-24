@@ -24,6 +24,7 @@ mod simple_dex {
         storage::Mapping,
         traits::Storage,
     };
+    use shared_traits::{Haltable, HaltableError};
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
@@ -45,7 +46,7 @@ mod simple_dex {
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum DexError {
-        ContractIsHalted,
+        HaltableError(HaltableError),
         PSP22(PSP22Error),
         InsufficientAllowanceOf(AccountId),
         Arithmethic,
@@ -56,6 +57,18 @@ mod simple_dex {
         TooMuchSlippage,
         NotEnoughLiquidityOf(AccountId),
         UnsupportedSwapPair(SwapPair),
+    }
+
+    impl From<DexError> for HaltableError {
+        fn from(why: DexError) -> Self {
+            HaltableError::Custom(format!("{:?}", why))
+        }
+    }
+
+    impl From<HaltableError> for DexError {
+        fn from(why: HaltableError) -> Self {
+            DexError::HaltableError(why)
+        }
     }
 
     impl From<PSP22Error> for DexError {
@@ -130,6 +143,55 @@ mod simple_dex {
         pub halted: bool,
     }
 
+    impl Haltable for SimpleDex {
+        /// Emergency halt of all operations
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn halt(&mut self) -> Result<(), HaltableError> {
+            if !self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                self.check_role(caller, Role::Admin(this))?;
+                self.halted = true;
+                Self::emit_event(self.env(), Event::Halted(Halted {}));
+            }
+
+            Ok(())
+        }
+
+        /// Resume after emergency halt
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn resume(&mut self) -> Result<(), HaltableError> {
+            if self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                self.check_role(caller, Role::Admin(this))?;
+                self.halted = false;
+                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            }
+
+            Ok(())
+        }
+
+        /// Is the contract in a halted state
+        #[ink(message)]
+        fn is_halted(&self) -> bool {
+            self.halted
+        }
+
+        /// Returns an error if the contract in a halted state
+        #[ink(message)]
+        fn check_halted(&self) -> Result<(), HaltableError> {
+            if self.halted {
+                return Err(HaltableError::InHaltedState);
+            }
+            Ok(())
+        }
+    }
+
     impl SimpleDex {
         #[ink(constructor)]
         pub fn new() -> Self {
@@ -164,9 +226,7 @@ mod simple_dex {
             amount_token_in: Balance,
             min_amount_token_out: Balance,
         ) -> Result<(), DexError> {
-            if self.halted {
-                return Err(DexError::ContractIsHalted);
-            }
+            self.check_halted()?;
 
             let this = self.env().account_id();
             let caller = self.env().caller();
@@ -213,41 +273,6 @@ mod simple_dex {
             );
 
             Ok(())
-        }
-
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn halt(&mut self) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
-            self.halted = true;
-
-            // emit event
-            Self::emit_event(self.env(), Event::Halted(Halted {}));
-
-            Ok(())
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn resume(&mut self) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
-            self.halted = false;
-            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            Ok(())
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        pub fn is_halted(&mut self) -> bool {
-            self.halted
         }
 
         /// Liquidity deposit

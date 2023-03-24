@@ -21,6 +21,7 @@ pub mod wrapped_azero {
         contracts::psp22::{extensions::metadata::*, Internal, PSP22Error},
         traits::Storage,
     };
+    use shared_traits::{Haltable, HaltableError, HaltableResult};
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
@@ -36,6 +37,55 @@ pub mod wrapped_azero {
         metadata: metadata::Data,
         access_control: AccessControlRef,
         halted: bool,
+    }
+
+    impl Haltable for WrappedAzero {
+        /// Emergency halt of all operations
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn halt(&mut self) -> HaltableResult<()> {
+            if !self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                self.check_role(caller, Role::Admin(this))?;
+                self.halted = true;
+                Self::emit_event(self.env(), Event::Halted(Halted {}));
+            }
+
+            Ok(())
+        }
+
+        /// Resume after emergency halt
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn resume(&mut self) -> HaltableResult<()> {
+            if self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                self.check_role(caller, Role::Admin(this))?;
+                self.halted = false;
+                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            }
+
+            Ok(())
+        }
+
+        /// Is the contract in a halted state
+        #[ink(message)]
+        fn is_halted(&self) -> bool {
+            self.halted
+        }
+
+        /// Returns an error if the contract in a halted state
+        #[ink(message)]
+        fn check_halted(&self) -> HaltableResult<()> {
+            if self.halted {
+                return Err(HaltableError::InHaltedState);
+            }
+            Ok(())
+        }
     }
 
     impl Default for WrappedAzero {
@@ -160,41 +210,6 @@ pub mod wrapped_azero {
             } else {
                 panic!("Caller is not allowed to initialize this contract");
             }
-        }
-
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn halt(&mut self) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
-            self.halted = true;
-
-            // emit event
-            Self::emit_event(self.env(), Event::Halted(Halted {}));
-
-            Ok(())
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        pub fn resume(&mut self) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
-            self.halted = false;
-            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            Ok(())
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        pub fn is_halted(&mut self) -> bool {
-            self.halted
         }
 
         /// Wraps the transferred amount of native token and mints it to the callers account

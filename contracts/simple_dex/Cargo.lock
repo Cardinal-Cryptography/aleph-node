@@ -1148,6 +1148,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared_traits"
+version = "0.1.0"
+dependencies = [
+ "ink",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
 name = "simple_dex"
 version = "0.1.0"
 dependencies = [
@@ -1158,6 +1167,7 @@ dependencies = [
  "parity-scale-codec",
  "proptest",
  "scale-info",
+ "shared_traits",
 ]
 
 [[package]]
