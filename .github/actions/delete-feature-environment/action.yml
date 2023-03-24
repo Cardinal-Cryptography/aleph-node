@@ -83,7 +83,7 @@ runs:
     - name: Clean S3 storage
       shell: bash
       env:
-        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
+        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
       run: |
         aws s3 rm --recursive \
           s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
