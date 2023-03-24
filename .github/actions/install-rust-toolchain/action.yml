@@ -5,19 +5,14 @@ description: |
 runs:
   using: composite
   steps:
-    - name: Read rust-toolchain file
-      id: read-toolchain-file
-      uses: andstor/file-reader-action@v1
-      with:
-        path: "rust-toolchain"
-
-    # This step needs to be extracted either to docker image
+    # This step needs to be extracted either to docker image or to setup of self-hosted runner
     - name: Install rustup
       shell: bash
       run: |
         if ! command -v rustup &>/dev/null; then
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL \
             "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+          echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
         fi
 
     - name: Install rust toolchain
