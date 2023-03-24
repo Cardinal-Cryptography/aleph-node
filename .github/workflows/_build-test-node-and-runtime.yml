@@ -25,9 +25,9 @@ jobs:
         uses: ./.github/actions/get-ref-properties
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
         run: |
