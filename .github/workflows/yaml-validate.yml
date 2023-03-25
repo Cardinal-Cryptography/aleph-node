@@ -19,7 +19,7 @@ jobs:
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
 
-      - name: VALIDATE | Execute github-workflows-validator
+      - name: VALIDATE | Execute github-actions-validator
         env:
           DOCKER_IMAGE: public.ecr.aws/p6e8q1z1/github-actions-validator:0.3.2
         run: |
