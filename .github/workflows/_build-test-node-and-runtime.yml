@@ -8,7 +8,7 @@ on:
 jobs:
   main:
     name: Build test node and runtime
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -26,9 +26,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
-#        with:
-#          targets: wasm32-unknown-unknown wasm32-unknown-unknown
- 
+        with:
+          targets: wasm32-unknown-unknown
+
       - name: Build test binary and runtime
         run: |
           cargo build --release -p aleph-node \

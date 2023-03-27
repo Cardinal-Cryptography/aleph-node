@@ -10,13 +10,14 @@ description: |
   passed as an input.
 inputs:
   channel:
-    description: Optional cargo target to install
+    description: |
+      Toolchain channel. It's required only when rust-toolchain.toml file does not specify it.
     required: false
   targets:
-    description: Optional cargo target to install
+    description: Optional. List of targets to install with the given channel.
     required: false
   components:
-    description: Optional list of cargo components to install
+    description: Optional. List of cargo components to install.
     required: false
 
 runs:
