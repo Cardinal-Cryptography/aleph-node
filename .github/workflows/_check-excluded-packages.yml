@@ -19,7 +19,7 @@ jobs:
         uses: ./.github/actions/install-rust-toolchain
         with:
           target: wasm32-unknown-unknown
-          components: clippy rust
+          components: clippy rustfmt
 
       - name: Read excluded packages from Cargo.toml
         id: read_excluded
