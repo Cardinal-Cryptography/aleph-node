@@ -15,11 +15,6 @@ mod vertex;
 pub use vertex::JustificationAddResult;
 use vertex::Vertex;
 
-pub struct JustificationWithParent<J: Justification> {
-    pub justification: J,
-    pub parent: BlockIdFor<J>,
-}
-
 enum VertexHandle<'a, I: PeerId, J: Justification> {
     HopelessFork,
     BelowMinimal,
@@ -224,6 +219,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     }
 
     /// Updates the provider block identifier, returns whether it became a new top required.
+    #[allow(dead_code)] // todo - remove
     pub fn update_block_identifier(
         &mut self,
         id: &BlockIdFor<J>,

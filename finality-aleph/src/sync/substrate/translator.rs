@@ -1,7 +1,6 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
 use aleph_primitives::BlockNumber;
-use sp_blockchain::Backend;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{

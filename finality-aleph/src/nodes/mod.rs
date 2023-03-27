@@ -1,10 +1,6 @@
 mod validator_node;
 
-use std::sync::Arc;
-
 use aleph_primitives::BlockNumber;
-use sc_network::NetworkService;
-use sc_network_common::ExHashT;
 use sp_runtime::traits::{Block, Header, NumberFor};
 pub use validator_node::run_validator_node;
 
@@ -12,11 +8,9 @@ use crate::{
     justification::{
         SessionInfo, SessionInfoProvider,
     },
-    mpsc,
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
-    JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
 };
 
 #[cfg(test)]
@@ -24,32 +18,9 @@ pub mod testing {
     pub use super::validator_node::new_pen;
 }
 
-/// Max amount of tries we can not update a finalized block number before we will clear requests queue
-const MAX_ATTEMPTS: u32 = 5;
-
-struct JustificationParams<B: Block, H: ExHashT, C, BB> {
-    pub network: Arc<NetworkService<B, H>>,
-    pub client: Arc<C>,
-    pub blockchain_backend: BB,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
-    pub session_period: SessionPeriod,
-    pub millisecs_per_block: MillisecsPerBlock,
-    pub session_map: ReadOnlySessionMap,
-}
-
 struct SessionInfoProviderImpl {
     session_authorities: ReadOnlySessionMap,
     session_info: SessionBoundaryInfo,
-}
-
-impl SessionInfoProviderImpl {
-    fn new(session_authorities: ReadOnlySessionMap, session_period: SessionPeriod) -> Self {
-        Self {
-            session_authorities,
-            session_info: SessionBoundaryInfo::new(session_period),
-        }
-    }
 }
 
 #[async_trait::async_trait]

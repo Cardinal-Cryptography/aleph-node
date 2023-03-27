@@ -1,17 +1,12 @@
 use std::sync::Arc;
-use std::{
-    fmt::{Display, Error as FmtError, Formatter},
-};
-
-
+use std::fmt::{Display, Error as FmtError, Formatter};
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
 use sp_blockchain::{Backend as _, Error as BackendError};
 use sc_client_api::{Backend as _, blockchain::HeaderBackend};
 use sc_service::TFullBackend;
 use sp_blockchain::Info;
-use sp_runtime::{generic::BlockId as SubstrateBlockId, traits::{Block as BlockT, Header as SubstrateHeader}};
-
+use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 use crate::{
     justification::backwards_compatible_decode,
     sync::{

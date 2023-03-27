@@ -13,7 +13,7 @@ use sp_runtime::{
 };
 
 use crate::{
-    justification::{backwards_compatible_decode, DecodeError, JustificationNotification},
+    justification::{backwards_compatible_decode, DecodeError},
     metrics::{Checkpoint, Metrics},
     sync::substrate::{Justification, JustificationTranslator},
 };

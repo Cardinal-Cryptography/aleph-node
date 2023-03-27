@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use aleph_primitives::AuthoritySignature;
 use codec::{Decode, Encode};
 use sp_api::{BlockT, NumberFor};
@@ -7,12 +5,8 @@ use sp_api::{BlockT, NumberFor};
 use crate::{crypto::Signature, SessionId};
 
 mod compatibility;
-mod scheduler;
 
 pub use compatibility::{backwards_compatible_decode, versioned_encode, Error as DecodeError};
-pub use scheduler::{
-    JustificationRequestScheduler, JustificationRequestSchedulerImpl, SchedulerActions,
-};
 
 use crate::abft::SignatureSet;
 
@@ -49,32 +43,4 @@ pub struct JustificationNotification<Block: BlockT> {
     pub hash: Block::Hash,
     /// The ID of the finalized block.
     pub number: NumberFor<Block>,
-}
-
-#[derive(Clone)]
-pub struct JustificationHandlerConfig {
-    /// How long should we wait when the session verifier is not yet available.
-    verifier_timeout: Duration,
-    /// How long should we wait for any notification.
-    notification_timeout: Duration,
-}
-
-impl Default for JustificationHandlerConfig {
-    fn default() -> Self {
-        Self {
-            verifier_timeout: Duration::from_millis(500),
-            // request justifications slightly more frequently than they're created
-            notification_timeout: Duration::from_millis(800),
-        }
-    }
-}
-
-#[cfg(test)]
-impl JustificationHandlerConfig {
-    pub fn new(verifier_timeout: Duration, notification_timeout: Duration) -> Self {
-        Self {
-            verifier_timeout,
-            notification_timeout,
-        }
-    }
 }

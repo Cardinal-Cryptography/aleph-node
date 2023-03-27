@@ -27,7 +27,7 @@ use crate::{
     AlephConfig,
     sync::Service as SyncService,
     finalization::AlephFinalizer,
-    sync::{JustificationTranslator, ChainStatus, SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateJustification},
+    sync::{JustificationTranslator, ChainStatus, SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatusNotifier, SubstrateJustification},
 };
 
 const VERIFIER_CACHE_SIZE: usize = 2;

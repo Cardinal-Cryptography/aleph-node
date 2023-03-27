@@ -41,10 +41,6 @@ pub enum SyncAction<J: Justification> {
 }
 
 impl<J: Justification> SyncAction<J> {
-    fn noop() -> Self {
-        SyncAction::Noop
-    }
-
     fn state_broadcast_response(
         justification: J::Unverified,
         other_justification: Option<J::Unverified>,
@@ -57,10 +53,6 @@ impl<J: Justification> SyncAction<J> {
 
     fn request_response(justifications: Vec<J::Unverified>) -> Self {
         SyncAction::Response(NetworkData::RequestResponse(justifications))
-    }
-
-    fn task(id: BlockIdFor<J>) -> Self {
-        SyncAction::Task(id)
     }
 }
 
