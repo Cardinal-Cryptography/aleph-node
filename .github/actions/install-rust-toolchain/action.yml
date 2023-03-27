@@ -64,7 +64,7 @@ runs:
         COMPONENTS: ${{ inputs.components || steps.toolchain-components.outputs.value }}
       run: |
         components=$(echo ${{ env.COMPONENTS }} | tr -d '[]' | sed 's/,/ /g')
-        for components in $components; do
+        for component in $components; do
           rustup component add $component
         done
 
