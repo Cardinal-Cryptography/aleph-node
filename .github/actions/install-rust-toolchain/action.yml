@@ -1,7 +1,13 @@
 ---
 name: Install rust toolchain
 description: |
-  Reads rust toolchain from rust-toolchain file and installs it. Optionally add given target.
+  Parses rust-toolchain.toml file and installs rust toolchain based on its contents:
+    * channel, e.g nightly-2022-10-30
+    * list of targets, e.g. ["wasm32-unknown-unknown"]
+    * list of components, e.g. ["clippy", "rustfmt"]
+  Also, this action contains set of inputs that can override any of the above.
+  Existence of rust-toolchain.toml file is not mandatory, yet channel is then required to be
+  passed as an input.
 inputs:
   channel:
     description: Optional cargo target to install
