@@ -43,7 +43,7 @@ runs:
       if: inputs.components != ''
       shell: bash
       run: |
-        rustup component add "${{ inputs.components }}"
+        rustup component add ${{ inputs.components }}
 
     - name: Add target (optional)
       if: inputs.target != ''
@@ -51,5 +51,3 @@ runs:
       run: |
         rustup target add wasm32-unknown-unknown \
           --toolchain ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
-
-
