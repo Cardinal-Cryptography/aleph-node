@@ -4,7 +4,7 @@ use aleph_node::{new_authority, new_partial, Cli, Subcommand};
 use aleph_primitives::HEAP_PAGES;
 #[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 use aleph_runtime::Block;
-use log::warn;
+use log::{info, warn};
 use sc_cli::{clap::Parser, CliConfiguration, DatabasePruningMode, PruningParams, SubstrateCli};
 use sc_network::config::Role;
 use sc_service::{Configuration, PartialComponents};
@@ -159,10 +159,18 @@ fn main() -> sc_cli::Result<()> {
             let mut aleph_cli_config = cli.aleph;
             runner.run_node_until_exit(|mut config| async move {
                 if matches!(config.role, Role::Full) {
+                    if !aleph_cli_config.external_addresses().is_empty() {
+                        panic!(
+                            "A non-validator node cannot be run with external addresses specified."
+                        );
+                    }
                     // We ensure that external addresses for non-validator nodes are set, but to a
                     // value that is not routable. This will no longer be neccessary once we have
                     // proper support for non-validator nodes, but this requires a major
                     // refactor.
+                    info!(
+                        "Running as a non-validator node, setting dummy addressing configuration."
+                    );
                     aleph_cli_config.set_dummy_external_addresses();
                 }
                 enforce_heap_pages(&mut config);
