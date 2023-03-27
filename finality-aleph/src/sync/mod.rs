@@ -16,7 +16,7 @@ pub mod substrate;
 mod task_queue;
 mod ticker;
 
-pub use substrate::{JustificationTranslator, SubstrateFinalizationInfo, VerifierCache, SessionVerifier, SubstrateChainStatus, SubstrateChainStatusNotifier};
+pub use substrate::{Justification as SubstrateJustification, JustificationTranslator, SubstrateFinalizationInfo, VerifierCache, SessionVerifier, SubstrateChainStatus, SubstrateChainStatusNotifier};
 pub use service::Service;
 
 const LOG_TARGET: &str = "aleph-block-sync";
@@ -113,7 +113,7 @@ pub enum BlockStatus<J: Justification> {
 }
 
 /// The knowledge about the chain status.
-pub trait ChainStatus<J: Justification> {
+pub trait ChainStatus<J: Justification>: Clone + Send + Sync + 'static {
     type Error: Display;
 
     /// The status of the block.

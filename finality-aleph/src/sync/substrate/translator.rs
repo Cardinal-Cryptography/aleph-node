@@ -41,11 +41,10 @@ impl<B: Block> From<ChainStatusError<B>> for Error<B> {
     }
 }
 
-impl<B, BE> JustificationTranslator<B::Header> for SubstrateChainStatus<B, BE>
+impl<B> JustificationTranslator<B::Header> for SubstrateChainStatus<B>
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
-    BE: Backend<B>,
 {
     type Error = Error<B>;
 

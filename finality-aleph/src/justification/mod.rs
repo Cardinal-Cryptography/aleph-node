@@ -7,12 +7,9 @@ use sp_api::{BlockT, NumberFor};
 use crate::{crypto::Signature, SessionId};
 
 mod compatibility;
-mod handler;
-mod requester;
 mod scheduler;
 
 pub use compatibility::{backwards_compatible_decode, versioned_encode, Error as DecodeError};
-pub use handler::JustificationHandler;
 pub use scheduler::{
     JustificationRequestScheduler, JustificationRequestSchedulerImpl, SchedulerActions,
 };

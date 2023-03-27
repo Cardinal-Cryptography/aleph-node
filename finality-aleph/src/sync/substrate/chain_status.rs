@@ -6,10 +6,11 @@ use std::{
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
-use sp_blockchain::{Backend, Error as ClientError};
-use sc_client_api::blockchain::HeaderBackend;
-
-use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
+use sp_blockchain::{Backend as _, Error as BackendError};
+use sc_client_api::{Backend as _, blockchain::HeaderBackend};
+use sc_service::TFullBackend;
+use sp_blockchain::Info;
+use sp_runtime::{generic::BlockId as SubstrateBlockId, traits::{Block as BlockT, Header as SubstrateHeader}};
 
 use crate::{
     justification::backwards_compatible_decode,
@@ -25,7 +26,7 @@ use crate::{
 pub enum Error<B: BlockT> {
     MissingHash(B::Hash),
     MissingJustification(B::Hash),
-    Client(ClientError),
+    Backend(BackendError),
     MismatchedId,
 }
 
@@ -47,17 +48,17 @@ impl<B: BlockT> Display for Error<B> {
                     hash
                 )
             }
-            Client(e) => {
-                write!(f, "substrate client error {}", e)
+            Backend(e) => {
+                write!(f, "substrate backend error {}", e)
             }
             MismatchedId => write!(f, "the block number did not match the block hash"),
         }
     }
 }
 
-impl<B: BlockT> From<ClientError> for Error<B> {
-    fn from(value: ClientError) -> Self {
-        Error::Client(value)
+impl<B: BlockT> From<BackendError> for Error<B> {
+    fn from(value: BackendError) -> Self {
+        Error::Backend(value)
     }
 }
 
@@ -68,7 +69,7 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    backend: Arc<sc_service::TFullBackend<B>>,
+    backend: Arc<TFullBackend<B>>,
 }
 
 impl<B> SubstrateChainStatus<B>
@@ -76,15 +77,19 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    pub fn new(backend: Arc<sc_service::TFullBackend<B>>) -> Self {
+    pub fn new(backend: Arc<TFullBackend<B>>) -> Self {
         Self { backend }
     }
 
-    fn hash_for_number(&self, number: BlockNumber) -> Result<Option<B::Hash>, ClientError> {
+    fn info(&self) -> Info<B> {
+        self.backend.blockchain().info()
+    }
+
+    fn hash_for_number(&self, number: BlockNumber) -> Result<Option<B::Hash>, BackendError> {
         self.backend.blockchain().hash(number)
     }
 
-    fn header_for_hash(&self, hash: B::Hash) -> Result<Option<B::Header>, ClientError> {
+    fn header_for_hash(&self, hash: B::Hash) -> Result<Option<B::Header>, BackendError> {
         self.backend.blockchain().header(hash)
     }
 
@@ -102,7 +107,7 @@ where
         }
     }
 
-    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, ClientError> {
+    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, BackendError> {
         let justification = match self
             .backend.blockchain()
             .justifications(hash)?
@@ -126,11 +131,11 @@ where
     }
 
     fn best_hash(&self) -> B::Hash {
-        self.backend.blockchain().info().best_hash
+        self.info().best_hash
     }
 
     fn finalized_hash(&self) -> B::Hash {
-        self.backend.blockchain().info().finalized_hash
+        self.info().finalized_hash
     }
 }
 
@@ -208,7 +213,7 @@ where
             .children(id.hash)?
             .into_iter()
             .map(|hash| self.header_for_hash(hash))
-            .collect::<Result<Vec<Option<B::Header>>, ClientError>>()?
+            .collect::<Result<Vec<Option<B::Header>>, BackendError>>()?
             .into_iter()
             .flatten()
             .collect())

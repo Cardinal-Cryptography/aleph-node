@@ -104,7 +104,7 @@ impl<H: SubstrateHeader<Number = BlockNumber>> JustificationT for Justification<
 }
 
 /// Translates raw aleph justifications into ones acceptable to sync.
-pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Send {
+pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Send + Sync {
     type Error: Display + Debug;
 
     fn translate(

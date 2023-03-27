@@ -1,6 +1,5 @@
 pub use acceptance_policy::AcceptancePolicy;
 use aleph_primitives::BlockNumber;
-pub use backend::{create_block, Backend};
 pub use block_finalizer::MockedBlockFinalizer;
 pub use block_request::MockedBlockRequester;
 pub use client::{TestClient, TestClientBuilder, TestClientBuilderExt};
@@ -18,7 +17,6 @@ pub type THeader = sp_runtime::generic::Header<BlockNumber, Hashing>;
 pub type THash = substrate_test_runtime::Hash;
 
 mod acceptance_policy;
-mod backend;
 mod block_finalizer;
 mod block_request;
 mod client;

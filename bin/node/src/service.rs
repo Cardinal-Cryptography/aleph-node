@@ -150,7 +150,7 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let justification_translator = SubstrateChainStatus::new(client.clone());
+    let justification_translator = SubstrateChainStatus::new(backend.blockchain().clone());
     let aleph_block_import =
         AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone(), justification_translator);
 
@@ -255,7 +255,7 @@ fn setup(
             warp_sync: None,
         })?;
 
-    let justification_translator = SubstrateChainStatus::new(client.clone());
+    let chain_status = SubstrateChainStatus::new(client.clone());
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -266,7 +266,7 @@ fn setup(
                 pool: pool.clone(),
                 deny_unsafe,
                 import_justification_tx,
-                justification_translator,
+                chain_status,
             };
 
             Ok(crate::rpc::create_full(deps)?)
@@ -395,11 +395,10 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
-        blockchain_backend,
+        chain_status,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -421,37 +420,4 @@ pub fn new_authority(
 
     network_starter.start_network();
     Ok(task_manager)
-}
-
-struct BlockchainBackendImpl {
-    backend: Arc<FullBackend>,
-}
-impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
-    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
-        self.backend
-            .blockchain()
-            .children(parent_hash)
-            .unwrap_or_default()
-    }
-    fn info(&self) -> sp_blockchain::Info<Block> {
-        self.backend.blockchain().info()
-    }
-    fn header(
-        &self,
-        block_id: BlockId<Block>,
-    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        let hash = match block_id {
-            BlockId::Hash(h) => h,
-            BlockId::Number(n) => {
-                let maybe_hash = self.backend.blockchain().hash(n)?;
-
-                if let Some(h) = maybe_hash {
-                    h
-                } else {
-                    return Ok(None);
-                }
-            }
-        };
-        self.backend.blockchain().header(hash)
-    }
 }

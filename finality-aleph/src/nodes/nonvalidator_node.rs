@@ -7,7 +7,7 @@ use sp_runtime::traits::{Block, Header};
 
 use crate::{
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
-    AlephConfig, BlockchainBackend,
+    AlephConfig,
     sync::Service as SyncService,
     finalization::AlephFinalizer,
     sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier},
@@ -24,6 +24,5 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    BB: BlockchainBackend<B> + Send + 'static,
     SC: SelectChain<B> + 'static,
 { }

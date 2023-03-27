@@ -24,10 +24,10 @@ use crate::{
     },
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
-    AlephConfig, BlockchainBackend,
+    AlephConfig,
     sync::Service as SyncService,
     finalization::AlephFinalizer,
-    sync::{SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, Justification},
+    sync::{JustificationTranslator, ChainStatus, SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateJustification},
 };
 
 const VERIFIER_CACHE_SIZE: usize = 2;
@@ -42,7 +42,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<B, H, C, BB, BE, SC, J>(aleph_config: AlephConfig<B, H, C, SC, BB>)
+pub async fn run_validator_node<B, H, C, CS, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, CS>)
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
@@ -50,14 +50,13 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + Clone + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    BB: BlockchainBackend<B> + Send + 'static,
+    CS: ChainStatus<SubstrateJustification<B::Header>> + JustificationTranslator<B::Header>,
     SC: SelectChain<B> + 'static,
-    J: Justification,
 {
     let AlephConfig {
         network,
         client,
-        blockchain_backend,
+        chain_status,
         select_chain,
         spawn_handle,
         keystore,
@@ -122,7 +121,6 @@ where
         client.finality_notification_stream(),
         client.import_notification_stream(),
     );
-    let chain_status = SubstrateChainStatus::new(client.clone());
     let verifier = VerifierCache::new(
         session_period,
         SubstrateFinalizationInfo::new(client.clone()),
@@ -133,7 +131,7 @@ where
     let (sync_service, justifications_for_sync) = match SyncService::new(
         block_sync_network,
         chain_events,
-        chain_status,
+        chain_status.clone(),
         verifier,
         finalizer,
         session_period,
@@ -164,7 +162,6 @@ where
     spawn_handle.spawn("aleph/gossip_network", None, gossip_network_task);
     debug!(target: "aleph-party", "Gossip network has started.");
 
-    let justification_translator = SubstrateChainStatus::new(client.clone());
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
         sync_state: block_requester.clone(),
@@ -179,7 +176,7 @@ where
             session_period,
             unit_creation_delay,
             justifications_for_sync,
-            justification_translator,
+            chain_status.clone(),
             block_requester,
             metrics,
             spawn_handle.into(),
