@@ -1,5 +1,5 @@
 ---
-name: Main commit
+name: Runs button e2e test on push to main branch
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
