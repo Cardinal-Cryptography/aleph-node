@@ -118,12 +118,13 @@ pub mod marketplace {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn halt(&mut self) -> HaltableResult<()> {
-            self.ensure_role(self.admin())?;
-            self.halted = true;
+            if !self.is_halted() {
+                self.ensure_role(self.admin())?;
+                self.halted = true;
 
-            // emit event
-            Self::emit_event(self.env(), Event::Halted(Halted {}));
-
+                // emit event
+                Self::emit_event(self.env(), Event::Halted(Halted {}));
+            }
             Ok(())
         }
 
@@ -132,9 +133,11 @@ pub mod marketplace {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn resume(&mut self) -> HaltableResult<()> {
-            self.ensure_role(self.admin())?;
-            self.halted = false;
-            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            if self.is_halted() {
+                self.ensure_role(self.admin())?;
+                self.halted = false;
+                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            }
             Ok(())
         }
 

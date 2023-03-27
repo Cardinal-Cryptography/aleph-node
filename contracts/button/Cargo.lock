@@ -102,6 +102,7 @@ dependencies = [
  "openbrush",
  "parity-scale-codec",
  "scale-info",
+ "shared_traits",
  "ticket_token",
 ]
 

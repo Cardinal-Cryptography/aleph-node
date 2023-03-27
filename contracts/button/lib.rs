@@ -18,6 +18,7 @@ pub mod button_game {
     use marketplace::marketplace::MarketplaceRef;
     use openbrush::contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref};
     use scale::{Decode, Encode};
+    use shared_traits::{Haltable, HaltableError};
 
     use crate::errors::GameError;
 
@@ -56,6 +57,12 @@ pub mod button_game {
         when: BlockNumber,
     }
 
+    #[ink(event)]
+    pub struct Halted {}
+
+    #[ink(event)]
+    pub struct Resumed {}
+
     /// Scoring strategy indicating what kind of reward users get for pressing the button
     #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
@@ -93,6 +100,57 @@ pub mod button_game {
         pub scoring: Scoring,
         /// current round number
         pub round: u64,
+        /// is contract in the halted state
+        pub halted: bool,
+    }
+
+    impl Haltable for ButtonGame {
+        /// Emergency halt of all operations
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn halt(&mut self) -> Result<(), HaltableError> {
+            if !self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                Self::check_role(&self.access_control, caller, Role::Admin(this))?;
+                self.halted = true;
+                Self::emit_event(self.env(), Event::Halted(Halted {}));
+            }
+
+            Ok(())
+        }
+
+        /// Resume after emergency halt
+        ///
+        /// Can only be called by the contract's Admin.
+        #[ink(message)]
+        fn resume(&mut self) -> Result<(), HaltableError> {
+            if self.is_halted() {
+                let caller = self.env().caller();
+                let this = self.env().account_id();
+                Self::check_role(&self.access_control, caller, Role::Admin(this))?;
+                self.halted = false;
+                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            }
+
+            Ok(())
+        }
+
+        /// Is the contract in a halted state
+        #[ink(message)]
+        fn is_halted(&self) -> bool {
+            self.halted
+        }
+
+        /// Returns an error if the contract in a halted state
+        #[ink(message)]
+        fn check_halted(&self) -> Result<(), HaltableError> {
+            if self.halted {
+                return Err(HaltableError::InHaltedState);
+            }
+            Ok(())
+        }
     }
 
     impl ButtonGame {
@@ -306,6 +364,7 @@ pub mod button_game {
                 presses: 0,
                 total_rewards: 0,
                 round: 0,
+                halted: false,
             };
 
             Self::emit_event(
