@@ -40,7 +40,7 @@ runs:
         rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
 
     - name: Add target (optional)
-      if: inputs.toolchain != ''
+      if: inputs.target != ''
       shell: bash
       run: |
         rustup target add wasm32-unknown-unknown \
