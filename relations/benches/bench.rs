@@ -1,9 +1,8 @@
 //
 // cargo bench
 //
-
 use criterion::{criterion_group, criterion_main, Criterion};
-use liminal_ark_relations::preimage_proving;
+use liminal_ark_relations::preimage::preimage_proving;
 
 fn preimage(c: &mut Criterion) {
     c.bench_function("preimage", |f| f.iter(preimage_proving));
