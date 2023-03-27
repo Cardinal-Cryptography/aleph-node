@@ -402,6 +402,7 @@ jobs:
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
+        with:
           toolchain: wasm32-unknown-unknown
           components: rust-src
 
