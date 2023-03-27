@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
 
       - name: Build production binary and runtime
         run: cargo build --profile production -p aleph-node

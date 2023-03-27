@@ -18,7 +18,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
           components: clippy rustfmt
 
       - name: Run Format Checks

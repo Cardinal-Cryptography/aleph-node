@@ -8,7 +8,7 @@ on:
 jobs:
   main:
     name: Build test node and runtime
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
         run: |
