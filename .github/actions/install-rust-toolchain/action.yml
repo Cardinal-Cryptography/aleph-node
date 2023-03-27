@@ -44,27 +44,34 @@ runs:
         file: 'rust-toolchain.toml'
         field: 'toolchain.targets'
 
-    - name: Read rust toolchain file
-      id: read-rust-toolchain-file
-      shell: bash
-      run: |
-        toolchain=$(cat rust-toolchain | xargs)
-        echo "toolchain=${toolchain}" >> $GITHUB_OUTPUT
-
     - name: Install rust toolchain
+      id: install-rust-toolchain
       shell: bash
+      env:
+        CHANNEL: ${{ inputs.channel || steps.toolchain-channel.outputs.value }}
       run: |
-        rustup toolchain install ${{ steps.toolchain-channel.outputs.value }}
+        if [[ -z "${{  steps.toolchain-channel.outputs.value }}" ]]; then
+          echo "Could not find value for toolchain.channel in rust-toolchain.toml!"
+          exit 1
+        fi
+        rustup toolchain install ${{ env.CHANNEL }}
+        echo "channel=${{ env.CHANNEL }}" >> $GITHUB_OUTPUT
 
     - name: Add components (optional)
-      if: inputs.components != ''
+      if: inputs.components != '' || steps.toolchain-components.outputs.value != ''
       shell: bash
+      env:
+        COMPONENTS: ${{ inputs.components || steps.toolchain-components.outputs.value }}
       run: |
-        rustup component add ${{ inputs.components }}
+        rustup component add ${{ env.COMPONENTS }}
 
-    - name: Add target (optional)
-      if: inputs.target != ''
+    - name: Add targets (optional)
+      if: inputs.target != '' || steps.toolchain-targets.outputs.value != ''
       shell: bash
+      env:
+        TARGETS: ${{ inputs.targets || steps.toolchain-targets.outputs.value }}
       run: |
-        rustup target add wasm32-unknown-unknown \
-          --toolchain ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
+        for target in ${{ env.TARGETS }}; do
+          rustup target add "${target}" \
+          --toolchain ${{ steps.install-rust-toolchain.outputs.channel }}
+        done
