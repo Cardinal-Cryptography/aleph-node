@@ -20,7 +20,7 @@ runs:
       shell: bash
       run: |
         toolchain=$(cat rust-toolchain | xargs)
-        echo "${toolchain}" >> $GITHUB_PATH
+        echo "toolchain=${toolchain}" >> $GITHUB_OUTPUT
 
     - name: Install rust toolchain
       shell: bash
