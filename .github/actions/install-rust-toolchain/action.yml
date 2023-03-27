@@ -15,7 +15,14 @@ runs:
           echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
         fi
 
+    - name: Read rust toolchain file
+      id: read-rust-toolchain-file
+      shell: bash
+      run: |
+        toolchain=$(cat rust-toolchain | xargs)
+        echo "${toolchain}" >> $GITHUB_PATH
+
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install --target wasm32-unknown-unknown $(cat rust-toolchain)
+        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }} --target wasm32-unknown-unknown
