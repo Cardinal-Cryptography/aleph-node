@@ -26,8 +26,10 @@ jobs:
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
-#        with:
-#          targets: wasm32-unknown-unknown
+        with:
+          channel: nightly-2022-10-29
+          targets: wasm32-unknown-unknown wasm32-unknown-unknown
+          components: clippy rustfmt clippy
 
       - name: Build test binary and runtime
         run: |
