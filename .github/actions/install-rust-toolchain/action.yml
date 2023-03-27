@@ -3,6 +3,9 @@ name: Install rust toolchain
 description: |
   Reads rust toolchain from rust-toolchain file and installs it. Optionally add given target.
 inputs:
+  channel:
+    description: Optional cargo target to install
+    required: false
   targets:
     description: Optional cargo target to install
     required: false
