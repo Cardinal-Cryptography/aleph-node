@@ -39,6 +39,12 @@ runs:
       run: |
         rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
 
+    - name: Add components (optional)
+      if: inputs.components != ''
+      shell: bash
+      run: |
+        rustup component add "${{ inputs.components }}"
+
     - name: Add target (optional)
       if: inputs.target != ''
       shell: bash
@@ -46,9 +52,4 @@ runs:
         rustup target add wasm32-unknown-unknown \
           --toolchain ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
 
-    - name: Add components (optional)
-      if: inputs.components != ''
-      shell: bash
-      run: |
-        rustup component add "${{ inputs.components }}"
 
