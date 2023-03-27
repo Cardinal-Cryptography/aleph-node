@@ -21,14 +21,14 @@ use crate::{
         manager::aggregator::AggregatorVersion::{Current, Legacy},
         AuthoritySubtaskCommon, Task,
     },
+    sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
     BlockHashNum, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, Metrics,
     SessionBoundaries, STATUS_REPORT_INTERVAL,
-    sync::substrate::Justification,
-    sync::{JustificationSubmissions, JustificationTranslator},
 };
 
 /// IO channels used by the aggregator task.
-pub struct IO<B, JS, JT> where
+pub struct IO<B, JS, JT>
+where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
@@ -82,7 +82,7 @@ where
         Err(e) => {
             error!(target: "aleph-party", "Issue with translating justification from Aggregator to Sync Justification: {}.", e);
             return Err(());
-        },
+        }
     };
     if let Err(e) = justifications_for_chain.submit(justification) {
         error!(target: "aleph-party", "Issue with sending justification from Aggregator to JustificationHandler {}.", e);

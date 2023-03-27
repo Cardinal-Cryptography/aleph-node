@@ -1,12 +1,15 @@
-use std::sync::Arc;
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::{
+    fmt::{Display, Error as FmtError, Formatter},
+    sync::Arc,
+};
+
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
-use sp_blockchain::{Backend as _, Error as BackendError};
-use sc_client_api::{Backend as _, blockchain::HeaderBackend};
+use sc_client_api::{blockchain::HeaderBackend, Backend as _};
 use sc_service::TFullBackend;
-use sp_blockchain::Info;
+use sp_blockchain::{Backend as _, Error as BackendError, Info};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
+
 use crate::{
     justification::backwards_compatible_decode,
     sync::{
@@ -104,7 +107,8 @@ where
 
     fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, BackendError> {
         let justification = match self
-            .backend.blockchain()
+            .backend
+            .blockchain()
             .justifications(hash)?
             .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
         {
@@ -204,7 +208,8 @@ where
         // This checks whether we have the block at all and the provided id is consistent.
         self.header(&id)?;
         Ok(self
-            .backend.blockchain()
+            .backend
+            .blockchain()
             .children(id.hash)?
             .into_iter()
             .map(|hash| self.header_for_hash(hash))

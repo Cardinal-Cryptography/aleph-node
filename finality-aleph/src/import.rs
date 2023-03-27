@@ -1,6 +1,6 @@
-use std::{collections::HashMap, time::Instant, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, time::Instant};
 
-use aleph_primitives::{ALEPH_ENGINE_ID, BlockNumber};
+use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
 use sc_consensus::{
@@ -97,7 +97,9 @@ enum SendJustificationError<H: Header<Number = BlockNumber>, TE: Debug> {
     Translate(TE),
 }
 
-impl<H: Header<Number = BlockNumber>, TE: Debug> From<DecodeError> for SendJustificationError<H, TE> {
+impl<H: Header<Number = BlockNumber>, TE: Debug> From<DecodeError>
+    for SendJustificationError<H, TE>
+{
     fn from(decode_error: DecodeError) -> Self {
         Self::Decode(decode_error)
     }
@@ -136,9 +138,14 @@ where
         }
         let justification_raw = justification.1;
         let aleph_justification = backwards_compatible_decode(justification_raw)?;
-        let justification = self.translator.translate(aleph_justification, hash, number).map_err(SendJustificationError::Translate)?;
+        let justification = self
+            .translator
+            .translate(aleph_justification, hash, number)
+            .map_err(SendJustificationError::Translate)?;
 
-        self.justification_tx.unbounded_send(justification).map_err(SendJustificationError::Send)
+        self.justification_tx
+            .unbounded_send(justification)
+            .map_err(SendJustificationError::Send)
     }
 }
 

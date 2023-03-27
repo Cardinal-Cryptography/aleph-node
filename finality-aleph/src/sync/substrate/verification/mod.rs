@@ -13,14 +13,11 @@ use crate::{
     session_map::AuthorityProvider,
     sync::{
         substrate::{
-            verification::{
-                cache::CacheError,
-                verifier::SessionVerificationError,
-            },
+            verification::{cache::CacheError, verifier::SessionVerificationError},
             Justification,
         },
         Verifier,
-    }
+    },
 };
 
 mod cache;

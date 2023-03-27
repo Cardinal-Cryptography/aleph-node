@@ -1,3 +1,5 @@
+use aleph_primitives::BlockNumber;
+use finality_aleph::{AlephJustification, Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::{
     core::{error::Error as JsonRpseeError, RpcResult},
@@ -5,12 +7,8 @@ use jsonrpsee::{
     types::error::{CallError, ErrorObject},
 };
 use serde::Serialize;
-use finality_aleph::AlephJustification;
 use sp_api::BlockT;
-use sp_runtime::traits::NumberFor;
-use finality_aleph::{Justification, JustificationTranslator};
-use aleph_primitives::BlockNumber;
-use sp_runtime::traits::Header;
+use sp_runtime::traits::{Header, NumberFor};
 
 /// System RPC errors.
 #[derive(Debug, thiserror::Error)]
@@ -71,7 +69,7 @@ where
     JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
 {
     import_justification_tx: mpsc::UnboundedSender<Justification<B::Header>>,
-    justification_translator: JT
+    justification_translator: JT,
 }
 
 impl<B, JT> AlephNode<B, JT>
@@ -81,7 +79,6 @@ where
     B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
     NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
     JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
-
 {
     pub fn new(
         import_justification_tx: mpsc::UnboundedSender<Justification<B::Header>>,
@@ -114,12 +111,12 @@ where
                     "Provided justification cannot be converted into correct type".into(),
                 )
             })?);
-        let justification = self.justification_translator.translate(
-            justification,
-            hash,
-            number,
-        ).map_err(|_e| Error::MalformattedJustificationArg("todo".into()))?; // todo - proper error
-        self.import_justification_tx.unbounded_send(justification)
+        let justification = self
+            .justification_translator
+            .translate(justification, hash, number)
+            .map_err(|_e| Error::MalformattedJustificationArg("todo".into()))?; // todo - proper error
+        self.import_justification_tx
+            .unbounded_send(justification)
             .map_err(|_| {
                 Error::FailedJustificationSend(
                     "AlephNodeApiServer failed to send JustifictionNotification via its channel"

@@ -8,11 +8,8 @@ use std::{
 use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig,
-    Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
-    TracingBlockImport,
-    Justification,
-    SubstrateChainStatus,
+    run_validator_node, AlephBlockImport, AlephConfig, Justification, Metrics, MillisecsPerBlock,
+    Protocol, ProtocolNaming, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -151,8 +148,11 @@ pub fn new_partial(
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
     let justification_translator = SubstrateChainStatus::new(backend.clone());
-    let aleph_block_import =
-        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone(), justification_translator);
+    let aleph_block_import = AlephBlockImport::new(
+        tracing_block_import.clone(),
+        justification_tx.clone(),
+        justification_translator,
+    );
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
@@ -260,7 +260,6 @@ fn setup(
         let client = client.clone();
         let pool = transaction_pool.clone();
         Box::new(move |deny_unsafe, _| {
-
             let deps: crate::rpc::FullDeps<Block, _, _, _> = crate::rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),

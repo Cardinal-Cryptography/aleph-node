@@ -31,11 +31,10 @@ use crate::{
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
     },
-    AuthorityId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData,
-    Metrics, NodeIndex, SessionBoundaries, SessionId, SessionPeriod, UnitCreationDelay,
-    VersionedNetworkData, SessionBoundaryInfo,
-    sync::{JustificationSubmissions, JustificationTranslator},
-    sync::substrate::Justification,
+    sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
+    AuthorityId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, Metrics, NodeIndex,
+    SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod, UnitCreationDelay,
+    VersionedNetworkData,
 };
 
 mod aggregator;
@@ -390,7 +389,8 @@ where
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager
+    for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,

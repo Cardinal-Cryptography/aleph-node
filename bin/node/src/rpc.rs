@@ -20,7 +20,8 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::Header;
 
 /// Full client dependencies.
-pub struct FullDeps<B, C, P, JT> where
+pub struct FullDeps<B, C, P, JT>
+where
     B: BlockT,
     B::Header: Header<Number = BlockNumber>,
     JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
@@ -68,7 +69,9 @@ where
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
-    module.merge(AlephNode::<B, JT>::new(import_justification_tx, justification_translator).into_rpc())?;
+    module.merge(
+        AlephNode::<B, JT>::new(import_justification_tx, justification_translator).into_rpc(),
+    )?;
 
     Ok(module)
 }

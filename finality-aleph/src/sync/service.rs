@@ -167,7 +167,11 @@ impl<
         }
     }
 
-    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: Option<N::PeerId>) {
+    fn handle_justifications(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        peer: Option<N::PeerId>,
+    ) {
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
@@ -224,7 +228,9 @@ impl<
                 self.handle_request(request, peer.clone());
                 self.handle_state(state, peer)
             }
-            RequestResponse(justifications) => self.handle_justifications(justifications, Some(peer)),
+            RequestResponse(justifications) => {
+                self.handle_justifications(justifications, Some(peer))
+            }
         }
     }
 

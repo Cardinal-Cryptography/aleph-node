@@ -5,9 +5,7 @@ use sp_runtime::traits::{Block, Header, NumberFor};
 pub use validator_node::run_validator_node;
 
 use crate::{
-    justification::{
-        SessionInfo, SessionInfoProvider,
-    },
+    justification::{SessionInfo, SessionInfoProvider},
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,

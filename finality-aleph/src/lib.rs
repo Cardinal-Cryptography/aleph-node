@@ -19,6 +19,7 @@ use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
+
 use crate::{
     abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
@@ -54,9 +55,10 @@ pub use nodes::run_validator_node;
 pub use session::SessionPeriod;
 
 use crate::compatibility::{Version, Versioned};
-pub use crate::metrics::Metrics;
-pub use crate::sync::substrate::Justification;
-pub use crate::sync::{JustificationTranslator, SubstrateChainStatus};
+pub use crate::{
+    metrics::Metrics,
+    sync::{substrate::Justification, JustificationTranslator, SubstrateChainStatus},
+};
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
@@ -239,7 +241,8 @@ impl<H> From<(H, BlockNumber)> for HashNum<H, BlockNumber> {
 
 pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
 
-pub struct AlephConfig<B, H, C, SC, CS> where
+pub struct AlephConfig<B, H, C, SC, CS>
+where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     H: ExHashT,

@@ -13,6 +13,7 @@ use sp_runtime::traits::{Block, Header};
 
 use crate::{
     crypto::AuthorityPen,
+    finalization::AlephFinalizer,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
@@ -24,10 +25,11 @@ use crate::{
     },
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
+    sync::{
+        ChainStatus, JustificationTranslator, Service as SyncService, SubstrateChainStatusNotifier,
+        SubstrateFinalizationInfo, SubstrateJustification, VerifierCache,
+    },
     AlephConfig,
-    sync::Service as SyncService,
-    finalization::AlephFinalizer,
-    sync::{JustificationTranslator, ChainStatus, SubstrateFinalizationInfo, VerifierCache, SubstrateChainStatusNotifier, SubstrateJustification},
 };
 
 const VERIFIER_CACHE_SIZE: usize = 2;
@@ -125,7 +127,7 @@ where
         session_period,
         SubstrateFinalizationInfo::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
-        VERIFIER_CACHE_SIZE
+        VERIFIER_CACHE_SIZE,
     );
     let finalizer = AlephFinalizer::new(client.clone());
     let (sync_service, justifications_for_sync) = match SyncService::new(

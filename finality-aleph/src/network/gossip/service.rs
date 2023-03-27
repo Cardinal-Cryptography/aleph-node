@@ -122,7 +122,8 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         let (messages_for_authentication_user, messages_from_authentication_service) =
             mpsc::unbounded();
         let (messages_for_block_sync_user, messages_from_block_sync_service) = mpsc::unbounded();
-        let (messages_for_authentication_service, messages_from_authentication_user) = mpsc::unbounded();
+        let (messages_for_authentication_service, messages_from_authentication_user) =
+            mpsc::unbounded();
         let (messages_for_block_sync_service, messages_from_block_sync_user) = mpsc::unbounded();
         (
             Service {
@@ -148,12 +149,18 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         )
     }
 
-    fn get_authentication_sender(&mut self, peer: &N::PeerId) -> Option<&mut TracingUnboundedSender<AD>> {
-            self.authentication_peer_senders.get_mut(peer)
+    fn get_authentication_sender(
+        &mut self,
+        peer: &N::PeerId,
+    ) -> Option<&mut TracingUnboundedSender<AD>> {
+        self.authentication_peer_senders.get_mut(peer)
     }
 
-    fn get_block_sync_sender(&mut self, peer: &N::PeerId) -> Option<&mut TracingUnboundedSender<BSD>> {
-            self.block_sync_peer_senders.get_mut(peer)
+    fn get_block_sync_sender(
+        &mut self,
+        peer: &N::PeerId,
+    ) -> Option<&mut TracingUnboundedSender<BSD>> {
+        self.block_sync_peer_senders.get_mut(peer)
     }
 
     fn peer_sender<D: Data>(
@@ -190,11 +197,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         }
     }
 
-    fn send_to_authentication_peer(
-        &mut self,
-        data: AD,
-        peer: N::PeerId,
-    ) -> Result<(), SendError> {
+    fn send_to_authentication_peer(&mut self, data: AD, peer: N::PeerId) -> Result<(), SendError> {
         match self.get_authentication_sender(&peer) {
             Some(sender) => {
                 match sender.unbounded_send(data) {
@@ -213,11 +216,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         }
     }
 
-    fn send_to_block_sync_peer(
-        &mut self,
-        data: BSD,
-        peer: N::PeerId,
-    ) -> Result<(), SendError> {
+    fn send_to_block_sync_peer(&mut self, data: BSD, peer: N::PeerId) -> Result<(), SendError> {
         match self.get_block_sync_sender(&peer) {
             Some(sender) => {
                 match sender.unbounded_send(data) {
@@ -307,10 +306,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         }
     }
 
-    fn handle_network_event(
-        &mut self,
-        event: Event<N::PeerId>,
-    ) -> Result<(), ()> {
+    fn handle_network_event(&mut self, event: Event<N::PeerId>) -> Result<(), ()> {
         use Event::*;
         match event {
             StreamOpened(peer, protocol) => {
