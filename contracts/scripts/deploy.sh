@@ -226,12 +226,6 @@ function deploy_wrapped_azero {
 
   echo "wrapped Azero contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEGES ON THE CONTRACT
-
-  cd "$CONTRACTS_PATH"/access_control
-
-  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-
   eval "$__resultvar='$contract_address'"
 }
 
