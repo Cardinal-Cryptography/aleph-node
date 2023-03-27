@@ -25,4 +25,5 @@ runs:
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }} --target wasm32-unknown-unknown
+        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }} \
+          --target wasm32-unknown-unknown
