@@ -2,11 +2,8 @@
 name: Nightly pipeline
 
 on:
-  push:
-    branches:
-      - A0-2174-fix-nightly-pipeline-failing-due-to-missing-artifact
-  # schedule:
-  #   git st- cron: '00 23 * * *'
+  schedule:
+    cron: '00 23 * * *'
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
