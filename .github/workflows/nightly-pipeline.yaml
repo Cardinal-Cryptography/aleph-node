@@ -89,7 +89,7 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          toolchain: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown
 
       - name: Download artifact
         uses: actions/download-artifact@v2
@@ -121,7 +121,7 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          toolchain: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown
 
       - name: Build binary and docker image
         run: |

@@ -19,7 +19,7 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
-          toolchain: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown
 
       - name: Download production runtime from artifacts
         uses: actions/download-artifact@v3
