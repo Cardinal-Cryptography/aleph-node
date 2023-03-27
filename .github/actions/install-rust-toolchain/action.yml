@@ -50,5 +50,5 @@ runs:
       if: inputs.components != ''
       shell: bash
       run: |
-        rustup components add "${{ inputs.components }}"
+        rustup component add "${{ inputs.components }}"
 
