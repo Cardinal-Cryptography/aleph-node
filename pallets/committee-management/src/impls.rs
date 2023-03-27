@@ -535,10 +535,12 @@ mod tests {
                     session_index,
                     reserved_seats,
                     non_reserved_seats,
+                    non_reserved_seats + non_reserved_seats,
                     &reserved,
                     &non_reserved,
                 )
                 .expect("Expected non-empty rotated committee!")
+                .block_producers
             );
         }
     }
