@@ -15,6 +15,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod impls;
+mod migration;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -23,6 +24,7 @@ mod traits;
 
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
+pub use migration::Migration as CommitteeSizeMigration;
 pub use pallet::*;
 pub use primitives::EraValidators;
 use scale_info::TypeInfo;
@@ -33,7 +35,7 @@ use sp_std::{
 
 pub type TotalReward = u32;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
@@ -212,6 +214,7 @@ pub mod pallet {
             let CommitteeSeats {
                 reserved_seats: reserved,
                 non_reserved_seats: non_reserved,
+                ..
             } = committee_size;
             let reserved_len = reserved_validators.len() as u32;
             let non_reserved_len = non_reserved_validators.len() as u32;

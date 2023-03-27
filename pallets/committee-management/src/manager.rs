@@ -1,10 +1,11 @@
 use frame_support::log::debug;
 use pallet_session::SessionManager;
-use primitives::EraManager;
+use primitives::{EraManager, FinalityCommitteeManager};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
+    impls::SessionCommittee,
     pallet::{Config, Pallet, SessionValidatorBlockCount},
     traits::EraInfoProvider,
 };
@@ -118,7 +119,14 @@ where
             Pallet::<C>::emit_fresh_bans_event();
         }
 
-        Pallet::<C>::rotate_committee(new_index)
+        let SessionCommittee {
+            finality_committee,
+            block_producers,
+        } = Pallet::<C>::rotate_committee(new_index)?;
+        // Notify about elected next session finality committee
+        C::FinalityCommitteeManager::next_session_finality_committee(finality_committee);
+
+        Some(block_producers)
     }
 
     fn end_session(end_index: SessionIndex) {
