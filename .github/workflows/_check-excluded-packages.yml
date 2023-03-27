@@ -71,11 +71,11 @@ jobs:
           cd baby-liminal-extension/
           ${CHECK}
           ${CHECK} --features ink
-          
+
           cd ../poseidon/
           ${CHECK}
           ${CHECK} --features circuit
-          
+
           cd ../relations/
           ${CHECK}
           ${CHECK} --features circuit
