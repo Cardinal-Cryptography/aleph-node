@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use std::{
     fmt::{Display, Error as FmtError, Formatter},
-    marker::PhantomData,
 };
+
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
 use sp_blockchain::{Backend, Error as ClientError};
+use sc_client_api::blockchain::HeaderBackend;
 
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 
@@ -62,32 +63,29 @@ impl<B: BlockT> From<ClientError> for Error<B> {
 
 /// Substrate implementation of ChainStatus trait
 #[derive(Clone)]
-pub struct SubstrateChainStatus<B, BE>
+pub struct SubstrateChainStatus<B>
 where
-    BE: Backend<B>,
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    client: BE,
-    _phantom: PhantomData<B>,
+    backend: Arc<sc_service::TFullBackend<B>>,
 }
 
-impl<B, BE> SubstrateChainStatus<B, BE>
+impl<B> SubstrateChainStatus<B>
 where
-    BE: Backend<B>,
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    pub fn new(client: BE) -> Self {
-        Self { client, _phantom: PhantomData }
+    pub fn new(backend: Arc<sc_service::TFullBackend<B>>) -> Self {
+        Self { backend }
     }
 
     fn hash_for_number(&self, number: BlockNumber) -> Result<Option<B::Hash>, ClientError> {
-        self.client.hash(number)
+        self.backend.blockchain().hash(number)
     }
 
     fn header_for_hash(&self, hash: B::Hash) -> Result<Option<B::Header>, ClientError> {
-        self.client.header(hash)
+        self.backend.blockchain().header(hash)
     }
 
     fn header(
@@ -106,7 +104,7 @@ where
 
     fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, ClientError> {
         let justification = match self
-            .client
+            .backend.blockchain()
             .justifications(hash)?
             .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
         {
@@ -128,17 +126,16 @@ where
     }
 
     fn best_hash(&self) -> B::Hash {
-        self.client.info().best_hash
+        self.backend.blockchain().info().best_hash
     }
 
     fn finalized_hash(&self) -> B::Hash {
-        self.client.info().finalized_hash
+        self.backend.blockchain().info().finalized_hash
     }
 }
 
-impl<B, BE> ChainStatus<Justification<B::Header>> for SubstrateChainStatus<B, BE>
+impl<B> ChainStatus<Justification<B::Header>> for SubstrateChainStatus<B>
 where
-    BE: Backend<B>,
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
@@ -207,7 +204,7 @@ where
         // This checks whether we have the block at all and the provided id is consistent.
         self.header(&id)?;
         Ok(self
-            .client
+            .backend.blockchain()
             .children(id.hash)?
             .into_iter()
             .map(|hash| self.header_for_hash(hash))
