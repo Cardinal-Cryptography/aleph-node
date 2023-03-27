@@ -17,6 +17,9 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: ./.github/actions/install-rust-toolchain
+        with:
+          toolchain: wasm32-unknown-unknown
+          components: clippy rustfmt
 
       - name: Install clippy and fmt
         run: rustup component add clippy rustfmt

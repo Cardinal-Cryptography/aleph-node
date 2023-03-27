@@ -402,10 +402,12 @@ jobs:
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
+          toolchain: wasm32-unknown-unknown
+          components: rust-src
 
-      - name: Install rust-src
-        working-directory: ./contracts
-        run: rustup component add rust-src
+#      - name: Install rust-src
+#        working-directory: ./contracts
+#        run: rustup component add rust-src
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test

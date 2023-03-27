@@ -1,7 +1,15 @@
 ---
 name: Install rust toolchain
 description: |
-  Reads rust toolchain from rust-toolchain file, installs it with wasm32-unknown-unknown target
+  Reads rust toolchain from rust-toolchain file and installs it. Optionally add given target.
+inputs:
+  target:
+    description: Optional cargo target to install
+    required: false
+  components:
+    description: Optional list of cargo components to install
+    required: false
+
 runs:
   using: composite
   steps:
@@ -19,11 +27,28 @@ runs:
       id: read-rust-toolchain-file
       shell: bash
       run: |
+        if [[ ! -f rust-toolchain ]]; then
+          echo "rust-toolchain file does not exist in root of the repo!"
+          exit 1
+        fi
         toolchain=$(cat rust-toolchain | xargs)
         echo "toolchain=${toolchain}" >> $GITHUB_OUTPUT
 
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }} \
-          --target wasm32-unknown-unknown
+        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
+
+    - name: Add target (optional)
+      if: inputs.toolchain != ''
+      shell: bash
+      run: |
+        rustup target add wasm32-unknown-unknown \
+          --toolchain ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
+
+    - name: Add components (optional)
+      if: inputs.components != ''
+      shell: bash
+      run: |
+        rustup components add "${{ inputs.components }}
+
