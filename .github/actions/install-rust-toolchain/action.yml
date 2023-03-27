@@ -23,21 +23,38 @@ runs:
           echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
         fi
 
+    - name: Read channel from rust-toolchain.toml
+      id: toolchain-channel
+      uses: SebRollen/toml-action@v1.0.2
+      with:
+        file: 'rust-toolchain.toml'
+        field: 'toolchain.channel'
+
+    - name: Read components from rust-toolchain.toml
+      id: toolchain-components
+      uses: SebRollen/toml-action@v1.0.2
+      with:
+        file: 'rust-toolchain.toml'
+        field: 'toolchain.components'
+
+    - name: Read targets from rust-toolchain.toml
+      id: toolchain-targets
+      uses: SebRollen/toml-action@v1.0.2
+      with:
+        file: 'rust-toolchain.toml'
+        field: 'toolchain.targets'
+
     - name: Read rust toolchain file
       id: read-rust-toolchain-file
       shell: bash
       run: |
-        if [[ ! -f rust-toolchain ]]; then
-          echo "rust-toolchain file does not exist in root of the repo!"
-          exit 1
-        fi
         toolchain=$(cat rust-toolchain | xargs)
         echo "toolchain=${toolchain}" >> $GITHUB_OUTPUT
 
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install ${{ steps.read-rust-toolchain-file.outputs.toolchain }}
+        rustup toolchain install ${{ steps.toolchain-channel.outputs.channel }}
 
     - name: Add components (optional)
       if: inputs.components != ''

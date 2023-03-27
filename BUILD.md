@@ -101,4 +101,4 @@ cargo build --release
 [nix]: https://nixos.org/download.html
 [rustup]: https://rustup.rs/
 [docker]: https://docs.docker.com/engine/install/ubuntu/
-[rust-toolchain]: ./rust-toolchain
+[rust-toolchain]: ./rust-toolchain.toml
