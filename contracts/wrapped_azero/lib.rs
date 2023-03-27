@@ -79,12 +79,6 @@ pub mod wrapped_azero {
     /// Event type
     pub type Event = <WrappedAzero as ContractEventBase>::Type;
 
-    #[ink(event)]
-    pub struct Halted {}
-
-    #[ink(event)]
-    pub struct Resumed {}
-
     /// Event emitted when a token transfer occurs.
     #[ink(event)]
     #[derive(Debug)]
@@ -142,6 +136,19 @@ pub mod wrapped_azero {
                 psp22: psp22::Data::default(),
                 metadata,
             }
+        }
+
+        /// Terminates the contract.
+        ///
+        /// No-op by default, can only be compiled with a flag in dev environments
+        #[ink(message)]
+        pub fn terminate(&mut self) -> Result<()> {
+            cfg_if::cfg_if! { if #[cfg( feature = "devnet" )] {
+                let caller = self.env().caller();
+                self.env().terminate_contract(caller)
+            } else {
+                panic!("this contract cannot be terminated")
+            }}
         }
 
         /// Wraps the transferred amount of native token and mints it to the callers account
