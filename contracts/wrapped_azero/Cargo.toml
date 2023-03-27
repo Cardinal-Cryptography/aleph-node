@@ -13,8 +13,6 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 
 num-traits = { version = "0.2", default-features = false }
-access_control = { path = "../access_control", default-features = false, features = ["ink-as-dependency"] }
-shared_traits = { path = "../shared_traits", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
 name = "wrapped_azero"
@@ -29,14 +27,12 @@ crate-type = [
 [features]
 default = ["std"]
 std = [
-    "access_control/std",
     "ink/std",
     "num-traits/std",
     "openbrush/std",
     "scale-info",
     "scale-info/std",
-    "scale/std",
-    "shared_traits/std",
+    "scale/std"
 ]
 ink-as-dependency = []
 

@@ -248,13 +248,16 @@ pub mod marketplace {
         /// Update the length of the auction.
         ///
         /// Can only be called by an account with an Admin role
+        /// and only if the contract is currently halted
         #[ink(message)]
         pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
+            if self.is_halted() {
+                self.ensure_role(self.admin())?;
 
-            self.auction_length = new_auction_length;
-
-            Ok(())
+                self.auction_length = new_auction_length;
+                return Ok(());
+            }
+            Err(Error::HaltableError(HaltableError::NotInHaltedState))
         }
 
         /// Address of the reward token contract this contract will accept as payment.

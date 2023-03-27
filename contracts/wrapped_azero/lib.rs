@@ -8,20 +8,16 @@ pub use crate::wrapped_azero::{
 
 #[openbrush::contract]
 pub mod wrapped_azero {
-    use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::call::FromAccountId,
         prelude::format,
         reflect::ContractEventBase,
-        ToAccountId,
     };
     use num_traits::identities::Zero;
     use openbrush::{
         contracts::psp22::{extensions::metadata::*, Internal, PSP22Error},
         traits::Storage,
     };
-    use shared_traits::{Haltable, HaltableError, HaltableResult};
 
     pub const BALANCE_OF_SELECTOR: [u8; 4] = [0x65, 0x68, 0x38, 0x2f];
     pub const TRANSFER_SELECTOR: [u8; 4] = [0xdb, 0x20, 0xf9, 0xf5];
@@ -35,57 +31,6 @@ pub mod wrapped_azero {
         psp22: psp22::Data,
         #[storage_field]
         metadata: metadata::Data,
-        access_control: AccessControlRef,
-        halted: bool,
-    }
-
-    impl Haltable for WrappedAzero {
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn halt(&mut self) -> HaltableResult<()> {
-            if !self.is_halted() {
-                let caller = self.env().caller();
-                let this = self.env().account_id();
-                self.check_role(caller, Role::Admin(this))?;
-                self.halted = true;
-                Self::emit_event(self.env(), Event::Halted(Halted {}));
-            }
-
-            Ok(())
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn resume(&mut self) -> HaltableResult<()> {
-            if self.is_halted() {
-                let caller = self.env().caller();
-                let this = self.env().account_id();
-                self.check_role(caller, Role::Admin(this))?;
-                self.halted = false;
-                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            }
-
-            Ok(())
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        fn is_halted(&self) -> bool {
-            self.halted
-        }
-
-        /// Returns an error if the contract in a halted state
-        #[ink(message)]
-        fn check_halted(&self) -> HaltableResult<()> {
-            if self.halted {
-                return Err(HaltableError::InHaltedState);
-            }
-            Ok(())
-        }
     }
 
     impl Default for WrappedAzero {
@@ -186,39 +131,22 @@ pub mod wrapped_azero {
         /// Will revert if called from an account without a proper role
         #[ink(constructor)]
         pub fn new() -> Self {
-            let caller = Self::env().caller();
-            let code_hash = Self::env()
-                .own_code_hash()
-                .expect("Called new on a contract with no code hash");
+            let metadata = metadata::Data {
+                name: Some("wAzero".into()),
+                symbol: Some("wA0".into()),
+                decimals: 12, // same as AZERO
+                ..Default::default()
+            };
 
-            let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
-            let access_control = AccessControlRef::from_account_id(access_control);
-            if access_control.has_role(caller, Role::Initializer(code_hash)) {
-                let metadata = metadata::Data {
-                    name: Some("wAzero".into()),
-                    symbol: Some("wA0".into()),
-                    decimals: 12, // same as AZERO
-                    ..Default::default()
-                };
-
-                Self {
-                    psp22: psp22::Data::default(),
-                    metadata,
-                    access_control,
-                    halted: false,
-                }
-            } else {
-                panic!("Caller is not allowed to initialize this contract");
+            Self {
+                psp22: psp22::Data::default(),
+                metadata,
             }
         }
 
         /// Wraps the transferred amount of native token and mints it to the callers account
         #[ink(message, payable)]
         pub fn wrap(&mut self) -> Result<()> {
-            if self.halted {
-                return Err(PSP22Error::Custom("ContractIsHalted".into()));
-            }
-
             let caller = self.env().caller();
             let amount = self.env().transferred_value();
             if !amount.eq(&Balance::zero()) {
@@ -232,10 +160,6 @@ pub mod wrapped_azero {
         /// Unwraps a specified amount
         #[ink(message)]
         pub fn unwrap(&mut self, amount: Balance) -> Result<()> {
-            if self.halted {
-                return Err(PSP22Error::Custom("ContractIsHalted".into()));
-            }
-
             if amount.eq(&Balance::zero()) {
                 return Ok(());
             }
@@ -254,39 +178,6 @@ pub mod wrapped_azero {
             Ok(())
         }
 
-        /// Terminates the contract.
-        ///
-        /// can only be called by the contract's Admin
-        #[ink(message)]
-        pub fn terminate(&mut self) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-
-            self.check_role(caller, required_role)?;
-            self.env().terminate_contract(caller)
-        }
-
-        /// Returns the contract's access control contract address
-        #[ink(message)]
-        pub fn access_control(&self) -> AccountId {
-            self.access_control.to_account_id()
-        }
-
-        /// Sets new access control contract address
-        ///
-        /// Can only be called by the contract's Admin
-        #[ink(message)]
-        pub fn set_access_control(&mut self, access_control: AccountId) -> Result<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-
-            self.check_role(caller, Role::Admin(this))?;
-
-            self.access_control = AccessControlRef::from_account_id(access_control);
-            Ok(())
-        }
-
         /// Returns own code hash
         #[ink(message)]
         pub fn code_hash(&self) -> Result<Hash> {
@@ -297,14 +188,6 @@ pub mod wrapped_azero {
 
         pub fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
-        }
-
-        fn check_role(&self, account: AccountId, role: Role) -> Result<()> {
-            if self.access_control.has_role(account, role) {
-                Ok(())
-            } else {
-                Err(PSP22Error::Custom(format!("MissingRole:{:?}", role).into()))
-            }
         }
     }
 }

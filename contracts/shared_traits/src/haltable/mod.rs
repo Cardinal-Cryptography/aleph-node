@@ -5,6 +5,7 @@ use openbrush::contracts::psp22::PSP22Error;
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum HaltableError {
     InHaltedState,
+    NotInHaltedState,
     Custom(String),
 }
 
