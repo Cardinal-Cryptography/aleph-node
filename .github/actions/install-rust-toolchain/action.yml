@@ -76,6 +76,6 @@ runs:
       run: |
         targets=$(echo ${{ env.TARGETS }} | tr -d '[]' | sed 's/,/ /g')
         for target in $targets; do
-          rustup target add ${target} \
+          rustup target add $target \
           --toolchain ${{ steps.install-rust-toolchain.outputs.channel }}
         done
