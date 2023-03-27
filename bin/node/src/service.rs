@@ -16,7 +16,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::{Backend, BlockBackend, HeaderBackend};
+use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
@@ -27,7 +27,6 @@ use sc_service::{
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
-use sp_blockchain::Backend as _;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
@@ -151,7 +150,7 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let justification_translator = SubstrateChainStatus::new(backend.blockchain().clone());
+    let justification_translator = SubstrateChainStatus::new(backend.clone());
     let aleph_block_import =
         AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone(), justification_translator);
 
@@ -256,18 +255,18 @@ fn setup(
             warp_sync: None,
         })?;
 
-    let chain_status = SubstrateChainStatus::new(client.clone());
+    let chain_status = SubstrateChainStatus::new(backend.clone());
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
-
         Box::new(move |deny_unsafe, _| {
-            let deps = crate::rpc::FullDeps {
+
+            let deps: crate::rpc::FullDeps<Block, _, _, _> = crate::rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                import_justification_tx,
-                chain_status,
+                import_justification_tx: import_justification_tx.clone(),
+                justification_translator: chain_status.clone(),
             };
 
             Ok(crate::rpc::create_full(deps)?)
@@ -396,6 +395,7 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
+    let chain_status = SubstrateChainStatus::new(backend.clone());
     let aleph_config = AlephConfig {
         network,
         client,
@@ -413,6 +413,7 @@ pub fn new_authority(
         validator_port: aleph_config.validator_port(),
         protocol_naming,
     };
+
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
         None,

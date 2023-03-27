@@ -118,7 +118,7 @@ where
             justification,
             hash,
             number,
-        ).map_err(|e| Error::MalformattedJustificationArg("todo".into()))?;
+        ).map_err(|_e| Error::MalformattedJustificationArg("todo".into()))?; // todo - proper error
         self.import_justification_tx.unbounded_send(justification)
             .map_err(|_| {
                 Error::FailedJustificationSend(

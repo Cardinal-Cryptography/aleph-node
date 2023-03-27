@@ -47,7 +47,7 @@ where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + Clone + 'static,
+    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     CS: ChainStatus<SubstrateJustification<B::Header>> + JustificationTranslator<B::Header>,
