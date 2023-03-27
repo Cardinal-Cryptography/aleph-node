@@ -79,7 +79,7 @@ runs:
         done
 
     - name: Add targets (optional)
-      if: inputs.target != '' || steps.toolchain-targets.outputs.value != ''
+      if: inputs.targets != '' || steps.toolchain-targets.outputs.value != ''
       shell: bash
       env:
         TARGETS: ${{ inputs.targets || steps.toolchain-targets.outputs.value }}
