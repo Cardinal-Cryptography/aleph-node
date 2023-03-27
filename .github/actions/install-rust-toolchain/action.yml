@@ -54,7 +54,7 @@ runs:
     - name: Install rust toolchain
       shell: bash
       run: |
-        rustup toolchain install ${{ steps.toolchain-channel.outputs.channel }}
+        rustup toolchain install ${{ steps.toolchain-channel.outputs.value }}
 
     - name: Add components (optional)
       if: inputs.components != ''
