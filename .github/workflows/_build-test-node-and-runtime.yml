@@ -36,7 +36,7 @@ jobs:
           --features "short_session enable_treasury_proposals only_legacy"
 
       - name: Upload test binary to GH Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: aleph-test-node
           path: target/release/aleph-node
@@ -44,7 +44,7 @@ jobs:
           retention-days: 7
 
       - name: Upload test runtime to GH Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: aleph-test-runtime
           path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
@@ -76,11 +76,20 @@ jobs:
           BINARY_DIR: target/release
           BINARY_FILE: aleph-node
           # yamllint disable-line rule:line-length
-          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-node
+          S3BUCKET_PATH: builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-node
           S3BUCKET_FILE: aleph-test-node-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
+          aws s3api head-object \
+            --bucket '${{ secrets.CI_MAINNET_S3BUCKET_NAME }}' \
+            --key '${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}' || not_exist=true
+          if [[ "${not_exist}" ]]; then
+            tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+            aws s3 cp ${{ env.S3BUCKET_FILE }} \
+              ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
+          else
+            echo "File ${{ env.S3BUCKET_FILE }} already exists on CI S3 bucket"
+          fi
 
       - name: Copy test runtime to S3 Mainnet AWS bucket
         if: >
@@ -91,8 +100,17 @@ jobs:
           BINARY_DIR: target/release/wbuild/aleph-runtime
           BINARY_FILE: aleph_runtime.compact.wasm
           # yamllint disable-line rule:line-length
-          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
+          S3BUCKET_PATH: builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
           S3BUCKET_FILE: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+          S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
         run: |
-          tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
-          aws s3 cp ${{ env.S3BUCKET_FILE }} ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}
+          aws s3api head-object \
+            --bucket '${{ secrets.CI_MAINNET_S3BUCKET_NAME }}' \
+            --key '${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}' || not_exist=true
+          if [[ "${not_exist}" ]]; then
+            tar -cvzf ${{ env.S3BUCKET_FILE }} -C ${{ env.BINARY_DIR }} ${{ env.BINARY_FILE }}
+            aws s3 cp ${{ env.S3BUCKET_FILE }} \
+              ${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_PATH }}/${{ env.S3BUCKET_FILE }}
+          else
+            echo "File ${{ env.S3BUCKET_FILE }} already exists on CI S3 bucket"
+          fi
