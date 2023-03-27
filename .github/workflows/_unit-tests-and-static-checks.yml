@@ -21,9 +21,6 @@ jobs:
           target: wasm32-unknown-unknown
           components: clippy rustfmt
 
-      - name: Install clippy and fmt
-        run: rustup component add clippy rustfmt
-
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
         with:
