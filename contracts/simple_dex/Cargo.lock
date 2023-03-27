@@ -1152,6 +1152,7 @@ name = "shared_traits"
 version = "0.1.0"
 dependencies = [
  "ink",
+ "openbrush",
  "parity-scale-codec",
  "scale-info",
 ]

@@ -974,6 +974,7 @@ dependencies = [
  "ink",
  "openbrush",
  "parity-scale-codec",
+ "scale-info",
 ]
 
 [[package]]

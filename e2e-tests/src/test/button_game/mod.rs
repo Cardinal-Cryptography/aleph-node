@@ -343,6 +343,7 @@ pub async fn button_game_reset() -> Result<()> {
         ..
     } = setup_button_test(config, &config.test_case_params.early_bird_special).await?;
 
+    let round_old = button.round(&conn).await?;
     let deadline_old = button.deadline(&conn).await?;
     let marketplace_initial = ticket_token
         .balance_of(&conn, &marketplace.as_ref().into())
@@ -365,6 +366,9 @@ pub async fn button_game_reset() -> Result<()> {
             .await?
             == marketplace_initial + 1
     );
+
+    let round_new = button.round(&conn).await?;
+    assert!(round_new > round_old);
 
     Ok(())
 }
