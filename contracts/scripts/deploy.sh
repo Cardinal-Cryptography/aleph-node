@@ -268,7 +268,7 @@ cargo_contract build --release
 
 # If randomization requested, generate random test params.
 cd "$CONTRACTS_PATH"/wrapped_azero
-if [[ "${ENV_NAME}" == "devnet" ]]; then
+if [ "${ENV_NAME}" = "devnet" ] || [ "${ENV_NAME}" = "dev" ]; then
   echo "Compiling wrapped_azero for devnet environments. This will include an unguarded terminate flag!"
   cargo_contract build --release --features devnet
 else
