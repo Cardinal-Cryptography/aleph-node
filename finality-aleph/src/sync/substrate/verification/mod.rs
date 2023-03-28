@@ -106,7 +106,7 @@ where
 
     fn verify(&mut self, justification: Justification<H>) -> Result<Justification<H>, Self::Error> {
         let header = &justification.header;
-        match justification.inner_justification {
+        match justification.clone().inner_justification {
             InnerJustification::AlephJustification(aleph_justification) => {
                 let verifier = self.get(*header.number())?;
                 verifier.verify_bytes(&aleph_justification, header.hash().encode())?;

@@ -125,8 +125,8 @@ where
         client.import_notification_stream(),
     );
 
-    let mut genesis_header = match chain_status.finalized_at(0) {
-        Ok(Some(header)) => header.clone(),
+    let genesis_header = match chain_status.finalized_at(0) {
+        Ok(Some(justification)) => justification.header().clone(),
         _ => panic!("the genesis block should be finalized"),
     };
     let verifier = VerifierCache::new(

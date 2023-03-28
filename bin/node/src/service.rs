@@ -147,7 +147,8 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let justification_translator = SubstrateChainStatus::new(backend.clone());
+    // todo - handle errors below
+    let justification_translator = SubstrateChainStatus::new(backend.clone()).unwrap();
     let aleph_block_import = AlephBlockImport::new(
         tracing_block_import.clone(),
         justification_tx.clone(),
@@ -255,7 +256,7 @@ fn setup(
             warp_sync: None,
         })?;
 
-    let chain_status = SubstrateChainStatus::new(backend.clone());
+    let chain_status = SubstrateChainStatus::new(backend.clone()).unwrap(); // todo - errors
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
