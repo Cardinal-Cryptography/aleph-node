@@ -27,7 +27,7 @@ pub mod marketplace {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::call::FromAccountId,
+        env::{call::FromAccountId, set_code_hash},
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
         LangError,
@@ -322,6 +322,14 @@ pub mod marketplace {
             let caller = self.env().caller();
             self.check_role(caller, self.admin())?;
             self.env().terminate_contract(caller)
+        }
+
+        /// Upgrades contract code
+        #[ink(message)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), Error> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
+            Ok(())
         }
 
         fn current_price(&self) -> Balance {

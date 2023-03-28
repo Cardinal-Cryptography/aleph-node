@@ -10,7 +10,7 @@ pub mod button_game {
     use ink::storage::traits::StorageLayout;
     use ink::{
         codegen::{EmitEvent, Env},
-        env::{call::FromAccountId, CallFlags},
+        env::{call::FromAccountId, set_code_hash, CallFlags},
         prelude::vec,
         reflect::ContractEventBase,
         ToAccountId,
@@ -321,6 +321,14 @@ pub mod button_game {
             let caller = self.env().caller();
             self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
+        }
+
+        /// Upgrades contract code
+        #[ink(message)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
+            Ok(())
         }
 
         //===================================================================================================

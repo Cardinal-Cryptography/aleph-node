@@ -9,7 +9,7 @@ pub mod ticket_token {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::call::FromAccountId,
+        env::{call::FromAccountId, set_code_hash},
         prelude::{format, string::String},
         reflect::ContractEventBase,
         ToAccountId,
@@ -187,6 +187,15 @@ pub mod ticket_token {
             Self::env().own_code_hash().map_err(|why| {
                 PSP22Error::Custom(format!("Can't retrieve own code hash: {:?}", why).into())
             })
+        }
+
+        /// Upgrades contract code
+        #[ink(message, selector = 11)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)
+                .map_err(|why| PSP22Error::Custom(format!("{:?}", why).into()))?;
+            Ok(())
         }
     }
 }

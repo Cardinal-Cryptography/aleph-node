@@ -14,7 +14,13 @@ type Hash = <DefaultEnvironment as Environment>::Hash;
 
 #[ink::contract]
 mod access_control {
-    use ink::{codegen::EmitEvent, reflect::ContractEventBase, storage::Mapping};
+    use ink::{
+        codegen::EmitEvent,
+        env::{set_code_hash, Error as InkEnvError},
+        prelude::{format, string::String},
+        reflect::ContractEventBase,
+        storage::Mapping,
+    };
     use scale::{Decode, Encode};
 
     use crate::roles::Role;
@@ -56,10 +62,17 @@ mod access_control {
     #[derive(Debug, PartialEq, Eq, Encode, Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum AccessControlError {
+        InkEnvError(String),
         MissingRole(Role),
     }
 
-    /// Result type    
+    impl From<InkEnvError> for AccessControlError {
+        fn from(why: InkEnvError) -> Self {
+            Self::InkEnvError(format!("{:?}", why))
+        }
+    }
+
+    /// Result type
     pub type Result<T> = core::result::Result<T, AccessControlError>;
     /// Event type
     pub type Event = <AccessControl as ContractEventBase>::Type;
@@ -131,8 +144,7 @@ mod access_control {
         #[ink(message, selector = 4)]
         pub fn terminate(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
         }
 
@@ -144,6 +156,14 @@ mod access_control {
             if !self.has_role(account, role) {
                 return Err(AccessControlError::MissingRole(role));
             }
+            Ok(())
+        }
+
+        /// Upgrades contract code
+        #[ink(message, selector = 6)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
             Ok(())
         }
 

@@ -14,7 +14,7 @@ mod simple_dex {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::{call::FromAccountId, CallFlags, Error as InkEnvError},
+        env::{call::FromAccountId, set_code_hash, CallFlags, Error as InkEnvError},
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
         LangError, ToAccountId,
@@ -429,6 +429,14 @@ mod simple_dex {
             self.env()
                 .own_code_hash()
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
+        }
+
+        /// Upgrades contract code
+        #[ink(message)]
+        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), DexError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
+            Ok(())
         }
 
         /// Swap trade output given a curve with equal token weights
