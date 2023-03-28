@@ -67,8 +67,7 @@ fn choose_finality_committee<T: Clone>(
 ) -> Vec<T> {
     let non_reserved_finality_committee = non_reserved
         .as_ref()
-        .map(|nr| choose_for_session(&nr, non_reserved_seats, session))
-        .flatten()
+        .and_then(|nr| choose_for_session(nr, non_reserved_seats, session))
         .unwrap_or_default();
 
     if let Some(r) = reserved {
