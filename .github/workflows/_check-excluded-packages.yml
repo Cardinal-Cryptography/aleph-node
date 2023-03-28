@@ -51,6 +51,8 @@ jobs:
             pushd "$p"
             rustup component add clippy rustfmt
             rustup target add wasm32-unknown-unknown
+            cargo install cargo-dylint dylint-link
+            cargo install cargo-contract --vers ^2.0 --force --locked
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
                [ $p = "contracts/access_control" ] ||
