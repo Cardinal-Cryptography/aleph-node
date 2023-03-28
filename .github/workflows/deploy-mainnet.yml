@@ -60,6 +60,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Build Docker Hub image of Testnet
+        uses: ./.github/actions/build-dockerhub-image
+        with:
+          source-image: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          target-image: cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
+
       - name: Tag and push image of Mainnet to DockerHub
         env:
           MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
@@ -67,9 +73,6 @@ jobs:
             cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
           DOCKERHUB_MAINNET_LATEST_IMAGE: cardinalcryptography/aleph-zero:mainnet-latest
         run: |
-          echo "FROM ${{ env.MAINNET_IMAGE }}" > Dockerfile.dockerhub
-          echo 'ENTRYPOINT ["/usr/local/bin/aleph-node"]' >> Dockerfile.dockerhub
-          docker build -t ${{ env.DOCKERHUB_MAINNET_IMAGE }} -f Dockerfile.dockerhub .
           docker tag ${{ env.DOCKERHUB_MAINNET_IMAGE }} ${{ env.DOCKERHUB_MAINNET_LATEST_IMAGE }}
           docker push ${{ env.DOCKERHUB_MAINNET_IMAGE }}
           docker push ${{ env.DOCKERHUB_MAINNET_LATEST_IMAGE }}
