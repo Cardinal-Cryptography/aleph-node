@@ -57,7 +57,10 @@ where
         match self.status_of(block_id)? {
             Justified(_) => Err(Error::AlreadyJustified),
             Unknown => Err(Error::NoBlock),
-            Present(header) => Ok(Justification::aleph_justification(header, aleph_justification)),
+            Present(header) => Ok(Justification::aleph_justification(
+                header,
+                aleph_justification,
+            )),
         }
     }
 }

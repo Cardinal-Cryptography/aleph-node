@@ -79,8 +79,14 @@ where
 {
     pub fn new(backend: Arc<TFullBackend<B>>) -> Result<Self, Error<B>> {
         let hash = backend.blockchain().hash(0)?.ok_or(Error::NoGenesisBlock)?;
-        let genesis_header = backend.blockchain().header(hash)?.ok_or(Error::MissingHash(hash))?;
-        Ok(Self { backend, genesis_header })
+        let genesis_header = backend
+            .blockchain()
+            .header(hash)?
+            .ok_or(Error::MissingHash(hash))?;
+        Ok(Self {
+            backend,
+            genesis_header,
+        })
     }
 
     fn info(&self) -> Info<B> {
@@ -109,7 +115,10 @@ where
         }
     }
 
-    fn justification(&self, header: B::Header) -> Result<Option<Justification<B::Header>>, BackendError> {
+    fn justification(
+        &self,
+        header: B::Header,
+    ) -> Result<Option<Justification<B::Header>>, BackendError> {
         if header == self.genesis_header {
             return Ok(Some(Justification::genesis_justification(header)));
         };
@@ -124,12 +133,17 @@ where
         };
 
         match backwards_compatible_decode(encoded_justification) {
-            Ok(aleph_justification) => Ok(Some(Justification::aleph_justification(header, aleph_justification))),
+            Ok(aleph_justification) => Ok(Some(Justification::aleph_justification(
+                header,
+                aleph_justification,
+            ))),
             // This should not happen, as we only import correctly encoded justification.
             Err(e) => {
                 warn!(
                     target: LOG_TARGET,
-                    "Could not decode stored justification for block {:?}: {}", header.hash(), e
+                    "Could not decode stored justification for block {:?}: {}",
+                    header.hash(),
+                    e
                 );
                 Ok(None)
             }
@@ -194,8 +208,7 @@ where
         let header = self
             .header_for_hash(finalized_hash)?
             .ok_or(Error::MissingHash(finalized_hash))?;
-        self
-            .justification(header)?
+        self.justification(header)?
             .ok_or(Error::MissingJustification(finalized_hash))
     }
 

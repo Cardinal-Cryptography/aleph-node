@@ -1,7 +1,6 @@
-use std::fmt::Debug;
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt::{Display, Error as FmtError, Formatter},
+    fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
 use aleph_primitives::BlockNumber;
@@ -10,7 +9,10 @@ use sp_runtime::SaturatedConversion;
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
-    sync::{Header, substrate::verification::{verifier::SessionVerifier, FinalizationInfo}},
+    sync::{
+        substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
+        Header,
+    },
     SessionPeriod,
 };
 
@@ -43,7 +45,7 @@ impl Display for CacheError {
                     "authorities for session {:?} not known even though they should be",
                     session
                 )
-            },
+            }
             BadGenesisHeader => {
                 write!(
                     f,
@@ -202,7 +204,8 @@ mod tests {
     const SESSION_PERIOD: u32 = 30;
     const CACHE_SIZE: usize = 2;
 
-    type TestVerifierCache<'a> = VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>, MockHeader>;
+    type TestVerifierCache<'a> =
+        VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>, MockHeader>;
 
     struct MockFinalizationInfo<'a> {
         finalized_number: &'a Cell<BlockNumber>,
