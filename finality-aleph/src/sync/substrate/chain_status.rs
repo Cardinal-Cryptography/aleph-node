@@ -25,6 +25,7 @@ pub enum Error<B: BlockT> {
     MissingJustification(B::Hash),
     Backend(BackendError),
     MismatchedId,
+    NoGenesisBlock,
 }
 
 impl<B: BlockT> Display for Error<B> {
@@ -49,6 +50,7 @@ impl<B: BlockT> Display for Error<B> {
                 write!(f, "substrate backend error {}", e)
             }
             MismatchedId => write!(f, "the block number did not match the block hash"),
+            NoGenesisBlock => write!(f, "genesis block not present in DB"),
         }
     }
 }
@@ -75,9 +77,9 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    pub fn new(backend: Arc<TFullBackend<B>>) -> Result<Self, BackendError> {
-        let hash = backend.blockchain().hash(0)?.unwrap(); // todo - proper errors
-        let genesis_header = backend.blockchain().header(hash)?.unwrap(); // todo - proper errors
+    pub fn new(backend: Arc<TFullBackend<B>>) -> Result<Self, Error<B>> {
+        let hash = backend.blockchain().hash(0)?.ok_or(Error::NoGenesisBlock)?;
+        let genesis_header = backend.blockchain().header(hash)?.ok_or(Error::MissingHash(hash))?;
         Ok(Self { backend, genesis_header })
     }
 
@@ -192,9 +194,9 @@ where
         let header = self
             .header_for_hash(finalized_hash)?
             .ok_or(Error::MissingHash(finalized_hash))?;
-        Ok(self
+        self
             .justification(header)?
-            .ok_or(Error::MissingJustification(finalized_hash))?)
+            .ok_or(Error::MissingJustification(finalized_hash))
     }
 
     fn children(

@@ -1,7 +1,6 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
 use aleph_primitives::BlockNumber;
-use sp_blockchain::Backend;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
@@ -40,11 +39,10 @@ impl<B: Block> From<ChainStatusError<B>> for Error<B> {
     }
 }
 
-impl<B, BE> JustificationTranslator<B::Header> for SubstrateChainStatus<B, BE>
+impl<B> JustificationTranslator<B::Header> for SubstrateChainStatus<B>
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
-    BE: Backend<B>,
 {
     type Error = Error<B>;
 
