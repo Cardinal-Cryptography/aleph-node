@@ -5,6 +5,8 @@ use std::{
     },
     fmt::{Display, Error as FmtError, Formatter},
 };
+use log::info;
+use crate::sync::LOG_TARGET;
 
 use crate::sync::{
     data::BranchKnowledge, BlockIdFor, BlockIdentifier, Header, Justification, PeerId,
@@ -288,26 +290,47 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         holder: Option<I>,
     ) -> Result<bool, Error> {
         use JustificationAddResult::*;
-        let (id, parent_id) = self.process_header(justification.header())?;
-        self.update_header(justification.header(), None, false)?;
+        info!(target: LOG_TARGET, "Sync Forest::update_justification");
+        let header = justification.header();
+        if header.parent_id().is_none() {
+            // this is the genesis block
+            info!(target: LOG_TARGET, "Sync Forest::update_justification genesis block, return Ok(false)");
+            return Ok(false);
+        }
+        let (id, parent_id) = self.process_header(header)?;
+        info!(target: LOG_TARGET, "Sync Forest::update_justification id {:?} parent_id {:?}", id, parent_id);
+        self.update_header(header, None, false)?;
         match self.get_mut(&id) {
             VertexHandle::Candidate(mut entry) => {
+                info!(target: LOG_TARGET, "Sync Forest::update_justification Candidate, inserting into vertex");
                 let vertex = &mut entry.get_mut().vertex;
                 match vertex.insert_justification(parent_id.clone(), justification, holder) {
-                    Noop => Ok(false),
+                    Noop => {
+                        info!(target: LOG_TARGET, "Sync Forest::update_justification NOOP");
+                        Ok(false)
+                    },
                     Required => {
+                        info!(target: LOG_TARGET, "Sync Forest::update_justification Required");
                         self.top_required.insert(id.clone());
                         self.set_required(&parent_id);
                         Ok(true)
                     }
                     Finalizable => {
-                        self.top_required.remove(&id);
+                        info!(target: LOG_TARGET, "Sync Forest::update_justification Finalizable");
+                        // todo - is this hack or solution? well, doesn't seem like a solution...
+                        // self.top_required.remove(&id); // todo - is this ok?
+                        // self.justified_blocks.insert(id.number(), id.clone());
+                        // Ok(false)
+                        self.top_required.insert(id.clone());
                         self.justified_blocks.insert(id.number(), id.clone());
-                        Ok(false)
+                        Ok(true)
                     }
                 }
             }
-            _ => Ok(false),
+            _ => {
+                info!(target: LOG_TARGET, "Sync Forest::update_justification NOT Candidate");
+                Ok(false)
+            },
         }
     }
 
@@ -387,8 +410,8 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         use VertexHandle::Candidate;
         match self.get_mut(id) {
             Candidate(entry) => {
-                // request only required blocks
-                if !&entry.get().vertex.required() {
+                // request only required or finalizable blocks
+                if !(entry.get().vertex.required() || entry.get().vertex.justified_block()) {
                     return None;
                 }
                 let know_most = entry.get().vertex.know_most().clone();
