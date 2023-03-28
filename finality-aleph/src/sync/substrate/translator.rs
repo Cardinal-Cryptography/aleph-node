@@ -50,7 +50,7 @@ where
 
     fn translate(
         &self,
-        raw_justification: AlephJustification,
+        aleph_justification: AlephJustification,
         hash: <B::Header as Header>::Hash,
         number: BlockNumber,
     ) -> Result<Justification<B::Header>, Self::Error> {
@@ -59,10 +59,7 @@ where
         match self.status_of(block_id)? {
             Justified(_) => Err(Error::AlreadyJustified),
             Unknown => Err(Error::NoBlock),
-            Present(header) => Ok(Justification {
-                header,
-                raw_justification,
-            }),
+            Present(header) => Ok(Justification::aleph_justification(header, aleph_justification)),
         }
     }
 }

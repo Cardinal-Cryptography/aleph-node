@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use crate::sync::substrate::SubstrateHeader;
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{Display, Error as FmtError, Formatter},
@@ -19,6 +21,7 @@ pub enum CacheError {
     UnknownAuthorities(SessionId),
     SessionTooOld(SessionId, SessionId),
     SessionInFuture(SessionId, SessionId),
+    BadGenesisHeader,
 }
 
 impl Display for CacheError {
@@ -41,6 +44,12 @@ impl Display for CacheError {
                     "authorities for session {:?} not known even though they should be",
                     session
                 )
+            },
+            BadGenesisHeader => {
+                write!(
+                    f,
+                    "the provided genesis header does not match the cached genesis header"
+                )
             }
         }
     }
@@ -50,10 +59,11 @@ impl Display for CacheError {
 /// If the session is too new or ancient it will fail to return a SessionVerifier.
 /// Highest session verifier this cache returns is for the session after the current finalization session.
 /// Lowest session verifier this cache returns is for `top_returned_session` - `cache_size`.
-pub struct VerifierCache<AP, FI>
+pub struct VerifierCache<AP, FI, H>
 where
     AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: SubstrateHeader<Number = BlockNumber>,
 {
     sessions: HashMap<SessionId, SessionVerifier>,
     session_info: SessionBoundaryInfo,
@@ -62,18 +72,21 @@ where
     cache_size: usize,
     /// Lowest currently available session.
     lower_bound: SessionId,
+    genesis_header: H,
 }
 
-impl<AP, FI> VerifierCache<AP, FI>
+impl<AP, FI, H> VerifierCache<AP, FI, H>
 where
     AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: SubstrateHeader<Number = BlockNumber>,
 {
     pub fn new(
         session_period: SessionPeriod,
         finalization_info: FI,
         authority_provider: AP,
         cache_size: usize,
+        genesis_header: H,
     ) -> Self {
         Self {
             sessions: HashMap::new(),
@@ -82,7 +95,12 @@ where
             authority_provider,
             cache_size,
             lower_bound: SessionId(0),
+            genesis_header,
         }
+    }
+
+    pub fn genesis_header(&self) -> &H {
+        &self.genesis_header
     }
 }
 
@@ -104,10 +122,11 @@ fn download_session_verifier<AP: AuthorityProvider>(
     maybe_authority_data.map(|a| a.into())
 }
 
-impl<AP, FI> VerifierCache<AP, FI>
+impl<AP, FI, H> VerifierCache<AP, FI, H>
 where
     AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: SubstrateHeader<Number = BlockNumber>,
 {
     /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
@@ -169,7 +188,7 @@ where
 mod tests {
     use std::{cell::Cell, collections::HashMap};
 
-    use aleph_primitives::SessionAuthorityData;
+    use aleph_primitives::{SessionAuthorityData, Header};
 
     use super::{
         AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,
