@@ -169,20 +169,14 @@ mod simple_dex {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn resume(&mut self) -> Result<(), HaltableError> {
-            todo!()
+            DefaultHaltable::resume(self)
         }
 
         /// Is the contract in a halted state
         #[ink(message)]
         fn is_halted(&self) -> bool {
-            todo!()
+            DefaultHaltable::is_halted(self)
         }
-
-        // /// Returns an error if the contract in a halted state
-        // #[ink(message)]
-        // fn check_halted(&self) -> Result<(), HaltableError> {
-        //     todo!()
-        // }
     }
 
     impl SimpleDex {
