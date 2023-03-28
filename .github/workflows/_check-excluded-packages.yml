@@ -47,17 +47,29 @@ jobs:
           packages="${packages//'%0A'/$'\n'}"
           for p in ${packages[@]}
           do
-            # skip checking the contracts for now
-            if [ $p = "contracts/adder" ] || [ $p = "contracts/poseidon_host_bench" ]
-            then
-              continue
-            fi
             echo "Checking package $p..."
             pushd "$p"
             rustup component add clippy rustfmt
             rustup target add wasm32-unknown-unknown
-            cargo fmt --all --check
-            cargo clippy -- --no-deps -D warnings
+
+            if [ $p = "contracts/adder" ] ||
+               [ $p = "contracts/poseidon_host_bench" ] ||
+               [ $p = "contracts/access_control" ] ||
+               [ $p = "contracts/adder" ] ||
+               [ $p = "contracts/button" ] ||
+               [ $p = "contracts/game_token" ] ||
+               [ $p = "contracts/marketplace" ] ||
+               [ $p = "contracts/simple_dex" ] ||
+               [ $p = "contracts/ticket_token" ] ||
+               [ $p = "contracts/wrapped_azero" ] ||
+               [ $p = "contracts/shared_traits" ]
+            then
+               cargo contract check
+            else
+               cargo fmt --all --check
+               cargo clippy -- --no-deps -D warnings
+            fi
+
             popd
           done
 

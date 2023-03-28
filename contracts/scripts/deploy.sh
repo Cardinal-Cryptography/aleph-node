@@ -270,7 +270,7 @@ cargo_contract build --release
 cd "$CONTRACTS_PATH"/wrapped_azero
 if [[ "${ENV_NAME}" == "devnet" ]]; then
   echo "Compiling wrapped_azero for devnet environments. This will include an unguarded terminate flag!"
-  cargo_contract build --release --flags devnet
+  cargo_contract build --release --features devnet
 else
   echo "Compiling wrapped_azero for production environments."
   cargo_contract build --release
