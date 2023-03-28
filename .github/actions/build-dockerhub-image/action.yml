@@ -15,7 +15,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Build the image
+    - name: Build Docker Hub image
       run: |
         echo "FROM ${{ inputs.source-image }}" > Dockerfile.dockerhub
         echo 'ENTRYPOINT ["/usr/local/bin/aleph-node"]' >> Dockerfile.dockerhub

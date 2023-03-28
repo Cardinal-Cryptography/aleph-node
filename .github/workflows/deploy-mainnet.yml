@@ -66,7 +66,7 @@ jobs:
           source-image: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
           target-image: cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
 
-      - name: Tag and push image of Mainnet to DockerHub
+      - name: Tag and push image of Mainnet to Docker Hub
         env:
           MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
           DOCKERHUB_MAINNET_IMAGE:
