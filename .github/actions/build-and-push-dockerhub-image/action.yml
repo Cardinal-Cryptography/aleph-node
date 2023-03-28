@@ -41,7 +41,7 @@ runs:
         username: ${{ inputs.dockerhub-username }}
         password: ${{ inputs.dockerhub-password }}
 
-    - name: Push image(s) to Docker Hub
+    - name: Push image to Docker Hub
       if: inputs.push == "true" && inputs.dockerhub-username != "" && inputs.dockerhub-password != ""
       run: |
         docker push ${{ inputs.target-image }}
