@@ -54,7 +54,7 @@ where
 }
 
 impl<T: Config> FinalityCommitteeManager<T::AccountId> for Pallet<T> {
-    fn next_session_finality_committee(committee: Vec<T::AccountId>) {
+    fn on_next_session_finality_committee(committee: Vec<T::AccountId>) {
         NextFinalityCommittee::<T>::put(committee);
     }
 }

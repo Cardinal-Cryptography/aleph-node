@@ -125,7 +125,7 @@ where
             block_producers,
         } = Pallet::<C>::rotate_committee(new_index)?;
         // Notify about elected next session finality committee
-        C::FinalityCommitteeManager::next_session_finality_committee(finality_committee);
+        C::FinalityCommitteeManager::on_next_session_finality_committee(finality_committee);
 
         Some(block_producers)
     }

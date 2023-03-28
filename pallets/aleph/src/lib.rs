@@ -173,26 +173,24 @@ pub mod pallet {
         fn get_authorities_for_next_session(
             next_authorities: Vec<(&T::AccountId, T::AuthorityId)>,
         ) -> Vec<T::AuthorityId> {
-            let committee_ids = NextFinalityCommittee::<T>::take();
+            let next_committee_ids = NextFinalityCommittee::<T>::take();
 
-            let mut na = vec![];
-            let expected_len = committee_ids.len();
+            let get_authority = |cid| {
+                next_authorities
+                    .iter()
+                    .find(|(id, _)| *id == cid)
+                    .map(|(_, auth)| auth.clone())
+            };
+            let next_committee_authorities: Vec<_> = next_committee_ids
+                .iter()
+                .filter_map(get_authority)
+                .collect();
 
-            for committee_id in committee_ids {
-                if let Some((_, key)) = next_authorities.iter().find(|(id, _)| **id == committee_id)
-                {
-                    na.push(key.clone());
-                }
-            }
-
-            if na.len() != expected_len {
+            if next_committee_authorities.len() != next_committee_ids.len() {
                 warn!(target: LOG_TARGET, "Not all committee members were converted to keys. Falling back to the default committee");
-
-                let (_, default): (Vec<_>, Vec<_>) = next_authorities.into_iter().unzip();
-                na = default;
             }
 
-            na
+            next_committee_authorities
         }
 
         pub(crate) fn update_authorities(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) {

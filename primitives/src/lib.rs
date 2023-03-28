@@ -103,7 +103,8 @@ pub struct CommitteeSeats {
     pub reserved_seats: u32,
     /// Size of non reserved validators in a session
     pub non_reserved_seats: u32,
-    /// Size of non reserved validators participating in the finality in a session
+    /// Size of non reserved validators participating in the finality in a session.
+    /// A subset of the non reserved validators._
     pub non_reserved_finality_seats: u32,
 }
 
@@ -126,7 +127,7 @@ impl Default for CommitteeSeats {
 ///
 pub trait FinalityCommitteeManager<T> {
     /// `committee` is the set elected for finality committee for the next session
-    fn next_session_finality_committee(committee: Vec<T>);
+    fn on_next_session_finality_committee(committee: Vec<T>);
 }
 
 /// Configurable parameters for ban validator mechanism

@@ -215,7 +215,7 @@ pub mod pallet {
             let CommitteeSeats {
                 reserved_seats: reserved,
                 non_reserved_seats: non_reserved,
-                ..
+                non_reserved_finality_seats: non_reserved_finality,
             } = committee_size;
             let reserved_len = reserved_validators.len() as u32;
             let non_reserved_len = non_reserved_validators.len() as u32;
@@ -223,6 +223,10 @@ pub mod pallet {
 
             let committee_size_all = reserved + non_reserved;
 
+            ensure!(
+                non_reserved_finality <= non_reserved,
+                Error::<T>::NonReservedFinalitySeatsLargerThanNonReservedSeats
+            );
             ensure!(
                 committee_size_all <= validators_size,
                 Error::<T>::NotEnoughValidators
@@ -267,6 +271,7 @@ pub mod pallet {
         NotEnoughReservedValidators,
         NotEnoughNonReservedValidators,
         NonUniqueListOfValidators,
+        NonReservedFinalitySeatsLargerThanNonReservedSeats,
     }
 
     impl<T: Config> ElectionProviderBase for Pallet<T> {
