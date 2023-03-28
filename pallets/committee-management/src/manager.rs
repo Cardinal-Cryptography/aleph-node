@@ -4,11 +4,7 @@ use primitives::{EraManager, FinalityCommitteeManager};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{marker::PhantomData, vec::Vec};
 
-use crate::{
-    impls::SessionCommittee,
-    pallet::{Config, Pallet, SessionValidatorBlockCount},
-    traits::EraInfoProvider,
-};
+use crate::{impls::SessionCommittee, LOG_TARGET, pallet::{Config, Pallet, SessionValidatorBlockCount}, traits::EraInfoProvider};
 
 /// We assume that block `B` ends session nr `S`, and current era index is `E`.
 ///
@@ -136,7 +132,7 @@ where
         // clear block count after calculating stats for underperforming validators, as they use
         // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<C>::clear(u32::MAX, None);
-        debug!(target: "pallet_elections", "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
+        debug!(target: LOG_TARGET, "Result of clearing the `SessionValidatorBlockCount`, {:?}", result.deconstruct());
     }
 
     fn start_session(start_index: SessionIndex) {

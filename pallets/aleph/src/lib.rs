@@ -38,6 +38,7 @@ use sp_std::prelude::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -92,7 +93,7 @@ pub mod pallet {
                     }
                     _ => {
                         log::warn!(
-                            target: "pallet_aleph",
+                            target: LOG_TARGET,
                             "On chain storage version of pallet aleph is {:?} but it should not be bigger than 2",
                             on_chain
                         );
@@ -158,7 +159,7 @@ pub mod pallet {
         ) {
             if !authorities.is_empty() {
                 if !<Authorities<T>>::get().is_empty() {
-                    log::error!(target: "pallet_aleph","Authorities are already initialized!");
+                    log::error!(target: LOG_TARGET, "Authorities are already initialized!");
                 } else {
                     <Authorities<T>>::put(authorities);
                 }
@@ -185,7 +186,7 @@ pub mod pallet {
             }
 
             if na.len() != expected_len {
-                warn!(target: "pallet_aleph", "Not all committee members were converted to keys. Falling back to the default committee");
+                warn!(target: LOG_TARGET, "Not all committee members were converted to keys. Falling back to the default committee");
 
                 let (_, default): (Vec<_>, Vec<_>) = next_authorities.into_iter().unzip();
                 na = default;
