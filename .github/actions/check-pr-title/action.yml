@@ -1,6 +1,6 @@
 ---
 Name: Check Pull Request title
-description: 
+description:
   Checks if PR has number of Jira ticket at very beginning of its title in proper format
 
 inputs:
