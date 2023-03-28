@@ -25,10 +25,9 @@ jobs:
         uses: ./.github/actions/get-ref-properties
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-
-      - name: Install WASM target
-        run: rustup target add wasm32-unknown-unknown
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
         run: |
@@ -55,7 +54,7 @@ jobs:
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         env:
           AWS_ACCESS_KEY_ID: ""
           AWS_SECRET_ACCESS_KEY: ""
