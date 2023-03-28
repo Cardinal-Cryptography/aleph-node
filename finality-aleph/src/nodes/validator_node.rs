@@ -28,6 +28,7 @@ use crate::{
     sync::{
         ChainStatus, JustificationTranslator, Service as SyncService, SubstrateChainStatusNotifier,
         SubstrateFinalizationInfo, SubstrateJustification, VerifierCache,
+        Justification,
     },
     AlephConfig,
 };
@@ -123,11 +124,17 @@ where
         client.finality_notification_stream(),
         client.import_notification_stream(),
     );
+
+    let mut genesis_header = match chain_status.finalized_at(0) {
+        Ok(Some(header)) => header.clone(),
+        _ => panic!("the genesis block should be finalized"),
+    };
     let verifier = VerifierCache::new(
         session_period,
         SubstrateFinalizationInfo::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
         VERIFIER_CACHE_SIZE,
+        genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone());
     let (sync_service, justifications_for_sync) = match SyncService::new(

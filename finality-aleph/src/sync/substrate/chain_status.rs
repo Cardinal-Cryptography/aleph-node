@@ -16,7 +16,6 @@ use crate::{
         substrate::{BlockId, Justification},
         BlockStatus, ChainStatus, Header, LOG_TARGET,
     },
-    AlephJustification,
 };
 
 /// What can go wrong when checking chain status
@@ -68,6 +67,7 @@ where
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
     backend: Arc<TFullBackend<B>>,
+    genesis_header: B::Header,
 }
 
 impl<B> SubstrateChainStatus<B>
@@ -75,8 +75,10 @@ where
     B: BlockT,
     B::Header: SubstrateHeader<Number = BlockNumber>,
 {
-    pub fn new(backend: Arc<TFullBackend<B>>) -> Self {
-        Self { backend }
+    pub fn new(backend: Arc<TFullBackend<B>>) -> Result<Self, BackendError> {
+        let hash = backend.blockchain().hash(0)?.unwrap(); // todo - proper errors
+        let genesis_header = backend.blockchain().header(hash)?.unwrap(); // todo - proper errors
+        Ok(Self { backend, genesis_header })
     }
 
     fn info(&self) -> Info<B> {
@@ -105,24 +107,27 @@ where
         }
     }
 
-    fn justification(&self, hash: B::Hash) -> Result<Option<AlephJustification>, BackendError> {
-        let justification = match self
+    fn justification(&self, header: B::Header) -> Result<Option<Justification<B::Header>>, BackendError> {
+        if header == self.genesis_header {
+            return Ok(Some(Justification::genesis_justification(header)));
+        };
+        let encoded_justification = match self
             .backend
             .blockchain()
-            .justifications(hash)?
+            .justifications(header.hash())?
             .and_then(|j| j.into_justification(ALEPH_ENGINE_ID))
         {
             Some(justification) => justification,
             None => return Ok(None),
         };
 
-        match backwards_compatible_decode(justification) {
-            Ok(justification) => Ok(Some(justification)),
+        match backwards_compatible_decode(encoded_justification) {
+            Ok(aleph_justification) => Ok(Some(Justification::aleph_justification(header, aleph_justification))),
             // This should not happen, as we only import correctly encoded justification.
             Err(e) => {
                 warn!(
                     target: LOG_TARGET,
-                    "Could not decode stored justification for block {:?}: {}", hash, e
+                    "Could not decode stored justification for block {:?}: {}", header.hash(), e
                 );
                 Ok(None)
             }
@@ -168,11 +173,8 @@ where
             None => return Ok(BlockStatus::Unknown),
         };
 
-        if let Some(raw_justification) = self.justification(id.hash)? {
-            Ok(BlockStatus::Justified(Justification {
-                header,
-                raw_justification,
-            }))
+        if let Some(justification) = self.justification(header.clone())? {
+            Ok(BlockStatus::Justified(justification))
         } else {
             Ok(BlockStatus::Present(header))
         }
@@ -187,18 +189,12 @@ where
 
     fn top_finalized(&self) -> Result<Justification<B::Header>, Self::Error> {
         let finalized_hash = self.finalized_hash();
-
         let header = self
             .header_for_hash(finalized_hash)?
             .ok_or(Error::MissingHash(finalized_hash))?;
-        let raw_justification = self
-            .justification(finalized_hash)?
-            .ok_or(Error::MissingJustification(finalized_hash))?;
-
-        Ok(Justification {
-            header,
-            raw_justification,
-        })
+        Ok(self
+            .justification(header)?
+            .ok_or(Error::MissingJustification(finalized_hash))?)
     }
 
     fn children(

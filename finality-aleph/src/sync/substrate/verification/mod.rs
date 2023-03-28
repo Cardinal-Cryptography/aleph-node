@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{
     fmt::{Display, Error as FmtError, Formatter},
     marker::PhantomData,
@@ -14,7 +15,7 @@ use crate::{
     sync::{
         substrate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
-            Justification,
+            Justification, InnerJustification,
         },
         Verifier,
     },
@@ -95,18 +96,28 @@ impl Display for VerificationError {
     }
 }
 
-impl<H, AP, FS> Verifier<Justification<H>> for VerifierCache<AP, FS>
+impl<AP, FS, H> Verifier<Justification<H>> for VerifierCache<AP, FS, H>
 where
-    H: SubstrateHeader<Number = BlockNumber>,
     AP: AuthorityProvider,
     FS: FinalizationInfo,
+    H: SubstrateHeader<Number = BlockNumber>,
 {
     type Error = VerificationError;
 
     fn verify(&mut self, justification: Justification<H>) -> Result<Justification<H>, Self::Error> {
         let header = &justification.header;
-        let verifier = self.get(*header.number())?;
-        verifier.verify_bytes(&justification.raw_justification, header.hash().encode())?;
-        Ok(justification)
+        match justification.inner_justification {
+            InnerJustification::AlephJustification(aleph_justification) => {
+                let verifier = self.get(*header.number())?;
+                verifier.verify_bytes(&aleph_justification, header.hash().encode())?;
+                Ok(justification)
+            },
+            InnerJustification::Genesis => {
+                match header == self.genesis_header() {
+                    true => Ok(justification),
+                    false => Err(Self::Error::Cache(CacheError::BadGenesisHeader)),
+                }
+            },
+        }
     }
 }
