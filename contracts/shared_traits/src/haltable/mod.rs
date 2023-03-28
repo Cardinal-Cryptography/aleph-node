@@ -22,7 +22,6 @@ impl From<PSP22Error> for HaltableError {
 }
 
 #[ink::trait_definition]
-// #[openbrush::trait_definition]
 pub trait Haltable {
     #[ink(message)]
     fn halt(&mut self) -> HaltableResult<()>;
