@@ -3,9 +3,11 @@ name: Check PR
 
 on:
   pull_request:
-    - opened
-    - edited
-    - reopened
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
