@@ -9,16 +9,19 @@ pub mod button_game {
     #[cfg(feature = "std")]
     use ink::storage::traits::StorageLayout;
     use ink::{
-        codegen::EmitEvent,
+        codegen::{EmitEvent, Env},
         env::{call::FromAccountId, CallFlags},
         prelude::vec,
         reflect::ContractEventBase,
         ToAccountId,
     };
     use marketplace::marketplace::MarketplaceRef;
-    use openbrush::contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref};
+    use openbrush::{
+        contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref},
+        traits::Storage,
+    };
     use scale::{Decode, Encode};
-    use shared_traits::{Haltable, HaltableError};
+    use shared_traits::{DefaultHaltable, Haltable, HaltableData, HaltableError};
 
     use crate::errors::GameError;
 
@@ -77,6 +80,7 @@ pub mod button_game {
 
     /// Game contracts storage
     #[ink(storage)]
+    #[derive(Storage)]
     pub struct ButtonGame {
         /// How long does TheButton live for?
         pub button_lifetime: BlockNumber,
@@ -101,7 +105,18 @@ pub mod button_game {
         /// current round number
         pub round: u64,
         /// is contract in the halted state
-        pub halted: bool,
+        #[storage_field]
+        pub halted: HaltableData,
+    }
+
+    impl DefaultHaltable<ButtonGame> for ButtonGame {
+        fn _after_halt(&self) {
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+        }
+
+        fn _after_resume(&self) {
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+        }
     }
 
     impl Haltable for ButtonGame {
@@ -110,15 +125,8 @@ pub mod button_game {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn halt(&mut self) -> Result<(), HaltableError> {
-            if !self.is_halted() {
-                let caller = self.env().caller();
-                let this = self.env().account_id();
-                Self::check_role(&self.access_control, caller, Role::Admin(this))?;
-                self.halted = true;
-                Self::emit_event(self.env(), Event::Halted(Halted {}));
-            }
-
-            Ok(())
+            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
+            DefaultHaltable::halt(self)
         }
 
         /// Resume after emergency halt
@@ -126,30 +134,14 @@ pub mod button_game {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn resume(&mut self) -> Result<(), HaltableError> {
-            if self.is_halted() {
-                let caller = self.env().caller();
-                let this = self.env().account_id();
-                Self::check_role(&self.access_control, caller, Role::Admin(this))?;
-                self.halted = false;
-                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            }
-
-            Ok(())
+            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
+            DefaultHaltable::resume(self)
         }
 
         /// Is the contract in a halted state
         #[ink(message)]
         fn is_halted(&self) -> bool {
-            self.halted
-        }
-
-        /// Returns an error if the contract in a halted state
-        #[ink(message)]
-        fn check_halted(&self) -> Result<(), HaltableError> {
-            if self.halted {
-                return Err(HaltableError::InHaltedState);
-            }
-            Ok(())
+            DefaultHaltable::is_halted(self)
         }
     }
 
@@ -170,8 +162,8 @@ pub mod button_game {
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             let access_control = AccessControlRef::from_account_id(access_control);
 
-            match ButtonGame::check_role(&access_control, caller, required_role) {
-                Ok(_) => Self::init(
+            match access_control.has_role(caller, required_role) {
+                true => Self::init(
                     access_control,
                     ticket_token,
                     reward_token,
@@ -179,7 +171,7 @@ pub mod button_game {
                     button_lifetime,
                     scoring,
                 ),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+                false => panic!("Caller is not allowed to initialize this contract"),
             }
         }
 
@@ -303,10 +295,7 @@ pub mod button_game {
         /// Implementing contract is responsible for setting up proper AccessControl
         #[ink(message)]
         pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             self.access_control = AccessControlRef::from_account_id(new_access_control);
             Ok(())
         }
@@ -319,10 +308,7 @@ pub mod button_game {
             &mut self,
             new_button_lifetime: BlockNumber,
         ) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             self.button_lifetime = new_button_lifetime;
             Ok(())
         }
@@ -333,9 +319,7 @@ pub mod button_game {
         #[ink(message)]
         pub fn terminate(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
         }
 
@@ -364,7 +348,7 @@ pub mod button_game {
                 presses: 0,
                 total_rewards: 0,
                 round: 0,
-                halted: false,
+                halted: HaltableData { halted: false },
             };
 
             Self::emit_event(
@@ -433,12 +417,8 @@ pub mod button_game {
             Ok(())
         }
 
-        fn check_role(
-            access_control: &AccessControlRef,
-            account: AccountId,
-            role: Role,
-        ) -> ButtonResult<()> {
-            if access_control.has_role(account, role) {
+        fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()> {
+            if self.access_control.has_role(account, role) {
                 Ok(())
             } else {
                 Err(GameError::MissingRole(role))
@@ -472,7 +452,6 @@ pub mod button_game {
 
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
             PSP22MintableRef::mint(&self.reward_token, to, amount)?;
-
             Ok(())
         }
 

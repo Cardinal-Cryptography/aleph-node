@@ -26,20 +26,22 @@ pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 pub mod marketplace {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
-        codegen::EmitEvent,
+        codegen::{EmitEvent, Env},
         env::call::FromAccountId,
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
         LangError,
     };
-    use openbrush::contracts::psp22::{
-        extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
+    use openbrush::{
+        contracts::psp22::{extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref},
+        traits::Storage,
     };
-    use shared_traits::{Haltable, HaltableError, HaltableResult};
+    use shared_traits::{DefaultHaltable, Haltable, HaltableData, HaltableError, HaltableResult};
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
     #[ink(storage)]
+    #[derive(Storage)]
     pub struct Marketplace {
         total_proceeds: Balance,
         tickets_sold: Balance,
@@ -50,7 +52,8 @@ pub mod marketplace {
         ticket_token: AccountId,
         reward_token: AccountId,
         access_control: AccessControlRef,
-        halted: bool,
+        #[storage_field]
+        pub halted: HaltableData,
     }
 
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
@@ -112,20 +115,24 @@ pub mod marketplace {
         }
     }
 
+    impl DefaultHaltable<Marketplace> for Marketplace {
+        fn _after_halt(&self) {
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+        }
+
+        fn _after_resume(&self) {
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+        }
+    }
+
     impl Haltable for Marketplace {
         /// Emergency halt of all operations
         ///
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn halt(&mut self) -> HaltableResult<()> {
-            if !self.is_halted() {
-                self.ensure_role(self.admin())?;
-                self.halted = true;
-
-                // emit event
-                Self::emit_event(self.env(), Event::Halted(Halted {}));
-            }
-            Ok(())
+            self.check_role(self.env().caller(), self.admin())?;
+            DefaultHaltable::halt(self)
         }
 
         /// Resume after emergency halt
@@ -133,27 +140,14 @@ pub mod marketplace {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn resume(&mut self) -> HaltableResult<()> {
-            if self.is_halted() {
-                self.ensure_role(self.admin())?;
-                self.halted = false;
-                Self::emit_event(self.env(), Event::Resumed(Resumed {}));
-            }
-            Ok(())
+            self.check_role(self.env().caller(), self.admin())?;
+            DefaultHaltable::resume(self)
         }
 
         /// Is the contract in a halted state
         #[ink(message)]
         fn is_halted(&self) -> bool {
-            self.halted
-        }
-
-        /// Returns an error if the contract in a halted state
-        #[ink(message)]
-        fn check_halted(&self) -> HaltableResult<()> {
-            if self.is_halted() {
-                return Err(HaltableError::InHaltedState);
-            }
-            Ok(())
+            DefaultHaltable::is_halted(self)
         }
     }
 
@@ -180,7 +174,7 @@ pub mod marketplace {
                     total_proceeds: starting_price.saturating_div(sale_multiplier),
                     tickets_sold: 1,
                     access_control,
-                    halted: false,
+                    halted: HaltableData { halted: false },
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");
@@ -241,10 +235,8 @@ pub mod marketplace {
         /// Update the minimal price.
         #[ink(message)]
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
-
+            self.check_role(Self::env().caller(), self.admin())?;
             self.min_price = value;
-
             Ok(())
         }
 
@@ -254,9 +246,8 @@ pub mod marketplace {
         /// and only if the contract is currently halted
         #[ink(message)]
         pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
-            if self.is_halted() {
-                self.ensure_role(self.admin())?;
-
+            if DefaultHaltable::is_halted(self) {
+                self.check_role(self.env().caller(), self.admin())?;
                 self.auction_length = new_auction_length;
                 return Ok(());
             }
@@ -315,7 +306,7 @@ pub mod marketplace {
         /// Requires `Role::Admin`.
         #[ink(message, selector = 0x00000001)]
         pub fn reset(&mut self) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
+            self.check_role(self.env().caller(), self.admin())?;
 
             self.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
@@ -329,8 +320,7 @@ pub mod marketplace {
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.ensure_role(Role::Admin(this))?;
+            self.check_role(caller, self.admin())?;
             self.env().terminate_contract(caller)
         }
 
@@ -367,8 +357,8 @@ pub mod marketplace {
             PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
         }
 
-        fn ensure_role(&self, role: Role) -> Result<(), Error> {
-            if self.access_control.has_role(self.env().caller(), role) {
+        fn check_role(&self, account: AccountId, role: Role) -> Result<(), Error> {
+            if self.access_control.has_role(account, role) {
                 Ok(())
             } else {
                 Err(Error::MissingRole(role))
