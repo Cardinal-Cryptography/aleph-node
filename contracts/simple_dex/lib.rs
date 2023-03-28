@@ -169,6 +169,7 @@ mod simple_dex {
         /// Can only be called by the contract's Admin.
         #[ink(message)]
         fn resume(&mut self) -> Result<(), HaltableError> {
+            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
             DefaultHaltable::resume(self)
         }
 
@@ -333,9 +334,8 @@ mod simple_dex {
             }
 
             let caller = self.env().caller();
-            let this = self.env().account_id();
 
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
 
             // emit event
             Self::emit_event(
@@ -364,11 +364,7 @@ mod simple_dex {
         where
             Self: AccessControlled,
         {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-
-            self.check_role(caller, Role::Admin(this))?;
-
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
@@ -385,9 +381,7 @@ mod simple_dex {
         /// Can only be called by an Admin
         #[ink(message)]
         pub fn add_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.insert(&pair, &());
@@ -409,9 +403,7 @@ mod simple_dex {
         /// Can only be called by an Admin
         #[ink(message)]
         pub fn remove_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.remove(&pair);
@@ -427,8 +419,7 @@ mod simple_dex {
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), DexError> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
         }
 
