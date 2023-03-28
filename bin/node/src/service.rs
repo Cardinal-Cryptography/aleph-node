@@ -5,11 +5,12 @@ use std::{
     sync::Arc,
 };
 
-use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
+use aleph_primitives::{AlephSessionApi, BlockNumber, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod, TracingBlockImport,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockIdentifier, ChainInfo, IdentifierFor,
+    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
+    TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -86,8 +87,8 @@ pub fn new_partial(
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
             TracingBlockImport<Block, Arc<FullClient>>,
-            mpsc::UnboundedSender<JustificationNotification<Block>>,
-            mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+            mpsc::UnboundedSender<JustificationNotification<IdentifierFor<Block>>>,
+            mpsc::UnboundedReceiver<JustificationNotification<IdentifierFor<Block>>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
         ),
@@ -206,7 +207,7 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
+    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<IdentifierFor<Block>>>,
 ) -> Result<
     (
         RpcHandlers,
@@ -257,7 +258,7 @@ fn setup(
         let pool = transaction_pool.clone();
 
         Box::new(move |deny_unsafe, _| {
-            let deps = crate::rpc::FullDeps {
+            let deps = crate::rpc::FullDeps::<Block, _, _> {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
@@ -421,32 +422,27 @@ pub fn new_authority(
 struct BlockchainBackendImpl {
     backend: Arc<FullBackend>,
 }
-impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
-    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
+
+impl finality_aleph::BlockchainBackend<IdentifierFor<Block>> for BlockchainBackendImpl {
+    fn children(&self, parent_id: IdentifierFor<Block>) -> Vec<IdentifierFor<Block>> {
         self.backend
             .blockchain()
-            .children(parent_hash)
+            .children(parent_id.block_hash())
             .unwrap_or_default()
+            .into_iter()
+            .map(|h| (h, parent_id.number()).into())
+            .collect()
     }
-    fn info(&self) -> sp_blockchain::Info<Block> {
-        self.backend.blockchain().info()
-    }
-    fn header(
-        &self,
-        block_id: BlockId<Block>,
-    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        let hash = match block_id {
-            BlockId::Hash(h) => h,
-            BlockId::Number(n) => {
-                let maybe_hash = self.backend.blockchain().hash(n)?;
 
-                if let Some(h) = maybe_hash {
-                    h
-                } else {
-                    return Ok(None);
-                }
-            }
-        };
-        self.backend.blockchain().header(hash)
+    fn info(&self) -> ChainInfo<IdentifierFor<Block>> {
+        self.backend.blockchain().info().into()
+    }
+
+    fn id(&self, block_number: BlockNumber) -> sp_blockchain::Result<Option<IdentifierFor<Block>>> {
+        Ok(self
+            .backend
+            .blockchain()
+            .hash(block_number)?
+            .map(|hash| (hash, block_number).into()))
     }
 }

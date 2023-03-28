@@ -1,11 +1,15 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 use aleph_primitives::BlockNumber;
 
+use super::TBlockIdentifier;
 use crate::{
     justification::{AlephJustification, SessionInfo, SessionInfoProvider, Verifier},
     session::SessionBoundaryInfo as SessionBoundInfo,
-    testing::mocks::{AcceptancePolicy, TBlock, THash},
+    testing::mocks::{AcceptancePolicy, THash},
     SessionPeriod,
 };
 
@@ -13,7 +17,7 @@ pub struct VerifierWrapper {
     acceptance_policy: Arc<Mutex<AcceptancePolicy>>,
 }
 
-impl Verifier<TBlock> for VerifierWrapper {
+impl Verifier<TBlockIdentifier> for VerifierWrapper {
     fn verify(&self, _justification: &AlephJustification, _hash: THash) -> bool {
         self.acceptance_policy.lock().unwrap().accepts()
     }
@@ -34,8 +38,11 @@ impl SessionInfoProviderImpl {
 }
 
 #[async_trait::async_trait]
-impl SessionInfoProvider<TBlock, VerifierWrapper> for SessionInfoProviderImpl {
-    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<TBlock, VerifierWrapper> {
+impl SessionInfoProvider<TBlockIdentifier, VerifierWrapper> for SessionInfoProviderImpl {
+    async fn for_block_num(
+        &self,
+        number: BlockNumber,
+    ) -> SessionInfo<TBlockIdentifier, VerifierWrapper> {
         let current_session = self.session_info.session_id_from_block_num(number);
         SessionInfo {
             current_session,
@@ -46,6 +53,7 @@ impl SessionInfoProvider<TBlock, VerifierWrapper> for SessionInfoProviderImpl {
                     acceptance_policy: self.acceptance_policy.clone(),
                 }),
             },
+            _phantom: PhantomData,
         }
     }
 }

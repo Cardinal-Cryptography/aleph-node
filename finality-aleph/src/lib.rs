@@ -3,7 +3,7 @@ extern crate core;
 use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
 use aleph_primitives::BlockNumber;
-use codec::{Decode, Encode, Output};
+use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
     channel::{mpsc, oneshot},
@@ -14,8 +14,8 @@ use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
 use sc_service::SpawnTaskHandle;
-use sp_api::{NumberFor, ProvideRuntimeApi};
-use sp_blockchain::{HeaderBackend, HeaderMetadata};
+use sp_api::ProvideRuntimeApi;
+use sp_blockchain::{HeaderBackend, HeaderMetadata, Info};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
@@ -218,36 +218,72 @@ where
 {
 }
 
-type Hasher = abft::HashWrapper<BlakeTwo256>;
+/// The identifier of a block, the least amount of knowledge we can have about a block.
+pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
+    type Hash: Encode + Debug + std::hash::Hash + Copy + Eq + std::fmt::Display;
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub struct HashNum<H, N> {
-    hash: H,
-    num: N,
+    /// The block number, useful when reasoning about hopeless forks.
+    fn number(&self) -> BlockNumber;
+
+    fn block_hash(&self) -> Self::Hash;
 }
 
-impl<H> HashNum<H, BlockNumber> {
-    fn new(hash: H, num: BlockNumber) -> Self {
+type Hasher = abft::HashWrapper<BlakeTwo256>;
+
+#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
+pub struct HashNum<H: Header> {
+    hash: H::Hash,
+    num: H::Number,
+}
+
+impl<H: Header<Number = BlockNumber>> HashNum<H> {
+    fn new(hash: H::Hash, num: BlockNumber) -> Self {
         HashNum { hash, num }
     }
 }
 
-impl<H> From<(H, BlockNumber)> for HashNum<H, BlockNumber> {
-    fn from(pair: (H, BlockNumber)) -> Self {
+impl<H: Header<Number = BlockNumber>> From<(H::Hash, BlockNumber)> for HashNum<H> {
+    fn from(pair: (H::Hash, BlockNumber)) -> Self {
         HashNum::new(pair.0, pair.1)
     }
 }
 
-pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
+impl<SH: Header> Hash for HashNum<SH> {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.hash.hash(state);
+        self.num.hash(state);
+    }
+}
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
+pub type BlockHashNum<B> = HashNum<<B as Block>::Header>;
+pub type IdentifierFor<B> = HashNum<<B as Block>::Header>;
+
+impl<H: Header<Number = BlockNumber>> BlockIdentifier for HashNum<H> {
+    type Hash = H::Hash;
+
+    fn number(&self) -> BlockNumber {
+        self.num
+    }
+
+    fn block_hash(&self) -> Self::Hash {
+        self.hash
+    }
+}
+
+pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB>
+where
+    B::Header: Header<Number = BlockNumber>,
+{
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<IdentifierFor<B>>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
@@ -258,11 +294,29 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub protocol_naming: ProtocolNaming,
 }
 
-pub trait BlockchainBackend<B: Block> {
-    fn children(&self, parent_hash: <B as Block>::Hash) -> Vec<<B as Block>::Hash>;
-    fn info(&self) -> sp_blockchain::Info<B>;
-    fn header(
-        &self,
-        block_id: sp_api::BlockId<B>,
-    ) -> sp_blockchain::Result<Option<<B as Block>::Header>>;
+/// Blockchain info
+#[derive(Debug, Eq, PartialEq)]
+pub struct ChainInfo<BI: BlockIdentifier> {
+    /// Best block block identifier.
+    pub best_block: BI,
+    /// The head of the finalized chain.
+    pub finalized_block: BI,
+}
+
+impl<B: Block> From<Info<B>> for ChainInfo<IdentifierFor<B>>
+where
+    B::Header: Header<Number = BlockNumber>,
+{
+    fn from(value: Info<B>) -> Self {
+        Self {
+            best_block: (value.best_hash, value.best_number).into(),
+            finalized_block: (value.finalized_hash, value.finalized_number).into(),
+        }
+    }
+}
+
+pub trait BlockchainBackend<BI: BlockIdentifier> {
+    fn children(&self, parent_id: BI) -> Vec<BI>;
+    fn info(&self) -> ChainInfo<BI>;
+    fn id(&self, block_number: BlockNumber) -> sp_blockchain::Result<Option<BI>>;
 }

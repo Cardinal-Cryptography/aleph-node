@@ -3,12 +3,12 @@ use std::fmt::{Display, Error as FmtError, Formatter};
 use aleph_primitives::SessionAuthorityData;
 use codec::Encode;
 use log::warn;
-use sp_runtime::{traits::Block as BlockT, RuntimeAppPublic};
+use sp_runtime::RuntimeAppPublic;
 
 use crate::{
     crypto::AuthorityVerifier,
     justification::{AlephJustification, Verifier as LegacyVerifier},
-    AuthorityId,
+    AuthorityId, BlockIdentifier,
 };
 
 /// A justification verifier within a single session.
@@ -77,8 +77,8 @@ impl SessionVerifier {
 
 // This shouldn't be necessary after we remove the legacy justification sync. Then we can also
 // rewrite the implementation above and make it simpler.
-impl<B: BlockT> LegacyVerifier<B> for SessionVerifier {
-    fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
+impl<BI: BlockIdentifier> LegacyVerifier<BI> for SessionVerifier {
+    fn verify(&self, justification: &AlephJustification, hash: BI::Hash) -> bool {
         match self.verify_bytes(justification, hash.encode()) {
             Ok(()) => true,
             Err(e) => {

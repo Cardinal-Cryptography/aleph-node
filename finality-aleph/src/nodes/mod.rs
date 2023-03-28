@@ -1,12 +1,12 @@
 mod validator_node;
 
-use std::{future::Future, sync::Arc};
+use std::{future::Future, marker::PhantomData, sync::Arc};
 
 use aleph_primitives::BlockNumber;
 use sc_client_api::Backend;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
-use sp_runtime::traits::{Block, Header, NumberFor};
+use sp_runtime::traits::{Block, Header};
 pub use validator_node::run_validator_node;
 
 use crate::{
@@ -19,7 +19,8 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
-    BlockchainBackend, JustificationNotification, Metrics, MillisecsPerBlock, SessionPeriod,
+    BlockIdentifier, BlockchainBackend, IdentifierFor, JustificationNotification, Metrics,
+    MillisecsPerBlock, SessionPeriod,
 };
 
 #[cfg(test)]
@@ -30,11 +31,14 @@ pub mod testing {
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
 
-struct JustificationParams<B: Block, H: ExHashT, C, BB> {
+struct JustificationParams<B: Block, H: ExHashT, C, BB>
+where
+    B::Header: Header<Number = BlockNumber>,
+{
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<IdentifierFor<B>>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
@@ -56,11 +60,8 @@ impl SessionInfoProviderImpl {
 }
 
 #[async_trait::async_trait]
-impl<B: Block> SessionInfoProvider<B, SessionVerifier> for SessionInfoProviderImpl
-where
-    B::Header: Header<Number = BlockNumber>,
-{
-    async fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, SessionVerifier> {
+impl<BI: BlockIdentifier> SessionInfoProvider<BI, SessionVerifier> for SessionInfoProviderImpl {
+    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<BI, SessionVerifier> {
         let current_session = self.session_info.session_id_from_block_num(number);
         let last_block_height = self.session_info.last_block_of_session(current_session);
         let verifier = self
@@ -73,6 +74,7 @@ where
             current_session,
             last_block_height,
             verifier,
+            _phantom: PhantomData,
         }
     }
 }
@@ -80,7 +82,7 @@ where
 fn setup_justification_handler<B, H, C, BB, BE>(
     just_params: JustificationParams<B, H, C, BB>,
 ) -> (
-    UnboundedSender<JustificationNotification<B>>,
+    UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
     impl Future<Output = ()>,
 )
 where
@@ -90,7 +92,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    BB: BlockchainBackend<B> + 'static + Send,
+    BB: BlockchainBackend<IdentifierFor<B>> + 'static + Send,
 {
     let JustificationParams {
         network,

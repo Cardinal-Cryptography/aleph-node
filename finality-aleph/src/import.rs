@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use aleph_primitives::ALEPH_ENGINE_ID;
+use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
 use sc_consensus::{
@@ -15,6 +15,7 @@ use sp_runtime::{
 use crate::{
     justification::{backwards_compatible_decode, DecodeError, JustificationNotification},
     metrics::{Checkpoint, Metrics},
+    IdentifierFor,
 };
 
 /// A wrapper around a block import that also marks the start and end of the import of every block
@@ -79,20 +80,29 @@ where
 pub struct AlephBlockImport<B, I>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     inner: I,
-    justification_tx: UnboundedSender<JustificationNotification<B>>,
+    justification_tx: UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
 }
 
 #[derive(Debug)]
-enum SendJustificationError<B: BlockT> {
-    Send(TrySendError<JustificationNotification<B>>),
+enum SendJustificationError<B>
+where
+    B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
+{
+    Send(TrySendError<JustificationNotification<IdentifierFor<B>>>),
     Consensus(Box<ConsensusError>),
     Decode(DecodeError),
 }
 
-impl<B: BlockT> From<DecodeError> for SendJustificationError<B> {
+impl<B> From<DecodeError> for SendJustificationError<B>
+where
+    B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
+{
     fn from(decode_error: DecodeError) -> Self {
         Self::Decode(decode_error)
     }
@@ -101,11 +111,12 @@ impl<B: BlockT> From<DecodeError> for SendJustificationError<B> {
 impl<B, I> AlephBlockImport<B, I>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     pub fn new(
         inner: I,
-        justification_tx: UnboundedSender<JustificationNotification<B>>,
+        justification_tx: UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
     ) -> AlephBlockImport<B, I> {
         AlephBlockImport {
             inner,
@@ -130,8 +141,7 @@ where
 
         self.justification_tx
             .unbounded_send(JustificationNotification {
-                hash,
-                number,
+                block_id: (hash, number).into(),
                 justification: aleph_justification,
             })
             .map_err(SendJustificationError::Send)
@@ -142,6 +152,7 @@ where
 impl<B, I> BlockImport<B> for AlephBlockImport<B, I>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     type Error = I::Error;
@@ -189,6 +200,7 @@ where
 impl<B, I> JustificationImport<B> for AlephBlockImport<B, I>
 where
     B: BlockT,
+    B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
 {
     type Error = ConsensusError;

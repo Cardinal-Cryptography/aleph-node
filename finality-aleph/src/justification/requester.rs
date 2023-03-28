@@ -1,35 +1,32 @@
 use std::{fmt, marker::PhantomData, time::Instant};
 
-use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
+use aleph_primitives::BlockNumber;
 use log::{debug, error, info, warn};
-use sc_client_api::blockchain::Info;
-use sp_api::{BlockId, BlockT, NumberFor};
-use sp_runtime::traits::{Header, One};
 
 use crate::{
     finalization::BlockFinalizer,
     justification::{
-        scheduler::SchedulerActions, versioned_encode, JustificationNotification,
-        JustificationRequestScheduler, Verifier,
+        scheduler::SchedulerActions, JustificationNotification, JustificationRequestScheduler,
+        Verifier,
     },
     metrics::Checkpoint,
-    network, BlockHashNum, BlockchainBackend, Metrics,
+    network, BlockIdentifier, BlockchainBackend, ChainInfo, Metrics,
 };
 
 /// Threshold for how many tries are needed so that JustificationRequestStatus is logged
 const REPORT_THRESHOLD: u32 = 2;
 
 /// This structure is created for keeping and reporting status of BlockRequester
-pub struct JustificationRequestStatus<B: BlockT> {
-    block_hash_number: Option<BlockHashNum<B>>,
+pub struct JustificationRequestStatus<BI: BlockIdentifier> {
+    block_hash_number: Option<BI>,
     block_tries: u32,
-    parent: Option<B::Hash>,
+    parent: Option<BI::Hash>,
     n_children: usize,
     children_tries: u32,
     report_threshold: u32,
 }
 
-impl<B: BlockT> JustificationRequestStatus<B> {
+impl<BI: BlockIdentifier> JustificationRequestStatus<BI> {
     fn new() -> Self {
         Self {
             block_hash_number: None,
@@ -41,7 +38,7 @@ impl<B: BlockT> JustificationRequestStatus<B> {
         }
     }
 
-    fn save_children(&mut self, hash: B::Hash, n_children: usize) {
+    fn save_children(&mut self, hash: BI::Hash, n_children: usize) {
         if self.parent == Some(hash) {
             self.children_tries += 1;
         } else {
@@ -51,7 +48,7 @@ impl<B: BlockT> JustificationRequestStatus<B> {
         self.n_children = n_children;
     }
 
-    fn save_block(&mut self, hn: BlockHashNum<B>) {
+    fn save_block(&mut self, hn: BI) {
         if self.block_hash_number == Some(hn.clone()) {
             self.block_tries += 1;
         } else {
@@ -73,14 +70,16 @@ impl<B: BlockT> JustificationRequestStatus<B> {
     }
 }
 
-impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
+impl<BI: BlockIdentifier> fmt::Display for JustificationRequestStatus<BI> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.block_tries >= self.report_threshold {
             if let Some(hn) = &self.block_hash_number {
                 write!(
                     f,
                     "tries - {}; requested block number - {}; hash - {};",
-                    self.block_tries, hn.num, hn.hash,
+                    self.block_tries,
+                    hn.number(),
+                    hn.block_hash(),
                 )?;
             }
         }
@@ -97,41 +96,39 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
     }
 }
 
-pub struct BlockRequester<B, RB, S, F, V, BB>
+pub struct BlockRequester<BI, RB, S, F, V, BB>
 where
-    B: BlockT,
-    B::Header: Header<Number = BlockNumber>,
-    RB: network::RequestBlocks<B> + 'static,
+    BI: BlockIdentifier,
+    RB: network::RequestBlocks<BI> + 'static,
     S: JustificationRequestScheduler,
-    F: BlockFinalizer<B>,
-    V: Verifier<B>,
-    BB: BlockchainBackend<B> + 'static,
+    F: BlockFinalizer<BI>,
+    V: Verifier<BI>,
+    BB: BlockchainBackend<BI> + 'static,
 {
     block_requester: RB,
     blockchain_backend: BB,
     finalizer: F,
     justification_request_scheduler: S,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
-    request_status: JustificationRequestStatus<B>,
+    metrics: Option<Metrics<BI::Hash>>,
+    request_status: JustificationRequestStatus<BI>,
     _phantom: PhantomData<V>,
 }
 
-impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
+impl<BI, RB, S, F, V, BB> BlockRequester<BI, RB, S, F, V, BB>
 where
-    B: BlockT,
-    B::Header: Header<Number = BlockNumber>,
-    RB: network::RequestBlocks<B> + 'static,
+    BI: BlockIdentifier,
+    RB: network::RequestBlocks<BI> + 'static,
     S: JustificationRequestScheduler,
-    F: BlockFinalizer<B>,
-    V: Verifier<B>,
-    BB: BlockchainBackend<B> + 'static,
+    F: BlockFinalizer<BI>,
+    V: Verifier<BI>,
+    BB: BlockchainBackend<BI> + 'static,
 {
     pub fn new(
         block_requester: RB,
         blockchain_backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
-        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+        metrics: Option<Metrics<BI::Hash>>,
     ) -> Self {
         BlockRequester {
             block_requester,
@@ -146,16 +143,18 @@ where
 
     pub fn handle_justification_notification(
         &mut self,
-        notification: JustificationNotification<B>,
+        notification: JustificationNotification<BI>,
         verifier: V,
-        last_finalized: NumberFor<B>,
-        stop_h: NumberFor<B>,
+        last_finalized: BlockNumber,
+        stop_h: BlockNumber,
     ) {
         let JustificationNotification {
             justification,
-            number,
-            hash,
+            block_id,
         } = notification;
+
+        let number = block_id.number();
+        let hash = block_id.block_hash();
 
         if number <= last_finalized || number > stop_h {
             debug!(target: "aleph-justification", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
@@ -168,11 +167,9 @@ where
         };
 
         debug!(target: "aleph-justification", "Finalizing block {:?} {:?}", number, hash);
-        let finalization_res = self.finalizer.finalize_block(
-            hash,
-            number,
-            Some((ALEPH_ENGINE_ID, versioned_encode(justification))),
-        );
+        let finalization_res = self
+            .finalizer
+            .finalize_block(block_id, justification.into());
         match finalization_res {
             Ok(()) => {
                 self.justification_request_scheduler.on_block_finalized();
@@ -194,7 +191,7 @@ where
         }
     }
 
-    pub fn request_justification(&mut self, wanted: NumberFor<B>) {
+    pub fn request_justification(&mut self, wanted: BlockNumber) {
         match self.justification_request_scheduler.schedule_action() {
             SchedulerActions::Request => {
                 let info = self.blockchain_backend.info();
@@ -209,15 +206,15 @@ where
         }
     }
 
-    pub fn finalized_number(&self) -> NumberFor<B> {
-        self.blockchain_backend.info().finalized_number
+    pub fn finalized_number(&self) -> BlockNumber {
+        self.blockchain_backend.info().finalized_block.number()
     }
 
-    fn do_request(&mut self, hash: &<B as BlockT>::Hash, num: NumberFor<B>) {
+    fn do_request(&mut self, block_id: BI) {
         debug!(target: "aleph-justification",
-               "We have block {:?} with hash {:?}. Requesting justification.", num, hash);
+               "We have block {:?} with hash {:?}. Requesting justification.", block_id.number(), block_id.block_hash());
         self.justification_request_scheduler.on_request_sent();
-        self.block_requester.request_justification(hash, num);
+        self.block_requester.request_justification(block_id);
     }
 
     // We request justifications for all the children of last finalized block.
@@ -225,42 +222,41 @@ where
     // that we are up to date with finalization.
     // We also request the child that it's on the same branch as top_wanted since a fork may happen
     // somewhere in between them.
-    fn request_children(&mut self, info: &Info<B>) {
-        let finalized_hash = info.finalized_hash;
-        let finalized_number = info.finalized_number;
+    fn request_children(&mut self, info: &ChainInfo<BI>) {
+        let finalized_hash = info.finalized_block.block_hash();
 
-        let children = self.blockchain_backend.children(finalized_hash);
+        let children = self
+            .blockchain_backend
+            .children(info.finalized_block.clone());
 
         if !children.is_empty() {
             self.request_status
                 .save_children(finalized_hash, children.len());
         }
 
-        for child in &children {
-            self.do_request(child, finalized_number + NumberFor::<B>::one());
+        for child in children {
+            self.do_request(child);
         }
     }
 
     // This request is important in the case when we are far behind and want to catch up.
-    fn request_wanted(&mut self, mut top_wanted: NumberFor<B>, info: &Info<B>) {
-        let best_number = info.best_number;
+    fn request_wanted(&mut self, mut top_wanted: BlockNumber, info: &ChainInfo<BI>) {
+        let best_number = info.best_block.number();
         if best_number <= top_wanted {
             // most probably block best_number is not yet finalized
-            top_wanted = best_number.saturating_sub(NumberFor::<B>::one());
+            top_wanted = best_number.saturating_sub(1);
         }
-        let finalized_number = info.finalized_number;
+        let finalized_number = info.finalized_block.number();
         // We know that top_wanted >= finalized_number, so
         // - if top_wanted == finalized_number, then we don't want to request it
         // - if top_wanted == finalized_number + 1, then we already requested it
-        if top_wanted <= finalized_number + NumberFor::<B>::one() {
+        if top_wanted <= finalized_number + 1 {
             return;
         }
-        match self.blockchain_backend.header(BlockId::Number(top_wanted)) {
-            Ok(Some(header)) => {
-                let hash = header.hash();
-                let num = *header.number();
-                self.do_request(&hash, num);
-                self.request_status.save_block((hash, num).into());
+        match self.blockchain_backend.id(top_wanted) {
+            Ok(Some(block_id)) => {
+                self.do_request(block_id.clone());
+                self.request_status.save_block(block_id);
             }
             Ok(None) => {
                 warn!(target: "aleph-justification", "Cancelling request, because we don't have block {:?}.", top_wanted);

@@ -8,8 +8,8 @@ use codec::{Decode, Encode};
 use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
-    sync::{BlockIdentifier, Header, Justification as JustificationT},
-    AlephJustification,
+    sync::{Header, Justification as JustificationT},
+    AlephJustification, BlockIdentifier,
 };
 
 mod chain_status;
@@ -44,8 +44,14 @@ impl<SH: SubstrateHeader<Number = BlockNumber>> Hash for BlockId<SH> {
 }
 
 impl<H: SubstrateHeader<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
+    type Hash = H::Hash;
+
     fn number(&self) -> u32 {
         self.number
+    }
+
+    fn block_hash(&self) -> Self::Hash {
+        self.hash
     }
 }
 

@@ -25,7 +25,7 @@ use crate::{
     },
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
-    AlephConfig, BlockchainBackend,
+    AlephConfig, BlockchainBackend, IdentifierFor,
 };
 
 pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
@@ -46,7 +46,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    BB: BlockchainBackend<B> + Send + 'static,
+    BB: BlockchainBackend<IdentifierFor<B>> + Send + 'static,
     SC: SelectChain<B> + 'static,
 {
     let AlephConfig {
