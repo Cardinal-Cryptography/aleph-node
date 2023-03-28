@@ -65,8 +65,7 @@ jobs:
                [ $p = "contracts/marketplace" ] ||
                [ $p = "contracts/simple_dex" ] ||
                [ $p = "contracts/ticket_token" ] ||
-               [ $p = "contracts/wrapped_azero" ] ||
-               [ $p = "contracts/shared_traits" ]
+               [ $p = "contracts/wrapped_azero" ]
             then
                cargo contract check
             else
