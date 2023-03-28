@@ -12,7 +12,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name:
+    - name: Check Pull Request title
       shell: bash
       env:
         PR_TITLE: ${{ inputs.pr-title }}
