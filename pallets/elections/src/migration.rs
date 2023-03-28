@@ -10,7 +10,7 @@ use sp_core::Get;
 #[cfg(feature = "try-runtime")]
 use {frame_support::ensure, pallets_support::ensure_storage_version, sp_std::vec::Vec};
 
-use crate::{CommitteeSize, Config, LOG_TARGET, NextEraCommitteeSize};
+use crate::{CommitteeSize, Config, NextEraCommitteeSize, LOG_TARGET};
 
 // V3 CommitteeSeats
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,7 +27,10 @@ pub struct Migration<T, P>(sp_std::marker::PhantomData<(T, P)>);
 
 impl<T: Config, P: PalletInfoAccess> OnRuntimeUpgrade for Migration<T, P> {
     fn on_runtime_upgrade() -> Weight {
-        log::info!(target: LOG_TARGET, "Running migration from STORAGE_VERSION 3 to 4 for pallet elections");
+        log::info!(
+            target: LOG_TARGET,
+            "Running migration from STORAGE_VERSION 3 to 4 for pallet elections"
+        );
 
         let reads = 2;
         let mut writes = 1;
