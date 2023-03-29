@@ -48,7 +48,7 @@ runs:
         echo name-for-argo=$(echo ${HEAD_REF#refs/heads/} \
           | tr / - | tr '[:upper:]' '[:lower:]' | tr -c '[a-z0-9-.]' '-') >> $GITHUB_OUTPUT
 
-    - name: Get branch name if release or pre-release was createed
+    - name: Get branch name if release or pre-release was created
       if: ${{ !startsWith(github.ref, 'refs/') }}
       id: release
       shell: bash
