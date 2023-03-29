@@ -51,7 +51,7 @@ where
         blockchain_backend: BB,
         finalizer: F,
         justification_request_scheduler: S,
-        metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+        metrics: Option<Metrics<B::Hash>>,
         justification_handler_config: JustificationHandlerConfig,
     ) -> Self {
         Self {
