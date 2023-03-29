@@ -96,7 +96,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
 {
     client: Arc<C>,
@@ -120,7 +120,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
 {
     #[allow(clippy::too_many_arguments)]
@@ -388,7 +388,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
 {
     type Error = SM::Error;
