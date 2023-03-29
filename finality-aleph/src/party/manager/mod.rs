@@ -31,9 +31,9 @@ use crate::{
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
     },
-    AuthorityId, CurrentRmcNetworkData, JustificationNotification, Keychain, LegacyRmcNetworkData,
-    Metrics, NodeIndex, SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod,
-    UnitCreationDelay, VersionedNetworkData,
+    AuthorityId, CurrentRmcNetworkData, IdentifierFor, JustificationNotification, Keychain,
+    LegacyRmcNetworkData, Metrics, NodeIndex, SessionBoundaries, SessionBoundaryInfo, SessionId,
+    SessionPeriod, UnitCreationDelay, VersionedNetworkData,
 };
 
 mod aggregator;
@@ -81,7 +81,7 @@ where
     subtask_common: SubtaskCommon,
     data_provider: DataProvider<B>,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    aggregator_io: aggregator::IO<B>,
+    aggregator_io: aggregator::IO<IdentifierFor<B>>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
     backup: ABFTBackup,
@@ -103,7 +103,7 @@ where
     select_chain: SC,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
-    authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+    authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
     spawn_handle: SpawnHandle,
@@ -129,7 +129,9 @@ where
         select_chain: SC,
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
-        authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+        authority_justification_tx: mpsc::UnboundedSender<
+            JustificationNotification<IdentifierFor<B>>,
+        >,
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
         spawn_handle: SpawnHandle,

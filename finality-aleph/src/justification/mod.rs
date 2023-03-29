@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use aleph_primitives::AuthoritySignature;
+use aleph_primitives::{AuthoritySignature, BlockNumber, ALEPH_ENGINE_ID};
 use codec::{Decode, Encode};
 use sp_api::{BlockT, NumberFor};
 
-use crate::{crypto::Signature, SessionId};
+use crate::{crypto::Signature, BlockIdentifier, IdentifierFor, SessionId};
 
 mod compatibility;
 mod handler;
@@ -16,6 +16,7 @@ pub use handler::JustificationHandler;
 pub use scheduler::{
     JustificationRequestScheduler, JustificationRequestSchedulerImpl, SchedulerActions,
 };
+use sp_runtime::Justification;
 
 use crate::abft::SignatureSet;
 
@@ -27,8 +28,10 @@ pub enum AlephJustification {
     EmergencySignature(AuthoritySignature),
 }
 
-pub trait Verifier<B: BlockT> {
-    fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool;
+impl From<AlephJustification> for Justification {
+    fn from(val: AlephJustification) -> Self {
+        (ALEPH_ENGINE_ID, versioned_encode(val))
+    }
 }
 
 pub struct SessionInfo<B: BlockT, V: Verifier<B>> {
@@ -45,14 +48,14 @@ pub trait SessionInfoProvider<B: BlockT, V: Verifier<B>> {
 
 /// A notification for sending justifications over the network.
 #[derive(Clone)]
-pub struct JustificationNotification<Block: BlockT> {
+pub struct JustificationNotification<BI: BlockIdentifier> {
     /// The justification itself.
     pub justification: AlephJustification,
-    /// The hash of the finalized block.
-    pub hash: Block::Hash,
     /// The ID of the finalized block.
-    pub number: NumberFor<Block>,
+    pub block_id: BI,
 }
+
+pub type JustificationNotificationFor<B> = JustificationNotification<IdentifierFor<B>>;
 
 #[derive(Clone)]
 pub struct JustificationHandlerConfig {

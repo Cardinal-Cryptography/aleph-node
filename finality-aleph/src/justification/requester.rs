@@ -1,19 +1,19 @@
 use std::{fmt, marker::PhantomData, time::Instant};
 
-use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
+use aleph_primitives::BlockNumber;
 use log::{debug, error, info, warn};
 use sc_client_api::blockchain::Info;
-use sp_api::{BlockId, BlockT, NumberFor};
-use sp_runtime::traits::{Header, One};
+use sp_api::{BlockId, BlockT, HeaderT};
 
+use super::JustificationNotificationFor;
 use crate::{
     finalization::BlockFinalizer,
     justification::{
-        scheduler::SchedulerActions, versioned_encode, JustificationNotification,
-        JustificationRequestScheduler, Verifier,
+        scheduler::SchedulerActions, JustificationNotification, JustificationRequestScheduler,
+        Verifier,
     },
     metrics::Checkpoint,
-    network, BlockHashNum, BlockchainBackend, Metrics,
+    network, BlockHashNum, BlockchainBackend, HashNum, IdentifierFor, Metrics,
 };
 
 /// Threshold for how many tries are needed so that JustificationRequestStatus is logged
@@ -100,10 +100,10 @@ impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
 pub struct BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
-    B::Header: Header<Number = BlockNumber>,
+    B::Header: HeaderT<Number = BlockNumber>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    F: BlockFinalizer<B>,
+    F: BlockFinalizer<IdentifierFor<B>>,
     V: Verifier<B>,
     BB: BlockchainBackend<B> + 'static,
 {
@@ -119,10 +119,10 @@ where
 impl<B, RB, S, F, V, BB> BlockRequester<B, RB, S, F, V, BB>
 where
     B: BlockT,
-    B::Header: Header<Number = BlockNumber>,
+    B::Header: HeaderT<Number = BlockNumber>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    F: BlockFinalizer<B>,
+    F: BlockFinalizer<IdentifierFor<B>>,
     V: Verifier<B>,
     BB: BlockchainBackend<B> + 'static,
 {
@@ -146,33 +146,32 @@ where
 
     pub fn handle_justification_notification(
         &mut self,
-        notification: JustificationNotification<B>,
+        notification: JustificationNotificationFor<B>,
         verifier: V,
-        last_finalized: NumberFor<B>,
-        stop_h: NumberFor<B>,
+        last_finalized: BlockNumber,
+        stop_h: BlockNumber,
     ) {
         let JustificationNotification {
             justification,
-            number,
-            hash,
+            block_id,
         } = notification;
+
+        let HashNum { num: number, hash } = block_id;
 
         if number <= last_finalized || number > stop_h {
             debug!(target: "aleph-justification", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
             return;
         };
 
-        if !(verifier.verify(&justification, hash)) {
+        if !(verifier.verify(&justification, &block_id)) {
             warn!(target: "aleph-justification", "Error when verifying justification for block {:?} {:?}", number, hash);
             return;
         };
 
         debug!(target: "aleph-justification", "Finalizing block {:?} {:?}", number, hash);
-        let finalization_res = self.finalizer.finalize_block(
-            hash,
-            number,
-            Some((ALEPH_ENGINE_ID, versioned_encode(justification))),
-        );
+        let finalization_res = self
+            .finalizer
+            .finalize_block(block_id, justification.into());
         match finalization_res {
             Ok(()) => {
                 self.justification_request_scheduler.on_block_finalized();
