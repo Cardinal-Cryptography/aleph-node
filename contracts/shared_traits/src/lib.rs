@@ -3,4 +3,4 @@
 
 mod haltable;
 
-pub use haltable::*;
+pub use haltable::{Haltable, HaltableData, HaltableError, HaltableResult, Internal};
