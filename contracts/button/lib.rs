@@ -61,10 +61,10 @@ pub mod button_game {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     /// Scoring strategy indicating what kind of reward users get for pressing the button
     #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]

@@ -68,10 +68,10 @@ pub mod marketplace {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     #[ink(event)]
     #[derive(Clone, Eq, PartialEq, Debug)]

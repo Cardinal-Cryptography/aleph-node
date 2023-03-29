@@ -104,10 +104,10 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     #[ink(event)]
     pub struct SwapPairRemoved {
