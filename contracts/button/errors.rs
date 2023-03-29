@@ -63,3 +63,9 @@ impl From<GameError> for HaltableError {
         HaltableError::Custom(format!("{:?}", why))
     }
 }
+
+impl From<HaltableError> for GameError {
+    fn from(inner: HaltableError) -> Self {
+        GameError::HaltableError(inner)
+    }
+}
