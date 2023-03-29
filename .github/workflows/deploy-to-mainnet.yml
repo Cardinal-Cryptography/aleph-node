@@ -54,8 +54,10 @@ jobs:
         uses: ./.github/actions/build-and-push-dockerhub-image
         if: secrets.DOCKERHUB_USERNAME != "" && secrets.DOCKERHUB_PASSWORD != ""
         with:
-          source-image: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.get-ref-properties.outputs.tag }}
-          target-image: cardinalcryptography/aleph-zero:mainnet-${{ steps.get-ref-properties.outputs.tag }}
+          source-image:
+            public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.get-ref-properties.outputs.tag }}
+          target-image:
+            cardinalcryptography/aleph-zero:mainnet-${{ steps.get-ref-properties.outputs.tag }}
           additional-image: cardinalcryptography/aleph-zero:mainnet-latest
           dockerhub-username: "${{ secrets.DOCKERHUB_USERNAME }}"
           dockerhub-password: "${{ secrets.DOCKERHUB_PASSWORD }}"
