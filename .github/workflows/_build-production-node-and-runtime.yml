@@ -69,7 +69,7 @@ jobs:
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
-        env:
+        with:
           binary-dir: target/production
           binary-file: aleph-node
           # yamllint disable-line rule:line-length
@@ -82,7 +82,7 @@ jobs:
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
         shell: bash
-        env:
+        with:
           binary-dir: target/production/wbuild/aleph-runtime
           binary-file: aleph_runtime.compact.wasm
           # yamllint disable-line rule:line-length
