@@ -90,4 +90,4 @@ jobs:
           s3-bucket-path:
             builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
           s3-bucket-file: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
-          s3-bucket-nam: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+          s3-bucket-name: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
