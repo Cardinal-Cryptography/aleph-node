@@ -104,7 +104,7 @@ where
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<IdentifierFor<B>>,
-    V: Verifier<B>,
+    V: Verifier<IdentifierFor<B>>,
     BB: BlockchainBackend<B> + 'static,
 {
     block_requester: RB,
@@ -123,7 +123,7 @@ where
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
     F: BlockFinalizer<IdentifierFor<B>>,
-    V: Verifier<B>,
+    V: Verifier<IdentifierFor<B>>,
     BB: BlockchainBackend<B> + 'static,
 {
     pub fn new(

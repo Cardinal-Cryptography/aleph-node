@@ -21,10 +21,10 @@ pub struct JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
-    V: Verifier<B>,
+    V: Verifier<IdentifierFor<B>>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    SI: SessionInfoProvider<B, V>,
+    SI: SessionInfoProvider<IdentifierFor<B>, V>,
     F: BlockFinalizer<IdentifierFor<B>>,
     BB: BlockchainBackend<B> + 'static,
 {
@@ -38,10 +38,10 @@ impl<B, V, RB, S, SI, F, BB> JustificationHandler<B, V, RB, S, SI, F, BB>
 where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
-    V: Verifier<B>,
+    V: Verifier<IdentifierFor<B>>,
     RB: network::RequestBlocks<B> + 'static,
     S: JustificationRequestScheduler,
-    SI: SessionInfoProvider<B, V>,
+    SI: SessionInfoProvider<IdentifierFor<B>, V>,
     F: BlockFinalizer<IdentifierFor<B>>,
     BB: BlockchainBackend<B> + 'static,
 {
