@@ -81,6 +81,7 @@ jobs:
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        uses: ./.github/actions/copy-file-to-s3
         with:
           binary-dir: target/production/wbuild/aleph-runtime
           binary-file: aleph_runtime.compact.wasm

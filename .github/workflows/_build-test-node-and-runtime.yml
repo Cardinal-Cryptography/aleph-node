@@ -67,10 +67,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Copy test binary to S3 Mainnet AWS bucket
-        uses: ./.github/actions/copy-file-to-s3
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        uses: ./.github/actions/copy-file-to-s3
         with:
           binary-dir: target/release
           binary-file: aleph-node
@@ -80,10 +80,11 @@ jobs:
           s3-bucket-name: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
 
       - name: Copy test runtime to S3 Mainnet AWS bucket
-        uses: ./.github/actions/copy-file-to-s3
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        uses: ./.github/actions/copy-file-to-s3
+
         with:
           binary-dir: target/release/wbuild/aleph-runtime
           binary-file: aleph_runtime.compact.wasm
