@@ -9,7 +9,13 @@ concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
 
 jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
   deploy-testnet:
+    needs: [check-vars-and-secrets]
     name: Deploy new aleph-node image to Testnet EKS
     runs-on: ubuntu-20.04
     environment:
@@ -38,14 +44,14 @@ jobs:
         id: login-public-ecr
         uses: docker/login-action@v2
         with:
-          registry: public.ecr.aws
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
 
       - name: Tag and push image for Testnet
         env:
-          DEVNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.sha_short }}
-          TESTNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          DEVNET_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.sha_short }}
+          TESTNET_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
         run: |
           export image_not_exist=$(docker manifest inspect ${{ env.DEVNET_IMAGE }} \
           &> /dev/null ; echo $?)
@@ -64,7 +70,7 @@ jobs:
         uses: ./.github/actions/build-and-push-dockerhub-image
         if: secrets.DOCKERHUB_USERNAME != "" && secrets.DOCKERHUB_PASSWORD != ""
         with:
-          source-image: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          source-image: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
           target-image: cardinalcryptography/aleph-zero:testnet-${{ steps.vars.outputs.branch }}
           additional-image: cardinalcryptography/aleph-zero:testnet-latest
           dockerhub-username: "${{ secrets.DOCKERHUB_USERNAME }}"
@@ -87,13 +93,13 @@ jobs:
           files: |
             aleph-runtime-${{ steps.vars.outputs.sha_short }}.tar.gz
 
-      - name: GIT | Checkout aleph-apps repo
+      - name: GIT | Checkout apps repo
         uses: actions/checkout@v3
         with:
           ref: testnet
-          repository: Cardinal-Cryptography/aleph-apps
+          repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
           token: ${{ secrets.CI_GH_TOKEN }}
-          path: "aleph-apps"
+          path: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
       - name: Init kustomize
         uses: imranismail/setup-kustomize@v1
@@ -102,24 +108,24 @@ jobs:
 
       - name: Update aleph-node docker image and trigger ArgoCD deploy for Testnet
         env:
-          TESTNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          TESTNET_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
           REGIONS_AWS: 'eu-central-1,eu-west-1,eu-west-2,us-east-1,us-east-2'
         run: |
           IFS="," read -a region_array <<< ${{ env.REGIONS_AWS }}
           export aleph_path=$(pwd)
           for i in "${region_array[@]}"; do
             # Deploy new image version for archivist
-            cd ${aleph_path}/aleph-apps/aleph-node-archivists/overlays/testnet/${i}
+            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-archivists/overlays/testnet/${i}
             kustomize edit set image \
               "aleph-node-archivist-image-placeholder=${{ env.TESTNET_IMAGE }}"
 
             # Deploy new image version for validator
-            cd ${aleph_path}/aleph-apps/aleph-node-validators/overlays/testnet/${i}
+            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/testnet/${i}
             kustomize edit set image \
               "aleph-node-validator-image-placeholder=${{ env.TESTNET_IMAGE }}"
           done
 
-      - name: GIT | Commit changes to aleph-apps repository.
+      - name: GIT | Commit changes to apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         with:
           author_name: AlephZero Automation
@@ -127,7 +133,7 @@ jobs:
           message:
             "Updating Testnet docker image tag for pre-release: ${{ steps.vars.outputs.branch }}"
           add: "*.yaml"
-          cwd: "aleph-apps"
+          cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
   slack:
     name: Slack notification

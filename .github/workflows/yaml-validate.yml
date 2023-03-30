@@ -21,7 +21,7 @@ jobs:
 
       - name: VALIDATE | Execute github-actions-validator
         env:
-          DOCKER_IMAGE: public.ecr.aws/p6e8q1z1/github-actions-validator:0.3.2
+          DOCKER_IMAGE: public.ecr.aws/p6e8q1z1/github-actions-validator:0.4.0
         run: |
           set +e
           docker pull ${DOCKER_IMAGE}

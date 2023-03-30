@@ -9,7 +9,13 @@ concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
 
 jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
   deploy-mainnet:
+    needs: [check-vars-and-secrets]
     name: Deploy new aleph-node image to Mainnet EKS
     runs-on: ubuntu-20.04
     environment: 'mainnet'
@@ -37,7 +43,7 @@ jobs:
         id: login-public-ecr
         uses: docker/login-action@v2
         with:
-          registry: public.ecr.aws
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
         env:
@@ -45,7 +51,7 @@ jobs:
 
       - name: Verify aleph-node image existance
         env:
-          IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
         run: |
           export image_not_exist=$(docker manifest inspect ${{ env.IMAGE }} &> /dev/null ; echo $?)
           if [ $image_not_exist -eq 1 ]; then
@@ -57,7 +63,7 @@ jobs:
         uses: ./.github/actions/build-and-push-dockerhub-image
         if: secrets.DOCKERHUB_USERNAME != "" && secrets.DOCKERHUB_PASSWORD != ""
         with:
-          source-image: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          source-image: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
           target-image: cardinalcryptography/aleph-zero:mainnet-${{ steps.vars.outputs.branch }}
           additional-image: cardinalcryptography/aleph-zero:mainnet-latest
           dockerhub-username: "${{ secrets.DOCKERHUB_USERNAME }}"
@@ -89,13 +95,13 @@ jobs:
           files: |
             aleph-runtime-${{ steps.vars.outputs.sha_short }}.tar.gz
 
-      - name: GIT | Checkout aleph-apps repo
+      - name: GIT | Checkout apps repo
         uses: actions/checkout@v3
         with:
           ref: mainnet
-          repository: Cardinal-Cryptography/aleph-apps
+          repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
           token: ${{ secrets.CI_GH_TOKEN }}
-          path: "aleph-apps"
+          path: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
       - name: Init kustomize
         uses: imranismail/setup-kustomize@v1
@@ -104,31 +110,31 @@ jobs:
 
       - name: Update aleph-node docker image and trigger ArgoCD deploy for Mainnet
         env:
-          MAINNET_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node:${{ steps.vars.outputs.branch }}
+          MAINNET_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.branch }}
           REGIONS_AWS: 'eu-central-1,eu-west-1,eu-west-2,us-east-1,us-east-2'
         run: |
           IFS="," read -a region_array <<< ${{ env.REGIONS_AWS }}
           export aleph_path=$(pwd)
           for i in "${region_array[@]}"; do
             # Deploy new image version for archivist
-            cd ${aleph_path}/aleph-apps/aleph-node-archivists/overlays/mainnet/${i}
+            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-archivists/overlays/mainnet/${i}
             kustomize edit set image \
               "aleph-node-archivist-image-placeholder=${{ env.MAINNET_IMAGE }}"
 
             # Deploy new image version for validator
-            cd ${aleph_path}/aleph-apps/aleph-node-validators/overlays/mainnet/${i}
+            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/mainnet/${i}
             kustomize edit set image \
               "aleph-node-validator-image-placeholder=${{ env.MAINNET_IMAGE }}"
           done
 
-      - name: GIT | Commit changes to aleph-apps repository.
+      - name: GIT | Commit changes to apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         with:
           author_name: AlephZero Automation
           author_email: alephzero@10clouds.com
           message: "Updating Mainnet docker image tag for release: ${{ steps.vars.outputs.branch }}"
           add: "*.yaml"
-          cwd: "aleph-apps"
+          cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
   slack:
     name: Slack notification
