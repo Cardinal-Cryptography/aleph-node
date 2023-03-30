@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
+#![feature(min_specialization)]
 
 /// Simple DEX contract
 ///
@@ -24,7 +25,7 @@ mod simple_dex {
         storage::Mapping,
         traits::Storage,
     };
-    use shared_traits::{DefaultHaltable, Haltable, HaltableData, HaltableError};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
@@ -104,10 +105,10 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     #[ink(event)]
     pub struct SwapPairRemoved {
@@ -144,41 +145,29 @@ mod simple_dex {
         pub halted: HaltableData,
     }
 
-    impl DefaultHaltable<SimpleDex> for SimpleDex {
-        fn _after_halt(&self) {
+    impl Internal for SimpleDex {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
         }
 
-        fn _after_resume(&self) {
+        fn _after_resume(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
         }
     }
 
-    impl Haltable for SimpleDex {
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn halt(&mut self) -> Result<(), HaltableError> {
-            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
-            DefaultHaltable::halt(self)
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn resume(&mut self) -> Result<(), HaltableError> {
-            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
-            DefaultHaltable::resume(self)
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        fn is_halted(&self) -> bool {
-            DefaultHaltable::is_halted(self)
-        }
-    }
+    impl Haltable for SimpleDex {}
 
     impl SimpleDex {
         #[ink(constructor)]
@@ -214,7 +203,7 @@ mod simple_dex {
             amount_token_in: Balance,
             min_amount_token_out: Balance,
         ) -> Result<(), DexError> {
-            DefaultHaltable::check_halted(self)?;
+            self.check_halted()?;
 
             let this = self.env().account_id();
             let caller = self.env().caller();

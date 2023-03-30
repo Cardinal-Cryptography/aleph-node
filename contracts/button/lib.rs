@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
+#![feature(min_specialization)]
 
 mod errors;
 
@@ -21,7 +22,7 @@ pub mod button_game {
         traits::Storage,
     };
     use scale::{Decode, Encode};
-    use shared_traits::{DefaultHaltable, Haltable, HaltableData, HaltableError};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
 
     use crate::errors::GameError;
 
@@ -61,10 +62,10 @@ pub mod button_game {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     /// Scoring strategy indicating what kind of reward users get for pressing the button
     #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
@@ -109,41 +110,29 @@ pub mod button_game {
         pub halted: HaltableData,
     }
 
-    impl DefaultHaltable<ButtonGame> for ButtonGame {
-        fn _after_halt(&self) {
+    impl Internal for ButtonGame {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
         }
 
-        fn _after_resume(&self) {
+        fn _after_resume(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
         }
     }
 
-    impl Haltable for ButtonGame {
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn halt(&mut self) -> Result<(), HaltableError> {
-            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
-            DefaultHaltable::halt(self)
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn resume(&mut self) -> Result<(), HaltableError> {
-            self.check_role(Self::env().caller(), Role::Admin(Self::env().account_id()))?;
-            DefaultHaltable::resume(self)
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        fn is_halted(&self) -> bool {
-            DefaultHaltable::is_halted(self)
-        }
-    }
+    impl Haltable for ButtonGame {}
 
     impl ButtonGame {
         #[ink(constructor)]
@@ -239,6 +228,8 @@ pub mod button_game {
         /// If called on alive button, instantaneously mints reward tokens to the caller
         #[ink(message)]
         pub fn press(&mut self) -> ButtonResult<()> {
+            self.check_halted()?;
+
             if self.is_dead() {
                 return Err(GameError::AfterDeadline);
             }

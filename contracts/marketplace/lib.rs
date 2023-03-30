@@ -36,7 +36,7 @@ pub mod marketplace {
         contracts::psp22::{extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref},
         traits::Storage,
     };
-    use shared_traits::{DefaultHaltable, Haltable, HaltableData, HaltableError, HaltableResult};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
@@ -68,10 +68,10 @@ pub mod marketplace {
     }
 
     #[ink(event)]
-    pub struct Halted {}
+    pub struct Halted;
 
     #[ink(event)]
-    pub struct Resumed {}
+    pub struct Resumed;
 
     #[ink(event)]
     #[derive(Clone, Eq, PartialEq, Debug)]
@@ -115,41 +115,29 @@ pub mod marketplace {
         }
     }
 
-    impl DefaultHaltable<Marketplace> for Marketplace {
-        fn _after_halt(&self) {
+    impl Internal for Marketplace {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
         }
 
-        fn _after_resume(&self) {
+        fn _after_resume(&self) -> Result<(), HaltableError> {
             Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
         }
     }
 
-    impl Haltable for Marketplace {
-        /// Emergency halt of all operations
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn halt(&mut self) -> HaltableResult<()> {
-            self.check_role(self.env().caller(), self.admin())?;
-            DefaultHaltable::halt(self)
-        }
-
-        /// Resume after emergency halt
-        ///
-        /// Can only be called by the contract's Admin.
-        #[ink(message)]
-        fn resume(&mut self) -> HaltableResult<()> {
-            self.check_role(self.env().caller(), self.admin())?;
-            DefaultHaltable::resume(self)
-        }
-
-        /// Is the contract in a halted state
-        #[ink(message)]
-        fn is_halted(&self) -> bool {
-            DefaultHaltable::is_halted(self)
-        }
-    }
+    impl Haltable for Marketplace {}
 
     impl Marketplace {
         #[ink(constructor)]
@@ -246,7 +234,7 @@ pub mod marketplace {
         /// and only if the contract is currently halted
         #[ink(message)]
         pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
-            if DefaultHaltable::is_halted(self) {
+            if self.is_halted() {
                 self.check_role(self.env().caller(), self.admin())?;
                 self.auction_length = new_auction_length;
                 return Ok(());
