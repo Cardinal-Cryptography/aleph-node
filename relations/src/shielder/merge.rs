@@ -129,7 +129,6 @@ mod relation {
         //----------------------------------
         // Check token value soundness.
         //----------------------------------
-        // some range checks for overflows?
         let token_sum = first_old_note
             .token_amount
             .add(second_old_note.token_amount)?;

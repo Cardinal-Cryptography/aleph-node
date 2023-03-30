@@ -20,6 +20,7 @@ mod relation {
     use {
         crate::shielder::{
             check_merkle_proof, note_var::NoteVarBuilder, path_shape_var::PathShapeVar,
+            token_amount_var::TokenAmountVar,
         },
         ark_r1cs_std::{
             alloc::{
@@ -35,7 +36,6 @@ mod relation {
 
     use crate::shielder::{
         convert_account, convert_hash, convert_vec,
-        token_amount_var::TokenAmountVar,
         types::{
             BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
             BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendAccount,
@@ -121,7 +121,6 @@ mod relation {
         //----------------------------------
         let token_amount_out =
             TokenAmountVar::new_input(ns!(cs, "token amount out"), || self.token_amount_out())?;
-        // some range checks for overflows?
         let token_sum = token_amount_out.add(new_note.token_amount)?;
         token_sum.enforce_equal(&old_note.token_amount)?;
 
