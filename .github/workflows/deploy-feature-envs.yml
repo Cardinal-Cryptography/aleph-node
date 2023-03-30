@@ -239,7 +239,7 @@ jobs:
             --recursive
       # yamllint enable rule:line-length
 
-      - name: GIT | Checkout apps repo
+      - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
@@ -330,7 +330,7 @@ jobs:
             mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
             $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
-      - name: GIT | Commit changes to apps repository.
+      - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         env:
           APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get_branch.outputs.branch_appname }}
@@ -381,7 +381,7 @@ jobs:
         id: get_branch
         uses: ./.github/actions/get-branch
 
-      - name: GIT | Checkout apps repo
+      - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
@@ -425,7 +425,7 @@ jobs:
             mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
             $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
-      - name: GIT | Commit changes to apps repository.
+      - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         env:
           IMAGE_TAG:

@@ -94,7 +94,7 @@ jobs:
           files: |
             aleph-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
 
-      - name: GIT | Checkout apps repo
+      - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@v3
         with:
           ref: testnet
@@ -128,7 +128,7 @@ jobs:
               "aleph-node-validator-image-placeholder=${{ env.TESTNET_IMAGE }}"
           done
 
-      - name: GIT | Commit changes to apps repository.
+      - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}

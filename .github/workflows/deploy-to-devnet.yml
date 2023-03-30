@@ -44,7 +44,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: GIT | Checkout apps repo
+      - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@v3
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
@@ -132,7 +132,7 @@ jobs:
           #!/bin/bash
           sleep 300
 
-      - name: GIT | Commit changes to apps repository.
+      - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}

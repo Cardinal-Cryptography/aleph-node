@@ -151,7 +151,7 @@ jobs:
           labels: 'DEPLOYED-CONTRACTS'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: GIT | Checkout apps repo
+      - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@master
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}

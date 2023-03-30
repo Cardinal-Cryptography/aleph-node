@@ -33,7 +33,7 @@ runs:
       id: get-ref-properties
       uses: ./.github/actions/get-ref-properties
 
-    - name: Checkout apps repo
+    - name: Checkout argocd apps repo
       uses: actions/checkout@v3
       with:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
