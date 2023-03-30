@@ -91,7 +91,7 @@ mod relation {
         //-----------------------------------------------
         // Baking `fee` and `recipient` into the circuit.
         //-----------------------------------------------
-        let _fee = FpVar::new_input(ns!(cs, "fee"), || self.fee())?;
+        let _fee = TokenAmountVar::new_input(ns!(cs, "fee"), || self.fee())?;
         let _recipient = FpVar::new_input(ns!(cs, "recipient"), || self.recipient())?;
 
         //------------------------------
