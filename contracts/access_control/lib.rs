@@ -31,10 +31,20 @@ mod access_control {
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
     pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
 
-    #[ink(storage)]
-    pub struct AccessControl {
+    pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
+
+    #[derive(Debug)]
+    #[openbrush::upgradeable_storage(STORAGE_KEY)]
+    pub struct Data {
         /// Stores a de-facto hashset of user accounts and their roles
         pub privileges: Mapping<(AccountId, Role), ()>,
+        /// reserved for future updates
+        pub _reserved: Option<()>,
+    }
+
+    #[ink(storage)]
+    pub struct AccessControl {
+        data: Data,
     }
 
     #[ink(event)]
@@ -86,7 +96,12 @@ mod access_control {
             let this = Self::env().account_id();
             privileges.insert((caller, Role::Admin(this)), &());
 
-            Self { privileges }
+            Self {
+                data: Data {
+                    privileges,
+                    _reserved: None,
+                },
+            }
         }
 
         /// Gives a role to an account
@@ -95,11 +110,11 @@ mod access_control {
         #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);
-            if !self.privileges.contains(key) {
+            if !self.data.privileges.contains(key) {
                 let caller = self.env().caller();
                 let this = self.env().account_id();
                 self.check_role(caller, Role::Admin(this))?;
-                self.privileges.insert(key, &());
+                self.data.privileges.insert(key, &());
 
                 let event = Event::RoleGranted(RoleGranted {
                     by: caller,
@@ -120,7 +135,7 @@ mod access_control {
             let caller = self.env().caller();
             let this = self.env().account_id();
             self.check_role(caller, Role::Admin(this))?;
-            self.privileges.remove((account, role));
+            self.data.privileges.remove((account, role));
 
             let event = Event::RoleRevoked(RoleRevoked {
                 by: caller,
@@ -135,7 +150,7 @@ mod access_control {
         /// Returns true if account has a role
         #[ink(message, selector = 3)]
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
-            self.privileges.contains((account, role))
+            self.data.privileges.contains((account, role))
         }
 
         /// Terminates the contract.
