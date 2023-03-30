@@ -28,7 +28,7 @@ runs:
     - name: Copy file to S3 AWS bucket
       shell: bash
       run: |
-        if [[ 
+        if [[
           "${{ inputs.compression }}" == "true" && \
           "${{ inputs.source-filename }}" == "${{ inputs.s3-bucket-filename }}"
         ]]; then
@@ -36,8 +36,7 @@ runs:
           echo "!!! name as compressed file uploaded to S3 bucket."
           exit 1
         fi
-
-        if [[ 
+        if [[
           "${{ inputs.compression }}" == "true" && \
           "${{ inputs.source-filename }}" =~ ^.*\.(tar\.gz|tgz)$
         ]]; then
@@ -47,8 +46,7 @@ runs:
           echo "! input to 'false' to just copy the file."
           echo "! "
         fi
-
-        if [[ 
+        if [[
           "${{ inputs.compression }}" == "true" && \
           ! "${{ inputs.s3-bucket-filename }}" =~ ^.*\.(tar\.gz|tgz)$
         ]]; then
@@ -57,8 +55,7 @@ runs:
           echo "! either .tar.gz or .tgz.  It is highly adviced to add an extension."
           echo "! "
         fi
-
-        if [[ 
+        if [[
           "${{ inputs.compression }}" == "false" && \
           ! "${{ inputs.source-filename }}" =~ ^.*\.(tar\.gz|tgz)$ && \
           "${{ inputs.s3-bucket-filename }}" =~ ^.*\.(tar\.gz|tgz)$
@@ -69,15 +66,12 @@ runs:
           echo "! when it is not one."
           echo "! "
         fi
-
         aws s3api head-object \
           --bucket '${{ inputs.s3-bucket-name }}' \
           --key '${{ inputs.s3-bucket-path }}/${{ inputs.s3-bucket-filename }}' \
           2> /dev/null || not_exist=true
         if [[ "${not_exist}" ]]; then
-
           target_s3_filepath=${{ inputs.s3-bucket-path }}/${{ inputs.s3-bucket-filename }}
-
           if [[ "${{ inputs.compression}}" == "true" ]]; then
             tar -cvzf ${{ inputs.s3-bucket-filename }} -C ${{ inputs.source-path }} \
               ${{ inputs.source-filename }}
@@ -87,7 +81,6 @@ runs:
             aws s3 cp ${{ inputs.source-path }} \
               s3://${{ inputs.s3-bucket-name }}/"${target_s3_filepath}"
           fi
-
         else
           echo "File ${{ inputs.s3-bucket-filename }} already exists on S3 bucket."
         fi
