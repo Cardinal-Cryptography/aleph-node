@@ -65,16 +65,24 @@ impl<H> SessionInfoProvider<HashNum<H>, SessionVerifier> for SessionInfoProvider
 where
     H: Header<Number = BlockNumber>,
 {
-    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<HashNum<H>, SessionVerifier> {
+    type Error = tokio::sync::oneshot::error::RecvError;
+
+    async fn for_block_num(
+        &self,
+        number: BlockNumber,
+    ) -> Result<SessionInfo<HashNum<H>, SessionVerifier>, Self::Error> {
         let current_session = self.session_info.session_id_from_block_num(number);
         let last_block_height = self.session_info.last_block_of_session(current_session);
-        let verifier = self
-            .session_authorities
-            .get(current_session)
-            .await
-            .map(|authority_data| authority_data.into());
-
-        SessionInfo::new(current_session, last_block_height, verifier)
+        let authority_data = match self.session_authorities.get(current_session).await {
+            Some(authority_data) => authority_data,
+            None => {
+                self.session_authorities
+                    .subscribe_to_insertion(current_session)
+                    .await
+                    .await?
+            }
+        };
+        Ok(SessionInfo::new(last_block_height, authority_data.into()))
     }
 }
 

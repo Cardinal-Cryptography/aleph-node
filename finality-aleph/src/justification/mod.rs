@@ -1,9 +1,9 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{fmt::Display, marker::PhantomData, time::Duration};
 
 use aleph_primitives::{AuthoritySignature, BlockNumber, ALEPH_ENGINE_ID};
 use codec::{Decode, Encode};
 
-use crate::{crypto::Signature, BlockIdentifier, IdentifierFor, SessionId};
+use crate::{crypto::Signature, BlockIdentifier, IdentifierFor};
 
 mod compatibility;
 mod handler;
@@ -38,20 +38,14 @@ pub trait Verifier<BI: BlockIdentifier> {
 }
 
 pub struct SessionInfo<BI: BlockIdentifier, V: Verifier<BI>> {
-    pub current_session: SessionId,
     pub last_block_height: BlockNumber,
-    pub verifier: Option<V>,
+    pub verifier: V,
     _phantom: PhantomData<BI>,
 }
 
 impl<BI: BlockIdentifier, V: Verifier<BI>> SessionInfo<BI, V> {
-    pub fn new(
-        current_session: SessionId,
-        last_block_height: BlockNumber,
-        verifier: Option<V>,
-    ) -> Self {
+    pub fn new(last_block_height: BlockNumber, verifier: V) -> Self {
         Self {
-            current_session,
             last_block_height,
             verifier,
             _phantom: PhantomData,
@@ -62,7 +56,9 @@ impl<BI: BlockIdentifier, V: Verifier<BI>> SessionInfo<BI, V> {
 /// Returns `SessionInfo` for the session regarding block with no. `number`.
 #[async_trait::async_trait]
 pub trait SessionInfoProvider<BI: BlockIdentifier, V: Verifier<BI>> {
-    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<BI, V>;
+    type Error: Display;
+
+    async fn for_block_num(&self, number: BlockNumber) -> Result<SessionInfo<BI, V>, Self::Error>;
 }
 
 /// A notification for sending justifications over the network.
@@ -78,8 +74,6 @@ pub type JustificationNotificationFor<B> = JustificationNotification<IdentifierF
 
 #[derive(Clone)]
 pub struct JustificationHandlerConfig {
-    /// How long should we wait when the session verifier is not yet available.
-    verifier_timeout: Duration,
     /// How long should we wait for any notification.
     notification_timeout: Duration,
 }
@@ -87,7 +81,6 @@ pub struct JustificationHandlerConfig {
 impl Default for JustificationHandlerConfig {
     fn default() -> Self {
         Self {
-            verifier_timeout: Duration::from_millis(500),
             // request justifications slightly more frequently than they're created
             notification_timeout: Duration::from_millis(800),
         }
@@ -96,9 +89,8 @@ impl Default for JustificationHandlerConfig {
 
 #[cfg(test)]
 impl JustificationHandlerConfig {
-    pub fn new(verifier_timeout: Duration, notification_timeout: Duration) -> Self {
+    pub fn new(notification_timeout: Duration) -> Self {
         Self {
-            verifier_timeout,
             notification_timeout,
         }
     }

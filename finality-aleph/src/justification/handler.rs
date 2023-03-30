@@ -2,7 +2,6 @@ use std::time::{Duration, Instant};
 
 use aleph_primitives::BlockNumber;
 use futures::{channel::mpsc, Stream, StreamExt};
-use futures_timer::Delay;
 use log::{debug, error};
 use sp_api::{BlockT, HeaderT};
 use tokio::time::timeout;
@@ -30,7 +29,6 @@ where
 {
     session_info_provider: SI,
     block_requester: BlockRequester<B, RB, S, F, V, BB>,
-    verifier_timeout: Duration,
     notification_timeout: Duration,
 }
 
@@ -63,7 +61,6 @@ where
                 justification_request_scheduler,
                 metrics,
             ),
-            verifier_timeout: justification_handler_config.verifier_timeout,
             notification_timeout: justification_handler_config.notification_timeout,
         }
     }
@@ -80,41 +77,37 @@ where
 
         loop {
             let last_finalized_number = self.block_requester.finalized_number();
-            let SessionInfo {
+            if let Ok(SessionInfo {
                 verifier,
                 last_block_height: stop_h,
-                current_session,
                 ..
-            } = self
+            }) = self
                 .session_info_provider
                 .for_block_num(last_finalized_number + 1)
-                .await;
-            if verifier.is_none() {
-                debug!(target: "aleph-justification", "Verifier for session {:?} not yet available. Waiting {}ms and will try again ...", current_session, self.verifier_timeout.as_millis());
-                Delay::new(self.verifier_timeout).await;
-                continue;
-            }
-            let verifier = verifier.expect("We loop until this is some.");
-
-            match timeout(self.notification_timeout, notification_stream.next()).await {
-                Ok(Some(notification)) => {
-                    self.block_requester.handle_justification_notification(
-                        notification,
-                        verifier,
-                        last_finalized_number,
-                        stop_h,
-                    );
-                }
-                Ok(None) => panic!("Justification stream ended."),
-                Err(_) => {} //Timeout passed
-            }
-
-            self.block_requester.request_justification(stop_h);
-            if Instant::now().saturating_duration_since(last_status_report)
-                >= STATUS_REPORT_INTERVAL
+                .await
             {
-                self.block_requester.status_report();
-                last_status_report = Instant::now();
+                debug!(target: "aleph-justification", "waiting for justification notification", );
+                match timeout(self.notification_timeout, notification_stream.next()).await {
+                    Ok(Some(notification)) => {
+                        debug!(target: "aleph-justification", "got justification notification", );
+                        self.block_requester.handle_justification_notification(
+                            notification,
+                            verifier,
+                            last_finalized_number,
+                            stop_h,
+                        );
+                    }
+                    Ok(None) => panic!("Justification stream ended."),
+                    Err(_) => {} //Timeout passed
+                }
+
+                self.block_requester.request_justification(stop_h);
+                if Instant::now().saturating_duration_since(last_status_report)
+                    >= STATUS_REPORT_INTERVAL
+                {
+                    self.block_requester.status_report();
+                    last_status_report = Instant::now();
+                }
             }
         }
     }
