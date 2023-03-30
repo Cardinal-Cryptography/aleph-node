@@ -17,7 +17,8 @@ ark-relations = { version = "^0.3.0", default-features = false }
 ark-serialize = { version = "^0.3.0", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
 liminal-ark-poseidon = { version = "0.1.0", default-features = false }
-liminal-ark-relation-macro = { version = "0.1.2" }
+# todo: remove path after publishing
+liminal-ark-relation-macro = { version = "0.1.3", path = "src/proc_macro" }
 paste = { version = "1.0.11" }
 
 # Required for computation in a circuit.

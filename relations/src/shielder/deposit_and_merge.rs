@@ -41,6 +41,7 @@ mod relation {
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct DepositAndMergeRelation {
         #[constant]
         pub max_path_len: u8,

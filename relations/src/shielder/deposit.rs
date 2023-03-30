@@ -23,6 +23,7 @@ mod relation {
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct DepositRelation {
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub note: BackendNote,
