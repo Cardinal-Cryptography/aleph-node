@@ -59,7 +59,7 @@ runs:
         APPS_NAME=${{ inputs.repo-apps-name }}
 
         ## Delete FE application for argo to delete it automatically
-        rm -rf $ALEPH_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+        rm -rf $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
     - name: Commit deletion of the feature environment.
       uses: EndBug/add-and-commit@v9.1.1

@@ -18,12 +18,10 @@ jobs:
     secrets: inherit
 
   check-excluded-packages:
-    needs: [check-vars-and-secrets]
     name: Check excluded packages
     uses: ./.github/workflows/_check-excluded-packages.yml
 
   unit-tests-and-static-checks:
-    needs: [check-vars-and-secrets]
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 

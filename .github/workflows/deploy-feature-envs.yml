@@ -335,8 +335,8 @@ jobs:
         env:
           APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get_branch.outputs.branch_appname }}
         with:
-          author_name: ${{ vars.AUTOCOMMIT_AUTHOR }}
-          author_email: ${{ vars.AUTOCOMMIT_EMAIL }}
+          author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           message: "New Feature Environment Deployment with name: ${{ env.APP_NAME }}"
           add: "*.yaml"
           cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
@@ -432,8 +432,8 @@ jobs:
             ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get_branch.outputs.branch_imagetag_full }}
           APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get_branch.outputs.branch_appname }}
         with:
-          author_name: ${{ vars.AUTOCOMMIT_AUTHOR }}
-          author_email: ${{ vars.AUTOCOMMIT_EMAIL }}
+          author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           message:
             "Image changed for the feature environment to:
             ${{ env.FE_ALEPHNODE_REGISTRY }}:${{ env.IMAGE_TAG }}"
