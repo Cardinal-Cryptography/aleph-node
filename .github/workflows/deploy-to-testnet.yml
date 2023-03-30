@@ -130,10 +130,10 @@ jobs:
       - name: GIT | Commit changes to apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         with:
-          author_name: AlephZero Automation
-          author_email: alephzero@10clouds.com
+          author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           # yamllint disable-line rule:line-length
-          message: "Updating Testnet docker image tag for pre-release: ${{ steps.get-ref-properties.outputs.tag }}"
+          message: "Update Testnet docker image tag for pre-release: ${{ steps.get-ref-properties.outputs.tag }}"
           add: "*.yaml"
           cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
