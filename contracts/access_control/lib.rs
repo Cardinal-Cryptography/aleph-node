@@ -44,7 +44,7 @@ mod access_control {
 
     #[ink(storage)]
     pub struct AccessControl {
-        data: Data,
+        pub data: Data,
     }
 
     #[ink(event)]

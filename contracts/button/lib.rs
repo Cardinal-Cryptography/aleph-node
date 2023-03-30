@@ -114,7 +114,7 @@ pub mod button_game {
     #[ink(storage)]
     #[derive(Storage)]
     pub struct ButtonGame {
-        data: Data,
+        pub data: Data,
         /// is contract in the halted state
         #[storage_field]
         pub halted: HaltableData,

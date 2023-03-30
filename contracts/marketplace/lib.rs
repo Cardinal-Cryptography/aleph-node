@@ -40,9 +40,11 @@ pub mod marketplace {
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
-    #[ink(storage)]
-    #[derive(Storage)]
-    pub struct Marketplace {
+    pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
+
+    #[derive(Debug)]
+    #[openbrush::upgradeable_storage(STORAGE_KEY)]
+    pub struct Data {
         total_proceeds: Balance,
         tickets_sold: Balance,
         min_price: Balance,
@@ -52,6 +54,14 @@ pub mod marketplace {
         ticket_token: AccountId,
         reward_token: AccountId,
         access_control: AccessControlRef,
+        /// reserved for future updates
+        pub _reserved: Option<()>,
+    }
+
+    #[ink(storage)]
+    #[derive(Storage)]
+    pub struct Marketplace {
+        pub data: Data,
         #[storage_field]
         pub halted: HaltableData,
     }
@@ -153,15 +163,18 @@ pub mod marketplace {
             let access_control = AccessControlRef::from_account_id(access_control);
             if access_control.has_role(Self::env().caller(), Self::initializer()) {
                 Marketplace {
-                    ticket_token,
-                    reward_token,
-                    min_price,
-                    sale_multiplier,
-                    auction_length,
-                    current_start_block: Self::env().block_number(),
-                    total_proceeds: starting_price.saturating_div(sale_multiplier),
-                    tickets_sold: 1,
-                    access_control,
+                    data: Data {
+                        ticket_token,
+                        reward_token,
+                        min_price,
+                        sale_multiplier,
+                        auction_length,
+                        current_start_block: Self::env().block_number(),
+                        total_proceeds: starting_price.saturating_div(sale_multiplier),
+                        tickets_sold: 1,
+                        access_control,
+                        _reserved: None,
+                    },
                     halted: HaltableData { halted: false },
                 }
             } else {
@@ -176,13 +189,13 @@ pub mod marketplace {
         /// the ticket remains available for purchase at `min_price()`.
         #[ink(message)]
         pub fn auction_length(&self) -> BlockNumber {
-            self.auction_length
+            self.data.auction_length
         }
 
         /// The block at which the auction of the current ticket started.
         #[ink(message)]
         pub fn current_start_block(&self) -> BlockNumber {
-            self.current_start_block
+            self.data.current_start_block
         }
 
         /// The price the contract would charge when buying at the current block.
@@ -194,7 +207,9 @@ pub mod marketplace {
         /// The average price over all sales the contract made.
         #[ink(message)]
         pub fn average_price(&self) -> Balance {
-            self.total_proceeds.saturating_div(self.tickets_sold)
+            self.data
+                .total_proceeds
+                .saturating_div(self.data.tickets_sold)
         }
 
         /// The multiplier applied to the average price after each sale.
@@ -203,7 +218,7 @@ pub mod marketplace {
         /// auction at `price() = average_price() * sale_multiplier()`.
         #[ink(message)]
         pub fn sale_multiplier(&self) -> Balance {
-            self.sale_multiplier
+            self.data.sale_multiplier
         }
 
         /// Number of tickets available for sale.
@@ -217,14 +232,14 @@ pub mod marketplace {
         /// The minimal price the contract allows.
         #[ink(message)]
         pub fn min_price(&self) -> Balance {
-            self.min_price
+            self.data.min_price
         }
 
         /// Update the minimal price.
         #[ink(message)]
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
             self.check_role(Self::env().caller(), self.admin())?;
-            self.min_price = value;
+            self.data.min_price = value;
             Ok(())
         }
 
@@ -236,7 +251,7 @@ pub mod marketplace {
         pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
             if self.is_halted() {
                 self.check_role(self.env().caller(), self.admin())?;
-                self.auction_length = new_auction_length;
+                self.data.auction_length = new_auction_length;
                 return Ok(());
             }
             Err(Error::HaltableError(HaltableError::NotInHaltedState))
@@ -245,13 +260,13 @@ pub mod marketplace {
         /// Address of the reward token contract this contract will accept as payment.
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.reward_token
+            self.data.reward_token
         }
 
         /// Address of the ticket token contract this contract will auction off.
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.ticket_token
+            self.data.ticket_token
         }
 
         /// Buy one ticket at the current_price.
@@ -279,9 +294,9 @@ pub mod marketplace {
             self.take_payment(account_id, price)?;
             self.give_ticket(account_id)?;
 
-            self.total_proceeds = self.total_proceeds.saturating_add(price);
-            self.tickets_sold = self.tickets_sold.saturating_add(1);
-            self.current_start_block = self.env().block_number();
+            self.data.total_proceeds = self.data.total_proceeds.saturating_add(price);
+            self.data.tickets_sold = self.data.tickets_sold.saturating_add(1);
+            self.data.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Bought(Bought { price, account_id }));
 
             Ok(())
@@ -296,7 +311,7 @@ pub mod marketplace {
         pub fn reset(&mut self) -> Result<(), Error> {
             self.check_role(self.env().caller(), self.admin())?;
 
-            self.current_start_block = self.env().block_number();
+            self.data.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
 
             Ok(())
@@ -322,21 +337,21 @@ pub mod marketplace {
 
         fn current_price(&self) -> Balance {
             let block = self.env().block_number();
-            let elapsed = block.saturating_sub(self.current_start_block);
+            let elapsed = block.saturating_sub(self.data.current_start_block);
             self.average_price()
-                .saturating_mul(self.sale_multiplier)
+                .saturating_mul(self.data.sale_multiplier)
                 .saturating_sub(self.per_block_reduction().saturating_mul(elapsed.into()))
-                .max(self.min_price)
+                .max(self.data.min_price)
         }
 
         fn per_block_reduction(&self) -> Balance {
             self.average_price()
-                .saturating_div(self.auction_length.into())
+                .saturating_div(self.data.auction_length.into())
                 .max(1u128)
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
-            PSP22BurnableRef::burn_builder(&self.reward_token, from, amount)
+            PSP22BurnableRef::burn_builder(&self.data.reward_token, from, amount)
                 .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
                 .invoke()?;
 
@@ -344,17 +359,17 @@ pub mod marketplace {
         }
 
         fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
-            PSP22Ref::transfer(&self.ticket_token, to, 1, vec![])?;
+            PSP22Ref::transfer(&self.data.ticket_token, to, 1, vec![])?;
 
             Ok(())
         }
 
         fn ticket_balance(&self) -> Balance {
-            PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
+            PSP22Ref::balance_of(&self.data.ticket_token, self.env().account_id())
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), Error> {
-            if self.access_control.has_role(account, role) {
+            if self.data.access_control.has_role(account, role) {
                 Ok(())
             } else {
                 Err(Error::MissingRole(role))
