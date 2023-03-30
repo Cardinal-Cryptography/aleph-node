@@ -25,10 +25,10 @@ jobs:
         run: |
           set +e
 
-          cat .github/workflows/_check-vars-and-secrets.yml | grep -o "vars\.[A-Z0-9_]\+" > \
-            tmp-vars-list.txt
-          cat .github/workflows/_check-vars-and-secrets.yml | grep -o "secrets\.[A-Z0-9_]\+" > \
-            tmp-secrets-list.txt
+          cat .github/workflows/_check-vars-and-secrets.yml | \
+            grep -o "vars\.[A-Z0-9_]\+" | sed 's|vars.||g' > tmp-vars-list.txt
+          cat .github/workflows/_check-vars-and-secrets.yml | \
+            grep -o "secrets\.[A-Z0-9_]\+" | sed 's|secrets.||g' > tmp-secrets-list.txt
 
           docker pull ${DOCKER_IMAGE}
           docker run --rm --name tmp-ghv -v $(pwd)/.github:/dot-github \
