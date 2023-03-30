@@ -18,6 +18,9 @@ inputs:
   repo-apps-name:
     description: 'Name of the repository containing apps definitions'
     required: true
+  argo-host:
+    description: 'ArgoCD host'
+    required: true
 
 outputs:
   deployment-name:
@@ -71,7 +74,7 @@ runs:
     - name: Refresh Argo and wait for the deletion to be finished
       shell: bash
       env:
-        ARGOCD_URL: argocd.dev.azero.dev
+        ARGOCD_URL: ${{ inputs.argo-host }}
       run: |
         ## Install argocd CLI tool
         curl -sSL -o argocd \
