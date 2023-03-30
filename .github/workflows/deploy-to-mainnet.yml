@@ -48,6 +48,7 @@ jobs:
 
       - name: Verify aleph-node image existance
         env:
+          # yamllint disable-line rule:line-length
           IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.get-ref-properties.outputs.tag }}
         run: |
           export image_not_exist=$(docker manifest inspect ${{ env.IMAGE }} &> /dev/null ; echo $?)
@@ -115,14 +116,15 @@ jobs:
         run: |
           IFS="," read -a region_array <<< ${{ env.REGIONS_AWS }}
           export aleph_path=$(pwd)
+          export apps_name=${{ secrets.REPO_ARGOCD_APPS_NAME }}
           for i in "${region_array[@]}"; do
             # Deploy new image version for archivist
-            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-archivists/overlays/mainnet/${i}
+            cd ${aleph_path}/${apps_name}/aleph-node-archivists/overlays/mainnet/${i}
             kustomize edit set image \
               "aleph-node-archivist-image-placeholder=${{ env.MAINNET_IMAGE }}"
 
             # Deploy new image version for validator
-            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/mainnet/${i}
+            cd ${aleph_path}/${apps_name}/aleph-node-validators/overlays/mainnet/${i}
             kustomize edit set image \
               "aleph-node-validator-image-placeholder=${{ env.MAINNET_IMAGE }}"
           done
@@ -133,7 +135,7 @@ jobs:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           # yamllint disable-line rule:line-length
-          message: "Updating Mainnet docker image tag for release: ${{ steps.get-ref-properties.outputs.tag }}"
+          message: "Update Mainnet docker image tag for release: ${{ steps.get-ref-properties.outputs.tag }}"
           add: "*.yaml"
           cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 

@@ -118,10 +118,11 @@ jobs:
           RELEASE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
           #!/bin/bash
+          export image_placeholder=${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${RELEASE_TAG}
 
           cd ${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/devnet/eu-central-1
           kustomize edit set image \
-            "aleph-node-validator-image-placeholder=${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${RELEASE_TAG}"
+            "aleph-node-validator-image-placeholder=${image_placeholder}"
           kustomize build . | kubectl apply -f -
           sleep 2
           kubectl rollout status --watch --timeout=3600s statefulset/aleph-node-validator -n devnet
@@ -136,7 +137,7 @@ jobs:
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-          message: "Updating Devnet docker image tag to: ${{ steps.vars.outputs.sha_short }}"
+          message: "Update Devnet docker image tag to: ${{ steps.vars.outputs.sha_short }}"
           add: "*.yaml"
           cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 

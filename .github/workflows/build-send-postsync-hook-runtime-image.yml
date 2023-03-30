@@ -107,7 +107,8 @@ jobs:
           REGIONS_AWS: 'eu-central-1'
         run: |
             # Deploy new image version for postsync hook
-            cd ${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/devnet/eu-central-1
+            APPS_NAME=${{ secrets.REPO_ARGOCD_APPS_NAME }}
+            cd $APPS_NAME/aleph-node-validators/overlays/devnet/eu-central-1
             kustomize edit set image "send-runtime-hook-image-placeholder=${{ env.RELEASE_IMAGE }}"
 
       - name: GIT | Commit changes to apps repository.
@@ -115,6 +116,6 @@ jobs:
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-          message: "Updating postsync hook image tag to: ${{ steps.vars.outputs.sha_short }}"
+          message: "Update postsync hook image tag to: ${{ steps.vars.outputs.sha_short }}"
           add: "*.yaml"
           cwd: ${{ secrets.REPO_ARGOCD_APPS_NAME }}

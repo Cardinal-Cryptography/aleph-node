@@ -260,31 +260,32 @@ jobs:
             -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' ${{ env.RPC_TESTNET_URL }} \
             | jq -r '.result' | cut -d "-" -f 2 | head -c 7)
           TESTNET_IMAGE="${{ env.PUBLIC_ALEPHNODE_REGISTRY_ESCAPED }}:$COMMIT_ID"
-          ALEPH_PATH=$(pwd)
+          CWD_PATH=$(pwd)
+          APPS_NAME=${{ secrets.REPO_ARGOCD_APPS_NAME }}
 
           # Create application manifest from template
 
           sed "s/APP_NAME/${{ env.APP_NAME }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/CREATE_HOOK/${{ env.CREATE_HOOK  }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NAMESPACE/${{ env.NAMESPACE }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NODE_IMAGE/$TESTNET_IMAGE/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: Start mainnet image on feature environment
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_HOT)
@@ -302,31 +303,32 @@ jobs:
           LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
           COMMIT_ID=${LONG_COMMIT_ID: -7}
           MAINNET_IMAGE="${{ env.PUBLIC_ALEPHNODE_REGISTRY_ESCAPED }}:$COMMIT_ID"
-          ALEPH_PATH=$(pwd)
+          CWD_PATH=$(pwd)
+          APPS_NAME=${{ secrets.REPO_ARGOCD_APPS_NAME }}
 
           # Create application manifest from template
 
           sed "s/APP_NAME/${{ env.APP_NAME }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/CREATE_HOOK/${{ env.CREATE_HOOK  }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NAMESPACE/${{ env.NAMESPACE }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NODE_IMAGE/$MAINNET_IMAGE/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: GIT | Commit changes to apps repository.
         uses: EndBug/add-and-commit@v9.1.1
@@ -398,29 +400,30 @@ jobs:
         run: |
           # Set up envs
           PR_IMAGE="${{ env.FE_ALEPHNODE_REGISTRY_ESCAPED }}\:${{ env.IMAGE_TAG }}"
-          ALEPH_PATH=$(pwd)
+          CWD_PATH=$(pwd)
+          APPS_NAME=${{ secrets.REPO_ARGOCD_APPS_NAME }}
 
           sed "s/APP_NAME/${{ env.APP_NAME }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/app-template/app-template.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/CREATE_HOOK/${{ env.CREATE_HOOK  }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NAMESPACE/${{ env.NAMESPACE }}/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
           sed "s/NODE_IMAGE/$PR_IMAGE/g" \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
-            mv $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
-            $ALEPH_PATH/${{ secrets.REPO_ARGOCD_APPS_NAME }}/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml > \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp && \
+            mv $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml.temp \
+            $CWD_PATH/$APPS_NAME/argocd/overlays/devnet/fe-apps/${{ env.APP_NAME }}.yaml
 
       - name: GIT | Commit changes to apps repository.
         uses: EndBug/add-and-commit@v9.1.1

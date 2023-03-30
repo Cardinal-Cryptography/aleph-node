@@ -115,14 +115,15 @@ jobs:
         run: |
           IFS="," read -a region_array <<< ${{ env.REGIONS_AWS }}
           export aleph_path=$(pwd)
+          export apps_name=${{ secrets.REPO_ARGOCD_APPS_NAME }}
           for i in "${region_array[@]}"; do
             # Deploy new image version for archivist
-            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-archivists/overlays/testnet/${i}
+            cd ${aleph_path}/${apps_name}/aleph-node-archivists/overlays/testnet/${i}
             kustomize edit set image \
               "aleph-node-archivist-image-placeholder=${{ env.TESTNET_IMAGE }}"
 
             # Deploy new image version for validator
-            cd ${aleph_path}/${{ secrets.REPO_ARGOCD_APPS_NAME }}/aleph-node-validators/overlays/testnet/${i}
+            cd ${aleph_path}/${apps_name}/aleph-node-validators/overlays/testnet/${i}
             kustomize edit set image \
               "aleph-node-validator-image-placeholder=${{ env.TESTNET_IMAGE }}"
           done
