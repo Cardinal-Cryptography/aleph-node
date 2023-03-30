@@ -33,7 +33,7 @@ jobs:
           docker pull ${DOCKER_IMAGE}
           docker run --rm --name tmp-ghv -v $(pwd)/.github:/dot-github \
             -v $(pwd)/tmp-vars-list.txt:/tmp-vars-list.txt \
-            -v $(pwd)/tmp-secrets-list.txtx:/tmp-secrets-list.txt \
+            -v $(pwd)/tmp-secrets-list.txt:/tmp-secrets-list.txt \
             ${DOCKER_IMAGE} \
             validate -p /dot-github \
               -z /tmp-vars-list.txt \
