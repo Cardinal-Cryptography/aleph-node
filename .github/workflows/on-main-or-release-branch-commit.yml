@@ -19,6 +19,12 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
 
+  store-production-node-and-runtime:
+    needs: [build-production-node-and-runtime]
+    name: Store production node and runtime artifact
+    uses: ./.github/workflows/_store-production-node-and-runtime.yml
+    secrets: inherit
+
   push-node-image-to-ecr:
     name: Push node docker image to the ECR
     needs: [build-production-node-and-runtime]

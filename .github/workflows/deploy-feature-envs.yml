@@ -42,6 +42,15 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
 
+  store-aleph-node-binary:
+    needs: [build-aleph-node-binary]
+    if: >
+      (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') ||
+      (github.event.label.name == '[AZERO] DEPLOY-HOT-FEATURE-ENV')
+    name: Store production artifacts
+    uses: ./.github/workflows/_store-production-node-and-runtime.yml
+    secrets: inherit
+
   push-pr-image:
     if: >
       (github.event.label.name == '[AZERO] DEPLOY-FEATURE-ENV') ||

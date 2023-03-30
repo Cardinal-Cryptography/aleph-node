@@ -22,6 +22,12 @@ jobs:
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
+  store-test-node-and-runtime:
+    needs: [build-test-node-and-runtime]
+    name: Store test node and runtime
+    uses: ./.github/workflows/_store-test-node-and-runtime.yml
+    secrets: inherit
+
   build-test-node-image-and-e2e-client-image:
     needs: [build-test-node-and-runtime]
     uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml
