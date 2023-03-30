@@ -23,7 +23,6 @@ jobs:
   build-production-node-and-runtime:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
-    secrets: inherit
 
   store-production-node-and-runtime:
     needs: [build-production-node-and-runtime]

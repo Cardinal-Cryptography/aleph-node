@@ -20,7 +20,6 @@ jobs:
     needs: [check-vars-and-secrets]
     name: Build liminal node
     uses: ./.github/workflows/_build-liminal-node.yml
-    secrets: inherit
 
   push-liminal-node-image-to-ecr:
     name: Push liminal node docker image to the ECR
