@@ -7,10 +7,10 @@ inputs:
     description: Path where source file is stored
     required: true
   source-filename:
-    description: Name of the file to upload to S3
+    description: Name of the source file to upload to S3
     required: true
   s3-bucket-path:
-    description: Path on S3 where compressed file will be stored
+    description: Path on S3 bucket where file will be stored
     required: true
   s3-bucket-filename:
     description: Name of the target file on S3
@@ -19,7 +19,7 @@ inputs:
     description: Name of the bucket where file is copied on S3
     required: true
   compression:
-    description: Set to 'true' to use create a .tar.gz archive
+    description: Set to 'true' to compress file into a .tar.gz archive
     required: false
     default: 'true'
 runs:
@@ -32,8 +32,8 @@ runs:
           "${{ inputs.compression }}" == "true" && \
           "${{ inputs.source-filename }}" == "${{ inputs.s3-bucket-filename }}"
         ]]; then
-          echo "!!! When compression is 'true' then source filename cannot be the same"
-          echo "!!! as target filename in S3 bucket"
+          echo "!!! When compression is 'true', source file cannot have the same"
+          echo "!!! name as compressed file uploaded to S3 bucket."
           exit 1
         fi
 
