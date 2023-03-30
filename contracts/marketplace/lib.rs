@@ -234,11 +234,11 @@ pub mod marketplace {
         /// and only if the contract is currently halted
         #[ink(message)]
         pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
-            // if DefaultHaltable::is_halted(self) {
-            self.check_role(self.env().caller(), self.admin())?;
-            self.auction_length = new_auction_length;
-            // return Ok(());
-            // }
+            if self.is_halted() {
+                self.check_role(self.env().caller(), self.admin())?;
+                self.auction_length = new_auction_length;
+                return Ok(());
+            }
             Err(Error::HaltableError(HaltableError::NotInHaltedState))
         }
 
