@@ -32,9 +32,11 @@ pub mod testing {
 /// Max amount of tries we can not update a finalized block number before we will clear requests queue
 const MAX_ATTEMPTS: u32 = 5;
 
-struct JustificationParams<B: Block, H: ExHashT, C, BB>
+struct JustificationParams<B, H, C, BB>
 where
+    B: Block,
     B::Header: Header<Number = BlockNumber>,
+    H: ExHashT,
 {
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
