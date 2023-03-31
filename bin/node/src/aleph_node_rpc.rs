@@ -5,7 +5,6 @@ use jsonrpsee::{
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
-use serde::Serialize;
 
 /// System RPC errors.
 #[derive(Debug, thiserror::Error)]
@@ -56,30 +55,17 @@ pub trait AlephNodeApi<Hash, Number> {
     ) -> RpcResult<()>;
 }
 
-use finality_aleph::{AlephJustification, JustificationNotificationFor};
-use sp_api::{BlockT, HeaderT};
-use sp_runtime::traits::NumberFor;
+use finality_aleph::{AlephJustification, HashNum, JustificationNotification};
+use sp_api::HeaderT;
 
 /// Aleph Node API implementation
-pub struct AlephNode<B>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
-    NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-{
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotificationFor<B>>,
+pub struct AlephNode<H: HeaderT<Number = BlockNumber>> {
+    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<HashNum<H>>>,
 }
 
-impl<B> AlephNode<B>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
-    NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-{
+impl<H: HeaderT<Number = BlockNumber>> AlephNode<H> {
     pub fn new(
-        import_justification_tx: mpsc::UnboundedSender<JustificationNotificationFor<B>>,
+        import_justification_tx: mpsc::UnboundedSender<JustificationNotification<HashNum<H>>>,
     ) -> Self {
         AlephNode {
             import_justification_tx,
@@ -87,18 +73,12 @@ where
     }
 }
 
-impl<B> AlephNodeApiServer<B::Hash, NumberFor<B>> for AlephNode<B>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    B::Hash: Serialize + for<'de> serde::Deserialize<'de>,
-    NumberFor<B>: Serialize + for<'de> serde::Deserialize<'de>,
-{
+impl<H: HeaderT<Number = BlockNumber>> AlephNodeApiServer<H::Hash, BlockNumber> for AlephNode<H> {
     fn aleph_node_emergency_finalize(
         &self,
         justification: Vec<u8>,
-        hash: B::Hash,
-        number: NumberFor<B>,
+        hash: H::Hash,
+        number: BlockNumber,
     ) -> RpcResult<()> {
         let justification: AlephJustification =
             AlephJustification::EmergencySignature(justification.try_into().map_err(|_| {
@@ -107,7 +87,7 @@ where
                 )
             })?);
         self.import_justification_tx
-            .unbounded_send(JustificationNotificationFor::<B> {
+            .unbounded_send(JustificationNotification {
                 justification,
                 block_id: (hash, number).into(),
             })
