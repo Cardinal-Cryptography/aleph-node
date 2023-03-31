@@ -1,9 +1,9 @@
 use std::{
     collections::VecDeque,
-    fmt::{Display, Error as FmtError, Formatter, Debug},
+    fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
-use log::{warn, info};
+use log::{info, warn};
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
@@ -167,26 +167,41 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
             .number()
             + 1;
         loop {
-            info!(target: LOG_TARGET, "Sync Handler::try_finalize: Starting loop with number {}", number);
+            info!(
+                target: LOG_TARGET,
+                "Sync Handler::try_finalize: Starting loop with number {}", number
+            );
             while let Some(justification) = self.forest.try_finalize(&number) {
                 self.finalizer
                     .finalize(justification)
                     .map_err(Error::Finalizer)?;
                 number += 1;
-                info!(target: LOG_TARGET, "Sync Handler::try_finalize: first while, number {}", number);
+                info!(
+                    target: LOG_TARGET,
+                    "Sync Handler::try_finalize: first while, number {}", number
+                );
             }
-            info!(target: LOG_TARGET, "Sync Handler::try_finalize: after first while, number {}", number);
+            info!(
+                target: LOG_TARGET,
+                "Sync Handler::try_finalize: after first while, number {}", number
+            );
             number = self
                 .session_info
                 .last_block_of_session(self.session_info.session_id_from_block_num(number));
-            info!(target: LOG_TARGET, "Sync Handler::try_finalize: last of session, number {}", number);
+            info!(
+                target: LOG_TARGET,
+                "Sync Handler::try_finalize: last of session, number {}", number
+            );
             match self.forest.try_finalize(&number) {
                 Some(justification) => {
                     self.finalizer
                         .finalize(justification)
                         .map_err(Error::Finalizer)?;
                     number += 1;
-                    info!(target: LOG_TARGET, "Sync Handler::try_finalize: last of session finalized, number {}", number);
+                    info!(
+                        target: LOG_TARGET,
+                        "Sync Handler::try_finalize: last of session finalized, number {}", number
+                    );
                 }
                 None => return Ok(()),
             };
@@ -198,9 +213,15 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
         justification: J,
         peer: Option<I>,
     ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
-        info!(target: LOG_TARGET, "Sync Handler::handle_verified_justification");
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::handle_verified_justification"
+        );
         let id = justification.header().id();
-        info!(target: LOG_TARGET, "Sync Handler::handle_verified_justification with id {:?}, asking FOREST", id);
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::handle_verified_justification with id {:?}, asking FOREST", id
+        );
         let maybe_id = match self.forest.update_justification(justification, peer)? {
             true => Some(id.clone()),
             false => None,
@@ -278,7 +299,10 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
         session: SessionId,
     ) -> Result<J::Unverified, Error<J, CS, V, F>> {
         use Error::*;
-        info!(target: LOG_TARGET, "Sync Handler::last_justification_unverified");
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::last_justification_unverified"
+        );
         Ok(self
             .chain_status
             .finalized_at(self.session_info.last_block_of_session(session))
@@ -294,7 +318,10 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
         peer: I,
     ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
         use Error::*;
-        info!(target: LOG_TARGET, "Sync Handler::handle_state peer {:?}, state {:?}", peer, state);
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::handle_state peer {:?}, state {:?}", peer, state
+        );
         let remote_top_number = state.top_justification().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
         let local_top_number = local_top.header().id().number();
@@ -304,8 +331,18 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
         let local_session = self
             .session_info
             .session_id_from_block_num(local_top_number);
-        info!(target: LOG_TARGET, "Sync Handler::handle_state local_top_number {:?} local_session {:?}", local_top_number, local_session);
-        info!(target: LOG_TARGET, "Sync Handler::handle_state remote_top_number {:?} remote_session {:?}", remote_top_number, remote_session);
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::handle_state local_top_number {:?} local_session {:?}",
+            local_top_number,
+            local_session
+        );
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::handle_state remote_top_number {:?} remote_session {:?}",
+            remote_top_number,
+            remote_session
+        );
         let out = match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
             None => {
@@ -314,7 +351,7 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
                     .handle_justification(state.top_justification(), Some(peer))?
                     .map(SyncAction::Task)
                     .unwrap_or(SyncAction::Noop))
-            },
+            }
             // same session
             Some(0) => {
                 info!(target: LOG_TARGET, "Sync Handler::handle_state Some(0)");
@@ -330,7 +367,7 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
                         None,
                     )),
                 }
-            },
+            }
             // remote lags one session behind
             Some(1) => {
                 info!(target: LOG_TARGET, "Sync Handler::handle_state Some(1)");
@@ -338,7 +375,7 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
                     self.last_justification_unverified(remote_session)?,
                     Some(local_top.into_unverified()),
                 ))
-            },
+            }
             // remote lags multiple sessions behind
             Some(2..) => {
                 info!(target: LOG_TARGET, "Sync Handler::handle_state Some(2)");
@@ -346,10 +383,13 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
                     self.last_justification_unverified(remote_session)?,
                     Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
                 ))
-            },
+            }
         };
         if let Ok(ref task) = out {
-            info!(target: LOG_TARGET, "Sync Handler::handle_state out Ok({:?})", task);
+            info!(
+                target: LOG_TARGET,
+                "Sync Handler::handle_state out Ok({:?})", task
+            );
         }
         out
     }
@@ -361,7 +401,11 @@ impl<I: PeerId, J: Justification + Debug, CS: ChainStatus<J>, V: Verifier<J>, F:
             .top_finalized()
             .map_err(Error::ChainStatus)?
             .into_unverified();
-        info!(target: LOG_TARGET, "Sync Handler::state {:?}", top_justification.id());
+        info!(
+            target: LOG_TARGET,
+            "Sync Handler::state {:?}",
+            top_justification.id()
+        );
         Ok(State::new(top_justification))
     }
 

@@ -1,7 +1,7 @@
-use std::{collections::HashSet, iter, time::Duration, fmt::Debug};
+use std::{collections::HashSet, fmt::Debug, iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
-use log::{error, warn, debug, info};
+use log::{debug, error, info, warn};
 use tokio::time::interval;
 
 use crate::{
@@ -163,21 +163,19 @@ impl<
                     j1.id(),
                     j2.map(|x| x.id())
                 );
-            },
+            }
             Request(request) => {
                 info!(
                     target: LOG_TARGET,
-                    "Sync Service::send_to Request {:?}",
-                    request
+                    "Sync Service::send_to Request {:?}", request
                 );
-            },
+            }
             RequestResponse(response) => {
                 info!(
                     target: LOG_TARGET,
-                    "Sync Service::send_to Response {:?}",
-                    response
+                    "Sync Service::send_to Response {:?}", response
                 );
-            },
+            }
         }
         if let Err(e) = self.network.send_to(data, peer) {
             warn!(target: LOG_TARGET, "Error sending response: {}.", e);
@@ -189,13 +187,19 @@ impl<
         info!(target: LOG_TARGET, "Sync Service::perform_sync_action");
         match action {
             Response(data) => {
-                info!(target: LOG_TARGET, "Sync Service::perform_sync_action - respond to peer {:?}", peer);
+                info!(
+                    target: LOG_TARGET,
+                    "Sync Service::perform_sync_action - respond to peer {:?}", peer
+                );
                 self.send_to(data, peer);
-            },
+            }
             Task(block_id) => {
-                info!(target: LOG_TARGET, "Sync Service::perform_sync_action - request block id {:?}",block_id);
+                info!(
+                    target: LOG_TARGET,
+                    "Sync Service::perform_sync_action - request block id {:?}", block_id
+                );
                 self.request(block_id);
-            },
+            }
             Noop => info!(target: LOG_TARGET, "Sync Service::perform_sync_action NOOP"),
         }
     }
@@ -219,7 +223,10 @@ impl<
         info!(target: LOG_TARGET, "Sync Service::handle_justifications");
         let mut previous_block_id = None;
         for justification in justifications {
-            info!(target: LOG_TARGET, "Sync Service::handle_justifications handling justification {:?}", justification);
+            info!(
+                target: LOG_TARGET,
+                "Sync Service::handle_justifications handling justification {:?}", justification
+            );
             let maybe_block_id = match self
                 .handler
                 .handle_justification(justification, peer.clone())
@@ -233,16 +240,28 @@ impl<
                     return;
                 }
             };
-            info!(target: LOG_TARGET, "Sync Service::handle_justifications handled justification, maybe_block_id is {:?}", maybe_block_id);
+            info!(
+                target: LOG_TARGET,
+                "Sync Service::handle_justifications handled justification, maybe_block_id is {:?}",
+                maybe_block_id
+            );
             if let Some(block_id) = maybe_block_id {
                 if let Some(previous_block_id) = previous_block_id {
                     self.backup_request(previous_block_id);
                 }
                 previous_block_id = Some(block_id);
             }
-            info!(target: LOG_TARGET, "Sync Service::handle_justifications next step, previous_block_id is {:?}", previous_block_id);
+            info!(
+                target: LOG_TARGET,
+                "Sync Service::handle_justifications next step, previous_block_id is {:?}",
+                previous_block_id
+            );
         }
-        info!(target: LOG_TARGET, "Sync Service::handle_justifications last if, previous_block_id is {:?}", previous_block_id);
+        info!(
+            target: LOG_TARGET,
+            "Sync Service::handle_justifications last if, previous_block_id is {:?}",
+            previous_block_id
+        );
         if let Some(block_id) = previous_block_id {
             self.request(block_id);
         }
@@ -277,21 +296,19 @@ impl<
                     j1.id(),
                     j2.map(|x| x.id())
                 );
-            },
+            }
             Request(request) => {
                 info!(
                     target: LOG_TARGET,
-                    "Sync Service::handle_network_data Request {:?}",
-                    request
+                    "Sync Service::handle_network_data Request {:?}", request
                 );
-            },
+            }
             RequestResponse(response) => {
                 info!(
                     target: LOG_TARGET,
-                    "Sync Service::handle_network_data Response {:?}",
-                    response
+                    "Sync Service::handle_network_data Response {:?}", response
                 );
-            },
+            }
         }
 
         match data {

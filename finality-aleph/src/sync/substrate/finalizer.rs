@@ -6,7 +6,10 @@ use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 use crate::{
     finalization::{AlephFinalizer, BlockFinalizer},
     justification::versioned_encode,
-    sync::{substrate::{Justification, InnerJustification}, Finalizer},
+    sync::{
+        substrate::{InnerJustification, Justification},
+        Finalizer,
+    },
 };
 
 impl<B, BE, C> Finalizer<Justification<B::Header>> for AlephFinalizer<B, BE, C>
@@ -20,17 +23,15 @@ where
 
     fn finalize(&self, justification: Justification<B::Header>) -> Result<(), Self::Error> {
         match justification.inner_justification {
-            InnerJustification::AlephJustification(aleph_justification) => {
-                self.finalize_block(
-                    justification.header.hash(),
-                    *justification.header.number(),
-                    Some((
-                        ALEPH_ENGINE_ID,
-                        versioned_encode(aleph_justification),
-                    )),
-                )
-            },
-            _ => Err(Self::Error::BadJustification("Trying fo finalize the genesis block using virtual sync justification.".to_string())),
+            InnerJustification::AlephJustification(aleph_justification) => self.finalize_block(
+                justification.header.hash(),
+                *justification.header.number(),
+                Some((ALEPH_ENGINE_ID, versioned_encode(aleph_justification))),
+            ),
+            _ => Err(Self::Error::BadJustification(
+                "Trying fo finalize the genesis block using virtual sync justification."
+                    .to_string(),
+            )),
         }
     }
 }

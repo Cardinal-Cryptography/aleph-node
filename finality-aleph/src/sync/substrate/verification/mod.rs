@@ -1,6 +1,5 @@
-use std::fmt::Debug;
 use std::{
-    fmt::{Display, Error as FmtError, Formatter},
+    fmt::{Debug, Display, Error as FmtError, Formatter},
     marker::PhantomData,
     sync::Arc,
 };
@@ -15,7 +14,7 @@ use crate::{
     sync::{
         substrate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
-            Justification, InnerJustification,
+            InnerJustification, Justification,
         },
         Verifier,
     },
@@ -111,12 +110,10 @@ where
                 let verifier = self.get(*header.number())?;
                 verifier.verify_bytes(&aleph_justification, header.hash().encode())?;
                 Ok(justification)
-            },
-            InnerJustification::Genesis => {
-                match header == self.genesis_header() {
-                    true => Ok(justification),
-                    false => Err(Self::Error::Cache(CacheError::BadGenesisHeader)),
-                }
+            }
+            InnerJustification::Genesis => match header == self.genesis_header() {
+                true => Ok(justification),
+                false => Err(Self::Error::Cache(CacheError::BadGenesisHeader)),
             },
         }
     }

@@ -89,11 +89,17 @@ pub struct Justification<H: SubstrateHeader<Number = BlockNumber>> {
 
 impl<H: SubstrateHeader<Number = BlockNumber>> Justification<H> {
     pub fn aleph_justification(header: H, aleph_justification: AlephJustification) -> Self {
-        Justification { header, inner_justification: InnerJustification::AlephJustification(aleph_justification) }
+        Justification {
+            header,
+            inner_justification: InnerJustification::AlephJustification(aleph_justification),
+        }
     }
 
     pub fn genesis_justification(header: H) -> Self {
-        Justification { header, inner_justification: InnerJustification::Genesis }
+        Justification {
+            header,
+            inner_justification: InnerJustification::Genesis,
+        }
     }
 }
 

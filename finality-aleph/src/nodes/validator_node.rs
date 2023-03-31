@@ -26,9 +26,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, JustificationTranslator, Service as SyncService, SubstrateChainStatusNotifier,
-        SubstrateFinalizationInfo, SubstrateJustification, VerifierCache,
-        Justification,
+        ChainStatus, Justification, JustificationTranslator, Service as SyncService,
+        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, SubstrateJustification,
+        VerifierCache,
     },
     AlephConfig,
 };
