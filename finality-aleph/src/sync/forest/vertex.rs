@@ -192,7 +192,8 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
             | Header {
                 importance: HeaderImportance::Required,
                 ..
-            } | Header {
+            }
+            | Header {
                 importance: HeaderImportance::Auxiliary,
                 ..
             } => {
