@@ -13,7 +13,7 @@ use crate::{
         requester::BlockRequester, JustificationHandlerConfig, JustificationNotificationFor,
         JustificationRequestScheduler, SessionInfo, SessionInfoProvider, Verifier,
     },
-    network, BlockchainBackend, HashNum, IdentifierFor, JustificationNotification, Metrics,
+    network, BlockId, BlockchainBackend, IdentifierFor, JustificationNotification, Metrics,
     STATUS_REPORT_INTERVAL,
 };
 
@@ -121,9 +121,9 @@ where
 }
 
 fn wrap_channel_with_logging<H>(
-    channel: mpsc::UnboundedReceiver<JustificationNotification<HashNum<H>>>,
+    channel: mpsc::UnboundedReceiver<JustificationNotification<BlockId<H>>>,
     label: &'static str,
-) -> impl Stream<Item = JustificationNotification<HashNum<H>>>
+) -> impl Stream<Item = JustificationNotification<BlockId<H>>>
 where
     H: HeaderT<Number = BlockNumber>,
 {

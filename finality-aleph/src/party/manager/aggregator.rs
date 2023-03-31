@@ -21,8 +21,8 @@ use crate::{
         manager::aggregator::AggregatorVersion::{Current, Legacy},
         AuthoritySubtaskCommon, Task,
     },
-    BlockHashNum, BlockIdentifier, CurrentRmcNetworkData, IdentifierFor, Keychain,
-    LegacyRmcNetworkData, Metrics, SessionBoundaries, STATUS_REPORT_INTERVAL,
+    BlockIdentifier, CurrentRmcNetworkData, IdentifierFor, Keychain, LegacyRmcNetworkData, Metrics,
+    SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
 /// IO channels used by the aggregator task.
@@ -33,10 +33,11 @@ pub struct IO<BI: BlockIdentifier> {
 
 async fn process_new_block_data<B, CN, LN>(
     aggregator: &mut Aggregator<'_, B, CN, LN>,
-    block: BlockHashNum<B>,
+    block: IdentifierFor<B>,
     metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
 ) where
     B: Block,
+    B::Header: Header<Number = BlockNumber>,
     CN: Network<CurrentRmcNetworkData<B>>,
     LN: Network<LegacyRmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
@@ -95,7 +96,7 @@ where
     } = io;
 
     let blocks_from_interpreter = blocks_from_interpreter.take_while(|block| {
-        let block_num = block.num;
+        let block_num = block.number;
         async move {
             if block_num == session_boundaries.last_block() {
                 debug!(target: "aleph-party", "Aggregator is processing last block in session.");

@@ -20,7 +20,7 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
-    BlockchainBackend, HashNum, IdentifierFor, JustificationNotification, Metrics,
+    BlockId, BlockchainBackend, IdentifierFor, JustificationNotification, Metrics,
     MillisecsPerBlock, SessionPeriod,
 };
 
@@ -63,11 +63,11 @@ impl SessionInfoProviderImpl {
 }
 
 #[async_trait::async_trait]
-impl<H> SessionInfoProvider<HashNum<H>, SessionVerifier> for SessionInfoProviderImpl
+impl<H> SessionInfoProvider<BlockId<H>, SessionVerifier> for SessionInfoProviderImpl
 where
     H: Header<Number = BlockNumber>,
 {
-    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<HashNum<H>, SessionVerifier> {
+    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<BlockId<H>, SessionVerifier> {
         let current_session = self.session_info.session_id_from_block_num(number);
         let last_block_height = self.session_info.last_block_of_session(current_session);
         let verifier = self

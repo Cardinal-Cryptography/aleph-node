@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    hash::{Hash, Hasher},
-};
+use std::fmt::Display;
 
 use aleph_primitives::BlockNumber;
 use codec::{Decode, Encode};
@@ -9,7 +6,7 @@ use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
     sync::{Header, Justification as JustificationT},
-    AlephJustification, BlockIdentifier,
+    AlephJustification, BlockId,
 };
 
 mod chain_status;
@@ -19,35 +16,6 @@ mod translator;
 mod verification;
 
 pub use verification::SessionVerifier;
-
-/// An identifier uniquely specifying a block and its height.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
-pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
-    hash: H::Hash,
-    number: H::Number,
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockId<H> {
-    pub fn new(hash: H::Hash, number: H::Number) -> Self {
-        BlockId { hash, number }
-    }
-}
-
-impl<SH: SubstrateHeader<Number = BlockNumber>> Hash for BlockId<SH> {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        self.hash.hash(state);
-        self.number.hash(state);
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
-    fn number(&self) -> u32 {
-        self.number
-    }
-}
 
 impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
     type Identifier = BlockId<H>;

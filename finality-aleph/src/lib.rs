@@ -229,39 +229,38 @@ pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'st
 type Hasher = abft::HashWrapper<BlakeTwo256>;
 
 #[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
-pub struct HashNum<H: Header> {
+pub struct BlockId<H: Header<Number = BlockNumber>> {
     hash: H::Hash,
-    num: H::Number,
+    number: H::Number,
 }
 
-impl<H: Header<Number = BlockNumber>> HashNum<H> {
-    fn new(hash: H::Hash, num: BlockNumber) -> Self {
-        HashNum { hash, num }
+impl<H: Header<Number = BlockNumber>> BlockId<H> {
+    fn new(hash: H::Hash, number: BlockNumber) -> Self {
+        BlockId { hash, number }
     }
 }
 
-impl<H: Header<Number = BlockNumber>> From<(H::Hash, BlockNumber)> for HashNum<H> {
+impl<H: Header<Number = BlockNumber>> From<(H::Hash, BlockNumber)> for BlockId<H> {
     fn from(pair: (H::Hash, BlockNumber)) -> Self {
-        HashNum::new(pair.0, pair.1)
+        BlockId::new(pair.0, pair.1)
     }
 }
 
-impl<SH: Header> Hash for HashNum<SH> {
+impl<SH: Header<Number = BlockNumber>> Hash for BlockId<SH> {
     fn hash<H>(&self, state: &mut H)
     where
         H: std::hash::Hasher,
     {
         self.hash.hash(state);
-        self.num.hash(state);
+        self.number.hash(state);
     }
 }
 
-pub type BlockHashNum<B> = HashNum<<B as Block>::Header>;
-pub type IdentifierFor<B> = HashNum<<B as Block>::Header>;
+pub type IdentifierFor<B> = BlockId<<B as Block>::Header>;
 
-impl<H: Header<Number = BlockNumber>> BlockIdentifier for HashNum<H> {
+impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
     fn number(&self) -> BlockNumber {
-        self.num
+        self.number
     }
 }
 

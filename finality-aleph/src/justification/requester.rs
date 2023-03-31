@@ -3,7 +3,7 @@ use std::{fmt, marker::PhantomData, time::Instant};
 use aleph_primitives::BlockNumber;
 use log::{debug, error, info, warn};
 use sc_client_api::blockchain::Info;
-use sp_api::{BlockId, BlockT, HeaderT};
+use sp_api::{BlockT, HeaderT};
 
 use super::JustificationNotificationFor;
 use crate::{
@@ -13,15 +13,19 @@ use crate::{
         Verifier,
     },
     metrics::Checkpoint,
-    network, BlockHashNum, BlockchainBackend, HashNum, IdentifierFor, Metrics,
+    network, BlockId, BlockchainBackend, IdentifierFor, Metrics,
 };
 
 /// Threshold for how many tries are needed so that JustificationRequestStatus is logged
 const REPORT_THRESHOLD: u32 = 2;
 
 /// This structure is created for keeping and reporting status of BlockRequester
-pub struct JustificationRequestStatus<B: BlockT> {
-    block_hash_number: Option<BlockHashNum<B>>,
+pub struct JustificationRequestStatus<B>
+where
+    B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
+{
+    block_hash_number: Option<IdentifierFor<B>>,
     block_tries: u32,
     parent: Option<B::Hash>,
     n_children: usize,
@@ -29,7 +33,11 @@ pub struct JustificationRequestStatus<B: BlockT> {
     report_threshold: u32,
 }
 
-impl<B: BlockT> JustificationRequestStatus<B> {
+impl<B> JustificationRequestStatus<B>
+where
+    B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
+{
     fn new() -> Self {
         Self {
             block_hash_number: None,
@@ -51,7 +59,7 @@ impl<B: BlockT> JustificationRequestStatus<B> {
         self.n_children = n_children;
     }
 
-    fn save_block(&mut self, hn: BlockHashNum<B>) {
+    fn save_block(&mut self, hn: IdentifierFor<B>) {
         if self.block_hash_number == Some(hn.clone()) {
             self.block_tries += 1;
         } else {
@@ -73,14 +81,18 @@ impl<B: BlockT> JustificationRequestStatus<B> {
     }
 }
 
-impl<B: BlockT> fmt::Display for JustificationRequestStatus<B> {
+impl<B> fmt::Display for JustificationRequestStatus<B>
+where
+    B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.block_tries >= self.report_threshold {
             if let Some(hn) = &self.block_hash_number {
                 write!(
                     f,
                     "tries - {}; requested block number - {}; hash - {};",
-                    self.block_tries, hn.num, hn.hash,
+                    self.block_tries, hn.number, hn.hash,
                 )?;
             }
         }
@@ -156,7 +168,7 @@ where
             block_id,
         } = notification;
 
-        let HashNum { num: number, hash } = block_id;
+        let BlockId { number, hash } = block_id;
 
         if number <= last_finalized || number > stop_h {
             debug!(target: "aleph-justification", "Not finalizing block {:?}. Last finalized {:?}, stop_h {:?}", number, last_finalized, stop_h);
@@ -255,7 +267,10 @@ where
         if top_wanted <= finalized_number + 1 {
             return;
         }
-        match self.blockchain_backend.header(BlockId::Number(top_wanted)) {
+        match self
+            .blockchain_backend
+            .header(sp_api::BlockId::Number(top_wanted))
+        {
             Ok(Some(header)) => {
                 let hash = header.hash();
                 let number = *header.number();

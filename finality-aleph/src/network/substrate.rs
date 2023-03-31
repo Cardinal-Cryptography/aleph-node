@@ -29,7 +29,7 @@ where
     B::Header: Header<Number = BlockNumber>,
 {
     fn request_justification(&self, block_id: IdentifierFor<B>) {
-        NetworkService::request_justification(self, &block_id.hash, block_id.num)
+        NetworkService::request_justification(self, &block_id.hash, block_id.number)
     }
 
     fn request_stale_block(&self, block_id: IdentifierFor<B>) {
@@ -37,7 +37,7 @@ where
         // Notifies the sync service to try and sync the given block from the given peers. If the given vector
         // of peers is empty (as in our case) then the underlying implementation should make a best effort to fetch
         // the block from any peers it is connected to.
-        NetworkService::set_sync_fork_request(self, Vec::new(), block_id.hash, block_id.num)
+        NetworkService::set_sync_fork_request(self, Vec::new(), block_id.hash, block_id.number)
     }
 
     /// Clear all pending justification requests.

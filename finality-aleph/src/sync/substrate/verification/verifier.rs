@@ -8,8 +8,7 @@ use sp_runtime::{traits::Header as SubstrateHeader, RuntimeAppPublic};
 use crate::{
     crypto::AuthorityVerifier,
     justification::{AlephJustification, Verifier as LegacyVerifier},
-    sync::substrate::BlockId,
-    AuthorityId, HashNum,
+    AuthorityId, BlockId,
 };
 
 /// A justification verifier within a single session.
@@ -80,20 +79,6 @@ impl SessionVerifier {
 // rewrite the implementation above and make it simpler.
 impl<H: SubstrateHeader<Number = BlockNumber>> LegacyVerifier<BlockId<H>> for SessionVerifier {
     fn verify(&self, justification: &AlephJustification, block_id: &BlockId<H>) -> bool {
-        match self.verify_bytes(justification, block_id.hash.encode()) {
-            Ok(()) => true,
-            Err(e) => {
-                warn!(target: "aleph-justification", "Bad justification for block {:?}: {}", block_id, e);
-                false
-            }
-        }
-    }
-}
-
-// This shouldn't be necessary after we remove the legacy justification sync. Then we can also
-// rewrite the implementation above and make it simpler.
-impl<H: SubstrateHeader<Number = BlockNumber>> LegacyVerifier<HashNum<H>> for SessionVerifier {
-    fn verify(&self, justification: &AlephJustification, block_id: &HashNum<H>) -> bool {
         match self.verify_bytes(justification, block_id.hash.encode()) {
             Ok(()) => true,
             Err(e) => {
