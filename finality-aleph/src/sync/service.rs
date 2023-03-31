@@ -228,6 +228,13 @@ impl<
     fn handle_task(&mut self, block_id: BlockIdFor<J>) {
         use Interest::*;
         match self.handler.block_state(&block_id) {
+            HighestJustified {
+                know_most,
+                branch_knowledge,
+            } => {
+                self.send_request_for(block_id.clone(), branch_knowledge, know_most);
+                self.delayed_request(block_id);
+            }
             TopRequired {
                 know_most,
                 branch_knowledge,
