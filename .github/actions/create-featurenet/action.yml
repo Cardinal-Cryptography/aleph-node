@@ -1,0 +1,84 @@
+---
+name: Create featurenet
+description: Creates featurenet
+
+inputs:
+  gh-ci-token:
+    description: 'GH token to be used in the action'
+    required: true
+  repo-apps-name:
+    description: 'Name of the repository containing apps definitions'
+    required: true
+  argo-host:
+    description: 'ArgoCD host'
+    required: true
+  argo-sync-user-token:
+    description: 'ArgoCD user token to be used in the action'
+    required: true
+  no-refresh:
+    description: "Set to 'true' if ArgoCD should not be called to refresh"
+    required: false
+    default: 'false'
+  aleph-node-image:
+    description: 'aleph-node image to be started'
+    required: false
+    default: ''
+  create-hook:
+    description: "Set to 'true' to create a hook"
+    required: false
+    default: 'false'
+
+outputs:
+  deployment-name:
+    description: 'Deployment name for working with deployments'
+    value: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+runs:
+  using: "composite"
+  steps:
+    - name: Get branch name and commit SHA
+      id: get-ref-properties
+      uses: ./.github/actions/get-ref-properties
+
+    - name: Checkout argocd apps repo
+      uses: actions/checkout@v3
+      with:
+        repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
+        token: ${{ inputs.gh-ci-token }}
+        path: "${{ inputs.repo-apps-name }}"
+        ref: A0-2207-add-makefile-with-featurenet-commands
+
+    - name: Start featurenet
+      if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
+        pr_image="${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${pr_image_tag}"
+        image_arg="${{ inputs.aleph-node-image }}"
+        if [[ -z "${{ inputs.aleph-node-image }}" ]]; then
+          image_arg="${pr_image}"
+        fi
+        ./Ops.sh create-featurenet \
+          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
+          "${image_arg}"
+
+    - name: Commit featurenet change
+      uses: EndBug/add-and-commit@v9.1.1
+      env:
+        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+      with:
+        author_name: AlephZero Automation
+        author_email: alephzero@10clouds.com
+        # yamllint disable-line rule:line-length
+        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
+        add: "*.yaml"
+        cwd: "${{ inputs.repo-apps-name }}"
+
+    - name: Refresh Argo and wait for the deletion to be finished
+      if: inputs.no-refresh != 'true'
+      shell: bash
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+          "${{ inputs.argo-sync-user-token }}" \
+          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
+          "${{ inputs.create-hook }}"
