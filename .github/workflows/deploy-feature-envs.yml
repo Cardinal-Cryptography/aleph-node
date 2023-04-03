@@ -132,7 +132,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-ref-properties.outputs.branch_name }}
+          env: ${{ steps.get-ref-properties.outputs.branch }}
           ref: ${{ github.head_ref }}
           override: true
 
@@ -158,7 +158,7 @@ jobs:
       - name: Build chainspec for testnet FE and send it to S3
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
         env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
+          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
           CHAIN_ID: a0fenet
         # yamllint disable rule:line-length
         run: |
@@ -202,7 +202,7 @@ jobs:
       - name: Build chainspec for Hotnet FE and send it to S3
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_HOT)
         env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
+          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
           CHAIN_ID: a0fenet
         # yamllint disable rule:line-length
         run: |
@@ -259,7 +259,7 @@ jobs:
       - name: Start testnet image on feature environment
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
         env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
+          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
           APP_NAME:
             ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           NAMESPACE:
@@ -301,7 +301,7 @@ jobs:
       - name: Start mainnet image on feature environment
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_HOT)
         env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
+          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
           APP_NAME:
             ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           NAMESPACE:
@@ -513,7 +513,7 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ steps.get-ref-properties.outputs.branch_name }}
+          env: ${{ steps.get-ref-properties.outputs.branch }}
           deployment_id: ${{ needs.deploy-feature-env.outputs.deployment-id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev#/explorer
