@@ -22,19 +22,18 @@ use crate::{
         AuthoritySubtaskCommon, Task,
     },
     sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
-    BlockHashNum, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, Metrics,
+    BlockHashNum, CurrentRmcNetworkData, HashNum, Keychain, LegacyRmcNetworkData, Metrics,
     SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
 /// IO channels used by the aggregator task.
-pub struct IO<B, JS, JT>
+pub struct IO<H, JS, JT>
 where
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    H: Header<Number = BlockNumber>,
+    JS: JustificationSubmissions<Justification<H>> + Send + Sync + Clone,
+    JT: JustificationTranslator<H> + Send + Sync + Clone,
 {
-    pub blocks_from_interpreter: mpsc::UnboundedReceiver<BlockHashNum<B>>,
+    pub blocks_from_interpreter: mpsc::UnboundedReceiver<HashNum<H>>,
     pub justifications_for_chain: JS,
     pub justification_translator: JT,
 }
@@ -93,7 +92,7 @@ where
 
 async fn run_aggregator<B, C, CN, LN, JS, JT>(
     mut aggregator: Aggregator<'_, B, CN, LN>,
-    io: IO<B, JS, JT>,
+    io: IO<B::Header, JS, JT>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
@@ -183,7 +182,7 @@ pub enum AggregatorVersion<CN, LN> {
 pub fn task<B, C, CN, LN, JS, JT>(
     subtask_common: AuthoritySubtaskCommon,
     client: Arc<C>,
-    io: IO<B, JS, JT>,
+    io: IO<B::Header, JS, JT>,
     session_boundaries: SessionBoundaries,
     metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     multikeychain: Keychain,

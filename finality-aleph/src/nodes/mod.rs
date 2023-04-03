@@ -1,7 +1,7 @@
 mod validator_node;
 
 use aleph_primitives::BlockNumber;
-use sp_runtime::traits::{Block, Header, NumberFor};
+use sp_runtime::traits::{Block, Header};
 pub use validator_node::run_validator_node;
 
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::ReadOnlySessionMap,
     sync::SessionVerifier,
+    HashNum,
 };
 
 #[cfg(test)]
@@ -22,11 +23,11 @@ struct SessionInfoProviderImpl {
 }
 
 #[async_trait::async_trait]
-impl<B: Block> SessionInfoProvider<B, SessionVerifier> for SessionInfoProviderImpl
+impl<H> SessionInfoProvider<HashNum<H>, SessionVerifier> for SessionInfoProviderImpl
 where
-    B::Header: Header<Number = BlockNumber>,
+    H: Header<Number = BlockNumber>,
 {
-    async fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, SessionVerifier> {
+    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<HashNum<H>, SessionVerifier> {
         let current_session = self.session_info.session_id_from_block_num(number);
         let last_block_height = self.session_info.last_block_of_session(current_session);
         let verifier = self
@@ -35,10 +36,6 @@ where
             .await
             .map(|authority_data| authority_data.into());
 
-        SessionInfo {
-            current_session,
-            last_block_height,
-            verifier,
-        }
+        SessionInfo::new(current_session, last_block_height, verifier)
     }
 }

@@ -8,8 +8,9 @@ use std::{
 
 use log::info;
 
-use crate::sync::{
-    data::BranchKnowledge, BlockIdFor, BlockIdentifier, Header, Justification, PeerId, LOG_TARGET,
+use crate::{
+    sync::{data::BranchKnowledge, BlockIdFor, Header, Justification, PeerId, LOG_TARGET},
+    BlockIdentifier,
 };
 
 mod vertex;

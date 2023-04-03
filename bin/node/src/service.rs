@@ -30,7 +30,10 @@ use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT},
 };
 
-use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor};
+use crate::{
+    aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor,
+    rpc::FullDeps as RpcFullDeps,
+};
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -261,7 +264,7 @@ fn setup(
         let client = client.clone();
         let pool = transaction_pool.clone();
         Box::new(move |deny_unsafe, _| {
-            let deps: crate::rpc::FullDeps<Block, _, _, _> = crate::rpc::FullDeps {
+            let deps: RpcFullDeps<Block, _, _, _> = crate::rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,

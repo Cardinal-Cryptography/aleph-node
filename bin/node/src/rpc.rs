@@ -66,7 +66,7 @@ where
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
 
-    module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+    module.merge(TransactionPayment::new(client).into_rpc())?;
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
     module.merge(

@@ -1,8 +1,10 @@
-use aleph_primitives::AuthoritySignature;
-use codec::{Decode, Encode};
-use sp_api::{BlockT, NumberFor};
+use std::marker::PhantomData;
 
-use crate::{crypto::Signature, SessionId};
+use aleph_primitives::{AuthoritySignature, BlockNumber, ALEPH_ENGINE_ID};
+use codec::{Decode, Encode};
+use sp_runtime::Justification;
+
+use crate::{crypto::Signature, BlockIdentifier, IdentifierFor, SessionId};
 
 mod compatibility;
 
@@ -18,29 +20,40 @@ pub enum AlephJustification {
     EmergencySignature(AuthoritySignature),
 }
 
-pub trait Verifier<B: BlockT> {
-    fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool;
+impl From<AlephJustification> for Justification {
+    fn from(val: AlephJustification) -> Self {
+        (ALEPH_ENGINE_ID, versioned_encode(val))
+    }
 }
 
-pub struct SessionInfo<B: BlockT, V: Verifier<B>> {
+pub trait Verifier<BI: BlockIdentifier> {
+    fn verify(&self, justification: &AlephJustification, block_id: &BI) -> bool;
+}
+
+pub struct SessionInfo<BI: BlockIdentifier, V: Verifier<BI>> {
     pub current_session: SessionId,
-    pub last_block_height: NumberFor<B>,
+    pub last_block_height: BlockNumber,
     pub verifier: Option<V>,
+    _phantom: PhantomData<BI>,
+}
+
+impl<BI: BlockIdentifier, V: Verifier<BI>> SessionInfo<BI, V> {
+    pub fn new(
+        current_session: SessionId,
+        last_block_height: BlockNumber,
+        verifier: Option<V>,
+    ) -> Self {
+        Self {
+            current_session,
+            last_block_height,
+            verifier,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 /// Returns `SessionInfo` for the session regarding block with no. `number`.
 #[async_trait::async_trait]
-pub trait SessionInfoProvider<B: BlockT, V: Verifier<B>> {
-    async fn for_block_num(&self, number: NumberFor<B>) -> SessionInfo<B, V>;
-}
-
-/// A notification for sending justifications over the network.
-#[derive(Clone)]
-pub struct JustificationNotification<Block: BlockT> {
-    /// The justification itself.
-    pub justification: AlephJustification,
-    /// The hash of the finalized block.
-    pub hash: Block::Hash,
-    /// The ID of the finalized block.
-    pub number: NumberFor<Block>,
+pub trait SessionInfoProvider<BI: BlockIdentifier, V: Verifier<BI>> {
+    async fn for_block_num(&self, number: BlockNumber) -> SessionInfo<BI, V>;
 }
