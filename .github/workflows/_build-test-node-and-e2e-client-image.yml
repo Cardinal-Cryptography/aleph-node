@@ -5,6 +5,7 @@ on:
   workflow_call:
     inputs:
       build-synthetic-network-docker:
+        description: Set to 'true' to build synthetic network docker
         required: false
         type: boolean
         default: false
@@ -42,7 +43,7 @@ jobs:
           retention-days: 7
 
       - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: ./.github/actions/install-rust-toolchain
 
       - name: Build binary and docker image
         run: |

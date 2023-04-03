@@ -10,9 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
   build-production-node:
+    needs: [check-vars-and-secrets]
     name: Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
+
+  store-production-node:
+    needs: [build-production-node]
+    name: Store production node and runtime artifacts (PR version)
+    uses: ./.github/workflows/_store-production-node-and-runtime.yml
     secrets: inherit
 
   build-production-node-and-e2e-client-image:
@@ -38,7 +49,7 @@ jobs:
           image-path: aleph-release-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
-        timeout-minutes: 40
+        timeout-minutes: 60
 
   run-e2e-no-quorum-without-high-out-latency:
     needs: [build-production-node-and-e2e-client-image]
@@ -55,7 +66,7 @@ jobs:
           image-path: aleph-release-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
-        timeout-minutes: 25
+        timeout-minutes: 60
 
   check-e2e-test-suite-completion:
     needs: [
