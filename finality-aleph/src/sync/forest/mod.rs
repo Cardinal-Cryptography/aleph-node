@@ -361,10 +361,8 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
             }
         }
         // update highest justified if the new root isn't below it
-        if let Some(id) = &self.highest_justified {
-            if id.number() <= self.root_id.number() {
-                self.highest_justified = None;
-            }
+        if matches!(&self.highest_justified, Some(id) if id.number() <= self.root_id.number()) {
+            self.highest_justified = None;
         }
         None
     }
