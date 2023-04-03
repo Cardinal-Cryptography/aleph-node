@@ -343,6 +343,9 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
         self.compost_bin.retain(|k| k.number() > level);
         self.justified_blocks.retain(|k, _| k > &level);
+        if matches!(&self.highest_justified, Some(id) if id.number() <= level) {
+            self.highest_justified = None;
+        }
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
@@ -360,10 +363,6 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                     Err(_vertex) => panic!("Block sync justified_blocks cache corrupted, please restart the Node and contact the developers"),
                 }
             }
-        }
-        // update highest justified if the new root isn't below it
-        if matches!(&self.highest_justified, Some(id) if id.number() <= self.root_id.number()) {
-            self.highest_justified = None;
         }
         None
     }
