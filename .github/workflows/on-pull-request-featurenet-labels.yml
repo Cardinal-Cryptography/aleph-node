@@ -1,5 +1,5 @@
 ---
-name: Deploy featurenet
+name: PR Featurenet
 
 on:
   pull_request:
@@ -309,7 +309,7 @@ jobs:
           labels: 'trigger:delete-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Remove deployed label if present
+      - name: Remove created label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
         with:
