@@ -42,13 +42,14 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{log::warn, pallet_prelude::*, sp_runtime::RuntimeAppPublic};
+    use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
     use pallets_support::StorageMigration;
+    use sp_std::collections::btree_set::BTreeSet;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
 
@@ -173,21 +174,25 @@ pub mod pallet {
         fn get_authorities_for_next_session(
             next_authorities: Vec<(&T::AccountId, T::AuthorityId)>,
         ) -> Vec<T::AuthorityId> {
-            let next_committee_ids = NextFinalityCommittee::<T>::take();
+            let next_committee_ids: BTreeSet<_> =
+                NextFinalityCommittee::<T>::get().into_iter().collect();
 
-            let get_authority = |cid| {
-                next_authorities
-                    .iter()
-                    .find(|(id, _)| *id == cid)
-                    .map(|(_, auth)| auth.clone())
-            };
-            let next_committee_authorities: Vec<_> = next_committee_ids
-                .iter()
-                .filter_map(get_authority)
+            let next_committee_authorities: Vec<_> = next_authorities
+                .into_iter()
+                .filter_map(|(account_id, auth_id)| {
+                    if next_committee_ids.contains(account_id) {
+                        Some(auth_id)
+                    } else {
+                        None
+                    }
+                })
                 .collect();
 
             if next_committee_authorities.len() != next_committee_ids.len() {
-                warn!(target: LOG_TARGET, "Not all committee members were converted to keys. Falling back to the default committee");
+                log::error!(
+                    target: LOG_TARGET,
+                    "Not all committee members were converted to keys."
+                );
             }
 
             next_committee_authorities

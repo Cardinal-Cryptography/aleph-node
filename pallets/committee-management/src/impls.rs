@@ -70,14 +70,10 @@ fn choose_finality_committee<T: Clone>(
         .and_then(|nr| choose_for_session(nr, non_reserved_seats, session))
         .unwrap_or_default();
 
-    if let Some(r) = reserved {
-        let mut finality_committee = r.clone();
-        finality_committee.extend(non_reserved_finality_committee.into_iter());
+    let mut finality_committee = reserved.clone().unwrap_or_default();
+    finality_committee.extend(non_reserved_finality_committee);
 
-        finality_committee
-    } else {
-        non_reserved_finality_committee
-    }
+    finality_committee
 }
 
 fn rotate<AccountId: Clone + PartialEq>(
