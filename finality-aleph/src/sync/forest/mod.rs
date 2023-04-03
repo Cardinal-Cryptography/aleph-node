@@ -415,15 +415,8 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
             Candidate(entry) => {
                 let know_most = entry.get().vertex.know_most().clone();
                 // request only required blocks, or the highest_justified block/header
-                if !&entry.get().vertex.required() {
-                    match &self.highest_justified {
-                        Some(highest_justified_id) => {
-                            if highest_justified_id != id {
-                                return None;
-                            }
-                        }
-                        None => return None,
-                    }
+                if !(entry.get().vertex.required() || Some(id) == self.highest_justified.as_ref()) {
+                    return None;
                 }
                 // should always return Some, as the branch of a Candidate always exists
                 self.branch_knowledge(id.clone())
@@ -438,13 +431,11 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     pub fn state(&mut self, id: &BlockIdFor<J>) -> Interest<I, J> {
         match self.prepare_request_info(id) {
             Some((know_most, branch_knowledge)) => {
-                if let Some(highest_justified_id) = &self.highest_justified {
-                    if id == highest_justified_id {
-                        return Interest::HighestJustified {
-                            know_most,
-                            branch_knowledge,
-                        };
-                    }
+                if self.highest_justified.as_ref() == Some(id) {
+                    return Interest::HighestJustified {
+                        know_most,
+                        branch_knowledge,
+                    };
                 }
                 match self.top_required.contains(id) {
                     true => Interest::TopRequired {
