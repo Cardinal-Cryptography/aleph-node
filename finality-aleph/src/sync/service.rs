@@ -1,7 +1,7 @@
-use std::{collections::HashSet, fmt::Debug, iter, time::Duration};
+use std::{collections::HashSet, iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, info, warn};
+use log::{error, warn};
 use tokio::time::interval;
 
 use crate::{
@@ -27,7 +27,7 @@ const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
-    J: Justification + Debug,
+    J: Justification,
     N: GossipNetwork<VersionedNetworkData<J>>,
     CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<J>,
@@ -52,7 +52,7 @@ impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::
 }
 
 impl<
-        J: Justification + Debug,
+        J: Justification,
         N: GossipNetwork<VersionedNetworkData<J>>,
         CE: ChainStatusNotifier<J::Header>,
         CS: ChainStatus<J>,
@@ -91,22 +91,18 @@ impl<
     }
 
     fn backup_request(&mut self, block_id: BlockIdFor<J>) {
-        info!(target: LOG_TARGET, "Sync Service::backup_request");
         self.tasks.schedule_in(block_id, Duration::from_secs(5));
     }
 
     fn delayed_request(&mut self, block_id: BlockIdFor<J>) {
-        info!(target: LOG_TARGET, "Sync Service::delayed_request");
         self.tasks.schedule_in(block_id, Duration::from_millis(500));
     }
 
     fn request(&mut self, block_id: BlockIdFor<J>) {
-        info!(target: LOG_TARGET, "Sync Service::request");
         self.tasks.schedule_in(block_id, Duration::ZERO);
     }
 
     fn broadcast(&mut self) {
-        info!(target: LOG_TARGET, "Sync Service::broadcast");
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
@@ -129,7 +125,6 @@ impl<
         branch_knowledge: BranchKnowledge<J>,
         peers: HashSet<N::PeerId>,
     ) {
-        info!(target: LOG_TARGET, "Sync Service::send_request_for");
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
@@ -148,35 +143,6 @@ impl<
     }
 
     fn send_to(&mut self, data: NetworkData<J>, peer: N::PeerId) {
-        use NetworkData::*;
-        info!(target: LOG_TARGET, "Sync Service::send_to");
-        match data.clone() {
-            StateBroadcast(state) => info!(
-                target: LOG_TARGET,
-                "Sync Service::send_to StateBroadcast top justification id {:?}",
-                state.top_justification().id()
-            ),
-            StateBroadcastResponse(j1, j2) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::send_to StateBroadcastResponse j1 {:?} j2 {:?}",
-                    j1.id(),
-                    j2.map(|x| x.id())
-                );
-            }
-            Request(request) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::send_to Request {:?}", request
-                );
-            }
-            RequestResponse(response) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::send_to Response {:?}", response
-                );
-            }
-        }
         if let Err(e) = self.network.send_to(data, peer) {
             warn!(target: LOG_TARGET, "Error sending response: {}.", e);
         }
@@ -184,28 +150,14 @@ impl<
 
     fn perform_sync_action(&mut self, action: SyncAction<J>, peer: N::PeerId) {
         use SyncAction::*;
-        info!(target: LOG_TARGET, "Sync Service::perform_sync_action");
         match action {
-            Response(data) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::perform_sync_action - respond to peer {:?}", peer
-                );
-                self.send_to(data, peer);
-            }
-            Task(block_id) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::perform_sync_action - request block id {:?}", block_id
-                );
-                self.request(block_id);
-            }
-            Noop => info!(target: LOG_TARGET, "Sync Service::perform_sync_action NOOP"),
+            Response(data) => self.send_to(data, peer),
+            Task(block_id) => self.request(block_id),
+            Noop => (),
         }
     }
 
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
-        info!(target: LOG_TARGET, "Sync Service::handle_state");
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => warn!(
@@ -220,13 +172,8 @@ impl<
         justifications: Vec<J::Unverified>,
         peer: Option<N::PeerId>,
     ) {
-        info!(target: LOG_TARGET, "Sync Service::handle_justifications");
         let mut previous_block_id = None;
         for justification in justifications {
-            info!(
-                target: LOG_TARGET,
-                "Sync Service::handle_justifications handling justification {:?}", justification
-            );
             let maybe_block_id = match self
                 .handler
                 .handle_justification(justification, peer.clone())
@@ -240,35 +187,19 @@ impl<
                     return;
                 }
             };
-            info!(
-                target: LOG_TARGET,
-                "Sync Service::handle_justifications handled justification, maybe_block_id is {:?}",
-                maybe_block_id
-            );
             if let Some(block_id) = maybe_block_id {
                 if let Some(previous_block_id) = previous_block_id {
                     self.backup_request(previous_block_id);
                 }
                 previous_block_id = Some(block_id);
             }
-            info!(
-                target: LOG_TARGET,
-                "Sync Service::handle_justifications next step, previous_block_id is {:?}",
-                previous_block_id
-            );
         }
-        info!(
-            target: LOG_TARGET,
-            "Sync Service::handle_justifications last if, previous_block_id is {:?}",
-            previous_block_id
-        );
         if let Some(block_id) = previous_block_id {
             self.request(block_id);
         }
     }
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
-        info!(target: LOG_TARGET, "Sync Service::handle_request");
         match self.handler.handle_request(request) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => {
@@ -282,35 +213,6 @@ impl<
 
     fn handle_network_data(&mut self, data: NetworkData<J>, peer: N::PeerId) {
         use NetworkData::*;
-        info!(target: LOG_TARGET, "Sync Service::handle_network_data");
-        match data.clone() {
-            StateBroadcast(state) => info!(
-                target: LOG_TARGET,
-                "Sync Service::handle_network_data StateBroadcast top justification id {:?}",
-                state.top_justification().id()
-            ),
-            StateBroadcastResponse(j1, j2) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::handle_network_data StateBroadcastResponse j1 {:?} j2 {:?}",
-                    j1.id(),
-                    j2.map(|x| x.id())
-                );
-            }
-            Request(request) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::handle_network_data Request {:?}", request
-                );
-            }
-            RequestResponse(response) => {
-                info!(
-                    target: LOG_TARGET,
-                    "Sync Service::handle_network_data Response {:?}", response
-                );
-            }
-        }
-
         match data {
             StateBroadcast(state) => self.handle_state(state, peer),
             StateBroadcastResponse(justification, maybe_justification) => {
@@ -334,7 +236,6 @@ impl<
 
     fn handle_task(&mut self, block_id: BlockIdFor<J>) {
         use Interest::*;
-        info!(target: LOG_TARGET, "Sync Service::handle_task");
         match self.handler.block_state(&block_id) {
             TopRequired {
                 know_most,
@@ -356,7 +257,6 @@ impl<
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
         use ChainStatusNotification::*;
-        info!(target: LOG_TARGET, "Sync Service::handle_chain_event");
         match event {
             BlockImported(header) => {
                 if let Err(e) = self.handler.block_imported(header) {
@@ -381,56 +281,31 @@ impl<
         let mut last_top_number = 0;
         loop {
             tokio::select! {
-
-                maybe_data = self.network.next() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.network.next()");
-                    match maybe_data {
-                        Ok((data, peer)) => self.handle_network_data(data, peer),
-                        Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
-                    };
+                maybe_data = self.network.next() => match maybe_data {
+                    Ok((data, peer)) => self.handle_network_data(data, peer),
+                    Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
                 },
-
-                Some(block_id) = self.tasks.pop() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.tasks.pop()");
-                    self.handle_task(block_id);
+                Some(block_id) = self.tasks.pop() => self.handle_task(block_id),
+                _ = self.broadcast_ticker.wait_and_tick() => self.broadcast(),
+                maybe_event = self.chain_events.next() => match maybe_event {
+                    Ok(chain_event) => self.handle_chain_event(chain_event),
+                    Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
                 },
-
-                _ = self.broadcast_ticker.wait_and_tick() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.broadcast_ticker.wait_and_tick()");
-                    self.broadcast();
+                maybe_justification = self.justifications_from_user.next() => match maybe_justification {
+                    // The block will be imported independently due to `JustificationSubmissions` requirements.
+                    // Therefore, we do not create a task requesting the block from peers.
+                    Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Error while handling justification from user: {}.", e
+                        );
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
-
-                maybe_event = self.chain_events.next() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.chain_events.next()");
-                    match maybe_event {
-                        Ok(chain_event) => self.handle_chain_event(chain_event),
-                        Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
-                    };
+                maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
+                    Some(justification) => self.handle_justifications(Vec::from([justification]), None),
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
-
-                maybe_justification = self.justifications_from_user.next() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.justifications_from_user.next()");
-                    match maybe_justification {
-                        // The block will be imported independently due to `JustificationSubmissions` requirements.
-                        // Therefore, we do not create a task requesting the block from peers.
-                        Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
-                            warn!(
-                                target: LOG_TARGET,
-                                "Error while handling justification from user: {}.", e
-                            );
-                        },
-                        None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
-                    };
-                },
-
-                maybe_justification = self.additional_justifications_from_user.next() => {
-                    info!(target: LOG_TARGET, "Sync Service::run self.additional_justifications_from_user.next()");
-                    match maybe_justification {
-                        Some(justification) => self.handle_justifications(Vec::from([justification]), None),
-                        None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
-                    };
-                },
-
                 _ = stall_ticker.tick() => {
                     match self.handler.state() {
                         Ok(state) => {
@@ -452,9 +327,9 @@ impl<
                             }
                         },
                         Err(e) => error!(
-                            target: LOG_TARGET,
-                            "Error when retrieving Handler state: {}.", e
-                        ),
+                                        target: LOG_TARGET,
+                                        "Error when retrieving Handler state: {}.", e
+                                    ),
                     }
                 }
             }

@@ -56,8 +56,7 @@ where
         use BlockStatus::*;
         let block_id = BlockId::new(hash, number);
         match self.status_of(block_id)? {
-            // Justified(_) => Err(Error::AlreadyJustified),
-            Justified(j) => Ok(j), // todo - do not kill the aggregator pls
+            Justified(_) => Err(Error::AlreadyJustified),
             Unknown => Err(Error::NoBlock),
             Present(header) => Ok(Justification::aleph_justification(
                 header,

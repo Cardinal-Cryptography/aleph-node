@@ -115,9 +115,9 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         network: N,
         spawn_handle: SpawnTaskHandle,
     ) -> (
-    Service<N, AD, BSD>,
-    impl Network<AD, Error = Error, PeerId = N::PeerId>,
-    impl Network<BSD, Error = Error, PeerId = N::PeerId>,
+        Service<N, AD, BSD>,
+        impl Network<AD, Error = Error, PeerId = N::PeerId>,
+        impl Network<BSD, Error = Error, PeerId = N::PeerId>,
     ) {
         let (messages_for_authentication_user, messages_from_authentication_service) =
             mpsc::unbounded();
@@ -146,7 +146,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                 messages_from_service: messages_from_block_sync_service,
                 messages_for_service: messages_for_block_sync_service,
             },
-            )
+        )
     }
 
     fn get_authentication_sender(
@@ -385,12 +385,12 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         let mut status = String::from("Network status report: ");
 
         status.push_str(&format!(
-                "authentication connected peers - {:?}; ",
-                self.authentication_connected_peers.len()
+            "authentication connected peers - {:?}; ",
+            self.authentication_connected_peers.len()
         ));
         status.push_str(&format!(
-                "block sync connected peers - {:?}; ",
-                self.block_sync_connected_peers.len()
+            "block sync connected peers - {:?}; ",
+            self.block_sync_connected_peers.len()
         ));
 
         info!(target: "aleph-network", "{}", status);
@@ -541,24 +541,26 @@ mod tests {
                 .service
                 .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
                 .expect("Should handle");
-            });
+        });
 
         let message = message(1);
-        test_data.broadcast(message.clone()).expect("interface works");
+        test_data
+            .broadcast(message.clone())
+            .expect("interface works");
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
-            .network
-            .send_message
-            .take(peer_ids.len())
-            .await
-            .into_iter(),
+                .network
+                .send_message
+                .take(peer_ids.len())
+                .await
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-            .into_iter()
-            .map(|peer_id| (message.clone().encode(), peer_id, PROTOCOL)),
+                .into_iter()
+                .map(|peer_id| (message.clone().encode(), peer_id, PROTOCOL)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -578,7 +580,7 @@ mod tests {
                 .service
                 .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
                 .expect("Should handle");
-            });
+        });
 
         peer_ids
             .iter()
@@ -588,25 +590,27 @@ mod tests {
                     .service
                     .handle_network_event(MockEvent::StreamClosed(peer_id.clone(), PROTOCOL))
                     .expect("Should handle");
-                });
+            });
 
         let message = message(1);
-        test_data.broadcast(message.clone()).expect("interface works");
+        test_data
+            .broadcast(message.clone())
+            .expect("interface works");
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
-            .network
-            .send_message
-            .take(opened_authorities_n)
-            .await
-            .into_iter(),
+                .network
+                .send_message
+                .take(opened_authorities_n)
+                .await
+                .into_iter(),
         );
 
         let expected_messages = HashSet::from_iter(
             peer_ids
-            .into_iter()
-            .take(opened_authorities_n)
-            .map(|peer_id| (message.clone().encode(), peer_id, PROTOCOL)),
+                .into_iter()
+                .take(opened_authorities_n)
+                .map(|peer_id| (message.clone().encode(), peer_id, PROTOCOL)),
         );
 
         assert_eq!(broadcasted_messages, expected_messages);
@@ -636,17 +640,19 @@ mod tests {
 
         test_data.broadcast(message_1).expect("interface works");
 
-        test_data.broadcast(message_2.clone()).expect("interface works");
+        test_data
+            .broadcast(message_2.clone())
+            .expect("interface works");
 
         let expected = (message_2.encode(), peer_id, PROTOCOL);
 
         assert_eq!(
             test_data
-            .network
-            .send_message
-            .next()
-            .await
-            .expect("Should receive message"),
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
             expected,
         );
 
@@ -675,17 +681,19 @@ mod tests {
 
         test_data.broadcast(message_1).expect("interface works");
 
-        test_data.broadcast(message_2.clone()).expect("interface works");
+        test_data
+            .broadcast(message_2.clone())
+            .expect("interface works");
 
         let expected = (message_2.encode(), peer_id, PROTOCOL);
 
         assert_eq!(
             test_data
-            .network
-            .send_message
-            .next()
-            .await
-            .expect("Should receive message"),
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
             expected,
         );
 
@@ -702,8 +710,8 @@ mod tests {
         test_data
             .service
             .handle_network_event(MockEvent::Messages(
-                    peer_id.clone(),
-                    vec![(PROTOCOL, message.clone().encode().into())],
+                peer_id.clone(),
+                vec![(PROTOCOL, message.clone().encode().into())],
             ))
             .expect("Should handle");
 
@@ -729,17 +737,18 @@ mod tests {
             .expect("Should handle");
 
         test_data
-            .send_to(message.clone(), peer_id.clone()).expect("interface works");
+            .send_to(message.clone(), peer_id.clone())
+            .expect("interface works");
 
         let expected = (message.encode(), peer_id, PROTOCOL);
 
         assert_eq!(
             test_data
-            .network
-            .send_message
-            .next()
-            .await
-            .expect("Should receive message"),
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
             expected,
         );
 
@@ -754,7 +763,9 @@ mod tests {
 
         let message = message(1);
 
-        test_data.send_to(message, peer_id).expect("interface works");
+        test_data
+            .send_to(message, peer_id)
+            .expect("interface works");
 
         test_data.cleanup().await
     }
@@ -772,20 +783,19 @@ mod tests {
             .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
             .expect("Should handle");
 
-        test_data.send_to_random(
-            message.clone(),
-            iter::once(peer_id.clone()).collect(),
-        ).expect("interface works");
+        test_data
+            .send_to_random(message.clone(), iter::once(peer_id.clone()).collect())
+            .expect("interface works");
 
         let expected = (message.encode(), peer_id, PROTOCOL);
 
         assert_eq!(
             test_data
-            .network
-            .send_message
-            .next()
-            .await
-            .expect("Should receive message"),
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
             expected,
         );
 
@@ -806,20 +816,19 @@ mod tests {
             .handle_network_event(MockEvent::StreamOpened(other_peer_id.clone(), PROTOCOL))
             .expect("Should handle");
 
-        test_data.send_to_random(
-            message.clone(),
-            iter::once(peer_id.clone()).collect(),
-        ).expect("interface works");
+        test_data
+            .send_to_random(message.clone(), iter::once(peer_id.clone()).collect())
+            .expect("interface works");
 
         let expected = (message.encode(), other_peer_id, PROTOCOL);
 
         assert_eq!(
             test_data
-            .network
-            .send_message
-            .next()
-            .await
-            .expect("Should receive message"),
+                .network
+                .send_message
+                .next()
+                .await
+                .expect("Should receive message"),
             expected,
         );
 
