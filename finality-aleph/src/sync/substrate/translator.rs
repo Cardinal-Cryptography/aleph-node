@@ -1,7 +1,6 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
 use aleph_primitives::BlockNumber;
-use sp_blockchain::Backend;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
@@ -18,7 +17,6 @@ use crate::{
 pub enum Error<B: Block> {
     ChainStatus(ChainStatusError<B>),
     NoBlock,
-    AlreadyJustified,
 }
 
 impl<B: Block> Display for Error<B> {
@@ -29,7 +27,6 @@ impl<B: Block> Display for Error<B> {
                 write!(f, "error retrieving block status: {}", e)
             }
             NoBlock => write!(f, "block not present"),
-            AlreadyJustified => write!(f, "block already justified"),
         }
     }
 }
@@ -40,29 +37,26 @@ impl<B: Block> From<ChainStatusError<B>> for Error<B> {
     }
 }
 
-impl<B, BE> JustificationTranslator<B::Header> for SubstrateChainStatus<B, BE>
+impl<B> JustificationTranslator<B::Header> for SubstrateChainStatus<B>
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
-    BE: Backend<B>,
 {
     type Error = Error<B>;
 
     fn translate(
         &self,
-        raw_justification: AlephJustification,
+        aleph_justification: AlephJustification,
         hash: <B::Header as Header>::Hash,
         number: BlockNumber,
     ) -> Result<Justification<B::Header>, Self::Error> {
         use BlockStatus::*;
         let block_id = BlockId::new(hash, number);
         match self.status_of(block_id)? {
-            Justified(_) => Err(Error::AlreadyJustified),
+            Justified(Justification { header, .. }) | Present(header) => Ok(
+                Justification::aleph_justification(header, aleph_justification),
+            ),
             Unknown => Err(Error::NoBlock),
-            Present(header) => Ok(Justification {
-                header,
-                raw_justification,
-            }),
         }
     }
 }
