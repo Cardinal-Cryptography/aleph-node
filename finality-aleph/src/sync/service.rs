@@ -182,7 +182,9 @@ impl<
                 Err(e) => {
                     warn!(
                         target: LOG_TARGET,
-                        "Error handling justification from {:?}: {}.", peer, e
+                        "Error while handling justification from {:?}: {}.",
+                        peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                        e
                     );
                     return;
                 }
@@ -237,7 +239,11 @@ impl<
     fn handle_task(&mut self, block_id: BlockIdFor<J>) {
         use Interest::*;
         match self.handler.block_state(&block_id) {
-            TopRequired {
+            HighestJustified {
+                know_most,
+                branch_knowledge,
+            }
+            | TopRequired {
                 know_most,
                 branch_knowledge,
             } => {
@@ -292,14 +298,7 @@ impl<
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
                 },
                 maybe_justification = self.justifications_from_user.next() => match maybe_justification {
-                    // The block will be imported independently due to `JustificationSubmissions` requirements.
-                    // Therefore, we do not create a task requesting the block from peers.
-                    Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Error while handling justification from user: {}.", e
-                        );
-                    },
+                    Some(justification) => self.handle_justifications(vec![justification], None),
                     None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
                 maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
