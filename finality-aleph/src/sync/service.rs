@@ -431,32 +431,32 @@ impl<
                     };
                 },
 
-                // _ = stall_ticker.tick() => {
-                //     match self.handler.state() {
-                //         Ok(state) => {
-                //             let top_number = state.top_justification().id().number();
-                //             if top_number == last_top_number {
-                //                 error!(
-                //                     target: LOG_TARGET,
-                //                     "Sync stall detected, recreating the Forest."
-                //                 );
-                //                 if let Err(e) = self.handler.refresh_forest() {
-                //                     error!(
-                //                         target: LOG_TARGET,
-                //                         "Error when recreating the Forest: {}.", e
-                //                     );
-                //                 }
-                //                 last_top_number = 0;
-                //             } else {
-                //                 last_top_number = top_number;
-                //             }
-                //         },
-                //         Err(e) => error!(
-                //                         target: LOG_TARGET,
-                //                         "Error when retrieving Handler state: {}.", e
-                //                     ),
-                //     }
-                // }
+                _ = stall_ticker.tick() => {
+                    match self.handler.state() {
+                        Ok(state) => {
+                            let top_number = state.top_justification().id().number();
+                            if top_number == last_top_number {
+                                error!(
+                                    target: LOG_TARGET,
+                                    "Sync stall detected, recreating the Forest."
+                                );
+                                if let Err(e) = self.handler.refresh_forest() {
+                                    error!(
+                                        target: LOG_TARGET,
+                                        "Error when recreating the Forest: {}.", e
+                                    );
+                                }
+                                last_top_number = 0;
+                            } else {
+                                last_top_number = top_number;
+                            }
+                        },
+                        Err(e) => error!(
+                            target: LOG_TARGET,
+                            "Error when retrieving Handler state: {}.", e
+                        ),
+                    }
+                }
             }
         }
     }

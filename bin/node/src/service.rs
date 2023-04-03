@@ -398,7 +398,7 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let chain_status = SubstrateChainStatus::new(backend.clone()).unwrap(); // todo - proper error
+    let chain_status = SubstrateChainStatus::new(backend).unwrap(); // todo - proper error
     let aleph_config = AlephConfig {
         network,
         client,

@@ -45,7 +45,7 @@ impl Display for CacheError {
                     "authorities for session {:?} not known even though they should be",
                     session
                 )
-            }
+            },
             BadGenesisHeader => {
                 write!(
                     f,
