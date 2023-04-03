@@ -57,7 +57,7 @@ jobs:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
     needs: [deploy-button]
-    if: always()
+    if: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
