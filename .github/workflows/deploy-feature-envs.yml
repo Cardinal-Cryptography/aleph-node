@@ -260,8 +260,10 @@ jobs:
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
         env:
           BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-          NAMESPACE: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          NAMESPACE:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           CREATE_HOOK: false
         run: |
           # Set up envs
@@ -300,8 +302,10 @@ jobs:
         if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY_HOT)
         env:
           BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch_name }}
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-          NAMESPACE: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          NAMESPACE:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           CREATE_HOOK: false
         run: |
           # Set up envs
@@ -342,7 +346,8 @@ jobs:
       - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         env:
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
@@ -352,7 +357,8 @@ jobs:
 
       - name: Refresh Argo and wait for the testnet image deployment to be finished
         env:
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           ARGOCD_URL: argocd.dev.azero.dev
         run: |
           ## Install argocd CLI tool
@@ -402,9 +408,11 @@ jobs:
         env:
           # yamllint disable-line rule:line-length
           IMAGE_TAG: ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           ARGOCD_URL: argocd.dev.azero.dev
-          NAMESPACE: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          NAMESPACE:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           CREATE_HOOK: true
         run: |
           # Set up envs
@@ -439,7 +447,8 @@ jobs:
         env:
           # yamllint disable-line rule:line-length
           IMAGE_TAG: ${{ env.FE_IMAGETAG_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
@@ -451,7 +460,8 @@ jobs:
 
       - name: Refresh Argo and wait for the PR image deployment to be finished
         env:
-          APP_NAME: ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+          APP_NAME:
+            ${{ env.FE_APP_PREFIX }}${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
           ARGOCD_URL: argocd.dev.azero.dev
         run: |
           ## Install argocd CLI tool

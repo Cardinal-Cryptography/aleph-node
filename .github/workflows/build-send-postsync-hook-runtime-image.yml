@@ -68,8 +68,8 @@ jobs:
       - name: Push postsync hook current Image to Public ECR
         env:
           CURRENT_IMAGE: runtime-update-hook:${{ steps.get-ref-properties.outputs.sha }}
-          ECR_PUSH_IMAGE:
-            ${{ vars.ECR_PUBLIC_REGISTRY }}runtime-update-hook:${{ steps.get-ref-properties.outputs.sha }}
+          # yamllint disable-line rule:line-length
+          ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}runtime-update-hook:${{ steps.get-ref-properties.outputs.sha }}
           ECR_LATEST: ${{ vars.ECR_PUBLIC_REGISTRY }}runtime-update-hook:latest
         run: |
           docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}
@@ -92,8 +92,8 @@ jobs:
 
       - name: Update postsync hook docker image
         env:
-          RELEASE_IMAGE:
-            ${{ vars.ECR_PUBLIC_REGISTRY }}runtime-update-hook:${{ steps.get-ref-properties.outputs.sha }}
+          # yamllint disable-line rule:line-length
+          RELEASE_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}runtime-update-hook:${{ steps.get-ref-properties.outputs.sha }}
           REGIONS_AWS: 'eu-central-1'
         run: |
             # Deploy new image version for postsync hook
