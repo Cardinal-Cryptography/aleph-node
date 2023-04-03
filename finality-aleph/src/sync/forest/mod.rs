@@ -290,7 +290,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     ) -> Result<bool, Error> {
         use JustificationAddResult::*;
         let header = justification.header();
-        if header.parent_id().is_none() {
+        if header.id().number() == 0 {
             // this is the genesis block
             return Ok(false);
         }
@@ -547,6 +547,17 @@ mod tests {
             TopRequired { know_most, .. } => assert!(know_most.contains(&peer_id)),
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
+    }
+
+    #[test]
+    fn ignores_genesis_justification() {
+        let (_, mut forest) = setup();
+        let parentless = MockJustification::for_header(MockHeader::random_parentless(0));
+        let peer_id = rand::random();
+        assert!(matches!(
+            forest.update_justification(parentless, Some(peer_id)),
+            Ok(false)
+        ));
     }
 
     #[test]
