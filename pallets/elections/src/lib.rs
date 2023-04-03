@@ -24,7 +24,7 @@ mod traits;
 
 use codec::{Decode, Encode};
 use frame_support::traits::StorageVersion;
-pub use migration::Migration as CommitteeSizeMigration;
+pub use migration::{v4::Migration as MigrateToV4, v5::Migration as CommitteeSizeMigration};
 pub use pallet::*;
 pub use primitives::EraValidators;
 use scale_info::TypeInfo;
@@ -36,7 +36,7 @@ use sp_std::{
 pub type TotalReward = u32;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
-pub(crate) const LOG_TARGET: &str = "pallet-elections";
+const LOG_TARGET: &str = "pallet-elections";
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
