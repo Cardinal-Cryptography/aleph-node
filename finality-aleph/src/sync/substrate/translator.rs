@@ -53,15 +53,10 @@ where
         use BlockStatus::*;
         let block_id = BlockId::new(hash, number);
         match self.status_of(block_id)? {
-            Justified(justification) => Ok(Justification::aleph_justification(
-                justification.header,
-                aleph_justification,
-            )),
+            Justified(Justification { header, .. }) | Present(header) => Ok(
+                Justification::aleph_justification(header, aleph_justification),
+            ),
             Unknown => Err(Error::NoBlock),
-            Present(header) => Ok(Justification::aleph_justification(
-                header,
-                aleph_justification,
-            )),
         }
     }
 }
