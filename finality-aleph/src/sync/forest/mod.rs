@@ -309,7 +309,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     }
 
     /// Updates the provided justification.
-    /// Returns whether the vertex became a new highest justified block.
+    /// Returns whether the vertex became the new highest justified header/block.
     pub fn update_justification(
         &mut self,
         justification: J,

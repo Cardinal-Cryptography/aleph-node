@@ -195,6 +195,9 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         }
     }
 
+    /// Handle a single verified justification.
+    /// Return `Some(id)` if the highest known justification has just changed to
+    /// the one identified by `id`, unless it's also just been finalized.
     fn handle_verified_justification(
         &mut self,
         justification: J,
@@ -206,6 +209,19 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
             false => None,
         };
         self.try_finalize()?;
+        if let Some(id) = &maybe_id {
+            if self
+                .chain_status
+                .top_finalized()
+                .map_err(Error::ChainStatus)?
+                .header()
+                .id()
+                .number()
+                >= id.number()
+            {
+                return Ok(None);
+            }
+        }
         Ok(maybe_id)
     }
 
@@ -257,6 +273,8 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
     }
 
     /// Handle a single justification.
+    /// Return `Some(id)` if the highest known justification has just changed to
+    /// the one identified by `id`, unless it's also just been finalized.
     pub fn handle_justification(
         &mut self,
         justification: J::Unverified,
@@ -407,6 +425,79 @@ mod tests {
             backend.top_finalized().expect("mock backend works"),
             justification
         );
+    }
+
+    #[test]
+    fn does_not_request_just_finalized_justifications() {
+        let (mut handler, backend, _keep) = setup();
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&backend, 5)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        for justification in justifications.iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+        }
+        for justification in justifications.into_iter() {
+            assert!(matches!(
+                handler
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
+                    .expect("correct justification"),
+                None
+            ));
+        }
+    }
+
+    #[test]
+    fn requests_missing_justifications_without_blocks() {
+        let (mut handler, backend, _keep) = setup();
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&backend, 5)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        for justification in justifications.iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+        }
+        // skip the first justification, now every next added justification
+        // should spawn a new task
+        for justification in justifications.into_iter().skip(1) {
+            assert!(
+                handler
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
+        }
+    }
+
+    #[test]
+    fn requests_missing_justifications_with_blocks() {
+        let (mut handler, backend, _keep) = setup();
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&backend, 5)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        for justification in justifications.iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+        }
+        // skip the first justification, now every next added justification
+        // should spawn a new task
+        for justification in justifications.into_iter().skip(1) {
+            assert!(
+                handler
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
+        }
     }
 
     #[test]

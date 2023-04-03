@@ -164,18 +164,26 @@ impl<
         }
     }
 
-    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: N::PeerId) {
+    fn handle_justifications(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        peer: Option<N::PeerId>,
+    ) {
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
-                .handle_justification(justification, Some(peer.clone()))
+                .handle_justification(justification, peer.clone())
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => {
+                    let peer_id = match peer {
+                        Some(peer_id) => format!("{:?}", peer_id),
+                        None => "user".to_string(),
+                    };
                     warn!(
                         target: LOG_TARGET,
-                        "Error handling justification from {:?}: {}.", peer, e
+                        "Error while handling justification from {:?}: {}.", peer_id, e
                     );
                     return;
                 }
@@ -213,7 +221,7 @@ impl<
                     iter::once(justification)
                         .chain(maybe_justification)
                         .collect(),
-                    peer,
+                    Some(peer),
                 );
             }
             Request(request) => {
@@ -221,7 +229,9 @@ impl<
                 self.handle_request(request, peer.clone());
                 self.handle_state(state, peer)
             }
-            RequestResponse(justifications) => self.handle_justifications(justifications, peer),
+            RequestResponse(justifications) => {
+                self.handle_justifications(justifications, Some(peer))
+            }
         }
     }
 
@@ -290,14 +300,7 @@ impl<
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
                 },
                 maybe_justification = self.justifications_from_user.next() => match maybe_justification {
-                    // The block will be imported independently due to `JustificationSubmissions` requirements.
-                    // Therefore, we do not create a task requesting the block from peers.
-                    Some(justification) => if let Err(e) = self.handler.handle_justification(justification, None) {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Error while handling justification from user: {}.", e
-                        );
-                    },
+                    Some(justification) => self.handle_justifications(vec![justification], None),
                     None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
                 _ = stall_ticker.tick() => {
