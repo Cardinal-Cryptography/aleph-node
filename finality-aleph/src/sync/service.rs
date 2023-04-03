@@ -177,13 +177,11 @@ impl<
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => {
-                    let peer_id = match peer {
-                        Some(peer_id) => format!("{:?}", peer_id),
-                        None => "user".to_string(),
-                    };
                     warn!(
                         target: LOG_TARGET,
-                        "Error while handling justification from {:?}: {}.", peer_id, e
+                        "Error while handling justification from {:?}: {}.",
+                        peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                        e
                     );
                     return;
                 }
@@ -241,11 +239,8 @@ impl<
             HighestJustified {
                 know_most,
                 branch_knowledge,
-            } => {
-                self.send_request_for(block_id.clone(), branch_knowledge, know_most);
-                self.delayed_request(block_id);
             }
-            TopRequired {
+            | TopRequired {
                 know_most,
                 branch_knowledge,
             } => {

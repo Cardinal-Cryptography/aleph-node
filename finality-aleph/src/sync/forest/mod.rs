@@ -316,7 +316,6 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         holder: Option<I>,
     ) -> Result<bool, Error> {
         let (id, parent_id) = self.process_header(justification.header())?;
-        // set required
         self.update_header(justification.header(), None, true)?;
         Ok(match self.get_mut(&id) {
             VertexHandle::Candidate(mut entry) => {
@@ -347,11 +346,10 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
 
     /// Attempt to finalize one block, returns the correct justification if successful.
     pub fn try_finalize(&mut self, number: &u32) -> Option<J> {
-        // cached as ready
         if let Some(id) = self.justified_blocks.get(number) {
             if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(id) {
                 match vertex.ready() {
-                    // ready indeed
+                    // should always match, as the id is taken from self.justified_blocks
                     Ok(justification) => {
                         self.root_id = id.clone();
                         self.root_children = children;
@@ -362,7 +360,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                 }
             }
         }
-        // if root is the only justified block now, set cache to None
+        // update highest justified if the new root isn't below it
         if let Some(id) = &self.highest_justified {
             if id.number() <= self.root_id.number() {
                 self.highest_justified = None;
