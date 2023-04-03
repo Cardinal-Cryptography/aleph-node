@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
-use log::{info, warn};
+use log::warn;
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
@@ -313,21 +313,15 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
                 )),
             },
             // remote lags one session behind
-            Some(1) => {
-                info!(target: LOG_TARGET, "Sync Handler::handle_state Some(1)");
-                Ok(SyncAction::state_broadcast_response(
-                    self.last_justification_unverified(remote_session)?,
-                    Some(local_top.into_unverified()),
-                ))
-            }
+            Some(1) => Ok(SyncAction::state_broadcast_response(
+                self.last_justification_unverified(remote_session)?,
+                Some(local_top.into_unverified()),
+            )),
             // remote lags multiple sessions behind
-            Some(2..) => {
-                info!(target: LOG_TARGET, "Sync Handler::handle_state Some(2)");
-                Ok(SyncAction::state_broadcast_response(
-                    self.last_justification_unverified(remote_session)?,
-                    Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
-                ))
-            }
+            Some(2..) => Ok(SyncAction::state_broadcast_response(
+                self.last_justification_unverified(remote_session)?,
+                Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
+            )),
         }
     }
 
