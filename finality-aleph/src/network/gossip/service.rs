@@ -448,7 +448,7 @@ mod tests {
     use sc_service::TaskManager;
     use tokio::runtime::Handle;
 
-    use super::{Error, Service};
+    use super::{Error, SendError, Service};
     use crate::network::{
         gossip::{
             mock::{MockEvent, MockRawNetwork, MockSenderError},
@@ -472,7 +472,7 @@ mod tests {
     }
 
     impl TestData {
-        async fn prepare() -> Self {
+        fn prepare() -> Self {
             let task_manager = TaskManager::new(Handle::current(), None).unwrap();
 
             // Event stream will never be taken, so we can drop the receiver
@@ -532,7 +532,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_notification_stream_opened() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_ids: Vec<_> = (0..3).map(|_| random_peer_id()).collect();
 
@@ -544,9 +544,7 @@ mod tests {
         });
 
         let message = message(1);
-        test_data
-            .broadcast(message.clone())
-            .expect("interface works");
+        test_data.service.broadcast_authentication(message.clone());
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
@@ -570,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_notification_stream_closed() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_ids: Vec<_> = (0..3).map(|_| random_peer_id()).collect();
         let opened_authorities_n = 2;
@@ -593,9 +591,7 @@ mod tests {
             });
 
         let message = message(1);
-        test_data
-            .broadcast(message.clone())
-            .expect("interface works");
+        test_data.service.broadcast_authentication(message.clone());
 
         let broadcasted_messages = HashSet::<_>::from_iter(
             test_data
@@ -620,7 +616,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_sender_error() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         test_data
             .network
@@ -638,11 +634,11 @@ mod tests {
             .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
             .expect("Should handle");
 
-        test_data.broadcast(message_1).expect("interface works");
+        test_data.service.broadcast_authentication(message_1);
 
         test_data
-            .broadcast(message_2.clone())
-            .expect("interface works");
+            .service
+            .broadcast_authentication(message_2.clone());
 
         let expected = (message_2.encode(), peer_id, PROTOCOL);
 
@@ -661,7 +657,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_error() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         test_data
             .network
@@ -679,14 +675,15 @@ mod tests {
             .handle_network_event(MockEvent::StreamOpened(peer_id.clone(), PROTOCOL))
             .expect("Should handle");
 
-        test_data.broadcast(message_1).expect("interface works");
+        test_data.service.broadcast_authentication(message_1);
 
         test_data
-            .broadcast(message_2.clone())
-            .expect("interface works");
+            .service
+            .broadcast_authentication(message_2.clone());
 
         let expected = (message_2.encode(), peer_id, PROTOCOL);
 
+        println!("just before");
         assert_eq!(
             test_data
                 .network
@@ -702,7 +699,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_notification_received() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let message = message(1);
 
@@ -725,7 +722,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_to_connected() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_id = random_peer_id();
 
@@ -737,7 +734,8 @@ mod tests {
             .expect("Should handle");
 
         test_data
-            .send_to(message.clone(), peer_id.clone())
+            .service
+            .send_to_authentication_peer(message.clone(), peer_id.clone())
             .expect("interface works");
 
         let expected = (message.encode(), peer_id, PROTOCOL);
@@ -757,22 +755,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_send_to_disconnected() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_id = random_peer_id();
 
         let message = message(1);
 
-        test_data
-            .send_to(message, peer_id)
-            .expect("interface works");
+        assert!(matches!(
+            test_data
+                .service
+                .send_to_authentication_peer(message, peer_id),
+            Err(SendError::MissingSender)
+        ));
 
         test_data.cleanup().await
     }
 
     #[tokio::test]
     async fn test_send_to_random_connected() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_id = random_peer_id();
 
@@ -784,8 +785,8 @@ mod tests {
             .expect("Should handle");
 
         test_data
-            .send_to_random(message.clone(), iter::once(peer_id.clone()).collect())
-            .expect("interface works");
+            .service
+            .send_to_random_authentication(message.clone(), iter::once(peer_id.clone()).collect());
 
         let expected = (message.encode(), peer_id, PROTOCOL);
 
@@ -804,7 +805,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_to_random_disconnected() {
-        let mut test_data = TestData::prepare().await;
+        let mut test_data = TestData::prepare();
 
         let peer_id = random_peer_id();
         let other_peer_id = random_peer_id();
@@ -817,8 +818,8 @@ mod tests {
             .expect("Should handle");
 
         test_data
-            .send_to_random(message.clone(), iter::once(peer_id.clone()).collect())
-            .expect("interface works");
+            .service
+            .send_to_random_authentication(message.clone(), iter::once(peer_id.clone()).collect());
 
         let expected = (message.encode(), other_peer_id, PROTOCOL);
 
