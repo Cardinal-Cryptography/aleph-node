@@ -189,7 +189,7 @@ where
 mod tests {
     use std::{cell::Cell, collections::HashMap};
 
-    use aleph_primitives::{Header, SessionAuthorityData};
+    use aleph_primitives::SessionAuthorityData;
 
     use super::{
         AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,

@@ -6,7 +6,6 @@ pub use client::{TestClient, TestClientBuilder, TestClientBuilderExt};
 pub use proposal::{
     aleph_data_from_blocks, aleph_data_from_headers, unvalidated_proposal_from_headers,
 };
-pub use session_info::{SessionInfoProviderImpl, VerifierWrapper};
 use sp_runtime::traits::BlakeTwo256;
 use substrate_test_runtime::Extrinsic;
 
@@ -23,5 +22,4 @@ mod block_finalizer;
 mod block_request;
 mod client;
 mod proposal;
-mod session_info;
 mod single_action_mock;
