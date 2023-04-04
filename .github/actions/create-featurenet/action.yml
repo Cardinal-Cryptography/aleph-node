@@ -82,6 +82,7 @@ runs:
 
     - name: Start featurenet
       if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
+      shell: bash
       run: |
         cd "${{ inputs.repo-apps-name }}"
         pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"

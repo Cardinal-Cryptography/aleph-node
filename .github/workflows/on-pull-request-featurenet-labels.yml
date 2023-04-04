@@ -83,7 +83,7 @@ jobs:
           ref: ${{ github.head_ref }}
           override: true
 
-      - name: Create featurenet in argocd apps
+      - name: Create featurenet data, app and deploy it
         if: >
           contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet') ||
           contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet')
@@ -120,7 +120,7 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Update featurenet in argocd apps
+      - name: Update featurenet app and re-deploy it
         uses: ./.github/actions/create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
