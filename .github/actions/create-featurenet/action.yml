@@ -81,7 +81,6 @@ runs:
         ref: A0-2207-add-makefile-with-featurenet-commands
 
     - name: Start featurenet
-      if: contains( github.event.pull_request.labels.*.name, env.LABEL_DEPLOY)
       shell: bash
       run: |
         cd "${{ inputs.repo-apps-name }}"
