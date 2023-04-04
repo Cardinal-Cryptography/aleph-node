@@ -1,8 +1,6 @@
-extern crate core;
-
 use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
-use aleph_primitives::BlockNumber;
+use aleph_primitives::{AuthorityId, BlockNumber};
 use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
@@ -21,8 +19,12 @@ use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
 
 use crate::{
-    abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
+    abft::{
+        CurrentNetworkData, Keychain, LegacyNetworkData, NodeCount, NodeIndex, Recipient,
+        SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
+    },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
+    compatibility::{Version, Versioned},
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
@@ -36,7 +38,7 @@ mod data_io;
 mod finalization;
 mod import;
 mod justification;
-pub mod metrics;
+mod metrics;
 mod network;
 mod nodes;
 mod party;
@@ -46,27 +48,18 @@ mod sync;
 #[cfg(test)]
 pub mod testing;
 
-pub use abft::{Keychain, NodeCount, NodeIndex, Recipient, SignatureSet, SpawnHandle};
-pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
-pub use import::{AlephBlockImport, TracingBlockImport};
-pub use justification::AlephJustification;
-pub use network::{Protocol, ProtocolNaming};
-pub use nodes::run_validator_node;
-pub use session::SessionPeriod;
-
-use crate::compatibility::{Version, Versioned};
 pub use crate::{
+    import::{AlephBlockImport, TracingBlockImport},
+    justification::AlephJustification,
     metrics::Metrics,
+    network::{Protocol, ProtocolNaming},
+    nodes::run_validator_node,
+    session::SessionPeriod,
     sync::{substrate::Justification, JustificationTranslator, SubstrateChainStatus},
 };
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
-
-#[derive(Clone, Debug, Encode, Decode)]
-enum Error {
-    SendData,
-}
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(
@@ -93,8 +86,8 @@ pub struct MillisecsPerBlock(pub u64);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
 
-pub type LegacySplitData<B> = Split<LegacyNetworkData<B>, LegacyRmcNetworkData<B>>;
-pub type CurrentSplitData<B> = Split<CurrentNetworkData<B>, CurrentRmcNetworkData<B>>;
+type LegacySplitData<B> = Split<LegacyNetworkData<B>, LegacyRmcNetworkData<B>>;
+type CurrentSplitData<B> = Split<CurrentNetworkData<B>, CurrentRmcNetworkData<B>>;
 
 impl<B: Block> Versioned for LegacyNetworkData<B> {
     const VERSION: Version = Version(LEGACY_VERSION);
@@ -150,7 +143,7 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-pub type VersionedNetworkData<B> = VersionedEitherMessage<LegacySplitData<B>, CurrentSplitData<B>>;
+type VersionedNetworkData<B> = VersionedEitherMessage<LegacySplitData<B>, CurrentSplitData<B>>;
 
 #[derive(Debug, Display, Clone)]
 pub enum VersionedTryFromError {
@@ -255,8 +248,8 @@ impl<SH: Header> Hash for HashNum<SH> {
     }
 }
 
-pub type BlockHashNum<B> = HashNum<<B as Block>::Header>;
-pub type IdentifierFor<B> = HashNum<<B as Block>::Header>;
+type BlockHashNum<B> = HashNum<<B as Block>::Header>;
+type IdentifierFor<B> = HashNum<<B as Block>::Header>;
 
 impl<H: Header<Number = BlockNumber>> BlockIdentifier for HashNum<H> {
     fn number(&self) -> BlockNumber {
