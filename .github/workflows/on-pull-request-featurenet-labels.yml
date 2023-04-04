@@ -11,6 +11,9 @@ env:
   RPC_MAINNET_URL: https://rpc.azero.dev
   FORKOFF_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}fork-off:latest
 
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
