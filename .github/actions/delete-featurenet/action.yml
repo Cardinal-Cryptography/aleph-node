@@ -52,19 +52,17 @@ runs:
         cd "${{ inputs.repo-apps-name }}"
         ./Ops.sh delete-featurenet \
           "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}"
-        git status
-        ls -al argocd/overlays/devnet/fe-apps/
 
-#    - name: Commit deletion of the feature environment.
-#      uses: EndBug/add-and-commit@v9.1.1
-#      env:
-#        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-#      with:
-#        author_name: AlephZero Automation
-#        author_email: alephzero@10clouds.com
-#        message: "Delete featurenet ${{ env.APP_NAME }}"
-#        add: "*.yaml"
-#        cwd: "${{ inputs.repo-apps-name }}"
+    - name: Commit deletion of the feature environment.
+      uses: EndBug/add-and-commit@v9.1.1
+      env:
+        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+      with:
+        author_name: AlephZero Automation
+        author_email: alephzero@10clouds.com
+        message: "Delete featurenet ${{ env.APP_NAME }}"
+        add: "*.yaml"
+        cwd: "${{ inputs.repo-apps-name }}"
 #
 #    - name: Refresh Argo and wait for the deletion to be finished
 #      shell: bash

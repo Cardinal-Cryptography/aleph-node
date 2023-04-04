@@ -96,17 +96,17 @@ runs:
         git status
         cat argocd/overlays/devnet/fe-apps/fe-a0-2207-change-featurenet-workflows-to-use-script-from-apps-repo.yaml
 
-#    - name: Commit featurenet change
-#      uses: EndBug/add-and-commit@v9.1.1
-#      env:
-#        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-#      with:
-#        author_name: AlephZero Automation
-#        author_email: alephzero@10clouds.com
-#        # yamllint disable-line rule:line-length
-#        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
-#        add: "*.yaml"
-#        cwd: "${{ inputs.repo-apps-name }}"
+    - name: Commit featurenet change
+      uses: EndBug/add-and-commit@v9.1.1
+      env:
+        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+      with:
+        author_name: AlephZero Automation
+        author_email: alephzero@10clouds.com
+        # yamllint disable-line rule:line-length
+        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
+        add: "*.yaml"
+        cwd: "${{ inputs.repo-apps-name }}"
 #
 #    - name: Refresh Argo and wait for the deletion to be finished
 #      if: inputs.no-refresh != 'true'
