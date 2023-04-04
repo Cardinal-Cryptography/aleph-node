@@ -50,7 +50,7 @@ runs:
         echo name-flattened=$(echo ${HEAD_REF#refs/heads/} | tr / -) >> $GITHUB_OUTPUT
         echo name-for-argo=$(printf ${HEAD_REF#refs/heads/} \
           | tr / - | tr '[:upper:]' '[:lower:]' | tr -c '[a-z0-9-.]' '-' \
-          | cut -c1-52 | sed 's|-$||g') >> $GITHUB_OUTPUT
+          | cut -c1-40 | sed 's|-$||g') >> $GITHUB_OUTPUT
 
     - name: Get branch name if release or pre-release was created
       if: ${{ !startsWith(github.ref, 'refs/') }}
