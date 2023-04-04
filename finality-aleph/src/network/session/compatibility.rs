@@ -153,7 +153,7 @@ mod test {
             tcp::{testing::new_identity, SignedTcpAddressingInformation},
             NetworkIdentity,
         },
-        nodes::testing::new_pen,
+        nodes::new_pen,
         NodeIndex, SessionId, Version,
     };
 
