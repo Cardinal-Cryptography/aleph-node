@@ -19,14 +19,19 @@ pub enum Error {
     /// Provided block range couldn't be resolved to a list of blocks.
     #[error("Node is not fully functional: {}", .0)]
     FailedJustificationSend(String),
+    /// Justification argument is malformatted.
+    #[error("Failed to translate jsutification into an internal one: {}", .0)]
+    FailedJustificationTranslation(String),
 }
 
 // Base code for all system errors.
 const BASE_ERROR: i32 = 2000;
 // Justification argument is malformatted.
 const MALFORMATTED_JUSTIFICATION_ARG_ERROR: i32 = BASE_ERROR + 1;
-// AlephNodeApiServer is failed to send JustificationNotification.
+// AlephNodeApiServer is failed to send translated justification.
 const FAILED_JUSTIFICATION_SEND_ERROR: i32 = BASE_ERROR + 2;
+// AlephNodeApiServer failed to translate justification into internal representation.
+const FAILED_JUSTIFICATION_TRANSLATION_ERROR: i32 = BASE_ERROR + 3;
 
 impl From<Error> for JsonRpseeError {
     fn from(e: Error) -> Self {
@@ -38,6 +43,11 @@ impl From<Error> for JsonRpseeError {
             )),
             Error::MalformattedJustificationArg(e) => CallError::Custom(ErrorObject::owned(
                 MALFORMATTED_JUSTIFICATION_ARG_ERROR,
+                e,
+                None::<()>,
+            )),
+            Error::FailedJustificationTranslation(e) => CallError::Custom(ErrorObject::owned(
+                FAILED_JUSTIFICATION_TRANSLATION_ERROR,
                 e,
                 None::<()>,
             )),
@@ -114,7 +124,7 @@ where
         let justification = self
             .justification_translator
             .translate(justification, hash, number)
-            .map_err(|_e| Error::MalformattedJustificationArg("todo".into()))?; // todo - proper error
+            .map_err(|e| Error::FailedJustificationTranslation(format!("{}", e)))?;
         self.import_justification_tx
             .unbounded_send(justification)
             .map_err(|_| {
