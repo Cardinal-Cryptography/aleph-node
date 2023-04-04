@@ -15,6 +15,9 @@ inputs:
   aws-secret-access-key:
     description: 'AWS Secret Access Key to be used in the action'
     required: true
+  featurenet-keys-s3bucket-name:
+    description: 'S3 bucket name with featurenet keys'
+    required: true
   argo-host:
     description: 'ArgoCD host'
     required: true
@@ -71,10 +74,10 @@ runs:
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}"
 
-#    - name: Clean S3 storage
-#      shell: bash
-#      env:
-#        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
-#      run: |
-#        aws s3 rm --recursive \
-#          s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
+    - name: Clean S3 storage
+      shell: bash
+      env:
+        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+      run: |
+        aws s3 rm --recursive \
+          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ env.BRANCH_NAME }}
