@@ -100,13 +100,13 @@ runs:
         message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
         add: "*.yaml"
         cwd: "${{ inputs.repo-apps-name }}"
-#
-#    - name: Refresh Argo and wait for the deletion to be finished
-#      if: inputs.no-refresh != 'true'
-#      shell: bash
-#      run: |
-#        cd "${{ inputs.repo-apps-name }}"
-#        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-#          "${{ inputs.argo-sync-user-token }}" \
-#          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
-#          "${{ inputs.create-hook }}"
+
+    - name: Refresh Argo and wait for the deletion to be finished
+      if: inputs.no-refresh != 'true'
+      shell: bash
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+          "${{ inputs.argo-sync-user-token }}" \
+          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
+          "${{ inputs.create-hook }}"
