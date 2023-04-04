@@ -1,14 +1,14 @@
 use aleph_client::{
-    api::sudo::events::Sudid,
+    api::{
+        elections::events::ChangeValidators, runtime_types::sp_runtime::ModuleError,
+        sudo::events::Sudid, DispatchError,
+    },
     pallets::elections::{ElectionsApi, ElectionsSudoApi},
     primitives::CommitteeSeats,
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
     AccountId, Pair, TxStatus,
 };
-use aleph_client::api::DispatchError;
-use aleph_client::api::elections::events::ChangeValidators;
-use aleph_client::api::runtime_types::sp_runtime::ModuleError;
 use anyhow::anyhow;
 use log::info;
 
@@ -91,7 +91,6 @@ pub async fn change_validators() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[tokio::test]
 pub async fn change_validators_fail() -> anyhow::Result<()> {
     let config = setup_test();
@@ -132,11 +131,20 @@ pub async fn change_validators_fail() -> anyhow::Result<()> {
         )
         .await?;
 
-    connection.wait_for_event(|e: &Sudid| {
-        info!("Got event: {:?}", e);
-        // index 12 & error [4,0,0,0] denotes `NonReservedFinalitySeatsLargerThanNonReservedSeats` error from elections pallet.
-        e.sudo_result == Err(DispatchError::Module(ModuleError { index: 12, error: [4, 0, 0, 0]}))
-    }, BlockStatus::Best).await;
+    connection
+        .wait_for_event(
+            |e: &Sudid| {
+                info!("Got event: {:?}", e);
+                // index 12 & error [4,0,0,0] denotes `NonReservedFinalitySeatsLargerThanNonReservedSeats` error from elections pallet.
+                e.sudo_result
+                    == Err(DispatchError::Module(ModuleError {
+                        index: 12,
+                        error: [4, 0, 0, 0],
+                    }))
+            },
+            BlockStatus::Best,
+        )
+        .await;
 
     let reserved_after = connection.get_next_era_reserved_validators(None).await;
     let non_reserved_after = connection.get_next_era_non_reserved_validators(None).await;
@@ -163,4 +171,3 @@ pub async fn change_validators_fail() -> anyhow::Result<()> {
 
     Ok(())
 }
-
