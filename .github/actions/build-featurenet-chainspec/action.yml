@@ -41,7 +41,8 @@ runs:
           -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' https://rpc.test.azero.dev \
           | jq -r '.result' | cut -d "-" -f 2 | head -c 7)
         echo $COMMIT_ID
-        echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" >> $GITHUB_ENV
+        echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" \
+          >> $GITHUB_ENV
 
     - name: Get aleph-node image tag from mainnet
       if: inputs.base-net == 'mainnet'
@@ -54,7 +55,8 @@ runs:
         LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
         COMMIT_ID=${LONG_COMMIT_ID: -7}
         echo $COMMIT_ID
-        echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" >> $GITHUB_ENV
+        echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" \
+          >> $GITHUB_ENV
 
     - name: Generate data dir
       shell: bash
@@ -103,6 +105,7 @@ runs:
 
     - name: Save data to S3 bucket
       shell: bash
+      # yamllint disable rule:line-length
       run: |
         aws s3 cp \
           chainspec.json \
@@ -111,3 +114,4 @@ runs:
           s3://${{ inputs.featurenet-keys-s3bucket-name }}/data/ \
           s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ steps.get-ref-properties.outputs.branch }}/data/ \
           --recursive
+      # yamllint enable rule:line-length
