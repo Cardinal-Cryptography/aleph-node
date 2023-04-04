@@ -15,6 +15,18 @@ inputs:
   argo-sync-user-token:
     description: 'ArgoCD user token to be used in the action'
     required: true
+  ecr-public-registry:
+    description: "ECR public registry, with slash at the end, eg. 'public.ecr.aws/something/'"
+    required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID to be used in the action'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key to be used in the action'
+    required: true
+  featurenet-keys-s3bucket-name:
+    description: 'S3 bucket name with featurenet keys'
+    required: true
   no-refresh:
     description: "Set to 'true' if ArgoCD should not be called to refresh"
     required: false
@@ -39,6 +51,26 @@ runs:
     - name: Get branch name and commit SHA
       id: get-ref-properties
       uses: ./.github/actions/get-ref-properties
+
+    - name: Build chainspec for testnet FE and send it to S3
+      if: inputs.aleph-node-image == 'testnet'
+      uses: ./.github/actions/build-featurenet-chainspec
+      with:
+        base-net: testnet
+        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
+
+    - name: Build chainspec for Hotnet FE and send it to S3
+      if: inputs.aleph-node-image == 'mainnet'
+      uses: ./.github/actions/build-featurenet-chainspec
+      with:
+        base-net: mainnet
+        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
 
     - name: Checkout argocd apps repo
       uses: actions/checkout@v3

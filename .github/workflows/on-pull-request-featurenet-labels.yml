@@ -83,36 +83,6 @@ jobs:
           ref: ${{ github.head_ref }}
           override: true
 
-      - name: Login to Public Amazon ECR
-        id: login-public-ecr
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ vars.ECR_PUBLIC_HOST }}
-          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-        env:
-          AWS_REGION: us-east-1
-
-      - name: Build chainspec for testnet FE and send it to S3
-        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
-        uses: ./.github/actions/build-featurenet-chainspec
-        with:
-          base-net: testnet
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-
-      - name: Build chainspec for Hotnet FE and send it to S3
-        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet')
-        uses: ./.github/actions/build-featurenet-chainspec
-        with:
-          base-net: mainnet
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-
       - name: Create featurenet in argocd apps
         if: >
           contains(github.event.pull_request.labels.*.name, "trigger:create-featurenet") |
@@ -125,6 +95,10 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           # yamllint disable-line rule:line-length
           aleph-node-image: ${{ contains(github.event.pull_request.labels.*.name, "trigger:create-hot-featurenet") && 'mainnet' || 'testnet' }}
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
       - name: Wait for the testnet aleph-node binary to accept some blocks
         uses: juliangruber/sleep-action@v2.0.0
@@ -154,6 +128,10 @@ jobs:
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           create-hook: 'true'
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
       - name: Remove testnet deployment request label if exists
         if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
@@ -182,7 +160,7 @@ jobs:
           labels: 'state:created-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Finish Feature Env Deployment
+      - name: Finish featurenet Deployment
         uses: bobheadxi/deployments@v1
         if: always()
         with:
