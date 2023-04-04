@@ -151,7 +151,8 @@ pub fn new_partial(
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
     // todo - handle errors below
-    let justification_translator = SubstrateChainStatus::new(backend.clone()).unwrap();
+    let justification_translator = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let aleph_block_import = AlephBlockImport::new(
         tracing_block_import.clone(),
         justification_tx.clone(),
@@ -259,7 +260,8 @@ fn setup(
             warp_sync: None,
         })?;
 
-    let chain_status = SubstrateChainStatus::new(backend.clone()).unwrap(); // todo - errors
+    let chain_status = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -398,7 +400,8 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let chain_status = SubstrateChainStatus::new(backend).unwrap(); // todo - proper error
+    let chain_status = SubstrateChainStatus::new(backend)
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let aleph_config = AlephConfig {
         network,
         client,
