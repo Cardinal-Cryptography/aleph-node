@@ -135,16 +135,6 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
     }
 
-    fn prune(&mut self, id: &BlockIdFor<J>) {
-        self.top_required.remove(id);
-        if let Some(VertexWithChildren { children, .. }) = self.vertices.remove(id) {
-            self.compost_bin.insert(id.clone());
-            for child in children {
-                self.prune(&child);
-            }
-        }
-    }
-
     fn connect_parent(&mut self, id: &BlockIdFor<J>) {
         use VertexHandle::*;
         if let Candidate(mut entry) = self.get_mut(id) {
@@ -280,6 +270,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                 if vertex.justified_block() {
                     self.justified_blocks.insert(id.number(), id.clone());
                 }
+                self.top_required.remove(&id);
                 Ok(())
             }
             _ => Err(Error::IncorrectVertexState),
@@ -328,6 +319,16 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
             }
             _ => false,
         })
+    }
+
+    fn prune(&mut self, id: &BlockIdFor<J>) {
+        self.top_required.remove(id);
+        if let Some(VertexWithChildren { children, .. }) = self.vertices.remove(id) {
+            self.compost_bin.insert(id.clone());
+            for child in children {
+                self.prune(&child);
+            }
+        }
     }
 
     fn prune_level(&mut self, level: u32) {
@@ -637,6 +638,38 @@ mod tests {
             .update_body(child.header())
             .expect("header was correct");
         assert_eq!(forest.try_finalize(&1).expect("the block is ready"), child);
+    }
+
+    #[test]
+    fn prunes_cache() {
+        let (initial_header, mut forest) = setup();
+        let child = MockJustification::for_header(initial_header.random_child());
+        let peer_id = rand::random();
+        assert!(matches!(forest.state(&child.header().id()), Uninterested));
+        assert!(forest
+            .update_header(child.header(), Some(peer_id), true)
+            .expect("header was correct"));
+        assert!(matches!(
+            forest.state(&child.header().id()),
+            TopRequired { .. }
+        ));
+        assert!(forest.top_required.contains(&child.header().id()));
+        forest
+            .update_body(child.header())
+            .expect("header was correct");
+        assert!(matches!(forest.state(&child.header().id()), Uninterested));
+        assert!(!forest.top_required.contains(&child.header().id()));
+        assert!(forest
+            .update_justification(child.clone(), Some(peer_id))
+            .expect("header was correct"));
+        assert!(matches!(
+            forest.state(&child.header().id()),
+            HighestJustified { .. }
+        ));
+        assert_eq!(forest.highest_justified, Some(child.header().id()));
+        assert_eq!(forest.try_finalize(&1), Some(child.clone()));
+        assert!(matches!(forest.state(&child.header().id()), Uninterested));
+        assert!(forest.highest_justified.is_none());
     }
 
     #[test]
