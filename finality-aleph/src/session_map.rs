@@ -373,7 +373,6 @@ mod tests {
     const FIRST_THRESHOLD: u32 = PRUNING_THRESHOLD + 1;
     const SECOND_THRESHOLD: u32 = 2 * PRUNING_THRESHOLD + 1;
 
-    // todo - rewrite tests, this used to be pub method
     impl ReadOnlySessionMap {
         async fn get(&self, id: SessionId) -> Option<SessionAuthorityData> {
             self.inner.read().await.0.get(&id).cloned()
