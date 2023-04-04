@@ -40,11 +40,6 @@ inputs:
     required: false
     default: 'false'
 
-outputs:
-  deployment-name:
-    description: 'Deployment name for working with deployments'
-    value: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
-
 runs:
   using: "composite"
   steps:

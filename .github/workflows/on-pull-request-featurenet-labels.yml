@@ -55,8 +55,6 @@ jobs:
       (github.event.label.name == 'trigger:create-hot-featurenet')
     name: Create featurenet based on the PR
     runs-on: ubuntu-20.04
-    outputs:
-      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
@@ -78,11 +76,10 @@ jobs:
 
       - name: Start featurenet Deployment
         uses: bobheadxi/deployments@v1.1.0
-        id: deployment
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-ref-properties.outputs.branch }}
+          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
           ref: ${{ github.head_ref }}
           override: true
 
@@ -171,7 +168,7 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
           env: ${{ steps.get-ref-properties.outputs.branch }}
-          deployment_id: ${{ needs.deploy-feature-env.outputs.deployment-id }}
+          deployment_id: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev#/explorer
           ref: ${{ github.head_ref }}
@@ -191,9 +188,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
       - name: Delete featurenet in argocd apps
         uses: ./.github/actions/delete-featurenet
-        id: delete_fe
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
@@ -226,7 +226,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.delete_fe.outputs.deployment-name }}
+          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
           desc: Environment was deleted
           debug: true
 
@@ -234,5 +234,5 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.delete_fe.outputs.deployment-name }}
+          environment: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
 
