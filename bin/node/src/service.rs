@@ -150,7 +150,6 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    // todo - handle errors below
     let justification_translator = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let aleph_block_import = AlephBlockImport::new(
