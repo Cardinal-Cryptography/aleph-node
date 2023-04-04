@@ -93,8 +93,6 @@ runs:
         ./Ops.sh create-featurenet \
           "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
           "${image_arg}"
-        git status
-        cat argocd/overlays/devnet/fe-apps/fe-a0-2207-change-featurenet-workflows-to-use-script-from-apps-repo.yaml
 
     - name: Commit featurenet change
       uses: EndBug/add-and-commit@v9.1.1
