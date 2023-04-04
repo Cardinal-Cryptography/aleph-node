@@ -53,6 +53,7 @@ runs:
         ./Ops.sh delete-featurenet \
           "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}"
         git status
+        ls -al argocd/overlays/devnet/fe-apps/
 
 #    - name: Commit deletion of the feature environment.
 #      uses: EndBug/add-and-commit@v9.1.1
