@@ -77,7 +77,7 @@ runs:
     - name: Clean S3 storage
       shell: bash
       env:
-        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+        APP_NAME: ${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
       run: |
         aws s3 rm --recursive \
-          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ env.BRANCH_NAME }}
+          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ env.APP_NAME }}

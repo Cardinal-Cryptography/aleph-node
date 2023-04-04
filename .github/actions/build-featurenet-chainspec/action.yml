@@ -109,9 +109,9 @@ runs:
       run: |
         aws s3 cp \
           chainspec.json \
-          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ steps.get-ref-properties.outputs.branch-name-flattened }}/chainspec.json
+          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}/chainspec.json
         aws s3 cp \
           s3://${{ inputs.featurenet-keys-s3bucket-name }}/data/ \
-          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ steps.get-ref-properties.outputs.branch-name-flattened }}/data/ \
+          s3://${{ inputs.featurenet-keys-s3bucket-name }}/fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}/data/ \
           --recursive
       # yamllint enable rule:line-length
