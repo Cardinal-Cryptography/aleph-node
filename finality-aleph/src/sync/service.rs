@@ -1,8 +1,8 @@
 use std::{collections::HashSet, iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
-use log::{error, warn};
-use tokio::time::interval;
+use log::{debug, error, trace, warn};
+use tokio::time::{interval_at, Instant};
 
 use crate::{
     network::GossipNetwork,
@@ -22,7 +22,6 @@ use crate::{
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
-// TODO: Remove after finishing the sync rewrite.
 const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
@@ -113,6 +112,7 @@ impl<
                 return;
             }
         };
+        trace!(target: LOG_TARGET, "Broadcasting state: {:?}", state);
         let data = NetworkData::StateBroadcast(state);
         if let Err(e) = self.network.broadcast(data) {
             warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e);
@@ -136,6 +136,7 @@ impl<
             }
         };
         let request = Request::new(block_id, branch_knowledge, state);
+        trace!(target: LOG_TARGET, "Sending a request: {:?}", request);
         let data = NetworkData::Request(request);
         if let Err(e) = self.network.send_to_random(data, peers) {
             warn!(target: LOG_TARGET, "Error sending request: {}.", e);
@@ -158,6 +159,12 @@ impl<
     }
 
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling state {:?} received from {:?}.",
+            state,
+            peer
+        );
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => warn!(
@@ -172,6 +179,11 @@ impl<
         justifications: Vec<J::Unverified>,
         peer: Option<N::PeerId>,
     ) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling {:?} justifications.",
+            justifications.len()
+        );
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
@@ -197,11 +209,21 @@ impl<
             }
         }
         if let Some(block_id) = previous_block_id {
+            debug!(
+                target: LOG_TARGET,
+                "Initiating a request for {:?}.", block_id
+            );
             self.request(block_id);
         }
     }
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling a request {:?} from {:?}.",
+            request,
+            peer
+        );
         match self.handler.handle_request(request) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => {
@@ -237,6 +259,7 @@ impl<
     }
 
     fn handle_task(&mut self, block_id: BlockIdFor<J>) {
+        trace!(target: LOG_TARGET, "Handling a task for {:?}.", block_id);
         use Interest::*;
         match self.handler.block_state(&block_id) {
             HighestJustified {
@@ -265,6 +288,7 @@ impl<
         use ChainStatusNotification::*;
         match event {
             BlockImported(header) => {
+                trace!(target: LOG_TARGET, "Handling a new imported block.");
                 if let Err(e) = self.handler.block_imported(header) {
                     error!(
                         target: LOG_TARGET,
@@ -273,6 +297,7 @@ impl<
                 }
             }
             BlockFinalized(_) => {
+                trace!(target: LOG_TARGET, "Handling a new finalized block.");
                 if self.broadcast_ticker.try_tick() {
                     self.broadcast();
                 }
@@ -282,8 +307,11 @@ impl<
 
     /// Stay synchronized.
     pub async fn run(mut self) {
-        // TODO: Remove after finishing the sync rewrite.
-        let mut stall_ticker = interval(FINALIZATION_STALL_CHECK_PERIOD);
+        // TODO(A0-1758): Remove after finishing the sync rewrite.
+        let mut stall_ticker = interval_at(
+            Instant::now() + FINALIZATION_STALL_CHECK_PERIOD,
+            FINALIZATION_STALL_CHECK_PERIOD,
+        );
         let mut last_top_number = 0;
         loop {
             tokio::select! {
@@ -298,12 +326,18 @@ impl<
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
                 },
                 maybe_justification = self.justifications_from_user.next() => match maybe_justification {
-                    Some(justification) => self.handle_justifications(vec![justification], None),
+                    Some(justification) => {
+                        debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
+                        self.handle_justifications(vec![justification], None);
+                    },
                     None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
                 },
                 maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
-                    Some(justification) => self.handle_justifications(Vec::from([justification]), None),
-                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+                    Some(justification) => {
+                        debug!(target: LOG_TARGET, "Received new additional justification from user: {:?}.", justification);
+                        self.handle_justifications(Vec::from([justification]), None)
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with additional justifications from user closed."),
                 },
                 _ = stall_ticker.tick() => {
                     match self.handler.state() {
@@ -320,7 +354,6 @@ impl<
                                         "Error when recreating the Forest: {}.", e
                                     );
                                 }
-                                last_top_number = 0;
                             } else {
                                 last_top_number = top_number;
                             }
