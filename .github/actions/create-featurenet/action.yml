@@ -52,25 +52,25 @@ runs:
       id: get-ref-properties
       uses: ./.github/actions/get-ref-properties
 
-    - name: Build chainspec for testnet FE and send it to S3
-      if: inputs.aleph-node-image == 'testnet'
-      uses: ./.github/actions/build-featurenet-chainspec
-      with:
-        base-net: testnet
-        ecr-public-registry: ${{ inputs.ecr-public-registry }}
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
-
-    - name: Build chainspec for Hotnet FE and send it to S3
-      if: inputs.aleph-node-image == 'mainnet'
-      uses: ./.github/actions/build-featurenet-chainspec
-      with:
-        base-net: mainnet
-        ecr-public-registry: ${{ inputs.ecr-public-registry }}
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
+#    - name: Build chainspec for testnet FE and send it to S3
+#      if: inputs.aleph-node-image == 'testnet'
+#      uses: ./.github/actions/build-featurenet-chainspec
+#      with:
+#        base-net: testnet
+#        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+#        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+#        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+#        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
+#
+#    - name: Build chainspec for Hotnet FE and send it to S3
+#      if: inputs.aleph-node-image == 'mainnet'
+#      uses: ./.github/actions/build-featurenet-chainspec
+#      with:
+#        base-net: mainnet
+#        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+#        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+#        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+#        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
 
     - name: Checkout argocd apps repo
       uses: actions/checkout@v3
@@ -93,25 +93,26 @@ runs:
         ./Ops.sh create-featurenet \
           "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
           "${image_arg}"
+        git status
 
-    - name: Commit featurenet change
-      uses: EndBug/add-and-commit@v9.1.1
-      env:
-        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-      with:
-        author_name: AlephZero Automation
-        author_email: alephzero@10clouds.com
-        # yamllint disable-line rule:line-length
-        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
-        add: "*.yaml"
-        cwd: "${{ inputs.repo-apps-name }}"
-
-    - name: Refresh Argo and wait for the deletion to be finished
-      if: inputs.no-refresh != 'true'
-      shell: bash
-      run: |
-        cd "${{ inputs.repo-apps-name }}"
-        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-          "${{ inputs.argo-sync-user-token }}" \
-          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
-          "${{ inputs.create-hook }}"
+#    - name: Commit featurenet change
+#      uses: EndBug/add-and-commit@v9.1.1
+#      env:
+#        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+#      with:
+#        author_name: AlephZero Automation
+#        author_email: alephzero@10clouds.com
+#        # yamllint disable-line rule:line-length
+#        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
+#        add: "*.yaml"
+#        cwd: "${{ inputs.repo-apps-name }}"
+#
+#    - name: Refresh Argo and wait for the deletion to be finished
+#      if: inputs.no-refresh != 'true'
+#      shell: bash
+#      run: |
+#        cd "${{ inputs.repo-apps-name }}"
+#        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+#          "${{ inputs.argo-sync-user-token }}" \
+#          "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}" \
+#          "${{ inputs.create-hook }}"

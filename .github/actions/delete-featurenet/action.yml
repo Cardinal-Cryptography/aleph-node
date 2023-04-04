@@ -52,29 +52,30 @@ runs:
         cd "${{ inputs.repo-apps-name }}"
         ./Ops.sh delete-featurenet \
           "fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}"
+        git status
 
-    - name: Commit deletion of the feature environment.
-      uses: EndBug/add-and-commit@v9.1.1
-      env:
-        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
-      with:
-        author_name: AlephZero Automation
-        author_email: alephzero@10clouds.com
-        message: "Delete featurenet ${{ env.APP_NAME }}"
-        add: "*.yaml"
-        cwd: "${{ inputs.repo-apps-name }}"
-
-    - name: Refresh Argo and wait for the deletion to be finished
-      shell: bash
-      run: |
-        cd "${{ inputs.repo-apps-name }}"
-        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-          "${{ inputs.argo-sync-user-token }}"
-
-    - name: Clean S3 storage
-      shell: bash
-      env:
-        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
-      run: |
-        aws s3 rm --recursive \
-          s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
+#    - name: Commit deletion of the feature environment.
+#      uses: EndBug/add-and-commit@v9.1.1
+#      env:
+#        APP_NAME: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}
+#      with:
+#        author_name: AlephZero Automation
+#        author_email: alephzero@10clouds.com
+#        message: "Delete featurenet ${{ env.APP_NAME }}"
+#        add: "*.yaml"
+#        cwd: "${{ inputs.repo-apps-name }}"
+#
+#    - name: Refresh Argo and wait for the deletion to be finished
+#      shell: bash
+#      run: |
+#        cd "${{ inputs.repo-apps-name }}"
+#        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+#          "${{ inputs.argo-sync-user-token }}"
+#
+#    - name: Clean S3 storage
+#      shell: bash
+#      env:
+#        BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+#      run: |
+#        aws s3 rm --recursive \
+#          s3://fe-alephzero-devnet-eu-central-1-keys-bucket/fe-${{ env.BRANCH_NAME }}
