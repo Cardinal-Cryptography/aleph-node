@@ -340,9 +340,6 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
         self.compost_bin.retain(|k| k.number() > level);
         self.justified_blocks.retain(|k, _| k > &level);
-        if matches!(&self.highest_justified, Some(id) if id.number() <= level) {
-            self.highest_justified = None;
-        }
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
