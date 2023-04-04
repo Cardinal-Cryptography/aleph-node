@@ -86,7 +86,7 @@ runs:
       run: |
         cd "${{ inputs.repo-apps-name }}"
         pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
-        pr_image="${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${pr_image_tag}"
+        pr_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
         image_arg="${{ inputs.aleph-node-image }}"
         if [[ -z "${{ inputs.aleph-node-image }}" ]]; then
           image_arg="${pr_image}"
