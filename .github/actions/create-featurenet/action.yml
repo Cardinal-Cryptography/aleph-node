@@ -73,7 +73,7 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
-        ref: A0-2207-add-makefile-with-featurenet-commands
+        ref: main
 
     - name: Start featurenet
       shell: bash
