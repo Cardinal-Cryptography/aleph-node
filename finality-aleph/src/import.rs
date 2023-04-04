@@ -227,11 +227,14 @@ where
                     "Could not send justification to ConsensusParty",
                 )),
                 Consensus(e) => *e,
-                Decode(e) => {
-                    warn!(target: "aleph-justification", "Justification for block {:?} decoded incorrectly: {}", number, e);
-                    ConsensusError::ClientImport(String::from("Could not decode justification"))
-                },
-                Translate(_) => ConsensusError::ClientImport(String::from("Could not translate justification")), //todo
+                Decode(e) => ConsensusError::ClientImport(format!(
+                    "Justification for block {:?} decoded incorrectly: {}",
+                    number, e
+                )),
+                Translate(e) => ConsensusError::ClientImport(format!(
+                    "Could not translate justification: {}",
+                    e
+                )),
             })
     }
 }
