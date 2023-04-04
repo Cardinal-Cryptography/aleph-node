@@ -47,25 +47,25 @@ runs:
       id: get-ref-properties
       uses: ./.github/actions/get-ref-properties
 
-#    - name: Build chainspec for testnet FE and send it to S3
-#      if: inputs.aleph-node-image == 'testnet'
-#      uses: ./.github/actions/build-featurenet-chainspec
-#      with:
-#        base-net: testnet
-#        ecr-public-registry: ${{ inputs.ecr-public-registry }}
-#        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-#        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-#        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
-#
-#    - name: Build chainspec for Hotnet FE and send it to S3
-#      if: inputs.aleph-node-image == 'mainnet'
-#      uses: ./.github/actions/build-featurenet-chainspec
-#      with:
-#        base-net: mainnet
-#        ecr-public-registry: ${{ inputs.ecr-public-registry }}
-#        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-#        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-#        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
+    - name: Build chainspec for testnet FE and send it to S3
+      if: inputs.aleph-node-image == 'testnet'
+      uses: ./.github/actions/build-featurenet-chainspec
+      with:
+        base-net: testnet
+        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
+
+    - name: Build chainspec for Hotnet FE and send it to S3
+      if: inputs.aleph-node-image == 'mainnet'
+      uses: ./.github/actions/build-featurenet-chainspec
+      with:
+        base-net: mainnet
+        ecr-public-registry: ${{ inputs.ecr-public-registry }}
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        featurenet-keys-s3bucket-name: ${{ inputs.featurenet-keys-s3bucket-name }}
 
     - name: Checkout argocd apps repo
       uses: actions/checkout@v3
