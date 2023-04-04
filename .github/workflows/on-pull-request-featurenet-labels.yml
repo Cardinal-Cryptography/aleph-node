@@ -55,6 +55,8 @@ jobs:
       (github.event.label.name == 'trigger:create-hot-featurenet')
     name: Create featurenet based on the PR
     runs-on: ubuntu-20.04
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
@@ -76,6 +78,7 @@ jobs:
 
       - name: Start featurenet Deployment
         uses: bobheadxi/deployments@v1.1.0
+        id: deployment
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -167,8 +170,8 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ steps.get-ref-properties.outputs.branch }}
-          deployment_id: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          deployment_id: ${{ needs.create-featurenet.outputs.deployment-id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev#/explorer
           ref: ${{ github.head_ref }}
