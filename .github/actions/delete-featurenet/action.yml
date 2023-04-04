@@ -9,7 +9,7 @@ inputs:
   repo-apps-name:
     description: 'Name of the repository containing apps definitions'
     required: true
-  aws-access-key:
+  aws-access-key-id:
     description: 'AWS Access Key ID to be used in the action'
     required: true
   aws-secret-access-key:
@@ -22,10 +22,6 @@ inputs:
     description: 'ArgoCD user token to be used in the action'
     required: true
 
-outputs:
-  deployment-name:
-    description: 'Deployment name for working with deployments'
-    value: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
 runs:
   using: "composite"
   steps:
@@ -46,7 +42,7 @@ runs:
       env:
         AWS_REGION: us-east-1
       with:
-        aws-access-key-id: ${{ inputs.aws-access-key }}
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
         aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
         aws-region: ${{ env.AWS_REGION }}
 

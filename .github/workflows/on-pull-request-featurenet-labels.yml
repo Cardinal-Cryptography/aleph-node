@@ -63,7 +63,7 @@ jobs:
         uses: ./.github/actions/delete-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
@@ -73,7 +73,7 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Start Feature Env Deployment
+      - name: Start featurenet Deployment
         uses: bobheadxi/deployments@v1.1.0
         id: deployment
         with:
@@ -82,15 +82,6 @@ jobs:
           env: ${{ steps.get-ref-properties.outputs.branch }}
           ref: ${{ github.head_ref }}
           override: true
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        env:
-          AWS_REGION: us-east-1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
@@ -104,96 +95,23 @@ jobs:
 
       - name: Build chainspec for testnet FE and send it to S3
         if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
-        env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
-          CHAIN_ID: a0fenet
-        # yamllint disable rule:line-length
-        run: |
-          COMMIT_ID=$(curl -s -H "Content-Type: application/json" \
-            -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' ${{ env.RPC_TESTNET_URL }} \
-            | jq -r '.result' | cut -d "-" -f 2 | head -c 7)
-          echo $COMMIT_ID
-          TESTNET_IMAGE="${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:$COMMIT_ID"
-
-          # sync all validator's keystores from S3
-          aws s3 cp s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/data data --recursive
-
-          # rename validator paths
-          declare -A \
-            NAMES=([aleph-node-validator-0]=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
-            [aleph-node-validator-1]=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-            [aleph-node-validator-2]=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y \
-            [aleph-node-validator-3]=5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy \
-            [aleph-node-validator-4]=5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw)
-
-          for NAME in "${!NAMES[@]}"; do
-            mv -v data/$NAME data/${NAMES[$NAME]}
-          done
-
-          # Generate chainspec skeleton, it will reuse keys from the synced keystore
-          docker run -v $(pwd)/data:/data --env RUST_BACKTRACE=1 \
-            --entrypoint "/usr/local/bin/aleph-node" $TESTNET_IMAGE bootstrap-chain --raw \
-            --base-path /data --chain-id $CHAIN_ID \
-            --account-ids 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY,5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty,5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y,5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy,5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw \
-            --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
-            --faucet-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY > chainspec.json
-
-          aws s3 cp chainspec.json \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/fe-${{ env.BRANCH_NAME }}/chainspec.json
-          aws s3 cp \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/data/ \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/fe-${{ env.BRANCH_NAME }}/data/ \
-            --recursive
-        # yamllint enable rule:line-length
+        uses: ./.github/actions/build-featurenet-chainspec
+        with:
+          base-net: testnet
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
       - name: Build chainspec for Hotnet FE and send it to S3
         if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet')
-        env:
-          BRANCH_NAME: ${{ steps.get-ref-properties.outputs.branch }}
-          CHAIN_ID: a0fenet
-        # yamllint disable rule:line-length
-        run: |
-          SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" \
-            -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}' ${{ env.RPC_MAINNET_URL }} \
-            | jq -r '.result')
-          SUFFIX="-x86_64-linux-gnu"
-          LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
-          COMMIT_ID=${LONG_COMMIT_ID: -7}
-          echo $COMMIT_ID
-          MAINNET_IMAGE="${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:$COMMIT_ID"
-
-          # sync all validator's keystores from S3
-          aws s3 cp s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/data data --recursive
-
-          # rename validator paths
-          declare -A \
-            NAMES=([aleph-node-validator-0]=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
-            [aleph-node-validator-1]=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \
-            [aleph-node-validator-2]=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y \
-            [aleph-node-validator-3]=5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy \
-            [aleph-node-validator-4]=5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw)
-
-          for NAME in "${!NAMES[@]}"; do
-            mv -v data/$NAME data/${NAMES[$NAME]}
-          done
-
-          # Generate chainspec skeleton, it will reuse keys from the synced keystore
-          docker run -v $(pwd)/data:/data --env RUST_BACKTRACE=1 \
-            --entrypoint "/usr/local/bin/aleph-node" $MAINNET_IMAGE bootstrap-chain --raw \
-            --base-path /data --chain-id $CHAIN_ID \
-            --account-ids 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY,5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty,5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y,5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy,5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw \
-            --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY > chainspec.json
-
-          # Generate chainspec from skeleton
-          # docker run -v $(pwd):/app --env RUST_LOG=info ${{ env.FORKOFF_IMAGE }} --ws-rpc-endpoint=${{ env.RPC_MAINNET_URL }} --initial-spec-path=chainspec.skeleton.json --combined-spec-path=chainspec.json
-          aws s3 cp \
-            chainspec.json \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/fe-${{ env.BRANCH_NAME }}/chainspec.json
-          aws s3 cp \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/data/ \
-            s3://${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}/fe-${{ env.BRANCH_NAME }}/data/ \
-            --recursive
-      # yamllint enable rule:line-length
+        uses: ./.github/actions/build-featurenet-chainspec
+        with:
+          base-net: mainnet
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
       - name: Create featurenet in argocd apps
         if: >
@@ -297,7 +215,7 @@ jobs:
         id: delete_fe
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          aws-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
