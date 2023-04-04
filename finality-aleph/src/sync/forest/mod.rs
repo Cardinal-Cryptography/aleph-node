@@ -15,11 +15,6 @@ mod vertex;
 
 use vertex::Vertex;
 
-pub struct JustificationWithParent<J: Justification> {
-    pub justification: J,
-    pub parent: BlockIdFor<J>,
-}
-
 enum VertexHandle<'a, I: PeerId, J: Justification> {
     HopelessFork,
     BelowMinimal,
@@ -315,8 +310,13 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         justification: J,
         holder: Option<I>,
     ) -> Result<bool, Error> {
-        let (id, parent_id) = self.process_header(justification.header())?;
-        self.update_header(justification.header(), None, true)?;
+        let header = justification.header();
+        if header.id().number() == 0 {
+            // this is the genesis block
+            return Ok(false);
+        }
+        let (id, parent_id) = self.process_header(header)?;
+        self.update_header(header, None, false)?;
         Ok(match self.get_mut(&id) {
             VertexHandle::Candidate(mut entry) => {
                 let vertex = &mut entry.get_mut().vertex;
@@ -342,6 +342,9 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         }
         self.compost_bin.retain(|k| k.number() > level);
         self.justified_blocks.retain(|k, _| k > &level);
+        if matches!(&self.highest_justified, Some(id) if id.number() <= level) {
+            self.highest_justified = None;
+        }
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
@@ -359,10 +362,6 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
                     Err(_vertex) => panic!("Block sync justified_blocks cache corrupted, please restart the Node and contact the developers"),
                 }
             }
-        }
-        // update highest justified if the new root isn't below it
-        if matches!(&self.highest_justified, Some(id) if id.number() <= self.root_id.number()) {
-            self.highest_justified = None;
         }
         None
     }
@@ -571,6 +570,17 @@ mod tests {
             HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
             other_state => panic!("Expected top required, got {:?}.", other_state),
         }
+    }
+
+    #[test]
+    fn ignores_genesis_justification() {
+        let (_, mut forest) = setup();
+        let parentless = MockJustification::for_header(MockHeader::random_parentless(0));
+        let peer_id = rand::random();
+        assert!(matches!(
+            forest.update_justification(parentless, Some(peer_id)),
+            Ok(false)
+        ));
     }
 
     #[test]
