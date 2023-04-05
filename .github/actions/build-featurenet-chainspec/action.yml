@@ -34,7 +34,6 @@ runs:
         aws-region: us-east-1
 
     - name: Get aleph-node image tag
-      if: inputs.base-net == 'testnet'
       shell: bash
       # yamllint disable rule:line-length
       run: |
