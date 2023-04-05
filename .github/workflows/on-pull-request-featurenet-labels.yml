@@ -25,7 +25,7 @@ jobs:
     needs: [check-vars-and-secrets]
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
-      (github.event.label.name == 'trigger:create-hot-featurenet')
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
     name: Build production artifacts
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
@@ -34,7 +34,7 @@ jobs:
     needs: [build-aleph-node-binary]
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
-      (github.event.label.name == 'trigger:create-hot-featurenet')
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
     name: Store production artifacts
     uses: ./.github/workflows/_store-production-node-and-runtime.yml
     secrets: inherit
@@ -43,7 +43,7 @@ jobs:
     needs: [build-aleph-node-binary]
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
-      (github.event.label.name == 'trigger:create-hot-featurenet')
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
     name: Build and push PR docker image to featurenet registry
     uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
     secrets: inherit
@@ -52,7 +52,7 @@ jobs:
     needs: [check-vars-and-secrets]
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
-      (github.event.label.name == 'trigger:create-hot-featurenet')
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
     name: Create featurenet based on the PR
     runs-on: ubuntu-20.04
     outputs:
@@ -90,7 +90,7 @@ jobs:
       - name: Create featurenet data, app and deploy it
         if: >
           contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet') ||
-          contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet')
+          contains(github.event.pull_request.labels.*.name, 'trigger:create-hotfix-featurenet')
         uses: ./.github/actions/create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -98,7 +98,7 @@ jobs:
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           # yamllint disable-line rule:line-length
-          aleph-node-image: ${{ contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet') && 'mainnet' || 'testnet' }}
+          aleph-node-image: ${{ contains(github.event.pull_request.labels.*.name, 'trigger:create-hotfix-featurenet') && 'mainnet' || 'testnet' }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
@@ -112,7 +112,7 @@ jobs:
   update-featurenet-image:
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
-      (github.event.label.name == 'trigger:create-hot-featurenet')
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
     needs: [push-pr-image, create-featurenet]
     name: Update featurenet to the latest PR aleph-node image
     runs-on: ubuntu-20.04
@@ -145,10 +145,10 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove mainnet deployment request label if exists
-        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hot-featurenet')
+        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hotfix-featurenet')
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
-          labels: 'trigger:create-hot-featurenet'
+          labels: 'trigger:create-hotfix-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Remove deleted label if present
