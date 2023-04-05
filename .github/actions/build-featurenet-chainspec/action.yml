@@ -33,7 +33,7 @@ runs:
         aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
         aws-region: us-east-1
 
-    - name: Get aleph-node image tag from testnet
+    - name: Get aleph-node image tag
       if: inputs.base-net == 'testnet'
       shell: bash
       # yamllint disable rule:line-length
@@ -46,20 +46,6 @@ runs:
         echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" \
           >> $GITHUB_ENV
       # yamllint enable rule:line-length
-
-    - name: Get aleph-node image tag from mainnet
-      if: inputs.base-net == 'mainnet'
-      shell: bash
-      run: |
-        SYSTEM_VERSION=$(curl -s -H "Content-Type: application/json" \
-          -d '{"id":1, "jsonrpc":"2.0", "method": "system_version"}'  \
-          | jq -r '.result')
-        SUFFIX="-x86_64-linux-gnu"
-        LONG_COMMIT_ID=${SYSTEM_VERSION/%$SUFFIX}
-        COMMIT_ID=${LONG_COMMIT_ID: -7}
-        echo $COMMIT_ID
-        echo "ALEPH_NODE_IMAGE=${{ inputs.ecr-public-registry }}aleph-node:$COMMIT_ID" \
-          >> $GITHUB_ENV
 
     - name: Generate data dir
       shell: bash
