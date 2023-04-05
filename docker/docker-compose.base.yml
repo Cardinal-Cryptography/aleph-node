@@ -98,13 +98,13 @@ services:
     extends:
       file: common.yml
       service: AlephNonBootNode
-    container_name: Node5
+    container_name: Node6
     environment:
-      - RPC_PORT=9938
-      - WS_PORT=9948
-      - PORT=30338
-      - VALIDATOR_PORT=30348
-      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30348
+      - RPC_PORT=9939
+      - WS_PORT=9949
+      - PORT=30339
+      - VALIDATOR_PORT=30349
+      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30349
       - NAME=Node5
       # key derived from "//6"
       - BASE_PATH=/data/5DZLHESsfGrJ5YzT3HuRPXsSNb589xQ4Unubh1mYLodzKdVY
@@ -114,13 +114,13 @@ services:
     extends:
       file: common.yml
       service: AlephNonBootNode
-    container_name: Node5
+    container_name: Node7
     environment:
-      - RPC_PORT=9938
-      - WS_PORT=9948
-      - PORT=30338
-      - VALIDATOR_PORT=30348
-      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30348
+      - RPC_PORT=9950
+      - WS_PORT=9950
+      - PORT=30340
+      - VALIDATOR_PORT=30350
+      - PUBLIC_VALIDATOR_ADDRESS=127.0.0.1:30350
       - NAME=Node5
       # key derived from "//7"
       - BASE_PATH=/data/5GHJzqvG6tXnngCpG7B12qjUvbo5e4e9z8Xjidk3CQZHxTPZ

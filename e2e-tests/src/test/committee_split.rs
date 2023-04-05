@@ -82,7 +82,10 @@ async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
     // For each reserved node disable it and check that block finalization stopped.
     // To check that we check that at most 2 sessions passed after disabling - we have limit of 20 blocks
     // created after last finalized block.
-    info!("Testing if #{:?} reserved validators are in finalization committee", validators);
+    info!(
+        "Testing if #{:?} reserved validators are in finalization committee",
+        validators
+    );
     disable_validators(validators).await?;
     let session_before = connection.get_session(None).await;
     let block_before = connection
