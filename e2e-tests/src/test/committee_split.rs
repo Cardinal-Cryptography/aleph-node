@@ -15,8 +15,8 @@ use crate::{
     rewards::set_invalid_keys_for_validator,
 };
 
-/// time needed for 4 out of 5 block producers to do 3 sessions.
-const SLEEP_DURATION: Duration = Duration::from_secs(108);
+/// time needed for 5 out of 7 block producers to do 3 sessions.
+const SLEEP_DURATION: Duration = Duration::from_secs(126);
 
 async fn prepare_test() -> anyhow::Result<()> {
     let config = setup_test();
@@ -71,6 +71,10 @@ async fn disable_validators(indexes: &[u32]) -> anyhow::Result<()> {
     set_invalid_keys_for_validator(connections).await
 }
 
+/// Setup finality committee to be of constructed from 3 reserved nodes and 1 non-reserved node.
+/// 7 nodes are responsible for creating blocks (3 reserved, 4 nonreserved). We first kill `validators`
+/// and then check whether finalization stopped and after a time also block-production. This means the killed
+/// validators were in the finality committee (like the should be).
 async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
     let config = setup_test();
     let root_connection = config.create_root_connection().await;
@@ -106,22 +110,26 @@ async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+/// Check if reserved node-0 and node-1 are in the finality committee
 async fn split_test_reserved_01() -> anyhow::Result<()> {
     split_disable(&[0, 1]).await
 }
 
 #[tokio::test]
+/// Check if reserved node-1 and node-2 are in the finality committee
 async fn split_test_reserved_12() -> anyhow::Result<()> {
     split_disable(&[0, 1]).await
 }
 
 #[tokio::test]
+/// Check if reserved node-0 and node-2 are in the finality committee
 async fn split_test_reserved_02() -> anyhow::Result<()> {
     split_disable(&[0, 1]).await
 }
 
 #[tokio::test]
-async fn split_test_success() -> anyhow::Result<()> {
+/// Check if chain runs smoothly while finality committee splits from block producers for couple of eras
+async fn split_test_success_without_any_deads() -> anyhow::Result<()> {
     prepare_test().await?;
 
     let connection = setup_test().get_first_signed_connection().await;
@@ -131,6 +139,7 @@ async fn split_test_success() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+/// Check if chain runs smoothly while one member of finality committee is dead for couple of eras
 async fn split_test_success_with_one_dead() -> anyhow::Result<()> {
     prepare_test().await?;
 
