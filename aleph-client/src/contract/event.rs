@@ -43,7 +43,7 @@ pub struct ContractEvent {
 /// use futures::{channel::mpsc::unbounded, StreamExt};
 ///
 /// # async fn example(conn: Connection, signed_conn: SignedConnection, address: AccountId, path: &str) -> Result<()> {
-/// let contract = ContractInstance::new(address, path)?;
+/// let contract = ContractInstance::new(address, Some(path))?;
 ///
 /// let tx_info = contract.contract_exec0(&signed_conn, "some_method").await?;
 ///
@@ -85,8 +85,8 @@ pub async fn get_contract_events(
 ///
 /// # async fn example(conn: Connection, signed_conn: SignedConnection, address1: AccountId, address2: AccountId, path1: &str, path2: &str) -> Result<()> {
 /// // The `Arc` makes it possible to pass a reference to the contract to another thread
-/// let contract1 = Arc::new(ContractInstance::new(address1, path1)?);
-/// let contract2 = Arc::new(ContractInstance::new(address2, path2)?);
+/// let contract1 = Arc::new(ContractInstance::new(address1, Some(path1))?);
+/// let contract2 = Arc::new(ContractInstance::new(address2, Some(path2))?);
 ///
 /// let conn_copy = conn.clone();
 /// let contract1_copy = contract1.clone();

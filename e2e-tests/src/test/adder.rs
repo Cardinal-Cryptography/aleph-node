@@ -133,7 +133,7 @@ impl AdderInstance {
         let address = AccountId::from_str(address)
             .ok()
             .with_context(|| format!("Failed to parse address: {}", address))?;
-        let contract = ContractInstance::new(address, metadata_path)?;
+        let contract = ContractInstance::new(address, Some(metadata_path))?;
         Ok(Self { contract })
     }
 

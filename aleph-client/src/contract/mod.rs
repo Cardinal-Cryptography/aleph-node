@@ -20,7 +20,7 @@
 //!             .as_ref()
 //!             .context("PSP22Token metadata not set.")?;
 //!         Ok(Self {
-//!             contract: ContractInstance::new(address, metadata_path)?,
+//!             contract: ContractInstance::new(address, Some(metadata_path))?,
 //!         })
 //!     }
 //!
@@ -77,10 +77,15 @@ pub struct ContractInstance {
 
 impl ContractInstance {
     /// Creates a new contract instance under `address` with metadata read from `metadata_path`.
-    pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
+    pub fn new(address: AccountId, metadata_path: Option<&str>) -> Result<Self> {
+        let transcoder = match metadata_path {
+            Some(metadata_path) => Some(ContractMessageTranscoder::load(metadata_path)?),
+            None => None,
+        };
+
         Ok(Self {
             address,
-            transcoder: Some(ContractMessageTranscoder::load(metadata_path)?),
+            transcoder,
             max_gas_override: None,
             max_proof_size_override: None,
         })

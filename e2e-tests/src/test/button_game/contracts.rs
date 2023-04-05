@@ -45,7 +45,7 @@ impl SimpleDexInstance {
             .context("Simple dex metadata not set")?;
 
         Ok(Self {
-            contract: ContractInstance::new(dex_address, &metadata_path)?,
+            contract: ContractInstance::new(dex_address, Some(&metadata_path))?,
         })
     }
 
@@ -164,7 +164,7 @@ impl ButtonInstance {
             .clone()
             .context("Button game metadata path not set.")?;
         Ok(Self {
-            contract: ContractInstance::new(button_address, &metadata_path)?,
+            contract: ContractInstance::new(button_address, Some(&metadata_path))?,
         })
     }
 
@@ -223,7 +223,7 @@ impl PSP22TokenInstance {
             .as_ref()
             .context("PSP22Token metadata not set.")?;
         Ok(Self {
-            contract: ContractInstance::new(address, metadata_path)?,
+            contract: ContractInstance::new(address, Some(metadata_path))?,
         })
     }
 
@@ -304,9 +304,11 @@ impl MarketplaceInstance {
         Ok(Self {
             contract: ContractInstance::new(
                 address,
-                metadata_path
-                    .as_ref()
-                    .context("Marketplace metadata not set.")?,
+                Some(
+                    metadata_path
+                        .as_ref()
+                        .context("Marketplace metadata not set.")?,
+                ),
             )?,
         })
     }
@@ -362,7 +364,7 @@ impl WAzeroInstance {
             .context("Wrapped AZERO metadata path not set.")?;
 
         Ok(Self {
-            contract: ContractInstance::new(wazero_address, &metadata_path)?,
+            contract: ContractInstance::new(wazero_address, Some(&metadata_path))?,
         })
     }
 
