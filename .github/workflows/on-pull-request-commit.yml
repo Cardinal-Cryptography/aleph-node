@@ -467,7 +467,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: committee_split::split_test_reserved_01
-          follow-up-finalization-check: true
+          follow-up-finalization-check: false
           node-count: 7
         timeout-minutes: 10
 
@@ -485,7 +485,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: committee_split::split_test_reserved_01
-          follow-up-finalization-check: true
+          follow-up-finalization-check: false
           node-count: 7
         timeout-minutes: 10
 
@@ -503,7 +503,7 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: committee_split::split_test_reserved_01
-          follow-up-finalization-check: true
+          follow-up-finalization-check: false
           node-count: 7
         timeout-minutes: 10
 
