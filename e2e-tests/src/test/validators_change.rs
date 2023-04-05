@@ -92,7 +92,7 @@ pub async fn change_validators() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-pub async fn change_validators_fail() -> anyhow::Result<()> {
+pub async fn fail_change_validators() -> anyhow::Result<()> {
     let config = setup_test();
 
     let accounts = get_validators_keys(config);
