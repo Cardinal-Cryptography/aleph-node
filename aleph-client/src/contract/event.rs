@@ -162,9 +162,14 @@ fn translate_event(
         .ok_or_else(|| anyhow!("The event wasn't emitted by any of the provided contracts"))?;
 
     let data = zero_prefixed(&event.data);
-    let data = matching_contract
-        .transcoder
-        .decode_contract_event(&mut data.as_slice())?;
+    let data = match &matching_contract.transcoder {
+        Some(transcoder) => transcoder.decode_contract_event(&mut data.as_slice())?,
+        None => {
+            return Err(anyhow!(
+                "Tried to decode contract event with no transcoder provided!"
+            ))
+        }
+    };
 
     build_event(matching_contract.address.clone(), data)
 }

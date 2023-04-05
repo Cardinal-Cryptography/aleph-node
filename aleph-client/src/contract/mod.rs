@@ -4,7 +4,7 @@
 //! contracts using the building blocks provided by this module:
 //!
 //! ```no_run
-//! # use anyhow::{Result, Context, anyhow};
+//! # use anyhow::{Result, Context};
 //! # use aleph_client::{AccountId, Balance};
 //! # use aleph_client::{Connection, SignedConnection, TxInfo};
 //! # use aleph_client::contract::ContractInstance;
@@ -211,17 +211,17 @@ impl ContractInstance {
     }
 
     fn encode<S: AsRef<str> + Debug>(&self, message: &str, args: &[S]) -> Result<Vec<u8>> {
-        let transcoder = self
-            .transcoder
-            .ok_or(Err(anyhow!("Tried to encode with no transcoder provided!")))?;
-        transcoder.encode(message, args)
+        match &self.transcoder {
+            Some(transcoder) => transcoder.encode(message, args),
+            None => Err(anyhow!("Tried to encode with no transcoder provided!")),
+        }
     }
 
     fn decode(&self, message: &str, data: Vec<u8>) -> Result<Value> {
-        let transcoder = self
-            .transcoder
-            .ok_or(Err(anyhow!("Tried to decode with no transcoder provided!")))?;
-        transcoder.decode_return(message, &mut data.as_slice())
+        match &self.transcoder {
+            Some(transcoder) => transcoder.decode_return(message, &mut data.as_slice()),
+            None => Err(anyhow!("Tried to decode with no transcoder provided!")),
+        }
     }
 
     async fn dry_run<S: AsRef<str> + Debug, C: ConnectionApi>(
