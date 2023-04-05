@@ -80,18 +80,11 @@ runs:
       shell: bash
       # yamllint disable rule:line-length
       run: |
-        # well-known accounts
-        ALICE=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-        BOB=5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
-        CHARLIE=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y
-        EVE=5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw
-
         docker run -v $(pwd)/data:/data --env RUST_BACKTRACE=1 \
           --entrypoint "/usr/local/bin/aleph-node" $ALEPH_NODE_IMAGE bootstrap-chain --raw \
           --base-path /data --chain-id a0fenet \
           --account-ids 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY,5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty,5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y,5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy,5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw \
-          --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
-          --rich-accounts $ALICE,$BOB,$CHARLIE,$EVE > chainspec.json
+          --sudo-account-id 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY > chainspec.json
       # yamllint enable rule:line-length
 
     - name: Save data to S3 bucket
