@@ -4,7 +4,7 @@
 //! contracts using the building blocks provided by this module:
 //!
 //! ```no_run
-//! # use anyhow::{Result, Context};
+//! # use anyhow::{Result, Context, anyhow};
 //! # use aleph_client::{AccountId, Balance};
 //! # use aleph_client::{Connection, SignedConnection, TxInfo};
 //! # use aleph_client::contract::ContractInstance;
@@ -70,7 +70,7 @@ pub const DEFAULT_MAX_PROOF_SIZE: u64 = 250_000_000_000u64;
 /// Represents a contract instantiated on the chain.
 pub struct ContractInstance {
     address: AccountId,
-    transcoder: ContractMessageTranscoder,
+    transcoder: Option<ContractMessageTranscoder>,
     max_gas_override: Option<u64>,
     max_proof_size_override: Option<u64>,
 }
@@ -80,7 +80,7 @@ impl ContractInstance {
     pub fn new(address: AccountId, metadata_path: &str) -> Result<Self> {
         Ok(Self {
             address,
-            transcoder: ContractMessageTranscoder::load(metadata_path)?,
+            transcoder: Some(ContractMessageTranscoder::load(metadata_path)?),
             max_gas_override: None,
             max_proof_size_override: None,
         })
@@ -211,11 +211,17 @@ impl ContractInstance {
     }
 
     fn encode<S: AsRef<str> + Debug>(&self, message: &str, args: &[S]) -> Result<Vec<u8>> {
-        self.transcoder.encode(message, args)
+        let transcoder = self
+            .transcoder
+            .ok_or(Err(anyhow!("Tried to encode with no transcoder provided!")))?;
+        transcoder.encode(message, args)
     }
 
     fn decode(&self, message: &str, data: Vec<u8>) -> Result<Value> {
-        self.transcoder.decode_return(message, &mut data.as_slice())
+        let transcoder = self
+            .transcoder
+            .ok_or(Err(anyhow!("Tried to decode with no transcoder provided!")))?;
+        transcoder.decode_return(message, &mut data.as_slice())
     }
 
     async fn dry_run<S: AsRef<str> + Debug, C: ConnectionApi>(
