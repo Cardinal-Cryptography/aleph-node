@@ -12,7 +12,7 @@ use log::info;
 use crate::{
     accounts::{get_validator_seed, get_validators_keys, NodeKeys},
     config::setup_test,
-    rewards::{reset_validator_keys, set_invalid_keys_for_validator},
+    rewards::set_invalid_keys_for_validator,
 };
 
 /// time needed for 4 out of 5 block producers to do 3 sessions.
@@ -31,7 +31,7 @@ async fn prepare_test() -> anyhow::Result<()> {
 
     let seats = CommitteeSeats {
         reserved_seats: 3,
-        non_reserved_seats: 2,
+        non_reserved_seats: 4,
         non_reserved_finality_seats: 1,
     };
 
@@ -56,34 +56,22 @@ fn validator_address(index: u32) -> String {
     format!("{BASE}:{port}")
 }
 
-async fn disable_validator(index: u32) -> anyhow::Result<()> {
-    info!("Disabling #{index} validator");
-    let validator_seed = get_validator_seed(index);
-    let stash_controller = NodeKeys::from(validator_seed);
-    let controller_key_to_disable = stash_controller.controller;
-    let address = validator_address(index);
+async fn disable_validators(indexes: &[u32]) -> anyhow::Result<()> {
+    info!("Disabling {:?} validators", indexes);
+    let mut connections = vec![];
+    for &index in indexes {
+        let validator_seed = get_validator_seed(index);
+        let stash_controller = NodeKeys::from(validator_seed);
+        let controller_key_to_disable = stash_controller.controller;
+        let address = validator_address(index);
 
-    // This connection has to be set up with the controller key.
-    let connection_to_disable = SignedConnection::new(&address, controller_key_to_disable).await;
+        connections.push(SignedConnection::new(&address, controller_key_to_disable).await);
+    }
 
-    set_invalid_keys_for_validator(&connection_to_disable).await
+    set_invalid_keys_for_validator(connections).await
 }
 
-async fn resurect_validator(index: u32) -> anyhow::Result<()> {
-    info!("Resurecting #{index} validator");
-    let validator_seed = get_validator_seed(index);
-    let stash_controller = NodeKeys::from(validator_seed);
-    let controller_key = stash_controller.controller;
-    let address = validator_address(index);
-
-    // This connection has to be set up with the controller key.
-    let controller_connection = SignedConnection::new(&address, controller_key).await;
-
-    reset_validator_keys(&controller_connection).await
-}
-
-#[tokio::test]
-async fn split_test() -> anyhow::Result<()> {
+async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
     let config = setup_test();
     let root_connection = config.create_root_connection().await;
     let connection = root_connection.as_connection();
@@ -94,28 +82,58 @@ async fn split_test() -> anyhow::Result<()> {
     // For each reserved node disable it and check that block finalization stopped.
     // To check that we check that at most 2 sessions passed after disabling - we have limit of 20 blocks
     // created after last finalized block.
-    for i in 0..3 {
-        info!("Testing if #{i} reserved validator is in finalization committee");
-        disable_validator(i).await?;
-        let session_before = connection.get_session(None).await;
-        let block_before = connection
-            .get_best_block()
-            .await?
-            .expect("there should be some block");
-        sleep(SLEEP_DURATION);
-        let session_after = connection.get_session(None).await;
-        let block_after = connection
-            .get_best_block()
-            .await?
-            .expect("there should be some block");
-        assert!(session_before + 2 >= session_after);
-        // at least some blocks were produced after disabling
-        assert!(block_after > block_before + 10);
-        resurect_validator(i).await?;
-        connection
-            .wait_for_n_sessions(1, BlockStatus::Finalized)
-            .await;
-    }
+    info!("Testing if #{:?} reserved validators are in finalization committee", validators);
+    disable_validators(validators).await?;
+    let session_before = connection.get_session(None).await;
+    let block_before = connection
+        .get_best_block()
+        .await?
+        .expect("there should be some block");
+    sleep(SLEEP_DURATION);
+    let session_after = connection.get_session(None).await;
+    let block_after = connection
+        .get_best_block()
+        .await?
+        .expect("there should be some block");
+    assert!(session_before + 2 >= session_after);
+    // at least some blocks were produced after disabling
+    assert!(block_after > block_before + 10);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn split_test_reserved_01() -> anyhow::Result<()> {
+    split_disable(&[0, 1]).await
+}
+
+#[tokio::test]
+async fn split_test_reserved_12() -> anyhow::Result<()> {
+    split_disable(&[0, 1]).await
+}
+
+#[tokio::test]
+async fn split_test_reserved_02() -> anyhow::Result<()> {
+    split_disable(&[0, 1]).await
+}
+
+#[tokio::test]
+async fn split_test_success() -> anyhow::Result<()> {
+    prepare_test().await?;
+
+    let connection = setup_test().get_first_signed_connection().await;
+    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn split_test_success_with_one_dead() -> anyhow::Result<()> {
+    prepare_test().await?;
+
+    let connection = setup_test().get_first_signed_connection().await;
+    disable_validators(&[0]).await?;
+    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
 
     Ok(())
 }

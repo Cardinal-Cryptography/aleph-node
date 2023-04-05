@@ -438,6 +438,24 @@ jobs:
           follow-up-finalization-check: true
         timeout-minutes: 10
 
+  run-e2e-committee-split-reserved-01:
+    needs: [build-test-node-image-and-e2e-client-image]
+    name: Run finality version change test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        env:
+          VALIDATOR_COUNT: 7
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: committee_split::split_test_reserved_01
+          follow-up-finalization-check: true
+          node-count: 7
+        timeout-minutes: 10
+
   check-e2e-test-suite-completion:
     needs: [
       run-e2e-finalization-test,
