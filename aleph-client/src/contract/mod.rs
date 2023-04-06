@@ -252,6 +252,8 @@ impl ContractInstance {
             );
         }
 
+        // For dry run, failed transactions don't return `Err` but `Ok(_)`
+        // and we have to inspect flags manually.
         if let Ok(res) = &contract_read_result.result {
             if res.did_revert() {
                 return Err(anyhow!("Dry-run call reverted"));
