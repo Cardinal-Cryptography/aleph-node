@@ -311,15 +311,15 @@ pub mod marketplace {
         let y_span = y_start.saturating_sub(y_end);
 
         if x >= x_end {
-            return y_end;
+            y_end
         } else if x <= x_start {
-            return y_start;
+            y_start
         } else if y_span > x_span {
             let y_per_x = y_span.saturating_div(x_span);
-            return y_start.saturating_sub(steps.saturating_mul(y_per_x));
+            y_start.saturating_sub(steps.saturating_mul(y_per_x))
         } else {
             let x_per_y = x_span.saturating_div(y_span);
-            return y_start.saturating_sub(steps.saturating_div(x_per_y));
+            y_start.saturating_sub(steps.saturating_div(x_per_y))
         }
     }
 
