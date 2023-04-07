@@ -24,6 +24,7 @@ paste = { version = "1.0.11" }
 ark-crypto-primitives = { version = "^0.3.0", default-features = false, features = [ "r1cs" ], optional = true }
 ark-ec = { version = "^0.3.0", default-features = false, optional = true }
 ark-ed-on-bls12-381 = { version = "^0.3.0", features = ["r1cs"], optional = true }
+ark-ed-on-bls12-377 = { version = "^0.3.0", features = ["r1cs"], optional = true }
 ark-gm17 = { version = "^0.3.0", default-features = false, optional = true }
 ark-groth16 = { version = "^0.3.0", default-features = false, optional = true }
 ark-marlin = { version = "^0.3.0", default-features = false, optional = true }
@@ -72,6 +73,7 @@ circuit-std = [
     "ark-crypto-primitives/std",
     "ark-ec/std",
     "ark-ed-on-bls12-381/std",
+    "ark-ed-on-bls12-377/std",
     "ark-gm17/std",
     "ark-groth16/std",
     "ark-marlin/std",

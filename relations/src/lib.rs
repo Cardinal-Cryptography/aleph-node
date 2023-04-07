@@ -2,6 +2,7 @@
 
 pub mod environment;
 pub mod linear;
+pub mod poe;
 pub mod preimage;
 pub mod serialization;
 pub mod shielder;
