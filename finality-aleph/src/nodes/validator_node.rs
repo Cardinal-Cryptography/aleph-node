@@ -1,29 +1,30 @@
 use std::{marker::PhantomData, sync::Arc};
 
+use aleph_primitives::BlockNumber;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
+use network_clique::Service;
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::traits::Block;
+use sp_runtime::traits::{Block, Header};
 
 use crate::{
     crypto::AuthorityPen,
     network::{
-        clique::Service,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
     },
     nodes::{setup_justification_handler, JustificationParams},
     party::{
-        impls::{ChainStateImpl, SessionInfoImpl},
-        manager::NodeSessionManagerImpl,
-        ConsensusParty, ConsensusPartyParams,
+        impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
+        ConsensusPartyParams,
     },
-    session_map::{AuthorityProviderImpl, FinalityNotificatorImpl, SessionMapUpdater},
+    session::SessionBoundaryInfo,
+    session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     AlephConfig, BlockchainBackend,
 };
 
@@ -40,6 +41,7 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
 pub async fn run_validator_node<B, H, C, BB, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, BB>)
 where
     B: Block,
+    B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: aleph_primitives::AlephSessionApi<B>,
@@ -100,14 +102,15 @@ where
     let gossip_network_task = async move { gossip_network_service.run().await };
 
     let block_requester = network.clone();
-    let map_updater = SessionMapUpdater::<_, _, B>::new(
+    let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone()),
-        FinalityNotificatorImpl::new(client.clone()),
+        FinalityNotifierImpl::new(client.clone()),
+        session_period,
     );
     let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", None, async move {
         debug!(target: "aleph-party", "SessionMapUpdater has started.");
-        map_updater.run(session_period).await
+        map_updater.run().await
     });
 
     let (authority_justification_tx, handler_task) =
@@ -162,8 +165,7 @@ where
             connection_manager,
             keystore,
         ),
-        _phantom: PhantomData,
-        session_info: SessionInfoImpl::new(session_period),
+        session_info: SessionBoundaryInfo::new(session_period),
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");

@@ -1,46 +1,46 @@
 use sp_blockchain::Error;
 use sp_runtime::{traits::Block, Justification};
 
+use super::TBlockIdentifier;
 use crate::{
     finalization::BlockFinalizer,
-    testing::mocks::{single_action_mock::SingleActionMock, TBlock, THash, TNumber},
+    testing::mocks::{single_action_mock::SingleActionMock, TBlock},
+    IdentifierFor,
 };
+type CallArgs = (IdentifierFor<TBlock>, Justification);
 
-type CallArgs = (THash, TNumber, Option<Justification>);
-
-#[derive(Clone)]
-pub(crate) struct MockedBlockFinalizer {
+#[derive(Clone, Default)]
+pub struct MockedBlockFinalizer {
     mock: SingleActionMock<CallArgs>,
 }
 
 impl MockedBlockFinalizer {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             mock: Default::default(),
         }
     }
 
-    pub(crate) async fn has_not_been_invoked(&self) -> bool {
+    pub async fn has_not_been_invoked(&self) -> bool {
         self.mock.has_not_been_invoked().await
     }
 
-    pub(crate) async fn has_been_invoked_with(&self, block: TBlock) -> bool {
+    pub async fn has_been_invoked_with(&self, block: TBlock) -> bool {
         self.mock
-            .has_been_invoked_with(|(hash, number, _)| {
-                block.hash() == hash && block.header.number == number
+            .has_been_invoked_with(|(TBlockIdentifier { hash, num }, _)| {
+                block.hash() == hash && block.header.number == num
             })
             .await
     }
 }
 
-impl BlockFinalizer<TBlock> for MockedBlockFinalizer {
+impl BlockFinalizer<TBlockIdentifier> for MockedBlockFinalizer {
     fn finalize_block(
         &self,
-        hash: THash,
-        block_number: TNumber,
-        justification: Option<Justification>,
+        block_id: TBlockIdentifier,
+        justification: Justification,
     ) -> Result<(), Error> {
-        self.mock.invoke_with((hash, block_number, justification));
+        self.mock.invoke_with((block_id, justification));
         Ok(())
     }
 }

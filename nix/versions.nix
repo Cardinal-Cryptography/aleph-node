@@ -2,8 +2,8 @@
 rec {
   rustToolchain =
     let
-      # use Rust toolchain declared by the rust-toolchain file
-      rustToolchain = with nixpkgs; overrideRustTarget ( rustChannelOf { date = "2022-08-12"; channel = "nightly"; } );
+      # use Rust toolchain declared by the rust-toolchain.toml file
+      rustToolchain = with nixpkgs; overrideRustTarget ( rustChannelOf { date = "2022-10-30"; channel = "nightly"; } );
 
       overrideRustTarget = rustChannel: rustChannel // {
         rust = rustChannel.rust.override {
@@ -15,7 +15,7 @@ rec {
 
   nixpkgs =
     let
-      # this overlay allows us to use a version of the rust toolchain specified by the rust-toolchain file
+      # this overlay allows us to use a version of the rust toolchain specified by the rust-toolchain.toml file
       rustOverlay =
         import (builtins.fetchTarball {
           # link: https://github.com/mozilla/nixpkgs-mozilla/tree/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996

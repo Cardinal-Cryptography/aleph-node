@@ -1,18 +1,18 @@
 use std::{default::Default, sync::Arc};
 
+use aleph_primitives::BlockNumber;
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_api::BlockId;
 use sp_consensus::BlockOrigin;
 use sp_core::hash::H256;
 use sp_runtime::{traits::Block as BlockT, Digest};
-use substrate_test_runtime_client::{
-    runtime::{Block, Header},
-    ClientBlockImportExt, ClientExt, TestClient,
+use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
+
+use crate::{
+    testing::mocks::{TBlock, THeader, TestClient},
+    BlockHashNum,
 };
-
-use crate::BlockHashNum;
-
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
     pub client: Arc<TestClient>,
@@ -26,7 +26,7 @@ pub struct ClientChainBuilder {
 
 fn assert_no_blocks_except_genesis(client: &TestClient) {
     assert!(
-        client.header(&BlockId::Number(1)).unwrap().is_none(),
+        client.hash(1).unwrap().is_none(),
         "Client is aware of some blocks beyond genesis"
     );
 }
@@ -45,7 +45,7 @@ impl ClientChainBuilder {
     }
 
     /// Import block in test client
-    pub async fn import_block(&mut self, block: Block) {
+    pub async fn import_block(&mut self, block: TBlock) {
         self.client
             .import(BlockOrigin::Own, block.clone())
             .await
@@ -54,13 +54,11 @@ impl ClientChainBuilder {
 
     /// Finalize block with given hash without providing justification.
     pub fn finalize_block(&self, hash: &H256) {
-        self.client
-            .finalize_block(BlockId::Hash(*hash), None)
-            .unwrap();
+        self.client.finalize_block(*hash, None).unwrap();
     }
 
-    pub fn genesis_hash_num(&self) -> BlockHashNum<Block> {
-        BlockHashNum::<Block>::new(self.client.info().genesis_hash, 0u64)
+    pub fn genesis_hash_num(&self) -> BlockHashNum<TBlock> {
+        BlockHashNum::<TBlock>::new(self.client.info().genesis_hash, 0)
     }
 
     pub fn genesis_hash(&self) -> H256 {
@@ -72,7 +70,7 @@ impl ClientChainBuilder {
         self.unique_seed.to_be_bytes().to_vec()
     }
 
-    pub async fn build_block_above(&mut self, parent: &H256) -> Block {
+    pub async fn build_block_above(&mut self, parent: &H256) -> TBlock {
         let unique_bytes: Vec<u8> = self.get_unique_bytes();
         let mut digest = Digest::default();
         digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
@@ -92,7 +90,7 @@ impl ClientChainBuilder {
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    pub async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<Block> {
+    pub async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<TBlock> {
         let mut blocks = Vec::new();
         let mut prev_hash = *parent;
         for _ in 0..len {
@@ -104,33 +102,37 @@ impl ClientChainBuilder {
     }
 
     /// imports a sequence of blocks, should be in correct order
-    pub async fn import_branch(&mut self, blocks: Vec<Block>) {
+    pub async fn import_branch(&mut self, blocks: Vec<TBlock>) {
         for block in blocks {
             self.import_block(block.clone()).await;
         }
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len` and imports them
-    pub async fn build_and_import_branch_above(&mut self, parent: &H256, len: usize) -> Vec<Block> {
+    pub async fn build_and_import_branch_above(
+        &mut self,
+        parent: &H256,
+        len: usize,
+    ) -> Vec<TBlock> {
         let blocks = self.build_branch_above(parent, len).await;
         self.import_branch(blocks.clone()).await;
         blocks
     }
 
-    pub fn get_header_at(&self, num: u64) -> Header {
+    pub fn get_header_at(&self, num: BlockNumber) -> THeader {
         self.client_builder
-            .header(&BlockId::Number(num))
+            .header(self.client_builder.hash(num).unwrap().unwrap())
             .unwrap()
             .unwrap()
     }
 
     /// Builds a sequence of blocks extending from genesis of length `len`
-    pub async fn initialize_single_branch(&mut self, len: usize) -> Vec<Block> {
+    pub async fn initialize_single_branch(&mut self, len: usize) -> Vec<TBlock> {
         self.build_branch_above(&self.genesis_hash(), len).await
     }
 
     /// Builds and imports a sequence of blocks extending from genesis of length `len`
-    pub async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<Block> {
+    pub async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<TBlock> {
         self.build_and_import_branch_above(&self.genesis_hash(), len)
             .await
     }

@@ -5,6 +5,7 @@ use aleph_client::{
     pallets::{
         author::AuthorRpc,
         balances::{BalanceUserApi, BalanceUserBatchExtApi},
+        committee_management::CommitteeManagementApi,
         elections::{ElectionsApi, ElectionsSudoApi},
         session::{SessionApi, SessionUserApi},
         staking::{StakingApi, StakingUserApi},
@@ -16,8 +17,7 @@ use aleph_client::{
 };
 use anyhow::anyhow;
 use log::{debug, info};
-use pallet_elections::LENIENT_THRESHOLD;
-use primitives::{Balance, BlockHash, EraIndex, SessionIndex, TOKEN};
+use primitives::{Balance, BlockHash, EraIndex, SessionIndex, LENIENT_THRESHOLD, TOKEN};
 use sp_runtime::Perquintill;
 
 use crate::{
@@ -28,6 +28,7 @@ use crate::{
 const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
     reserved_seats: 2,
     non_reserved_seats: 2,
+    non_reserved_finality_seats: 2,
 };
 type RewardPoint = u32;
 
@@ -124,7 +125,7 @@ fn check_rewards(
     Ok(())
 }
 
-async fn get_node_performance<S: ElectionsApi>(
+async fn get_node_performance<S: ElectionsApi + CommitteeManagementApi>(
     connection: &S,
     account_id: &AccountId,
     before_end_of_session_block_hash: BlockHash,
@@ -152,7 +153,9 @@ async fn get_node_performance<S: ElectionsApi>(
     lenient_performance
 }
 
-pub async fn check_points<S: ElectionsApi + AlephWaiting + BlocksApi + StakingApi>(
+pub async fn check_points<
+    S: ElectionsApi + CommitteeManagementApi + AlephWaiting + BlocksApi + StakingApi,
+>(
     connection: &S,
     session: SessionIndex,
     era: EraIndex,

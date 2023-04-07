@@ -1,53 +1,53 @@
+use aleph_primitives::BlockNumber;
 use codec::{Decode, Encode};
-use sp_runtime::{
-    traits::{AtLeast32BitUnsigned, Block},
-    SaturatedConversion,
-};
-
-use crate::NumberFor;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct SessionBoundaries<B: Block> {
-    first_block: NumberFor<B>,
-    last_block: NumberFor<B>,
+pub struct SessionBoundaries {
+    first_block: BlockNumber,
+    last_block: BlockNumber,
 }
 
-impl<B: Block> SessionBoundaries<B> {
-    pub fn new(session_id: SessionId, period: SessionPeriod) -> Self {
-        SessionBoundaries {
-            first_block: first_block_of_session(session_id, period),
-            last_block: last_block_of_session(session_id, period),
-        }
-    }
-
-    pub fn first_block(&self) -> NumberFor<B> {
+impl SessionBoundaries {
+    pub fn first_block(&self) -> BlockNumber {
         self.first_block
     }
 
-    pub fn last_block(&self) -> NumberFor<B> {
+    pub fn last_block(&self) -> BlockNumber {
         self.last_block
     }
 }
 
-pub fn first_block_of_session<N: AtLeast32BitUnsigned>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> N {
-    (session_id.0 * period.0).into()
+pub struct SessionBoundaryInfo {
+    session_period: SessionPeriod,
 }
 
-pub fn last_block_of_session<N: AtLeast32BitUnsigned>(
-    session_id: SessionId,
-    period: SessionPeriod,
-) -> N {
-    ((session_id.0 + 1) * period.0 - 1).into()
-}
+/// Struct for getting the session boundaries.
+impl SessionBoundaryInfo {
+    pub fn new(session_period: SessionPeriod) -> Self {
+        Self { session_period }
+    }
 
-pub fn session_id_from_block_num<N: AtLeast32BitUnsigned>(
-    num: N,
-    period: SessionPeriod,
-) -> SessionId {
-    SessionId((num / period.0.into()).saturated_into())
+    pub fn boundaries_for_session(&self, session_id: SessionId) -> SessionBoundaries {
+        SessionBoundaries {
+            first_block: self.first_block_of_session(session_id),
+            last_block: self.last_block_of_session(session_id),
+        }
+    }
+
+    /// Returns session id of the session that block belongs to.
+    pub fn session_id_from_block_num(&self, n: BlockNumber) -> SessionId {
+        SessionId(n / self.session_period.0)
+    }
+
+    /// Returns block number which is the last block of the session.
+    pub fn last_block_of_session(&self, session_id: SessionId) -> BlockNumber {
+        (session_id.0 + 1) * self.session_period.0 - 1
+    }
+
+    /// Returns block number which is the first block of the session.
+    pub fn first_block_of_session(&self, session_id: SessionId) -> BlockNumber {
+        session_id.0 * self.session_period.0
+    }
 }
 
 #[cfg(test)]
@@ -55,10 +55,10 @@ pub mod testing {
     use aleph_primitives::SessionAuthorityData;
     use sp_runtime::testing::UintAuthorityId;
 
-    pub fn authority_data(from: u64, to: u64) -> SessionAuthorityData {
+    pub fn authority_data(from: u32, to: u32) -> SessionAuthorityData {
         SessionAuthorityData::new(
             (from..to)
-                .map(|id| UintAuthorityId(id).to_public_key())
+                .map(|id| UintAuthorityId(id.into()).to_public_key())
                 .collect(),
             None,
         )

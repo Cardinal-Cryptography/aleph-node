@@ -1,3 +1,5 @@
+#![feature(pattern)]
+
 #[cfg(test)]
 mod accounts;
 #[cfg(test)]
@@ -6,6 +8,8 @@ mod ban;
 mod config;
 #[cfg(test)]
 mod elections;
+#[cfg(test)]
+mod finality_version;
 #[cfg(test)]
 mod rewards;
 #[cfg(test)]

@@ -1,8 +1,9 @@
 extern crate core;
 
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
-use codec::{Decode, Encode, Output};
+use aleph_primitives::BlockNumber;
+use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
     channel::{mpsc, oneshot},
@@ -13,7 +14,7 @@ use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
 use sc_service::SpawnTaskHandle;
-use sp_api::{NumberFor, ProvideRuntimeApi};
+use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
@@ -23,10 +24,7 @@ use crate::{
     abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
     network::data::split::Split,
-    session::{
-        first_block_of_session, last_block_of_session, session_id_from_block_num,
-        SessionBoundaries, SessionId,
-    },
+    session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
 };
 
@@ -52,10 +50,12 @@ pub mod testing;
 
 pub use abft::{Keychain, NodeCount, NodeIndex, Recipient, SignatureSet, SpawnHandle};
 pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
-pub use import::AlephBlockImport;
-pub use justification::{AlephJustification, JustificationNotification};
+pub use import::{AlephBlockImport, TracingBlockImport};
+pub use justification::{
+    AlephJustification, JustificationNotification, JustificationNotificationFor,
+};
 pub use network::{Protocol, ProtocolNaming};
-pub use nodes::{run_nonvalidator_node, run_validator_node};
+pub use nodes::run_validator_node;
 pub use session::SessionPeriod;
 
 use crate::compatibility::{Version, Versioned};
@@ -220,36 +220,64 @@ where
 {
 }
 
-type Hasher = abft::HashWrapper<BlakeTwo256>;
-
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub struct HashNum<H, N> {
-    hash: H,
-    num: N,
+/// The identifier of a block, the least amount of knowledge we can have about a block.
+pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
+    /// The block number, useful when reasoning about hopeless forks.
+    fn number(&self) -> BlockNumber;
 }
 
-impl<H, N> HashNum<H, N> {
-    fn new(hash: H, num: N) -> Self {
+type Hasher = abft::HashWrapper<BlakeTwo256>;
+
+#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
+pub struct HashNum<H: Header> {
+    hash: H::Hash,
+    num: H::Number,
+}
+
+impl<H: Header<Number = BlockNumber>> HashNum<H> {
+    fn new(hash: H::Hash, num: BlockNumber) -> Self {
         HashNum { hash, num }
     }
 }
 
-impl<H, N> From<(H, N)> for HashNum<H, N> {
-    fn from(pair: (H, N)) -> Self {
+impl<H: Header<Number = BlockNumber>> From<(H::Hash, BlockNumber)> for HashNum<H> {
+    fn from(pair: (H::Hash, BlockNumber)) -> Self {
         HashNum::new(pair.0, pair.1)
     }
 }
 
-pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
+impl<SH: Header> Hash for HashNum<SH> {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.hash.hash(state);
+        self.num.hash(state);
+    }
+}
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
+pub type BlockHashNum<B> = HashNum<<B as Block>::Header>;
+pub type IdentifierFor<B> = HashNum<<B as Block>::Header>;
+
+impl<H: Header<Number = BlockNumber>> BlockIdentifier for HashNum<H> {
+    fn number(&self) -> BlockNumber {
+        self.num
+    }
+}
+
+pub struct AlephConfig<B, H, C, SC, BB>
+where
+    B: Block,
+    B::Header: Header<Number = BlockNumber>,
+    H: ExHashT,
+{
     pub network: Arc<NetworkService<B, H>>,
     pub client: Arc<C>,
     pub blockchain_backend: BB,
     pub select_chain: SC,
     pub spawn_handle: SpawnTaskHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
+    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotificationFor<B>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,

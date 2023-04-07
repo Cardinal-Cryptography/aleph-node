@@ -1,0 +1,86 @@
+---
+name: Main or release branch commit
+
+on:
+  push:
+    branches:
+      - main
+      - 'release-*'
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  build-production-node-and-runtime:
+    needs: [check-vars-and-secrets]
+    name: Build production node and runtime
+    uses: ./.github/workflows/_build-production-node-and-runtime.yml
+
+  store-production-node-and-runtime:
+    needs: [build-production-node-and-runtime]
+    name: Store production node and runtime artifact
+    uses: ./.github/workflows/_store-production-node-and-runtime.yml
+    secrets: inherit
+
+  push-node-image-to-ecr:
+    name: Push node docker image to the ECR
+    needs: [build-production-node-and-runtime]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout aleph-node sources
+        uses: actions/checkout@v3
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Download node production binary from artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: aleph-release-node
+          path: target/release/
+
+      - name: Build production docker node image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+
+      - name: Push aleph-node image to ECR
+        env:
+          CURRENT_IMAGE: aleph-node
+          ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node
+        run: |
+          docker tag ${{ env.CURRENT_IMAGE }} \
+            ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
+          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
+          if [[ "${{ steps.get-ref-properties.outputs.branch }}" -eq "main" ]]; then
+            docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
+            docker push ${{ env.ECR_PUSH_IMAGE }}:latest
+          fi
+
+  send-slack-notification:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    needs: [push-node-image-to-ecr]
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}

@@ -2,8 +2,13 @@
 pub mod aleph;
 /// Pallet author API
 pub mod author;
+/// Pallet baby liminal API
+#[cfg(feature = "liminal")]
+pub mod baby_liminal;
 /// Pallet balances API
 pub mod balances;
+/// Pallet committee-management API
+pub mod committee_management;
 /// Pallet contracts API
 pub mod contract;
 /// Pallet elections API

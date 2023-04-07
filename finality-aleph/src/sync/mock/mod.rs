@@ -3,9 +3,9 @@ use std::hash::Hash;
 use codec::{Decode, Encode};
 use sp_core::H256;
 
-use crate::sync::{
-    BlockIdentifier, BlockStatus, ChainStatusNotification, ChainStatusNotifier, Header,
-    Justification as JustificationT, Verifier,
+use crate::{
+    sync::{ChainStatusNotification, Header, Justification as JustificationT},
+    BlockIdentifier,
 };
 
 mod backend;
@@ -49,10 +49,6 @@ pub struct MockHeader {
 }
 
 impl MockHeader {
-    fn new(id: MockIdentifier, parent: Option<MockIdentifier>) -> Self {
-        MockHeader { id, parent }
-    }
-
     pub fn random_parentless(number: MockNumber) -> Self {
         let id = MockIdentifier::new_random(number);
         MockHeader { id, parent: None }
@@ -110,12 +106,17 @@ impl MockJustification {
             is_correct: true,
         }
     }
+}
 
-    pub fn for_header_incorrect(header: MockHeader) -> Self {
-        Self {
-            header,
-            is_correct: false,
-        }
+impl Header for MockJustification {
+    type Identifier = MockIdentifier;
+
+    fn id(&self) -> Self::Identifier {
+        self.header().id()
+    }
+
+    fn parent_id(&self) -> Option<Self::Identifier> {
+        self.header().parent_id()
     }
 }
 
@@ -132,16 +133,4 @@ impl JustificationT for MockJustification {
     }
 }
 
-type MockNotification = ChainStatusNotification<MockIdentifier>;
-type MockBlockStatus = BlockStatus<MockJustification>;
-
-pub fn setup() -> (
-    Backend,
-    impl Verifier<MockJustification>,
-    impl ChainStatusNotifier<MockIdentifier>,
-) {
-    let (backend, notifier) = backend::setup();
-    let verifier = MockVerifier;
-
-    (backend, verifier, notifier)
-}
+type MockNotification = ChainStatusNotification<MockHeader>;

@@ -12,6 +12,8 @@ use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use tokio::time;
 
+const QUEUE_SIZE_WARNING: i64 = 1_000;
+
 use crate::{
     network::{
         gossip::{Event, EventStream, Network, NetworkSender, Protocol, RawNetwork},
@@ -237,10 +239,11 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
             .intersection(self.protocol_peers(protocol))
             .into_iter()
             .choose(&mut thread_rng())
-            .or(self
-                .protocol_peers(protocol)
-                .iter()
-                .choose(&mut thread_rng()))
+            .or_else(|| {
+                self.protocol_peers(protocol)
+                    .iter()
+                    .choose(&mut thread_rng())
+            })
     }
 
     fn send_to_random(&mut self, data: D, peer_ids: HashSet<N::PeerId>, protocol: Protocol) {
@@ -271,13 +274,19 @@ impl<N: RawNetwork, D: Data> Service<N, D> {
                 trace!(target: "aleph-network", "StreamOpened event for peer {:?} and the protocol {:?}.", peer, protocol);
                 let rx = match &protocol {
                     Protocol::Authentication => {
-                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_authentication");
+                        let (tx, rx) = tracing_unbounded(
+                            "mpsc_notification_stream_authentication",
+                            QUEUE_SIZE_WARNING,
+                        );
                         self.authentication_connected_peers.insert(peer.clone());
                         self.authentication_peer_senders.insert(peer.clone(), tx);
                         rx
                     }
                     Protocol::BlockSync => {
-                        let (tx, rx) = tracing_unbounded("mpsc_notification_stream_block_sync");
+                        let (tx, rx) = tracing_unbounded(
+                            "mpsc_notification_stream_block_sync",
+                            QUEUE_SIZE_WARNING,
+                        );
                         self.block_sync_connected_peers.insert(peer.clone());
                         self.block_sync_peer_senders.insert(peer.clone(), tx);
                         rx
@@ -384,12 +393,12 @@ mod tests {
 
     use codec::Encode;
     use futures::channel::oneshot;
+    use network_clique::mock::{random_peer_id, MockPublicKey};
     use sc_service::TaskManager;
     use tokio::runtime::Handle;
 
     use super::{Error, Service};
     use crate::network::{
-        clique::mock::{random_peer_id, MockPublicKey},
         gossip::{
             mock::{MockEvent, MockRawNetwork, MockSenderError},
             Network,

@@ -1,12 +1,14 @@
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, str::FromStr, string::ToString};
 
 use aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, ADDRESSES_ENCODING, TOKEN, TOKEN_DECIMALS,
+    AuthorityId as AlephId, SessionValidators, Version as FinalityVersion, ADDRESSES_ENCODING,
+    LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
 };
 use aleph_runtime::{
-    AccountId, AuraConfig, BalancesConfig, ElectionsConfig, GenesisConfig, Perbill, SessionConfig,
-    SessionKeys, StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+    AccountId, AlephConfig, AuraConfig, BalancesConfig, CommitteeManagementConfig, ElectionsConfig,
+    GenesisConfig, Perbill, SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
+    VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
@@ -129,6 +131,10 @@ pub struct ChainParams {
     #[arg(long, value_parser = parse_account_id, default_value(DEFAULT_SUDO_ACCOUNT))]
     sudo_account_id: AccountId,
 
+    /// AccountIds of the optional rich accounts
+    #[arg(long, value_delimiter = ',', value_parser = parse_account_id, num_args=1..)]
+    rich_account_ids: Option<Vec<AccountId>>,
+
     /// AccountId of the optional faucet account
     #[arg(long, value_parser = parse_account_id)]
     faucet_account_id: Option<AccountId>,
@@ -136,6 +142,10 @@ pub struct ChainParams {
     /// Minimum number of stakers before chain enters emergency state.
     #[arg(long, default_value = "4")]
     min_validator_count: u32,
+
+    /// Finality version at chain inception.
+    #[arg(long, default_value = LEGACY_FINALITY_VERSION.to_string())]
+    finality_version: FinalityVersion,
 }
 
 impl ChainParams {
@@ -163,12 +173,20 @@ impl ChainParams {
         self.sudo_account_id.clone()
     }
 
+    pub fn rich_account_ids(&self) -> Option<Vec<AccountId>> {
+        self.rich_account_ids.clone()
+    }
+
     pub fn faucet_account_id(&self) -> Option<AccountId> {
         self.faucet_account_id.clone()
     }
 
     pub fn min_validator_count(&self) -> u32 {
         self.min_validator_count
+    }
+
+    pub fn finality_version(&self) -> FinalityVersion {
+        self.finality_version
     }
 }
 
@@ -216,8 +234,10 @@ fn generate_chain_spec_config(
     let chain_id = String::from(chain_params.chain_id());
     let chain_type = chain_params.chain_type();
     let sudo_account = chain_params.sudo_account_id();
+    let rich_accounts = chain_params.rich_account_ids();
     let faucet_account = chain_params.faucet_account_id();
     let min_validator_count = chain_params.min_validator_count();
+    let finality_version = chain_params.finality_version();
 
     Ok(ChainSpec::from_genesis(
         // Name
@@ -230,9 +250,11 @@ fn generate_chain_spec_config(
                 wasm_binary,
                 authorities.clone(), // Initial PoA authorities, will receive funds
                 sudo_account.clone(), // Sudo account, will also be pre funded
+                rich_accounts.clone(), // Pre-funded accounts
                 faucet_account.clone(), // Pre-funded faucet account
                 controller_accounts.clone(), // Controller accounts for staking.
                 min_validator_count,
+                finality_version,
             )
         },
         // Bootnodes
@@ -328,17 +350,24 @@ fn configure_chain_spec_fields(
 }
 
 /// Configure initial storage state for FRAME modules.
+#[allow(clippy::too_many_arguments)]
 fn generate_genesis_config(
     wasm_binary: &[u8],
     authorities: Vec<AuthorityKeys>,
     sudo_account: AccountId,
+    rich_accounts: Option<Vec<AccountId>>,
     faucet_account: Option<AccountId>,
     controller_accounts: Vec<AccountId>,
     min_validator_count: u32,
+    finality_version: FinalityVersion,
 ) -> GenesisConfig {
-    let special_accounts = match faucet_account {
-        Some(faucet_id) => vec![sudo_account.clone(), faucet_id],
-        None => vec![sudo_account.clone()],
+    let special_accounts = {
+        let mut all = rich_accounts.unwrap_or_default();
+        all.push(sudo_account.clone());
+        if let Some(faucet_account) = faucet_account {
+            all.push(faucet_account);
+        }
+        all
     };
 
     // NOTE: some combinations of bootstrap chain arguments can potentially
@@ -382,7 +411,6 @@ fn generate_genesis_config(
             reserved_validators: accounts_config.members.clone(),
             non_reserved_validators: vec![],
             committee_seats: Default::default(),
-            committee_ban_config: Default::default(),
         },
         session: SessionConfig {
             keys: accounts_config.keys,
@@ -398,10 +426,21 @@ fn generate_genesis_config(
             min_nominator_bond: MIN_NOMINATOR_BOND,
             ..Default::default()
         },
+        aleph: AlephConfig {
+            finality_version,
+            ..Default::default()
+        },
         treasury: Default::default(),
         vesting: VestingConfig { vesting: vec![] },
         nomination_pools: Default::default(),
         transaction_payment: Default::default(),
+        committee_management: CommitteeManagementConfig {
+            committee_ban_config: Default::default(),
+            session_validators: SessionValidators {
+                committee: accounts_config.members,
+                non_committee: vec![],
+            },
+        },
     }
 }
 

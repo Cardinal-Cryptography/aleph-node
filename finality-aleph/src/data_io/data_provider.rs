@@ -1,13 +1,13 @@
 use std::{sync::Arc, time::Duration};
 
+use aleph_primitives::BlockNumber;
 use futures::channel::oneshot;
 use log::{debug, warn};
 use parking_lot::Mutex;
 use sc_client_api::HeaderBackend;
 use sp_consensus::SelectChain;
 use sp_runtime::{
-    generic::BlockId,
-    traits::{Block as BlockT, Header as HeaderT, NumberFor, One, Zero},
+    traits::{Block as BlockT, Header as HeaderT, NumberFor, Zero},
     SaturatedConversion,
 };
 
@@ -32,7 +32,7 @@ where
     let mut curr_header = header;
     while curr_header.number() > &num {
         curr_header = client
-            .header(BlockId::Hash(*curr_header.parent_hash()))
+            .header(*curr_header.parent_hash())
             .expect("client must respond")
             .expect("parent hash is known by the client");
     }
@@ -42,16 +42,14 @@ where
 pub fn get_parent<B, C>(client: &C, block: &BlockHashNum<B>) -> Option<BlockHashNum<B>>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B>,
 {
     if block.num.is_zero() {
         return None;
     }
-    if let Some(header) = client
-        .header(BlockId::Hash(block.hash))
-        .expect("client must respond")
-    {
-        Some((*header.parent_hash(), block.num - <NumberFor<B>>::one()).into())
+    if let Some(header) = client.header(block.hash).expect("client must respond") {
+        Some((*header.parent_hash(), block.num - 1).into())
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);
         None
@@ -65,20 +63,21 @@ pub fn get_proposal<B, C>(
 ) -> Result<AlephData<B>, ()>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B>,
 {
     let mut curr_block = best_block;
     let mut branch: Vec<B::Hash> = Vec::new();
     while curr_block.num > finalized_block.num {
         if curr_block.num - finalized_block.num
-            <= <NumberFor<B>>::saturated_from(MAX_DATA_BRANCH_LEN)
+            <= <BlockNumber>::saturated_from(MAX_DATA_BRANCH_LEN)
         {
             branch.push(curr_block.hash);
         }
         curr_block = get_parent(client, &curr_block).expect("block of num >= 1 must have a parent")
     }
     if curr_block.hash == finalized_block.hash {
-        let num_last = finalized_block.num + <NumberFor<B>>::saturated_from(branch.len());
+        let num_last = finalized_block.num + <BlockNumber>::saturated_from(branch.len());
         // The hashes in `branch` are ordered from top to bottom -- need to reverse.
         branch.reverse();
         Ok(AlephData {
@@ -119,13 +118,14 @@ struct ChainInfo<B: BlockT> {
 pub struct ChainTracker<B, SC, C>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
     select_chain: SC,
     client: Arc<C>,
     data_to_propose: Arc<Mutex<Option<AlephData<B>>>>,
-    session_boundaries: SessionBoundaries<B>,
+    session_boundaries: SessionBoundaries,
     prev_chain_info: Option<ChainInfo<B>>,
     config: ChainTrackerConfig,
 }
@@ -133,13 +133,14 @@ where
 impl<B, SC, C> ChainTracker<B, SC, C>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
     pub fn new(
         select_chain: SC,
         client: Arc<C>,
-        session_boundaries: SessionBoundaries<B>,
+        session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
         metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
     ) -> (Self, DataProvider<B>) {
@@ -328,9 +329,6 @@ mod tests {
     use std::{future::Future, sync::Arc, time::Duration};
 
     use futures::channel::oneshot;
-    use substrate_test_runtime_client::{
-        runtime::Block, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
-    };
     use tokio::time::sleep;
 
     use crate::{
@@ -338,8 +336,11 @@ mod tests {
             data_provider::{ChainTracker, ChainTrackerConfig},
             DataProvider, MAX_DATA_BRANCH_LEN,
         },
-        testing::{client_chain_builder::ClientChainBuilder, mocks::aleph_data_from_blocks},
-        SessionBoundaries, SessionId, SessionPeriod,
+        testing::{
+            client_chain_builder::ClientChainBuilder,
+            mocks::{aleph_data_from_blocks, TBlock, TestClientBuilder, TestClientBuilderExt},
+        },
+        SessionBoundaryInfo, SessionId, SessionPeriod,
     };
 
     const SESSION_LEN: u32 = 100;
@@ -351,14 +352,15 @@ mod tests {
         impl Future<Output = ()>,
         oneshot::Sender<()>,
         ClientChainBuilder,
-        DataProvider<Block>,
+        DataProvider<TBlock>,
     ) {
         let (client, select_chain) = TestClientBuilder::new().build_with_longest_chain();
         let client = Arc::new(client);
 
         let chain_builder =
             ClientChainBuilder::new(client.clone(), Arc::new(TestClientBuilder::new().build()));
-        let session_boundaries = SessionBoundaries::new(SessionId(0), SessionPeriod(SESSION_LEN));
+        let session_boundaries = SessionBoundaryInfo::new(SessionPeriod(SESSION_LEN))
+            .boundaries_for_session(SessionId(0));
 
         let config = ChainTrackerConfig {
             refresh_interval: REFRESH_INTERVAL,
@@ -386,7 +388,7 @@ mod tests {
     async fn run_test<F, S>(scenario: S)
     where
         F: Future,
-        S: FnOnce(ClientChainBuilder, DataProvider<Block>) -> F,
+        S: FnOnce(ClientChainBuilder, DataProvider<TBlock>) -> F,
     {
         let (task_handle, exit, chain_builder, data_provider) = prepare_chain_tracker_test();
         let chain_tracker_handle = tokio::spawn(task_handle);

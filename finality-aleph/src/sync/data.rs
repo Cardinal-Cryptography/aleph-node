@@ -1,16 +1,72 @@
-use std::mem::size_of;
+use std::{collections::HashSet, marker::PhantomData, mem::size_of};
 
 use aleph_primitives::MAX_BLOCK_SIZE;
 use codec::{Decode, Encode, Error as CodecError, Input as CodecInput};
 use log::warn;
 
-use crate::{sync::Justification, Version};
+use crate::{
+    network::GossipNetwork,
+    sync::{BlockIdFor, Justification, LOG_TARGET},
+    Version,
+};
 
 /// The representation of the database state to be sent to other nodes.
 /// In the first version this only contains the top justification.
 #[derive(Clone, Debug, Encode, Decode)]
 pub struct State<J: Justification> {
     top_justification: J::Unverified,
+}
+
+impl<J: Justification> State<J> {
+    pub fn new(top_justification: J::Unverified) -> Self {
+        State { top_justification }
+    }
+
+    pub fn top_justification(&self) -> J::Unverified {
+        self.top_justification.clone()
+    }
+}
+
+/// Additional information about the branch connecting the top finalized block
+/// with a given one. All the variants are exhaustive and exclusive due to the
+/// properties of the `Forest` structure.
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+pub enum BranchKnowledge<J: Justification> {
+    /// ID of the oldest known ancestor if none of them are imported.
+    /// It must be different from the, imported by definition, root.
+    LowestId(BlockIdFor<J>),
+    /// ID of the top imported ancestor if any of them is imported.
+    /// Since imported vertices are connected to the root, the oldest known
+    /// ancestor is, implicitly, the root.
+    TopImported(BlockIdFor<J>),
+}
+
+/// Request content.
+#[derive(Clone, Debug, Encode, Decode)]
+pub struct Request<J: Justification> {
+    target_id: BlockIdFor<J>,
+    branch_knowledge: BranchKnowledge<J>,
+    state: State<J>,
+}
+
+impl<J: Justification> Request<J> {
+    pub fn new(
+        target_id: BlockIdFor<J>,
+        branch_knowledge: BranchKnowledge<J>,
+        state: State<J>,
+    ) -> Self {
+        Self {
+            target_id,
+            branch_knowledge,
+            state,
+        }
+    }
+}
+
+impl<J: Justification> Request<J> {
+    pub fn state(&self) -> &State<J> {
+        &self.state
+    }
 }
 
 /// Data to be sent over the network.
@@ -20,8 +76,13 @@ pub enum NetworkData<J: Justification> {
     /// send what we are missing, and sometines just use the justifications to update their own
     /// state.
     StateBroadcast(State<J>),
-    /// A series of justifications, sent to a node that is clearly behind.
-    Justifications(Vec<J::Unverified>, State<J>),
+    /// Response to a state broadcast. Contains at most two justifications that the peer will
+    /// understand.
+    StateBroadcastResponse(J::Unverified, Option<J::Unverified>),
+    /// An explicit request for data, potentially a lot of it.
+    Request(Request<J>),
+    /// Response to the request for data. Currently consists only of justifications.
+    RequestResponse(Vec<J::Unverified>),
 }
 
 /// Version wrapper around the network data.
@@ -44,6 +105,7 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
 
     if size > MAX_SYNC_MESSAGE_SIZE {
         warn!(
+            target: LOG_TARGET,
             "Versioned sync message v{:?} too big during Encode. Size is {:?}. Should be {:?} at max.",
             version,
             payload.len(),
@@ -96,6 +158,56 @@ impl<J: Justification> Decode for VersionedNetworkData<J> {
                 let mut payload = vec![0; num_bytes as usize];
                 input.read(payload.as_mut_slice())?;
                 Ok(Other(version, payload))
+            }
+        }
+    }
+}
+
+/// Wrap around a network to avoid thinking about versioning.
+pub struct VersionWrapper<J: Justification, N: GossipNetwork<VersionedNetworkData<J>>> {
+    inner: N,
+    _phantom: PhantomData<J>,
+}
+
+impl<J: Justification, N: GossipNetwork<VersionedNetworkData<J>>> VersionWrapper<J, N> {
+    /// Wrap the inner network.
+    pub fn new(inner: N) -> Self {
+        VersionWrapper {
+            inner,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<J: Justification, N: GossipNetwork<VersionedNetworkData<J>>> GossipNetwork<NetworkData<J>>
+    for VersionWrapper<J, N>
+{
+    type Error = N::Error;
+    type PeerId = N::PeerId;
+
+    fn send_to(&mut self, data: NetworkData<J>, peer_id: Self::PeerId) -> Result<(), Self::Error> {
+        self.inner.send_to(VersionedNetworkData::V1(data), peer_id)
+    }
+
+    fn send_to_random(
+        &mut self,
+        data: NetworkData<J>,
+        peer_ids: HashSet<Self::PeerId>,
+    ) -> Result<(), Self::Error> {
+        self.inner
+            .send_to_random(VersionedNetworkData::V1(data), peer_ids)
+    }
+
+    fn broadcast(&mut self, data: NetworkData<J>) -> Result<(), Self::Error> {
+        self.inner.broadcast(VersionedNetworkData::V1(data))
+    }
+
+    async fn next(&mut self) -> Result<(NetworkData<J>, Self::PeerId), Self::Error> {
+        loop {
+            match self.inner.next().await? {
+                (VersionedNetworkData::Other(version, _), _) => warn!(target: LOG_TARGET, "Received sync data of unsupported version {:?}, this node might be running outdated software.", version),
+                (VersionedNetworkData::V1(data), peer_id) => return Ok((data, peer_id)),
             }
         }
     }

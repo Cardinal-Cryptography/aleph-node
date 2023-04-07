@@ -5,6 +5,7 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::KeyTypeId;
+use sp_runtime::Perquintill;
 pub use sp_runtime::{
     generic::Header as GenericHeader,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
@@ -12,6 +13,11 @@ pub use sp_runtime::{
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
+
+#[cfg(feature = "liminal")]
+pub mod host_functions;
+#[cfg(feature = "liminal-std")]
+pub use host_functions::poseidon::HostFunctions;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 
@@ -37,6 +43,9 @@ pub type BlockHash = <Header as HeaderT>::Hash;
 pub type BlockNumber = u32;
 pub type SessionCount = u32;
 pub type BlockCount = u32;
+
+// Default number of heap pages that gives limit of 256MB for a runtime instance since each page is 64KB
+pub const HEAP_PAGES: u64 = 4096;
 
 pub const MILLISECS_PER_BLOCK: u64 = 1000;
 // We agreed to 5MB as the block size limit.
@@ -65,8 +74,19 @@ pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 pub const DEFAULT_BAN_MINIMAL_EXPECTED_PERFORMANCE: Perbill = Perbill::from_percent(0);
 pub const DEFAULT_BAN_SESSION_COUNT_THRESHOLD: SessionCount = 3;
 pub const DEFAULT_BAN_REASON_LENGTH: u32 = 300;
+pub const DEFAULT_MAX_WINNERS: u32 = u32::MAX;
+
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
 pub const DEFAULT_BAN_PERIOD: EraIndex = 10;
+
+/// Version returned when no version has been set.
+pub const DEFAULT_FINALITY_VERSION: Version = 0;
+/// Current version of abft.
+pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
+/// Legacy version of abft.
+pub const LEGACY_FINALITY_VERSION: u16 = 1;
+
+pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 /// Openness of the process of the elections
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
@@ -81,8 +101,11 @@ pub enum ElectionOpenness {
 pub struct CommitteeSeats {
     /// Size of reserved validators in a session
     pub reserved_seats: u32,
-    /// Size of non reserved valiadtors in a session
+    /// Size of non reserved validators in a session
     pub non_reserved_seats: u32,
+    /// Size of non reserved validators participating in the finality in a session.
+    /// A subset of the non reserved validators._
+    pub non_reserved_finality_seats: u32,
 }
 
 impl CommitteeSeats {
@@ -96,8 +119,15 @@ impl Default for CommitteeSeats {
         CommitteeSeats {
             reserved_seats: DEFAULT_COMMITTEE_SIZE,
             non_reserved_seats: 0,
+            non_reserved_finality_seats: 0,
         }
     }
+}
+
+///
+pub trait FinalityCommitteeManager<T> {
+    /// `committee` is the set elected for finality committee for the next session
+    fn on_next_session_finality_committee(committee: Vec<T>);
 }
 
 /// Configurable parameters for ban validator mechanism
@@ -215,6 +245,47 @@ sp_api::decl_runtime_apis! {
     }
 }
 
+pub trait BanHandler {
+    type AccountId;
+    /// returns whether the account can be banned
+    fn can_ban(who: &Self::AccountId) -> bool;
+}
+
+pub trait ValidatorProvider {
+    type AccountId;
+    /// returns validators for the current era if present.
+    fn current_era_validators() -> Option<EraValidators<Self::AccountId>>;
+    /// returns committe seats for the current era if present.
+    fn current_era_committee_size() -> Option<CommitteeSeats>;
+}
+
+#[derive(Decode, Encode, TypeInfo, Clone)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct SessionValidators<T> {
+    pub committee: Vec<T>,
+    pub non_committee: Vec<T>,
+}
+
+impl<T> Default for SessionValidators<T> {
+    fn default() -> Self {
+        Self {
+            committee: Vec::new(),
+            non_committee: Vec::new(),
+        }
+    }
+}
+
+pub trait BannedValidators {
+    type AccountId;
+    /// returns currently banned validators
+    fn banned() -> Vec<Self::AccountId>;
+}
+
+pub trait EraManager {
+    /// new era has been planned
+    fn on_new_era(era: EraIndex);
+}
+
 pub mod staking {
     use sp_runtime::Perbill;
 
@@ -246,15 +317,15 @@ pub mod staking {
     /// `(method_name(arg1: type1, arg2: type2, ...), class_name, return_type)`
     ///
     /// where
-    ///* `method_name`is a wrapee method,
-    ///* `arg1: type1, arg2: type,...`is a list of arguments and will be passed as is, can be empty
-    ///* `class_name`is a class that has non-self `method-name`,ie symbol `class_name::method_name` exists,
-    ///* `return_type` is type returned from `method_name`
+    ///   * `method_name`is a wrapee method,
+    ///   * `arg1: type1, arg2: type,...`is a list of arguments and will be passed as is, can be empty
+    ///   * `class_name`is a class that has non-self `method-name`,ie symbol `class_name::method_name` exists,
+    ///   * `return_type` is type returned from `method_name`
     /// Example
-    /// ```rust
-    ///  wrap_methods!(
-    ///         (bond(), SubstrateStakingWeights, Weight),
-    ///         (bond_extra(), SubstrateStakingWeights, Weight)
+    /// ```ignore
+    /// wrap_methods!(
+    ///     (bond(), SubstrateStakingWeights, Weight),
+    ///     (bond_extra(), SubstrateStakingWeights, Weight)
     /// );
     /// ```
     #[macro_export]

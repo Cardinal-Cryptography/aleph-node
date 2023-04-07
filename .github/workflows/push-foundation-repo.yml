@@ -1,17 +1,88 @@
+---
 name: Sync Cardinal-Cryptography repo with Aleph-Zero-Foundation repo
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'release-*'
+    tags:
+      - 'r-*'
 
 jobs:
-  sync:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  sync-main:
+    needs: [check-vars-and-secrets]
     runs-on: ubuntu-20.04
-    if: ${{ github.repository == 'Cardinal-Cryptography/aleph-node'}}
+    if: >
+      github.repository == 'Cardinal-Cryptography/aleph-node' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      github.ref_name == 'main'
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.SYNCAZF }}
+
       - name: Push to Aleph-Zero-Foundation
+        # yamllint disable-line rule:line-length
         run: git push https://x-access-token:${{ secrets.SYNCAZF }}@github.com/aleph-zero-foundation/aleph-node.git
+
+
+  sync-release-branch:
+    needs: [check-vars-and-secrets]
+    runs-on: ubuntu-20.04
+    if: >
+      github.repository == 'Cardinal-Cryptography/aleph-node' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      startsWith(github.ref_name, 'release-')
+    steps:
+      - name: GIT | Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNCAZF }}
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Push to Aleph-Zero-Foundation
+        # yamllint disable rule:line-length
+        run: |
+          git push \
+            'https://x-access-token:${{ secrets.SYNCAZF }}@github.com/aleph-zero-foundation/aleph-node.git' \
+            ${{ steps.get-ref-properties.outputs.branch }}:${{ steps.get-ref-properties.outputs.branch}}
+        # yamllint disable rule:line-length
+
+  sync-release-tag:
+    needs: [check-vars-and-secrets]
+    runs-on: ubuntu-20.04
+    if: github.repository == 'Cardinal-Cryptography/aleph-node' && startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Checkout Aleph-Zero-Foundation repository
+        uses: actions/checkout@v3
+        with:
+          repository: aleph-zero-foundation/aleph-node
+          token: "${{ secrets.SYNCAZF }}"
+          path: aleph-zero-foundation-aleph-node
+          fetch-depth: 0
+
+      - name: Checkout commit SHA and add tag in Aleph-Zero-Foundation repository
+        run: |
+          cd aleph-zero-foundation-aleph-node/
+          git checkout "${{ steps.get-ref-properties.outputs.sha }}"
+          git tag "${{ steps.get-ref-properties.outputs.tag }}"
+          git push origin "${{ steps.get-ref-properties.outputs.tag }}"
