@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    marker::Send,
 };
 
 use codec::Codec;
@@ -11,11 +12,17 @@ mod handler;
 #[cfg(test)]
 mod mock;
 mod service;
-mod substrate;
+pub mod substrate;
 mod task_queue;
 mod ticker;
 
-pub use substrate::SessionVerifier;
+pub use service::Service;
+pub use substrate::{
+    Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
+    SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
+};
+
+use crate::BlockIdentifier;
 
 const LOG_TARGET: &str = "aleph-block-sync";
 
@@ -23,12 +30,6 @@ const LOG_TARGET: &str = "aleph-block-sync";
 pub trait PeerId: Debug + Clone + Hash + Eq {}
 
 impl<T: Debug + Clone + Hash + Eq> PeerId for T {}
-
-/// The identifier of a block, the least amount of knowledge we can have about a block.
-pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
-    /// The block number, useful when reasoning about hopeless forks.
-    fn number(&self) -> u32;
-}
 
 /// Informs the sync that it should attempt to acquire the specified data.
 pub trait Requester<BI: BlockIdentifier> {
@@ -48,7 +49,7 @@ pub trait Header: Clone + Codec + Send + Sync + 'static {
 }
 
 /// The verified justification of a block, including a header.
-pub trait Justification: Clone + Send + Sync + 'static {
+pub trait Justification: Clone + Send + Sync + Debug + 'static {
     type Header: Header;
     /// The implementation has to behave as if the header here is identical to the one returned by
     /// the `header` method after successful verification.
@@ -111,7 +112,7 @@ pub enum BlockStatus<J: Justification> {
 }
 
 /// The knowledge about the chain status.
-pub trait ChainStatus<J: Justification> {
+pub trait ChainStatus<J: Justification>: Clone + Send + Sync + 'static {
     type Error: Display;
 
     /// The status of the block.
@@ -129,4 +130,21 @@ pub trait ChainStatus<J: Justification> {
 
     /// The justification of the top finalized block.
     fn top_finalized(&self) -> Result<J, Self::Error>;
+
+    /// Children of the specified block.
+    fn children(
+        &self,
+        id: <J::Header as Header>::Identifier,
+    ) -> Result<Vec<J::Header>, Self::Error>;
+}
+
+/// An interface for submitting additional justifications to the justification sync.
+/// Chiefly ones created by ABFT, but others will also be handled appropriately.
+/// The block corresponding to the submitted `Justification` MUST be obtained and
+/// imported into the Substrate database by the user, as soon as possible.
+pub trait JustificationSubmissions<J: Justification> {
+    type Error: Display;
+
+    /// Submit a justification to the underlying justification sync.
+    fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error>;
 }

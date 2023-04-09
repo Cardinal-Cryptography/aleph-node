@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt::{Display, Error as FmtError, Formatter},
+    fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
 use aleph_primitives::BlockNumber;
@@ -9,7 +9,10 @@ use sp_runtime::SaturatedConversion;
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
-    sync::substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
+    sync::{
+        substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
+        Header,
+    },
     SessionPeriod,
 };
 
@@ -19,6 +22,7 @@ pub enum CacheError {
     UnknownAuthorities(SessionId),
     SessionTooOld(SessionId, SessionId),
     SessionInFuture(SessionId, SessionId),
+    BadGenesisHeader,
 }
 
 impl Display for CacheError {
@@ -42,6 +46,12 @@ impl Display for CacheError {
                     session
                 )
             }
+            BadGenesisHeader => {
+                write!(
+                    f,
+                    "the provided genesis header does not match the cached genesis header"
+                )
+            }
         }
     }
 }
@@ -50,10 +60,11 @@ impl Display for CacheError {
 /// If the session is too new or ancient it will fail to return a SessionVerifier.
 /// Highest session verifier this cache returns is for the session after the current finalization session.
 /// Lowest session verifier this cache returns is for `top_returned_session` - `cache_size`.
-pub struct VerifierCache<AP, FI>
+pub struct VerifierCache<AP, FI, H>
 where
-    AP: AuthorityProvider<BlockNumber>,
+    AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: Header,
 {
     sessions: HashMap<SessionId, SessionVerifier>,
     session_info: SessionBoundaryInfo,
@@ -62,18 +73,21 @@ where
     cache_size: usize,
     /// Lowest currently available session.
     lower_bound: SessionId,
+    genesis_header: H,
 }
 
-impl<AP, FI> VerifierCache<AP, FI>
+impl<AP, FI, H> VerifierCache<AP, FI, H>
 where
-    AP: AuthorityProvider<BlockNumber>,
+    AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: Header,
 {
     pub fn new(
         session_period: SessionPeriod,
         finalization_info: FI,
         authority_provider: AP,
         cache_size: usize,
+        genesis_header: H,
     ) -> Self {
         Self {
             sessions: HashMap::new(),
@@ -82,13 +96,18 @@ where
             authority_provider,
             cache_size,
             lower_bound: SessionId(0),
+            genesis_header,
         }
+    }
+
+    pub fn genesis_header(&self) -> &H {
+        &self.genesis_header
     }
 }
 
 /// Download authorities for the session and return `SessionVerifier` for them. `session_id` should be the first session,
 /// or the first block from the session number `session_id - 1` should be finalized.
-fn download_session_verifier<AP: AuthorityProvider<BlockNumber>>(
+fn download_session_verifier<AP: AuthorityProvider>(
     authority_provider: &AP,
     session_id: SessionId,
     session_info: &SessionBoundaryInfo,
@@ -104,10 +123,11 @@ fn download_session_verifier<AP: AuthorityProvider<BlockNumber>>(
     maybe_authority_data.map(|a| a.into())
 }
 
-impl<AP, FI> VerifierCache<AP, FI>
+impl<AP, FI, H> VerifierCache<AP, FI, H>
 where
-    AP: AuthorityProvider<BlockNumber>,
+    AP: AuthorityProvider,
     FI: FinalizationInfo,
+    H: Header,
 {
     /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
@@ -177,13 +197,15 @@ mod tests {
     };
     use crate::{
         session::{testing::authority_data, SessionBoundaryInfo, SessionId},
+        sync::mock::MockHeader,
         SessionPeriod,
     };
 
     const SESSION_PERIOD: u32 = 30;
     const CACHE_SIZE: usize = 2;
 
-    type TestVerifierCache<'a> = VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>>;
+    type TestVerifierCache<'a> =
+        VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>, MockHeader>;
 
     struct MockFinalizationInfo<'a> {
         finalized_number: &'a Cell<BlockNumber>,
@@ -217,7 +239,7 @@ mod tests {
         }
     }
 
-    impl AuthorityProvider<BlockNumber> for MockAuthorityProvider {
+    impl AuthorityProvider for MockAuthorityProvider {
         fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.session_map
                 .get(&self.session_info.session_id_from_block_num(block_number))
@@ -236,12 +258,14 @@ mod tests {
     fn setup_test(max_session_n: u32, finalized_number: &'_ Cell<u32>) -> TestVerifierCache<'_> {
         let finalization_info = MockFinalizationInfo { finalized_number };
         let authority_provider = MockAuthorityProvider::new(max_session_n);
+        let genesis_header = MockHeader::random_parentless(0);
 
         VerifierCache::new(
             SessionPeriod(SESSION_PERIOD),
             finalization_info,
             authority_provider,
             CACHE_SIZE,
+            genesis_header,
         )
     }
 

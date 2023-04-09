@@ -1,5 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(all(feature = "ink", feature = "substrate"))]
+compile_error!(
+    "Features `ink` and `substrate` are mutually exclusive and cannot be enabled together"
+);
+
 #[cfg(feature = "ink")]
 pub mod ink;
 
@@ -10,9 +15,9 @@ pub mod substrate;
 pub mod executor;
 
 #[cfg(feature = "ink")]
-use ::ink::prelude::vec::Vec;
+use ::ink::{prelude::vec::Vec, primitives::AccountId as AccountId32};
 #[cfg(feature = "substrate")]
-use obce::substrate::sp_std::vec::Vec;
+use obce::substrate::{sp_runtime::AccountId32, sp_std::vec::Vec};
 use scale::{Decode, Encode};
 #[cfg(feature = "std")]
 use scale_info::TypeInfo;
@@ -70,7 +75,7 @@ pub enum BabyLiminalError {
 }
 
 /// Copied from `pallet_baby_liminal`.
-pub type VerificationKeyIdentifier = [u8; 4];
+pub type VerificationKeyIdentifier = [u8; 8];
 
 pub type SingleHashInput = (u64, u64, u64, u64);
 
@@ -101,6 +106,7 @@ pub trait BabyLiminalExtension {
     #[obce(id = 41)]
     fn store_key(
         &mut self,
+        origin: AccountId32,
         identifier: VerificationKeyIdentifier,
         key: Vec<u8>,
     ) -> Result<(), BabyLiminalError>;

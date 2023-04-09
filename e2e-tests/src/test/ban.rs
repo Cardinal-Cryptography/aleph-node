@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use aleph_client::{
     api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
     pallets::{
+        committee_management::{CommitteeManagementApi, CommitteeManagementSudoApi},
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
         staking::{StakingApi, StakingUserApi},
@@ -263,6 +264,7 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     let seats = CommitteeSeats {
         reserved_seats: 2,
         non_reserved_seats: 2,
+        non_reserved_finality_seats: 2,
     };
 
     let validator_to_ban =

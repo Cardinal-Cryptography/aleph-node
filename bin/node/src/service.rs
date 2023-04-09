@@ -8,8 +8,8 @@ use std::{
 use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_nonvalidator_node, run_validator_node, AlephBlockImport, AlephConfig,
-    JustificationNotification, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod,
+    run_validator_node, AlephBlockImport, AlephConfig, JustificationNotificationFor, Metrics,
+    MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod, TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -85,9 +85,9 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            AlephBlockImport<Block, FullBackend, FullClient>,
-            mpsc::UnboundedSender<JustificationNotification<Block>>,
-            mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+            TracingBlockImport<Block, Arc<FullClient>>,
+            mpsc::UnboundedSender<JustificationNotificationFor<Block>>,
+            mpsc::UnboundedReceiver<JustificationNotificationFor<Block>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
         ),
@@ -147,18 +147,16 @@ pub fn new_partial(
     });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
-    let aleph_block_import = AlephBlockImport::new(
-        client.clone() as Arc<_>,
-        justification_tx.clone(),
-        metrics.clone(),
-    );
+    let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
+    let aleph_block_import =
+        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone());
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
     let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
         ImportQueueParams {
             block_import: aleph_block_import.clone(),
-            justification_import: Some(Box::new(aleph_block_import.clone())),
+            justification_import: Some(Box::new(aleph_block_import)),
             client: client.clone(),
             create_inherent_data_providers: move |_, ()| async move {
                 let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
@@ -188,7 +186,7 @@ pub fn new_partial(
         select_chain,
         transaction_pool,
         other: (
-            aleph_block_import,
+            tracing_block_import,
             justification_tx,
             justification_rx,
             telemetry,
@@ -208,7 +206,7 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
+    import_justification_tx: mpsc::UnboundedSender<JustificationNotificationFor<Block>>,
 ) -> Result<
     (
         RpcHandlers,
@@ -259,7 +257,7 @@ fn setup(
         let pool = transaction_pool.clone();
 
         Box::new(move |deny_unsafe, _| {
-            let deps = crate::rpc::FullDeps {
+            let deps = crate::rpc::FullDeps::<Block, _, _> {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
@@ -414,87 +412,6 @@ pub fn new_authority(
         "aleph",
         None,
         run_validator_node(aleph_config),
-    );
-
-    network_starter.start_network();
-    Ok(task_manager)
-}
-
-pub fn new_full(
-    config: Configuration,
-    aleph_config: AlephCli,
-) -> Result<TaskManager, ServiceError> {
-    let sc_service::PartialComponents {
-        client,
-        backend,
-        mut task_manager,
-        import_queue,
-        keystore_container,
-        select_chain,
-        transaction_pool,
-        other: (_, justification_tx, justification_rx, mut telemetry, metrics),
-    } = new_partial(&config)?;
-
-    let backup_path = backup_path(
-        &aleph_config,
-        config
-            .base_path
-            .as_ref()
-            .expect("Please specify base path")
-            .path(),
-    );
-
-    let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
-        config,
-        backend.clone(),
-        &keystore_container,
-        import_queue,
-        transaction_pool,
-        &mut task_manager,
-        client.clone(),
-        &mut telemetry,
-        justification_tx,
-    )?;
-
-    let finalized = client.info().finalized_number;
-
-    let session_period = SessionPeriod(
-        client
-            .runtime_api()
-            .session_period(&BlockId::Number(finalized))
-            .unwrap(),
-    );
-
-    let millisecs_per_block = MillisecsPerBlock(
-        client
-            .runtime_api()
-            .millisecs_per_block(&BlockId::Number(finalized))
-            .unwrap(),
-    );
-
-    let blockchain_backend = BlockchainBackendImpl { backend };
-    let aleph_config = AlephConfig {
-        network,
-        client,
-        blockchain_backend,
-        select_chain,
-        session_period,
-        millisecs_per_block,
-        spawn_handle: task_manager.spawn_handle().into(),
-        keystore: keystore_container.keystore(),
-        justification_rx,
-        metrics,
-        unit_creation_delay: aleph_config.unit_creation_delay(),
-        backup_saving_path: backup_path,
-        external_addresses: aleph_config.external_addresses(),
-        validator_port: aleph_config.validator_port(),
-        protocol_naming,
-    };
-
-    task_manager.spawn_essential_handle().spawn_blocking(
-        "aleph",
-        None,
-        run_nonvalidator_node(aleph_config),
     );
 
     network_starter.start_network();

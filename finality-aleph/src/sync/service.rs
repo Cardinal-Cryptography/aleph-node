@@ -1,6 +1,8 @@
 use std::{collections::HashSet, iter, time::Duration};
 
-use log::{error, warn};
+use futures::{channel::mpsc, StreamExt};
+use log::{debug, error, trace, warn};
+use tokio::time::{interval_at, Instant};
 
 use crate::{
     network::GossipNetwork,
@@ -12,14 +14,15 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        BlockIdFor, ChainStatus, ChainStatusNotification, ChainStatusNotifier, Finalizer,
-        Justification, Verifier, LOG_TARGET,
+        BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
+        Finalizer, Header, Justification, JustificationSubmissions, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
+const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
@@ -35,6 +38,16 @@ pub struct Service<
     tasks: TaskQueue<BlockIdFor<J>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
+    justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+}
+
+impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
+    type Error = mpsc::TrySendError<J::Unverified>;
+
+    fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error> {
+        self.unbounded_send(justification)
+    }
 }
 
 impl<
@@ -46,7 +59,8 @@ impl<
         F: Finalizer<J>,
     > Service<J, N, CE, CS, V, F>
 {
-    /// Create a new service using the provided network for communication.
+    /// Create a new service using the provided network for communication. Also returns an
+    /// interface for submitting additional justifications.
     pub fn new(
         network: N,
         chain_events: CE,
@@ -54,18 +68,25 @@ impl<
         verifier: V,
         finalizer: F,
         period: SessionPeriod,
-    ) -> Result<Self, HandlerError<J, CS, V, F>> {
+        additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    ) -> Result<(Self, impl JustificationSubmissions<J> + Clone), HandlerError<J, CS, V, F>> {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
-        Ok(Service {
-            network,
-            handler,
-            tasks,
-            broadcast_ticker,
-            chain_events,
-        })
+        let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
+        Ok((
+            Service {
+                network,
+                handler,
+                tasks,
+                broadcast_ticker,
+                chain_events,
+                justifications_from_user,
+                additional_justifications_from_user,
+            },
+            justifications_for_sync,
+        ))
     }
 
     fn backup_request(&mut self, block_id: BlockIdFor<J>) {
@@ -91,6 +112,7 @@ impl<
                 return;
             }
         };
+        trace!(target: LOG_TARGET, "Broadcasting state: {:?}", state);
         let data = NetworkData::StateBroadcast(state);
         if let Err(e) = self.network.broadcast(data) {
             warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e);
@@ -114,6 +136,7 @@ impl<
             }
         };
         let request = Request::new(block_id, branch_knowledge, state);
+        trace!(target: LOG_TARGET, "Sending a request: {:?}", request);
         let data = NetworkData::Request(request);
         if let Err(e) = self.network.send_to_random(data, peers) {
             warn!(target: LOG_TARGET, "Error sending request: {}.", e);
@@ -136,6 +159,12 @@ impl<
     }
 
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling state {:?} received from {:?}.",
+            state,
+            peer
+        );
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => warn!(
@@ -145,7 +174,16 @@ impl<
         }
     }
 
-    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, peer: N::PeerId) {
+    fn handle_justifications(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        peer: Option<N::PeerId>,
+    ) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling {:?} justifications.",
+            justifications.len()
+        );
         let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
@@ -156,7 +194,9 @@ impl<
                 Err(e) => {
                     warn!(
                         target: LOG_TARGET,
-                        "Error handling justification from {:?}: {}.", peer, e
+                        "Error while handling justification from {:?}: {}.",
+                        peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                        e
                     );
                     return;
                 }
@@ -169,11 +209,21 @@ impl<
             }
         }
         if let Some(block_id) = previous_block_id {
+            debug!(
+                target: LOG_TARGET,
+                "Initiating a request for {:?}.", block_id
+            );
             self.request(block_id);
         }
     }
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling a request {:?} from {:?}.",
+            request,
+            peer
+        );
         match self.handler.handle_request(request) {
             Ok(action) => self.perform_sync_action(action, peer),
             Err(e) => {
@@ -194,7 +244,7 @@ impl<
                     iter::once(justification)
                         .chain(maybe_justification)
                         .collect(),
-                    peer,
+                    Some(peer),
                 );
             }
             Request(request) => {
@@ -202,14 +252,21 @@ impl<
                 self.handle_request(request, peer.clone());
                 self.handle_state(state, peer)
             }
-            RequestResponse(justifications) => self.handle_justifications(justifications, peer),
+            RequestResponse(justifications) => {
+                self.handle_justifications(justifications, Some(peer))
+            }
         }
     }
 
     fn handle_task(&mut self, block_id: BlockIdFor<J>) {
+        trace!(target: LOG_TARGET, "Handling a task for {:?}.", block_id);
         use Interest::*;
         match self.handler.block_state(&block_id) {
-            TopRequired {
+            HighestJustified {
+                know_most,
+                branch_knowledge,
+            }
+            | TopRequired {
                 know_most,
                 branch_knowledge,
             } => {
@@ -231,6 +288,7 @@ impl<
         use ChainStatusNotification::*;
         match event {
             BlockImported(header) => {
+                trace!(target: LOG_TARGET, "Handling a new imported block.");
                 if let Err(e) = self.handler.block_imported(header) {
                     error!(
                         target: LOG_TARGET,
@@ -239,6 +297,7 @@ impl<
                 }
             }
             BlockFinalized(_) => {
+                trace!(target: LOG_TARGET, "Handling a new finalized block.");
                 if self.broadcast_ticker.try_tick() {
                     self.broadcast();
                 }
@@ -248,6 +307,12 @@ impl<
 
     /// Stay synchronized.
     pub async fn run(mut self) {
+        // TODO(A0-1758): Remove after finishing the sync rewrite.
+        let mut stall_ticker = interval_at(
+            Instant::now() + FINALIZATION_STALL_CHECK_PERIOD,
+            FINALIZATION_STALL_CHECK_PERIOD,
+        );
+        let mut last_top_number = 0;
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => match maybe_data {
@@ -259,6 +324,45 @@ impl<
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
+                },
+                maybe_justification = self.justifications_from_user.next() => match maybe_justification {
+                    Some(justification) => {
+                        debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
+                        self.handle_justifications(vec![justification], None);
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+                },
+                maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
+                    Some(justification) => {
+                        debug!(target: LOG_TARGET, "Received new additional justification from user: {:?}.", justification);
+                        self.handle_justifications(Vec::from([justification]), None)
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with additional justifications from user closed."),
+                },
+                _ = stall_ticker.tick() => {
+                    match self.handler.state() {
+                        Ok(state) => {
+                            let top_number = state.top_justification().id().number();
+                            if top_number == last_top_number {
+                                error!(
+                                    target: LOG_TARGET,
+                                    "Sync stall detected, recreating the Forest."
+                                );
+                                if let Err(e) = self.handler.refresh_forest() {
+                                    error!(
+                                        target: LOG_TARGET,
+                                        "Error when recreating the Forest: {}.", e
+                                    );
+                                }
+                            } else {
+                                last_top_number = top_number;
+                            }
+                        },
+                        Err(e) => error!(
+                                        target: LOG_TARGET,
+                                        "Error when retrieving Handler state: {}.", e
+                                    ),
+                    }
                 }
             }
         }

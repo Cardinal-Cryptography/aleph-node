@@ -7,10 +7,13 @@ use std::{
 use futures::channel::mpsc::{self, UnboundedSender};
 use parking_lot::Mutex;
 
-use crate::sync::{
-    mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
-    BlockIdentifier, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
-    Justification as JustificationT,
+use crate::{
+    sync::{
+        mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
+        BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
+        Justification as JustificationT,
+    },
+    BlockIdentifier,
 };
 
 #[derive(Clone, Debug)]
@@ -42,7 +45,6 @@ struct BackendStorage {
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
     best_block: MockIdentifier,
-    genesis_block: MockIdentifier,
 }
 
 #[derive(Clone, Debug)]
@@ -95,8 +97,7 @@ impl Backend {
             session_period,
             blockchain: HashMap::from([(id.clone(), block)]),
             finalized: vec![id.clone()],
-            best_block: id.clone(),
-            genesis_block: id,
+            best_block: id,
         }));
 
         Self {
@@ -291,5 +292,20 @@ impl ChainStatus<MockJustification> for Backend {
             .get(&id)
             .and_then(|b| b.justification.clone())
             .ok_or(StatusError)
+    }
+
+    fn children(&self, id: MockIdentifier) -> Result<Vec<MockHeader>, Self::Error> {
+        match self.status_of(id.clone())? {
+            BlockStatus::Unknown => Err(StatusError),
+            _ => {
+                let storage = self.inner.lock();
+                for (stored_id, block) in storage.blockchain.iter() {
+                    if stored_id.number() == id.number + 1 {
+                        return Ok(Vec::from([block.header()]));
+                    }
+                }
+                Ok(Vec::new())
+            }
+        }
     }
 }

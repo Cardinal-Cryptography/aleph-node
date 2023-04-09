@@ -1,0 +1,47 @@
+---
+#  This workflow builds test version of aleph-node and aleph-runtime, ie with some
+#  features enabled. Those binaries MUST NOT be used in the production.
+name: Build test node and runtime
+on:
+  workflow_call:
+
+jobs:
+  main:
+    name: Build test node and runtime
+    runs-on: self-hosted
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build test binary and runtime
+        run: |
+          cargo build --release -p aleph-node \
+          --features "short_session enable_treasury_proposals only_legacy"
+
+      - name: Upload test binary to GH Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-test-node
+          path: target/release/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test runtime to GH Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-test-runtime
+          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          if-no-files-found: error
+          retention-days: 7

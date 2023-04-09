@@ -1,0 +1,45 @@
+---
+#  This workflow builds production version of aleph-node and aleph-runtime, ie with some
+#  features enabled. Those binaries MUST be used in the production.
+name: Build production node and runtime
+on:
+  workflow_call:
+
+jobs:
+  main:
+    name: Build production node and runtime
+    runs-on: self-hosted
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build production binary and runtime
+        run: cargo build --profile production -p aleph-node
+
+      - name: Upload release binary to GH artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-release-node
+          path: target/production/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload release runtime to GH artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aleph-release-runtime
+          path: target/production/wbuild/aleph-runtime/aleph_runtime.compact.wasm
+          if-no-files-found: error
+          retention-days: 7
