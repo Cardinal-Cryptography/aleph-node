@@ -278,8 +278,12 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            // check role, only designated account can add liquidity
-            self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?;
+            // check role, under normal circumstances only designated account can add liquidity
+            // when halted only Admin can make deposits
+            match self.is_halted() {
+                false => self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?,
+                true => self.check_role(caller, Role::Admin(this))?,
+            }
 
             deposits
                 .into_iter()
@@ -312,8 +316,12 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            // check role, only designated account can remove liquidity
-            self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?;
+            // check role, under normal circumstances only designated account can remove liquidity
+            // when halted only Admin can make withdrawals
+            match self.is_halted() {
+                false => self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?,
+                true => self.check_role(caller, Role::Admin(this))?,
+            }
 
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
