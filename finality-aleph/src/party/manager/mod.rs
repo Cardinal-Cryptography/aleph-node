@@ -4,6 +4,7 @@ use aleph_primitives::{AlephSessionApi, BlockNumber, KEY_TYPE};
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
+use network_clique::SpawnHandleT;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
@@ -15,7 +16,7 @@ use sp_runtime::{
 use crate::{
     abft::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
-        run_legacy_member, SpawnHandle, SpawnHandleT,
+        run_legacy_member, SpawnHandle,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
@@ -31,9 +32,9 @@ use crate::{
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
     },
-    AuthorityId, CurrentRmcNetworkData, JustificationNotification, Keychain, LegacyRmcNetworkData,
-    Metrics, NodeIndex, SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod,
-    UnitCreationDelay, VersionedNetworkData,
+    AuthorityId, CurrentRmcNetworkData, IdentifierFor, JustificationNotification, Keychain,
+    LegacyRmcNetworkData, Metrics, NodeIndex, SessionBoundaries, SessionBoundaryInfo, SessionId,
+    SessionPeriod, UnitCreationDelay, VersionedNetworkData,
 };
 
 mod aggregator;
@@ -81,7 +82,7 @@ where
     subtask_common: SubtaskCommon,
     data_provider: DataProvider<B>,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    aggregator_io: aggregator::IO<B>,
+    aggregator_io: aggregator::IO<IdentifierFor<B>>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
     backup: ABFTBackup,
@@ -96,14 +97,14 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
 {
     client: Arc<C>,
     select_chain: SC,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
-    authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+    authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
     block_requester: RB,
     metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
     spawn_handle: SpawnHandle,
@@ -120,7 +121,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
 {
     #[allow(clippy::too_many_arguments)]
@@ -129,7 +130,9 @@ where
         select_chain: SC,
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
-        authority_justification_tx: mpsc::UnboundedSender<JustificationNotification<B>>,
+        authority_justification_tx: mpsc::UnboundedSender<
+            JustificationNotification<IdentifierFor<B>>,
+        >,
         block_requester: RB,
         metrics: Option<Metrics<<B::Header as HeaderT>::Hash>>,
         spawn_handle: SpawnHandle,
@@ -386,7 +389,7 @@ where
     C::Api: aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B>,
+    RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
 {
     type Error = SM::Error;
