@@ -7,7 +7,7 @@ use ark_relations::{
     ns,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use ark_std::{vec, vec::Vec, UniformRand};
+use ark_std::{vec, vec::Vec};
 
 type FqEdVar = ark_r1cs_std::fields::fp::FpVar<FqEd>;
 type AffVar = ark_r1cs_std::groups::curves::twisted_edwards::AffineVar<EdwardsParameters, FqEdVar>;
@@ -29,6 +29,9 @@ impl PoE {
             point_y,
             exp,
         }
+    }
+    pub fn public_input(&self) -> Vec<CircuitField> {
+        vec![self.point_x, self.point_y]
     }
 }
 
@@ -56,29 +59,23 @@ impl ConstraintSynthesizer<CircuitField> for PoE {
     }
 }
 
-fn generator() -> EdwardsAffine {
+pub fn generator() -> EdwardsAffine {
     let (x, y) = <EdwardsParameters as TEModelParameters>::AFFINE_GENERATOR_COEFFS;
     EdwardsAffine::new(x, y)
 }
 
-impl PoE {
-    fn public_input(&self) -> Vec<CircuitField> {
-        vec![self.point_x, self.point_y]
-    }
-}
-
+#[cfg(test)]
 mod tests {
     use std::ops::MulAssign;
 
     use ark_bls12_377::Bls12_377;
+    use ark_ff::UniformRand;
     use ark_groth16::Groth16;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef};
     use ark_snark::SNARK;
 
-    //
     use super::*;
 
-    //
     #[test]
     fn poe_constraints_correctness() {
         let mut rng = ark_std::test_rng();
@@ -100,6 +97,7 @@ mod tests {
 
         assert!(is_satisfied);
     }
+
     #[test]
     fn poe_proving_procedure() {
         let mut rng = ark_std::test_rng();
