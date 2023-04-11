@@ -1,5 +1,6 @@
+use ark_bls12_377::Fr;
 use ark_ec::TEModelParameters;
-use ark_ed_on_bls12_377::{EdwardsAffine, EdwardsParameters, Fq, Fr};
+use ark_ed_on_bls12_377::{EdwardsAffine, EdwardsParameters, Fq as FqEd, Fr as FrEd};
 use ark_ff::PrimeField;
 use ark_r1cs_std::groups::curves::twisted_edwards::AffineVar;
 use ark_r1cs_std::ToBitsGadget;
@@ -14,16 +15,15 @@ use ark_relations::{
 use ark_serialize::CanonicalSerialize;
 use ark_std::{marker::PhantomData, vec, vec::Vec, UniformRand};
 
-type FpVar = ark_r1cs_std::fields::fp::FpVar<Fr>;
-type FqVar = ark_r1cs_std::fields::fp::FpVar<Fq>;
-type AffVar = ark_r1cs_std::groups::curves::twisted_edwards::AffineVar<EdwardsParameters, FqVar>;
-type CircuitField = Fr;
-type Secret = Fr; // Scalar field
+type FqEdVar = ark_r1cs_std::fields::fp::FpVar<FqEd>;
+type AffVar = ark_r1cs_std::groups::curves::twisted_edwards::AffineVar<EdwardsParameters, FqEdVar>;
+type CircuitField = Fr; // Scalar field
+type Secret = FrEd; // Ed Scalar field
 
 #[derive(Clone)]
 pub struct PoE<S: State> {
-    pub point_x: Option<Fq>,
-    pub point_y: Option<Fq>,
+    pub point_x: Option<FqEd>,
+    pub point_y: Option<FqEd>,
     pub exp: Option<Secret>,
     _phantom: PhantomData<S>,
 }
@@ -40,7 +40,7 @@ impl PoE<NoInput> {
 }
 
 impl PoE<OnlyPublicInput> {
-    pub fn with_public_input(point_x: Fq, point_y: Fq) -> Self {
+    pub fn with_public_input(point_x: FqEd, point_y: FqEd) -> Self {
         PoE {
             point_x: Some(point_x),
             point_y: Some(point_y),
@@ -51,7 +51,7 @@ impl PoE<OnlyPublicInput> {
 }
 
 impl PoE<FullInput> {
-    pub fn with_full_input(point_x: Fq, point_y: Fq, exp: Secret) -> Self {
+    pub fn with_full_input(point_x: FqEd, point_y: FqEd, exp: Secret) -> Self {
         PoE {
             point_x: Some(point_x),
             point_y: Some(point_y),
@@ -68,20 +68,19 @@ impl<S: State> ConstraintSynthesizer<CircuitField> for PoE<S> {
     ) -> Result<(), SynthesisError> {
         let generator = generator();
         let generator = AffVar::new_constant(ns!(cs, "generator"), generator);
-        let generator = AffineVar::new_constant(ns!(cs, "generator"), || generator);
 
-        // let expected_point = AffVar::new_input(ns!(cs, "point"), || {
-        //     (
-        //         self.point_x.ok_or(AssignmentMissing)?,
-        //         self.point_y.ok_or(AssignmentMissing)?,
-        //     )
-        //         .into()
-        // })?;
+        let expected_point = AffVar::new_input(ns!(cs, "point"), || {
+            (
+                self.point_x.ok_or(AssignmentMissing)?,
+                self.point_y.ok_or(AssignmentMissing)?,
+            )
+                .try_into()
+        })?;
 
-        // let exp = FpVar::new_witness(ns!(cs, "exp"), || self.exp.ok_or(AssignmentMissing))?;
-        // let point = generator.scalar_mul_le(exp.to_bits_le());
+        let exp = FqEdVar::new_witness(ns!(cs, "exp"), || self.exp.ok_or(AssignmentMissing))?;
+        let point = generator.scalar_mul_le(exp.to_bits_le());
 
-        // expected_point.enforce_equal(point)?;
+        expected_point.enforce_equal(point)?;
 
         Ok(())
     }
