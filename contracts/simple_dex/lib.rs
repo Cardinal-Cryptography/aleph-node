@@ -201,6 +201,7 @@ mod simple_dex {
                         swap_pairs: Mapping::default(),
                         _reserved: None,
                     },
+
                     halted: HaltableData { halted: false },
                 }
             } else {
