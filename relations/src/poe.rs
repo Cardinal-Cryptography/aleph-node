@@ -18,8 +18,9 @@ use ark_std::{marker::PhantomData, vec, vec::Vec, UniformRand};
 type FqEdVar = ark_r1cs_std::fields::fp::FpVar<FqEd>;
 type AffVar = ark_r1cs_std::groups::curves::twisted_edwards::AffineVar<EdwardsParameters, FqEdVar>;
 type CircuitField = Fr; // Scalar field
-type Secret = FrEd; // Ed Scalar field
+type Secret = FqEd; // Ed Scalar field
 
+// exp is from FrEd but has to be encoded into FqEd
 #[derive(Clone)]
 pub struct PoE<S: State> {
     pub point_x: Option<FqEd>,
