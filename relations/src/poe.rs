@@ -14,7 +14,6 @@ type AffVar = ark_r1cs_std::groups::curves::twisted_edwards::AffineVar<EdwardsPa
 type CircuitField = Fr; // Scalar field
 type Secret = FrEd; // Ed Scalar field
 
-// exp is from FrEd but has to be encoded into FqEd
 #[derive(Clone)]
 pub struct PoE {
     pub point_x: FqEd,
@@ -30,6 +29,7 @@ impl PoE {
             exp,
         }
     }
+
     pub fn public_input(&self) -> Vec<CircuitField> {
         vec![self.point_x, self.point_y]
     }
@@ -40,11 +40,10 @@ impl ConstraintSynthesizer<CircuitField> for PoE {
         self,
         cs: ConstraintSystemRef<CircuitField>,
     ) -> Result<(), SynthesisError> {
-        let generator = generator();
-        let generator = AffVar::new_constant(ns!(cs, "generator"), generator)?;
+        let generator = AffVar::new_constant(ns!(cs, "generator"), generator()?;
 
-        let x = FqEdVar::new_input(ns!(cs, "point"), || Ok(self.point_x))?;
-        let y = FqEdVar::new_input(ns!(cs, "point"), || Ok(self.point_y))?;
+        let x = FqEdVar::new_input(ns!(cs, "point_x"), || Ok(self.point_x))?;
+        let y = FqEdVar::new_input(ns!(cs, "point_y"), || Ok(self.point_y))?;
 
         let expected_point = AffVar::new(x, y);
 
