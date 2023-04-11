@@ -7,10 +7,13 @@ use std::{
 use futures::channel::mpsc::{self, UnboundedSender};
 use parking_lot::Mutex;
 
-use crate::sync::{
-    mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
-    BlockIdentifier, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
-    Justification as JustificationT,
+use crate::{
+    sync::{
+        mock::{MockHeader, MockIdentifier, MockJustification, MockNotification},
+        BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
+        Justification as JustificationT,
+    },
+    BlockIdentifier,
 };
 
 #[derive(Clone, Debug)]
@@ -42,7 +45,6 @@ struct BackendStorage {
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
     best_block: MockIdentifier,
-    genesis_block: MockIdentifier,
 }
 
 #[derive(Clone, Debug)]
@@ -95,8 +97,7 @@ impl Backend {
             session_period,
             blockchain: HashMap::from([(id.clone(), block)]),
             finalized: vec![id.clone()],
-            best_block: id.clone(),
-            genesis_block: id,
+            best_block: id,
         }));
 
         Self {
