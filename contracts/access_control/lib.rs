@@ -16,15 +16,18 @@ type Hash = <DefaultEnvironment as Environment>::Hash;
 mod access_control {
     use ink::{
         codegen::EmitEvent,
-        env::{set_code_hash, Error as InkEnvError},
+        env::{
+            call::{build_call, ExecutionInput},
+            set_code_hash, Error as InkEnvError,
+        },
         prelude::{format, string::String},
         reflect::ContractEventBase,
         storage::Mapping,
     };
     use scale::{Decode, Encode};
+    use shared_traits::Selector;
 
-    use crate::roles::Role;
-
+    use crate::{roles::Role, DefaultEnvironment};
     // address placeholder, to be set in the bytecode
     // 4465614444656144446561444465614444656144446561444465614444656144 => 5DcPEG9AQ4Y9Lo9C5WXuKJDDawens77jWxZ6zGChnm8y8FUX
     pub const ACCESS_CONTROL_PUBKEY: [u8; 32] = *b"DeaDDeaDDeaDDeaDDeaDDeaDDeaDDeaD";
@@ -176,9 +179,24 @@ mod access_control {
 
         /// Upgrades contract code
         #[ink(message, selector = 6)]
-        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<()> {
+        pub fn set_code(&mut self, code_hash: [u8; 32], callback: Option<Selector>) -> Result<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             set_code_hash(&code_hash)?;
+
+            // Optionally call a callback function in the new contract that performs the storage data migration.
+            // By convention this function should be called `migrate`, it should take no arguments
+            // and be call-able only by `this` contract's instance address.
+            // To ensure the latter the `migrate` in the updated contract can e.g. check if it has an Admin role on self.
+            //
+            // `delegatecall` ensures that the target contract is called within the caller contracts context.
+            if let Some(selector) = callback {
+                build_call::<DefaultEnvironment>()
+                    .delegate(Hash::from(code_hash))
+                    .exec_input(ExecutionInput::new(ink::env::call::Selector::new(selector)))
+                    .returns::<Result<()>>()
+                    .invoke()?;
+            }
+
             Ok(())
         }
 

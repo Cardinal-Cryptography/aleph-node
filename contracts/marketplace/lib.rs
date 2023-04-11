@@ -27,7 +27,10 @@ pub mod marketplace {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
         codegen::{EmitEvent, Env},
-        env::{call::FromAccountId, set_code_hash},
+        env::{
+            call::{build_call, ExecutionInput, FromAccountId},
+            set_code_hash, DefaultEnvironment,
+        },
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
         LangError,
@@ -36,7 +39,7 @@ pub mod marketplace {
         contracts::psp22::{extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref},
         traits::Storage,
     };
-    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
@@ -329,9 +332,28 @@ pub mod marketplace {
 
         /// Upgrades contract code
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32]) -> Result<(), Error> {
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            callback: Option<Selector>,
+        ) -> Result<(), Error> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             set_code_hash(&code_hash)?;
+
+            // Optionally call a callback function in the new contract that performs the storage data migration.
+            // By convention this function should be called `migrate`, it should take no arguments
+            // and be call-able only by `this` contract's instance address.
+            // To ensure the latter the `migrate` in the updated contract can e.g. check if it has an Admin role on self.
+            //
+            // `delegatecall` ensures that the target contract is called within the caller contracts context.
+            if let Some(selector) = callback {
+                build_call::<DefaultEnvironment>()
+                    .delegate(Hash::from(code_hash))
+                    .exec_input(ExecutionInput::new(ink::env::call::Selector::new(selector)))
+                    .returns::<Result<(), Error>>()
+                    .invoke()?;
+            }
+
             Ok(())
         }
 

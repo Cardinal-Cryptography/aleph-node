@@ -11,7 +11,10 @@ pub mod button_game {
     use ink::storage::traits::StorageLayout;
     use ink::{
         codegen::{EmitEvent, Env},
-        env::{call::FromAccountId, set_code_hash, CallFlags},
+        env::{
+            call::{build_call, ExecutionInput, FromAccountId},
+            set_code_hash, CallFlags, DefaultEnvironment,
+        },
         prelude::vec,
         reflect::ContractEventBase,
         ToAccountId,
@@ -22,7 +25,7 @@ pub mod button_game {
         traits::Storage,
     };
     use scale::{Decode, Encode};
-    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
 
     use crate::errors::GameError;
 
@@ -326,9 +329,28 @@ pub mod button_game {
 
         /// Upgrades contract code
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: [u8; 32]) -> ButtonResult<()> {
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            callback: Option<Selector>,
+        ) -> ButtonResult<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             set_code_hash(&code_hash)?;
+
+            // Optionally call a callback function in the new contract that performs the storage data migration.
+            // By convention this function should be called `migrate`, it should take no arguments
+            // and be call-able only by `this` contract's instance address.
+            // To ensure the latter the `migrate` in the updated contract can e.g. check if it has an Admin role on self.
+            //
+            // `delegatecall` ensures that the target contract is called within the caller contracts context.
+            if let Some(selector) = callback {
+                build_call::<DefaultEnvironment>()
+                    .delegate(Hash::from(code_hash))
+                    .exec_input(ExecutionInput::new(ink::env::call::Selector::new(selector)))
+                    .returns::<ButtonResult<()>>()
+                    .invoke()?;
+            }
+
             Ok(())
         }
 
