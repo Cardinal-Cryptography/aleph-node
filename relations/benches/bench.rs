@@ -7,7 +7,10 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSys
 use ark_snark::SNARK;
 use ark_std::UniformRand;
 use criterion::{criterion_group, criterion_main, Criterion};
-use liminal_ark_relations::poe::{generator, PoE};
+use liminal_ark_relations::{
+    poe::{generator, PoE},
+    CanonicalSerialize,
+};
 
 fn poe(c: &mut Criterion) {
     let mut rng = ark_std::test_rng();
@@ -25,8 +28,27 @@ fn poe(c: &mut Criterion) {
 
     let circuit = PoE::new(point.x, point.y, exp);
     let (pk, vk) = Groth16::<Bls12_377>::circuit_specific_setup(circuit.clone(), &mut rng).unwrap();
+
+    println!(
+        "verification key size: {} {}",
+        vk.serialized_size(),
+        vk.uncompressed_size()
+    );
+    println!(
+        "proving key size: {} {}",
+        pk.serialized_size(),
+        pk.uncompressed_size()
+    );
+
     let input = circuit.public_input();
     let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
+
+    println!(
+        "proof size: {} {}",
+        proof.serialized_size(),
+        proof.uncompressed_size()
+    );
+
     let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
     assert!(valid_proof);
 
