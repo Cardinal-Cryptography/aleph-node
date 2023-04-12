@@ -1,0 +1,48 @@
+---
+name: PR comment
+
+on: issue_comment
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  get-command:
+    name: Create featurenet command
+    if: ${{ github.event.issue.pull_request }}
+    runs-on: ubuntu-20.04
+    outputs:
+      command: ${{ steps.get-command.outputs.command }}
+    steps:
+      - name: Create featurenet
+        id: get-command
+        run: |
+          if [[ "${{ github.event.comment.body }}" =~ ^create\-featurenet\!.*$ ]]; then
+            echo "command=create-featurenet" >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{ github.event.comment.body }}" =~ ^create\-hotfix\-featurenet\!.*$ ]]; then
+            echo "command=create-hotfix-featurenet" >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{ github.event.comment.body }}" =~ ^delete\-featurenet\!.*$ ]]; then
+            echo "command=delete-featurenet" >> $GITHUB_OUTPUT
+          fi
+
+  create-featurenet:
+    needs: [get-command]
+    if: >
+      needs.get-command.outputs.command == 'create-featurenet' ||
+      needs.get-command.outputs.command == 'create-hotfix-featurenet'
+    name: Create featurenet
+    uses: ./.github/workflows/_create-featurenet.yml
+    with:
+      # yamllint disable-line rule:line-length
+      hotfix: ${{ needs.get-command.outputs.command == 'create-hotfix-featurenet' && true || false }}
+    secrets: inherit
+
+  delete-featurenet:
+    needs: [get-command]
+    if: needs.get-command.outputs.command == 'delete-featurenet'
+    name: Create featurenet
+    uses: ./.github/workflows/_delete-featurenet.yml
+    secrets: inherit
