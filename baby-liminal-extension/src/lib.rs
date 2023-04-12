@@ -18,8 +18,6 @@ pub mod executor;
 use ::ink::{prelude::vec::Vec, primitives::AccountId as AccountId32};
 #[cfg(feature = "substrate")]
 use obce::substrate::{sp_runtime::AccountId32, sp_std::vec::Vec};
-#[cfg(feature = "std")]
-use scale_info::TypeInfo;
 
 // `pallet_baby_liminal::store_key` errors
 const BABY_LIMINAL_STORE_KEY_ERROR: u32 = 10_000;
