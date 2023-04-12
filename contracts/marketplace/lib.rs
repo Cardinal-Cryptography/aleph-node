@@ -367,6 +367,8 @@ pub mod marketplace {
         }
     }
 
+    /// Returns (an approximation of) the linear function passing through `(x_start, y_start)` and `(x_end, y_end)` at
+    /// `x`. If `x` is outside the range of `x_start` and `x_end`, the value of `y` at the closest endpoint is returned.
     fn linear_decrease(x_start: u128, y_start: u128, x_end: u128, y_end: u128, x: u128) -> u128 {
         let steps = x.saturating_sub(x_start);
         let x_span = x_end.saturating_sub(x_start);
