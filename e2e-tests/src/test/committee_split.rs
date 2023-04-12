@@ -13,10 +13,11 @@ use crate::{
     accounts::{get_validator_seed, get_validators_keys, NodeKeys},
     config::setup_test,
     rewards::set_invalid_keys_for_validator,
+    validators::validator_address,
 };
 
-/// time needed for 5 out of 7 block producers to do 3 sessions.
-const SLEEP_DURATION: Duration = Duration::from_secs(126);
+/// approx. time needed for 5 out of 7 block producers to do 3 sessions.
+const SLEEP_DURATION: Duration = Duration::from_secs(130);
 
 async fn prepare_test() -> anyhow::Result<()> {
     let config = setup_test();
@@ -45,15 +46,6 @@ async fn prepare_test() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
-}
-
-fn validator_address(index: u32) -> String {
-    const BASE: &str = "ws://127.0.0.1";
-    const FIRST_PORT: u32 = 9944;
-
-    let port = FIRST_PORT + index;
-
-    format!("{BASE}:{port}")
 }
 
 async fn disable_validators(indexes: &[u32]) -> anyhow::Result<()> {
@@ -118,13 +110,13 @@ async fn split_test_reserved_01() -> anyhow::Result<()> {
 #[tokio::test]
 /// Check if reserved node-1 and node-2 are in the finality committee
 async fn split_test_reserved_12() -> anyhow::Result<()> {
-    split_disable(&[0, 1]).await
+    split_disable(&[1, 2]).await
 }
 
 #[tokio::test]
 /// Check if reserved node-0 and node-2 are in the finality committee
 async fn split_test_reserved_02() -> anyhow::Result<()> {
-    split_disable(&[0, 1]).await
+    split_disable(&[0, 2]).await
 }
 
 #[tokio::test]
