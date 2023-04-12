@@ -34,10 +34,8 @@ jobs:
         env:
           AWS_REGION: us-east-1
         with:
-          # TODO change
-          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID_2 }}
-          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY_2 }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download release runtime from S3 bucket
