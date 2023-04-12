@@ -40,7 +40,7 @@ impl ConstraintSynthesizer<CircuitField> for PoE {
         self,
         cs: ConstraintSystemRef<CircuitField>,
     ) -> Result<(), SynthesisError> {
-        let generator = AffVar::new_constant(ns!(cs, "generator"), generator()?;
+        let generator = AffVar::new_constant(ns!(cs, "generator"), generator())?;
 
         let x = FqEdVar::new_input(ns!(cs, "point_x"), || Ok(self.point_x))?;
         let y = FqEdVar::new_input(ns!(cs, "point_y"), || Ok(self.point_y))?;
