@@ -75,8 +75,8 @@ jobs:
           docker build -t "${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}" \
             -f ./bin/cliain/Dockerfile ./bin/cliain
           if [[ \
-            "${{ github.event_name }}" == 'workflow_dispatch' || \
-            "${{ github.event_name }}" == 'push' \
+            "${{ github.event_name }}" == "workflow_dispatch" || \
+            "${{ github.event_name }}" == "push" \
           ]]; then
              docker push "${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}"
           fi
