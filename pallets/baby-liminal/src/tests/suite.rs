@@ -14,15 +14,15 @@ const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
 const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
 
 fn vk() -> Vec<u8> {
-    include_bytes!("../resources/xor.vk.bytes").to_vec()
+    include_bytes!("../resources/groth16/xor.vk.bytes").to_vec()
 }
 
 fn proof() -> Vec<u8> {
-    include_bytes!("../resources/xor.proof.bytes").to_vec()
+    include_bytes!("../resources/groth16/xor.proof.bytes").to_vec()
 }
 
 fn input() -> Vec<u8> {
-    include_bytes!("../resources/xor.public_input.bytes").to_vec()
+    include_bytes!("../resources/groth16/xor.public_input.bytes").to_vec()
 }
 
 fn owner() -> OriginFor<TestRuntime> {
@@ -278,7 +278,7 @@ fn verify_shouts_when_input_is_not_deserializable() {
 fn verify_shouts_when_verification_fails() {
     new_test_ext().execute_with(|| {
         put_key();
-        let other_input = include_bytes!("../resources/linear_equation.public_input.bytes");
+        let other_input = include_bytes!("../resources/groth16/linear_equation.public_input.bytes");
 
         let result =
             BabyLiminal::verify(owner(), IDENTIFIER, proof(), other_input.to_vec(), SYSTEM);
@@ -295,7 +295,7 @@ fn verify_shouts_when_verification_fails() {
 fn verify_shouts_when_proof_is_incorrect() {
     new_test_ext().execute_with(|| {
         put_key();
-        let other_proof = include_bytes!("../resources/linear_equation.proof.bytes");
+        let other_proof = include_bytes!("../resources/groth16/linear_equation.proof.bytes");
 
         let result =
             BabyLiminal::verify(owner(), IDENTIFIER, other_proof.to_vec(), input(), SYSTEM);
