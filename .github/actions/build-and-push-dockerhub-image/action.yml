@@ -14,10 +14,6 @@ inputs:
   additional-image:
     description: Additional image to tag
     required: false
-  push:
-    description: Push image
-    required: false
-    default: 'false'
   dockerhub-username:
     description: Docker Hub username
     required: true
@@ -44,9 +40,7 @@ runs:
     - name: Push image to Docker Hub
       shell: bash
       run: |
-        if [[ -n "${{ inputs.push }}" ]]; then
-          docker push ${{ inputs.target-image }}
-        fi
+        docker push ${{ inputs.target-image }}
         if [[ -n "${{ inputs.additional-image }}" ]]; then
           docker tag ${{ inputs.source-image }} ${{ inputs.additional-image }}
           docker push ${{ inputs.additional-image }}

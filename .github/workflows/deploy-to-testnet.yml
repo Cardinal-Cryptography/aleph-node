@@ -46,7 +46,6 @@ jobs:
             ${{ steps.get-docker-image-names.outputs.dockerhub-testnet-latest-image }}
           dockerhub-username: "${{ secrets.DOCKERHUB_USERNAME }}"
           dockerhub-password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          push: 'true'
 
   slack:
     name: Slack notification

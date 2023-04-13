@@ -16,13 +16,17 @@ jobs:
       - name: Validate action inputs
         shell: bash
         run: |
-          if [[ ${{ inputs.env }} != 'testnet' && ${{ inputs.env }} != 'mainnet' ]]; then
+          if [[ "${{ inputs.env }}" != 'testnet' && "${{ inputs.env }}" != 'mainnet' ]]; then
             echo "Error: inputs.env should be either mainnet or testnet!"
             exit 1
           fi
 
       - name: Checkout source code
         uses: actions/checkout@v3
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: ./.github/actions/get-ref-properties
 
       - name: Call action Get ECR image names
         id: get-docker-image-names
@@ -82,10 +86,10 @@ jobs:
       - name: GIT | Commit changes to argocd apps repository.
         uses: EndBug/add-and-commit@v9.1.1
         env:
-          DEPLOY_IMAGE: ${{ steps.get-docker-image-names.outputs.ecr-deploy-image }}
+          TAG: ${{ steps.get-ref-properties.outputs.tag }}
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-          message: "Update ${{ inputs.env }} docker image tag for release: ${{ env.DEPLOY_IMAGE }}"
+          message: "Update ${{ inputs.env }} aleph-node tag ${{ env.TAG }}"
           add: "*.yaml"
           cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
