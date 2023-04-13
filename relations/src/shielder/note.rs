@@ -6,7 +6,7 @@ use liminal_ark_poseidon::hash;
 use super::types::{
     FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
 };
-use crate::{shielder::convert_hash, CircuitField};
+use crate::{environment::CircuitField, shielder::convert_hash};
 
 /// Compute note as the result of hashing `(token_id, token_amount, trapdoor, nullifier)`.
 ///
@@ -20,8 +20,8 @@ pub fn compute_note(
     hash::four_to_one_hash([
         CircuitField::from(token_id as u64),
         CircuitField::from(token_amount),
-        CircuitField::from(trapdoor),
-        CircuitField::from(nullifier),
+        convert_hash(trapdoor),
+        convert_hash(nullifier),
     ])
     .0
      .0
@@ -64,8 +64,8 @@ mod tests {
     fn note_conversion() {
         let token_id: FrontendTokenId = 1;
         let token_amount: FrontendTokenAmount = 10;
-        let trapdoor: FrontendTrapdoor = 17;
-        let nullifier: FrontendNullifier = 19;
+        let trapdoor: FrontendTrapdoor = [17; 4];
+        let nullifier: FrontendNullifier = [19; 4];
         let note = compute_note(token_id, token_amount, trapdoor, nullifier);
 
         let bytes = bytes_from_note(&note);

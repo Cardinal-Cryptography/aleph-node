@@ -1,6 +1,6 @@
 use liminal_ark_relation_macro::snark_relation;
 
-use crate::{BackendNote, FrontendNote};
+use super::types::{BackendNote, FrontendNote};
 
 /// 'Deposit' relation for the Shielder application.
 ///
@@ -8,20 +8,22 @@ use crate::{BackendNote, FrontendNote};
 /// `token_amount`, `trapdoor` and `nullifier`.
 #[snark_relation]
 mod relation {
-    use ark_r1cs_std::alloc::AllocationMode::{Input, Witness};
+    #[cfg(feature = "circuit")]
+    use {
+        crate::shielder::note_var::NoteVarBuilder,
+        ark_r1cs_std::alloc::AllocationMode::{Input, Witness},
+    };
 
-    use crate::{
-        shielder::{
-            convert_hash,
-            types::{
-                BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
-                FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
-            },
+    use crate::shielder::{
+        convert_hash,
+        types::{
+            BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
+            FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
         },
-        NoteVarBuilder,
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct DepositRelation {
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub note: BackendNote,
@@ -30,12 +32,13 @@ mod relation {
         #[public_input(frontend_type = "FrontendTokenAmount")]
         pub token_amount: BackendTokenAmount,
 
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendNullifier")]
+        #[private_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub nullifier: BackendNullifier,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         let _note = NoteVarBuilder::new(cs)
@@ -49,7 +52,7 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
@@ -59,16 +62,16 @@ mod tests {
     use super::{
         DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
     };
-    use crate::{
-        shielder::note::compute_note, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
-        FrontendTrapdoor,
+    use crate::shielder::{
+        note::compute_note,
+        types::{FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor},
     };
 
     fn get_circuit_with_full_input() -> DepositRelationWithFullInput {
         let token_id: FrontendTokenId = 1;
-        let token_amount: FrontendTokenAmount = 10;
-        let trapdoor: FrontendTrapdoor = 17;
-        let nullifier: FrontendNullifier = 19;
+        let token_amount: FrontendTokenAmount = 100_000_000_000_000_000_000;
+        let trapdoor: FrontendTrapdoor = [17; 4];
+        let nullifier: FrontendNullifier = [19; 4];
         let note = compute_note(token_id, token_amount, trapdoor, nullifier);
 
         DepositRelationWithFullInput::new(note, token_id, token_amount, trapdoor, nullifier)

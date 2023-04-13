@@ -1,12 +1,14 @@
-use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
+use aleph_primitives::BlockNumber;
 use sc_client_api::{Backend, Finalizer as SubstrateFinalizer, HeaderBackend, LockImportRun};
 use sp_blockchain::Error as ClientError;
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 
 use crate::{
     finalization::{AlephFinalizer, BlockFinalizer},
-    justification::versioned_encode,
-    sync::{substrate::Justification, Finalizer},
+    sync::{
+        substrate::{InnerJustification, Justification},
+        Finalizer,
+    },
 };
 
 impl<B, BE, C> Finalizer<Justification<B::Header>> for AlephFinalizer<B, BE, C>
@@ -19,13 +21,15 @@ where
     type Error = ClientError;
 
     fn finalize(&self, justification: Justification<B::Header>) -> Result<(), Self::Error> {
-        self.finalize_block(
-            justification.header.hash(),
-            *justification.header.number(),
-            Some((
-                ALEPH_ENGINE_ID,
-                versioned_encode(justification.raw_justification),
+        match justification.inner_justification {
+            InnerJustification::AlephJustification(aleph_justification) => self.finalize_block(
+                (justification.header.hash(), *justification.header.number()).into(),
+                aleph_justification.into(),
+            ),
+            _ => Err(Self::Error::BadJustification(
+                "Trying fo finalize the genesis block using virtual sync justification."
+                    .to_string(),
             )),
-        )
+        }
     }
 }

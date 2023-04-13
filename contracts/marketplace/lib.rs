@@ -26,19 +26,22 @@ pub const RESET_SELECTOR: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 pub mod marketplace {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
-        codegen::EmitEvent,
+        codegen::{EmitEvent, Env},
         env::call::FromAccountId,
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
         LangError,
     };
-    use openbrush::contracts::psp22::{
-        extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref,
+    use openbrush::{
+        contracts::psp22::{extensions::burnable::PSP22BurnableRef, PSP22Error, PSP22Ref},
+        traits::Storage,
     };
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal};
 
     type Event = <Marketplace as ContractEventBase>::Type;
 
     #[ink(storage)]
+    #[derive(Storage)]
     pub struct Marketplace {
         total_proceeds: Balance,
         tickets_sold: Balance,
@@ -49,17 +52,26 @@ pub mod marketplace {
         ticket_token: AccountId,
         reward_token: AccountId,
         access_control: AccessControlRef,
+        #[storage_field]
+        pub halted: HaltableData,
     }
 
     #[derive(Eq, PartialEq, Debug, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
+        HaltableError(HaltableError),
         MissingRole(Role),
         ContractCall(String),
         PSP22TokenCall(PSP22Error),
         MaxPriceExceeded,
         MarketplaceEmpty,
     }
+
+    #[ink(event)]
+    pub struct Halted;
+
+    #[ink(event)]
+    pub struct Resumed;
 
     #[ink(event)]
     #[derive(Clone, Eq, PartialEq, Debug)]
@@ -91,6 +103,42 @@ pub mod marketplace {
         }
     }
 
+    impl From<Error> for HaltableError {
+        fn from(inner: Error) -> Self {
+            HaltableError::Custom(format!("{:?}", inner))
+        }
+    }
+
+    impl From<HaltableError> for Error {
+        fn from(inner: HaltableError) -> Self {
+            Error::HaltableError(inner)
+        }
+    }
+
+    impl Internal for Marketplace {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
+        }
+
+        fn _after_resume(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+    }
+
+    impl Haltable for Marketplace {}
+
     impl Marketplace {
         #[ink(constructor)]
         pub fn new(
@@ -114,6 +162,7 @@ pub mod marketplace {
                     total_proceeds: starting_price.saturating_div(sale_multiplier),
                     tickets_sold: 1,
                     access_control,
+                    halted: HaltableData { halted: false },
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");
@@ -174,11 +223,23 @@ pub mod marketplace {
         /// Update the minimal price.
         #[ink(message)]
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
-
+            self.check_role(Self::env().caller(), self.admin())?;
             self.min_price = value;
-
             Ok(())
+        }
+
+        /// Update the length of the auction.
+        ///
+        /// Can only be called by an account with an Admin role
+        /// and only if the contract is currently halted
+        #[ink(message)]
+        pub fn set_auction_length(&mut self, new_auction_length: BlockNumber) -> Result<(), Error> {
+            if self.is_halted() {
+                self.check_role(self.env().caller(), self.admin())?;
+                self.auction_length = new_auction_length;
+                return Ok(());
+            }
+            Err(Error::HaltableError(HaltableError::NotInHaltedState))
         }
 
         /// Address of the reward token contract this contract will accept as payment.
@@ -200,6 +261,8 @@ pub mod marketplace {
         /// current price is greater than that.
         #[ink(message)]
         pub fn buy(&mut self, max_price: Option<Balance>) -> Result<(), Error> {
+            self.check_halted()?;
+
             if self.ticket_balance() == 0 {
                 return Err(Error::MarketplaceEmpty);
             }
@@ -231,7 +294,7 @@ pub mod marketplace {
         /// Requires `Role::Admin`.
         #[ink(message, selector = 0x00000001)]
         pub fn reset(&mut self) -> Result<(), Error> {
-            self.ensure_role(self.admin())?;
+            self.check_role(self.env().caller(), self.admin())?;
 
             self.current_start_block = self.env().block_number();
             Self::emit_event(self.env(), Event::Reset(Reset {}));
@@ -245,24 +308,21 @@ pub mod marketplace {
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.ensure_role(Role::Admin(this))?;
+            self.check_role(caller, self.admin())?;
             self.env().terminate_contract(caller)
         }
 
         fn current_price(&self) -> Balance {
-            let block = self.env().block_number();
-            let elapsed = block.saturating_sub(self.current_start_block);
-            self.average_price()
-                .saturating_mul(self.sale_multiplier)
-                .saturating_sub(self.per_block_reduction().saturating_mul(elapsed.into()))
-                .max(self.min_price)
-        }
-
-        fn per_block_reduction(&self) -> Balance {
-            self.average_price()
-                .saturating_div(self.auction_length.into())
-                .max(1u128)
+            linear_decrease(
+                self.current_start_block.into(),
+                self.average_price().saturating_mul(self.sale_multiplier),
+                self.current_start_block
+                    .saturating_add(self.auction_length)
+                    .into(),
+                self.min_price,
+                self.env().block_number().into(),
+            )
+            .max(self.min_price)
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
@@ -283,8 +343,8 @@ pub mod marketplace {
             PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
         }
 
-        fn ensure_role(&self, role: Role) -> Result<(), Error> {
-            if self.access_control.has_role(self.env().caller(), role) {
+        fn check_role(&self, account: AccountId, role: Role) -> Result<(), Error> {
+            if self.access_control.has_role(account, role) {
                 Ok(())
             } else {
                 Err(Error::MissingRole(role))
@@ -304,6 +364,51 @@ pub mod marketplace {
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event)
+        }
+    }
+
+    /// Returns (an approximation of) the linear function passing through `(x_start, y_start)` and `(x_end, y_end)` at
+    /// `x`. If `x` is outside the range of `x_start` and `x_end`, the value of `y` at the closest endpoint is returned.
+    fn linear_decrease(x_start: u128, y_start: u128, x_end: u128, y_end: u128, x: u128) -> u128 {
+        let steps = x.saturating_sub(x_start);
+        let x_span = x_end.saturating_sub(x_start);
+        let y_span = y_start.saturating_sub(y_end);
+
+        if x >= x_end {
+            y_end
+        } else if x <= x_start {
+            y_start
+        } else if y_span > x_span {
+            let y_per_x = y_span.saturating_div(x_span);
+            y_start.saturating_sub(steps.saturating_mul(y_per_x))
+        } else {
+            let x_per_y = x_span.saturating_div(y_span);
+            y_start.saturating_sub(steps.saturating_div(x_per_y))
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use assert2::assert;
+
+        use super::*;
+
+        #[test]
+        fn test_linear_decrease_with_slope_over_1() {
+            assert!(linear_decrease(1, 100, 50, 1, 2) == 98);
+            assert!(linear_decrease(1, 100, 50, 1, 3) == 96);
+        }
+
+        #[ink::test]
+        fn test_linear_decrease_with_slope_under_1() {
+            assert!(linear_decrease(1, 50, 100, 1, 2) == 50);
+            assert!(linear_decrease(1, 50, 100, 1, 3) == 49);
+        }
+
+        #[ink::test]
+        fn test_linear_decrease_with_slope_equal_1() {
+            assert!(linear_decrease(1, 50, 50, 1, 2) == 49);
+            assert!(linear_decrease(1, 50, 50, 1, 3) == 48);
         }
     }
 }

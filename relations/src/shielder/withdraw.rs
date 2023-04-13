@@ -16,34 +16,36 @@ use liminal_ark_relation_macro::snark_relation;
 /// for the length of the merkle path (which is ~the height of the tree, ±1).
 #[snark_relation]
 mod relation {
-    use core::ops::Add;
-
-    use ark_r1cs_std::{
-        alloc::{
-            AllocVar,
-            AllocationMode::{Input, Witness},
+    #[cfg(feature = "circuit")]
+    use {
+        crate::shielder::{
+            check_merkle_proof, note_var::NoteVarBuilder, path_shape_var::PathShapeVar,
+            token_amount_var::TokenAmountVar,
         },
-        eq::EqGadget,
-        fields::fp::FpVar,
-    };
-    use ark_relations::ns;
-
-    use crate::{
-        shielder::{
-            check_merkle_proof, convert_account, convert_hash, convert_vec,
-            path_shape_var::PathShapeVar,
-            types::{
-                BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot,
-                BackendNote, BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
-                FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot,
-                FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
-                FrontendTrapdoor,
+        ark_r1cs_std::{
+            alloc::{
+                AllocVar,
+                AllocationMode::{Input, Witness},
             },
+            eq::EqGadget,
+            fields::fp::FpVar,
         },
-        NoteVarBuilder,
+        ark_relations::ns,
+        core::ops::Add,
+    };
+
+    use crate::shielder::{
+        convert_account, convert_hash, convert_vec,
+        types::{
+            BackendAccount, BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
+            BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendAccount,
+            FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
+            FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        },
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct WithdrawRelation {
         #[constant]
         pub max_path_len: u8,
@@ -55,7 +57,7 @@ mod relation {
         pub recipient: BackendAccount,
         #[public_input(frontend_type = "FrontendTokenId")]
         pub token_id: BackendTokenId,
-        #[public_input(frontend_type = "FrontendNullifier")]
+        #[public_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub old_nullifier: BackendNullifier,
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub new_note: BackendNote,
@@ -65,11 +67,11 @@ mod relation {
         pub merkle_root: BackendMerkleRoot,
 
         // Private inputs.
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub old_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub new_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendNullifier")]
+        #[private_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub new_nullifier: BackendNullifier,
         #[private_input(frontend_type = "FrontendMerklePath", parse_with = "convert_vec")]
         pub merkle_path: BackendMerklePath,
@@ -83,12 +85,13 @@ mod relation {
         pub new_token_amount: BackendTokenAmount,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         //-----------------------------------------------
         // Baking `fee` and `recipient` into the circuit.
         //-----------------------------------------------
-        let _fee = FpVar::new_input(ns!(cs, "fee"), || self.fee())?;
+        let _fee = TokenAmountVar::new_input(ns!(cs, "fee"), || self.fee())?;
         let _recipient = FpVar::new_input(ns!(cs, "recipient"), || self.recipient())?;
 
         //------------------------------
@@ -117,9 +120,8 @@ mod relation {
         // Check the token values soundness.
         //----------------------------------
         let token_amount_out =
-            FpVar::new_input(ns!(cs, "token amount out"), || self.token_amount_out())?;
-        // some range checks for overflows?
-        let token_sum = token_amount_out.add(new_note.token_amount);
+            TokenAmountVar::new_input(ns!(cs, "token amount out"), || self.token_amount_out())?;
+        let token_sum = token_amount_out.add(new_note.token_amount)?;
         token_sum.enforce_equal(&old_note.token_amount)?;
 
         //------------------------
@@ -141,17 +143,20 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
+    use std::ops::Neg;
+
     use ark_bls12_381::Bls12_381;
+    use ark_ff::One;
     use ark_groth16::Groth16;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::{
-        shielder::note::{compute_note, compute_parent_hash},
-        FrontendAccount,
+    use crate::shielder::{
+        note::{compute_note, compute_parent_hash},
+        types::{BackendNote, BackendTokenAmount, FrontendAccount},
     };
 
     const MAX_PATH_LEN: u8 = 4;
@@ -159,12 +164,12 @@ mod tests {
     fn get_circuit_with_full_input() -> WithdrawRelationWithFullInput {
         let token_id: FrontendTokenId = 1;
 
-        let old_trapdoor: FrontendTrapdoor = 17;
-        let old_nullifier: FrontendNullifier = 19;
+        let old_trapdoor: FrontendTrapdoor = [17; 4];
+        let old_nullifier: FrontendNullifier = [19; 4];
         let whole_token_amount: FrontendTokenAmount = 10;
 
-        let new_trapdoor: FrontendTrapdoor = 27;
-        let new_nullifier: FrontendNullifier = 87;
+        let new_trapdoor: FrontendTrapdoor = [27; 4];
+        let new_nullifier: FrontendNullifier = [87; 4];
         let new_token_amount: FrontendTokenAmount = 3;
 
         let token_amount_out: FrontendTokenAmount = 7;
@@ -181,9 +186,9 @@ mod tests {
 
         let zero_note = FrontendNote::default(); // x
 
-        let sibling_note = compute_note(0, 1, 2, 3); // 4
+        let sibling_note = compute_note(0, 1, [2; 4], [3; 4]); // 4
         let parent_note = compute_parent_hash(sibling_note, old_note); // 2
-        let uncle_note = compute_note(4, 5, 6, 7); // 3
+        let uncle_note = compute_note(4, 5, [6; 4], [7; 4]); // 3
         let grandpa_root = compute_parent_hash(parent_note, uncle_note); // 1
 
         let placeholder = compute_parent_hash(grandpa_root, zero_note);
@@ -234,16 +239,16 @@ mod tests {
 
     #[test]
     fn withdraw_proving_procedure() {
-        let circuit_withouth_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
+        let circuit_without_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
-            Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_without_input, &mut rng).unwrap();
 
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
 
-        let circuit: WithdrawRelationWithPublicInput = get_circuit_with_full_input().into();
+        let circuit = WithdrawRelationWithPublicInput::from(get_circuit_with_full_input());
         let input = circuit.serialize_public_input();
         let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
         assert!(valid_proof);
@@ -251,11 +256,11 @@ mod tests {
 
     #[test]
     fn neither_fee_nor_recipient_are_simplified_out() {
-        let circuit_withouth_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
+        let circuit_without_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
 
         let mut rng = ark_std::test_rng();
         let (pk, vk) =
-            Groth16::<Bls12_381>::circuit_specific_setup(circuit_withouth_input, &mut rng).unwrap();
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_without_input, &mut rng).unwrap();
 
         let circuit = get_circuit_with_full_input();
         let proof = Groth16::prove(&pk, circuit, &mut rng).unwrap();
@@ -275,6 +280,36 @@ mod tests {
         assert_ne!(true_input[1], input_with_corrupted_recipient[1]);
 
         let valid_proof = Groth16::verify(&vk, &input_with_corrupted_recipient, &proof).unwrap();
+        assert!(!valid_proof);
+    }
+
+    #[test]
+    fn cannot_create_sneaky_note() {
+        let circuit_without_input = WithdrawRelationWithoutInput::new(MAX_PATH_LEN);
+
+        let mut rng = ark_std::test_rng();
+        let (pk, vk) =
+            Groth16::<Bls12_381>::circuit_specific_setup(circuit_without_input, &mut rng).unwrap();
+
+        let mut circuit = get_circuit_with_full_input();
+        // We want to take one token more than deposited...
+        circuit.token_amount_out = circuit.whole_token_amount + BackendTokenAmount::one();
+        // ... hence we need to leave in Shielder -1 token ...
+        circuit.new_token_amount = BackendTokenAmount::one().neg();
+        // ... and compute new sneaky note.
+        circuit.new_note = BackendNote::new(ark_ff::BigInteger256([
+            875544533870975309,
+            17340113879898921273,
+            17290319916917063854,
+            4489249721891001805,
+        ]));
+
+        let proof = Groth16::prove(&pk, circuit.clone(), &mut rng).unwrap();
+
+        let circuit = WithdrawRelationWithPublicInput::from(circuit);
+        let input = circuit.serialize_public_input();
+        let valid_proof = Groth16::verify(&vk, &input, &proof).unwrap();
+        // Without `enforce_cmp` in `TokenAmountVar` this proof is valid!
         assert!(!valid_proof);
     }
 }
