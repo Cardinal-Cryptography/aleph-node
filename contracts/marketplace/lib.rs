@@ -33,6 +33,7 @@ pub mod marketplace {
         },
         prelude::{format, string::String, vec},
         reflect::ContractEventBase,
+        storage::Lazy,
         LangError,
     };
     use openbrush::{
@@ -178,7 +179,9 @@ pub mod marketplace {
                         access_control,
                         _reserved: None,
                     },
-                    halted: HaltableData { halted: false },
+                    halted: HaltableData {
+                        halted: Lazy::new(),
+                    },
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");

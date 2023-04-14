@@ -7,7 +7,6 @@ name = "access_control"
 version = "0.2.0"
 dependencies = [
  "ink",
- "openbrush",
  "parity-scale-codec",
  "scale-info",
  "shared_traits",
@@ -613,7 +612,6 @@ version = "0.1.0"
 source = "git+https://github.com/727-Ventures/obce?branch=polkadot-v0.9.37#d452f6eda1bc1ecb36e7e332d61529ad440d5a89"
 dependencies = [
  "ink",
- "ink_engine",
  "obce-macro",
  "parity-scale-codec",
  "scale-info",
@@ -658,7 +656,6 @@ dependencies = [
  "openbrush_contracts",
  "openbrush_lang",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -670,7 +667,6 @@ dependencies = [
  "openbrush_lang",
  "pallet-assets-chain-extension",
  "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]

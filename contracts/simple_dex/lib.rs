@@ -21,11 +21,11 @@ mod simple_dex {
         },
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
+        storage::{traits::ManualKey, Lazy, Mapping},
         LangError, ToAccountId,
     };
     use openbrush::{
         contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
-        storage::Mapping,
         traits::Storage,
     };
     use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
@@ -137,23 +137,28 @@ mod simple_dex {
         swap_fee_percentage: u128,
     }
 
-    pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
-
     #[derive(Debug)]
-    #[openbrush::upgradeable_storage(STORAGE_KEY)]
+    #[ink::storage_item]
     pub struct Data {
         pub swap_fee_percentage: u128,
         pub access_control: AccessControlRef,
-        // a set of pairs that are availiable for swapping between
-        pub swap_pairs: Mapping<SwapPair, ()>,
-        /// reserved for future updates
-        pub _reserved: Option<()>,
+    }
+
+    impl Default for Data {
+        fn default() -> Self {
+            Self {
+                swap_fee_percentage: u128::default(),
+                access_control: AccessControlRef::from_account_id(AccountId::from([0; 32])),
+            }
+        }
     }
 
     #[ink(storage)]
     #[derive(Storage)]
     pub struct SimpleDex {
-        pub data: Data,
+        pub data: Lazy<Data, ManualKey<0x44415441>>,
+        // a set of pairs that are availiable for swapping between
+        pub swap_pairs: Mapping<SwapPair, (), ManualKey<0x50414952>>,
         #[storage_field]
         pub halted: HaltableData,
     }
@@ -194,15 +199,19 @@ mod simple_dex {
             let access_control = AccessControlRef::from_account_id(access_control);
 
             if access_control.has_role(caller, required_role) {
-                Self {
-                    data: Data {
-                        swap_fee_percentage: 0,
-                        access_control,
-                        swap_pairs: Mapping::default(),
-                        _reserved: None,
-                    },
+                let mut data = Lazy::new();
+                data.set(&Data {
+                    swap_fee_percentage: 0,
+                    access_control,
+                    // swap_pairs: Mapping::default(),
+                });
 
-                    halted: HaltableData { halted: false },
+                Self {
+                    data,
+                    swap_pairs: Mapping::default(),
+                    halted: HaltableData {
+                        halted: Lazy::default(),
+                    },
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");
@@ -232,7 +241,7 @@ mod simple_dex {
             }
 
             let swap_pair = SwapPair::new(token_in, token_out);
-            if !self.data.swap_pairs.contains(&swap_pair) {
+            if !self.swap_pairs.contains(&swap_pair) {
                 return Err(DexError::UnsupportedSwapPair(swap_pair));
             }
 
@@ -360,14 +369,17 @@ mod simple_dex {
                 }),
             );
 
-            self.data.swap_fee_percentage = swap_fee_percentage;
+            let mut data = self.data.get_or_default();
+            data.swap_fee_percentage = swap_fee_percentage;
+            self.data.set(&data);
+
             Ok(())
         }
 
         /// Returns current value of the swap_fee_percentage parameter
         #[ink(message)]
         pub fn swap_fee_percentage(&self) -> Balance {
-            self.data.swap_fee_percentage
+            self.data.get_or_default().swap_fee_percentage
         }
 
         /// Sets access_control to a new contract address
@@ -379,14 +391,18 @@ mod simple_dex {
             Self: AccessControlled,
         {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
-            self.data.access_control = AccessControlRef::from_account_id(access_control);
+
+            let mut data = self.data.get_or_default();
+            data.access_control = AccessControlRef::from_account_id(access_control);
+            self.data.set(&data);
+
             Ok(())
         }
 
         /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.data.access_control.to_account_id()
+            self.data.get_or_default().access_control.to_account_id()
         }
 
         /// Whitelists a token pair for swapping between
@@ -398,7 +414,10 @@ mod simple_dex {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
-            self.data.swap_pairs.insert(&pair, &());
+
+            // let mut data = self.data.get_or_default();
+            self.swap_pairs.insert(&pair, &());
+            // self.data.set(&data);
 
             Self::emit_event(self.env(), Event::SwapPairAdded(SwapPairAdded { pair }));
 
@@ -408,7 +427,7 @@ mod simple_dex {
         /// Returns true if a pair of tokens is whitelisted for swapping between
         #[ink(message)]
         pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
-            self.data.swap_pairs.contains(&SwapPair::new(from, to))
+            self.swap_pairs.contains(&SwapPair::new(from, to))
         }
 
         /// Blacklists a token pair from swapping
@@ -420,7 +439,9 @@ mod simple_dex {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
-            self.data.swap_pairs.remove(&pair);
+            // let data = self.data.get_or_default();
+            self.swap_pairs.remove(&pair);
+            // self.data.set(&data);
 
             Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
 
@@ -492,7 +513,7 @@ mod simple_dex {
                 amount_token_in,
                 balance_token_in,
                 balance_token_out,
-                self.data.swap_fee_percentage,
+                self.data.get_or_default().swap_fee_percentage,
             )
         }
 
@@ -567,7 +588,12 @@ mod simple_dex {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {
-            if self.data.access_control.has_role(account, role) {
+            if self
+                .data
+                .get_or_default()
+                .access_control
+                .has_role(account, role)
+            {
                 Ok(())
             } else {
                 Err(DexError::MissingRole(account, role))

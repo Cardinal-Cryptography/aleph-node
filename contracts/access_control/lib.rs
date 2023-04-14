@@ -22,7 +22,7 @@ mod access_control {
         },
         prelude::{format, string::String},
         reflect::ContractEventBase,
-        storage::Mapping,
+        storage::{traits::ManualKey, Mapping},
     };
     use scale::{Decode, Encode};
     use shared_traits::Selector;
@@ -34,20 +34,9 @@ mod access_control {
     pub const HAS_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 3];
     pub const CHECK_ROLE_SELECTOR: [u8; 4] = [0, 0, 0, 5];
 
-    pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
-
-    #[derive(Debug)]
-    #[openbrush::upgradeable_storage(STORAGE_KEY)]
-    pub struct Data {
-        /// Stores a de-facto hashset of user accounts and their roles
-        pub privileges: Mapping<(AccountId, Role), ()>,
-        /// reserved for future updates
-        pub _reserved: Option<()>,
-    }
-
     #[ink(storage)]
     pub struct AccessControl {
-        pub data: Data,
+        pub privileges: Mapping<(AccountId, Role), (), ManualKey<0x50524956>>,
     }
 
     #[ink(event)]
@@ -94,17 +83,13 @@ mod access_control {
         /// Creates a new contract.
         #[ink(constructor)]
         pub fn new() -> Self {
-            let mut privileges = Mapping::default();
             let caller = Self::env().caller();
             let this = Self::env().account_id();
+
+            let mut privileges = Mapping::default();
             privileges.insert((caller, Role::Admin(this)), &());
 
-            Self {
-                data: Data {
-                    privileges,
-                    _reserved: None,
-                },
-            }
+            Self { privileges }
         }
 
         /// Gives a role to an account
@@ -113,18 +98,20 @@ mod access_control {
         #[ink(message, selector = 1)]
         pub fn grant_role(&mut self, account: AccountId, role: Role) -> Result<()> {
             let key = (account, role);
-            if !self.data.privileges.contains(key) {
+            if !self.privileges.contains(key) {
                 let caller = self.env().caller();
                 let this = self.env().account_id();
                 self.check_role(caller, Role::Admin(this))?;
-                self.data.privileges.insert(key, &());
+                self.privileges.insert(key, &());
 
-                let event = Event::RoleGranted(RoleGranted {
-                    by: caller,
-                    to: account,
-                    role,
-                });
-                Self::emit_event(self.env(), event);
+                Self::emit_event(
+                    self.env(),
+                    Event::RoleGranted(RoleGranted {
+                        by: caller,
+                        to: account,
+                        role,
+                    }),
+                );
             }
 
             Ok(())
@@ -138,14 +125,16 @@ mod access_control {
             let caller = self.env().caller();
             let this = self.env().account_id();
             self.check_role(caller, Role::Admin(this))?;
-            self.data.privileges.remove((account, role));
+            self.privileges.remove((account, role));
 
-            let event = Event::RoleRevoked(RoleRevoked {
-                by: caller,
-                from: account,
-                role,
-            });
-            Self::emit_event(self.env(), event);
+            Self::emit_event(
+                self.env(),
+                Event::RoleRevoked(RoleRevoked {
+                    by: caller,
+                    from: account,
+                    role,
+                }),
+            );
 
             Ok(())
         }
@@ -153,7 +142,7 @@ mod access_control {
         /// Returns true if account has a role
         #[ink(message, selector = 3)]
         pub fn has_role(&self, account: AccountId, role: Role) -> bool {
-            self.data.privileges.contains((account, role))
+            self.privileges.contains((account, role))
         }
 
         /// Terminates the contract.

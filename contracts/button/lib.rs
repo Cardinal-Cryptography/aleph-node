@@ -17,6 +17,7 @@ pub mod button_game {
         },
         prelude::vec,
         reflect::ContractEventBase,
+        storage::{traits::ManualKey, Lazy},
         ToAccountId,
     };
     use marketplace::marketplace::MarketplaceRef;
@@ -80,12 +81,12 @@ pub mod button_game {
         BackToTheFuture,
         /// The reward increases linearly with the number of participants
         ThePressiahCometh,
+        /// Placeholder for the default implementation
+        Default,
     }
 
-    pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
-
     #[derive(Debug)]
-    #[openbrush::upgradeable_storage(STORAGE_KEY)]
+    #[ink::storage_item]
     pub struct Data {
         /// How long does TheButton live for?
         pub button_lifetime: BlockNumber,
@@ -109,15 +110,32 @@ pub mod button_game {
         pub scoring: Scoring,
         /// current round number
         pub round: u64,
-        /// reserved for future updates
-        pub _reserved: Option<()>,
+    }
+
+    impl Default for Data {
+        fn default() -> Self {
+            let default_account_id = AccountId::from([0u8; 32]);
+            Self {
+                button_lifetime: BlockNumber::default(),
+                last_presser: None,
+                last_press: BlockNumber::default(),
+                total_rewards: u128::default(),
+                presses: u128::default(),
+                reward_token: default_account_id,
+                ticket_token: default_account_id,
+                access_control: AccessControlRef::from_account_id(default_account_id),
+                marketplace: MarketplaceRef::from_account_id(default_account_id),
+                scoring: Scoring::Default,
+                round: u64::default(),
+            }
+        }
     }
 
     /// Game contracts storage
     #[ink(storage)]
     #[derive(Storage)]
     pub struct ButtonGame {
-        pub data: Data,
+        pub data: Lazy<Data, ManualKey<0x44415441>>,
         /// is contract in the halted state
         #[storage_field]
         pub halted: HaltableData,
@@ -182,13 +200,13 @@ pub mod button_game {
         /// Deadline is the block number at which the game will end if there are no more participants
         #[ink(message)]
         pub fn deadline(&self) -> BlockNumber {
-            self.data.last_press + self.data.button_lifetime
+            self.data.get_or_default().last_press + self.data.get_or_default().button_lifetime
         }
 
         /// Returns the curent round number
         #[ink(message)]
         pub fn round(&self) -> u64 {
-            self.data.round
+            self.data.get_or_default().round
         }
 
         /// Returns the buttons status
@@ -201,31 +219,31 @@ pub mod button_game {
         /// If button is dead, this is The Pressiah.
         #[ink(message)]
         pub fn last_presser(&self) -> Option<AccountId> {
-            self.data.last_presser
+            self.data.get_or_default().last_presser
         }
 
         /// Returns the current access control contract address
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.data.access_control.to_account_id()
+            self.data.get_or_default().access_control.to_account_id()
         }
 
         /// Returns address of the game's reward token
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.data.reward_token
+            self.data.get_or_default().reward_token
         }
 
         /// Returns address of the game's ticket token
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.data.ticket_token
+            self.data.get_or_default().ticket_token
         }
 
         /// Returns the address of the marketplace for exchanging this game's rewards for tickets.
         #[ink(message)]
         pub fn marketplace(&self) -> AccountId {
-            self.data.marketplace.to_account_id()
+            self.data.get_or_default().marketplace.to_account_id()
         }
 
         /// Returns own code hash
@@ -256,21 +274,20 @@ pub mod button_game {
             // or does not have enough balance
             self.transfer_ticket(caller, this, 1u128)?;
 
-            let score = self.score(
-                now,
-                self.deadline(),
-                self.data.last_press,
-                self.data.presses,
-            );
+            let mut data = self.data.get_or_default();
+
+            let score = self.score(now, self.deadline(), data.last_press, data.presses);
 
             // mints reward tokens to pay out the reward
             // contract needs to have a Minter role on the reward token contract
             self.mint_reward(caller, score)?;
 
-            self.data.presses += 1;
-            self.data.last_presser = Some(caller);
-            self.data.last_press = now;
-            self.data.total_rewards += score;
+            data.presses += 1;
+            data.last_presser = Some(caller);
+            data.last_press = now;
+            data.total_rewards += score;
+
+            self.data.set(&data);
 
             Self::emit_event(
                 self.env(),
@@ -305,7 +322,11 @@ pub mod button_game {
         #[ink(message)]
         pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
-            self.data.access_control = AccessControlRef::from_account_id(new_access_control);
+
+            let mut data = self.data.get_or_default();
+            data.access_control = AccessControlRef::from_account_id(new_access_control);
+            self.data.set(&data);
+
             Ok(())
         }
 
@@ -318,7 +339,11 @@ pub mod button_game {
             new_button_lifetime: BlockNumber,
         ) -> ButtonResult<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
-            self.data.button_lifetime = new_button_lifetime;
+
+            let mut data = self.data.get_or_default();
+            data.button_lifetime = new_button_lifetime;
+            self.data.set(&data);
+
             Ok(())
         }
 
@@ -372,22 +397,26 @@ pub mod button_game {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
+            let mut data = Lazy::new();
+            data.set(&Data {
+                access_control,
+                button_lifetime,
+                reward_token,
+                ticket_token,
+                marketplace: MarketplaceRef::from_account_id(marketplace),
+                last_press: now,
+                scoring,
+                last_presser: None,
+                presses: 0,
+                total_rewards: 0,
+                round: 0,
+            });
+
             let contract = Self {
-                data: Data {
-                    access_control,
-                    button_lifetime,
-                    reward_token,
-                    ticket_token,
-                    marketplace: MarketplaceRef::from_account_id(marketplace),
-                    last_press: now,
-                    scoring,
-                    last_presser: None,
-                    presses: 0,
-                    total_rewards: 0,
-                    round: 0,
-                    _reserved: None,
+                data,
+                halted: HaltableData {
+                    halted: Lazy::default(),
                 },
-                halted: HaltableData { halted: false },
             };
 
             Self::emit_event(
@@ -406,22 +435,22 @@ pub mod button_game {
         fn reset_state(&mut self) -> ButtonResult<()> {
             let now = self.env().block_number();
 
-            self.data.presses = 0;
-            self.data.last_presser = None;
-            self.data.last_press = now;
-            self.data.total_rewards = 0;
-            self.data.round = self
-                .data
-                .round
-                .checked_add(1)
-                .ok_or(GameError::Arithmethic)?;
+            let mut data = self.data.get_or_default();
+
+            data.presses = 0;
+            data.last_presser = None;
+            data.last_press = now;
+            data.total_rewards = 0;
+            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+
+            self.data.set(&data);
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
         }
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
-            if let Some(pressiah) = self.data.last_presser {
+            if let Some(pressiah) = self.data.get_or_default().last_presser {
                 let reward = self.pressiah_score();
                 self.mint_reward(pressiah, reward)?;
             };
@@ -439,8 +468,8 @@ pub mod button_game {
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
             PSP22Ref::transfer_builder(
-                &self.data.ticket_token,
-                self.data.marketplace.to_account_id(),
+                &self.data.get_or_default().ticket_token,
+                self.data.get_or_default().marketplace.to_account_id(),
                 self.held_tickets(),
                 vec![],
             )
@@ -451,17 +480,24 @@ pub mod button_game {
         }
 
         fn held_tickets(&self) -> Balance {
-            PSP22Ref::balance_of(&self.data.ticket_token, self.env().account_id())
+            PSP22Ref::balance_of(
+                &self.data.get_or_default().ticket_token,
+                self.env().account_id(),
+            )
         }
 
         fn reset_marketplace(&mut self) -> ButtonResult<()> {
-            self.data.marketplace.reset()?;
-
+            self.data.get_or_default().marketplace.reset()?;
             Ok(())
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()> {
-            if self.data.access_control.has_role(account, role) {
+            if self
+                .data
+                .get_or_default()
+                .access_control
+                .has_role(account, role)
+            {
                 Ok(())
             } else {
                 Err(GameError::MissingRole(role))
@@ -475,15 +511,16 @@ pub mod button_game {
             last_press: BlockNumber,
             presses: u128,
         ) -> Balance {
-            match self.data.scoring {
+            match self.data.get_or_default().scoring {
                 Scoring::EarlyBirdSpecial => deadline.saturating_sub(now) as Balance,
                 Scoring::BackToTheFuture => now.saturating_sub(last_press) as Balance,
                 Scoring::ThePressiahCometh => (presses + 1) as Balance,
+                Scoring::Default => panic!("Should never get here"),
             }
         }
 
         fn pressiah_score(&self) -> Balance {
-            (self.data.total_rewards / 4) as Balance
+            (self.data.get_or_default().total_rewards / 4) as Balance
         }
 
         fn transfer_ticket(
@@ -492,15 +529,21 @@ pub mod button_game {
             to: AccountId,
             value: Balance,
         ) -> ButtonResult<()> {
-            PSP22Ref::transfer_from_builder(&self.data.ticket_token, from, to, value, vec![])
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .invoke()?;
+            PSP22Ref::transfer_from_builder(
+                &self.data.get_or_default().ticket_token,
+                from,
+                to,
+                value,
+                vec![],
+            )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .invoke()?;
 
             Ok(())
         }
 
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
-            PSP22MintableRef::mint(&self.data.reward_token, to, amount)?;
+            PSP22MintableRef::mint(&self.data.get_or_default().reward_token, to, amount)?;
             Ok(())
         }
 
