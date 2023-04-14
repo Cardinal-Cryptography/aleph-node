@@ -28,7 +28,9 @@ jobs:
         run: |
           set +e
           fail=0
-          for i in deploy-testnet.yml deploy-mainnet.yml; do
+          for i in on-push-release-tag.yml on-release.yml deploy-to-testnet.yml \
+            deploy-to-mainnet.yml
+          do
             diff -ur .github/workflows/$i aleph-node-main/.github/workflows/$i > $i.diff
             if [[ $(cat $i.diff | wc -l) > 0 ]]; then
               echo ""
