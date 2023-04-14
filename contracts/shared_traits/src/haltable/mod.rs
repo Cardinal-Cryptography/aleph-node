@@ -95,7 +95,7 @@ pub const STORAGE_KEY: u32 = 0x48414C54;
 
 #[derive(Debug)]
 // NOTE: OB macro does not work as per the documentation.
-// Whatever key you specify the data ends up as part of the ddefault root key,
+// Whatever key you specify the data ends up as part of the default root key,
 // therefore we do not bother specifying anything else here
 // but rather wrap the underlying type as a Lazy storage cell.
 #[openbrush::upgradeable_storage(0x00000000)]

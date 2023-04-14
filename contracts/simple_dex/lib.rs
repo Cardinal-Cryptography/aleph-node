@@ -203,7 +203,6 @@ mod simple_dex {
                 data.set(&Data {
                     swap_fee_percentage: 0,
                     access_control,
-                    // swap_pairs: Mapping::default(),
                 });
 
                 Self {
@@ -414,10 +413,7 @@ mod simple_dex {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
-
-            // let mut data = self.data.get_or_default();
             self.swap_pairs.insert(&pair, &());
-            // self.data.set(&data);
 
             Self::emit_event(self.env(), Event::SwapPairAdded(SwapPairAdded { pair }));
 
@@ -427,7 +423,7 @@ mod simple_dex {
         /// Returns true if a pair of tokens is whitelisted for swapping between
         #[ink(message)]
         pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
-            self.swap_pairs.contains(&SwapPair::new(from, to))
+            self.swap_pairs.contains(SwapPair::new(from, to))
         }
 
         /// Blacklists a token pair from swapping
@@ -439,9 +435,7 @@ mod simple_dex {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
-            // let data = self.data.get_or_default();
             self.swap_pairs.remove(&pair);
-            // self.data.set(&data);
 
             Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
 
