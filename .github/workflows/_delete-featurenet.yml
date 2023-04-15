@@ -37,16 +37,16 @@ jobs:
           labels: 'state:delete-featurenet-in-progress'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Delete featurenet app and data
-        uses: ./.github/actions/delete-featurenet
-        with:
-          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
-          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+      #- name: Delete featurenet app and data
+      #  uses: ./.github/actions/delete-featurenet
+      #  with:
+      #    gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+      #    aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+      #    aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+      #    argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
+      #    repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
+      #    argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
+      #    featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
       - name: Remove created label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
