@@ -48,12 +48,12 @@ jobs:
       #     labels: 'trigger:create-hotfix-featurenet'
       #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Add label to mark that creation is in progress
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          # yamllint disable-line rule:line-length
-          labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Add label to mark that creation is in progress
+      #   uses: actions-ecosystem/action-add-labels@v1.1.0
+      #   with:
+      #     # yamllint disable-line rule:line-length
+      #     labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
   build-aleph-node-binary:
     needs: [add-in-progress-label]
@@ -179,10 +179,10 @@ jobs:
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev#/explorer
           ref: ${{ github.head_ref }}
 
-      - name: Remove label about creation in progress
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          # yamllint disable-line rule:line-length
-          labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Remove label about creation in progress
+      #   uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #   with:
+      #     # yamllint disable-line rule:line-length
+      #     labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
