@@ -4,9 +4,6 @@ name: Delete featurenet
 on:
   workflow_call:
 
-#concurrency:
-#  group: ${{ github.ref }}-${{ github.workflow }}
-
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
@@ -25,11 +22,11 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Remove labels
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: 'trigger:delete-featurenet'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Remove labels
+      #   uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #   with:
+      #     labels: 'trigger:delete-featurenet'
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that deletion is in progress
         uses: actions-ecosystem/action-add-labels@v1.1.0

@@ -10,9 +10,6 @@ on:
         type: boolean
         default: false
 
-#concurrency:
-#  group: ${{ github.ref }}-${{ github.workflow }}
-
 env:
   RPC_TESTNET_URL: https://rpc.test.azero.dev
   WSS_TESTNET_URL: wss://ws.test.azero.dev
@@ -37,19 +34,19 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Remove testnet deployment request label if exists
-        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: 'trigger:create-featurenet'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Remove testnet deployment request label if exists
+      #   if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
+      #   uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #   with:
+      #     labels: 'trigger:create-featurenet'
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Remove mainnet deployment request label if exists
-        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hotfix-featurenet')
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: 'trigger:create-hotfix-featurenet'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
+      # - name: Remove mainnet deployment request label if exists
+      #   if: contains(github.event.pull_request.labels.*.name, 'trigger:create-hotfix-featurenet')
+      #   uses: actions-ecosystem/action-remove-labels@v1.3.0
+      #   with:
+      #     labels: 'trigger:create-hotfix-featurenet'
+      #     github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that creation is in progress
         uses: actions-ecosystem/action-add-labels@v1.1.0
