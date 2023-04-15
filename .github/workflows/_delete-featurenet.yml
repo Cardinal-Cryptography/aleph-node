@@ -4,8 +4,8 @@ name: Delete featurenet
 on:
   workflow_call:
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+#concurrency:
+#  group: ${{ github.ref }}-${{ github.workflow }}
 
 jobs:
   check-vars-and-secrets:

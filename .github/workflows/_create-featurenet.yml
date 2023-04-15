@@ -10,8 +10,8 @@ on:
         type: boolean
         default: false
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
+#concurrency:
+#  group: ${{ github.ref }}-${{ github.workflow }}
 
 env:
   RPC_TESTNET_URL: https://rpc.test.azero.dev
