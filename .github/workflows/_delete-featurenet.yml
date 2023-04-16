@@ -55,6 +55,13 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           environment: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
 
+      - name: Remove delete deployment request label if exists
+        if: contains(github.event.pull_request.labels.*.name, 'trigger:delete-featurenet')
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: 'trigger:delete-featurenet'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
       - name: Add label to mark that featurenet has been deleted
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
