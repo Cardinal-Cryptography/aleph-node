@@ -22,12 +22,6 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Add label to mark that deletion is in progress
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: 'state:delete-featurenet-in-progress'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
       # - name: Delete featurenet app and data
       #   uses: ./.github/actions/delete-featurenet
       #   with:
@@ -46,12 +40,6 @@ jobs:
           labels: 'state:created-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Add label to mark that featurenet has been deleted
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: 'state:deleted-featurenet'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
       - name: Deactivate deployed environment
         uses: bobheadxi/deployments@v1
         with:
@@ -67,8 +55,8 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           environment: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
 
-      - name: Remove label about deletion in progress
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
+      - name: Add label to mark that featurenet has been deleted
+        uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
-          labels: 'state:delete-featurenet-in-progress'
+          labels: 'state:deleted-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}

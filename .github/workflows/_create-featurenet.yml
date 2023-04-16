@@ -22,27 +22,8 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  add-in-progress-label:
-    needs: [check-vars-and-secrets]
-    name: Add in-progress label
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Call action get-ref-properties
-        id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
-
-      - name: Add label to mark that creation is in progress
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          # yamllint disable-line rule:line-length
-          labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
   build-aleph-node-binary:
-    needs: [add-in-progress-label]
+    needs: [check-vars-and-secrets]
     name: Build production artifacts
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     secrets: inherit
@@ -146,12 +127,6 @@ jobs:
           labels: 'state:deleted-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Add label to mark that featurenet has been created
-        uses: actions-ecosystem/action-add-labels@v1.1.0
-        with:
-          labels: 'state:created-featurenet'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
       - name: Finish featurenet Deployment
         uses: bobheadxi/deployments@v1
         if: always()
@@ -179,10 +154,8 @@ jobs:
           labels: 'trigger:create-hotfix-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-      - name: Remove label about creation in progress
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
+      - name: Add label to mark that featurenet has been created
+        uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
-          # yamllint disable-line rule:line-length
-          labels: ${{ inputs.hotfix && 'state:create-hotfix-featurenet-in-progress' || 'state:create-featurenet-in-progress' }}
+          labels: 'state:created-featurenet'
           github_token: ${{ secrets.CI_GH_TOKEN }}
-
