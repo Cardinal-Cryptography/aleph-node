@@ -58,23 +58,6 @@ pub mod marketplace {
         access_control: AccessControlRef,
     }
 
-    impl Default for Data {
-        fn default() -> Self {
-            let default_account_id = AccountId::from([0u8; 32]);
-            Self {
-                total_proceeds: Balance::default(),
-                tickets_sold: Balance::default(),
-                min_price: Balance::default(),
-                current_start_block: BlockNumber::default(),
-                auction_length: BlockNumber::default(),
-                sale_multiplier: Balance::default(),
-                ticket_token: default_account_id,
-                reward_token: default_account_id,
-                access_control: AccessControlRef::from_account_id(default_account_id),
-            }
-        }
-    }
-
     #[ink(storage)]
     #[derive(Storage)]
     pub struct Marketplace {
@@ -210,13 +193,13 @@ pub mod marketplace {
         /// the ticket remains available for purchase at `min_price()`.
         #[ink(message)]
         pub fn auction_length(&self) -> BlockNumber {
-            self.data.get_or_default().auction_length
+            self.data.get().unwrap().auction_length
         }
 
         /// The block at which the auction of the current ticket started.
         #[ink(message)]
         pub fn current_start_block(&self) -> BlockNumber {
-            self.data.get_or_default().current_start_block
+            self.data.get().unwrap().current_start_block
         }
 
         /// The price the contract would charge when buying at the current block.
@@ -228,10 +211,8 @@ pub mod marketplace {
         /// The average price over all sales the contract made.
         #[ink(message)]
         pub fn average_price(&self) -> Balance {
-            self.data
-                .get_or_default()
-                .total_proceeds
-                .saturating_div(self.data.get_or_default().tickets_sold)
+            let data = self.data.get().unwrap();
+            data.total_proceeds.saturating_div(data.tickets_sold)
         }
 
         /// The multiplier applied to the average price after each sale.
@@ -240,7 +221,7 @@ pub mod marketplace {
         /// auction at `price() = average_price() * sale_multiplier()`.
         #[ink(message)]
         pub fn sale_multiplier(&self) -> Balance {
-            self.data.get_or_default().sale_multiplier
+            self.data.get().unwrap().sale_multiplier
         }
 
         /// Number of tickets available for sale.
@@ -254,7 +235,7 @@ pub mod marketplace {
         /// The minimal price the contract allows.
         #[ink(message)]
         pub fn min_price(&self) -> Balance {
-            self.data.get_or_default().min_price
+            self.data.get().unwrap().min_price
         }
 
         /// Update the minimal price.
@@ -262,7 +243,7 @@ pub mod marketplace {
         pub fn set_min_price(&mut self, value: Balance) -> Result<(), Error> {
             self.check_role(Self::env().caller(), self.admin())?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.min_price = value;
             self.data.set(&data);
 
@@ -278,7 +259,7 @@ pub mod marketplace {
             if self.is_halted() {
                 self.check_role(self.env().caller(), self.admin())?;
 
-                let mut data = self.data.get_or_default();
+                let mut data = self.data.get().unwrap();
                 data.auction_length = new_auction_length;
                 self.data.set(&data);
 
@@ -290,13 +271,13 @@ pub mod marketplace {
         /// Address of the reward token contract this contract will accept as payment.
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.data.get_or_default().reward_token
+            self.data.get().unwrap().reward_token
         }
 
         /// Address of the ticket token contract this contract will auction off.
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.data.get_or_default().ticket_token
+            self.data.get().unwrap().ticket_token
         }
 
         /// Buy one ticket at the current_price.
@@ -324,7 +305,7 @@ pub mod marketplace {
             self.take_payment(account_id, price)?;
             self.give_ticket(account_id)?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
 
             data.total_proceeds = data.total_proceeds.saturating_add(price);
             data.tickets_sold = data.tickets_sold.saturating_add(1);
@@ -346,7 +327,7 @@ pub mod marketplace {
         pub fn reset(&mut self) -> Result<(), Error> {
             self.check_role(self.env().caller(), self.admin())?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.current_start_block = self.env().block_number();
             self.data.set(&data);
 
@@ -393,23 +374,21 @@ pub mod marketplace {
         }
 
         fn current_price(&self) -> Balance {
+            let data = self.data.get().unwrap();
             linear_decrease(
-                self.data.get_or_default().current_start_block.into(),
-                self.average_price()
-                    .saturating_mul(self.data.get_or_default().sale_multiplier),
-                self.data
-                    .get_or_default()
-                    .current_start_block
-                    .saturating_add(self.data.get_or_default().auction_length)
+                data.current_start_block.into(),
+                self.average_price().saturating_mul(data.sale_multiplier),
+                data.current_start_block
+                    .saturating_add(data.auction_length)
                     .into(),
-                self.data.get_or_default().min_price,
+                data.min_price,
                 self.env().block_number().into(),
             )
-            .max(self.data.get_or_default().min_price)
+            .max(data.min_price)
         }
 
         fn take_payment(&self, from: AccountId, amount: Balance) -> Result<(), Error> {
-            PSP22BurnableRef::burn_builder(&self.data.get_or_default().reward_token, from, amount)
+            PSP22BurnableRef::burn_builder(&self.data.get().unwrap().reward_token, from, amount)
                 .call_flags(ink::env::CallFlags::default().set_allow_reentry(true))
                 .invoke()?;
 
@@ -417,14 +396,14 @@ pub mod marketplace {
         }
 
         fn give_ticket(&self, to: AccountId) -> Result<(), Error> {
-            PSP22Ref::transfer(&self.data.get_or_default().ticket_token, to, 1, vec![])?;
+            PSP22Ref::transfer(&self.data.get().unwrap().ticket_token, to, 1, vec![])?;
 
             Ok(())
         }
 
         fn ticket_balance(&self) -> Balance {
             PSP22Ref::balance_of(
-                &self.data.get_or_default().ticket_token,
+                &self.data.get().unwrap().ticket_token,
                 self.env().account_id(),
             )
         }
@@ -432,7 +411,8 @@ pub mod marketplace {
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), Error> {
             if self
                 .data
-                .get_or_default()
+                .get()
+                .unwrap()
                 .access_control
                 .has_role(account, role)
             {

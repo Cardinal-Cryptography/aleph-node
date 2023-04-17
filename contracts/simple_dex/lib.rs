@@ -144,15 +144,6 @@ mod simple_dex {
         pub access_control: AccessControlRef,
     }
 
-    impl Default for Data {
-        fn default() -> Self {
-            Self {
-                swap_fee_percentage: u128::default(),
-                access_control: AccessControlRef::from_account_id(AccountId::from([0; 32])),
-            }
-        }
-    }
-
     #[ink(storage)]
     #[derive(Storage)]
     pub struct SimpleDex {
@@ -368,7 +359,7 @@ mod simple_dex {
                 }),
             );
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.swap_fee_percentage = swap_fee_percentage;
             self.data.set(&data);
 
@@ -378,7 +369,7 @@ mod simple_dex {
         /// Returns current value of the swap_fee_percentage parameter
         #[ink(message)]
         pub fn swap_fee_percentage(&self) -> Balance {
-            self.data.get_or_default().swap_fee_percentage
+            self.data.get().unwrap().swap_fee_percentage
         }
 
         /// Sets access_control to a new contract address
@@ -391,7 +382,7 @@ mod simple_dex {
         {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.access_control = AccessControlRef::from_account_id(access_control);
             self.data.set(&data);
 
@@ -401,7 +392,7 @@ mod simple_dex {
         /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.data.get_or_default().access_control.to_account_id()
+            self.data.get().unwrap().access_control.to_account_id()
         }
 
         /// Whitelists a token pair for swapping between
@@ -507,7 +498,7 @@ mod simple_dex {
                 amount_token_in,
                 balance_token_in,
                 balance_token_out,
-                self.data.get_or_default().swap_fee_percentage,
+                self.data.get().unwrap().swap_fee_percentage,
             )
         }
 
@@ -584,7 +575,8 @@ mod simple_dex {
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {
             if self
                 .data
-                .get_or_default()
+                .get()
+                .unwrap()
                 .access_control
                 .has_role(account, role)
             {

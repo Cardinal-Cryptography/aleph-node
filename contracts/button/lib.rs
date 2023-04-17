@@ -181,7 +181,8 @@ pub mod button_game {
         /// Deadline is the block number at which the game will end if there are no more participants
         #[ink(message)]
         pub fn deadline(&self) -> BlockNumber {
-            self.data.get().unwrap().last_press + self.data.get().unwrap().button_lifetime
+            let data = self.data.get().unwrap();
+            data.last_press + data.button_lifetime
         }
 
         /// Returns the curent round number
@@ -448,9 +449,10 @@ pub mod button_game {
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
+            let data = self.data.get().unwrap();
             PSP22Ref::transfer_builder(
-                &self.data.get().unwrap().ticket_token,
-                self.data.get().unwrap().marketplace.to_account_id(),
+                &data.ticket_token,
+                data.marketplace.to_account_id(),
                 self.held_tickets(),
                 vec![],
             )
