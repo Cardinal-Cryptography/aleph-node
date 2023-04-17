@@ -112,25 +112,6 @@ pub mod button_game {
         pub round: u64,
     }
 
-    impl Default for Data {
-        fn default() -> Self {
-            let default_account_id = AccountId::from([0u8; 32]);
-            Self {
-                button_lifetime: BlockNumber::default(),
-                last_presser: None,
-                last_press: BlockNumber::default(),
-                total_rewards: u128::default(),
-                presses: u128::default(),
-                reward_token: default_account_id,
-                ticket_token: default_account_id,
-                access_control: AccessControlRef::from_account_id(default_account_id),
-                marketplace: MarketplaceRef::from_account_id(default_account_id),
-                scoring: Scoring::Default,
-                round: u64::default(),
-            }
-        }
-    }
-
     /// Game contracts storage
     #[ink(storage)]
     #[derive(Storage)]
@@ -200,13 +181,13 @@ pub mod button_game {
         /// Deadline is the block number at which the game will end if there are no more participants
         #[ink(message)]
         pub fn deadline(&self) -> BlockNumber {
-            self.data.get_or_default().last_press + self.data.get_or_default().button_lifetime
+            self.data.get().unwrap().last_press + self.data.get().unwrap().button_lifetime
         }
 
         /// Returns the curent round number
         #[ink(message)]
         pub fn round(&self) -> u64 {
-            self.data.get_or_default().round
+            self.data.get().unwrap().round
         }
 
         /// Returns the buttons status
@@ -219,31 +200,31 @@ pub mod button_game {
         /// If button is dead, this is The Pressiah.
         #[ink(message)]
         pub fn last_presser(&self) -> Option<AccountId> {
-            self.data.get_or_default().last_presser
+            self.data.get().unwrap().last_presser
         }
 
         /// Returns the current access control contract address
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.data.get_or_default().access_control.to_account_id()
+            self.data.get().unwrap().access_control.to_account_id()
         }
 
         /// Returns address of the game's reward token
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.data.get_or_default().reward_token
+            self.data.get().unwrap().reward_token
         }
 
         /// Returns address of the game's ticket token
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.data.get_or_default().ticket_token
+            self.data.get().unwrap().ticket_token
         }
 
         /// Returns the address of the marketplace for exchanging this game's rewards for tickets.
         #[ink(message)]
         pub fn marketplace(&self) -> AccountId {
-            self.data.get_or_default().marketplace.to_account_id()
+            self.data.get().unwrap().marketplace.to_account_id()
         }
 
         /// Returns own code hash
@@ -274,7 +255,7 @@ pub mod button_game {
             // or does not have enough balance
             self.transfer_ticket(caller, this, 1u128)?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
 
             let score = self.score(now, self.deadline(), data.last_press, data.presses);
 
@@ -323,7 +304,7 @@ pub mod button_game {
         pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.access_control = AccessControlRef::from_account_id(new_access_control);
             self.data.set(&data);
 
@@ -340,7 +321,7 @@ pub mod button_game {
         ) -> ButtonResult<()> {
             self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
             data.button_lifetime = new_button_lifetime;
             self.data.set(&data);
 
@@ -435,7 +416,7 @@ pub mod button_game {
         fn reset_state(&mut self) -> ButtonResult<()> {
             let now = self.env().block_number();
 
-            let mut data = self.data.get_or_default();
+            let mut data = self.data.get().unwrap();
 
             data.presses = 0;
             data.last_presser = None;
@@ -450,7 +431,7 @@ pub mod button_game {
         }
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
-            if let Some(pressiah) = self.data.get_or_default().last_presser {
+            if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_score();
                 self.mint_reward(pressiah, reward)?;
             };
@@ -468,8 +449,8 @@ pub mod button_game {
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
             PSP22Ref::transfer_builder(
-                &self.data.get_or_default().ticket_token,
-                self.data.get_or_default().marketplace.to_account_id(),
+                &self.data.get().unwrap().ticket_token,
+                self.data.get().unwrap().marketplace.to_account_id(),
                 self.held_tickets(),
                 vec![],
             )
@@ -481,20 +462,21 @@ pub mod button_game {
 
         fn held_tickets(&self) -> Balance {
             PSP22Ref::balance_of(
-                &self.data.get_or_default().ticket_token,
+                &self.data.get().unwrap().ticket_token,
                 self.env().account_id(),
             )
         }
 
         fn reset_marketplace(&mut self) -> ButtonResult<()> {
-            self.data.get_or_default().marketplace.reset()?;
+            self.data.get().unwrap().marketplace.reset()?;
             Ok(())
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()> {
             if self
                 .data
-                .get_or_default()
+                .get()
+                .unwrap()
                 .access_control
                 .has_role(account, role)
             {
@@ -511,7 +493,7 @@ pub mod button_game {
             last_press: BlockNumber,
             presses: u128,
         ) -> Balance {
-            match self.data.get_or_default().scoring {
+            match self.data.get().unwrap().scoring {
                 Scoring::EarlyBirdSpecial => deadline.saturating_sub(now) as Balance,
                 Scoring::BackToTheFuture => now.saturating_sub(last_press) as Balance,
                 Scoring::ThePressiahCometh => (presses + 1) as Balance,
@@ -520,7 +502,7 @@ pub mod button_game {
         }
 
         fn pressiah_score(&self) -> Balance {
-            (self.data.get_or_default().total_rewards / 4) as Balance
+            (self.data.get().unwrap().total_rewards / 4) as Balance
         }
 
         fn transfer_ticket(
@@ -530,7 +512,7 @@ pub mod button_game {
             value: Balance,
         ) -> ButtonResult<()> {
             PSP22Ref::transfer_from_builder(
-                &self.data.get_or_default().ticket_token,
+                &self.data.get().unwrap().ticket_token,
                 from,
                 to,
                 value,
@@ -543,7 +525,7 @@ pub mod button_game {
         }
 
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
-            PSP22MintableRef::mint(&self.data.get_or_default().reward_token, to, amount)?;
+            PSP22MintableRef::mint(&self.data.get().unwrap().reward_token, to, amount)?;
             Ok(())
         }
 
