@@ -94,9 +94,15 @@ async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
         .get_best_block()
         .await?
         .expect("there should be some block");
-    assert!(session_before + 2 >= session_after);
+    assert!(
+        session_before + 2 >= session_after,
+        "too many sessions passed, sessions that passed: {session_before} to {session_after}"
+    );
     // at least some blocks were produced after disabling
-    assert!(block_after > block_before + 10);
+    assert!(
+        block_after > block_before + 10,
+        "not enough blocks produced: blocks created: {block_before} to {block_after}"
+    );
 
     Ok(())
 }
