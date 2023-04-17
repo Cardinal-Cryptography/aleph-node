@@ -1,0 +1,21 @@
+---
+name: UpdateNet Create
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Name of deployment (updatenet)
+        required: true
+        type: string
+      destination:
+        description: Node image tag, commit sha short or "testnet" or "mainnet"
+        required: true
+        type: string
+        default: testnet
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
