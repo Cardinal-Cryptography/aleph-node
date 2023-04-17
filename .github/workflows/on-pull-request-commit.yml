@@ -483,7 +483,7 @@ jobs:
           VALIDATOR_COUNT: 7
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: committee_split::split_test_reserved_01
+          test-case: committee_split::split_test_reserved_12
           node-count: 7
         timeout-minutes: 10
 
@@ -500,7 +500,7 @@ jobs:
           VALIDATOR_COUNT: 7
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: committee_split::split_test_reserved_01
+          test-case: committee_split::split_test_reserved_02
           node-count: 7
         timeout-minutes: 10
 
