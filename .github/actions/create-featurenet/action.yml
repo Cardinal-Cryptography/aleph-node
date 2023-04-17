@@ -105,7 +105,7 @@ runs:
       shell: bash
       env:
         # yamllint disable-line rule:line-length
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}, 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
         cd "${{ inputs.repo-apps-name }}"
         pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
@@ -122,7 +122,7 @@ runs:
       uses: EndBug/add-and-commit@v9.1.1
       env:
         # yamllint disable-line rule:line-length
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}, 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       with:
         author_name: AlephZero Automation
         author_email: alephzero@10clouds.com
@@ -135,7 +135,7 @@ runs:
       if: inputs.no-refresh != 'true'
       env:
         # yamllint disable-line rule:line-length
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}, 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       shell: bash
       run: |
         cd "${{ inputs.repo-apps-name }}"

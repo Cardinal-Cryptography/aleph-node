@@ -96,7 +96,7 @@ runs:
       shell: bash
       # yamllint disable rule:line-length
       env:
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}, 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
         aws s3 cp \
           chainspec.json \
