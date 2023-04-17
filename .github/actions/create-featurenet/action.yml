@@ -49,7 +49,7 @@ runs:
   steps:
     - name: Validate inputs
       shell: bash
-      runs: |
+      run: |
         if [[ 
           "${{ inputs.featurenet-name }}" != "" && \
           ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9]{5,30}$

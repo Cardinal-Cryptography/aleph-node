@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Validate inputs
         shell: bash
-        runs: |
+        run: |
           if [[ ! "${{ inputs.name }}" =~ ^[a-z0-9]{5,30}$ ]]; then
             echo "!!! Invalid updatenet name"
             exit 1
