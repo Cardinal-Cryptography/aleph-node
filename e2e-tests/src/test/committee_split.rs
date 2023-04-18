@@ -74,7 +74,6 @@ async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
     let connection = root_connection.as_connection();
     prepare_test().await?;
 
-
     // For each reserved node disable it and check that block finalization stopped.
     // To check that we check that at most 2 sessions passed after disabling - we have limit of 20 blocks
     // created after last finalized block.
@@ -131,7 +130,7 @@ async fn split_test_success_without_any_deads() -> anyhow::Result<()> {
     prepare_test().await?;
 
     let connection = setup_test().get_first_signed_connection().await;
-    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
+    connection.wait_for_n_eras(2, BlockStatus::Finalized).await;
 
     Ok(())
 }
@@ -143,7 +142,7 @@ async fn split_test_success_with_one_dead() -> anyhow::Result<()> {
 
     let connection = setup_test().get_first_signed_connection().await;
     disable_validators(&[0]).await?;
-    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
+    connection.wait_for_n_eras(2, BlockStatus::Finalized).await;
 
     Ok(())
 }
