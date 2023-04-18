@@ -26,7 +26,7 @@ jobs:
 
   create-updatenet:
     needs: [check-vars-and-secrets]
-    name: Create updatenet based on the PR
+    name: Create updatenet
     runs-on: ubuntu-20.04
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
@@ -55,14 +55,13 @@ jobs:
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: fe-updnet-${{ inputs.name }}
 
-      - name: Start featurenet Deployment
+      - name: Start updatenet Deployment
         uses: bobheadxi/deployments@v1.1.0
         id: deployment
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
           env: updatenet-${{ inputs.name }}
-          ref: ${{ github.head_ref }}
           override: true
 
       - name: Create featurenet data, app and deploy it
@@ -85,3 +84,15 @@ jobs:
         uses: juliangruber/sleep-action@v2.0.0
         with:
           time: 5m
+
+      - name: Finish featurenet Deployment
+        uses: bobheadxi/deployments@v1
+        if: always()
+        with:
+          step: finish
+          token: ${{ secrets.CI_GH_TOKEN }}
+          status: ${{ job.status }}
+          env: updatenet-${{ inputs.name }}
+          deployment_id: ${{ steps.deployment.outputs.deployment-id }}
+          # yamllint disable-line rule:line-length
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ inputs.name }}.dev.azero.dev#/explorer

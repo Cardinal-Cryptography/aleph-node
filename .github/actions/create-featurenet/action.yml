@@ -55,7 +55,7 @@ runs:
           ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
         ]]
         then
-          echo "!!! Invalid updatenet name"
+          echo "!!! Invalid feature net name"
           exit 1
         fi
         if [[
@@ -65,7 +65,7 @@ runs:
           "${{ inputs.aleph-node-image }}" != "mainnet"
         ]]
         then
-          echo "!!! Invalid updatename node image tag"
+          echo "!!! Invalid feature net node image tag"
           exit 1
         fi
 
@@ -103,7 +103,8 @@ runs:
         path: "${{ inputs.repo-apps-name }}"
         ref: main
 
-    - name: Start featurenet
+    - name: Start featurenet from PR branch
+      if: inputs.aleph-node-image == ''
       shell: bash
       env:
         # yamllint disable-line rule:line-length
@@ -112,13 +113,37 @@ runs:
         cd "${{ inputs.repo-apps-name }}"
         pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
         pr_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
-        image_arg="${{ inputs.aleph-node-image }}"
-        if [[ -z "${{ inputs.aleph-node-image }}" ]]; then
-          image_arg="${pr_image}"
-        fi
         ./Ops.sh create-featurenet \
           "${{ env.APP_NAME }}" \
-          "${image_arg}"
+          "${pr_image}"
+
+    - name: Start featurenet
+      if: inputs.aleph-node-image == 'testing' || inputs.aleph-node-image == 'mainnet'
+      shell: bash
+      env:
+        # yamllint disable-line rule:line-length
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        ./Ops.sh create-featurenet \
+          "${{ env.APP_NAME }}" \
+          "${{ inputs.aleph-node-image }}"
+
+    - name: Start featurenet from image tag
+      if: >
+        inputs.aleph-node-image != '' &&
+        inputs.aleph-node-image != 'testing' &&
+        inputs.aleph-node-image != 'mainnet'
+      shell: bash
+      env:
+        # yamllint disable-line rule:line-length
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        pr_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.aleph-node-image }}"
+        ./Ops.sh create-featurenet \
+          "${{ env.APP_NAME }}" \
+          "${pr_image}"
 
     - name: Commit featurenet change
       uses: EndBug/add-and-commit@v9.1.1

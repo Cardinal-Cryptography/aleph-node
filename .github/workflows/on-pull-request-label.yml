@@ -44,6 +44,18 @@ jobs:
       start: testnet
     secrets: inherit
 
+  update-updatenet:
+    needs: [create-updatenet]
+    if: >
+      (github.event.label.name == 'trigger:create-featurenet') ||
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
+    name: Update updatenet
+    uses: ./.github/workflows/updatenet-update.yml
+    with:
+      name: test-mikolaj
+      destination: b9e25d9
+    secrets: inherit
+
   delete-updatenet:
     if: >
       (github.event.label.name == 'trigger:delete-featurenet') ||

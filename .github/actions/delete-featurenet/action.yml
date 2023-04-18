@@ -40,7 +40,7 @@ runs:
           ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
         ]]
         then
-          echo "!!! Invalid updatenet name"
+          echo "!!! Invalid feature net name"
           exit 1
         fi
 
