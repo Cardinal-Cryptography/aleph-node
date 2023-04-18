@@ -207,6 +207,7 @@ pub fn new_partial(
 fn setup(
     mut config: Configuration,
     backend: Arc<FullBackend>,
+    chain_status: SubstrateChainStatus<Block>,
     keystore_container: &KeystoreContainer,
     import_queue: sc_consensus::DefaultImportQueue<Block, FullClient>,
     transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
@@ -259,8 +260,6 @@ fn setup(
             warp_sync: None,
         })?;
 
-    let chain_status = SubstrateChainStatus::new(backend.clone())
-        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -339,9 +338,12 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let chain_status = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
         config,
-        backend.clone(),
+        backend,
+        chain_status.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -399,8 +401,6 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let chain_status = SubstrateChainStatus::new(backend)
-        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let aleph_config = AlephConfig {
         network,
         client,

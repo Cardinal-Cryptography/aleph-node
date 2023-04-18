@@ -320,7 +320,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         self.authentication_connected_peers.insert(peer.clone());
                         self.authentication_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
-                            "aleph/network/peer_sender",
+                            "aleph/network/authentication_peer_sender",
                             None,
                             self.peer_sender(peer, rx, Protocol::Authentication),
                         );
@@ -333,7 +333,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         self.block_sync_connected_peers.insert(peer.clone());
                         self.block_sync_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
-                            "aleph/network/peer_sender",
+                            "aleph/network/sync_peer_sender",
                             None,
                             self.peer_sender(peer, rx, Protocol::BlockSync),
                         );

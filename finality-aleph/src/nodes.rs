@@ -34,6 +34,7 @@ use crate::{
     AlephConfig,
 };
 
+// How many sessions we remember.
 const VERIFIER_CACHE_SIZE: usize = 2;
 
 pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
@@ -158,7 +159,7 @@ where
         justification_rx,
     ) {
         Ok(x) => x,
-        Err(e) => panic!("Failed to run Sync service: {}", e),
+        Err(e) => panic!("Failed to initialize Sync service: {}", e),
     };
     let sync_task = async move { sync_service.run().await };
 

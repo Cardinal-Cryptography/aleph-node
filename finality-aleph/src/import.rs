@@ -77,16 +77,16 @@ where
 /// A wrapper around a block import that also extracts any present jsutifications and send them to
 /// our components which will process them further and possibly finalize the block.
 #[derive(Clone)]
-pub struct AlephBlockImport<B, I, T>
+pub struct AlephBlockImport<B, I, JT>
 where
     B: BlockT,
     B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
-    T: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header>,
 {
     inner: I,
     justification_tx: UnboundedSender<Justification<<B as BlockT>::Header>>,
-    translator: T,
+    translator: JT,
 }
 
 #[derive(Debug)]
@@ -105,18 +105,18 @@ impl<H: Header<Number = BlockNumber>, TE: Debug> From<DecodeError>
     }
 }
 
-impl<B, I, T> AlephBlockImport<B, I, T>
+impl<B, I, JT> AlephBlockImport<B, I, JT>
 where
     B: BlockT,
     B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
-    T: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header>,
 {
     pub fn new(
         inner: I,
         justification_tx: UnboundedSender<Justification<B::Header>>,
-        translator: T,
-    ) -> AlephBlockImport<B, I, T> {
+        translator: JT,
+    ) -> AlephBlockImport<B, I, JT> {
         AlephBlockImport {
             inner,
             justification_tx,
@@ -129,7 +129,7 @@ where
         hash: B::Hash,
         number: BlockNumber,
         justification: SubstrateJustification,
-    ) -> Result<(), SendJustificationError<B::Header, T::Error>> {
+    ) -> Result<(), SendJustificationError<B::Header, JT::Error>> {
         debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
@@ -150,12 +150,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, I, T> BlockImport<B> for AlephBlockImport<B, I, T>
+impl<B, I, JT> BlockImport<B> for AlephBlockImport<B, I, JT>
 where
     B: BlockT,
     B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
-    T: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header>,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
@@ -199,12 +199,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, I, T> JustificationImport<B> for AlephBlockImport<B, I, T>
+impl<B, I, JT> JustificationImport<B> for AlephBlockImport<B, I, JT>
 where
     B: BlockT,
     B::Header: Header<Number = BlockNumber>,
     I: BlockImport<B> + Clone + Send,
-    T: JustificationTranslator<B::Header>,
+    JT: JustificationTranslator<B::Header>,
 {
     type Error = ConsensusError;
 
