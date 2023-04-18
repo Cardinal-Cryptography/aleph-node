@@ -44,6 +44,7 @@ async fn prepare_test() -> anyhow::Result<()> {
             TxStatus::InBlock,
         )
         .await?;
+    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
 
     Ok(())
 }
@@ -73,7 +74,6 @@ async fn split_disable(validators: &[u32]) -> anyhow::Result<()> {
     let connection = root_connection.as_connection();
     prepare_test().await?;
 
-    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
 
     // For each reserved node disable it and check that block finalization stopped.
     // To check that we check that at most 2 sessions passed after disabling - we have limit of 20 blocks
