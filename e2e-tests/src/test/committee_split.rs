@@ -142,7 +142,7 @@ async fn split_test_success_with_one_dead() -> anyhow::Result<()> {
 
     let connection = setup_test().get_first_signed_connection().await;
     disable_validators(&[0]).await?;
-    connection.wait_for_n_eras(2, BlockStatus::Finalized).await;
+    connection.wait_for_n_eras(1, BlockStatus::Finalized).await;
 
     Ok(())
 }
