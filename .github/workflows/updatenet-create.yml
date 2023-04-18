@@ -38,10 +38,6 @@ jobs:
             echo "!!! Invalid updatenet name"
             exit 1
           fi
-          then
-            echo "!!! Invalid updatename node image tag"
-            exit 1
-          fi
 
       - name: Checkout repo
         uses: actions/checkout@v3
