@@ -1,4 +1,5 @@
 use primitives::{CommitteeSeats, EraValidators};
+use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use sp_staking::EraIndex;
 use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
@@ -12,9 +13,11 @@ where
     T: Config,
 {
     fn populate_next_era_validators_on_next_era_start(era: EraIndex) {
+        let mut rng = SmallRng::seed_from_u64(era as u64);
         let elected_committee = BTreeSet::from_iter(T::ValidatorProvider::elected_validators(era));
 
-        let retain_elected = |vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
+        let mut retain_shuffle_elected = |mut vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
+            vals.shuffle(&mut rng);
             vals.into_iter()
                 .filter(|v| elected_committee.contains(v))
                 .collect()
@@ -25,8 +28,8 @@ where
         let committee_size = NextEraCommitteeSize::<T>::get();
 
         CurrentEraValidators::<T>::put(EraValidators {
-            reserved: retain_elected(reserved_validators),
-            non_reserved: retain_elected(non_reserved_validators),
+            reserved: retain_shuffle_elected(reserved_validators),
+            non_reserved: retain_shuffle_elected(non_reserved_validators),
         });
         CommitteeSize::<T>::put(committee_size);
     }
