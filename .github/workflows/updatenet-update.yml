@@ -84,6 +84,6 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
           env: updatenet-${{ inputs.name }}
-          deployment_id: ${{ steps.deployment.outputs.deployment-id }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ inputs.name }}.dev.azero.dev#/explorer
