@@ -118,7 +118,7 @@ runs:
           "${pr_image}"
 
     - name: Start featurenet
-      if: inputs.aleph-node-image == 'testing' || inputs.aleph-node-image == 'mainnet'
+      if: inputs.aleph-node-image == 'testnet' || inputs.aleph-node-image == 'mainnet'
       shell: bash
       env:
         # yamllint disable-line rule:line-length
@@ -132,7 +132,7 @@ runs:
     - name: Start featurenet from image tag
       if: >
         inputs.aleph-node-image != '' &&
-        inputs.aleph-node-image != 'testing' &&
+        inputs.aleph-node-image != 'testnet' &&
         inputs.aleph-node-image != 'mainnet'
       shell: bash
       env:
