@@ -273,6 +273,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph-bft-mock"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9a27e8a6a071f4707b2a8f67034d6f55bec43dbf6f9d91782fb386859f8625b"
+dependencies = [
+ "aleph-bft-types 0.8.1",
+ "async-trait",
+ "futures",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "tokio",
+]
+
+[[package]]
 name = "aleph-bft-rmc"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -559,21 +575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-gm17"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94713045868e99a606a89825ff5a901667ba707ad1966a32c7f3a4d4dbcc0e9a"
-dependencies = [
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ff",
- "ark-poly",
- "ark-relations",
- "ark-serialize",
- "ark-std",
-]
-
-[[package]]
 name = "ark-groth16"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -586,23 +587,6 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
-]
-
-[[package]]
-name = "ark-marlin"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caa8510faa8e64f0a6841ee4b58efe2d56f7a80d86fa0ce9891bbb3aa20166d9"
-dependencies = [
- "ark-ff",
- "ark-poly",
- "ark-poly-commit",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "derivative",
- "digest 0.9.0",
- "rand_chacha 0.3.1",
 ]
 
 [[package]]
@@ -634,24 +618,6 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown 0.11.2",
-]
-
-[[package]]
-name = "ark-poly-commit"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a71ddfa72bad1446cab7bbecb6018dbbdc9abcbc3a0065483ae5186ad2a64dcd"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-nonnative-field",
- "ark-poly",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "derivative",
- "digest 0.9.0",
- "tracing",
 ]
 
 [[package]]
@@ -2390,7 +2356,7 @@ dependencies = [
  "env_logger",
  "futures",
  "futures-timer",
- "hash-db",
+ "hash-db 0.15.2",
  "ip_network",
  "log",
  "lru 0.7.8",
@@ -3067,6 +3033,12 @@ name = "hash-db"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d23bd4e7b5eda0d0f3a307e8b381fdc8ba9000f26fbe912250c0a4cc3956364a"
+
+[[package]]
+name = "hash-db"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e7d7786361d7425ae2fe4f9e407eb0efaa0840f5212d109cc018c40c35c6ab4"
 
 [[package]]
 name = "hash256-std-hasher"
@@ -4739,9 +4711,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e7d46de488603ffdd5f30afbc64fbba2378214a2c3a2fb83abf3d33126df17"
+checksum = "03f1160296536f10c833a82dca22267d5486734230d47bf00bf435885814ba1e"
 dependencies = [
  "hashbrown 0.13.2",
 ]
@@ -4880,7 +4852,7 @@ version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e0c7cba9ce19ac7ffd2053ac9f49843bbd3f4318feedfd74e85c19d5fb0ba66"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
  "hashbrown 0.12.3",
 ]
 
@@ -5203,22 +5175,23 @@ dependencies = [
 
 [[package]]
 name = "network-clique"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "aleph-bft-mock",
+ "aleph-bft-types 0.8.1",
  "async-trait",
  "bytes",
  "derive_more",
  "env_logger",
  "futures",
  "futures-timer",
- "hash-db",
+ "hash-db 0.16.0",
  "ip_network",
  "log",
- "lru 0.9.0",
+ "lru 0.10.0",
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "rand 0.8.5",
- "sc-service",
  "serde",
  "tiny-bip39",
  "tokio",
@@ -5589,21 +5562,10 @@ name = "pallet-baby-liminal"
 version = "0.1.0"
 dependencies = [
  "ark-bls12-381",
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ff",
- "ark-gm17",
  "ark-groth16",
- "ark-marlin",
- "ark-poly",
- "ark-poly-commit",
- "ark-r1cs-std",
  "ark-relations",
  "ark-serialize",
  "ark-snark",
- "ark-std",
- "blake2 0.9.2",
- "digest 0.9.0",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -5645,6 +5607,7 @@ dependencies = [
  "pallets-support",
  "parity-scale-codec",
  "primitives",
+ "rand 0.8.5",
  "scale-info",
  "sp-io",
  "sp-runtime",
@@ -7266,7 +7229,7 @@ name = "sc-client-db"
 version = "0.10.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38#0d25bff2ff35d900a27efc93538d8b9d291f7381"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
  "kvdb",
  "kvdb-memorydb",
  "kvdb-rocksdb",
@@ -8460,7 +8423,7 @@ name = "sp-api"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38#0d25bff2ff35d900a27efc93538d8b9d291f7381"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
  "log",
  "parity-scale-codec",
  "sp-api-proc-macro",
@@ -8655,7 +8618,7 @@ dependencies = [
  "dyn-clonable",
  "ed25519-zebra",
  "futures",
- "hash-db",
+ "hash-db 0.15.2",
  "hash256-std-hasher",
  "impl-serde",
  "lazy_static",
@@ -8979,7 +8942,7 @@ name = "sp-state-machine"
 version = "0.13.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38#0d25bff2ff35d900a27efc93538d8b9d291f7381"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -9070,7 +9033,7 @@ version = "7.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38#0d25bff2ff35d900a27efc93538d8b9d291f7381"
 dependencies = [
  "ahash 0.8.3",
- "hash-db",
+ "hash-db 0.15.2",
  "hashbrown 0.12.3",
  "lazy_static",
  "memory-db",
@@ -9899,7 +9862,7 @@ version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "004e1e8f92535694b4cb1444dc5a8073ecf0815e3357f729638b9f8fc4062908"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
  "hashbrown 0.12.3",
  "log",
  "rustc-hex",
@@ -9912,7 +9875,7 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a36c5ca3911ed3c9a5416ee6c679042064b93fc637ded67e25f92e68d783891"
 dependencies = [
- "hash-db",
+ "hash-db 0.15.2",
 ]
 
 [[package]]

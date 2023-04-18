@@ -11,7 +11,6 @@ use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, Transac
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
-use sc_service::SpawnTaskHandle;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
@@ -267,7 +266,7 @@ where
     pub client: Arc<C>,
     pub chain_status: CS,
     pub select_chain: SC,
-    pub spawn_handle: SpawnTaskHandle,
+    pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
     pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,

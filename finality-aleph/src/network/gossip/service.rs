@@ -7,8 +7,8 @@ use std::{
 
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, info, trace, warn};
+use network_clique::SpawnHandleT;
 use rand::{seq::IteratorRandom, thread_rng};
-use sc_service::SpawnTaskHandle;
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use tokio::time;
 
@@ -19,7 +19,7 @@ use crate::{
         gossip::{Event, EventStream, Network, NetworkSender, Protocol, RawNetwork},
         Data,
     },
-    STATUS_REPORT_INTERVAL,
+    SpawnHandle, STATUS_REPORT_INTERVAL,
 };
 
 enum Command<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
@@ -44,7 +44,7 @@ pub struct Service<N: RawNetwork, AD: Data, BSD: Data> {
     authentication_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<AD>>,
     block_sync_connected_peers: HashSet<N::PeerId>,
     block_sync_peer_senders: HashMap<N::PeerId, TracingUnboundedSender<BSD>>,
-    spawn_handle: SpawnTaskHandle,
+    spawn_handle: SpawnHandle,
 }
 
 struct ServiceInterface<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
@@ -113,7 +113,7 @@ enum SendError {
 impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
     pub fn new(
         network: N,
-        spawn_handle: SpawnTaskHandle,
+        spawn_handle: SpawnHandle,
     ) -> (
         Service<N, AD, BSD>,
         impl Network<AD, Error = Error, PeerId = N::PeerId>,
@@ -321,7 +321,6 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         self.authentication_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
                             "aleph/network/authentication_peer_sender",
-                            None,
                             self.peer_sender(peer, rx, Protocol::Authentication),
                         );
                     }
@@ -334,7 +333,6 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         self.block_sync_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
                             "aleph/network/sync_peer_sender",
-                            None,
                             self.peer_sender(peer, rx, Protocol::BlockSync),
                         );
                     }
@@ -481,7 +479,7 @@ mod tests {
             // Prepare service
             let network = MockRawNetwork::new(event_stream_oneshot_tx);
             let (service, gossip_network, other_network) =
-                Service::new(network.clone(), task_manager.spawn_handle());
+                Service::new(network.clone(), task_manager.spawn_handle().into());
             let gossip_network = Box::new(gossip_network);
             let other_network = Box::new(other_network);
 
