@@ -69,11 +69,18 @@ where
             self.client
                 .apply_finality(import_op, hash, Some(justification), true)
         });
-        let status = self.client.info();
-        debug!(target: "aleph-finality", "Attempted to finalize block with hash {:?}. Current best: #{:?}.", hash, status.finalized_number);
 
-        if let (Some(metrics), Ok(_)) = (&self.metrics, &update_res) {
-            metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
+        let status = self.client.info();
+        match &update_res {
+            Ok(_) => {
+                debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number);
+                if let Some(metrics) = &self.metrics {
+                    metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
+                }
+            }
+            Err(_) => {
+                debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number)
+            }
         }
 
         update_res
