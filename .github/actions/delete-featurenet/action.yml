@@ -37,7 +37,7 @@ runs:
       run: |
         if [[ 
           "${{ inputs.featurenet-name }}" != "" && \
-          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9]{5,30}$
+          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
         ]]
         then
           echo "!!! Invalid updatenet name"
