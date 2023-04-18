@@ -53,7 +53,7 @@ jobs:
     uses: ./.github/workflows/updatenet-update.yml
     with:
       name: test-mikolaj
-      destination: b9e25d9
+      destination: 08a743f
     secrets: inherit
 
   delete-updatenet:
