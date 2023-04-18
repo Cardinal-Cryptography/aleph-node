@@ -59,6 +59,7 @@ runs:
           exit 1
         fi
         if [[
+          "${{ inputs.aleph-node-image }}" != "" && \
           ! "${{ inputs.aleph-node-image }}" =~ ^[a-f0-9]{7}$ && \
           "${{ inputs.aleph-node-image }}" != "testnet" && \
           "${{ inputs.aleph-node-image }}" != "mainnet"
