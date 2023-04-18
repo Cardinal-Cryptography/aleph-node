@@ -65,7 +65,6 @@ jobs:
           override: true
 
       - name: Create featurenet data, app and deploy it
-        if: inputs.start == 'mainnet' || inputs.start == 'testnet' 
         uses: ./.github/actions/create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
