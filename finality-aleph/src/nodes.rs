@@ -147,7 +147,7 @@ where
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
-    let finalizer = AlephFinalizer::new(client.clone());
+    let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
     let (sync_service, justifications_for_sync) = match SyncService::new(
         block_sync_network,
         chain_events,
