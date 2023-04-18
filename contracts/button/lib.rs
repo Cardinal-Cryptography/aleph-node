@@ -536,17 +536,21 @@ pub mod button_game {
             Ok(())
         }
 
-        // TODO : in full token units
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
-            PSP22MintableRef::mint(&self.data.get().unwrap().reward_token, to, amount)?;
+            let data = self.data.get().unwrap();
+
+            // scale the amount to always pay out full token units
+            let scaled_amount = amount.saturating_mul(1000000000000);
+
+            PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
 
             Self::emit_event(
                 Self::env(),
                 Event::RewardMinted(RewardMinted {
                     when: self.env().block_number(),
-                    reward_token: self.data.get().unwrap().reward_token,
+                    reward_token: data.reward_token,
                     to,
-                    amount,
+                    amount: scaled_amount,
                 }),
             );
 
@@ -558,47 +562,6 @@ pub mod button_game {
             EE: EmitEvent<ButtonGame>,
         {
             emitter.emit_event(event);
-        }
-    }
-
-    /// Performs mapping of a value that lives in a [from_low, from_high] domain
-    /// to the [to_low, to_high] domain.
-    ///
-    /// Function is an implementation of the following formula:
-    /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
-    /// using saturating integer operations
-    fn map_domain(
-        value: Balance,
-        in_min: Balance,
-        in_max: Balance,
-        out_min: Balance,
-        out_max: Balance,
-    ) -> Balance {
-        // Calculate the input range and output range
-        let in_range = in_max.saturating_sub(in_min);
-        let out_range = out_max.saturating_sub(out_min);
-
-        // Map the input value to the output range
-        let scaled_value = value
-            .saturating_sub(in_min)
-            .saturating_mul(out_range)
-            .saturating_div(in_range);
-
-        // Convert the scaled value to the output domain
-        out_min.saturating_add(scaled_value)
-    }
-
-    #[cfg(test)]
-    mod test {
-        use super::*;
-
-        #[test]
-        fn test_domain_map() {
-            assert_eq!(map_domain(1, 1, 10, 100, 200), 100);
-
-            assert_eq!(map_domain(6, 0, 12, 100, 200), 150);
-
-            assert_eq!(map_domain(0, 0, u128::MAX, 0, 100), 0);
         }
     }
 }
