@@ -553,7 +553,7 @@ jobs:
         with:
           test-case: set_emergency_finalizer_test
           follow-up-finalization-check: true
-        timeout-minutes: 2
+        timeout-minutes: 4
 
   check-e2e-test-suite-completion:
     needs: [
