@@ -2,7 +2,7 @@
 name: UpdateNet Create
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       name:
         description: Name of deployment (updatenet)

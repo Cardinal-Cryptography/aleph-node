@@ -2,20 +2,15 @@
 name: UpdateNet Create
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      name:
-        description: 'Name of updatenet'
-        required: true
-        type: string
       start:
         description: 'aleph-node image to be started'
         required: true
-        type: string
-        #type: choice
-        #options: 
-        #- testnet
-        #- mainnet
+        type: choice
+        options: 
+        - testnet
+        - mainnet
         default: testnet
 
 jobs:
@@ -31,14 +26,6 @@ jobs:
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
-      - name: Validate inputs
-        shell: bash
-        run: |
-          if [[ ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$ ]]; then
-            echo "!!! Invalid updatenet name"
-            exit 1
-          fi
-
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -53,7 +40,7 @@ jobs:
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: fe-updnet-${{ inputs.name }}
+          featurenet-name: fe-updnet-${{ github.run_id }}
 
       - name: Start updatenet Deployment
         uses: bobheadxi/deployments@v1.1.0
@@ -61,7 +48,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: updatenet-${{ inputs.name }}
+          env: updatenet-${{ github.run_id }}
           override: true
 
       - name: Create featurenet data, app and deploy it
@@ -77,7 +64,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: fe-updnet-${{ inputs.name }}
+          featurenet-name: fe-updnet-${{ github.run_id }}
 
       - name: Wait for the testnet aleph-node binary to accept some blocks
         uses: juliangruber/sleep-action@v2.0.0
@@ -91,7 +78,7 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: updatenet-${{ inputs.name }}
+          env: updatenet-${{ github.run_id }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ inputs.name }}.dev.azero.dev#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ github.run_id }}.dev.azero.dev#/explorer
