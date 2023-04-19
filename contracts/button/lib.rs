@@ -540,7 +540,7 @@ pub mod button_game {
             let data = self.data.get().unwrap();
 
             // scale the amount to always pay out full token units
-            let scaled_amount = amount.saturating_mul(1000000000000);
+            let scaled_amount = amount.saturating_mul(1_000_000_000_000);
 
             PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
 
