@@ -2,7 +2,7 @@
 name: UpdateNet Delete
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       name:
         description: Name of updatenet
