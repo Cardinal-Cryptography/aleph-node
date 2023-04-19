@@ -17,10 +17,12 @@ where
         let elected_committee = BTreeSet::from_iter(T::ValidatorProvider::elected_validators(era));
 
         let mut retain_shuffle_elected = |mut vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
-            vals.shuffle(&mut rng);
-            vals.into_iter()
+            let mut vals = vals.into_iter()
                 .filter(|v| elected_committee.contains(v))
-                .collect()
+                .collect();
+            vals.shuffle(&mut rng);
+
+            vals
         };
 
         let reserved_validators = NextEraReservedValidators::<T>::get();
