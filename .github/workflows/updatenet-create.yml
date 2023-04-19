@@ -11,10 +11,11 @@ on:
       start:
         description: 'aleph-node image to be started'
         required: true
-        type: choice
-        options: 
-        - testnet
-        - mainnet
+        type: string
+        #type: choice
+        #options: 
+        #- testnet
+        #- mainnet
         default: testnet
 
 jobs:
