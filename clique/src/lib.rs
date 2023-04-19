@@ -2,9 +2,12 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    pin::Pin,
 };
 
 use codec::Codec;
+use futures::Future;
+use rate_limiter::{SleepingRateLimiter, TokenBucket};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod crypto;
@@ -14,6 +17,7 @@ mod manager;
 pub mod mock;
 mod outgoing;
 mod protocols;
+pub mod rate_limiter;
 mod service;
 #[cfg(test)]
 mod testing;
@@ -179,5 +183,137 @@ impl Listener for TcpListener {
             info!(target: LOG_TARGET, "stream.set_linger(None) failed.");
         };
         Ok(stream)
+    }
+}
+
+pub struct RateLimitedAsyncReadWrite<A> {
+    rate_limiter: SleepingRateLimiter,
+    read: A,
+}
+
+impl<A> RateLimitedAsyncReadWrite<A> {
+    pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
+        Self { rate_limiter, read }
+    }
+}
+
+impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncReadWrite<A> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        match Pin::new(&mut this.rate_limiter.current_sleep()).poll(cx) {
+            std::task::Poll::Pending => return std::task::Poll::Pending,
+            _ => {}
+        }
+
+        let filled_before = buf.filled().len();
+        let result = Pin::new(&mut this.read).poll_read(cx, buf);
+        let filled_after = buf.filled().len();
+        let last_read_size = filled_after - filled_before;
+
+        this.rate_limiter.rate_limit(last_read_size);
+
+        result
+    }
+}
+
+impl<A: AsyncWrite + Unpin> AsyncWrite for RateLimitedAsyncReadWrite<A> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.read).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.read).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.read).poll_shutdown(cx)
+    }
+}
+
+impl<R: Splittable> Splittable for RateLimitedAsyncReadWrite<R> {
+    type Sender = R::Sender;
+    type Receiver = RateLimitedAsyncReadWrite<R::Receiver>;
+
+    fn split(self) -> (Self::Sender, Self::Receiver) {
+        let (sender, receiver) = self.read.split();
+        let receiver = RateLimitedAsyncReadWrite::new(receiver, self.rate_limiter);
+        (sender, receiver)
+    }
+}
+
+impl<A: ConnectionInfo> ConnectionInfo for RateLimitedAsyncReadWrite<A> {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.read.peer_address_info()
+    }
+}
+
+#[derive(Clone)]
+pub struct RateLimitingDialer<D> {
+    dialer: D,
+    rate_limiter: TokenBucket,
+}
+
+impl<D> RateLimitingDialer<D> {
+    pub fn new(dialer: D, rate_limiter: TokenBucket) -> Self {
+        Self {
+            dialer,
+            rate_limiter,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<A: Data, D: Dialer<A>> Dialer<A> for RateLimitingDialer<D> {
+    type Connection = RateLimitedAsyncReadWrite<D::Connection>;
+    type Error = D::Error;
+
+    async fn connect(&mut self, address: A) -> Result<Self::Connection, Self::Error> {
+        let connection = self.dialer.connect(address).await?;
+        Ok(RateLimitedAsyncReadWrite::new(
+            connection,
+            SleepingRateLimiter::new(self.rate_limiter.clone()),
+        ))
+    }
+}
+
+pub struct RateLimitingListener<L> {
+    listener: L,
+    rate_limiter: TokenBucket,
+}
+
+impl<L> RateLimitingListener<L> {
+    pub fn new(listener: L, rate_limiter: TokenBucket) -> Self {
+        Self {
+            listener,
+            rate_limiter,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<L: Listener + Send> Listener for RateLimitingListener<L> {
+    type Connection = RateLimitedAsyncReadWrite<L::Connection>;
+    type Error = L::Error;
+
+    async fn accept(&mut self) -> Result<Self::Connection, Self::Error> {
+        let connection = self.listener.accept().await?;
+        Ok(RateLimitedAsyncReadWrite::new(
+            connection,
+            SleepingRateLimiter::new(self.rate_limiter.clone()),
+        ))
     }
 }

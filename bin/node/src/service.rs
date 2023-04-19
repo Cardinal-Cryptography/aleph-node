@@ -9,7 +9,8 @@ use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, JustificationNotificationFor, Metrics,
-    MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod, TracingBlockImport,
+    MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig, SessionPeriod,
+    TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -407,6 +408,7 @@ pub fn new_authority(
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
         protocol_naming,
+        rate_limiter_config: RateLimiterConfig::new(),
     };
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",

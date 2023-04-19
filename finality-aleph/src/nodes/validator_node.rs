@@ -4,7 +4,7 @@ use aleph_primitives::BlockNumber;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
-use network_clique::{Service, SpawnHandleT};
+use network_clique::{rate_limiter::TokenBucket, Service, SpawnHandleT};
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
@@ -15,7 +15,7 @@ use crate::{
     crypto::AuthorityPen,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
-        tcp::{new_tcp_network, KEY_TYPE},
+        tcp::{new_rate_limited_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
     },
     nodes::{setup_justification_handler, JustificationParams},
@@ -65,6 +65,7 @@ where
         external_addresses,
         validator_port,
         protocol_naming,
+        rate_limiter_config,
         ..
     } = aleph_config;
 
@@ -76,7 +77,13 @@ where
         keystore.clone(),
     )
     .await;
-    let (dialer, listener, network_identity) = new_tcp_network(
+
+    debug!(target: "aleph-party", "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
+    let alephbft_rate_limiter =
+        TokenBucket::new(rate_limiter_config.alephbft_bit_rate_per_connection);
+
+    let (dialer, listener, network_identity) = new_rate_limited_network(
+        alephbft_rate_limiter,
         ("0.0.0.0", validator_port),
         external_addresses,
         &network_authority_pen,

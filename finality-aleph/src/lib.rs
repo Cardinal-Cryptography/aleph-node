@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
+use std::{env::var, fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
 use aleph_primitives::BlockNumber;
 use codec::{Codec, Decode, Encode, Output};
@@ -264,6 +264,31 @@ impl<H: Header<Number = BlockNumber>> BlockIdentifier for HashNum<H> {
     }
 }
 
+const VALIDATOR_NETWORK_BIT_RATE_PER_NODE: &str = "VALIDATOR_NETWORK_BIT_RATE_PER_NODE";
+
+const DEFAULT_VALIDATOR_NETWORK_PER_NODE_BIT_RATE: f64 = 1024.0 * 1024.0;
+
+/// This options are intentionally hidden behind environment variables. It should not be needed to modify those.
+#[derive(Clone)]
+pub struct RateLimiterConfig {
+    /// Maximum bitrate per node (bytes per second) of the alephbft validator network.
+    pub alephbft_bit_rate_per_connection: f64,
+}
+
+impl RateLimiterConfig {
+    pub fn new() -> Self {
+        let validator_network_bit_rate_per_node = var(VALIDATOR_NETWORK_BIT_RATE_PER_NODE)
+            .map(|value| value.parse().ok())
+            .ok()
+            .flatten()
+            .unwrap_or(DEFAULT_VALIDATOR_NETWORK_PER_NODE_BIT_RATE);
+
+        Self {
+            alephbft_bit_rate_per_connection: validator_network_bit_rate_per_node,
+        }
+    }
+}
+
 pub struct AlephConfig<B, H, C, SC, BB>
 where
     B: Block,
@@ -285,6 +310,7 @@ where
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
     pub protocol_naming: ProtocolNaming,
+    pub rate_limiter_config: RateLimiterConfig,
 }
 
 pub trait BlockchainBackend<B: Block> {

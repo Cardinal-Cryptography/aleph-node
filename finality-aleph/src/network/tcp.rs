@@ -4,7 +4,10 @@ use aleph_primitives::AuthorityId;
 use codec::{Decode, Encode};
 use derive_more::{AsRef, Display};
 use log::info;
-use network_clique::{Dialer, Listener, PeerId, PublicKey, SecretKey};
+use network_clique::{
+    rate_limiter::TokenBucket, Dialer, Listener, PeerId, PublicKey, RateLimitingDialer,
+    RateLimitingListener, SecretKey,
+};
 use sp_core::crypto::KeyTypeId;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 
@@ -205,6 +208,31 @@ pub async fn new_tcp_network<A: ToSocketAddrs>(
     let listener = TcpListener::bind(listening_addresses).await?;
     let identity = SignedTcpAddressingInformation::new(external_addresses, authority_pen).await?;
     Ok((TcpDialer {}, listener, identity))
+}
+
+pub async fn new_rate_limited_network<A: ToSocketAddrs>(
+    rate_limiter: TokenBucket,
+    listening_addresses: A,
+    external_addresses: Vec<String>,
+    authority_pen: &AuthorityPen,
+) -> Result<
+    (
+        impl Dialer<SignedTcpAddressingInformation>,
+        impl Listener,
+        impl NetworkIdentity<
+            AddressingInformation = SignedTcpAddressingInformation,
+            PeerId = AuthorityIdWrapper,
+        >,
+    ),
+    Error,
+> {
+    let (dialer, listener, identity) =
+        new_tcp_network(listening_addresses, external_addresses, authority_pen).await?;
+    Ok((
+        RateLimitingDialer::new(dialer, rate_limiter.clone()),
+        RateLimitingListener::new(listener, rate_limiter),
+        identity,
+    ))
 }
 
 #[cfg(test)]
