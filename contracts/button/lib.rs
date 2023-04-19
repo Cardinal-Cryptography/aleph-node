@@ -547,7 +547,7 @@ pub mod button_game {
                 // we map the score from it's domain to [1,100] reward tokens
                 // this way the amount of minted reward tokens is independent from the button's lifetime
                 // and the rewards are always paid out using full token units
-                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => Self::map_domain(
+                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => map_domain(
                     amount,
                     0,
                     data.button_lifetime as Balance,
@@ -579,32 +579,44 @@ pub mod button_game {
         {
             emitter.emit_event(event);
         }
+    }
 
-        /// Performs mapping of a value that lives in a [from_low, from_high] domain
-        /// to the [to_low, to_high] domain.
-        ///
-        /// Function is an implementation of the following formula:
-        /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
-        /// using saturating integer operations
-        fn map_domain(
-            value: Balance,
-            in_min: Balance,
-            in_max: Balance,
-            out_min: Balance,
-            out_max: Balance,
-        ) -> Balance {
-            // Calculate the input range and output range
-            let in_range = in_max.saturating_sub(in_min);
-            let out_range = out_max.saturating_sub(out_min);
+    /// Performs mapping of a value that lives in a [from_low, from_high] domain
+    /// to the [to_low, to_high] domain.
+    ///
+    /// Function is an implementation of the following formula:
+    /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
+    /// using saturating integer operations
+    fn map_domain(
+        value: Balance,
+        in_min: Balance,
+        in_max: Balance,
+        out_min: Balance,
+        out_max: Balance,
+    ) -> Balance {
+        // Calculate the input range and output range
+        let in_range = in_max.saturating_sub(in_min);
+        let out_range = out_max.saturating_sub(out_min);
 
-            // Map the input value to the output range
-            let scaled_value = value
-                .saturating_sub(in_min)
-                .saturating_mul(out_range)
-                .saturating_div(in_range);
+        // Map the input value to the output range
+        let scaled_value = value
+            .saturating_sub(in_min)
+            .saturating_div(in_range)
+            .saturating_mul(out_range);
 
-            // Convert the scaled value to the output domain
-            out_min.saturating_add(scaled_value)
+        // Convert the scaled value to the output domain
+        out_min.saturating_add(scaled_value)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_map_domain() {
+            assert_eq!(map_domain(1, 1, 10, 100, 200), 100);
+            assert_eq!(map_domain(0, 0, u128::MAX, 0, 100), 0);
+            assert_eq!(map_domain(u128::MAX, 0, u128::MAX, 0, 100), 100);
         }
     }
 }
