@@ -154,7 +154,7 @@ runs:
         author_name: AlephZero Automation
         author_email: alephzero@10clouds.com
         # yamllint disable-line rule:line-length
-        message: "${{ inputs.aleph-node-image != '' && 'Create' || 'Update' }} featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
+        message: "Upsert featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image }}"
         add: "*.yaml"
         cwd: "${{ inputs.repo-apps-name }}"
 
