@@ -261,8 +261,8 @@ async fn try_finalize_single_block(
                     "Not all preconditions for finalizing {} satisfied: {:?}.",
                     num, e
                 );
-                println!("We wait 500ms and will try again. You can cancel by ctrl-c.\n");
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                println!("We wait 1000ms and will try again. You can cancel by ctrl-c.\n");
+                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                 continue;
             }
         }
