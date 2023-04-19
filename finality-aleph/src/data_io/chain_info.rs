@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use aleph_primitives::BlockNumber;
 use log::error;
 use lru::LruCache;
 use sc_client_api::HeaderBackend;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor, One};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
 
 use crate::{data_io::ChainInfoCacheConfig, BlockHashNum};
 
@@ -20,6 +21,7 @@ pub trait ChainInfoProvider<B: BlockT> {
 impl<C, B> ChainInfoProvider<B> for Arc<C>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B>,
 {
     fn is_block_imported(&mut self, block: &BlockHashNum<B>) -> bool {
@@ -31,7 +33,7 @@ where
         false
     }
 
-    fn get_finalized_at(&mut self, num: NumberFor<B>) -> Result<BlockHashNum<B>, ()> {
+    fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockHashNum<B>, ()> {
         if self.info().finalized_number < num {
             return Err(());
         }
@@ -72,7 +74,7 @@ where
 {
     available_block_with_parent_cache: LruCache<BlockHashNum<B>, B::Hash>,
     available_blocks_cache: LruCache<BlockHashNum<B>, ()>,
-    finalized_cache: LruCache<NumberFor<B>, B::Hash>,
+    finalized_cache: LruCache<BlockNumber, B::Hash>,
     chain_info_provider: CIP,
 }
 
@@ -98,6 +100,7 @@ where
 impl<B, CIP> ChainInfoProvider<B> for CachedChainInfoProvider<B, CIP>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     CIP: ChainInfoProvider<B>,
 {
     fn is_block_imported(&mut self, block: &BlockHashNum<B>) -> bool {
@@ -112,7 +115,7 @@ where
         false
     }
 
-    fn get_finalized_at(&mut self, num: NumberFor<B>) -> Result<BlockHashNum<B>, ()> {
+    fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockHashNum<B>, ()> {
         if let Some(hash) = self.finalized_cache.get(&num) {
             return Ok((*hash, num).into());
         }
@@ -179,13 +182,14 @@ where
 impl<B, CIP> ChainInfoProvider<B> for AuxFinalizationChainInfoProvider<B, CIP>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     CIP: ChainInfoProvider<B>,
 {
     fn is_block_imported(&mut self, block: &BlockHashNum<B>) -> bool {
         self.chain_info_provider.is_block_imported(block)
     }
 
-    fn get_finalized_at(&mut self, num: NumberFor<B>) -> Result<BlockHashNum<B>, ()> {
+    fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockHashNum<B>, ()> {
         let highest_finalized_inner = self.chain_info_provider.get_highest_finalized();
         if num <= highest_finalized_inner.num {
             return self.chain_info_provider.get_finalized_at(num);
@@ -197,7 +201,7 @@ where
         let mut curr_block = self.aux_finalized.clone();
         while curr_block.num > num {
             let parent_hash = self.chain_info_provider.get_parent_hash(&curr_block)?;
-            curr_block = (parent_hash, curr_block.num - NumberFor::<B>::one()).into();
+            curr_block = (parent_hash, curr_block.num - 1).into();
         }
         Ok(curr_block)
     }

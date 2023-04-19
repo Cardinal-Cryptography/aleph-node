@@ -6,6 +6,7 @@ use std::{
     time::{self, Duration},
 };
 
+use aleph_primitives::BlockNumber;
 use futures::{
     channel::{
         mpsc::{self, UnboundedSender},
@@ -33,7 +34,7 @@ use crate::{
         },
         RequestBlocks,
     },
-    BlockHashNum, SessionBoundaries,
+    BlockHashNum, IdentifierFor, SessionBoundaries,
 };
 
 type MessageId = u64;
@@ -176,8 +177,9 @@ impl Default for DataStoreConfig {
 pub struct DataStore<B, C, RB, Message, R>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B> + BlockchainEvents<B> + Send + Sync + 'static,
-    RB: RequestBlocks<B> + 'static,
+    RB: RequestBlocks<IdentifierFor<B>> + 'static,
     Message:
         AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
     R: Receiver<Message>,
@@ -191,8 +193,8 @@ where
     chain_info_provider: CachedChainInfoProvider<B, Arc<C>>,
     available_proposals_cache: LruCache<AlephProposal<B>, ProposalStatus<B>>,
     num_triggers_registered_since_last_pruning: usize,
-    highest_finalized_num: NumberFor<B>,
-    session_boundaries: SessionBoundaries<B>,
+    highest_finalized_num: BlockNumber,
+    session_boundaries: SessionBoundaries,
     client: Arc<C>,
     block_requester: RB,
     config: DataStoreConfig,
@@ -203,15 +205,16 @@ where
 impl<B, C, RB, Message, R> DataStore<B, C, RB, Message, R>
 where
     B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B> + BlockchainEvents<B> + Send + Sync + 'static,
-    RB: RequestBlocks<B> + 'static,
+    RB: RequestBlocks<IdentifierFor<B>> + 'static,
     Message:
         AlephNetworkMessage<B> + std::fmt::Debug + Send + Sync + Clone + codec::Codec + 'static,
     R: Receiver<Message>,
 {
     /// Returns a struct to be run and a network that outputs messages filtered as appropriate
     pub fn new<N: ComponentNetwork<Message, R = R>>(
-        session_boundaries: SessionBoundaries<B>,
+        session_boundaries: SessionBoundaries,
         client: Arc<C>,
         block_requester: RB,
         config: DataStoreConfig,
@@ -317,8 +320,7 @@ where
             let block = proposal.top_block();
             if !self.chain_info_provider.is_block_imported(&block) {
                 debug!(target: "aleph-data-store", "Requesting a stale block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
-                self.block_requester
-                    .request_stale_block(block.hash, block.num);
+                self.block_requester.request_stale_block(block);
                 continue;
             }
             // The top block (thus the whole branch, in the honest case) has been imported. What's holding us
@@ -332,7 +334,7 @@ where
                     continue;
                 }
             };
-            let parent_num = bottom_block.num - NumberFor::<B>::one();
+            let parent_num = bottom_block.num - 1;
             if let Ok(finalized_block) = self.chain_info_provider.get_finalized_at(parent_num) {
                 if parent_hash != finalized_block.hash {
                     warn!(target: "aleph-data-store", "The proposal {:?} is pending because the parent: \
@@ -345,7 +347,7 @@ where
                 debug!(target: "aleph-data-store", "Requesting a justification for block {:?} {:?} \
                         after it has been missing for {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
                 self.block_requester
-                    .request_justification(&parent_hash, parent_num);
+                    .request_justification((parent_hash, parent_num).into());
             }
         }
     }
@@ -362,7 +364,7 @@ where
             .insert(proposal.clone());
     }
 
-    fn register_finality_trigger(&mut self, proposal: &AlephProposal<B>, number: NumberFor<B>) {
+    fn register_finality_trigger(&mut self, proposal: &AlephProposal<B>, number: BlockNumber) {
         self.num_triggers_registered_since_last_pruning += 1;
         if number > self.highest_finalized_num {
             self.event_triggers
@@ -391,7 +393,7 @@ where
             let new_num = block.num;
             self.highest_finalized_num = new_num;
             // We activate all finality triggers in [old_num + 1, block.num].
-            let mut num: NumberFor<B> = old_num + NumberFor::<B>::one();
+            let mut num = old_num + 1;
             while num <= new_num {
                 if let Some(proposals_to_bump) =
                     self.event_triggers.remove(&ChainEvent::Finalized(num))
@@ -400,7 +402,7 @@ where
                         self.bump_proposal(&proposal);
                     }
                 }
-                num += NumberFor::<B>::one();
+                num += 1;
             }
         }
     }

@@ -1,13 +1,18 @@
-use std::fmt::{Display, Error as FmtError, Formatter};
+use std::{
+    collections::VecDeque,
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+};
+
+use log::warn;
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, Interest},
-        BlockIdFor, BlockIdentifier, ChainStatus, Finalizer, Header, Justification, PeerId,
-        Verifier,
+        BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier, LOG_TARGET,
     },
+    BlockIdentifier,
 };
 
 /// How many justifications we will send at most in response to an explicit query.
@@ -36,10 +41,6 @@ pub enum SyncAction<J: Justification> {
 }
 
 impl<J: Justification> SyncAction<J> {
-    fn noop() -> Self {
-        SyncAction::Noop
-    }
-
     fn state_broadcast_response(
         justification: J::Unverified,
         other_justification: Option<J::Unverified>,
@@ -52,10 +53,6 @@ impl<J: Justification> SyncAction<J> {
 
     fn request_response(justifications: Vec<J::Unverified>) -> Self {
         SyncAction::Response(NetworkData::RequestResponse(justifications))
-    }
-
-    fn task(id: BlockIdFor<J>) -> Self {
-        SyncAction::Task(id)
     }
 }
 
@@ -105,19 +102,57 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         finalizer: F,
         period: SessionPeriod,
     ) -> Result<Self, Error<J, CS, V, F>> {
-        let top_finalized = chain_status
-            .top_finalized()
-            .map_err(Error::ChainStatus)?
-            .header()
-            .id();
-        let forest = Forest::new(top_finalized);
-        Ok(Handler {
+        let forest = Forest::new(
+            chain_status
+                .top_finalized()
+                .map_err(Error::ChainStatus)?
+                .header()
+                .id(),
+        );
+        let mut handler = Handler {
             chain_status,
             verifier,
             finalizer,
             forest,
             session_info: SessionBoundaryInfo::new(period),
-        })
+        };
+        handler.refresh_forest()?;
+        Ok(handler)
+    }
+
+    // TODO(A0-1758): Move the code to `Self::new` to initialize the `Forest` properly.
+    pub fn refresh_forest(&mut self) -> Result<(), Error<J, CS, V, F>> {
+        let top_finalized = self
+            .chain_status
+            .top_finalized()
+            .map_err(Error::ChainStatus)?
+            .header()
+            .id();
+        let mut forest = Forest::new(top_finalized.clone());
+        let mut deque = VecDeque::from([top_finalized]);
+        while let Some(hash) = deque.pop_front() {
+            let children = self
+                .chain_status
+                .children(hash)
+                .map_err(Error::ChainStatus)?;
+            for header in children.iter() {
+                match forest.update_body(header) {
+                    Err(ForestError::TooNew) => {
+                        warn!(
+                                target: LOG_TARGET,
+                                "There are more imported non-finalized blocks that can fit into the Forest: {}.", ForestError::TooNew
+                            );
+                        self.forest = forest;
+                        return Ok(());
+                    }
+                    Err(e) => return Err(Error::Forest(e)),
+                    _ => (),
+                }
+            }
+            deque.extend(children.into_iter().map(|header| header.id()));
+        }
+        self.forest = forest;
+        Ok(())
     }
 
     fn try_finalize(&mut self) -> Result<(), Error<J, CS, V, F>> {
@@ -151,16 +186,15 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         }
     }
 
+    /// Handle a single verified justification.
+    /// Return `Some(id)` if this justification was higher than the previously known highest justification.
     fn handle_verified_justification(
         &mut self,
         justification: J,
-        peer: I,
+        peer: Option<I>,
     ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
         let id = justification.header().id();
-        let maybe_id = match self
-            .forest
-            .update_justification(justification, Some(peer))?
-        {
+        let maybe_id = match self.forest.update_justification(justification, peer)? {
             true => Some(id),
             false => None,
         };
@@ -216,10 +250,11 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
     }
 
     /// Handle a single justification.
+    /// Return `Some(id)` if this justification was higher than the previously known highest justification.
     pub fn handle_justification(
         &mut self,
         justification: J::Unverified,
-        peer: I,
+        peer: Option<I>,
     ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
         let justification = self
             .verifier
@@ -260,14 +295,14 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
             None => Ok(self
-                .handle_justification(state.top_justification(), peer)?
+                .handle_justification(state.top_justification(), Some(peer))?
                 .map(SyncAction::Task)
                 .unwrap_or(SyncAction::Noop)),
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
                 true => Ok(self
-                    .handle_justification(state.top_justification(), peer)?
+                    .handle_justification(state.top_justification(), Some(peer))?
                     .map(SyncAction::Task)
                     .unwrap_or(SyncAction::Noop)),
                 // remote top justification lower than ours, we can send a response
@@ -312,9 +347,9 @@ mod tests {
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request},
             mock::{Backend, MockHeader, MockJustification, MockPeerId, MockVerifier},
-            BlockIdentifier, ChainStatus, Header, Justification,
+            ChainStatus, Header, Justification,
         },
-        SessionPeriod,
+        BlockIdentifier, SessionPeriod,
     };
 
     type MockHandler = Handler<MockPeerId, MockJustification, Backend, MockVerifier, Backend>;
@@ -356,12 +391,106 @@ mod tests {
             .expect("importing in order");
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
-        assert!(matches!(
+        assert!(
+            handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification")
+                == Some(justification.id())
+        );
+        assert_eq!(
+            backend.top_finalized().expect("mock backend works"),
+            justification
+        );
+    }
+
+    #[test]
+    fn requests_missing_justifications_without_blocks() {
+        let (mut handler, backend, _keep) = setup();
+        let peer = rand::random();
+        // skip the first justification, now every next added justification
+        // should spawn a new task
+        for justification in import_branch(&backend, 5)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .skip(1)
+        {
+            assert!(
+                handler
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
+        }
+    }
+
+    #[test]
+    fn requests_missing_justifications_with_blocks() {
+        let (mut handler, backend, _keep) = setup();
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&backend, 5)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        for justification in justifications.iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+        }
+        // skip the first justification, now every next added justification
+        // should spawn a new task
+        for justification in justifications.into_iter().skip(1) {
+            assert!(
+                handler
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
+        }
+    }
+
+    #[test]
+    fn initializes_forest_properly() {
+        let (backend, _keep) = Backend::setup(SESSION_PERIOD);
+        let header = import_branch(&backend, 1)[0].clone();
+        // header already imported, Handler should initialize Forest properly
+        let verifier = MockVerifier {};
+        let mut handler = Handler::new(
+            backend.clone(),
+            verifier,
+            backend.clone(),
+            SessionPeriod(20),
+        )
+        .expect("mock backend works");
+        let justification = MockJustification::for_header(header);
+        let peer: MockPeerId = rand::random();
+        assert!(
+            handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification")
+                == Some(justification.id())
+        );
+        // should be auto-finalized, if Forest knows about imported body
+        assert_eq!(
+            backend.top_finalized().expect("mock backend works"),
+            justification
+        );
+    }
+
+    #[test]
+    fn refreshes_forest() {
+        let (mut handler, backend, _keep) = setup();
+        let header = import_branch(&backend, 1)[0].clone();
+        // handler doesn't know about the impotred block, neither does the forest
+        handler.refresh_forest().expect("should refresh forest");
+        // now forest should know about the imported block
+        let justification = MockJustification::for_header(header);
+        let peer = rand::random();
+        assert!(
             handler
                 .handle_justification(justification.clone().into_unverified(), peer)
-                .expect("correct justification"),
-            None
-        ));
+                .expect("correct justification")
+                == Some(justification.id())
+        );
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
             justification
@@ -375,7 +504,7 @@ mod tests {
         let justification = MockJustification::for_header(header.clone());
         let peer = rand::random();
         match handler
-            .handle_justification(justification.clone().into_unverified(), peer)
+            .handle_justification(justification.clone().into_unverified(), Some(peer))
             .expect("correct justification")
         {
             Some(id) => assert_eq!(id, header.id()),
@@ -404,7 +533,7 @@ mod tests {
                 .block_imported(justification.header().clone())
                 .expect("importing in order");
             handler
-                .handle_justification(justification.clone().into_unverified(), peer)
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
                 .expect("correct justification");
         }
         match handler
@@ -441,7 +570,7 @@ mod tests {
                 .block_imported(justification.header().clone())
                 .expect("importing in order");
             handler
-                .handle_justification(justification.clone().into_unverified(), peer)
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
                 .expect("correct justification");
         }
         match handler
@@ -477,7 +606,7 @@ mod tests {
                 .block_imported(justification.header().clone())
                 .expect("importing in order");
             handler
-                .handle_justification(justification.clone().into_unverified(), peer)
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
                 .expect("correct justification");
         }
         match handler
@@ -516,7 +645,7 @@ mod tests {
             // justifications right before the last will be skipped in response
             if number % 20 < 10 || number % 20 > 14 {
                 handler
-                    .handle_justification(justification.clone().into_unverified(), peer)
+                    .handle_justification(justification.clone().into_unverified(), Some(peer))
                     .expect("correct justification");
             }
         }

@@ -11,6 +11,7 @@ members = [
     "pallets/baby-liminal",
     "pallets/elections",
     "pallets/support",
+    "pallets/committee-management",
     "poseidon",
     "primitives",
 ]
@@ -29,6 +30,7 @@ exclude = [
     "contracts/simple_dex",
     "contracts/ticket_token",
     "contracts/wrapped_azero",
+    "contracts/shared_traits",
     "e2e-tests",
     "flooder",
     "fork-off",

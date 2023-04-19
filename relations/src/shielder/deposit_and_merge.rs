@@ -12,33 +12,36 @@ use liminal_ark_relation_macro::snark_relation;
 /// for the length of the merkle path (which is ~the height of the tree, ±1).
 #[snark_relation]
 mod relation {
-    use core::ops::Add;
-
-    use ark_r1cs_std::{
-        alloc::{
-            AllocVar,
-            AllocationMode::{Input, Witness},
+    #[cfg(feature = "circuit")]
+    use {
+        crate::shielder::{
+            check_merkle_proof, note_var::NoteVarBuilder, path_shape_var::PathShapeVar,
+            token_amount_var::TokenAmountVar,
         },
-        eq::EqGadget,
-        fields::fp::FpVar,
-    };
-    use ark_relations::ns;
-
-    use crate::{
-        shielder::{
-            check_merkle_proof, convert_hash, convert_vec,
-            path_shape_var::PathShapeVar,
-            types::{
-                BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
-                BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
-                FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-                FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        ark_r1cs_std::{
+            alloc::{
+                AllocVar,
+                AllocationMode::{Input, Witness},
             },
+            eq::EqGadget,
+            fields::fp::FpVar,
         },
-        NoteVarBuilder,
+        ark_relations::ns,
+        core::ops::Add,
+    };
+
+    use crate::shielder::{
+        convert_hash, convert_vec,
+        types::{
+            BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
+            BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendLeafIndex,
+            FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
+            FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        },
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct DepositAndMergeRelation {
         #[constant]
         pub max_path_len: u8,
@@ -46,7 +49,7 @@ mod relation {
         // Public inputs
         #[public_input(frontend_type = "FrontendTokenId")]
         pub token_id: BackendTokenId,
-        #[public_input(frontend_type = "FrontendNullifier")]
+        #[public_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub old_nullifier: BackendNullifier,
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub new_note: BackendNote,
@@ -56,11 +59,11 @@ mod relation {
         pub merkle_root: BackendMerkleRoot,
 
         // Private inputs.
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub old_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub new_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendNullifier")]
+        #[private_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub new_nullifier: BackendNullifier,
         #[private_input(frontend_type = "FrontendMerklePath", parse_with = "convert_vec")]
         pub merkle_path: BackendMerklePath,
@@ -74,6 +77,7 @@ mod relation {
         pub new_token_amount: BackendTokenAmount,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         //------------------------------
@@ -101,9 +105,9 @@ mod relation {
         //----------------------------------
         // Check the token values soundness.
         //----------------------------------
-        let token_amount = FpVar::new_input(ns!(cs, "token amount"), || self.token_amount())?;
-        // some range checks for overflows?
-        let token_sum = token_amount.add(old_note.token_amount);
+        let token_amount =
+            TokenAmountVar::new_input(ns!(cs, "token amount"), || self.token_amount())?;
+        let token_sum = token_amount.add(old_note.token_amount)?;
         token_sum.enforce_equal(&new_note.token_amount)?;
 
         //------------------------
@@ -125,7 +129,7 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
@@ -133,9 +137,9 @@ mod tests {
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::{
-        shielder::note::{compute_note, compute_parent_hash},
-        FrontendNote,
+    use crate::shielder::{
+        note::{compute_note, compute_parent_hash},
+        types::FrontendNote,
     };
 
     const MAX_PATH_LEN: u8 = 4;
@@ -143,12 +147,12 @@ mod tests {
     fn get_circuit_with_full_input() -> DepositAndMergeRelationWithFullInput {
         let token_id: FrontendTokenId = 1;
 
-        let old_trapdoor: FrontendTrapdoor = 17;
-        let old_nullifier: FrontendNullifier = 19;
+        let old_trapdoor: FrontendTrapdoor = [17; 4];
+        let old_nullifier: FrontendNullifier = [19; 4];
         let old_token_amount: FrontendTokenAmount = 7;
 
-        let new_trapdoor: FrontendTrapdoor = 27;
-        let new_nullifier: FrontendNullifier = 87;
+        let new_trapdoor: FrontendTrapdoor = [27; 4];
+        let new_nullifier: FrontendNullifier = [87; 4];
         let new_token_amount: FrontendTokenAmount = 10;
 
         let token_amount: FrontendTokenAmount = 3;
@@ -165,9 +169,9 @@ mod tests {
 
         let zero_note = FrontendNote::default(); // x
 
-        let sibling_note = compute_note(0, 1, 2, 3); // 4
+        let sibling_note = compute_note(0, 1, [2; 4], [3; 4]); // 4
         let parent_note = compute_parent_hash(sibling_note, old_note); // 2
-        let uncle_note = compute_note(4, 5, 6, 7); // 3
+        let uncle_note = compute_note(4, 5, [6; 4], [7; 4]); // 3
         let grandpa_root = compute_parent_hash(parent_note, uncle_note); // 1
 
         let placeholder = compute_parent_hash(grandpa_root, zero_note);

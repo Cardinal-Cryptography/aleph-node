@@ -7,10 +7,14 @@ use liminal_ark_relation_macro::snark_relation;
 ///  - 3 constants       (a, b, y)
 #[snark_relation]
 mod relation {
-    use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, uint32::UInt32};
-    use ark_std::vec::Vec;
+    #[cfg(feature = "circuit")]
+    use {
+        ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, uint32::UInt32},
+        ark_std::vec::Vec,
+    };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct LinearEquationRelation {
         /// slope
         #[constant]
@@ -26,6 +30,7 @@ mod relation {
         pub y: u32,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         // TODO: migrate from real values to values in the finite field (see FpVar)
@@ -44,7 +49,7 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
@@ -52,7 +57,7 @@ mod tests {
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::CircuitField;
+    use crate::environment::CircuitField;
 
     const A: u32 = 2;
     const X: u32 = 1;

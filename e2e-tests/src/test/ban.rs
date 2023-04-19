@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use aleph_client::{
     api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
     pallets::{
+        committee_management::{CommitteeManagementApi, CommitteeManagementSudoApi},
         elections::{ElectionsApi, ElectionsSudoApi},
         session::SessionApi,
         staking::{StakingApi, StakingUserApi},
@@ -50,7 +51,7 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
     let connection_to_disable =
         SignedConnection::new(validator_address, controller_key_to_disable).await;
 
-    set_invalid_keys_for_validator(&connection_to_disable).await
+    set_invalid_keys_for_validator(vec![connection_to_disable]).await
 }
 
 async fn signed_connection_for_disabled_controller() -> SignedConnection {
@@ -263,6 +264,7 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     let seats = CommitteeSeats {
         reserved_seats: 2,
         non_reserved_seats: 2,
+        non_reserved_finality_seats: 2,
     };
 
     let validator_to_ban =

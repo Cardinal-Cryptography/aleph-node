@@ -16,33 +16,35 @@ use liminal_ark_relation_macro::snark_relation;
 /// for the length of the merkle path (which is ~the height of the tree, ±1).
 #[snark_relation]
 mod relation {
-    use core::ops::Add;
-
-    use ark_r1cs_std::{
-        alloc::{
-            AllocVar,
-            AllocationMode::{Input, Witness},
+    #[cfg(feature = "circuit")]
+    use {
+        crate::shielder::{
+            check_merkle_proof, note_var::NoteVarBuilder, path_shape_var::PathShapeVar,
         },
-        eq::EqGadget,
-        fields::fp::FpVar,
-    };
-    use ark_relations::ns;
-
-    use crate::{
-        shielder::{
-            check_merkle_proof, convert_hash, convert_vec,
-            path_shape_var::PathShapeVar,
-            types::{
-                BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote,
-                BackendNullifier, BackendTokenAmount, BackendTokenId, BackendTrapdoor,
-                FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-                FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        ark_r1cs_std::{
+            alloc::{
+                AllocVar,
+                AllocationMode::{Input, Witness},
             },
+            eq::EqGadget,
+            fields::fp::FpVar,
         },
-        NoteVarBuilder,
+        ark_relations::ns,
+        core::ops::Add,
+    };
+
+    use crate::shielder::{
+        convert_hash, convert_vec,
+        types::{
+            BackendLeafIndex, BackendMerklePath, BackendMerkleRoot, BackendNote, BackendNullifier,
+            BackendTokenAmount, BackendTokenId, BackendTrapdoor, FrontendLeafIndex,
+            FrontendMerklePath, FrontendMerkleRoot, FrontendNote, FrontendNullifier,
+            FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor,
+        },
     };
 
     #[relation_object_definition]
+    #[derive(Clone, Debug)]
     struct MergeRelation {
         #[constant]
         pub max_path_len: u8,
@@ -50,9 +52,9 @@ mod relation {
         // Public inputs
         #[public_input(frontend_type = "FrontendTokenId")]
         pub token_id: BackendTokenId,
-        #[public_input(frontend_type = "FrontendNullifier")]
+        #[public_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub first_old_nullifier: BackendNullifier,
-        #[public_input(frontend_type = "FrontendNullifier")]
+        #[public_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub second_old_nullifier: BackendNullifier,
         #[public_input(frontend_type = "FrontendNote", parse_with = "convert_hash")]
         pub new_note: BackendNote,
@@ -60,13 +62,13 @@ mod relation {
         pub merkle_root: BackendMerkleRoot,
 
         // Private inputs.
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub first_old_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub second_old_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendTrapdoor")]
+        #[private_input(frontend_type = "FrontendTrapdoor", parse_with = "convert_hash")]
         pub new_trapdoor: BackendTrapdoor,
-        #[private_input(frontend_type = "FrontendNullifier")]
+        #[private_input(frontend_type = "FrontendNullifier", parse_with = "convert_hash")]
         pub new_nullifier: BackendNullifier,
         #[private_input(frontend_type = "FrontendMerklePath", parse_with = "convert_vec")]
         pub first_merkle_path: BackendMerklePath,
@@ -88,6 +90,7 @@ mod relation {
         pub new_token_amount: BackendTokenAmount,
     }
 
+    #[cfg(feature = "circuit")]
     #[circuit_definition]
     fn generate_constraints() {
         //------------------------------
@@ -126,10 +129,9 @@ mod relation {
         //----------------------------------
         // Check token value soundness.
         //----------------------------------
-        // some range checks for overflows?
         let token_sum = first_old_note
             .token_amount
-            .add(second_old_note.token_amount);
+            .add(second_old_note.token_amount)?;
         token_sum.enforce_equal(&new_note.token_amount)?;
 
         //------------------------
@@ -167,7 +169,7 @@ mod relation {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "circuit"))]
 mod tests {
     use ark_bls12_381::Bls12_381;
     use ark_groth16::Groth16;
@@ -175,27 +177,25 @@ mod tests {
     use ark_snark::SNARK;
 
     use super::*;
-    use crate::{
-        shielder::{
-            convert_hash,
-            note::{compute_note, compute_parent_hash},
-        },
-        FrontendNote,
+    use crate::shielder::{
+        convert_hash,
+        note::{compute_note, compute_parent_hash},
+        types::FrontendNote,
     };
 
     const MAX_PATH_LEN: u8 = 4;
     const TOKEN_ID: FrontendTokenId = 1;
 
-    const FIRST_OLD_TRAPDOOR: FrontendTrapdoor = 17;
-    const FIRST_OLD_NULLIFIER: FrontendNullifier = 19;
+    const FIRST_OLD_TRAPDOOR: FrontendTrapdoor = [17; 4];
+    const FIRST_OLD_NULLIFIER: FrontendNullifier = [19; 4];
     const FIRST_OLD_TOKEN_AMOUNT: FrontendTokenAmount = 3;
 
-    const SECOND_OLD_TRAPDOOR: FrontendTrapdoor = 23;
-    const SECOND_OLD_NULLIFIER: FrontendNullifier = 29;
+    const SECOND_OLD_TRAPDOOR: FrontendTrapdoor = [23; 4];
+    const SECOND_OLD_NULLIFIER: FrontendNullifier = [29; 4];
     const SECOND_OLD_TOKEN_AMOUNT: FrontendTokenAmount = 7;
 
-    const NEW_TRAPDOOR: FrontendTrapdoor = 27;
-    const NEW_NULLIFIER: FrontendNullifier = 87;
+    const NEW_TRAPDOOR: FrontendTrapdoor = [27; 4];
+    const NEW_NULLIFIER: FrontendNullifier = [87; 4];
     const NEW_TOKEN_AMOUNT: FrontendTokenAmount = 10;
 
     const FIRST_LEAF_INDEX: u64 = 5;
@@ -227,11 +227,11 @@ mod tests {
         let zero_note = FrontendNote::default(); // x
 
         // First Merkle path setup.
-        let first_sibling_note = compute_note(0, 1, 2, 3); // 4
+        let first_sibling_note = compute_note(0, 1, [2; 4], [3; 4]); // 4
         let first_parent_note = compute_parent_hash(first_sibling_note, first_old_note); // 2
 
         // Second Merkle path setup.
-        let second_sibling_note = compute_note(0, 1, 3, 4); // 7
+        let second_sibling_note = compute_note(0, 1, [3; 4], [4; 4]); // 7
         let second_parent_note = compute_parent_hash(second_old_note, second_sibling_note); // 3
 
         // Merkle paths.
@@ -296,8 +296,12 @@ mod tests {
 
     fn get_circuit_with_invalid_new_note() -> MergeRelationWithFullInput {
         let mut circuit = get_circuit_with_full_input();
-
-        let new_note = compute_note(TOKEN_ID, NEW_TOKEN_AMOUNT, NEW_TRAPDOOR + 1, NEW_NULLIFIER);
+        let new_note = compute_note(
+            TOKEN_ID,
+            NEW_TOKEN_AMOUNT,
+            NEW_TRAPDOOR.map(|t| t + 1),
+            NEW_NULLIFIER,
+        );
         circuit.new_note = convert_hash(new_note);
 
         circuit

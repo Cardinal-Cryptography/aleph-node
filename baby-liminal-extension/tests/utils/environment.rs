@@ -7,9 +7,12 @@ use std::{
 };
 
 use baby_liminal_extension::{
-    executor::Executor, substrate::ByteCount, ProvingSystem, VerificationKeyIdentifier,
+    executor::Executor, substrate::ByteCount, BabyLiminalExtension, VerificationKeyIdentifier,
 };
-use obce::substrate::{frame_support::weights::Weight, ChainExtensionEnvironment, CriticalError};
+use obce::substrate::{
+    frame_support::weights::Weight, sp_runtime::AccountId32, ChainExtensionEnvironment,
+    CriticalError,
+};
 use pallet_baby_liminal::Error;
 
 use crate::utils::{STORE_KEY_ID, VERIFY_ID};
@@ -204,7 +207,7 @@ where
     }
 
     fn ext_id(&self) -> u16 {
-        <dyn baby_liminal_extension::BabyLiminalExtension as obce::codegen::ExtensionDescription>::ID
+        obce::id!(BabyLiminalExtension)
     }
 
     fn in_len(&self) -> ByteCount {
@@ -295,6 +298,7 @@ impl<
     type ErrorGenericType = ();
 
     fn store_key(
+        _: AccountId32,
         _: VerificationKeyIdentifier,
         _: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>> {
@@ -309,7 +313,6 @@ impl<
         _: VerificationKeyIdentifier,
         _: Vec<u8>,
         _: Vec<u8>,
-        _: ProvingSystem,
     ) -> Result<(), (Error<Self::ErrorGenericType>, Option<Weight>)> {
         match VERIFY_RESPONDER {
             Responder::Panicker => panic!("Function `verify` shouldn't have been executed"),

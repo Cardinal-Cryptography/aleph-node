@@ -1,19 +1,27 @@
 use clap::Subcommand;
 use liminal_ark_relations::{
-    CircuitField, ConstraintSynthesizer, ConstraintSystemRef, DepositAndMergeRelationWithFullInput,
-    DepositAndMergeRelationWithPublicInput, DepositAndMergeRelationWithoutInput,
-    DepositRelationWithFullInput, DepositRelationWithPublicInput, DepositRelationWithoutInput,
-    FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot, FrontendNote,
-    FrontendNullifier, FrontendTokenAmount, FrontendTokenId, FrontendTrapdoor, GetPublicInput,
-    LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput,
-    MergeRelationWithFullInput, MergeRelationWithPublicInput, MergeRelationWithoutInput,
-    PreimageRelationWithFullInput, PreimageRelationWithPublicInput, Result as R1CsResult,
-    WithdrawRelationWithFullInput, WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
-    XorRelationWithFullInput, XorRelationWithPublicInput,
+    environment::CircuitField,
+    linear::{LinearEquationRelationWithFullInput, LinearEquationRelationWithPublicInput},
+    preimage::{PreimageRelationWithFullInput, PreimageRelationWithPublicInput},
+    shielder::{
+        types::{
+            FrontendAccount, FrontendLeafIndex, FrontendMerklePath, FrontendMerkleRoot,
+            FrontendNote, FrontendNullifier, FrontendTokenAmount, FrontendTokenId,
+            FrontendTrapdoor,
+        },
+        DepositAndMergeRelationWithFullInput, DepositAndMergeRelationWithPublicInput,
+        DepositAndMergeRelationWithoutInput, DepositRelationWithFullInput,
+        DepositRelationWithPublicInput, DepositRelationWithoutInput, MergeRelationWithFullInput,
+        MergeRelationWithPublicInput, MergeRelationWithoutInput, WithdrawRelationWithFullInput,
+        WithdrawRelationWithPublicInput, WithdrawRelationWithoutInput,
+    },
+    xor::{XorRelationWithFullInput, XorRelationWithPublicInput},
+    ConstraintSynthesizer, ConstraintSystemRef, SynthesisError,
 };
 
-use crate::snark_relations::parsing::{
-    parse_frontend_account, parse_frontend_merkle_path, parse_frontend_note,
+use crate::snark_relations::{
+    parsing::{parse_frontend_account, parse_frontend_merkle_path, parse_frontend_note},
+    GetPublicInput,
 };
 
 /// All available relations from `relations` crate.
@@ -69,10 +77,10 @@ pub enum RelationArgs {
 
         /// The trapdoor, that keeps the note private even after revealing the nullifier (private
         /// input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         trapdoor: Option<FrontendTrapdoor>,
         /// The nullifier for invalidating the note in the future (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         nullifier: Option<FrontendNullifier>,
     },
 
@@ -85,7 +93,7 @@ pub enum RelationArgs {
         #[clap(long)]
         token_id: Option<FrontendTokenId>,
         /// The nullifier that was used for the old note (public input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         old_nullifier: Option<FrontendNullifier>,
         /// The new note (public input).
         #[clap(long, value_parser = parse_frontend_note)]
@@ -98,13 +106,13 @@ pub enum RelationArgs {
         merkle_root: Option<FrontendMerkleRoot>,
 
         /// The trapdoor that was used for the old note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         old_trapdoor: Option<FrontendTrapdoor>,
         /// The trapdoor that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_trapdoor: Option<FrontendTrapdoor>,
         /// The nullifier that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_nullifier: Option<FrontendNullifier>,
         /// The Merkle path proving that the old note is under `merkle_root` (private input).
         #[clap(long, value_parser = parse_frontend_merkle_path)]
@@ -132,10 +140,10 @@ pub enum RelationArgs {
         #[clap(long)]
         token_id: Option<FrontendTokenId>,
         /// The nullifier that was used for the first old note (public input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         first_old_nullifier: Option<FrontendNullifier>,
         /// The nullifier that was used for the second old note (public input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         second_old_nullifier: Option<FrontendNullifier>,
         /// The new note (public input).
         #[clap(long, value_parser = parse_frontend_note)]
@@ -145,16 +153,16 @@ pub enum RelationArgs {
         merkle_root: Option<FrontendMerkleRoot>,
 
         /// The trapdoor that was used for the first old note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         first_old_trapdoor: Option<FrontendTrapdoor>,
         /// The trapdoor that was used for the second old note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         second_old_trapdoor: Option<FrontendTrapdoor>,
         /// The trapdoor that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_trapdoor: Option<FrontendTrapdoor>,
         /// The nullifier that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_nullifier: Option<FrontendNullifier>,
         /// The Merkle path proving that the first old note is under `merkle_root` (private input).
         #[clap(long, value_parser = parse_frontend_merkle_path)]
@@ -191,7 +199,7 @@ pub enum RelationArgs {
         max_path_len: u8,
 
         /// The nullifier that was used for the old note (public input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         old_nullifier: Option<FrontendNullifier>,
         /// The Merkle root of the tree containing the old note (public input).
         #[clap(long, value_parser = parse_frontend_note)]
@@ -213,13 +221,13 @@ pub enum RelationArgs {
         recipient: Option<FrontendAccount>,
 
         /// The trapdoor that was used for the old note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         old_trapdoor: Option<FrontendTrapdoor>,
         /// The trapdoor that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_trapdoor: Option<FrontendTrapdoor>,
         /// The nullifier that was used for the new note (private input).
-        #[clap(long)]
+        #[clap(long, value_parser = parse_frontend_note)]
         new_nullifier: Option<FrontendNullifier>,
         /// The Merkle path proving that the old note is under `merkle_root` (private input).
         #[clap(long, value_parser = parse_frontend_merkle_path)]
@@ -255,7 +263,10 @@ impl RelationArgs {
 }
 
 impl ConstraintSynthesizer<CircuitField> for RelationArgs {
-    fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> R1CsResult<()> {
+    fn generate_constraints(
+        self,
+        cs: ConstraintSystemRef<CircuitField>,
+    ) -> Result<(), SynthesisError> {
         match self {
             RelationArgs::Xor {
                 public_xoree,
@@ -441,7 +452,7 @@ impl ConstraintSynthesizer<CircuitField> for RelationArgs {
     }
 }
 
-impl GetPublicInput<CircuitField> for RelationArgs {
+impl GetPublicInput for RelationArgs {
     fn public_input(&self) -> Vec<CircuitField> {
         match self {
             RelationArgs::Xor {

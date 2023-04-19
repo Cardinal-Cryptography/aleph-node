@@ -1,12 +1,11 @@
 use anyhow::anyhow;
 use log::info;
-use primitives::{BlockNumber, EraIndex, SessionIndex};
 use subxt::{blocks::ExtrinsicEvents, ext::sp_runtime::traits::Hash, Config};
 
 use crate::{
     connections::{AsConnection, TxInfo},
-    pallets::{elections::ElectionsApi, staking::StakingApi},
-    AlephConfig, BlockHash,
+    pallets::{committee_management::CommitteeManagementApi, staking::StakingApi},
+    AlephConfig, BlockHash, BlockNumber, EraIndex, SessionIndex,
 };
 
 /// Block info API.
