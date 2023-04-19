@@ -540,7 +540,20 @@ pub mod button_game {
             let data = self.data.get().unwrap();
 
             // scale the amount to always pay out full token units
-            let scaled_amount = amount.saturating_mul(1_000_000_000_000);
+            let scaled_amount = match data.scoring {
+                // we map the score from it's domain to [1,100] reward tokens
+                // this way the amount of minted reward tokens is independent from the button's lifetime
+                // and the rewards are always paid out using full token units
+                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => Self::map_domain(
+                    amount,
+                    0,
+                    data.button_lifetime as Balance,
+                    1_000_000_000_000,
+                    100_000_000_000_000,
+                ),
+
+                Scoring::ThePressiahCometh => amount.saturating_mul(1_000_000_000_000),
+            };
 
             PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
 
@@ -562,6 +575,33 @@ pub mod button_game {
             EE: EmitEvent<ButtonGame>,
         {
             emitter.emit_event(event);
+        }
+
+        /// Performs mapping of a value that lives in a [from_low, from_high] domain
+        /// to the [to_low, to_high] domain.
+        ///
+        /// Function is an implementation of the following formula:
+        /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
+        /// using saturating integer operations
+        fn map_domain(
+            value: Balance,
+            in_min: Balance,
+            in_max: Balance,
+            out_min: Balance,
+            out_max: Balance,
+        ) -> Balance {
+            // Calculate the input range and output range
+            let in_range = in_max.saturating_sub(in_min);
+            let out_range = out_max.saturating_sub(out_min);
+
+            // Map the input value to the output range
+            let scaled_value = value
+                .saturating_sub(in_min)
+                .saturating_mul(out_range)
+                .saturating_div(in_range);
+
+            // Convert the scaled value to the output domain
+            out_min.saturating_add(scaled_value)
         }
     }
 }
