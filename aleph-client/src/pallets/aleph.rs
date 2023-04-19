@@ -87,7 +87,9 @@ impl<C: ConnectionApi> AlephApi for C {
     async fn emergency_finalizer(&self, at: Option<BlockHash>) -> Option<AccountId> {
         let addrs = api::storage().aleph().emergency_finalizer();
 
-        self.get_storage_entry_maybe(&addrs, at).await.map(|public| public.0.0.into())
+        self.get_storage_entry_maybe(&addrs, at)
+            .await
+            .map(|public| public.0 .0.into())
     }
 }
 
