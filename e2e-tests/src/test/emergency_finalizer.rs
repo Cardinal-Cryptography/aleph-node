@@ -1,0 +1,26 @@
+use aleph_client::{
+    pallets::aleph::{AlephApi, AlephSudoApi},
+    waiting::{BlockStatus, WaitingExt},
+    AccountId, AlephKeyPair, AsConnection, Pair, TxStatus,
+};
+
+use crate::config::setup_test;
+
+#[tokio::test]
+async fn set_emergency_finalizer_test() -> anyhow::Result<()> {
+    let config = setup_test();
+    let (finalizer, _seed) = AlephKeyPair::generate();
+    let public: AccountId = finalizer.public().0.into();
+    let root = config.create_root_connection().await;
+    let current_finalizer = root.as_connection().emergency_finalizer(None).await;
+
+    assert!(current_finalizer.is_none());
+
+    root.set_emergency_finalizer(public.clone(), TxStatus::Finalized)
+        .await?;
+    root.wait_for_n_sessions(2, BlockStatus::Finalized).await;
+
+    let current_finalizer = root.as_connection().emergency_finalizer(None).await;
+    assert_eq!(current_finalizer, Some(public));
+    Ok(())
+}
