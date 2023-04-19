@@ -2,7 +2,7 @@
 name: UpdateNet Create
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       name:
         description: 'Name of updatenet'
@@ -11,11 +11,10 @@ on:
       start:
         description: 'aleph-node image to be started'
         required: true
-        type: string
-        # type: choice
-        # options: 
-        # - testnet
-        # - mainnet
+        type: choice
+        options: 
+        - testnet
+        - mainnet
         default: testnet
 
 jobs:

@@ -67,5 +67,5 @@ jobs:
     name: Delete updatenet
     uses: ./.github/workflows/updatenet-delete.yml
     with:
-      name: ${{ github.run_id }}
+      name: '4742181835'
     secrets: inherit
