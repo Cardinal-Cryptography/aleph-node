@@ -10,18 +10,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  create-featurenet:
+  # create-featurenet:
+  #   if: >
+  #     (github.event.label.name == 'trigger:create-featurenet') ||
+  #     (github.event.label.name == 'trigger:create-hotfix-featurenet')
+  #   name: Create featurenet
+  #   uses: ./.github/workflows/_create-featurenet.yml
+  #   with:
+  #     # yamllint disable-line rule:line-length
+  #     hotfix: ${{ github.event.label.name == 'trigger:create-hotfix-featurenet' && true || false }}
+  #   secrets: inherit
+
+  # delete-featurenet:
+  #   if: >
+  #     (github.event.label.name == 'trigger:delete-featurenet') ||
+  #     (
+  #       github.event.action == 'closed' &&
+  #       !contains(github.event.pull_request.labels.*.name, 'state:deleted-featurenet') &&
+  #       contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
+  #     )
+  #   name: Delete featurenet
+  #   uses: ./.github/workflows/_delete-featurenet.yml
+  #   secrets: inherit
+
+  create-updatenet:
     if: >
       (github.event.label.name == 'trigger:create-featurenet') ||
       (github.event.label.name == 'trigger:create-hotfix-featurenet')
-    name: Create featurenet
-    uses: ./.github/workflows/_create-featurenet.yml
+    name: Create updatenet
+    uses: ./.github/workflows/updatenet-create.yml
     with:
-      # yamllint disable-line rule:line-length
-      hotfix: ${{ github.event.label.name == 'trigger:create-hotfix-featurenet' && true || false }}
+      name: ${{ github.run_id }}
+      start: testnet
     secrets: inherit
 
-  delete-featurenet:
+  update-updatenet:
+    needs: [create-updatenet]
+    if: >
+      (github.event.label.name == 'trigger:create-featurenet') ||
+      (github.event.label.name == 'trigger:create-hotfix-featurenet')
+    name: Update updatenet
+    uses: ./.github/workflows/updatenet-update.yml
+    with:
+      name: ${{ github.run_id }}
+      destination: 08a743f
+    secrets: inherit
+
+  delete-updatenet:
     if: >
       (github.event.label.name == 'trigger:delete-featurenet') ||
       (
@@ -29,6 +64,8 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'state:deleted-featurenet') &&
         contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
       )
-    name: Delete featurenet
-    uses: ./.github/workflows/_delete-featurenet.yml
+    name: Delete updatenet
+    uses: ./.github/workflows/updatenet-delete.yml
+    with:
+      name: '4742181835'
     secrets: inherit
