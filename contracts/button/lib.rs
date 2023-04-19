@@ -31,7 +31,7 @@ pub mod button_game {
     use crate::errors::GameError;
 
     pub const ONE_TOKEN: Balance = 1_000_000_000_000;
-    pub const ONE_HUNDRED_TOKENS: Balance = 1_000_000_000_000;
+    pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
 
     /// Result type
     type ButtonResult<T> = core::result::Result<T, GameError>;
