@@ -40,7 +40,7 @@ jobs:
     name: Create updatenet
     uses: ./.github/workflows/updatenet-create.yml
     with:
-      name: test-mikolaj
+      name: ${{ github.run_id }}
       start: testnet
     secrets: inherit
 
@@ -52,7 +52,7 @@ jobs:
     name: Update updatenet
     uses: ./.github/workflows/updatenet-update.yml
     with:
-      name: test-mikolaj
+      name: ${{ github.run_id }}
       destination: 08a743f
     secrets: inherit
 
@@ -67,5 +67,5 @@ jobs:
     name: Delete updatenet
     uses: ./.github/workflows/updatenet-delete.yml
     with:
-      name: test-mikolaj
+      name: ${{ github.run_id }}
     secrets: inherit
