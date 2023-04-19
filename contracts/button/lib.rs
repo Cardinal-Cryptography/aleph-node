@@ -30,6 +30,9 @@ pub mod button_game {
 
     use crate::errors::GameError;
 
+    pub const ONE_TOKEN: Balance = 1_000_000_000_000;
+    pub const ONE_HUNDRED_TOKENS: Balance = 1_000_000_000_000;
+
     /// Result type
     type ButtonResult<T> = core::result::Result<T, GameError>;
 
@@ -548,17 +551,17 @@ pub mod button_game {
                     amount,
                     0,
                     data.button_lifetime as Balance,
-                    1_000_000_000_000,
-                    100_000_000_000_000,
+                    ONE_TOKEN,
+                    ONE_HUNDRED_TOKENS,
                 ),
 
-                Scoring::ThePressiahCometh => amount.saturating_mul(1_000_000_000_000),
+                Scoring::ThePressiahCometh => amount.saturating_mul(ONE_TOKEN),
             };
 
             PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
 
             Self::emit_event(
-                Self::env(),
+                self.env(),
                 Event::RewardMinted(RewardMinted {
                     when: self.env().block_number(),
                     reward_token: data.reward_token,
