@@ -1,7 +1,9 @@
+use codec::Encode;
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
-    SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
+    SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
+    LENIENT_THRESHOLD,
 };
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use sp_runtime::{Perbill, Perquintill};
@@ -22,12 +24,6 @@ use crate::{
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct SessionCommittee<T> {
-    pub finality_committee: Vec<T>,
-    pub block_producers: Vec<T>,
-}
 
 impl<T: Config> BannedValidators for Pallet<T> {
     type AccountId = T::AccountId;
@@ -187,6 +183,7 @@ impl<T: Config> Pallet<T> {
 
         ValidatorEraTotalReward::<T>::put(ValidatorTotalRewards(scaled_totals.collect()));
     }
+
     fn reward_for_session_non_committee(
         non_committee: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
@@ -298,33 +295,50 @@ impl<T: Config> Pallet<T> {
         CurrentAndNextSessionValidatorsStorage::<T>::put(session_validators);
     }
 
-    pub(crate) fn rotate_committee(
+    pub(crate) fn rotate_committee_inner(
+        era_validators: &EraValidators<T::AccountId>,
+        committee_seats: CommitteeSeats,
         current_session: SessionIndex,
-    ) -> Option<SessionCommittee<T::AccountId>>
-    where
-        T::AccountId: Clone + PartialEq,
-    {
+    ) -> Option<SessionCommittee<T::AccountId>> {
         let EraValidators {
             reserved,
             non_reserved,
-        } = T::ValidatorProvider::current_era_validators()?;
+        } = era_validators;
+
         let CommitteeSeats {
             reserved_seats,
             non_reserved_seats,
             non_reserved_finality_seats,
-        } = T::ValidatorProvider::current_era_committee_size()?;
+        } = committee_seats;
 
-        let committee = rotate(
+        rotate(
             current_session,
             reserved_seats as usize,
             non_reserved_seats as usize,
             non_reserved_finality_seats as usize,
             &reserved,
             &non_reserved,
-        );
+        )
+    }
+
+    pub(crate) fn rotate_committee(
+        current_session: SessionIndex,
+    ) -> Option<SessionCommittee<T::AccountId>>
+    where
+        T::AccountId: Clone + PartialEq,
+    {
+        let era_validators = T::ValidatorProvider::current_era_validators()?;
+        let committee_seats = T::ValidatorProvider::current_era_committee_size()?;
+
+        let committee =
+            Self::rotate_committee_inner(&era_validators, committee_seats, current_session);
 
         if let Some(c) = &committee {
-            Self::store_session_validators(&c.block_producers, reserved, non_reserved);
+            Self::store_session_validators(
+                &c.block_producers,
+                era_validators.reserved,
+                era_validators.non_reserved,
+            );
         }
 
         committee
@@ -413,6 +427,49 @@ impl<T: Config> Pallet<T> {
             );
             Self::deposit_event(Event::BanValidators(fresh_bans));
         }
+    }
+
+    // Calculates
+    pub fn session_committee_for_session(
+        session: SessionIndex,
+    ) -> Result<SessionCommittee<T::AccountId>, SessionValidatorError> {
+        let ae = match T::EraInfoProvider::active_era() {
+            Some(ae) => ae,
+            _ => return Err(SessionValidatorError::Other("No active era".encode())),
+        };
+
+        let active_starting_index = match T::EraInfoProvider::era_start_session_index(ae) {
+            Some(asi) => asi,
+            // Shouldn't happen
+            None => {
+                return Err(SessionValidatorError::Other(
+                    "No known starting session for current era".encode(),
+                ))
+            }
+        };
+
+        // Historical session
+        if active_starting_index > session {
+            return Err(SessionValidatorError::OldEra);
+        }
+
+        let planned_era_end = active_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
+
+        if session <= planned_era_end {
+            let era_validators = T::ValidatorProvider::current_era_validators().ok_or(
+                SessionValidatorError::Other("Couldn't get validators for current era".encode()),
+            )?;
+            let committee_seats = T::ValidatorProvider::current_era_committee_size().ok_or(
+                SessionValidatorError::Other(
+                    "Couldn't get committee-seats for current era".encode(),
+                ),
+            )?;
+            return Self::rotate_committee_inner(&era_validators, committee_seats, session)
+                .ok_or(SessionValidatorError::Other("Internal error".encode()));
+        }
+        Err(SessionValidatorError::SessionTooMuchIntoFuture {
+            upper_limit: planned_era_end,
+        })
     }
 }
 

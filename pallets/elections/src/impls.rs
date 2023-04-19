@@ -16,8 +16,9 @@ where
         let mut rng = SmallRng::seed_from_u64(era as u64);
         let elected_committee = BTreeSet::from_iter(T::ValidatorProvider::elected_validators(era));
 
-        let mut retain_shuffle_elected = |mut vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
-            let mut vals = vals.into_iter()
+        let mut retain_shuffle_elected = |vals: Vec<T::AccountId>| -> Vec<T::AccountId> {
+            let mut vals: Vec<_> = vals
+                .into_iter()
                 .filter(|v| elected_committee.contains(v))
                 .collect();
             vals.shuffle(&mut rng);
