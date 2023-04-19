@@ -15,30 +15,45 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v3
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/install-rust-toolchain
-        with:
-          targets: wasm32-unknown-unknown
-          components: clippy rustfmt
-
       - name: Run Format Checks
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all
+        runs: |
+          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 \
+            cargo fmt --all
 
       - name: Run Linter
-        uses: actions-rs/cargo@v1
-        env:
-          # https://github.com/mozilla/sccache/issues/966
-          RUSTC_WRAPPER: ""
-          RUSTC_WORKSPACE_WRAPPER: sccache
-        with:
-          command: clippy
-          args: --all-targets -- --no-deps -D warnings
+        runs: |
+          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 \
+            cargo clippy --all-targets -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "liminal-try-runtime liminal-runtime-benchmarks"
+        runs: |
+          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 \
+            cargo test --features 'liminal-try-runtime liminal-runtime-benchmarks'
+
+      # - name: Install Rust Toolchain
+      #   uses: ./.github/actions/install-rust-toolchain
+      #   with:
+      #     targets: wasm32-unknown-unknown
+      #     components: clippy rustfmt
+
+      # - name: Run Format Checks
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: fmt
+      #     args: --all
+
+      # - name: Run Linter
+      #   uses: actions-rs/cargo@v1
+      #   env:
+      #     # https://github.com/mozilla/sccache/issues/966
+      #     RUSTC_WRAPPER: ""
+      #     RUSTC_WORKSPACE_WRAPPER: sccache
+      #   with:
+      #     command: clippy
+      #     args: --all-targets -- --no-deps -D warnings
+
+      # - name: Run Unit Test Suite
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --features "liminal-try-runtime liminal-runtime-benchmarks"

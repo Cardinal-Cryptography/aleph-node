@@ -35,7 +35,7 @@ jobs:
           mv "$ARTIFACT" "$TARGET_DIR"
           sha256sum "$TARGET_DIR/$ARTIFACT" > checksum.sha256
 
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 cargo clean
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 cargo build --profile production -p aleph-runtime
+          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 \
+            bash -c "cargo clean && cargo build --profile production -p aleph-runtime"
 
           sha256sum -c checksum.sha256
