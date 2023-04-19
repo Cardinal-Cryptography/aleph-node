@@ -8,9 +8,9 @@ on:
         description: 'aleph-node image to be started'
         required: true
         type: choice
-        options: 
-        - testnet
-        - mainnet
+        options:
+          - testnet
+          - mainnet
         default: testnet
 
 jobs:

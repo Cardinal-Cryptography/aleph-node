@@ -35,7 +35,7 @@ runs:
     - name: Validate inputs
       shell: bash
       run: |
-        if [[ 
+        if [[
           "${{ inputs.featurenet-name }}" != "" && \
           ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
         ]]
