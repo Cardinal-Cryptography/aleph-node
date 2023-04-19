@@ -24,7 +24,8 @@ jobs:
 
       - name: Run Linter
         run: |
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) mikogs/rust-dev:v0.1.0 \
+          docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
+            -e RUSTUP_COMPONENTS=clippy mikogs/rust-dev:v0.1.0 \
             cargo clippy --all-targets -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
