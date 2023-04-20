@@ -10,12 +10,12 @@ use frame_system::RawOrigin;
 use primitives::host_functions::poseidon;
 
 use crate::{
-    benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, Pallet,
-    VerificationKeyDeposits, VerificationKeyIdentifier, VerificationKeyOwners, VerificationKeys,
+    benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, KeyPairIdentifier,
+    Pallet, VerificationKeyDeposits, VerificationKeyOwners, VerificationKeys,
 };
 
 const SEED: u32 = 41;
-const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
+const IDENTIFIER: KeyPairIdentifier = [0; 8];
 
 fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
     let caller_account = account("caller", 0, SEED);

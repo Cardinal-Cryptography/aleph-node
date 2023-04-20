@@ -21,8 +21,8 @@ pub use weights::{AlephWeight, WeightInfo};
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
-/// We store verification keys under short identifiers.
-pub type VerificationKeyIdentifier = [u8; 8];
+/// We store proving and verification keys under short identifiers.
+pub type KeyPairIdentifier = [u8; 8];
 pub type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -48,6 +48,13 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
         type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
+        /// Limits how many bytes the proving key can have.
+        ///
+        /// Proving keys are stored, therefore this is separated from the limits on proof or
+        /// public input.
+        #[pallet::constant]
+        type MaximumProvingKeyLength: Get<u32>;
+
         /// Limits how many bytes verification key can have.
         ///
         /// Verification keys are stored, therefore this is separated from the limits on proof or
@@ -59,20 +66,22 @@ pub mod pallet {
         #[pallet::constant]
         type MaximumDataLength: Get<u32>;
 
-        /// Deposit amount for storing a verification key
+        /// Deposit amount for storing a proving/verification key pair
         ///
-        /// Will get locked and returned upon deleting the key by the owner
+        /// Will get locked and returned upon deleting the key pair by the owner
         #[pallet::constant]
-        type VerificationKeyDepositPerByte: Get<BalanceOf<Self>>;
+        type KeyPairDepositPerByte: Get<BalanceOf<Self>>;
     }
 
     #[pallet::error]
     #[derive(Clone, Eq, PartialEq)]
     pub enum Error<T> {
-        /// This verification key identifier is already taken.
+        /// This proving/verification key pair identifier is already taken.
         IdentifierAlreadyInUse,
-        /// There is no verification key available under this identifier.
-        UnknownVerificationKeyIdentifier,
+        /// There is no proving/verification key pair available under this identifier.
+        UnknownKeyPairIdentifier,
+        /// Provided proving key is longer than `MaximumProvingKeyLength` limit.
+        ProvingKeyTooLong,
         /// Provided verification key is longer than `MaximumVerificationKeyLength` limit.
         VerificationKeyTooLong,
         /// Either proof or public input is longer than `MaximumDataLength` limit.
@@ -99,20 +108,20 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Verification key has been successfully stored.
+        /// Proving and verification keys have been successfully stored.
         ///
         /// \[ account_id, identifier \]
-        VerificationKeyStored(T::AccountId, VerificationKeyIdentifier),
+        KeyPairStored(T::AccountId, KeyPairIdentifier),
 
-        /// Verification key has been successfully deleted.
+        /// Proving and verification keys have been successfully deleted.
         ///
         /// \[ identifier \]
-        VerificationKeyDeleted(T::AccountId, VerificationKeyIdentifier),
+        KeyPairDeleted(T::AccountId, KeyPairIdentifier),
 
-        /// Verification key has been successfully overwritten.
+        /// Proving and verification keys have been successfully overwritten.
         ///
         /// \[ identifier \]
-        VerificationKeyOverwritten(VerificationKeyIdentifier),
+        KeyPairOverwritten(KeyPairIdentifier),
 
         /// Proof has been successfully verified.
         VerificationSucceeded,
@@ -124,110 +133,137 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
+    #[pallet::getter(fn get_proving_key)]
+    pub type ProvingKeys<T: Config> =
+        StorageMap<_, Twox64Concat, KeyPairIdentifier, BoundedVec<u8, T::MaximumProvingKeyLength>>;
+
+    #[pallet::storage]
     #[pallet::getter(fn get_verification_key)]
     pub type VerificationKeys<T: Config> = StorageMap<
         _,
         Twox64Concat,
-        VerificationKeyIdentifier,
+        KeyPairIdentifier,
         BoundedVec<u8, T::MaximumVerificationKeyLength>,
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn get_verification_key_owner)]
-    pub type VerificationKeyOwners<T: Config> =
-        StorageMap<_, Twox64Concat, VerificationKeyIdentifier, T::AccountId>;
+    #[pallet::getter(fn get_key_pair_owner)]
+    pub type KeyPairOwners<T: Config> =
+        StorageMap<_, Twox64Concat, KeyPairIdentifier, T::AccountId>;
 
     #[pallet::storage]
-    #[pallet::getter(fn get_verification_key_deposit)]
-    pub type VerificationKeyDeposits<T: Config> =
-        StorageMap<_, Twox64Concat, (T::AccountId, VerificationKeyIdentifier), BalanceOf<T>>;
+    #[pallet::getter(fn get_key_pair_deposit)]
+    pub type KeyPairDeposits<T: Config> =
+        StorageMap<_, Twox64Concat, (T::AccountId, KeyPairIdentifier), BalanceOf<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Stores `key` under `identifier` in `VerificationKeys` map.
+        /// Stores `proving_key` under `identifier` in `ProvingKeys` map.
+        /// Stores `verification_key` under `identifier` in `VerificationKeys` map.
         ///
         /// Fails if:
-        /// - `key.len()` is greater than `MaximumVerificationKeyLength`, or
+        /// - `proving_key.len()` is greater than `MaximumProvingKeyLength`, or
+        /// - `verification_key.len()` is greater than `MaximumVerificationKeyLength`, or
         /// - `identifier` has been already used
         ///
-        /// `key` can come from any proving system - there are no checks that verify it, in
-        /// particular, `key` can contain just trash bytes.
+        /// `proving_key` and `verification_key` can come from any proving system - there are no
+        /// checks that verify them, in particular, they both can just contain trash bytes.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::store_key(key.len() as u32))]
-        pub fn store_key(
+        #[pallet::weight(T::WeightInfo::store_key_pair(proving_key.len() as u32, verification_key.len() as u32))]
+        pub fn store_key_pair(
             origin: OriginFor<T>,
-            identifier: VerificationKeyIdentifier,
-            key: Vec<u8>,
+            identifier: KeyPairIdentifier,
+            proving_key: Vec<u8>,
+            verification_key: Vec<u8>,
         ) -> DispatchResult {
-            Self::bare_store_key(origin, identifier, key).map_err(|e| e.into())
+            Self::bare_store_key_pair(origin, identifier, proving_key, verification_key)
+                .map_err(|e| e.into())
         }
 
-        /// Deletes a key stored under `identifier` in `VerificationKeys` map.
+        /// Deletes keys stored under `identifier` in both the `ProvingKeys` and `VerificationKeys`
+        /// maps.
         ///
-        /// Returns the deposit locked. Can only be called by the key owner.
+        /// Returns the deposit locked. Can only be called by the key pair owner.
         #[pallet::call_index(1)]
-        #[pallet::weight(T::WeightInfo::delete_key(T::MaximumVerificationKeyLength::get()))]
-        pub fn delete_key(
+        #[pallet::weight(T::WeightInfo::delete_key_pair(
+            T::MaximumProvingKeyLength::get(),
+            T::MaximumVerificationKeyLength::get()
+        ))]
+        pub fn delete_key_pair(
             origin: OriginFor<T>,
-            identifier: VerificationKeyIdentifier,
+            identifier: KeyPairIdentifier,
         ) -> DispatchResult {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
-            let owner = VerificationKeyOwners::<T>::get(identifier)
-                .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+            let owner =
+                KeyPairOwners::<T>::get(identifier).ok_or(Error::<T>::UnknownKeyPairIdentifier)?;
 
             ensure!(who == owner, Error::<T>::NotOwner);
 
-            let deposit = VerificationKeyDeposits::<T>::take((&owner, &identifier)).unwrap(); // cannot fail since the key has owner and owner must have made a deposit
+            let deposit = KeyPairDeposits::<T>::take((&owner, &identifier)).unwrap(); // cannot fail since the key pair has owner and owner must have made a deposit
             T::Currency::unreserve(&owner, deposit);
 
+            ProvingKeys::<T>::remove(identifier);
             VerificationKeys::<T>::remove(identifier);
-            Self::deposit_event(Event::VerificationKeyDeleted(who, identifier));
+            Self::deposit_event(Event::KeyPairDeleted(who, identifier));
             Ok(())
         }
 
-        /// Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`
+        /// Overwrites keys stored under `identifier` in the `ProvingKeys` and `VerificationKeys`
+        /// maps with new values `proving_key` and `verification_key`, respectively.
         ///
-        /// Fails if `key.len()` is greater than `MaximumVerificationKeyLength`.
+        /// Fails if `proving_key.len()` is greater than `MaximumProvingKeyLength` or
+        /// `verification_key.len()` is greater than `MaximumVerificationKeyLength`.
         /// Can only be called by the original owner of the key.
-        /// It will require the caller to lock up additional funds (if the new key occupies more storage)
+        /// It will require the caller to lock up additional funds (if the new key pair occupies more storage)
         /// or reimburse the difference if it is shorter in its byte-length.
         #[pallet::call_index(2)]
         #[pallet::weight(
-            T::WeightInfo::overwrite_key(key.len() as u32)
-                .max (T::WeightInfo::overwrite_equal_key(key.len() as u32))
+            T::WeightInfo::overwrite_key_pair(proving_key.len() as u32, verification_key.len() as u32)
+                .max (T::WeightInfo::overwrite_equal_key_pair(proving_key.len() as u32, verification_key.len() as u32))
         )]
-        pub fn overwrite_key(
+        pub fn overwrite_key_pair(
             origin: OriginFor<T>,
-            identifier: VerificationKeyIdentifier,
-            key: Vec<u8>,
+            identifier: KeyPairIdentifier,
+            proving_key: Vec<u8>,
+            verification_key: Vec<u8>,
         ) -> DispatchResult {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
-            let owner = VerificationKeyOwners::<T>::get(identifier);
+            let owner = KeyPairOwners::<T>::get(identifier);
 
             match owner {
                 Some(owner) => ensure!(who == owner, Error::<T>::NotOwner),
-                None => fail!(Error::<T>::UnknownVerificationKeyIdentifier),
+                None => fail!(Error::<T>::UnknownKeyPairIdentifier),
             };
 
             ensure!(
-                key.len() <= T::MaximumVerificationKeyLength::get() as usize,
+                proving_key.len() <= T::MaximumProvingKeyLength::get() as usize,
+                Error::<T>::ProvingKeyTooLong
+            );
+            ensure!(
+                verification_key.len() <= T::MaximumVerificationKeyLength::get() as usize,
                 Error::<T>::VerificationKeyTooLong
             );
 
+            ProvingKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
+                // should never fail, since length is checked above
+                *value = Some(BoundedVec::try_from(proving_key.clone()).unwrap());
+                Ok(())
+            })?;
             VerificationKeys::<T>::try_mutate_exists(identifier, |value| -> DispatchResult {
                 // should never fail, since length is checked above
-                *value = Some(BoundedVec::try_from(key.clone()).unwrap());
+                *value = Some(BoundedVec::try_from(verification_key.clone()).unwrap());
                 Ok(())
             })?;
 
-            VerificationKeyDeposits::<T>::try_mutate_exists(
+            KeyPairDeposits::<T>::try_mutate_exists(
                 (&who, &identifier),
                 |maybe_previous_deposit| -> DispatchResult {
-                    let previous_deposit = maybe_previous_deposit
-                        .ok_or(Error::<T>::UnknownVerificationKeyIdentifier)?;
+                    let previous_deposit =
+                        maybe_previous_deposit.ok_or(Error::<T>::UnknownKeyPairIdentifier)?;
 
-                    let deposit = T::VerificationKeyDepositPerByte::get()
-                        * BalanceOf::<T>::from(key.len() as u32);
+                    let key_pair_len = proving_key.len() + verification_key.len();
+                    let deposit =
+                        T::KeyPairDepositPerByte::get() * BalanceOf::<T>::from(key_pair_len as u32);
 
                     match deposit.cmp(&previous_deposit) {
                         Less => {
@@ -249,7 +285,7 @@ pub mod pallet {
                         }
                     };
 
-                    Self::deposit_event(Event::VerificationKeyOverwritten(identifier));
+                    Self::deposit_event(Event::KeyPairOverwritten(identifier));
                     Ok(())
                 },
             )
@@ -271,7 +307,7 @@ pub mod pallet {
         #[pallet::call_index(3)]
         pub fn verify(
             _origin: OriginFor<T>,
-            verification_key_identifier: VerificationKeyIdentifier,
+            verification_key_identifier: KeyPairIdentifier,
             proof: Vec<u8>,
             public_input: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
@@ -288,42 +324,54 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// This is the inner logic behind `Self::store_key`, however it is free from account lookup
-        /// or other dispatchable-related overhead. Thus, it is more suited to call directly from
-        /// runtime, like from a chain extension.
-        pub fn bare_store_key(
+        /// This is the inner logic behind `Self::store_key_pair`, however it is free from account
+        /// lookup or other dispatchable-related overhead. Thus, it is more suited to call directly
+        /// from runtime, like from a chain extension.
+        pub fn bare_store_key_pair(
             origin: OriginFor<T>,
-            identifier: VerificationKeyIdentifier,
-            key: Vec<u8>,
+            identifier: KeyPairIdentifier,
+            proving_key: Vec<u8>,
+            verification_key: Vec<u8>,
         ) -> Result<(), Error<T>> {
             let who = ensure_signed(origin).map_err(|_| Error::<T>::BadOrigin)?;
 
             ensure!(
-                key.len() <= T::MaximumVerificationKeyLength::get() as usize,
+                proving_key.len() <= T::MaximumProvingKeyLength::get() as usize,
+                Error::<T>::ProvingKeyTooLong
+            );
+            ensure!(
+                verification_key.len() <= T::MaximumVerificationKeyLength::get() as usize,
                 Error::<T>::VerificationKeyTooLong
             );
 
             ensure!(
-                !VerificationKeys::<T>::contains_key(identifier),
+                !(VerificationKeys::<T>::contains_key(identifier)
+                    || ProvingKeys::<T>::contains_key(identifier)),
                 Error::<T>::IdentifierAlreadyInUse
             );
 
-            // make a locked deposit that will be returned when the key is deleted
+            // make a locked deposit that will be returned when the key pair is deleted
             // deposit is calculated per byte of occupied storage
+            let key_pair_len = proving_key.len() + verification_key.len();
             let deposit =
-                T::VerificationKeyDepositPerByte::get() * BalanceOf::<T>::from(key.len() as u32);
+                T::KeyPairDepositPerByte::get() * BalanceOf::<T>::from(key_pair_len as u32);
             T::Currency::reserve(&who, deposit).map_err(|_| Error::<T>::CannotAffordDeposit)?;
 
+            ProvingKeys::<T>::insert(
+                identifier,
+                BoundedVec::try_from(proving_key).unwrap(), // must succeed since we've just check length
+            );
             VerificationKeys::<T>::insert(
                 identifier,
-                BoundedVec::try_from(key).unwrap(), // must succeed since we've just check length
+                BoundedVec::try_from(verification_key).unwrap(), // must succeed since we've just check length
             );
 
-            // will never overwrite anything since we already check the VerificationKeys map
-            VerificationKeyOwners::<T>::insert(identifier, &who);
-            VerificationKeyDeposits::<T>::insert((&who, &identifier), deposit);
+            // will never overwrite anything since we have already checked the ProvingKeys and
+            // VerificationKeys maps
+            KeyPairOwners::<T>::insert(identifier, &who);
+            KeyPairDeposits::<T>::insert((&who, &identifier), deposit);
 
-            Self::deposit_event(Event::VerificationKeyStored(who, identifier));
+            Self::deposit_event(Event::KeyPairStored(who, identifier));
             Ok(())
         }
 
@@ -331,7 +379,7 @@ pub mod pallet {
         /// or other dispatchable-related overhead. Thus, it is more suited to call directly from
         /// runtime, like from a chain extension.
         pub fn bare_verify(
-            verification_key_identifier: VerificationKeyIdentifier,
+            verification_key_identifier: KeyPairIdentifier,
             proof: Vec<u8>,
             public_input: Vec<u8>,
         ) -> Result<(), (Error<T>, Option<Weight>)> {
@@ -339,7 +387,7 @@ pub mod pallet {
         }
 
         fn _bare_verify<S: VerifyingSystem>(
-            verification_key_identifier: VerificationKeyIdentifier,
+            verification_key_identifier: KeyPairIdentifier,
             proof: Vec<u8>,
             public_input: Vec<u8>,
         ) -> Result<(), (Error<T>, Option<Weight>)> {
@@ -378,7 +426,7 @@ pub mod pallet {
 
             let verification_key =
                 VerificationKeys::<T>::get(verification_key_identifier).ok_or((
-                    Error::<T>::UnknownVerificationKeyIdentifier,
+                    Error::<T>::UnknownKeyPairIdentifier,
                     Some(T::WeightInfo::verify_key_deserializing_fails(0)),
                 ))?;
             let verification_key: S::VerifyingKey =

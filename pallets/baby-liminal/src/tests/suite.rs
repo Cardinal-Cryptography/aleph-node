@@ -4,13 +4,13 @@ use sp_runtime::traits::Get;
 
 use super::setup::*;
 use crate::{
-    Error, VerificationError, VerificationKeyDeposits, VerificationKeyIdentifier,
-    VerificationKeyOwners, VerificationKeys,
+    Error, KeyPairIdentifier, VerificationError, VerificationKeyDeposits, VerificationKeyOwners,
+    VerificationKeys,
 };
 
 type BabyLiminal = crate::Pallet<TestRuntime>;
 
-const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
+const IDENTIFIER: KeyPairIdentifier = [0; 8];
 
 fn vk() -> Vec<u8> {
     include_bytes!("../resources/groth16/xor.vk.bytes").to_vec()
