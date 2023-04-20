@@ -17,7 +17,9 @@ jobs:
 
       - name: Run Format Checks
         run: |
+          docker volume create tmp-gh-${{ github.run_id }}
           docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
+            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
             -e RUSTC_WRAPPER=sccache \
             -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
             -e SCCACHE_REGION=eu-central-1 \
@@ -29,6 +31,7 @@ jobs:
       - name: Run Linter
         run: |
           docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
+            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
             -e RUSTC_WRAPPER=sccache \
             -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
             -e SCCACHE_REGION=eu-central-1 \
@@ -40,6 +43,7 @@ jobs:
       - name: Run Unit Test Suite
         run: |
           docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
+            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
             -e RUSTC_WRAPPER=sccache \
             -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
             -e SCCACHE_REGION=eu-central-1 \
