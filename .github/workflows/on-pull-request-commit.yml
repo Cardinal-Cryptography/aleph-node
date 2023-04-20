@@ -19,6 +19,7 @@ jobs:
   unit-tests-and-static-checks:
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
+    secrets: inherit
 
   build-production-node-and-runtime:
     name: Build production node and runtime
