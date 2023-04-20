@@ -431,38 +431,48 @@ impl<T: Config> Pallet<T> {
 mod tests {
     use std::collections::{BTreeSet, VecDeque};
 
+    use sp_runtime::Perquintill;
+
     use crate::impls::{
         calculate_adjusted_session_points, compute_validator_scaled_total_rewards, rotate,
         MAX_REWARD,
     };
 
+    const THRESHOLD: Perquintill = Perquintill::from_percent(90);
+
     #[test]
     fn adjusted_session_points_all_blocks_created_are_calculated_correctly() {
-        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 30, 25_000));
+        assert_eq!(
+            5000,
+            calculate_adjusted_session_points(5, 30, 30, 25_000, THRESHOLD)
+        );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 900, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 900, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 900, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 900, 590_000_000, THRESHOLD)
         );
     }
 
     #[test]
     fn adjusted_session_points_above_90_perc_are_calculated_correctly() {
-        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 27, 25_000));
+        assert_eq!(
+            5000,
+            calculate_adjusted_session_points(5, 30, 27, 25_000, THRESHOLD)
+        );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 811, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 811, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 899, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 899, 590_000_000, THRESHOLD)
         );
     }
 
@@ -470,17 +480,17 @@ mod tests {
     fn adjusted_session_points_more_than_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
             5000,
-            calculate_adjusted_session_points(5, 30, 2 * 30, 25_000)
+            calculate_adjusted_session_points(5, 30, 2 * 30, 25_000, THRESHOLD)
         );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 901, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 901, 590_000_000, THRESHOLD)
         );
     }
 
