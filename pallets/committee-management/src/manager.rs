@@ -117,6 +117,7 @@ where
         T::new_session(new_index);
         if let Some(era) = Self::session_starts_next_era(new_index) {
             EM::on_new_era(era);
+            Pallet::<C>::update_threshold();
             Pallet::<C>::emit_fresh_bans_event();
         }
 

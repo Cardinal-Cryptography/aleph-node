@@ -1,7 +1,7 @@
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
-    SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
+    SessionValidators, ValidatorProvider,
 };
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use sp_runtime::{Perbill, Perquintill};
@@ -17,8 +17,8 @@ use crate::{
         SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, CurrentAndNextSessionValidators, ValidatorExtractor, ValidatorTotalRewards,
-    LOG_TARGET,
+    BanConfigStruct, CurrentAndNextSessionValidators, LenientThreshold, ValidatorExtractor,
+    ValidatorTotalRewards, LOG_TARGET,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -138,12 +138,13 @@ fn calculate_adjusted_session_points(
     blocks_to_produce_per_session: u32,
     blocks_created: u32,
     total_possible_reward: u32,
+    lenient_threshold: Perquintill,
 ) -> u32 {
     let performance =
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
 
-    // when produced more than 90% expected blocks, get 100% possible reward for session
-    if performance >= LENIENT_THRESHOLD {
+    // when produced more than `lenient_threshold`% expected blocks, get 100% possible reward for session
+    if performance >= lenient_threshold {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
             * total_possible_reward as u64) as u32;
     }
@@ -192,6 +193,7 @@ impl<T: Config> Pallet<T> {
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
         validator_totals: &BTreeMap<T::AccountId, u32>,
+        threshold: Perquintill,
     ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         non_committee.into_iter().map(move |validator| {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
@@ -202,6 +204,7 @@ impl<T: Config> Pallet<T> {
                     blocks_per_session,
                     blocks_per_session,
                     *total,
+                    threshold,
                 ),
             )
         })
@@ -212,6 +215,7 @@ impl<T: Config> Pallet<T> {
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
         validator_totals: &BTreeMap<T::AccountId, u32>,
+        threshold: Perquintill,
     ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         committee.into_iter().map(move |validator| {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
@@ -223,6 +227,7 @@ impl<T: Config> Pallet<T> {
                     blocks_per_session,
                     blocks_created,
                     *total,
+                    threshold,
                 ),
             )
         })
@@ -254,11 +259,15 @@ impl<T: Config> Pallet<T> {
             .unwrap_or_else(|| ValidatorTotalRewards(BTreeMap::new()))
             .0;
 
+        let lenient_threshold = LenientThreshold::<T>::get();
+        let lenient_threshold = lenient_threshold.get();
+
         let rewards = Self::reward_for_session_non_committee(
             non_committee,
             nr_of_sessions,
             blocks_per_session,
             &validator_total_rewards,
+            *lenient_threshold,
         )
         .into_iter()
         .chain(
@@ -267,6 +276,7 @@ impl<T: Config> Pallet<T> {
                 nr_of_sessions,
                 blocks_per_session,
                 &validator_total_rewards,
+                *lenient_threshold,
             )
             .into_iter(),
         );
@@ -287,15 +297,12 @@ impl<T: Config> Pallet<T> {
             .filter(|a| !committee.contains(a))
             .collect();
 
-        let mut session_validators = CurrentAndNextSessionValidatorsStorage::<T>::get();
-
-        session_validators.current = session_validators.next;
-        session_validators.next = SessionValidators {
-            committee: committee.into_iter().collect(),
-            non_committee,
-        };
-
-        CurrentAndNextSessionValidatorsStorage::<T>::put(session_validators);
+        CurrentAndNextSessionValidatorsStorage::<T>::mutate(|session_validators| {
+            session_validators.update_with_value(SessionValidators {
+                committee: committee.into_iter().collect(),
+                non_committee,
+            });
+        });
     }
 
     pub(crate) fn rotate_committee(
@@ -413,6 +420,10 @@ impl<T: Config> Pallet<T> {
             );
             Self::deposit_event(Event::BanValidators(fresh_bans));
         }
+    }
+
+    pub fn update_threshold() {
+        LenientThreshold::<T>::mutate(|lenient| lenient.update_current());
     }
 }
 

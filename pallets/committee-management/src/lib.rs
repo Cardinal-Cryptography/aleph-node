@@ -28,31 +28,57 @@ mod migration;
 mod traits;
 
 use codec::{Decode, Encode};
-use frame_support::traits::StorageVersion;
+use frame_support::{pallet_prelude::Get, traits::StorageVersion};
 pub use manager::SessionAndEraManager;
 pub use migration::PrefixMigration;
 pub use pallet::*;
-use primitives::{BanConfig as BanConfigStruct, BanInfo, SessionValidators};
+use primitives::{BanConfig as BanConfigStruct, BanInfo, SessionValidators, LENIENT_THRESHOLD};
 use scale_info::TypeInfo;
-use sp_std::{collections::btree_map::BTreeMap, default::Default};
+use sp_runtime::Perquintill;
+use sp_std::{collections::btree_map::BTreeMap, default::Default, mem::replace};
 pub use traits::*;
 
 pub type TotalReward = u32;
 #[derive(Decode, Encode, TypeInfo, PartialEq, Eq)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
-#[derive(Decode, Encode, TypeInfo)]
-struct CurrentAndNextSessionValidators<T> {
-    pub next: SessionValidators<T>,
-    pub current: SessionValidators<T>,
+#[derive(Decode, Encode, TypeInfo, Default)]
+pub struct ChangingValue<T> {
+    pub next: T,
+    pub current: T,
 }
 
-impl<T> Default for CurrentAndNextSessionValidators<T> {
-    fn default() -> Self {
-        Self {
-            next: Default::default(),
-            current: Default::default(),
-        }
+type CurrentAndNextSessionValidators<T> = ChangingValue<SessionValidators<T>>;
+type CurrentAndNextEraLenientThreshold = ChangingValue<Perquintill>;
+
+impl<T: Clone> ChangingValue<T> {
+    fn new(next: T, current: T) -> Self {
+        Self { next, current }
+    }
+
+    fn update_with_value(&mut self, next_value: T) -> T {
+        let old_next = replace(&mut self.next, next_value);
+        replace(&mut self.current, old_next)
+    }
+
+    fn update_next(&mut self, next_value: T) {
+        self.next = next_value;
+    }
+
+    fn update_current(&mut self) {
+        self.current = self.next.clone();
+    }
+
+    fn get(&self) -> &T {
+        &self.current
+    }
+}
+
+pub struct DefaultLenientThreshold;
+
+impl Get<CurrentAndNextEraLenientThreshold> for DefaultLenientThreshold {
+    fn get() -> CurrentAndNextEraLenientThreshold {
+        CurrentAndNextEraLenientThreshold::new(LENIENT_THRESHOLD, LENIENT_THRESHOLD)
     }
 }
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -68,13 +94,14 @@ pub mod pallet {
         BanHandler, BanReason, BlockCount, FinalityCommitteeManager, SessionCount,
         SessionValidators, ValidatorProvider,
     };
-    use sp_runtime::Perbill;
+    use sp_runtime::{Perbill, Perquintill};
     use sp_staking::EraIndex;
     use sp_std::vec::Vec;
 
     use crate::{
         traits::{EraInfoProvider, ValidatorRewardsHandler},
-        BanConfigStruct, BanInfo, CurrentAndNextSessionValidators, ValidatorExtractor,
+        BanConfigStruct, BanInfo, CurrentAndNextEraLenientThreshold,
+        CurrentAndNextSessionValidators, DefaultLenientThreshold, ValidatorExtractor,
         ValidatorTotalRewards, STORAGE_VERSION,
     };
 
@@ -101,6 +128,10 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    pub type LenientThreshold<T: Config> =
+        StorageValue<_, CurrentAndNextEraLenientThreshold, ValueQuery, DefaultLenientThreshold>;
 
     /// A lookup how many blocks a validator produced.
     #[pallet::storage]
@@ -141,6 +172,9 @@ pub mod pallet {
         /// Ban reason is too big, ie given vector of bytes is greater than
         /// [`Config::MaximumBanReasonLength`]
         BanReasonTooBig,
+
+        /// Lenient threshold not in [0-100] range
+        InvalidLenientThreshold,
     }
 
     #[pallet::event]
@@ -231,6 +265,27 @@ pub mod pallet {
         pub fn cancel_ban(origin: OriginFor<T>, banned: T::AccountId) -> DispatchResult {
             ensure_root(origin)?;
             Banned::<T>::remove(banned);
+
+            Ok(())
+        }
+
+        /// Set lenient threshold
+        #[pallet::call_index(4)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_lenient_threshold(
+            origin: OriginFor<T>,
+            threshold_percent: u8,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            ensure!(
+                threshold_percent <= 100,
+                Error::<T>::InvalidLenientThreshold
+            );
+
+            LenientThreshold::<T>::mutate(|lenient| {
+                lenient.update_next(Perquintill::from_percent(threshold_percent as u64))
+            });
 
             Ok(())
         }
