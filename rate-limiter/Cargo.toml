@@ -1,0 +1,10 @@
+[package]
+name = "rate-limiter"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+license = "Apache 2.0"
+
+[dependencies]
+futures = "0.3"
+tokio = { version = "1.25", features = [ "time" ] }
