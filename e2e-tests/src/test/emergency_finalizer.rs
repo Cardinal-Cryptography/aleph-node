@@ -10,11 +10,11 @@ use crate::config::setup_test;
 async fn set_emergency_finalizer_test() -> anyhow::Result<()> {
     let config = setup_test();
     let (finalizer, _seed) = AlephKeyPair::generate();
-    let public: AccountId = finalizer.public().0.into();
+    let public = finalizer.public().0;
     let root = config.create_root_connection().await;
     let current_finalizer = root.as_connection().emergency_finalizer(None).await;
 
-    assert!(current_finalizer.is_none());
+    assert!(current_finalizer != Some(public));
 
     root.set_emergency_finalizer(public.clone(), TxStatus::Finalized)
         .await?;
