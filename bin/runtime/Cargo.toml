@@ -21,6 +21,7 @@ frame-system = { default-features = false, git = "https://github.com/Cardinal-Cr
 frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 frame-try-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", optional = true }
 
+pallet-assets = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 pallet-aura = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 pallet-authorship = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 pallet-balances = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
@@ -82,6 +83,7 @@ std = [
     "frame-support/std",
     "frame-try-runtime/std",
     "pallet-aleph/std",
+    "pallet-assets/std",
     "pallet-aura/std",
     "pallet-authorship/std",
     "pallet-balances/std",
@@ -130,6 +132,7 @@ try-runtime = [
     "pallet-contracts/try-runtime",
     "pallet-nomination-pools/try-runtime",
     "pallet-aleph/try-runtime",
+    "pallet-assets/try-runtime",
     "pallet-aura/try-runtime",
     "pallet-authorship/try-runtime",
     "pallet-balances/try-runtime",
@@ -153,6 +156,10 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
 ]
+
+# By default anybody can own and maintain an asset class. We can limit this functionality only to sudo account with
+# this feature.
+permissioned_assets = []
 
 # Liminal-related features
 liminal = [

@@ -25,14 +25,16 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
-        ConstBool, ConstU32, EqualPrivilegeOnly, SortedMembers, U128CurrencyToVote, WithdrawReasons,
+        AsEnsureOriginWithArg, ConstBool, ConstU32, EqualPrivilegeOnly, SortedMembers,
+        U128CurrencyToVote, WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
+use pallet_assets::{Approval, AssetAccount, AssetMetadata};
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -46,7 +48,7 @@ use primitives::{
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{bounded::BoundedVec, crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -60,7 +62,7 @@ use sp_runtime::{
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
-use sp_std::prelude::*;
+use sp_std::{mem::size_of, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -140,7 +142,8 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 pub const MAX_BLOCK_WEIGHT: Weight =
     Weight::from_ref_time(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(400));
 
-// The storage deposit is roughly 1 TOKEN per 1kB -- this is the legacy value, used for pallet Identity and Multisig.
+// The storage deposit is roughly 1 TOKEN per 1kB -- this is the legacy value, used for pallets
+// Assets, Identity and Multisig.
 pub const LEGACY_DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
 
 // The storage per one byte of contract storage: 4*10^{-5} AZERO per byte.
@@ -754,6 +757,55 @@ impl pallet_identity::Config for Runtime {
     type WeightInfo = pallet_identity::weights::SubstrateWeight<Self>;
 }
 
+parameter_types! {
+    /// We compute the deposit required for an account based on the size of the `AssetAccount`
+    /// struct.
+    pub const AssetAccountDeposit: Balance =
+        size_of::<AssetAccount<Balance, Balance, ()>>() as Balance * LEGACY_DEPOSIT_PER_BYTE;
+    // We set the cost of asset class creation to 100 tokens. This value is not based on the amount
+    // of new storage items that will be created, but rather on the fact that we need to prevent
+    // creating asset classes that will be used for spamming the network.
+    pub const AssetDeposit: Balance = 100 * TOKEN;
+    /// We compute the deposit required for an approval based on the size of the `Approval` struct.
+    pub const ApprovalDeposit: Balance =
+        size_of::<Approval<Balance, Balance>>() as Balance * LEGACY_DEPOSIT_PER_BYTE;
+    // We allow asset symbols and names to be up to 50 characters long.
+    pub const StringLimit: u32 = 50;
+    /// We compute the deposit required for a metadata based on the size of the `Metadata` struct.
+    /// We have to do this field type by field type, because the type is private.
+    pub const MetadataDepositBase: Balance =
+        size_of::<AssetMetadata<Balance, BoundedVec<u8, StringLimit>>>() as Balance
+        * LEGACY_DEPOSIT_PER_BYTE;
+    pub const MetadataDepositPerByte: Balance = LEGACY_DEPOSIT_PER_BYTE;
+}
+
+impl pallet_assets::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = Balance;
+    // We will be destroying accounts and approvals in batches of 100. Copied from Substrate node.
+    type RemoveItemsLimit = ConstU32<100>;
+    type AssetId = u32;
+    type AssetIdParameter = codec::Compact<Self::AssetId>;
+    type Currency = Balances;
+    #[cfg(feature = "permissioned_assets")]
+    type CreateOrigin = EnsureRoot<AccountId>;
+    #[cfg(not(feature = "permissioned_assets"))]
+    type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type AssetDeposit = AssetDeposit;
+    type AssetAccountDeposit = AssetAccountDeposit;
+    type MetadataDepositBase = MetadataDepositBase;
+    type MetadataDepositPerByte = MetadataDepositPerByte;
+    type ApprovalDeposit = ApprovalDeposit;
+    type StringLimit = StringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type CallbackHandle = ();
+    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(not(feature = "liminal"))]
 construct_runtime!(
@@ -784,6 +836,7 @@ construct_runtime!(
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
         CommitteeManagement: pallet_committee_management,
+        Assets: pallet_assets,
     }
 );
 
@@ -816,6 +869,7 @@ construct_runtime!(
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
         CommitteeManagement: pallet_committee_management,
+        Assets: pallet_assets,
         BabyLiminal: pallet_baby_liminal,
     }
 );

@@ -97,6 +97,10 @@ only_legacy = [
     "finality-aleph/only_legacy"
 ]
 
+permissioned_assets = [
+    "aleph-runtime/permissioned_assets",
+]
+
 # Liminal-related features
 liminal = [
     "aleph-runtime/liminal",
