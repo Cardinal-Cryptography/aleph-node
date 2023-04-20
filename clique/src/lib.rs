@@ -17,7 +17,6 @@ mod manager;
 pub mod mock;
 mod outgoing;
 mod protocols;
-pub mod rate_limiter;
 mod service;
 #[cfg(test)]
 mod testing;

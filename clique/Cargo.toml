@@ -6,6 +6,8 @@ edition = "2021"
 license = "Apache 2.0"
 
 [dependencies]
+rate-limiter = { package = "rate-limiter", path = "../rate-limiter" }
+
 async-trait = "0.1"
 bytes = "1.0"
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = [
