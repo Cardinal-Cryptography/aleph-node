@@ -10,8 +10,8 @@ use frame_system::RawOrigin;
 use primitives::host_functions::poseidon;
 
 use crate::{
-    benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, KeyPairIdentifier,
-    Pallet, KeyPairDeposits, KeyPairOwners, ProvingKeys, VerificationKeys,
+    benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, KeyPairDeposits,
+    KeyPairIdentifier, KeyPairOwners, Pallet, ProvingKeys, VerificationKeys,
 };
 
 const SEED: u32 = 41;
@@ -78,21 +78,6 @@ benchmarks! {
 
     verify_groth16_linear_equation {
         let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, LinearEquation);
-        let _ = insert_key_pair::<T>(proving_key, verification_key);
-    } : verify(caller::<T>(), IDENTIFIER, proof, input)
-
-    verify_groth16_merkle_tree_8 {
-        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree8);
-        let _ = insert_key_pair::<T>(proving_key, verification_key);
-    } : verify(caller::<T>(), IDENTIFIER, proof, input)
-
-    verify_groth16_merkle_tree_64 {
-        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree64);
-        let _ = insert_key_pair::<T>(proving_key, verification_key);
-    } : verify(caller::<T>(), IDENTIFIER, proof, input)
-
-    verify_groth16_merkle_tree_1024 {
-        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
         let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 

@@ -24,7 +24,12 @@ macro_rules! get_artifacts {
         let proof = $crate::get_artifact!($system, $relation, Proof);
         let input = $crate::get_artifact!($system, $relation, PublicInput);
 
-        $crate::benchmarking::import::Artifacts { proving_key, verification_key, proof, input }
+        $crate::benchmarking::import::Artifacts {
+            proving_key,
+            verification_key,
+            proof,
+            input,
+        }
     }};
 }
 
@@ -66,15 +71,6 @@ macro_rules! relation {
     };
     (LinearEquation) => {
         "linear_equation"
-    };
-    (MerkleTree8) => {
-        "merkle_tree_8"
-    };
-    (MerkleTree64) => {
-        "merkle_tree_64"
-    };
-    (MerkleTree1024) => {
-        "merkle_tree_1024"
     };
 }
 
