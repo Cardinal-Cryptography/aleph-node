@@ -89,7 +89,7 @@ benchmarks! {
         // doesn't compile.
         let e in 1 .. T::MaximumDataLength::get() * 1_000;
         let proof = vec![255u8; (T::MaximumDataLength::get() + e) as usize];
-        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, LinearEquation);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()
@@ -104,7 +104,7 @@ benchmarks! {
         let proof = vec![255u8; l as usize];
         // System shouldn't have any serious impact on deserializing - the data is just some
         // elements from the field.
-        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, LinearEquation);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()
@@ -118,7 +118,7 @@ benchmarks! {
 
         // System shouldn't have any serious impact on deserializing - the data is just some
         // elements from the field.
-        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, LinearEquation);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()
