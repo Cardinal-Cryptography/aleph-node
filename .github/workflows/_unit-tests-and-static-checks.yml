@@ -50,7 +50,7 @@ jobs:
             -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}" \
             -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}" \
             mikogs/rust-dev:v0.1.0-nightly-2022-10-30 \
-            bash -c 'cargo clippy --all-targets -- --no-deps -D warnings && sccache --show-stats'
+            cargo clippy --all-targets -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
         run: |
