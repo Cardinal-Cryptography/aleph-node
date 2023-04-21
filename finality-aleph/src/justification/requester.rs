@@ -55,7 +55,6 @@ where
     }
 
     fn perform_request(&self) -> Result<(), CS::Error> {
-        self.block_requester.clear_justification_requests();
         let best_block_number = self.chain_status.best_block()?.id().number();
         let top_finalized = self.chain_status.top_finalized()?.header().id();
         let session_id = self
