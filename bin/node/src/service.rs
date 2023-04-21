@@ -8,13 +8,13 @@ use std::{
 use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, JustificationNotificationFor, Metrics,
-    MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig, SessionPeriod,
+    run_validator_node, AlephBlockImport, AlephConfig, Justification, Metrics, MillisecsPerBlock,
+    Protocol, ProtocolNaming, RateLimiterConfig, SessionPeriod, SubstrateChainStatus,
     TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::{Backend, BlockBackend, HeaderBackend};
+use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
@@ -25,14 +25,16 @@ use sc_service::{
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
-use sp_blockchain::Backend as _;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
     generic::BlockId,
     traits::{Block as BlockT, Header as HeaderT},
 };
 
-use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor};
+use crate::{
+    aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor,
+    rpc::FullDeps as RpcFullDeps,
+};
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -87,8 +89,8 @@ pub fn new_partial(
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
             TracingBlockImport<Block, Arc<FullClient>>,
-            mpsc::UnboundedSender<JustificationNotificationFor<Block>>,
-            mpsc::UnboundedReceiver<JustificationNotificationFor<Block>>,
+            mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
+            mpsc::UnboundedReceiver<Justification<<Block as BlockT>::Header>>,
             Option<Telemetry>,
             Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
         ),
@@ -149,8 +151,13 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let aleph_block_import =
-        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone());
+    let justification_translator = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
+    let aleph_block_import = AlephBlockImport::new(
+        tracing_block_import.clone(),
+        justification_tx.clone(),
+        justification_translator,
+    );
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
@@ -201,13 +208,14 @@ pub fn new_partial(
 fn setup(
     mut config: Configuration,
     backend: Arc<FullBackend>,
+    chain_status: SubstrateChainStatus<Block>,
     keystore_container: &KeystoreContainer,
     import_queue: sc_consensus::DefaultImportQueue<Block, FullClient>,
     transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotificationFor<Block>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
 ) -> Result<
     (
         RpcHandlers,
@@ -256,13 +264,13 @@ fn setup(
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
-
         Box::new(move |deny_unsafe, _| {
-            let deps = crate::rpc::FullDeps::<Block, _, _> {
+            let deps: RpcFullDeps<Block, _, _, _> = crate::rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
+                justification_translator: chain_status.clone(),
             };
 
             Ok(crate::rpc::create_full(deps)?)
@@ -331,9 +339,12 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let chain_status = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
         config,
-        backend.clone(),
+        backend,
+        chain_status.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -391,11 +402,10 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let blockchain_backend = BlockchainBackendImpl { backend };
     let aleph_config = AlephConfig {
         network,
         client,
-        blockchain_backend,
+        chain_status,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -410,6 +420,7 @@ pub fn new_authority(
         protocol_naming,
         rate_limiter_config: RateLimiterConfig::new(),
     };
+
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
         None,
@@ -418,37 +429,4 @@ pub fn new_authority(
 
     network_starter.start_network();
     Ok(task_manager)
-}
-
-struct BlockchainBackendImpl {
-    backend: Arc<FullBackend>,
-}
-impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
-    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
-        self.backend
-            .blockchain()
-            .children(parent_hash)
-            .unwrap_or_default()
-    }
-    fn info(&self) -> sp_blockchain::Info<Block> {
-        self.backend.blockchain().info()
-    }
-    fn header(
-        &self,
-        block_id: BlockId<Block>,
-    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        let hash = match block_id {
-            BlockId::Hash(h) => h,
-            BlockId::Number(n) => {
-                let maybe_hash = self.backend.blockchain().hash(n)?;
-
-                if let Some(h) = maybe_hash {
-                    h
-                } else {
-                    return Ok(None);
-                }
-            }
-        };
-        self.backend.blockchain().header(hash)
-    }
 }
