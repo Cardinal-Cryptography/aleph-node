@@ -11,7 +11,7 @@ use primitives::host_functions::poseidon;
 
 use crate::{
     benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, KeyPairIdentifier,
-    Pallet, VerificationKeyDeposits, VerificationKeyOwners, VerificationKeys,
+    Pallet, KeyPairDeposits, KeyPairOwners, ProvingKeys, VerificationKeys,
 };
 
 const SEED: u32 = 41;
@@ -23,12 +23,13 @@ fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
     RawOrigin::Signed(caller_account)
 }
 
-fn insert_key<T: Config>(key: Vec<u8>) {
+fn insert_key_pair<T: Config>(proving_key: Vec<u8>, verification_key: Vec<u8>) {
     let owner: T::AccountId = account("caller", 0, SEED);
     let deposit = BalanceOf::<T>::from(0u32);
-    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
-    VerificationKeyOwners::<T>::insert(IDENTIFIER, &owner);
-    VerificationKeyDeposits::<T>::insert((&owner, IDENTIFIER), deposit);
+    ProvingKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(proving_key).unwrap());
+    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(verification_key).unwrap());
+    KeyPairOwners::<T>::insert(IDENTIFIER, &owner);
+    KeyPairDeposits::<T>::insert((&owner, IDENTIFIER), deposit);
 }
 
 fn gen_poseidon_host_input(x: u32) -> (u64, u64, u64, u64) {
@@ -37,54 +38,62 @@ fn gen_poseidon_host_input(x: u32) -> (u64, u64, u64, u64) {
 
 benchmarks! {
 
-    store_key {
-        let l in 1 .. T::MaximumVerificationKeyLength::get();
-        let key = vec![0u8; l as usize];
-    } : _(caller::<T>(), IDENTIFIER, key)
+    store_key_pair {
+        let l in 1 .. T::MaximumProvingKeyLength::get();
+        let m in 1 .. T::MaximumVerificationKeyLength::get();
+        let proving_key = vec![0u8; l as usize];
+        let verification_key = vec![0u8; m as usize];
+    } : _(caller::<T>(), IDENTIFIER, proving_key, verification_key)
 
-    overwrite_equal_key {
-        let l in 1 .. T::MaximumVerificationKeyLength::get();
-        let key = vec![0u8; l as usize];
-        let _ = insert_key::<T>(key.clone ());
-    } : overwrite_key(caller::<T>(), IDENTIFIER, key)
+    overwrite_equal_key_pair {
+        let l in 1 .. T::MaximumProvingKeyLength::get();
+        let m in 1 .. T::MaximumVerificationKeyLength::get();
+        let proving_key = vec![0u8; l as usize];
+        let verification_key = vec![0u8; m as usize];
+        let _ = insert_key_pair::<T>(proving_key.clone(), verification_key.clone());
+    } : overwrite_key_pair(caller::<T>(), IDENTIFIER, proving_key, verification_key)
 
-    overwrite_key {
-        let l in 1 .. T::MaximumVerificationKeyLength::get() - 1;
-        let _ = insert_key::<T>(vec![0u8; l as usize]);
-        let longer_key = vec![0u8; (l + 1) as usize];
-    } : overwrite_key(caller::<T>(), IDENTIFIER, longer_key)
+    overwrite_key_pair {
+        let l in 1 .. T::MaximumProvingKeyLength::get() - 1;
+        let m in 1 .. T::MaximumVerificationKeyLength::get() - 1;
+        let _ = insert_key_pair::<T>(vec![0u8; l as usize], vec![0u8; m as usize]);
+        let longer_proving_key = vec![0u8; (l + 1) as usize];
+        let longer_verification_key = vec![0u8; (m + 1) as usize];
+    } : overwrite_key_pair(caller::<T>(), IDENTIFIER, longer_proving_key, longer_verification_key)
 
-    delete_key {
-        let l in 1 .. T::MaximumVerificationKeyLength::get();
-        let key = vec![0u8; l as usize];
-        let _ = insert_key::<T>(key);
+    delete_key_pair {
+        let l in 1 .. T::MaximumProvingKeyLength::get();
+        let m in 1 .. T::MaximumVerificationKeyLength::get();
+        let proving_key = vec![0u8; l as usize];
+        let verification_key = vec![0u8; m as usize];
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : _(caller::<T>(), IDENTIFIER)
 
     // Groth16 benchmarks
 
     verify_groth16_xor {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, Xor);
-        let _ = insert_key::<T>(key);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, Xor);
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 
     verify_groth16_linear_equation {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, LinearEquation);
-        let _ = insert_key::<T>(key);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, LinearEquation);
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 
     verify_groth16_merkle_tree_8 {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree8);
-        let _ = insert_key::<T>(key);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree8);
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 
     verify_groth16_merkle_tree_64 {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree64);
-        let _ = insert_key::<T>(key);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree64);
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 
     verify_groth16_merkle_tree_1024 {
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
-        let _ = insert_key::<T>(key);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let _ = insert_key_pair::<T>(proving_key, verification_key);
     } : verify(caller::<T>(), IDENTIFIER, proof, input)
 
     // Partial `verify` execution
@@ -95,7 +104,7 @@ benchmarks! {
         // doesn't compile.
         let e in 1 .. T::MaximumDataLength::get() * 1_000;
         let proof = vec![255u8; (T::MaximumDataLength::get() + e) as usize];
-        let Artifacts { key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()
@@ -110,7 +119,7 @@ benchmarks! {
         let proof = vec![255u8; l as usize];
         // System shouldn't have any serious impact on deserializing - the data is just some
         // elements from the field.
-        let Artifacts { key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof: _proof, input } = get_artifacts!(Groth16, MerkleTree1024);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()
@@ -118,12 +127,13 @@ benchmarks! {
     }
 
     verify_key_deserializing_fails {
-        let l in 1 .. T::MaximumVerificationKeyLength::get();
-        let _ = insert_key::<T>(vec![255u8; l as usize]);
+        let l in 1 .. T::MaximumProvingKeyLength::get();
+        let m in 1 .. T::MaximumVerificationKeyLength::get();
+        let _ = insert_key_pair::<T>(vec![255u8; l as usize], vec![255u8; m as usize]);
 
         // System shouldn't have any serious impact on deserializing - the data is just some
         // elements from the field.
-        let Artifacts { key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
+        let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, MerkleTree1024);
     } : {
         assert!(
             Pallet::<T>::verify(caller::<T>().into(), IDENTIFIER, proof, input).is_err()

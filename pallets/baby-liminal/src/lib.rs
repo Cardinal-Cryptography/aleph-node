@@ -169,7 +169,7 @@ pub mod pallet {
         /// `proving_key` and `verification_key` can come from any proving system - there are no
         /// checks that verify them, in particular, they both can just contain trash bytes.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::store_key_pair(proving_key.len() as u32, verification_key.len() as u32))]
+        #[pallet::weight(0)]
         pub fn store_key_pair(
             origin: OriginFor<T>,
             identifier: KeyPairIdentifier,
@@ -185,10 +185,7 @@ pub mod pallet {
         ///
         /// Returns the deposit locked. Can only be called by the key pair owner.
         #[pallet::call_index(1)]
-        #[pallet::weight(T::WeightInfo::delete_key_pair(
-            T::MaximumProvingKeyLength::get(),
-            T::MaximumVerificationKeyLength::get()
-        ))]
+        #[pallet::weight(0)]
         pub fn delete_key_pair(
             origin: OriginFor<T>,
             identifier: KeyPairIdentifier,
@@ -217,10 +214,7 @@ pub mod pallet {
         /// It will require the caller to lock up additional funds (if the new key pair occupies more storage)
         /// or reimburse the difference if it is shorter in its byte-length.
         #[pallet::call_index(2)]
-        #[pallet::weight(
-            T::WeightInfo::overwrite_key_pair(proving_key.len() as u32, verification_key.len() as u32)
-                .max (T::WeightInfo::overwrite_equal_key_pair(proving_key.len() as u32, verification_key.len() as u32))
-        )]
+        #[pallet::weight(0)]
         pub fn overwrite_key_pair(
             origin: OriginFor<T>,
             identifier: KeyPairIdentifier,
@@ -303,7 +297,7 @@ pub mod pallet {
         /// system)
         /// - verifying procedure fails (e.g. incompatible verification key and proof)
         /// - proof is incorrect
-        #[pallet::weight(T::WeightInfo::verify())]
+        #[pallet::weight(0)]
         #[pallet::call_index(3)]
         pub fn verify(
             _origin: OriginFor<T>,

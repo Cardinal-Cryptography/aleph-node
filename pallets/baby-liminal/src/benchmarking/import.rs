@@ -1,7 +1,8 @@
 use frame_benchmarking::Vec;
 
 pub(super) struct Artifacts {
-    pub key: Vec<u8>,
+    pub proving_key: Vec<u8>,
+    pub verification_key: Vec<u8>,
     pub proof: Vec<u8>,
     pub input: Vec<u8>,
 }
@@ -13,16 +14,17 @@ pub(super) struct Artifacts {
 /// ```rust, ignore
 /// # use pallet_baby_liminal::get_artifacts;
 ///
-/// let Artifacts { key, proof, input } = get_artifacts!(Groth16, LinearEquation);
+/// let Artifacts { proving_key, verification_key, proof, input } = get_artifacts!(Groth16, LinearEquation);
 /// ```
 #[macro_export]
 macro_rules! get_artifacts {
     ($system:tt, $relation:tt $(,)?) => {{
-        let key = $crate::get_artifact!($system, $relation, VerifyingKey);
+        let proving_key = $crate::get_artifact!($system, $relation, ProvingKey);
+        let verification_key = $crate::get_artifact!($system, $relation, VerifyingKey);
         let proof = $crate::get_artifact!($system, $relation, Proof);
         let input = $crate::get_artifact!($system, $relation, PublicInput);
 
-        $crate::benchmarking::import::Artifacts { key, proof, input }
+        $crate::benchmarking::import::Artifacts { proving_key, verification_key, proof, input }
     }};
 }
 
@@ -79,6 +81,9 @@ macro_rules! relation {
 /// Converts artifact identifier to a `&static str` that is used in the filename pattern.
 #[macro_export]
 macro_rules! artifact {
+    (ProvingKey) => {
+        "pk"
+    };
     (VerifyingKey) => {
         "vk"
     };
