@@ -6,7 +6,7 @@ use std::{
 #[derive(Clone)]
 pub struct TokenBucket {
     rate: f64,
-    tokens_limit: usize,
+    token_limit: usize,
     available: usize,
     requested: usize,
     last_update: Instant,
@@ -17,7 +17,7 @@ impl TokenBucket {
         let tokens_limit = rate as usize;
         Self {
             rate,
-            tokens_limit,
+            token_limit: tokens_limit,
             available: tokens_limit,
             requested: 0,
             last_update: Instant::now(),
@@ -37,7 +37,7 @@ impl TokenBucket {
         let used = min(self.available, self.requested);
         self.available -= used;
         self.requested -= used;
-        self.available = min(self.available, self.tokens_limit);
+        self.available = min(self.available, self.token_limit);
         self.available
     }
 
@@ -61,7 +61,7 @@ impl TokenBucket {
             }
         }
         self.available -= requested;
-        self.available = min(self.available, self.tokens_limit);
+        self.available = min(self.available, self.token_limit);
         None
     }
 }
