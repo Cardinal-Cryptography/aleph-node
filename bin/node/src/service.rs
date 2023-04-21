@@ -418,7 +418,7 @@ pub fn new_authority(
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
         protocol_naming,
-        rate_limiter_config: RateLimiterConfig::new(),
+        rate_limiter_config: RateLimiterConfig::default(),
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

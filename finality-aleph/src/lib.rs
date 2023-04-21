@@ -268,7 +268,7 @@ pub struct RateLimiterConfig {
 }
 
 impl RateLimiterConfig {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let validator_network_bit_rate_per_node = var(VALIDATOR_NETWORK_BIT_RATE_PER_NODE)
             .map(|value| value.parse().ok())
             .ok()
@@ -278,6 +278,12 @@ impl RateLimiterConfig {
         Self {
             alephbft_bit_rate_per_connection: validator_network_bit_rate_per_node,
         }
+    }
+}
+
+impl Default for RateLimiterConfig {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
