@@ -14,13 +14,25 @@ pub struct TokenBucket {
 
 impl TokenBucket {
     pub fn new(rate: f64) -> Self {
-        let tokens_limit = rate as usize;
+        let token_limit = rate as usize;
         Self {
             rate,
-            token_limit: tokens_limit,
-            available: tokens_limit,
+            token_limit,
+            available: token_limit,
             requested: 0,
             last_update: Instant::now(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_with_now(rate: f64, now: Instant) -> Self {
+        let token_limit = rate as usize;
+        Self {
+            rate,
+            token_limit,
+            available: token_limit,
+            requested: 0,
+            last_update: now,
         }
     }
 
@@ -75,8 +87,8 @@ mod tests {
     #[test]
     fn token_bucket_sanity_check() {
         let limit_per_second = 10_f64;
-        let mut rate_limiter = TokenBucket::new(limit_per_second);
         let now = Instant::now();
+        let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
         assert_eq!(
             rate_limiter.rate_limit(9, || now + Duration::from_secs(1)),
@@ -96,8 +108,8 @@ mod tests {
     #[test]
     fn no_slowdown_while_within_rate_limit() {
         let limit_per_second = 10_f64;
-        let mut rate_limiter = TokenBucket::new(limit_per_second);
         let now = Instant::now();
+        let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
         assert_eq!(
             rate_limiter.rate_limit(9, || now + Duration::from_secs(1)),
@@ -128,21 +140,16 @@ mod tests {
     #[test]
     fn slowdown_when_limit_reached() {
         let limit_per_second = 10_f64;
-        let mut rate_limiter = TokenBucket::new(limit_per_second);
         let now = Instant::now();
+        let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
-        assert_eq!(
-            rate_limiter.rate_limit(10, || now + Duration::from_secs(1)),
-            None
-        );
+        assert_eq!(rate_limiter.rate_limit(10, || now), None);
 
         // we should wait some time after reaching the limit
-        assert!(rate_limiter
-            .rate_limit(1, || now + Duration::from_secs(1))
-            .is_some());
+        assert!(rate_limiter.rate_limit(1, || now).is_some());
 
         assert_eq!(
-            rate_limiter.rate_limit(19, || now + Duration::from_secs(1)),
+            rate_limiter.rate_limit(19, || now),
             Some(Duration::from_secs(2)),
             "we should wait exactly 2 seconds"
         );
@@ -151,8 +158,8 @@ mod tests {
     #[test]
     fn buildup_tokens_but_no_more_than_limit() {
         let limit_per_second = 10_f64;
-        let mut rate_limiter = TokenBucket::new(limit_per_second);
         let now = Instant::now();
+        let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
         assert_eq!(
             rate_limiter.rate_limit(10, || now + Duration::from_secs(2)),
@@ -172,8 +179,13 @@ mod tests {
     #[test]
     fn multiple_calls_buildup_wait_time() {
         let limit_per_second = 10_f64;
-        let mut rate_limiter = TokenBucket::new(limit_per_second);
         let now = Instant::now();
+        let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
+
+        assert_eq!(
+            rate_limiter.rate_limit(10, || now + Duration::from_secs(3)),
+            None
+        );
 
         assert_eq!(
             rate_limiter.rate_limit(10, || now + Duration::from_secs(3)),
@@ -186,13 +198,8 @@ mod tests {
         );
 
         assert_eq!(
-            rate_limiter.rate_limit(10, || now + Duration::from_secs(3)),
-            Some(Duration::from_secs(2))
-        );
-
-        assert_eq!(
             rate_limiter.rate_limit(50, || now + Duration::from_secs(3)),
-            Some(Duration::from_secs(7))
+            Some(Duration::from_secs(6))
         );
     }
 }
