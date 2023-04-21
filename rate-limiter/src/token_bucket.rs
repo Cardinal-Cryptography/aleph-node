@@ -73,6 +73,27 @@ mod tests {
     use super::TokenBucket;
 
     #[test]
+    fn token_bucket_sanity_check() {
+        let limit_per_second = 10_f64;
+        let mut rate_limiter = TokenBucket::new(limit_per_second);
+        let now = Instant::now();
+
+        assert_eq!(
+            rate_limiter.rate_limit(9, || now + Duration::from_secs(1)),
+            None
+        );
+
+        assert!(rate_limiter
+            .rate_limit(12, || now + Duration::from_secs(1))
+            .is_some());
+
+        assert_eq!(
+            rate_limiter.rate_limit(8, || now + Duration::from_secs(3)),
+            None
+        );
+    }
+
+    #[test]
     fn no_slowdown_while_within_rate_limit() {
         let limit_per_second = 10_f64;
         let mut rate_limiter = TokenBucket::new(limit_per_second);
