@@ -37,7 +37,7 @@ impl SleepingRateLimiter {
 impl SleepingRateLimiter {
     fn set_sleep(&mut self, read_size: usize) -> RateLimiterTask {
         let mut now = None;
-        let mut now_closure = || now.get_or_insert_with(|| Instant::now()).clone();
+        let mut now_closure = || *now.get_or_insert_with(Instant::now);
         let next_wait = self.rate_limiter.rate_limit(read_size, &mut now_closure);
         if let Some(next_wait) = next_wait {
             let wait_until = now_closure() + next_wait;

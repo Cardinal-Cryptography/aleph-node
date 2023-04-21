@@ -203,9 +203,11 @@ impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncReadWrite<A> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let this = self.get_mut();
-        match Pin::new(&mut this.rate_limiter.current_sleep()).poll(cx) {
-            std::task::Poll::Pending => return std::task::Poll::Pending,
-            _ => {}
+        if Pin::new(&mut this.rate_limiter.current_sleep())
+            .poll(cx)
+            .is_pending()
+        {
+            return std::task::Poll::Pending;
         }
 
         let filled_before = buf.filled().len();
