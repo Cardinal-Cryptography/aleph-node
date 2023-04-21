@@ -1,7 +1,7 @@
 #[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
-    pub static PALLETS: [&str; 23usize] = [
+    pub static PALLETS: [&str; 24usize] = [
         "System",
         "RandomnessCollectiveFlip",
         "Scheduler",
@@ -24,6 +24,7 @@ pub mod api {
         "NominationPools",
         "Identity",
         "CommitteeManagement",
+        "Assets",
         "BabyLiminal",
     ];
     #[derive(
@@ -70,6 +71,8 @@ pub mod api {
         #[codec(index = 21)]
         CommitteeManagement(committee_management::Event),
         #[codec(index = 22)]
+        Assets(assets::Event),
+        #[codec(index = 23)]
         BabyLiminal(baby_liminal::Event),
     }
     pub mod system {
@@ -741,9 +744,10 @@ pub mod api {
                         "Events",
                         vec![],
                         [
-                            1u8, 205u8, 87u8, 7u8, 56u8, 147u8, 13u8, 242u8, 230u8, 55u8, 151u8,
-                            228u8, 30u8, 153u8, 114u8, 218u8, 212u8, 196u8, 43u8, 75u8, 9u8, 211u8,
-                            242u8, 75u8, 78u8, 172u8, 37u8, 113u8, 114u8, 85u8, 21u8, 243u8,
+                            64u8, 183u8, 73u8, 62u8, 223u8, 118u8, 224u8, 162u8, 194u8, 185u8,
+                            130u8, 249u8, 58u8, 189u8, 232u8, 42u8, 59u8, 234u8, 33u8, 88u8, 242u8,
+                            154u8, 175u8, 106u8, 88u8, 181u8, 143u8, 56u8, 235u8, 211u8, 15u8,
+                            30u8,
                         ],
                     )
                 }
@@ -1188,10 +1192,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            222u8, 111u8, 7u8, 12u8, 167u8, 51u8, 168u8, 129u8, 253u8, 123u8,
-                            157u8, 235u8, 141u8, 38u8, 168u8, 54u8, 167u8, 228u8, 166u8, 148u8,
-                            233u8, 6u8, 63u8, 19u8, 96u8, 196u8, 5u8, 125u8, 90u8, 85u8, 62u8,
-                            189u8,
+                            11u8, 248u8, 126u8, 164u8, 231u8, 28u8, 33u8, 1u8, 138u8, 226u8, 160u8,
+                            189u8, 91u8, 34u8, 171u8, 17u8, 180u8, 226u8, 141u8, 91u8, 227u8, 63u8,
+                            136u8, 22u8, 126u8, 155u8, 64u8, 109u8, 247u8, 191u8, 141u8, 243u8,
                         ],
                     )
                 }
@@ -1235,9 +1238,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            137u8, 39u8, 219u8, 182u8, 66u8, 249u8, 248u8, 214u8, 108u8, 43u8,
-                            144u8, 180u8, 92u8, 216u8, 214u8, 234u8, 105u8, 124u8, 2u8, 70u8, 49u8,
-                            68u8, 10u8, 12u8, 78u8, 27u8, 252u8, 138u8, 157u8, 134u8, 140u8, 99u8,
+                            70u8, 123u8, 51u8, 203u8, 123u8, 144u8, 204u8, 179u8, 254u8, 190u8,
+                            169u8, 26u8, 53u8, 80u8, 39u8, 118u8, 111u8, 101u8, 174u8, 206u8,
+                            216u8, 183u8, 185u8, 127u8, 130u8, 52u8, 32u8, 97u8, 167u8, 145u8,
+                            255u8, 53u8,
                         ],
                     )
                 }
@@ -1282,10 +1286,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            254u8, 15u8, 178u8, 67u8, 149u8, 122u8, 16u8, 136u8, 83u8, 168u8,
-                            252u8, 202u8, 172u8, 105u8, 24u8, 47u8, 192u8, 37u8, 135u8, 216u8,
-                            35u8, 233u8, 92u8, 213u8, 140u8, 243u8, 1u8, 214u8, 248u8, 199u8,
-                            244u8, 195u8,
+                            173u8, 233u8, 83u8, 27u8, 72u8, 47u8, 56u8, 82u8, 206u8, 4u8, 1u8,
+                            197u8, 90u8, 149u8, 138u8, 246u8, 114u8, 89u8, 93u8, 29u8, 110u8,
+                            131u8, 217u8, 202u8, 94u8, 234u8, 134u8, 217u8, 217u8, 203u8, 122u8,
+                            44u8,
                         ],
                     )
                 }
@@ -1316,9 +1320,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            218u8, 176u8, 62u8, 118u8, 141u8, 128u8, 134u8, 117u8, 158u8, 175u8,
-                            130u8, 45u8, 177u8, 86u8, 66u8, 16u8, 85u8, 30u8, 60u8, 53u8, 242u8,
-                            125u8, 120u8, 61u8, 43u8, 239u8, 196u8, 178u8, 185u8, 56u8, 33u8, 8u8,
+                            73u8, 92u8, 147u8, 153u8, 150u8, 53u8, 89u8, 217u8, 204u8, 214u8, 43u8,
+                            200u8, 138u8, 113u8, 208u8, 43u8, 168u8, 24u8, 51u8, 174u8, 119u8,
+                            187u8, 145u8, 60u8, 103u8, 237u8, 95u8, 116u8, 247u8, 151u8, 26u8,
+                            142u8,
                         ],
                     )
                 }
@@ -6290,9 +6295,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            74u8, 235u8, 1u8, 60u8, 118u8, 52u8, 104u8, 191u8, 62u8, 74u8, 204u8,
-                            138u8, 127u8, 151u8, 162u8, 77u8, 80u8, 83u8, 139u8, 238u8, 72u8,
-                            188u8, 159u8, 180u8, 91u8, 75u8, 125u8, 3u8, 176u8, 50u8, 61u8, 41u8,
+                            226u8, 219u8, 74u8, 78u8, 120u8, 80u8, 201u8, 199u8, 229u8, 186u8,
+                            166u8, 62u8, 190u8, 195u8, 62u8, 65u8, 18u8, 175u8, 19u8, 114u8, 56u8,
+                            62u8, 185u8, 55u8, 54u8, 240u8, 66u8, 13u8, 114u8, 123u8, 114u8, 210u8,
                         ],
                     )
                 }
@@ -7867,9 +7872,10 @@ pub mod api {
                         "batch",
                         Batch { calls },
                         [
-                            233u8, 61u8, 216u8, 14u8, 195u8, 84u8, 178u8, 84u8, 167u8, 13u8, 182u8,
-                            109u8, 217u8, 49u8, 101u8, 134u8, 80u8, 21u8, 248u8, 218u8, 17u8,
-                            243u8, 128u8, 148u8, 58u8, 106u8, 60u8, 144u8, 40u8, 54u8, 32u8, 181u8,
+                            193u8, 242u8, 153u8, 3u8, 197u8, 100u8, 137u8, 182u8, 87u8, 208u8,
+                            249u8, 104u8, 72u8, 38u8, 149u8, 36u8, 50u8, 153u8, 31u8, 91u8, 196u8,
+                            15u8, 194u8, 179u8, 162u8, 66u8, 155u8, 28u8, 238u8, 116u8, 68u8,
+                            200u8,
                         ],
                     )
                 }
@@ -7899,9 +7905,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            121u8, 107u8, 240u8, 90u8, 33u8, 23u8, 229u8, 213u8, 206u8, 162u8,
-                            33u8, 207u8, 42u8, 133u8, 71u8, 34u8, 136u8, 28u8, 48u8, 204u8, 205u8,
-                            181u8, 219u8, 36u8, 219u8, 86u8, 4u8, 152u8, 125u8, 53u8, 250u8, 75u8,
+                            71u8, 193u8, 250u8, 233u8, 105u8, 230u8, 220u8, 245u8, 149u8, 133u8,
+                            246u8, 121u8, 160u8, 109u8, 1u8, 99u8, 227u8, 159u8, 217u8, 104u8,
+                            121u8, 78u8, 150u8, 0u8, 158u8, 57u8, 92u8, 179u8, 150u8, 207u8, 194u8,
+                            240u8,
                         ],
                     )
                 }
@@ -7928,9 +7935,9 @@ pub mod api {
                         "batch_all",
                         BatchAll { calls },
                         [
-                            98u8, 34u8, 27u8, 179u8, 73u8, 71u8, 49u8, 172u8, 224u8, 162u8, 118u8,
-                            91u8, 249u8, 96u8, 57u8, 58u8, 231u8, 198u8, 87u8, 226u8, 210u8, 206u8,
-                            105u8, 68u8, 72u8, 97u8, 5u8, 73u8, 156u8, 46u8, 142u8, 83u8,
+                            46u8, 81u8, 178u8, 80u8, 32u8, 160u8, 61u8, 205u8, 71u8, 254u8, 71u8,
+                            51u8, 194u8, 192u8, 197u8, 74u8, 179u8, 177u8, 116u8, 45u8, 128u8,
+                            204u8, 105u8, 252u8, 86u8, 70u8, 214u8, 2u8, 215u8, 45u8, 173u8, 130u8,
                         ],
                     )
                 }
@@ -7957,9 +7964,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            1u8, 122u8, 20u8, 108u8, 134u8, 61u8, 99u8, 81u8, 65u8, 211u8, 144u8,
-                            127u8, 130u8, 97u8, 95u8, 21u8, 183u8, 146u8, 155u8, 249u8, 120u8,
-                            206u8, 82u8, 169u8, 13u8, 230u8, 81u8, 248u8, 115u8, 81u8, 73u8, 174u8,
+                            71u8, 226u8, 83u8, 69u8, 164u8, 135u8, 251u8, 250u8, 6u8, 58u8, 199u8,
+                            146u8, 15u8, 192u8, 200u8, 119u8, 70u8, 8u8, 178u8, 147u8, 186u8, 0u8,
+                            37u8, 199u8, 37u8, 247u8, 234u8, 94u8, 144u8, 124u8, 131u8, 0u8,
                         ],
                     )
                 }
@@ -7986,9 +7993,9 @@ pub mod api {
                         "force_batch",
                         ForceBatch { calls },
                         [
-                            210u8, 92u8, 145u8, 35u8, 82u8, 82u8, 197u8, 202u8, 216u8, 87u8, 66u8,
-                            184u8, 245u8, 148u8, 7u8, 180u8, 138u8, 41u8, 75u8, 109u8, 78u8, 104u8,
-                            26u8, 139u8, 51u8, 23u8, 37u8, 18u8, 120u8, 175u8, 232u8, 171u8,
+                            87u8, 115u8, 150u8, 97u8, 194u8, 119u8, 222u8, 117u8, 110u8, 40u8,
+                            43u8, 81u8, 150u8, 13u8, 140u8, 108u8, 166u8, 26u8, 31u8, 41u8, 126u8,
+                            60u8, 41u8, 20u8, 186u8, 177u8, 248u8, 139u8, 3u8, 229u8, 115u8, 54u8,
                         ],
                     )
                 }
@@ -8011,9 +8018,9 @@ pub mod api {
                             weight,
                         },
                         [
-                            106u8, 38u8, 203u8, 3u8, 175u8, 133u8, 209u8, 116u8, 75u8, 63u8, 65u8,
-                            29u8, 223u8, 181u8, 14u8, 8u8, 112u8, 43u8, 115u8, 74u8, 3u8, 191u8,
-                            249u8, 120u8, 215u8, 142u8, 121u8, 243u8, 129u8, 129u8, 189u8, 66u8,
+                            113u8, 126u8, 9u8, 123u8, 46u8, 7u8, 141u8, 209u8, 162u8, 234u8, 105u8,
+                            235u8, 245u8, 62u8, 115u8, 113u8, 58u8, 49u8, 95u8, 22u8, 145u8, 216u8,
+                            249u8, 68u8, 68u8, 232u8, 238u8, 107u8, 220u8, 130u8, 5u8, 228u8,
                         ],
                     )
                 }
@@ -8237,9 +8244,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            186u8, 153u8, 188u8, 240u8, 15u8, 90u8, 105u8, 248u8, 124u8, 226u8,
-                            48u8, 254u8, 182u8, 40u8, 97u8, 23u8, 197u8, 59u8, 143u8, 114u8, 89u8,
-                            71u8, 18u8, 194u8, 202u8, 170u8, 125u8, 241u8, 230u8, 27u8, 46u8, 64u8,
+                            116u8, 113u8, 102u8, 177u8, 177u8, 198u8, 185u8, 98u8, 108u8, 40u8,
+                            231u8, 231u8, 223u8, 34u8, 255u8, 4u8, 70u8, 108u8, 68u8, 77u8, 161u8,
+                            72u8, 17u8, 152u8, 155u8, 95u8, 59u8, 188u8, 179u8, 163u8, 55u8, 180u8,
                         ],
                     )
                 }
@@ -8309,10 +8316,10 @@ pub mod api {
                             max_weight,
                         },
                         [
-                            106u8, 31u8, 51u8, 135u8, 104u8, 29u8, 176u8, 130u8, 90u8, 218u8,
-                            213u8, 229u8, 127u8, 249u8, 129u8, 122u8, 175u8, 110u8, 207u8, 167u8,
-                            251u8, 11u8, 156u8, 174u8, 73u8, 42u8, 20u8, 50u8, 43u8, 42u8, 159u8,
-                            198u8,
+                            205u8, 153u8, 7u8, 173u8, 177u8, 175u8, 209u8, 134u8, 222u8, 46u8,
+                            72u8, 181u8, 110u8, 114u8, 241u8, 191u8, 44u8, 192u8, 246u8, 103u8,
+                            232u8, 70u8, 91u8, 36u8, 36u8, 36u8, 203u8, 146u8, 91u8, 223u8, 255u8,
+                            178u8,
                         ],
                     )
                 }
@@ -8724,10 +8731,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            146u8, 47u8, 214u8, 8u8, 61u8, 158u8, 132u8, 181u8, 182u8, 242u8,
-                            219u8, 221u8, 234u8, 90u8, 196u8, 8u8, 141u8, 77u8, 84u8, 111u8, 19u8,
-                            177u8, 173u8, 195u8, 245u8, 137u8, 163u8, 117u8, 74u8, 228u8, 238u8,
-                            184u8,
+                            71u8, 17u8, 14u8, 186u8, 175u8, 15u8, 215u8, 189u8, 4u8, 152u8, 236u8,
+                            95u8, 198u8, 159u8, 234u8, 44u8, 191u8, 8u8, 5u8, 137u8, 182u8, 167u8,
+                            62u8, 148u8, 213u8, 248u8, 116u8, 220u8, 111u8, 23u8, 70u8, 27u8,
                         ],
                     )
                 }
@@ -8754,9 +8760,9 @@ pub mod api {
                             weight,
                         },
                         [
-                            52u8, 187u8, 113u8, 12u8, 152u8, 171u8, 6u8, 46u8, 202u8, 177u8, 247u8,
-                            186u8, 16u8, 237u8, 238u8, 151u8, 44u8, 176u8, 149u8, 250u8, 181u8,
-                            111u8, 247u8, 100u8, 25u8, 170u8, 113u8, 139u8, 133u8, 116u8, 9u8, 4u8,
+                            45u8, 13u8, 190u8, 23u8, 123u8, 121u8, 92u8, 254u8, 3u8, 234u8, 51u8,
+                            71u8, 88u8, 95u8, 199u8, 174u8, 115u8, 79u8, 218u8, 55u8, 229u8, 204u8,
+                            183u8, 205u8, 214u8, 188u8, 170u8, 94u8, 118u8, 18u8, 198u8, 192u8,
                         ],
                     )
                 }
@@ -8815,9 +8821,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            214u8, 110u8, 59u8, 255u8, 200u8, 103u8, 199u8, 153u8, 205u8, 195u8,
-                            33u8, 140u8, 207u8, 100u8, 226u8, 104u8, 72u8, 69u8, 81u8, 31u8, 85u8,
-                            210u8, 21u8, 60u8, 177u8, 180u8, 213u8, 121u8, 179u8, 3u8, 129u8, 61u8,
+                            14u8, 192u8, 34u8, 96u8, 255u8, 70u8, 118u8, 127u8, 162u8, 77u8, 135u8,
+                            229u8, 253u8, 251u8, 187u8, 16u8, 142u8, 123u8, 142u8, 3u8, 27u8,
+                            226u8, 234u8, 29u8, 222u8, 47u8, 252u8, 223u8, 128u8, 96u8, 140u8,
+                            43u8,
                         ],
                     )
                 }
@@ -13135,6 +13142,2227 @@ pub mod api {
             }
         }
     }
+    pub mod assets {
+        use super::{root_mod, runtime_types};
+        #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
+        pub mod calls {
+            use super::{root_mod, runtime_types};
+            type DispatchError = runtime_types::sp_runtime::DispatchError;
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Create {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub admin: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub min_balance: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceCreate {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub is_sufficient: ::core::primitive::bool,
+                #[codec(compact)]
+                pub min_balance: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct StartDestroy {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct DestroyAccounts {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct DestroyApprovals {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct FinishDestroy {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Mint {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub beneficiary: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Burn {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub who: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Transfer {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub target: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct TransferKeepAlive {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub target: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceTransfer {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub source: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub dest: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Freeze {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub who: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Thaw {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub who: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct FreezeAsset {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ThawAsset {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct TransferOwnership {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct SetTeam {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub admin: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct SetMetadata {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub name: ::std::vec::Vec<::core::primitive::u8>,
+                pub symbol: ::std::vec::Vec<::core::primitive::u8>,
+                pub decimals: ::core::primitive::u8,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ClearMetadata {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceSetMetadata {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub name: ::std::vec::Vec<::core::primitive::u8>,
+                pub symbol: ::std::vec::Vec<::core::primitive::u8>,
+                pub decimals: ::core::primitive::u8,
+                pub is_frozen: ::core::primitive::bool,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceClearMetadata {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceAssetStatus {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub admin: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub min_balance: ::core::primitive::u128,
+                pub is_sufficient: ::core::primitive::bool,
+                pub is_frozen: ::core::primitive::bool,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ApproveTransfer {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct CancelApproval {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ForceCancelApproval {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct TransferApproved {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                pub destination: ::subxt::ext::sp_runtime::MultiAddress<
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                    (),
+                >,
+                #[codec(compact)]
+                pub amount: ::core::primitive::u128,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Touch {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Refund {
+                #[codec(compact)]
+                pub id: ::core::primitive::u32,
+                pub allow_burn: ::core::primitive::bool,
+            }
+            pub struct TransactionApi;
+            impl TransactionApi {
+                #[doc = "Issue a new class of fungible assets from a public origin."]
+                #[doc = ""]
+                #[doc = "This new asset class has no assets initially and its owner is the origin."]
+                #[doc = ""]
+                #[doc = "The origin must conform to the configured `CreateOrigin` and have sufficient funds free."]
+                #[doc = ""]
+                #[doc = "Funds of sender are reserved by `AssetDeposit`."]
+                #[doc = ""]
+                #[doc = "Parameters:"]
+                #[doc = "- `id`: The identifier of the new asset. This must not be currently in use to identify"]
+                #[doc = "an existing asset."]
+                #[doc = "- `admin`: The admin of this class of assets. The admin is the initial address of each"]
+                #[doc = "member of the asset class's admin team."]
+                #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                #[doc = ""]
+                #[doc = "Emits `Created` event when successful."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn create(
+                    &self,
+                    id: ::core::primitive::u32,
+                    admin: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    min_balance: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<Create> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "create",
+                        Create {
+                            id,
+                            admin,
+                            min_balance,
+                        },
+                        [
+                            173u8, 91u8, 250u8, 119u8, 145u8, 115u8, 29u8, 163u8, 99u8, 95u8, 89u8,
+                            231u8, 200u8, 205u8, 3u8, 226u8, 144u8, 66u8, 168u8, 39u8, 63u8, 69u8,
+                            255u8, 116u8, 61u8, 67u8, 195u8, 219u8, 102u8, 112u8, 155u8, 67u8,
+                        ],
+                    )
+                }
+                #[doc = "Issue a new class of fungible assets from a privileged origin."]
+                #[doc = ""]
+                #[doc = "This new asset class has no assets initially."]
+                #[doc = ""]
+                #[doc = "The origin must conform to `ForceOrigin`."]
+                #[doc = ""]
+                #[doc = "Unlike `create`, no funds are reserved."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the new asset. This must not be currently in use to identify"]
+                #[doc = "an existing asset."]
+                #[doc = "- `owner`: The owner of this class of assets. The owner has full superuser permissions"]
+                #[doc = "over this asset, but may later change and configure the permissions using"]
+                #[doc = "`transfer_ownership` and `set_team`."]
+                #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                #[doc = ""]
+                #[doc = "Emits `ForceCreated` event when successful."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn force_create(
+                    &self,
+                    id: ::core::primitive::u32,
+                    owner: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    is_sufficient: ::core::primitive::bool,
+                    min_balance: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<ForceCreate> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_create",
+                        ForceCreate {
+                            id,
+                            owner,
+                            is_sufficient,
+                            min_balance,
+                        },
+                        [
+                            45u8, 129u8, 55u8, 141u8, 100u8, 83u8, 74u8, 183u8, 70u8, 83u8, 158u8,
+                            89u8, 86u8, 102u8, 228u8, 71u8, 182u8, 43u8, 22u8, 126u8, 42u8, 195u8,
+                            204u8, 173u8, 178u8, 166u8, 155u8, 105u8, 13u8, 178u8, 4u8, 254u8,
+                        ],
+                    )
+                }
+                #[doc = "Start the process of destroying a fungible asset class."]
+                #[doc = ""]
+                #[doc = "`start_destroy` is the first in a series of extrinsics that should be called, to allow"]
+                #[doc = "destruction of an asset class."]
+                #[doc = ""]
+                #[doc = "The origin must conform to `ForceOrigin` or must be `Signed` by the asset's `owner`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                #[doc = "  asset."]
+                #[doc = ""]
+                #[doc = "The asset class must be frozen before calling `start_destroy`."]
+                pub fn start_destroy(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<StartDestroy> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "start_destroy",
+                        StartDestroy { id },
+                        [
+                            83u8, 116u8, 245u8, 108u8, 180u8, 253u8, 0u8, 109u8, 9u8, 206u8, 70u8,
+                            95u8, 36u8, 80u8, 86u8, 186u8, 191u8, 161u8, 227u8, 156u8, 162u8,
+                            102u8, 82u8, 239u8, 124u8, 162u8, 128u8, 121u8, 183u8, 120u8, 214u8,
+                            136u8,
+                        ],
+                    )
+                }
+                #[doc = "Destroy all accounts associated with a given asset."]
+                #[doc = ""]
+                #[doc = "`destroy_accounts` should only be called after `start_destroy` has been called, and the"]
+                #[doc = "asset is in a `Destroying` state."]
+                #[doc = ""]
+                #[doc = "Due to weight restrictions, this function may need to be called multiple times to fully"]
+                #[doc = "destroy all accounts. It will destroy `RemoveItemsLimit` accounts at a time."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                #[doc = "  asset."]
+                #[doc = ""]
+                #[doc = "Each call emits the `Event::DestroyedAccounts` event."]
+                pub fn destroy_accounts(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<DestroyAccounts> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "destroy_accounts",
+                        DestroyAccounts { id },
+                        [
+                            35u8, 134u8, 147u8, 165u8, 201u8, 250u8, 221u8, 158u8, 216u8, 147u8,
+                            218u8, 79u8, 235u8, 188u8, 10u8, 101u8, 22u8, 48u8, 1u8, 192u8, 176u8,
+                            84u8, 111u8, 244u8, 99u8, 92u8, 254u8, 49u8, 156u8, 24u8, 209u8, 180u8,
+                        ],
+                    )
+                }
+                #[doc = "Destroy all approvals associated with a given asset up to the max (T::RemoveItemsLimit)."]
+                #[doc = ""]
+                #[doc = "`destroy_approvals` should only be called after `start_destroy` has been called, and the"]
+                #[doc = "asset is in a `Destroying` state."]
+                #[doc = ""]
+                #[doc = "Due to weight restrictions, this function may need to be called multiple times to fully"]
+                #[doc = "destroy all approvals. It will destroy `RemoveItemsLimit` approvals at a time."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                #[doc = "  asset."]
+                #[doc = ""]
+                #[doc = "Each call emits the `Event::DestroyedApprovals` event."]
+                pub fn destroy_approvals(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<DestroyApprovals> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "destroy_approvals",
+                        DestroyApprovals { id },
+                        [
+                            138u8, 31u8, 250u8, 93u8, 156u8, 239u8, 19u8, 43u8, 244u8, 208u8,
+                            159u8, 223u8, 143u8, 253u8, 235u8, 130u8, 159u8, 117u8, 15u8, 79u8,
+                            1u8, 205u8, 153u8, 36u8, 38u8, 23u8, 38u8, 0u8, 193u8, 104u8, 140u8,
+                            225u8,
+                        ],
+                    )
+                }
+                #[doc = "Complete destroying asset and unreserve currency."]
+                #[doc = ""]
+                #[doc = "`finish_destroy` should only be called after `start_destroy` has been called, and the"]
+                #[doc = "asset is in a `Destroying` state. All accounts or approvals should be destroyed before"]
+                #[doc = "hand."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                #[doc = "  asset."]
+                #[doc = ""]
+                #[doc = "Each successful call emits the `Event::Destroyed` event."]
+                pub fn finish_destroy(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<FinishDestroy> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "finish_destroy",
+                        FinishDestroy { id },
+                        [
+                            215u8, 16u8, 107u8, 60u8, 181u8, 1u8, 238u8, 172u8, 36u8, 54u8, 187u8,
+                            26u8, 159u8, 224u8, 161u8, 8u8, 115u8, 183u8, 132u8, 121u8, 42u8,
+                            165u8, 7u8, 193u8, 208u8, 124u8, 45u8, 158u8, 100u8, 57u8, 117u8,
+                            209u8,
+                        ],
+                    )
+                }
+                #[doc = "Mint assets of a particular class."]
+                #[doc = ""]
+                #[doc = "The origin must be Signed and the sender must be the Issuer of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to have some amount minted."]
+                #[doc = "- `beneficiary`: The account to be credited with the minted assets."]
+                #[doc = "- `amount`: The amount of the asset to be minted."]
+                #[doc = ""]
+                #[doc = "Emits `Issued` event when successful."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                #[doc = "Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`."]
+                pub fn mint(
+                    &self,
+                    id: ::core::primitive::u32,
+                    beneficiary: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<Mint> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "mint",
+                        Mint {
+                            id,
+                            beneficiary,
+                            amount,
+                        },
+                        [
+                            142u8, 88u8, 145u8, 221u8, 194u8, 149u8, 206u8, 99u8, 206u8, 71u8,
+                            101u8, 130u8, 175u8, 218u8, 130u8, 9u8, 169u8, 28u8, 82u8, 41u8, 102u8,
+                            159u8, 131u8, 145u8, 249u8, 54u8, 38u8, 168u8, 48u8, 15u8, 2u8, 96u8,
+                        ],
+                    )
+                }
+                #[doc = "Reduce the balance of `who` by as much as possible up to `amount` assets of `id`."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Manager of the asset `id`."]
+                #[doc = ""]
+                #[doc = "Bails with `NoAccount` if the `who` is already dead."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to have some amount burned."]
+                #[doc = "- `who`: The account to be debited from."]
+                #[doc = "- `amount`: The maximum amount by which `who`'s balance should be reduced."]
+                #[doc = ""]
+                #[doc = "Emits `Burned` with the actual amount burned. If this takes the balance to below the"]
+                #[doc = "minimum for the asset, then the amount burned is increased to take it to zero."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                #[doc = "Modes: Post-existence of `who`; Pre & post Zombie-status of `who`."]
+                pub fn burn(
+                    &self,
+                    id: ::core::primitive::u32,
+                    who: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<Burn> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "burn",
+                        Burn { id, who, amount },
+                        [
+                            27u8, 30u8, 250u8, 220u8, 38u8, 224u8, 142u8, 28u8, 70u8, 122u8, 241u8,
+                            79u8, 31u8, 163u8, 54u8, 87u8, 44u8, 6u8, 14u8, 161u8, 32u8, 181u8,
+                            94u8, 117u8, 34u8, 161u8, 97u8, 161u8, 7u8, 163u8, 223u8, 124u8,
+                        ],
+                    )
+                }
+                #[doc = "Move some assets from the sender account to another."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                #[doc = "- `target`: The account to be credited."]
+                #[doc = "- `amount`: The amount by which the sender's balance of assets should be reduced and"]
+                #[doc = "`target`'s balance increased. The amount actually transferred may be slightly greater in"]
+                #[doc = "the case that the transfer would otherwise take the sender balance above zero but below"]
+                #[doc = "the minimum balance. Must be greater than zero."]
+                #[doc = ""]
+                #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                #[doc = "to zero."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                #[doc = "Modes: Pre-existence of `target`; Post-existence of sender; Account pre-existence of"]
+                #[doc = "`target`."]
+                pub fn transfer(
+                    &self,
+                    id: ::core::primitive::u32,
+                    target: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<Transfer> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "transfer",
+                        Transfer { id, target, amount },
+                        [
+                            211u8, 37u8, 7u8, 179u8, 233u8, 146u8, 149u8, 140u8, 54u8, 97u8, 141u8,
+                            213u8, 149u8, 84u8, 127u8, 185u8, 205u8, 93u8, 119u8, 179u8, 47u8,
+                            112u8, 7u8, 17u8, 94u8, 125u8, 44u8, 28u8, 103u8, 17u8, 209u8, 61u8,
+                        ],
+                    )
+                }
+                #[doc = "Move some assets from the sender account to another, keeping the sender account alive."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                #[doc = "- `target`: The account to be credited."]
+                #[doc = "- `amount`: The amount by which the sender's balance of assets should be reduced and"]
+                #[doc = "`target`'s balance increased. The amount actually transferred may be slightly greater in"]
+                #[doc = "the case that the transfer would otherwise take the sender balance above zero but below"]
+                #[doc = "the minimum balance. Must be greater than zero."]
+                #[doc = ""]
+                #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                #[doc = "to zero."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                #[doc = "Modes: Pre-existence of `target`; Post-existence of sender; Account pre-existence of"]
+                #[doc = "`target`."]
+                pub fn transfer_keep_alive(
+                    &self,
+                    id: ::core::primitive::u32,
+                    target: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<TransferKeepAlive> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "transfer_keep_alive",
+                        TransferKeepAlive { id, target, amount },
+                        [
+                            45u8, 221u8, 40u8, 14u8, 110u8, 12u8, 134u8, 20u8, 220u8, 73u8, 131u8,
+                            43u8, 6u8, 214u8, 34u8, 13u8, 200u8, 198u8, 44u8, 150u8, 58u8, 252u8,
+                            2u8, 136u8, 238u8, 253u8, 118u8, 238u8, 241u8, 172u8, 151u8, 153u8,
+                        ],
+                    )
+                }
+                #[doc = "Move some assets from one account to another."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                #[doc = "- `source`: The account to be debited."]
+                #[doc = "- `dest`: The account to be credited."]
+                #[doc = "- `amount`: The amount by which the `source`'s balance of assets should be reduced and"]
+                #[doc = "`dest`'s balance increased. The amount actually transferred may be slightly greater in"]
+                #[doc = "the case that the transfer would otherwise take the `source` balance above zero but"]
+                #[doc = "below the minimum balance. Must be greater than zero."]
+                #[doc = ""]
+                #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                #[doc = "to zero."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                #[doc = "Modes: Pre-existence of `dest`; Post-existence of `source`; Account pre-existence of"]
+                #[doc = "`dest`."]
+                pub fn force_transfer(
+                    &self,
+                    id: ::core::primitive::u32,
+                    source: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    dest: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<ForceTransfer> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_transfer",
+                        ForceTransfer {
+                            id,
+                            source,
+                            dest,
+                            amount,
+                        },
+                        [
+                            203u8, 81u8, 11u8, 97u8, 79u8, 101u8, 170u8, 89u8, 107u8, 10u8, 220u8,
+                            133u8, 229u8, 94u8, 228u8, 255u8, 216u8, 239u8, 161u8, 15u8, 50u8,
+                            113u8, 6u8, 131u8, 107u8, 60u8, 112u8, 146u8, 245u8, 67u8, 15u8, 220u8,
+                        ],
+                    )
+                }
+                #[doc = "Disallow further unprivileged transfers from an account."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Freezer of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be frozen."]
+                #[doc = "- `who`: The account to be frozen."]
+                #[doc = ""]
+                #[doc = "Emits `Frozen`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn freeze(
+                    &self,
+                    id: ::core::primitive::u32,
+                    who: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<Freeze> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "freeze",
+                        Freeze { id, who },
+                        [
+                            9u8, 164u8, 132u8, 206u8, 71u8, 56u8, 255u8, 255u8, 169u8, 236u8, 79u8,
+                            148u8, 201u8, 242u8, 125u8, 120u8, 179u8, 148u8, 225u8, 7u8, 139u8,
+                            193u8, 33u8, 68u8, 61u8, 133u8, 230u8, 13u8, 232u8, 2u8, 235u8, 112u8,
+                        ],
+                    )
+                }
+                #[doc = "Allow unprivileged transfers from an account again."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be frozen."]
+                #[doc = "- `who`: The account to be unfrozen."]
+                #[doc = ""]
+                #[doc = "Emits `Thawed`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn thaw(
+                    &self,
+                    id: ::core::primitive::u32,
+                    who: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<Thaw> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "thaw",
+                        Thaw { id, who },
+                        [
+                            121u8, 134u8, 54u8, 1u8, 81u8, 234u8, 61u8, 112u8, 120u8, 213u8, 153u8,
+                            137u8, 206u8, 129u8, 87u8, 90u8, 135u8, 211u8, 151u8, 2u8, 195u8, 40u8,
+                            218u8, 16u8, 87u8, 119u8, 204u8, 180u8, 97u8, 233u8, 14u8, 168u8,
+                        ],
+                    )
+                }
+                #[doc = "Disallow further unprivileged transfers for the asset class."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Freezer of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be frozen."]
+                #[doc = ""]
+                #[doc = "Emits `Frozen`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn freeze_asset(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<FreezeAsset> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "freeze_asset",
+                        FreezeAsset { id },
+                        [
+                            208u8, 101u8, 0u8, 73u8, 41u8, 192u8, 227u8, 44u8, 189u8, 231u8, 40u8,
+                            124u8, 189u8, 147u8, 136u8, 210u8, 76u8, 32u8, 249u8, 183u8, 68u8,
+                            58u8, 150u8, 136u8, 192u8, 47u8, 173u8, 178u8, 225u8, 84u8, 110u8, 1u8,
+                        ],
+                    )
+                }
+                #[doc = "Allow unprivileged transfers for the asset again."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be thawed."]
+                #[doc = ""]
+                #[doc = "Emits `Thawed`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn thaw_asset(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<ThawAsset> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "thaw_asset",
+                        ThawAsset { id },
+                        [
+                            18u8, 198u8, 141u8, 158u8, 182u8, 167u8, 160u8, 227u8, 20u8, 74u8,
+                            80u8, 164u8, 89u8, 46u8, 168u8, 139u8, 251u8, 83u8, 155u8, 91u8, 91u8,
+                            46u8, 205u8, 55u8, 171u8, 175u8, 167u8, 188u8, 116u8, 155u8, 79u8,
+                            117u8,
+                        ],
+                    )
+                }
+                #[doc = "Change the Owner of an asset."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `owner`: The new Owner of this asset."]
+                #[doc = ""]
+                #[doc = "Emits `OwnerChanged`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn transfer_ownership(
+                    &self,
+                    id: ::core::primitive::u32,
+                    owner: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<TransferOwnership> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "transfer_ownership",
+                        TransferOwnership { id, owner },
+                        [
+                            146u8, 254u8, 44u8, 100u8, 99u8, 215u8, 140u8, 15u8, 152u8, 73u8, 84u8,
+                            213u8, 7u8, 176u8, 63u8, 202u8, 58u8, 94u8, 133u8, 58u8, 191u8, 108u8,
+                            137u8, 137u8, 76u8, 131u8, 145u8, 188u8, 241u8, 45u8, 88u8, 87u8,
+                        ],
+                    )
+                }
+                #[doc = "Change the Issuer, Admin and Freezer of an asset."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to be frozen."]
+                #[doc = "- `issuer`: The new Issuer of this asset."]
+                #[doc = "- `admin`: The new Admin of this asset."]
+                #[doc = "- `freezer`: The new Freezer of this asset."]
+                #[doc = ""]
+                #[doc = "Emits `TeamChanged`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn set_team(
+                    &self,
+                    id: ::core::primitive::u32,
+                    issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    admin: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<SetTeam> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "set_team",
+                        SetTeam {
+                            id,
+                            issuer,
+                            admin,
+                            freezer,
+                        },
+                        [
+                            206u8, 78u8, 41u8, 85u8, 189u8, 77u8, 76u8, 150u8, 213u8, 233u8, 68u8,
+                            12u8, 75u8, 181u8, 158u8, 105u8, 158u8, 209u8, 94u8, 155u8, 100u8,
+                            91u8, 95u8, 77u8, 10u8, 192u8, 138u8, 243u8, 42u8, 155u8, 253u8, 165u8,
+                        ],
+                    )
+                }
+                #[doc = "Set the metadata for an asset."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                #[doc = ""]
+                #[doc = "Funds of sender are reserved according to the formula:"]
+                #[doc = "`MetadataDepositBase + MetadataDepositPerByte * (name.len + symbol.len)` taking into"]
+                #[doc = "account any already reserved funds."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to update."]
+                #[doc = "- `name`: The user friendly name of this asset. Limited in length by `StringLimit`."]
+                #[doc = "- `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`."]
+                #[doc = "- `decimals`: The number of decimals this asset uses to represent one unit."]
+                #[doc = ""]
+                #[doc = "Emits `MetadataSet`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn set_metadata(
+                    &self,
+                    id: ::core::primitive::u32,
+                    name: ::std::vec::Vec<::core::primitive::u8>,
+                    symbol: ::std::vec::Vec<::core::primitive::u8>,
+                    decimals: ::core::primitive::u8,
+                ) -> ::subxt::tx::StaticTxPayload<SetMetadata> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "set_metadata",
+                        SetMetadata {
+                            id,
+                            name,
+                            symbol,
+                            decimals,
+                        },
+                        [
+                            15u8, 184u8, 50u8, 46u8, 164u8, 27u8, 105u8, 186u8, 35u8, 115u8, 194u8,
+                            247u8, 74u8, 252u8, 139u8, 242u8, 108u8, 221u8, 122u8, 15u8, 139u8,
+                            74u8, 123u8, 17u8, 192u8, 138u8, 182u8, 163u8, 77u8, 7u8, 124u8, 18u8,
+                        ],
+                    )
+                }
+                #[doc = "Clear the metadata for an asset."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                #[doc = ""]
+                #[doc = "Any deposit is freed for the asset owner."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to clear."]
+                #[doc = ""]
+                #[doc = "Emits `MetadataCleared`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn clear_metadata(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<ClearMetadata> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "clear_metadata",
+                        ClearMetadata { id },
+                        [
+                            192u8, 41u8, 71u8, 183u8, 13u8, 128u8, 244u8, 255u8, 175u8, 36u8, 99u8,
+                            175u8, 15u8, 129u8, 228u8, 76u8, 107u8, 214u8, 166u8, 116u8, 244u8,
+                            139u8, 60u8, 31u8, 123u8, 61u8, 203u8, 59u8, 213u8, 146u8, 116u8,
+                            126u8,
+                        ],
+                    )
+                }
+                #[doc = "Force the metadata for an asset to some value."]
+                #[doc = ""]
+                #[doc = "Origin must be ForceOrigin."]
+                #[doc = ""]
+                #[doc = "Any deposit is left alone."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to update."]
+                #[doc = "- `name`: The user friendly name of this asset. Limited in length by `StringLimit`."]
+                #[doc = "- `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`."]
+                #[doc = "- `decimals`: The number of decimals this asset uses to represent one unit."]
+                #[doc = ""]
+                #[doc = "Emits `MetadataSet`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(N + S)` where N and S are the length of the name and symbol respectively."]
+                pub fn force_set_metadata(
+                    &self,
+                    id: ::core::primitive::u32,
+                    name: ::std::vec::Vec<::core::primitive::u8>,
+                    symbol: ::std::vec::Vec<::core::primitive::u8>,
+                    decimals: ::core::primitive::u8,
+                    is_frozen: ::core::primitive::bool,
+                ) -> ::subxt::tx::StaticTxPayload<ForceSetMetadata> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_set_metadata",
+                        ForceSetMetadata {
+                            id,
+                            name,
+                            symbol,
+                            decimals,
+                            is_frozen,
+                        },
+                        [
+                            7u8, 30u8, 55u8, 233u8, 217u8, 113u8, 196u8, 21u8, 29u8, 122u8, 168u8,
+                            225u8, 63u8, 104u8, 57u8, 78u8, 76u8, 145u8, 121u8, 118u8, 91u8, 149u8,
+                            87u8, 26u8, 26u8, 125u8, 44u8, 241u8, 143u8, 138u8, 144u8, 8u8,
+                        ],
+                    )
+                }
+                #[doc = "Clear the metadata for an asset."]
+                #[doc = ""]
+                #[doc = "Origin must be ForceOrigin."]
+                #[doc = ""]
+                #[doc = "Any deposit is returned."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset to clear."]
+                #[doc = ""]
+                #[doc = "Emits `MetadataCleared`."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn force_clear_metadata(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<ForceClearMetadata> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_clear_metadata",
+                        ForceClearMetadata { id },
+                        [
+                            71u8, 191u8, 101u8, 72u8, 188u8, 223u8, 215u8, 187u8, 200u8, 206u8,
+                            3u8, 42u8, 4u8, 62u8, 117u8, 106u8, 26u8, 2u8, 68u8, 202u8, 162u8,
+                            142u8, 172u8, 123u8, 48u8, 196u8, 247u8, 89u8, 147u8, 75u8, 84u8,
+                            109u8,
+                        ],
+                    )
+                }
+                #[doc = "Alter the attributes of a given asset."]
+                #[doc = ""]
+                #[doc = "Origin must be `ForceOrigin`."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `owner`: The new Owner of this asset."]
+                #[doc = "- `issuer`: The new Issuer of this asset."]
+                #[doc = "- `admin`: The new Admin of this asset."]
+                #[doc = "- `freezer`: The new Freezer of this asset."]
+                #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                #[doc = "- `is_sufficient`: Whether a non-zero balance of this asset is deposit of sufficient"]
+                #[doc = "value to account for the state bloat associated with its balance storage. If set to"]
+                #[doc = "`true`, then non-zero balances may be stored without a `consumer` reference (and thus"]
+                #[doc = "an ED in the Balances pallet or whatever else is used to control user-account state"]
+                #[doc = "growth)."]
+                #[doc = "- `is_frozen`: Whether this asset class is frozen except for permissioned/admin"]
+                #[doc = "instructions."]
+                #[doc = ""]
+                #[doc = "Emits `AssetStatusChanged` with the identity of the asset."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn force_asset_status(
+                    &self,
+                    id: ::core::primitive::u32,
+                    owner: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    admin: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    min_balance: ::core::primitive::u128,
+                    is_sufficient: ::core::primitive::bool,
+                    is_frozen: ::core::primitive::bool,
+                ) -> ::subxt::tx::StaticTxPayload<ForceAssetStatus> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_asset_status",
+                        ForceAssetStatus {
+                            id,
+                            owner,
+                            issuer,
+                            admin,
+                            freezer,
+                            min_balance,
+                            is_sufficient,
+                            is_frozen,
+                        },
+                        [
+                            181u8, 168u8, 215u8, 229u8, 27u8, 78u8, 26u8, 171u8, 50u8, 95u8, 9u8,
+                            112u8, 142u8, 125u8, 230u8, 68u8, 188u8, 24u8, 208u8, 203u8, 226u8,
+                            17u8, 231u8, 69u8, 172u8, 24u8, 119u8, 22u8, 232u8, 11u8, 70u8, 248u8,
+                        ],
+                    )
+                }
+                #[doc = "Approve an amount of asset for transfer by a delegated third-party account."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed."]
+                #[doc = ""]
+                #[doc = "Ensures that `ApprovalDeposit` worth of `Currency` is reserved from signing account"]
+                #[doc = "for the purpose of holding the approval. If some non-zero amount of assets is already"]
+                #[doc = "approved from signing account to `delegate`, then it is topped up or unreserved to"]
+                #[doc = "meet the right value."]
+                #[doc = ""]
+                #[doc = "NOTE: The signing account does not need to own `amount` of assets at the point of"]
+                #[doc = "making this call."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `delegate`: The account to delegate permission to transfer asset."]
+                #[doc = "- `amount`: The amount of asset that may be transferred by `delegate`. If there is"]
+                #[doc = "already an approval in place, then this acts additively."]
+                #[doc = ""]
+                #[doc = "Emits `ApprovedTransfer` on success."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn approve_transfer(
+                    &self,
+                    id: ::core::primitive::u32,
+                    delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<ApproveTransfer> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "approve_transfer",
+                        ApproveTransfer {
+                            id,
+                            delegate,
+                            amount,
+                        },
+                        [
+                            188u8, 247u8, 242u8, 152u8, 209u8, 38u8, 128u8, 25u8, 79u8, 17u8, 31u8,
+                            236u8, 171u8, 237u8, 175u8, 49u8, 86u8, 157u8, 164u8, 220u8, 5u8,
+                            225u8, 124u8, 157u8, 174u8, 61u8, 39u8, 78u8, 22u8, 2u8, 37u8, 31u8,
+                        ],
+                    )
+                }
+                #[doc = "Cancel all of some asset approved for delegated transfer by a third-party account."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and there must be an approval in place between signer and"]
+                #[doc = "`delegate`."]
+                #[doc = ""]
+                #[doc = "Unreserves any deposit previously reserved by `approve_transfer` for the approval."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `delegate`: The account delegated permission to transfer asset."]
+                #[doc = ""]
+                #[doc = "Emits `ApprovalCancelled` on success."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn cancel_approval(
+                    &self,
+                    id: ::core::primitive::u32,
+                    delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<CancelApproval> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "cancel_approval",
+                        CancelApproval { id, delegate },
+                        [
+                            176u8, 30u8, 130u8, 224u8, 220u8, 236u8, 186u8, 160u8, 21u8, 177u8,
+                            57u8, 65u8, 12u8, 85u8, 195u8, 254u8, 189u8, 180u8, 229u8, 25u8, 240u8,
+                            200u8, 101u8, 223u8, 110u8, 66u8, 246u8, 81u8, 44u8, 135u8, 228u8,
+                            220u8,
+                        ],
+                    )
+                }
+                #[doc = "Cancel all of some asset approved for delegated transfer by a third-party account."]
+                #[doc = ""]
+                #[doc = "Origin must be either ForceOrigin or Signed origin with the signer being the Admin"]
+                #[doc = "account of the asset `id`."]
+                #[doc = ""]
+                #[doc = "Unreserves any deposit previously reserved by `approve_transfer` for the approval."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `delegate`: The account delegated permission to transfer asset."]
+                #[doc = ""]
+                #[doc = "Emits `ApprovalCancelled` on success."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn force_cancel_approval(
+                    &self,
+                    id: ::core::primitive::u32,
+                    owner: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<ForceCancelApproval> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "force_cancel_approval",
+                        ForceCancelApproval {
+                            id,
+                            owner,
+                            delegate,
+                        },
+                        [
+                            6u8, 80u8, 184u8, 209u8, 50u8, 16u8, 2u8, 236u8, 101u8, 140u8, 94u8,
+                            0u8, 56u8, 77u8, 119u8, 220u8, 141u8, 144u8, 82u8, 189u8, 6u8, 52u8,
+                            212u8, 102u8, 170u8, 143u8, 171u8, 140u8, 150u8, 86u8, 247u8, 17u8,
+                        ],
+                    )
+                }
+                #[doc = "Transfer some asset balance from a previously delegated account to some third-party"]
+                #[doc = "account."]
+                #[doc = ""]
+                #[doc = "Origin must be Signed and there must be an approval in place by the `owner` to the"]
+                #[doc = "signer."]
+                #[doc = ""]
+                #[doc = "If the entire amount approved for transfer is transferred, then any deposit previously"]
+                #[doc = "reserved by `approve_transfer` is unreserved."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset."]
+                #[doc = "- `owner`: The account which previously approved for a transfer of at least `amount` and"]
+                #[doc = "from which the asset balance will be withdrawn."]
+                #[doc = "- `destination`: The account to which the asset balance of `amount` will be transferred."]
+                #[doc = "- `amount`: The amount of assets to transfer."]
+                #[doc = ""]
+                #[doc = "Emits `TransferredApproved` on success."]
+                #[doc = ""]
+                #[doc = "Weight: `O(1)`"]
+                pub fn transfer_approved(
+                    &self,
+                    id: ::core::primitive::u32,
+                    owner: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    destination: ::subxt::ext::sp_runtime::MultiAddress<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                        (),
+                    >,
+                    amount: ::core::primitive::u128,
+                ) -> ::subxt::tx::StaticTxPayload<TransferApproved> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "transfer_approved",
+                        TransferApproved {
+                            id,
+                            owner,
+                            destination,
+                            amount,
+                        },
+                        [
+                            159u8, 239u8, 168u8, 140u8, 203u8, 198u8, 2u8, 11u8, 113u8, 160u8,
+                            63u8, 131u8, 204u8, 70u8, 84u8, 41u8, 161u8, 166u8, 87u8, 79u8, 106u8,
+                            14u8, 136u8, 53u8, 14u8, 239u8, 28u8, 188u8, 172u8, 242u8, 249u8,
+                            129u8,
+                        ],
+                    )
+                }
+                #[doc = "Create an asset account for non-provider assets."]
+                #[doc = ""]
+                #[doc = "A deposit will be taken from the signer account."]
+                #[doc = ""]
+                #[doc = "- `origin`: Must be Signed; the signer account must have sufficient funds for a deposit"]
+                #[doc = "  to be taken."]
+                #[doc = "- `id`: The identifier of the asset for the account to be created."]
+                #[doc = ""]
+                #[doc = "Emits `Touched` event when successful."]
+                pub fn touch(
+                    &self,
+                    id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<Touch> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "touch",
+                        Touch { id },
+                        [
+                            114u8, 149u8, 179u8, 168u8, 115u8, 117u8, 32u8, 50u8, 39u8, 77u8,
+                            148u8, 238u8, 123u8, 96u8, 193u8, 174u8, 113u8, 141u8, 34u8, 228u8,
+                            228u8, 214u8, 71u8, 111u8, 55u8, 126u8, 103u8, 181u8, 133u8, 77u8,
+                            116u8, 105u8,
+                        ],
+                    )
+                }
+                #[doc = "Return the deposit (if any) of an asset account."]
+                #[doc = ""]
+                #[doc = "The origin must be Signed."]
+                #[doc = ""]
+                #[doc = "- `id`: The identifier of the asset for the account to be created."]
+                #[doc = "- `allow_burn`: If `true` then assets may be destroyed in order to complete the refund."]
+                #[doc = ""]
+                #[doc = "Emits `Refunded` event when successful."]
+                pub fn refund(
+                    &self,
+                    id: ::core::primitive::u32,
+                    allow_burn: ::core::primitive::bool,
+                ) -> ::subxt::tx::StaticTxPayload<Refund> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "Assets",
+                        "refund",
+                        Refund { id, allow_burn },
+                        [
+                            20u8, 139u8, 248u8, 67u8, 123u8, 221u8, 7u8, 106u8, 239u8, 156u8, 68u8,
+                            59u8, 81u8, 184u8, 47u8, 188u8, 195u8, 227u8, 75u8, 168u8, 126u8,
+                            176u8, 91u8, 187u8, 30u8, 34u8, 24u8, 223u8, 108u8, 101u8, 88u8, 83u8,
+                        ],
+                    )
+                }
+            }
+        }
+        #[doc = "\n\t\t\tThe [event](https://docs.substrate.io/main-docs/build/events-errors/) emitted\n\t\t\tby this pallet.\n\t\t\t"]
+        pub type Event = runtime_types::pallet_assets::pallet::Event;
+        pub mod events {
+            use super::runtime_types;
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some asset class was created."]
+            pub struct Created {
+                pub asset_id: ::core::primitive::u32,
+                pub creator: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for Created {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Created";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some assets were issued."]
+            pub struct Issued {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub amount: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for Issued {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Issued";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some assets were transferred."]
+            pub struct Transferred {
+                pub asset_id: ::core::primitive::u32,
+                pub from: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub to: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub amount: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for Transferred {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Transferred";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some assets were destroyed."]
+            pub struct Burned {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub balance: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for Burned {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Burned";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "The management team changed."]
+            pub struct TeamChanged {
+                pub asset_id: ::core::primitive::u32,
+                pub issuer: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub admin: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub freezer: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for TeamChanged {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "TeamChanged";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "The owner changed."]
+            pub struct OwnerChanged {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for OwnerChanged {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "OwnerChanged";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some account `who` was frozen."]
+            pub struct Frozen {
+                pub asset_id: ::core::primitive::u32,
+                pub who: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for Frozen {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Frozen";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some account `who` was thawed."]
+            pub struct Thawed {
+                pub asset_id: ::core::primitive::u32,
+                pub who: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for Thawed {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Thawed";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some asset `asset_id` was frozen."]
+            pub struct AssetFrozen {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for AssetFrozen {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "AssetFrozen";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some asset `asset_id` was thawed."]
+            pub struct AssetThawed {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for AssetThawed {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "AssetThawed";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Accounts were destroyed for given asset."]
+            pub struct AccountsDestroyed {
+                pub asset_id: ::core::primitive::u32,
+                pub accounts_destroyed: ::core::primitive::u32,
+                pub accounts_remaining: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for AccountsDestroyed {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "AccountsDestroyed";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Approvals were destroyed for given asset."]
+            pub struct ApprovalsDestroyed {
+                pub asset_id: ::core::primitive::u32,
+                pub approvals_destroyed: ::core::primitive::u32,
+                pub approvals_remaining: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for ApprovalsDestroyed {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "ApprovalsDestroyed";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "An asset class is in the process of being destroyed."]
+            pub struct DestructionStarted {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for DestructionStarted {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "DestructionStarted";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "An asset class was destroyed."]
+            pub struct Destroyed {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for Destroyed {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "Destroyed";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Some asset class was force-created."]
+            pub struct ForceCreated {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for ForceCreated {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "ForceCreated";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "New metadata has been set for an asset."]
+            pub struct MetadataSet {
+                pub asset_id: ::core::primitive::u32,
+                pub name: ::std::vec::Vec<::core::primitive::u8>,
+                pub symbol: ::std::vec::Vec<::core::primitive::u8>,
+                pub decimals: ::core::primitive::u8,
+                pub is_frozen: ::core::primitive::bool,
+            }
+            impl ::subxt::events::StaticEvent for MetadataSet {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "MetadataSet";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Metadata has been cleared for an asset."]
+            pub struct MetadataCleared {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for MetadataCleared {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "MetadataCleared";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "(Additional) funds have been approved for transfer to a destination account."]
+            pub struct ApprovedTransfer {
+                pub asset_id: ::core::primitive::u32,
+                pub source: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub amount: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for ApprovedTransfer {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "ApprovedTransfer";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "An approval for account `delegate` was cancelled by `owner`."]
+            pub struct ApprovalCancelled {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+            }
+            impl ::subxt::events::StaticEvent for ApprovalCancelled {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "ApprovalCancelled";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "An `amount` was transferred in its entirety from `owner` to `destination` by"]
+            #[doc = "the approved `delegate`."]
+            pub struct TransferredApproved {
+                pub asset_id: ::core::primitive::u32,
+                pub owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub destination: ::subxt::ext::sp_core::crypto::AccountId32,
+                pub amount: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for TransferredApproved {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "TransferredApproved";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "An asset has had its attributes changed by the `Force` origin."]
+            pub struct AssetStatusChanged {
+                pub asset_id: ::core::primitive::u32,
+            }
+            impl ::subxt::events::StaticEvent for AssetStatusChanged {
+                const PALLET: &'static str = "Assets";
+                const EVENT: &'static str = "AssetStatusChanged";
+            }
+        }
+        pub mod storage {
+            use super::runtime_types;
+            pub struct StorageApi;
+            impl StorageApi {
+                #[doc = " Details of an asset."]
+                pub fn asset(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetDetails<
+                            ::core::primitive::u128,
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            ::core::primitive::u128,
+                        >,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Asset",
+                        vec![::subxt::storage::address::StorageMapKey::new(
+                            _0.borrow(),
+                            ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                        )],
+                        [
+                            251u8, 148u8, 82u8, 150u8, 66u8, 26u8, 46u8, 186u8, 60u8, 59u8, 239u8,
+                            190u8, 102u8, 156u8, 113u8, 175u8, 1u8, 117u8, 147u8, 236u8, 114u8,
+                            88u8, 49u8, 210u8, 165u8, 162u8, 201u8, 230u8, 147u8, 141u8, 174u8,
+                            221u8,
+                        ],
+                    )
+                }
+                #[doc = " Details of an asset."]
+                pub fn asset_root(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetDetails<
+                            ::core::primitive::u128,
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            ::core::primitive::u128,
+                        >,
+                    >,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Asset",
+                        Vec::new(),
+                        [
+                            251u8, 148u8, 82u8, 150u8, 66u8, 26u8, 46u8, 186u8, 60u8, 59u8, 239u8,
+                            190u8, 102u8, 156u8, 113u8, 175u8, 1u8, 117u8, 147u8, 236u8, 114u8,
+                            88u8, 49u8, 210u8, 165u8, 162u8, 201u8, 230u8, 147u8, 141u8, 174u8,
+                            221u8,
+                        ],
+                    )
+                }
+                #[doc = " The holdings of a specific account for a specific asset."]
+                pub fn account(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
+                    _1: impl ::std::borrow::Borrow<::subxt::ext::sp_core::crypto::AccountId32>,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetAccount<
+                            ::core::primitive::u128,
+                            ::core::primitive::u128,
+                            (),
+                        >,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Account",
+                        vec![
+                            ::subxt::storage::address::StorageMapKey::new(
+                                _0.borrow(),
+                                ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                            ),
+                            ::subxt::storage::address::StorageMapKey::new(
+                                _1.borrow(),
+                                ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                            ),
+                        ],
+                        [
+                            109u8, 245u8, 93u8, 133u8, 206u8, 68u8, 94u8, 233u8, 29u8, 113u8,
+                            245u8, 201u8, 241u8, 2u8, 200u8, 179u8, 37u8, 199u8, 128u8, 243u8,
+                            49u8, 50u8, 122u8, 139u8, 135u8, 48u8, 201u8, 109u8, 195u8, 38u8,
+                            205u8, 32u8,
+                        ],
+                    )
+                }
+                #[doc = " The holdings of a specific account for a specific asset."]
+                pub fn account_root(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetAccount<
+                            ::core::primitive::u128,
+                            ::core::primitive::u128,
+                            (),
+                        >,
+                    >,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Account",
+                        Vec::new(),
+                        [
+                            109u8, 245u8, 93u8, 133u8, 206u8, 68u8, 94u8, 233u8, 29u8, 113u8,
+                            245u8, 201u8, 241u8, 2u8, 200u8, 179u8, 37u8, 199u8, 128u8, 243u8,
+                            49u8, 50u8, 122u8, 139u8, 135u8, 48u8, 201u8, 109u8, 195u8, 38u8,
+                            205u8, 32u8,
+                        ],
+                    )
+                }
+                #[doc = " Approved balance transfers. First balance is the amount approved for transfer. Second"]
+                #[doc = " is the amount of `T::Currency` reserved for storing this."]
+                #[doc = " First key is the asset ID, second key is the owner and third key is the delegate."]
+                pub fn approvals(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
+                    _1: impl ::std::borrow::Borrow<::subxt::ext::sp_core::crypto::AccountId32>,
+                    _2: impl ::std::borrow::Borrow<::subxt::ext::sp_core::crypto::AccountId32>,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::Approval<
+                            ::core::primitive::u128,
+                            ::core::primitive::u128,
+                        >,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Approvals",
+                        vec![
+                            ::subxt::storage::address::StorageMapKey::new(
+                                _0.borrow(),
+                                ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                            ),
+                            ::subxt::storage::address::StorageMapKey::new(
+                                _1.borrow(),
+                                ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                            ),
+                            ::subxt::storage::address::StorageMapKey::new(
+                                _2.borrow(),
+                                ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                            ),
+                        ],
+                        [
+                            210u8, 147u8, 203u8, 49u8, 232u8, 215u8, 116u8, 154u8, 43u8, 154u8,
+                            69u8, 159u8, 241u8, 28u8, 238u8, 101u8, 108u8, 162u8, 242u8, 121u8,
+                            138u8, 164u8, 217u8, 243u8, 72u8, 173u8, 75u8, 109u8, 194u8, 9u8,
+                            196u8, 163u8,
+                        ],
+                    )
+                }
+                #[doc = " Approved balance transfers. First balance is the amount approved for transfer. Second"]
+                #[doc = " is the amount of `T::Currency` reserved for storing this."]
+                #[doc = " First key is the asset ID, second key is the owner and third key is the delegate."]
+                pub fn approvals_root(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::Approval<
+                            ::core::primitive::u128,
+                            ::core::primitive::u128,
+                        >,
+                    >,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Approvals",
+                        Vec::new(),
+                        [
+                            210u8, 147u8, 203u8, 49u8, 232u8, 215u8, 116u8, 154u8, 43u8, 154u8,
+                            69u8, 159u8, 241u8, 28u8, 238u8, 101u8, 108u8, 162u8, 242u8, 121u8,
+                            138u8, 164u8, 217u8, 243u8, 72u8, 173u8, 75u8, 109u8, 194u8, 9u8,
+                            196u8, 163u8,
+                        ],
+                    )
+                }
+                #[doc = " Metadata of an asset."]
+                pub fn metadata(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetMetadata<
+                            ::core::primitive::u128,
+                            runtime_types::sp_core::bounded::bounded_vec::BoundedVec<
+                                ::core::primitive::u8,
+                            >,
+                        >,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Metadata",
+                        vec![::subxt::storage::address::StorageMapKey::new(
+                            _0.borrow(),
+                            ::subxt::storage::address::StorageHasher::Blake2_128Concat,
+                        )],
+                        [
+                            80u8, 115u8, 155u8, 115u8, 136u8, 108u8, 82u8, 93u8, 65u8, 130u8,
+                            143u8, 228u8, 170u8, 234u8, 182u8, 170u8, 229u8, 217u8, 168u8, 71u8,
+                            81u8, 80u8, 16u8, 112u8, 209u8, 82u8, 8u8, 165u8, 80u8, 137u8, 58u8,
+                            170u8,
+                        ],
+                    )
+                }
+                #[doc = " Metadata of an asset."]
+                pub fn metadata_root(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::pallet_assets::types::AssetMetadata<
+                            ::core::primitive::u128,
+                            runtime_types::sp_core::bounded::bounded_vec::BoundedVec<
+                                ::core::primitive::u8,
+                            >,
+                        >,
+                    >,
+                    (),
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "Assets",
+                        "Metadata",
+                        Vec::new(),
+                        [
+                            80u8, 115u8, 155u8, 115u8, 136u8, 108u8, 82u8, 93u8, 65u8, 130u8,
+                            143u8, 228u8, 170u8, 234u8, 182u8, 170u8, 229u8, 217u8, 168u8, 71u8,
+                            81u8, 80u8, 16u8, 112u8, 209u8, 82u8, 8u8, 165u8, 80u8, 137u8, 58u8,
+                            170u8,
+                        ],
+                    )
+                }
+            }
+        }
+        pub mod constants {
+            use super::runtime_types;
+            pub struct ConstantsApi;
+            impl ConstantsApi {
+                #[doc = " Max number of items to destroy per `destroy_accounts` and `destroy_approvals` call."]
+                #[doc = ""]
+                #[doc = " Must be configured to result in a weight that makes each call fit in a block."]
+                pub fn remove_items_limit(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u32>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "RemoveItemsLimit",
+                        [
+                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
+                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
+                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
+                            145u8,
+                        ],
+                    )
+                }
+                #[doc = " The basic amount of funds that must be reserved for an asset."]
+                pub fn asset_deposit(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "AssetDeposit",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+                #[doc = " The amount of funds that must be reserved for a non-provider asset account to be"]
+                #[doc = " maintained."]
+                pub fn asset_account_deposit(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "AssetAccountDeposit",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+                #[doc = " The basic amount of funds that must be reserved when adding metadata to your asset."]
+                pub fn metadata_deposit_base(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "MetadataDepositBase",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+                #[doc = " The additional funds that must be reserved for the number of bytes you store in your"]
+                #[doc = " metadata."]
+                pub fn metadata_deposit_per_byte(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "MetadataDepositPerByte",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+                #[doc = " The amount of funds that must be reserved when creating a new approval."]
+                pub fn approval_deposit(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "ApprovalDeposit",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+                #[doc = " The maximum length of a name or symbol stored on-chain."]
+                pub fn string_limit(
+                    &self,
+                ) -> ::subxt::constants::StaticConstantAddress<
+                    ::subxt::metadata::DecodeStaticType<::core::primitive::u32>,
+                > {
+                    ::subxt::constants::StaticConstantAddress::new(
+                        "Assets",
+                        "StringLimit",
+                        [
+                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
+                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
+                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
+                            145u8,
+                        ],
+                    )
+                }
+            }
+        }
+    }
     pub mod baby_liminal {
         use super::{root_mod, runtime_types};
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
@@ -13642,6 +15870,8 @@ pub mod api {
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
                 #[codec(index = 22)]
+                Assets(runtime_types::pallet_assets::pallet::Call),
+                #[codec(index = 23)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Call),
             }
             #[derive(
@@ -13688,6 +15918,8 @@ pub mod api {
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
                 #[codec(index = 22)]
+                Assets(runtime_types::pallet_assets::pallet::Event),
+                #[codec(index = 23)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Event),
             }
             #[derive(
@@ -13869,6 +16101,18 @@ pub mod api {
                         PartialEq,
                     )]
                     pub struct CheckMortality(pub runtime_types::sp_runtime::generic::era::Era);
+                }
+                pub mod check_non_zero_sender {
+                    use super::runtime_types;
+                    #[derive(
+                        :: subxt :: ext :: codec :: Decode,
+                        :: subxt :: ext :: codec :: Encode,
+                        Clone,
+                        Debug,
+                        Eq,
+                        PartialEq,
+                    )]
+                    pub struct CheckNonZeroSender;
                 }
                 pub mod check_nonce {
                     use super::runtime_types;
@@ -14229,6 +16473,984 @@ pub mod api {
                     ScheduleFinalityVersionChange(runtime_types::primitives::VersionChange),
                     #[codec(index = 2)]
                     FinalityVersionChange(runtime_types::primitives::VersionChange),
+                }
+            }
+        }
+        pub mod pallet_assets {
+            use super::runtime_types;
+            pub mod pallet {
+                use super::runtime_types;
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
+                pub enum Call {
+                    #[codec(index = 0)]
+                    #[doc = "Issue a new class of fungible assets from a public origin."]
+                    #[doc = ""]
+                    #[doc = "This new asset class has no assets initially and its owner is the origin."]
+                    #[doc = ""]
+                    #[doc = "The origin must conform to the configured `CreateOrigin` and have sufficient funds free."]
+                    #[doc = ""]
+                    #[doc = "Funds of sender are reserved by `AssetDeposit`."]
+                    #[doc = ""]
+                    #[doc = "Parameters:"]
+                    #[doc = "- `id`: The identifier of the new asset. This must not be currently in use to identify"]
+                    #[doc = "an existing asset."]
+                    #[doc = "- `admin`: The admin of this class of assets. The admin is the initial address of each"]
+                    #[doc = "member of the asset class's admin team."]
+                    #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                    #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                    #[doc = ""]
+                    #[doc = "Emits `Created` event when successful."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    create {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        admin: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        min_balance: ::core::primitive::u128,
+                    },
+                    #[codec(index = 1)]
+                    #[doc = "Issue a new class of fungible assets from a privileged origin."]
+                    #[doc = ""]
+                    #[doc = "This new asset class has no assets initially."]
+                    #[doc = ""]
+                    #[doc = "The origin must conform to `ForceOrigin`."]
+                    #[doc = ""]
+                    #[doc = "Unlike `create`, no funds are reserved."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the new asset. This must not be currently in use to identify"]
+                    #[doc = "an existing asset."]
+                    #[doc = "- `owner`: The owner of this class of assets. The owner has full superuser permissions"]
+                    #[doc = "over this asset, but may later change and configure the permissions using"]
+                    #[doc = "`transfer_ownership` and `set_team`."]
+                    #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                    #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                    #[doc = ""]
+                    #[doc = "Emits `ForceCreated` event when successful."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    force_create {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        is_sufficient: ::core::primitive::bool,
+                        #[codec(compact)]
+                        min_balance: ::core::primitive::u128,
+                    },
+                    #[codec(index = 2)]
+                    #[doc = "Start the process of destroying a fungible asset class."]
+                    #[doc = ""]
+                    #[doc = "`start_destroy` is the first in a series of extrinsics that should be called, to allow"]
+                    #[doc = "destruction of an asset class."]
+                    #[doc = ""]
+                    #[doc = "The origin must conform to `ForceOrigin` or must be `Signed` by the asset's `owner`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                    #[doc = "  asset."]
+                    #[doc = ""]
+                    #[doc = "The asset class must be frozen before calling `start_destroy`."]
+                    start_destroy {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 3)]
+                    #[doc = "Destroy all accounts associated with a given asset."]
+                    #[doc = ""]
+                    #[doc = "`destroy_accounts` should only be called after `start_destroy` has been called, and the"]
+                    #[doc = "asset is in a `Destroying` state."]
+                    #[doc = ""]
+                    #[doc = "Due to weight restrictions, this function may need to be called multiple times to fully"]
+                    #[doc = "destroy all accounts. It will destroy `RemoveItemsLimit` accounts at a time."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                    #[doc = "  asset."]
+                    #[doc = ""]
+                    #[doc = "Each call emits the `Event::DestroyedAccounts` event."]
+                    destroy_accounts {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 4)]
+                    #[doc = "Destroy all approvals associated with a given asset up to the max (T::RemoveItemsLimit)."]
+                    #[doc = ""]
+                    #[doc = "`destroy_approvals` should only be called after `start_destroy` has been called, and the"]
+                    #[doc = "asset is in a `Destroying` state."]
+                    #[doc = ""]
+                    #[doc = "Due to weight restrictions, this function may need to be called multiple times to fully"]
+                    #[doc = "destroy all approvals. It will destroy `RemoveItemsLimit` approvals at a time."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                    #[doc = "  asset."]
+                    #[doc = ""]
+                    #[doc = "Each call emits the `Event::DestroyedApprovals` event."]
+                    destroy_approvals {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 5)]
+                    #[doc = "Complete destroying asset and unreserve currency."]
+                    #[doc = ""]
+                    #[doc = "`finish_destroy` should only be called after `start_destroy` has been called, and the"]
+                    #[doc = "asset is in a `Destroying` state. All accounts or approvals should be destroyed before"]
+                    #[doc = "hand."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be destroyed. This must identify an existing"]
+                    #[doc = "  asset."]
+                    #[doc = ""]
+                    #[doc = "Each successful call emits the `Event::Destroyed` event."]
+                    finish_destroy {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 6)]
+                    #[doc = "Mint assets of a particular class."]
+                    #[doc = ""]
+                    #[doc = "The origin must be Signed and the sender must be the Issuer of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to have some amount minted."]
+                    #[doc = "- `beneficiary`: The account to be credited with the minted assets."]
+                    #[doc = "- `amount`: The amount of the asset to be minted."]
+                    #[doc = ""]
+                    #[doc = "Emits `Issued` event when successful."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    #[doc = "Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`."]
+                    mint {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        beneficiary: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 7)]
+                    #[doc = "Reduce the balance of `who` by as much as possible up to `amount` assets of `id`."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Manager of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "Bails with `NoAccount` if the `who` is already dead."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to have some amount burned."]
+                    #[doc = "- `who`: The account to be debited from."]
+                    #[doc = "- `amount`: The maximum amount by which `who`'s balance should be reduced."]
+                    #[doc = ""]
+                    #[doc = "Emits `Burned` with the actual amount burned. If this takes the balance to below the"]
+                    #[doc = "minimum for the asset, then the amount burned is increased to take it to zero."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    #[doc = "Modes: Post-existence of `who`; Pre & post Zombie-status of `who`."]
+                    burn {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        who: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 8)]
+                    #[doc = "Move some assets from the sender account to another."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                    #[doc = "- `target`: The account to be credited."]
+                    #[doc = "- `amount`: The amount by which the sender's balance of assets should be reduced and"]
+                    #[doc = "`target`'s balance increased. The amount actually transferred may be slightly greater in"]
+                    #[doc = "the case that the transfer would otherwise take the sender balance above zero but below"]
+                    #[doc = "the minimum balance. Must be greater than zero."]
+                    #[doc = ""]
+                    #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                    #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                    #[doc = "to zero."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    #[doc = "Modes: Pre-existence of `target`; Post-existence of sender; Account pre-existence of"]
+                    #[doc = "`target`."]
+                    transfer {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        target: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 9)]
+                    #[doc = "Move some assets from the sender account to another, keeping the sender account alive."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                    #[doc = "- `target`: The account to be credited."]
+                    #[doc = "- `amount`: The amount by which the sender's balance of assets should be reduced and"]
+                    #[doc = "`target`'s balance increased. The amount actually transferred may be slightly greater in"]
+                    #[doc = "the case that the transfer would otherwise take the sender balance above zero but below"]
+                    #[doc = "the minimum balance. Must be greater than zero."]
+                    #[doc = ""]
+                    #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                    #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                    #[doc = "to zero."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    #[doc = "Modes: Pre-existence of `target`; Post-existence of sender; Account pre-existence of"]
+                    #[doc = "`target`."]
+                    transfer_keep_alive {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        target: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 10)]
+                    #[doc = "Move some assets from one account to another."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to have some amount transferred."]
+                    #[doc = "- `source`: The account to be debited."]
+                    #[doc = "- `dest`: The account to be credited."]
+                    #[doc = "- `amount`: The amount by which the `source`'s balance of assets should be reduced and"]
+                    #[doc = "`dest`'s balance increased. The amount actually transferred may be slightly greater in"]
+                    #[doc = "the case that the transfer would otherwise take the `source` balance above zero but"]
+                    #[doc = "below the minimum balance. Must be greater than zero."]
+                    #[doc = ""]
+                    #[doc = "Emits `Transferred` with the actual amount transferred. If this takes the source balance"]
+                    #[doc = "to below the minimum for the asset, then the amount transferred is increased to take it"]
+                    #[doc = "to zero."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    #[doc = "Modes: Pre-existence of `dest`; Post-existence of `source`; Account pre-existence of"]
+                    #[doc = "`dest`."]
+                    force_transfer {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        source: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        dest: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 11)]
+                    #[doc = "Disallow further unprivileged transfers from an account."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Freezer of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be frozen."]
+                    #[doc = "- `who`: The account to be frozen."]
+                    #[doc = ""]
+                    #[doc = "Emits `Frozen`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    freeze {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        who: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 12)]
+                    #[doc = "Allow unprivileged transfers from an account again."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be frozen."]
+                    #[doc = "- `who`: The account to be unfrozen."]
+                    #[doc = ""]
+                    #[doc = "Emits `Thawed`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    thaw {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        who: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 13)]
+                    #[doc = "Disallow further unprivileged transfers for the asset class."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Freezer of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be frozen."]
+                    #[doc = ""]
+                    #[doc = "Emits `Frozen`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    freeze_asset {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 14)]
+                    #[doc = "Allow unprivileged transfers for the asset again."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Admin of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be thawed."]
+                    #[doc = ""]
+                    #[doc = "Emits `Thawed`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    thaw_asset {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 15)]
+                    #[doc = "Change the Owner of an asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `owner`: The new Owner of this asset."]
+                    #[doc = ""]
+                    #[doc = "Emits `OwnerChanged`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    transfer_ownership {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 16)]
+                    #[doc = "Change the Issuer, Admin and Freezer of an asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to be frozen."]
+                    #[doc = "- `issuer`: The new Issuer of this asset."]
+                    #[doc = "- `admin`: The new Admin of this asset."]
+                    #[doc = "- `freezer`: The new Freezer of this asset."]
+                    #[doc = ""]
+                    #[doc = "Emits `TeamChanged`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    set_team {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        admin: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 17)]
+                    #[doc = "Set the metadata for an asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "Funds of sender are reserved according to the formula:"]
+                    #[doc = "`MetadataDepositBase + MetadataDepositPerByte * (name.len + symbol.len)` taking into"]
+                    #[doc = "account any already reserved funds."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to update."]
+                    #[doc = "- `name`: The user friendly name of this asset. Limited in length by `StringLimit`."]
+                    #[doc = "- `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`."]
+                    #[doc = "- `decimals`: The number of decimals this asset uses to represent one unit."]
+                    #[doc = ""]
+                    #[doc = "Emits `MetadataSet`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    set_metadata {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        name: ::std::vec::Vec<::core::primitive::u8>,
+                        symbol: ::std::vec::Vec<::core::primitive::u8>,
+                        decimals: ::core::primitive::u8,
+                    },
+                    #[codec(index = 18)]
+                    #[doc = "Clear the metadata for an asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and the sender should be the Owner of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "Any deposit is freed for the asset owner."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to clear."]
+                    #[doc = ""]
+                    #[doc = "Emits `MetadataCleared`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    clear_metadata {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 19)]
+                    #[doc = "Force the metadata for an asset to some value."]
+                    #[doc = ""]
+                    #[doc = "Origin must be ForceOrigin."]
+                    #[doc = ""]
+                    #[doc = "Any deposit is left alone."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to update."]
+                    #[doc = "- `name`: The user friendly name of this asset. Limited in length by `StringLimit`."]
+                    #[doc = "- `symbol`: The exchange symbol for this asset. Limited in length by `StringLimit`."]
+                    #[doc = "- `decimals`: The number of decimals this asset uses to represent one unit."]
+                    #[doc = ""]
+                    #[doc = "Emits `MetadataSet`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(N + S)` where N and S are the length of the name and symbol respectively."]
+                    force_set_metadata {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        name: ::std::vec::Vec<::core::primitive::u8>,
+                        symbol: ::std::vec::Vec<::core::primitive::u8>,
+                        decimals: ::core::primitive::u8,
+                        is_frozen: ::core::primitive::bool,
+                    },
+                    #[codec(index = 20)]
+                    #[doc = "Clear the metadata for an asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be ForceOrigin."]
+                    #[doc = ""]
+                    #[doc = "Any deposit is returned."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset to clear."]
+                    #[doc = ""]
+                    #[doc = "Emits `MetadataCleared`."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    force_clear_metadata {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 21)]
+                    #[doc = "Alter the attributes of a given asset."]
+                    #[doc = ""]
+                    #[doc = "Origin must be `ForceOrigin`."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `owner`: The new Owner of this asset."]
+                    #[doc = "- `issuer`: The new Issuer of this asset."]
+                    #[doc = "- `admin`: The new Admin of this asset."]
+                    #[doc = "- `freezer`: The new Freezer of this asset."]
+                    #[doc = "- `min_balance`: The minimum balance of this new asset that any single account must"]
+                    #[doc = "have. If an account's balance is reduced below this, then it collapses to zero."]
+                    #[doc = "- `is_sufficient`: Whether a non-zero balance of this asset is deposit of sufficient"]
+                    #[doc = "value to account for the state bloat associated with its balance storage. If set to"]
+                    #[doc = "`true`, then non-zero balances may be stored without a `consumer` reference (and thus"]
+                    #[doc = "an ED in the Balances pallet or whatever else is used to control user-account state"]
+                    #[doc = "growth)."]
+                    #[doc = "- `is_frozen`: Whether this asset class is frozen except for permissioned/admin"]
+                    #[doc = "instructions."]
+                    #[doc = ""]
+                    #[doc = "Emits `AssetStatusChanged` with the identity of the asset."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    force_asset_status {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        issuer: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        admin: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        freezer: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        min_balance: ::core::primitive::u128,
+                        is_sufficient: ::core::primitive::bool,
+                        is_frozen: ::core::primitive::bool,
+                    },
+                    #[codec(index = 22)]
+                    #[doc = "Approve an amount of asset for transfer by a delegated third-party account."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed."]
+                    #[doc = ""]
+                    #[doc = "Ensures that `ApprovalDeposit` worth of `Currency` is reserved from signing account"]
+                    #[doc = "for the purpose of holding the approval. If some non-zero amount of assets is already"]
+                    #[doc = "approved from signing account to `delegate`, then it is topped up or unreserved to"]
+                    #[doc = "meet the right value."]
+                    #[doc = ""]
+                    #[doc = "NOTE: The signing account does not need to own `amount` of assets at the point of"]
+                    #[doc = "making this call."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `delegate`: The account to delegate permission to transfer asset."]
+                    #[doc = "- `amount`: The amount of asset that may be transferred by `delegate`. If there is"]
+                    #[doc = "already an approval in place, then this acts additively."]
+                    #[doc = ""]
+                    #[doc = "Emits `ApprovedTransfer` on success."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    approve_transfer {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 23)]
+                    #[doc = "Cancel all of some asset approved for delegated transfer by a third-party account."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and there must be an approval in place between signer and"]
+                    #[doc = "`delegate`."]
+                    #[doc = ""]
+                    #[doc = "Unreserves any deposit previously reserved by `approve_transfer` for the approval."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `delegate`: The account delegated permission to transfer asset."]
+                    #[doc = ""]
+                    #[doc = "Emits `ApprovalCancelled` on success."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    cancel_approval {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 24)]
+                    #[doc = "Cancel all of some asset approved for delegated transfer by a third-party account."]
+                    #[doc = ""]
+                    #[doc = "Origin must be either ForceOrigin or Signed origin with the signer being the Admin"]
+                    #[doc = "account of the asset `id`."]
+                    #[doc = ""]
+                    #[doc = "Unreserves any deposit previously reserved by `approve_transfer` for the approval."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `delegate`: The account delegated permission to transfer asset."]
+                    #[doc = ""]
+                    #[doc = "Emits `ApprovalCancelled` on success."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    force_cancel_approval {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        delegate: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                    },
+                    #[codec(index = 25)]
+                    #[doc = "Transfer some asset balance from a previously delegated account to some third-party"]
+                    #[doc = "account."]
+                    #[doc = ""]
+                    #[doc = "Origin must be Signed and there must be an approval in place by the `owner` to the"]
+                    #[doc = "signer."]
+                    #[doc = ""]
+                    #[doc = "If the entire amount approved for transfer is transferred, then any deposit previously"]
+                    #[doc = "reserved by `approve_transfer` is unreserved."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset."]
+                    #[doc = "- `owner`: The account which previously approved for a transfer of at least `amount` and"]
+                    #[doc = "from which the asset balance will be withdrawn."]
+                    #[doc = "- `destination`: The account to which the asset balance of `amount` will be transferred."]
+                    #[doc = "- `amount`: The amount of assets to transfer."]
+                    #[doc = ""]
+                    #[doc = "Emits `TransferredApproved` on success."]
+                    #[doc = ""]
+                    #[doc = "Weight: `O(1)`"]
+                    transfer_approved {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        destination: ::subxt::ext::sp_runtime::MultiAddress<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                            (),
+                        >,
+                        #[codec(compact)]
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 26)]
+                    #[doc = "Create an asset account for non-provider assets."]
+                    #[doc = ""]
+                    #[doc = "A deposit will be taken from the signer account."]
+                    #[doc = ""]
+                    #[doc = "- `origin`: Must be Signed; the signer account must have sufficient funds for a deposit"]
+                    #[doc = "  to be taken."]
+                    #[doc = "- `id`: The identifier of the asset for the account to be created."]
+                    #[doc = ""]
+                    #[doc = "Emits `Touched` event when successful."]
+                    touch {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                    },
+                    #[codec(index = 27)]
+                    #[doc = "Return the deposit (if any) of an asset account."]
+                    #[doc = ""]
+                    #[doc = "The origin must be Signed."]
+                    #[doc = ""]
+                    #[doc = "- `id`: The identifier of the asset for the account to be created."]
+                    #[doc = "- `allow_burn`: If `true` then assets may be destroyed in order to complete the refund."]
+                    #[doc = ""]
+                    #[doc = "Emits `Refunded` event when successful."]
+                    refund {
+                        #[codec(compact)]
+                        id: ::core::primitive::u32,
+                        allow_burn: ::core::primitive::bool,
+                    },
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                #[doc = "\n\t\t\tCustom [dispatch errors](https://docs.substrate.io/main-docs/build/events-errors/)\n\t\t\tof this pallet.\n\t\t\t"]
+                pub enum Error {
+                    #[codec(index = 0)]
+                    #[doc = "Account balance must be greater than or equal to the transfer amount."]
+                    BalanceLow,
+                    #[codec(index = 1)]
+                    #[doc = "The account to alter does not exist."]
+                    NoAccount,
+                    #[codec(index = 2)]
+                    #[doc = "The signing account has no permission to do the operation."]
+                    NoPermission,
+                    #[codec(index = 3)]
+                    #[doc = "The given asset ID is unknown."]
+                    Unknown,
+                    #[codec(index = 4)]
+                    #[doc = "The origin account is frozen."]
+                    Frozen,
+                    #[codec(index = 5)]
+                    #[doc = "The asset ID is already taken."]
+                    InUse,
+                    #[codec(index = 6)]
+                    #[doc = "Invalid witness data given."]
+                    BadWitness,
+                    #[codec(index = 7)]
+                    #[doc = "Minimum balance should be non-zero."]
+                    MinBalanceZero,
+                    #[codec(index = 8)]
+                    #[doc = "Unable to increment the consumer reference counters on the account. Either no provider"]
+                    #[doc = "reference exists to allow a non-zero balance of a non-self-sufficient asset, or the"]
+                    #[doc = "maximum number of consumers has been reached."]
+                    NoProvider,
+                    #[codec(index = 9)]
+                    #[doc = "Invalid metadata given."]
+                    BadMetadata,
+                    #[codec(index = 10)]
+                    #[doc = "No approval exists that would allow the transfer."]
+                    Unapproved,
+                    #[codec(index = 11)]
+                    #[doc = "The source account would not survive the transfer and it needs to stay alive."]
+                    WouldDie,
+                    #[codec(index = 12)]
+                    #[doc = "The asset-account already exists."]
+                    AlreadyExists,
+                    #[codec(index = 13)]
+                    #[doc = "The asset-account doesn't have an associated deposit."]
+                    NoDeposit,
+                    #[codec(index = 14)]
+                    #[doc = "The operation would result in funds being burned."]
+                    WouldBurn,
+                    #[codec(index = 15)]
+                    #[doc = "The asset is a live asset and is actively being used. Usually emit for operations such"]
+                    #[doc = "as `start_destroy` which require the asset to be in a destroying state."]
+                    LiveAsset,
+                    #[codec(index = 16)]
+                    #[doc = "The asset is not live, and likely being destroyed."]
+                    AssetNotLive,
+                    #[codec(index = 17)]
+                    #[doc = "The asset status is not the expected status."]
+                    IncorrectStatus,
+                    #[codec(index = 18)]
+                    #[doc = "The asset should be frozen before the given operation."]
+                    NotFrozen,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                #[doc = "\n\t\t\tThe [event](https://docs.substrate.io/main-docs/build/events-errors/) emitted\n\t\t\tby this pallet.\n\t\t\t"]
+                pub enum Event {
+                    #[codec(index = 0)]
+                    #[doc = "Some asset class was created."]
+                    Created {
+                        asset_id: ::core::primitive::u32,
+                        creator: ::subxt::ext::sp_core::crypto::AccountId32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 1)]
+                    #[doc = "Some assets were issued."]
+                    Issued {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 2)]
+                    #[doc = "Some assets were transferred."]
+                    Transferred {
+                        asset_id: ::core::primitive::u32,
+                        from: ::subxt::ext::sp_core::crypto::AccountId32,
+                        to: ::subxt::ext::sp_core::crypto::AccountId32,
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 3)]
+                    #[doc = "Some assets were destroyed."]
+                    Burned {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                        balance: ::core::primitive::u128,
+                    },
+                    #[codec(index = 4)]
+                    #[doc = "The management team changed."]
+                    TeamChanged {
+                        asset_id: ::core::primitive::u32,
+                        issuer: ::subxt::ext::sp_core::crypto::AccountId32,
+                        admin: ::subxt::ext::sp_core::crypto::AccountId32,
+                        freezer: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 5)]
+                    #[doc = "The owner changed."]
+                    OwnerChanged {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 6)]
+                    #[doc = "Some account `who` was frozen."]
+                    Frozen {
+                        asset_id: ::core::primitive::u32,
+                        who: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 7)]
+                    #[doc = "Some account `who` was thawed."]
+                    Thawed {
+                        asset_id: ::core::primitive::u32,
+                        who: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 8)]
+                    #[doc = "Some asset `asset_id` was frozen."]
+                    AssetFrozen { asset_id: ::core::primitive::u32 },
+                    #[codec(index = 9)]
+                    #[doc = "Some asset `asset_id` was thawed."]
+                    AssetThawed { asset_id: ::core::primitive::u32 },
+                    #[codec(index = 10)]
+                    #[doc = "Accounts were destroyed for given asset."]
+                    AccountsDestroyed {
+                        asset_id: ::core::primitive::u32,
+                        accounts_destroyed: ::core::primitive::u32,
+                        accounts_remaining: ::core::primitive::u32,
+                    },
+                    #[codec(index = 11)]
+                    #[doc = "Approvals were destroyed for given asset."]
+                    ApprovalsDestroyed {
+                        asset_id: ::core::primitive::u32,
+                        approvals_destroyed: ::core::primitive::u32,
+                        approvals_remaining: ::core::primitive::u32,
+                    },
+                    #[codec(index = 12)]
+                    #[doc = "An asset class is in the process of being destroyed."]
+                    DestructionStarted { asset_id: ::core::primitive::u32 },
+                    #[codec(index = 13)]
+                    #[doc = "An asset class was destroyed."]
+                    Destroyed { asset_id: ::core::primitive::u32 },
+                    #[codec(index = 14)]
+                    #[doc = "Some asset class was force-created."]
+                    ForceCreated {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 15)]
+                    #[doc = "New metadata has been set for an asset."]
+                    MetadataSet {
+                        asset_id: ::core::primitive::u32,
+                        name: ::std::vec::Vec<::core::primitive::u8>,
+                        symbol: ::std::vec::Vec<::core::primitive::u8>,
+                        decimals: ::core::primitive::u8,
+                        is_frozen: ::core::primitive::bool,
+                    },
+                    #[codec(index = 16)]
+                    #[doc = "Metadata has been cleared for an asset."]
+                    MetadataCleared { asset_id: ::core::primitive::u32 },
+                    #[codec(index = 17)]
+                    #[doc = "(Additional) funds have been approved for transfer to a destination account."]
+                    ApprovedTransfer {
+                        asset_id: ::core::primitive::u32,
+                        source: ::subxt::ext::sp_core::crypto::AccountId32,
+                        delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 18)]
+                    #[doc = "An approval for account `delegate` was cancelled by `owner`."]
+                    ApprovalCancelled {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                        delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+                    },
+                    #[codec(index = 19)]
+                    #[doc = "An `amount` was transferred in its entirety from `owner` to `destination` by"]
+                    #[doc = "the approved `delegate`."]
+                    TransferredApproved {
+                        asset_id: ::core::primitive::u32,
+                        owner: ::subxt::ext::sp_core::crypto::AccountId32,
+                        delegate: ::subxt::ext::sp_core::crypto::AccountId32,
+                        destination: ::subxt::ext::sp_core::crypto::AccountId32,
+                        amount: ::core::primitive::u128,
+                    },
+                    #[codec(index = 20)]
+                    #[doc = "An asset has had its attributes changed by the `Force` origin."]
+                    AssetStatusChanged { asset_id: ::core::primitive::u32 },
+                }
+            }
+            pub mod types {
+                use super::runtime_types;
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub struct Approval<_0, _1> {
+                    pub amount: _0,
+                    pub deposit: _0,
+                    #[codec(skip)]
+                    pub __subxt_unused_type_params: ::core::marker::PhantomData<_1>,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub struct AssetAccount<_0, _1, _2> {
+                    pub balance: _0,
+                    pub is_frozen: ::core::primitive::bool,
+                    pub reason: runtime_types::pallet_assets::types::ExistenceReason<_0>,
+                    pub extra: _2,
+                    #[codec(skip)]
+                    pub __subxt_unused_type_params: ::core::marker::PhantomData<_1>,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub struct AssetDetails<_0, _1, _2> {
+                    pub owner: _1,
+                    pub issuer: _1,
+                    pub admin: _1,
+                    pub freezer: _1,
+                    pub supply: _0,
+                    pub deposit: _0,
+                    pub min_balance: _0,
+                    pub is_sufficient: ::core::primitive::bool,
+                    pub accounts: ::core::primitive::u32,
+                    pub sufficients: ::core::primitive::u32,
+                    pub approvals: ::core::primitive::u32,
+                    pub status: runtime_types::pallet_assets::types::AssetStatus,
+                    #[codec(skip)]
+                    pub __subxt_unused_type_params: ::core::marker::PhantomData<_2>,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub struct AssetMetadata<_0, _1> {
+                    pub deposit: _0,
+                    pub name: _1,
+                    pub symbol: _1,
+                    pub decimals: ::core::primitive::u8,
+                    pub is_frozen: ::core::primitive::bool,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub enum AssetStatus {
+                    #[codec(index = 0)]
+                    Live,
+                    #[codec(index = 1)]
+                    Frozen,
+                    #[codec(index = 2)]
+                    Destroying,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                pub enum ExistenceReason<_0> {
+                    #[codec(index = 0)]
+                    Consumer,
+                    #[codec(index = 1)]
+                    Sufficient,
+                    #[codec(index = 2)]
+                    DepositHeld(_0),
+                    #[codec(index = 3)]
+                    DepositRefunded,
                 }
             }
         }
@@ -20290,6 +23512,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::constants::ConstantsApi {
             committee_management::constants::ConstantsApi
         }
+        pub fn assets(&self) -> assets::constants::ConstantsApi {
+            assets::constants::ConstantsApi
+        }
         pub fn baby_liminal(&self) -> baby_liminal::constants::ConstantsApi {
             baby_liminal::constants::ConstantsApi
         }
@@ -20361,6 +23586,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::storage::StorageApi {
             committee_management::storage::StorageApi
         }
+        pub fn assets(&self) -> assets::storage::StorageApi {
+            assets::storage::StorageApi
+        }
         pub fn baby_liminal(&self) -> baby_liminal::storage::StorageApi {
             baby_liminal::storage::StorageApi
         }
@@ -20418,6 +23646,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::calls::TransactionApi {
             committee_management::calls::TransactionApi
         }
+        pub fn assets(&self) -> assets::calls::TransactionApi {
+            assets::calls::TransactionApi
+        }
         pub fn baby_liminal(&self) -> baby_liminal::calls::TransactionApi {
             baby_liminal::calls::TransactionApi
         }
@@ -20429,9 +23660,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                66u8, 241u8, 116u8, 52u8, 38u8, 79u8, 15u8, 37u8, 234u8, 19u8, 249u8, 35u8, 210u8,
-                98u8, 186u8, 8u8, 48u8, 155u8, 214u8, 245u8, 124u8, 3u8, 101u8, 108u8, 170u8,
-                228u8, 185u8, 44u8, 43u8, 196u8, 27u8, 8u8,
+                254u8, 109u8, 15u8, 252u8, 61u8, 29u8, 56u8, 136u8, 46u8, 230u8, 209u8, 167u8,
+                253u8, 227u8, 243u8, 95u8, 107u8, 216u8, 76u8, 240u8, 204u8, 14u8, 158u8, 36u8,
+                106u8, 37u8, 221u8, 203u8, 78u8, 78u8, 9u8, 143u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
