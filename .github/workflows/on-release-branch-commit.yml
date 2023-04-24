@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - 'release-*'
-      - 'A0-1816-fix-workflow-names-checked-on-the-release-branch'
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
