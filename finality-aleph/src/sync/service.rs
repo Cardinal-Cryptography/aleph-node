@@ -15,7 +15,8 @@ use crate::{
         task_queue::TaskQueue,
         ticker::Ticker,
         BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
-        Finalizer, Header, Justification, JustificationSubmissions, Verifier, LOG_TARGET,
+        Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
+        LOG_TARGET,
     },
     SessionPeriod,
 };
@@ -40,6 +41,8 @@ pub struct Service<
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    _block_requests_from_user:
+        mpsc::UnboundedReceiver<<<J as Justification>::Header as Header>::Identifier>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -47,6 +50,14 @@ impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::
 
     fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error> {
         self.unbounded_send(justification)
+    }
+}
+
+impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
+    type Error = mpsc::TrySendError<BI>;
+
+    fn request_block(&mut self, block_id: BI) -> Result<(), Self::Error> {
+        self.unbounded_send(block_id)
     }
 }
 
@@ -69,12 +80,20 @@ impl<
         finalizer: F,
         period: SessionPeriod,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    ) -> Result<(Self, impl JustificationSubmissions<J> + Clone), HandlerError<J, CS, V, F>> {
+    ) -> Result<
+        (
+            Self,
+            impl JustificationSubmissions<J> + Clone,
+            impl RequestBlocks<<<J as Justification>::Header as Header>::Identifier>,
+        ),
+        HandlerError<J, CS, V, F>,
+    > {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
+        let (block_requests_for_sync, _block_requests_from_user) = mpsc::unbounded();
         Ok((
             Service {
                 network,
@@ -84,8 +103,10 @@ impl<
                 chain_events,
                 justifications_from_user,
                 additional_justifications_from_user,
+                _block_requests_from_user,
             },
             justifications_for_sync,
+            block_requests_for_sync,
         ))
     }
 
