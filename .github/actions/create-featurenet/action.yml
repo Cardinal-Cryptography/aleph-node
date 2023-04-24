@@ -43,6 +43,10 @@ inputs:
     description: 'Enter name instead of getting it from branch'
     required: false
     default: ''
+  update:
+    description: "Set to 'true' if it is just featurenet update"
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
@@ -56,6 +60,16 @@ runs:
         ]]
         then
           echo "!!! Invalid feature net name"
+          exit 1
+        fi
+        if [[
+          "${{ inputs.update }}" != "true" && \
+          "${{ inputs.aleph-node-image }}" != "testnet" && \
+          "${{ inputs.aleph-node-image }}" != "mainnet"
+        ]]
+        then
+          echo "!!! Node image tag must be 'testnet' or 'mainnet'"
+          echo "!!! when featurenet is about to be created"
           exit 1
         fi
         if [[
@@ -74,7 +88,7 @@ runs:
       uses: ./.github/actions/get-ref-properties
 
     - name: Build chainspec for testnet FE and send it to S3
-      if: inputs.aleph-node-image == 'testnet'
+      if: inputs.update != 'true' && inputs.aleph-node-image == 'testnet'
       uses: ./.github/actions/build-featurenet-chainspec
       with:
         base-net: testnet
@@ -85,7 +99,7 @@ runs:
         featurenet-name: ${{ inputs.featurenet-name }}
 
     - name: Build chainspec for Hotnet FE and send it to S3
-      if: inputs.aleph-node-image == 'mainnet'
+      if: inputs.update != 'true' && inputs.aleph-node-image == 'mainnet'
       uses: ./.github/actions/build-featurenet-chainspec
       with:
         base-net: mainnet
@@ -117,7 +131,7 @@ runs:
           "${{ env.APP_NAME }}" \
           "${pr_image}"
 
-    - name: Start featurenet
+    - name: Start featurenet from testnet/mainnet
       if: inputs.aleph-node-image == 'testnet' || inputs.aleph-node-image == 'mainnet'
       shell: bash
       env:

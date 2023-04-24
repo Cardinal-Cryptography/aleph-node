@@ -55,7 +55,7 @@ jobs:
           env: updatenet-${{ inputs.name }}
           override: true
 
-      - name: Create featurenet data, app and deploy it
+      - name: Update featurenet data, app and deploy it
         uses: ./.github/actions/create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -69,6 +69,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: fe-updnet-${{ inputs.name }}
+          update: 'true'
 
       - name: Wait for the testnet aleph-node binary to accept some blocks
         uses: juliangruber/sleep-action@v2.0.0
