@@ -9,10 +9,25 @@ jobs:
   main:
     name: Build production node and runtime
     runs-on: self-hosted
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
+    container:
+      image: mikogs/rust-dev:v0.1.0
+      env:
+        RUSTC_WRAPPER: sccache
+        SCACHE_BUCKET: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+        SCACHE_REGION: eu-central-1
+        SCCACHE_ERROR_LOG: /tmp/sccache/log.txt
+        SCACHE_LOG: debug
+        SCCACHE_S3_KEY_PREFIX: sccache
+        SCCACHE_CACHE_SIZE: 10G
+        AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        RUST_BACKTRACE: full
     steps:
+      - name: Start sccache server
+        run: |
+          mkdir /tmp/sccache
+          /usr/local/bin/sccache --start-server &
+
       - name: Checkout aleph-node source code
         uses: actions/checkout@v3
 
