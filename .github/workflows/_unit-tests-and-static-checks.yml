@@ -29,8 +29,6 @@ jobs:
 
       - name: Checkout Source code
         uses: actions/checkout@v3
-        with:
-          path: /code
 
       - name: Run Format Checks
         run: cargo fmt --all
