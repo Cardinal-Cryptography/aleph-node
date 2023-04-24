@@ -70,8 +70,9 @@ impl<
         F: Finalizer<J>,
     > Service<J, N, CE, CS, V, F>
 {
-    /// Create a new service using the provided network for communication. Also returns an
-    /// interface for submitting additional justifications.
+    /// Create a new service using the provided network for communication.
+    /// Also returns an interface for submitting additional justifications,
+    /// and an interface for requesting blocks.
     pub fn new(
         network: N,
         chain_events: CE,
