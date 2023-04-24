@@ -581,8 +581,8 @@ pub mod button_game {
         }
     }
 
-    /// Performs mapping of a value that lives in a [from_low, from_high] domain
-    /// to the [to_low, to_high] domain.
+    /// Performs mapping of a value that lives in a [in_min, in_max] domain
+    /// to the [out_min, out_max] domain.
     ///
     /// Function is an implementation of the following formula:
     /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
@@ -615,7 +615,7 @@ pub mod button_game {
         fn test_map_domain() {
             assert_eq!(
                 map_domain(272, 0, 900, ONE_TOKEN, ONE_HUNDRED_TOKENS),
-                3092 * `ONE_TOKEN` / 100
+                3092 * ONE_TOKEN / 100
             );
         }
     }
