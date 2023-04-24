@@ -40,10 +40,10 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, BlockNumber as AlephBlockNumber, SessionAuthorityData, Version as FinalityVersion,
-    ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
-    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
-    Block as AlephBlock, Header as AlephHeader, BlockId as AlephBlockId,
+    AuthorityId as AlephId, Block as AlephBlock, BlockId as AlephBlockId,
+    BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData,
+    Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};

@@ -9,8 +9,7 @@ use sp_runtime::Perquintill;
 pub use sp_runtime::{
     generic,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
-    BoundedVec, ConsensusEngineId, Perbill,
-    OpaqueExtrinsic as UncheckedExtrinsic,
+    BoundedVec, ConsensusEngineId, OpaqueExtrinsic as UncheckedExtrinsic, Perbill,
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
