@@ -8,58 +8,37 @@ jobs:
   main:
     name: Run check, test and lints
     runs-on: self-hosted
-    env:
-      CARGO_INCREMENTAL: 0
-      RUSTC_WRAPPER: sccache
+    container:
+      image: mikogs/rust-dev:v0.1.0-nightly-2022-10-30
+      env:
+        RUSTC_WRAPPER: sccache
+        SCACHE_BUCKET: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+        SCACHE_REGION: eu-central-1
+        AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+      options: -u $UID:$(id -g)
     steps:
+      - name: Install nodejs
+        run: |
+          cd /tmp
+          wget https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz
+          mkdir -p /usr/local/lib/nodejs
+          tar -xJvf node-v18.16.0-linux-x64.tar.xz -C /usr/local/lib/nodejs
+          ln -s /usr/local/lib/nodejs/v18.16.0-linux-x64 /bin/nodejs
+
       - name: Checkout Source code
         uses: actions/checkout@v3
+        with:
+          path: /code
 
       - name: Run Format Checks
-        run: |
-          docker volume create tmp-gh-${{ github.run_id }}
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
-            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
-            -e RUSTC_WRAPPER=sccache \
-            -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
-            -e SCCACHE_REGION=eu-central-1 \
-            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}" \
-            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}" \
-            mikogs/rust-dev:v0.1.0-nightly-2022-10-30 \
-            bash -c 'ls -al /code && cargo fmt --all'
+        run: cargo fmt --all
 
       - name: Run Linter
-        run: |
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
-            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
-            -e RUSTC_WRAPPER=sccache \
-            -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
-            -e SCCACHE_REGION=eu-central-1 \
-            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}" \
-            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}" \
-            mikogs/rust-dev:v0.1.0-nightly-2022-10-30 \
-            cargo clippy --all-targets -- --no-deps -D warnings
+        run: cargo clippy --all-targets -- --no-deps -D warnings
 
       - name: Run Linter again
-        run: |
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
-            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
-            -e RUSTC_WRAPPER=sccache \
-            -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
-            -e SCCACHE_REGION=eu-central-1 \
-            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}" \
-            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}" \
-            mikogs/rust-dev:v0.1.0-nightly-2022-10-30 \
-            cargo clippy --all-targets -- --no-deps -D warnings
+        run: cargo clippy --all-targets -- --no-deps -D warnings
 
       - name: Run Unit Test Suite
-        run: |
-          docker run --rm -v $(pwd):/code -u $UID:$(id -g) \
-            -v tmp-gh-${{ github.run_id }}:/usr/local/cargo \
-            -e RUSTC_WRAPPER=sccache \
-            -e SCCACHE_BUCKET=${{ secrets.CI_MAINNET_S3BUCKET_NAME }} \
-            -e SCCACHE_REGION=eu-central-1 \
-            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}" \
-            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}" \
-            mikogs/rust-dev:v0.1.0-nightly-2022-10-30 \
-            cargo test --features 'liminal-try-runtime liminal-runtime-benchmarks'
+        run: cargo test --features 'liminal-try-runtime liminal-runtime-benchmarks'
