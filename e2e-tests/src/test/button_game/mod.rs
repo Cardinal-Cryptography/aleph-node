@@ -500,18 +500,17 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
         second_reward_amount,
     );
 
-    let total_score = first_reward_amount + second_reward_amount;
-    assert!(reward_token.balance_of(&conn, player.account_id()).await? == total_score);
+    let player_rewards = first_reward_amount + second_reward_amount;
+    assert!(reward_token.balance_of(&conn, player.account_id()).await? == player_rewards);
 
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
-    assert_recv_id(&mut events, "RewardMinted").await;
+    let event = assert_recv_id(&mut events, "RewardMinted").await;
+    let_assert!(Some(&Value::UInt(pressiah_reward)) = event.data.get("amount"));
 
-    println!("{} {}", first_reward_amount, second_reward_amount);
-
-    let pressiah_score = total_score / 4;
     assert!(
-        reward_token.balance_of(&conn, player.account_id()).await? == total_score + pressiah_score
+        reward_token.balance_of(&conn, player.account_id()).await?
+            == player_rewards + pressiah_reward
     );
 
     Ok(())
