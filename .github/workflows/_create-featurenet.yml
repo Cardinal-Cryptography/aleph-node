@@ -10,12 +10,6 @@ on:
         type: boolean
         default: false
 
-env:
-  RPC_TESTNET_URL: https://rpc.test.azero.dev
-  WSS_TESTNET_URL: wss://ws.test.azero.dev
-  RPC_MAINNET_URL: https://rpc.azero.dev
-  FORKOFF_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}fork-off:latest
-
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
