@@ -615,7 +615,7 @@ pub mod button_game {
         fn test_map_domain() {
             assert_eq!(
                 map_domain(272, 0, 900, ONE_TOKEN, ONE_HUNDRED_TOKENS),
-                30920000000000
+                3092 * `ONE_TOKEN` / 100
             );
         }
     }
