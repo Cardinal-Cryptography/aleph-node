@@ -20,7 +20,7 @@ jobs:
       - name: Install nodejs
         run: |
           apt-get update
-          apt-get install -y wget tar xz
+          apt-get install -y wget tar xz-utils
           cd /tmp
           wget https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz
           mkdir -p /usr/local/lib/nodejs
