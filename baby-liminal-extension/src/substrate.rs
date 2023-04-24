@@ -7,21 +7,19 @@ use obce::substrate::{
     sp_std::{mem::size_of, vec::Vec},
     ChainExtensionEnvironment, ExtensionContext,
 };
-use pallet_baby_liminal::{
-    Config as BabyLiminalConfig, Error, VerificationKeyIdentifier, WeightInfo,
-};
+use pallet_baby_liminal::{Config as BabyLiminalConfig, Error, KeyPairIdentifier, WeightInfo};
 use primitives::host_functions::poseidon;
 
 use crate::{
     executor::Executor, BabyLiminalError, BabyLiminalExtension, SingleHashInput,
-    BABY_LIMINAL_STORE_KEY_TOO_LONG_KEY,
+    BABY_LIMINAL_STORE_KEY_PAIR_TOO_LONG_KEY_PAIR,
 };
 
 pub type ByteCount = u32;
 
-/// Provides a weight of `store_key` dispatchable.
-pub fn weight_of_store_key<T: BabyLiminalConfig>(key_length: ByteCount) -> Weight {
-    <<T as BabyLiminalConfig>::WeightInfo as WeightInfo>::store_key(key_length)
+/// Provides a weight of `store_key_pair` dispatchable.
+pub fn weight_of_store_key_pair<T: BabyLiminalConfig>(key_pair_len: ByteCount) -> Weight {
+    <<T as BabyLiminalConfig>::WeightInfo as WeightInfo>::store_key_pair(key_pair_len)
 }
 
 #[derive(Default)]
@@ -39,42 +37,45 @@ where
     #[obce(
         weight(
             expr = r#"{
-                let approx_key_length = env
+                let approx_key_pair_len = env
                     .in_len()
-                    .saturating_sub(size_of::<VerificationKeyIdentifier>() as ByteCount);
+                    .saturating_sub(size_of::<KeyPairIdentifier>() as ByteCount);
 
-                if approx_key_length > 10_000 {
-                    return Ok(RetVal::Converging(BABY_LIMINAL_STORE_KEY_TOO_LONG_KEY));
+                if approx_key_pair_len > 10_000 {
+                    return Ok(RetVal::Converging(BABY_LIMINAL_STORE_KEY_PAIR_TOO_LONG_KEY_PAIR));
                 }
 
-                weight_of_store_key::<T>(approx_key_length)
+                weight_of_store_key_pair::<T>(approx_key_pair_len)
             }"#,
             pre_charge
         ),
         ret_val
     )]
-    fn store_key(
+    fn store_key_pair(
         &mut self,
         origin: AccountId32,
-        identifier: VerificationKeyIdentifier,
-        key: Vec<u8>,
+        identifier: KeyPairIdentifier,
+        proving_key: Vec<u8>,
+        verification_key: Vec<u8>,
     ) -> Result<(), BabyLiminalError> {
         let pre_charged = self.pre_charged().unwrap();
 
+        let key_pair_len = proving_key.len() + verification_key.len();
         // Now we know the exact key length.
         self.env.adjust_weight(
             pre_charged,
-            weight_of_store_key::<T>(key.len() as ByteCount),
+            weight_of_store_key_pair::<T>(key_pair_len as ByteCount),
         );
 
-        match Env::store_key(origin, identifier, key) {
+        match Env::store_key_pair(origin, identifier, proving_key, verification_key) {
             Ok(_) => Ok(()),
             // In case `DispatchResultWithPostInfo` was returned (or some simpler equivalent for
             // `bare_store_key`), we could have adjusted weight. However, for the storing key action
             // it doesn't make much sense.
+            Err(Error::ProvingKeyTooLong) => Err(BabyLiminalError::ProvingKeyTooLong),
             Err(Error::VerificationKeyTooLong) => Err(BabyLiminalError::VerificationKeyTooLong),
             Err(Error::IdentifierAlreadyInUse) => Err(BabyLiminalError::IdentifierAlreadyInUse),
-            _ => Err(BabyLiminalError::StoreKeyErrorUnknown),
+            _ => Err(BabyLiminalError::StoreKeyPairErrorUnknown),
         }
     }
 
@@ -87,7 +88,7 @@ where
     )]
     fn verify(
         &mut self,
-        identifier: VerificationKeyIdentifier,
+        identifier: KeyPairIdentifier,
         proof: Vec<u8>,
         input: Vec<u8>,
     ) -> Result<(), BabyLiminalError> {
@@ -110,8 +111,8 @@ where
             Err((Error::DeserializingPublicInputFailed, _)) => {
                 Err(BabyLiminalError::DeserializingPublicInputFailed)
             }
-            Err((Error::UnknownVerificationKeyIdentifier, _)) => {
-                Err(BabyLiminalError::UnknownVerificationKeyIdentifier)
+            Err((Error::UnknownKeyPairIdentifier, _)) => {
+                Err(BabyLiminalError::UnknownKeyPairIdentifier)
             }
             Err((Error::DeserializingVerificationKeyFailed, _)) => {
                 Err(BabyLiminalError::DeserializingVerificationKeyFailed)

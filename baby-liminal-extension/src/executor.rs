@@ -5,7 +5,7 @@ use obce::substrate::{
 };
 use pallet_baby_liminal::{Config as BabyLiminalConfig, Error, Pallet as BabyLiminal};
 
-use crate::{AccountId32, Vec, VerificationKeyIdentifier};
+use crate::{AccountId32, KeyPairIdentifier, Vec};
 
 /// Generalized pallet executor, that can be mocked for testing purposes.
 pub trait Executor<T>: Sized {
@@ -14,14 +14,15 @@ pub trait Executor<T>: Sized {
     /// but in testing it will be sufficient to instantiate it with `()`.
     type ErrorGenericType;
 
-    fn store_key(
+    fn store_key_pair(
         depositor: AccountId32,
-        identifier: VerificationKeyIdentifier,
-        key: Vec<u8>,
+        identifier: KeyPairIdentifier,
+        proving_key: Vec<u8>,
+        verification_key: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>>;
 
     fn verify(
-        verification_key_identifier: VerificationKeyIdentifier,
+        identifier: KeyPairIdentifier,
         proof: Vec<u8>,
         public_input: Vec<u8>,
     ) -> Result<(), (Error<Self::ErrorGenericType>, Option<Weight>)>;
@@ -35,19 +36,25 @@ where
 {
     type ErrorGenericType = T;
 
-    fn store_key(
+    fn store_key_pair(
         depositor: AccountId32,
-        identifier: VerificationKeyIdentifier,
-        key: Vec<u8>,
+        identifier: KeyPairIdentifier,
+        proving_key: Vec<u8>,
+        verification_key: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>> {
-        BabyLiminal::<T>::bare_store_key(Some(depositor).into(), identifier, key)
+        BabyLiminal::<T>::bare_store_key_pair(
+            Some(depositor).into(),
+            identifier,
+            proving_key,
+            verification_key,
+        )
     }
 
     fn verify(
-        verification_key_identifier: VerificationKeyIdentifier,
+        identifier: KeyPairIdentifier,
         proof: Vec<u8>,
         public_input: Vec<u8>,
     ) -> Result<(), (Error<Self::ErrorGenericType>, Option<Weight>)> {
-        BabyLiminal::<T>::bare_verify(verification_key_identifier, proof, public_input)
+        BabyLiminal::<T>::bare_verify(identifier, proof, public_input)
     }
 }

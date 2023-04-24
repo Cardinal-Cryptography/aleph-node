@@ -11,7 +11,7 @@ use primitives::host_functions::poseidon;
 
 use crate::{
     benchmarking::import::Artifacts, get_artifacts, BalanceOf, Call, Config, KeyPairDeposits,
-    KeyPairIdentifier, KeyPairOwners, Pallet, ProvingKeys, VerificationKeys,
+    KeyPairIdentifier, KeyPairOwners, Pallet, ProvingVerificationKeyPairs,
 };
 
 const SEED: u32 = 41;
@@ -26,8 +26,11 @@ fn caller<T: Config>() -> RawOrigin<<T as frame_system::Config>::AccountId> {
 fn insert_key_pair<T: Config>(proving_key: Vec<u8>, verification_key: Vec<u8>) {
     let owner: T::AccountId = account("caller", 0, SEED);
     let deposit = BalanceOf::<T>::from(0u32);
-    ProvingKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(proving_key).unwrap());
-    VerificationKeys::<T>::insert(IDENTIFIER, BoundedVec::try_from(verification_key).unwrap());
+    let pk = BoundedVec::try_from(proving_key).unwrap();
+    let vk = BoundedVec::try_from(verification_key).unwrap();
+    let key_pair = (pk, vk);
+
+    ProvingVerificationKeyPairs::<T>::insert(IDENTIFIER, key_pair);
     KeyPairOwners::<T>::insert(IDENTIFIER, &owner);
     KeyPairDeposits::<T>::insert((&owner, IDENTIFIER), deposit);
 }
@@ -83,6 +86,7 @@ benchmarks! {
 
     // Partial `verify` execution
 
+    // TODO: Verify that if fails for `LinearEquation`
     verify_data_too_long {
         // Excess. Unfortunately, anything like
         // `let e in (T::MaximumDataLength::get() + 1) .. (T::MaximumDataLength::get() * 1_000)`
@@ -96,6 +100,7 @@ benchmarks! {
         )
     }
 
+    // TODO: Verify that if fails for `LinearEquation`
     // It shouldn't matter whether deserializing of proof fails, but for input it succeeds, or the
     // other way round. The only thing that is important is that we don't read storage nor run
     // verification procedure.
@@ -111,6 +116,7 @@ benchmarks! {
         )
     }
 
+    // TODO: Verify that if fails for `LinearEquation`
     verify_key_deserializing_fails {
         let l in 1 .. T::MaximumProvingKeyLength::get();
         let m in 1 .. T::MaximumVerificationKeyLength::get();

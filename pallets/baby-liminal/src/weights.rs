@@ -27,10 +27,10 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_baby_liminal.
 pub trait WeightInfo {
-    fn store_key(key_length: u32) -> Weight;
-    fn overwrite_equal_key(key_length: u32) -> Weight;
-    fn overwrite_key(key_length: u32) -> Weight;
-    fn delete_key(key_length: u32) -> Weight;
+    fn store_key_pair(key_pair_length: u32) -> Weight;
+    fn overwrite_equal_key_pair(key_pair_length: u32) -> Weight;
+    fn overwrite_key_pair(key_pair_length: u32) -> Weight;
+    fn delete_key_pair(key_pair_length: u32) -> Weight;
     fn verify() -> Weight;
     fn verify_data_too_long(excess: u32) -> Weight;
     fn verify_data_deserializing_fails(data_length: u32) -> Weight;
@@ -44,28 +44,25 @@ pub trait WeightInfo {
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
-    fn store_key(key_length: u32) -> Weight {
-        <I as BenchmarkInfo>::store_key(key_length)
+    fn store_key_pair(key_length: u32) -> Weight {
+        <I as BenchmarkInfo>::store_key_pair(key_length)
     }
 
-    fn overwrite_key(key_length: u32) -> Weight {
-        <I as BenchmarkInfo>::overwrite_key(key_length)
+    fn overwrite_key_pair(key_length: u32) -> Weight {
+        <I as BenchmarkInfo>::overwrite_key_pair(key_length)
     }
 
-    fn overwrite_equal_key(key_length: u32) -> Weight {
-        <I as BenchmarkInfo>::overwrite_equal_key(key_length)
+    fn overwrite_equal_key_pair(key_length: u32) -> Weight {
+        <I as BenchmarkInfo>::overwrite_equal_key_pair(key_length)
     }
 
-    fn delete_key(key_length: u32) -> Weight {
-        <I as BenchmarkInfo>::delete_key(key_length)
+    fn delete_key_pair(key_length: u32) -> Weight {
+        <I as BenchmarkInfo>::delete_key_pair(key_length)
     }
 
     fn verify() -> Weight {
         <I as BenchmarkInfo>::verify_groth16_xor()
             .max(<I as BenchmarkInfo>::verify_groth16_linear_equation())
-            .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_8())
-            .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_64())
-            .max(<I as BenchmarkInfo>::verify_groth16_merkle_tree_1024())
     }
 
     fn verify_data_too_long(excess: u32) -> Weight {
@@ -108,15 +105,12 @@ impl<I: BenchmarkInfo> WeightInfo for I {
 
 /// Benchmark results for pallet_baby_liminal.
 trait BenchmarkInfo {
-	fn store_key(l: u32, ) -> Weight;
-	fn overwrite_equal_key(l: u32, ) -> Weight;
-	fn overwrite_key(l: u32, ) -> Weight;
-	fn delete_key(l: u32, ) -> Weight;
+	fn store_key_pair(l: u32, ) -> Weight;
+	fn overwrite_equal_key_pair(l: u32, ) -> Weight;
+	fn overwrite_key_pair(l: u32, ) -> Weight;
+	fn delete_key_pair(l: u32, ) -> Weight;
 	fn verify_groth16_xor() -> Weight;
 	fn verify_groth16_linear_equation() -> Weight;
-	fn verify_groth16_merkle_tree_8() -> Weight;
-	fn verify_groth16_merkle_tree_64() -> Weight;
-	fn verify_groth16_merkle_tree_1024() -> Weight;
 	fn verify_data_too_long(e: u32, ) -> Weight;
 	fn verify_data_deserializing_fails(l: u32, ) -> Weight;
 	fn verify_key_deserializing_fails(l: u32, ) -> Weight;
@@ -140,7 +134,7 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn store_key(l: u32, ) -> Weight {
+	fn store_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 33_270 nanoseconds.
 		Weight::from_ref_time(36_539_015_u64)
 			// Standard Error: 56
@@ -157,7 +151,7 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_equal_key(l: u32, ) -> Weight {
+	fn overwrite_equal_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 39_501 nanoseconds.
 		Weight::from_ref_time(44_208_753_u64)
 			// Standard Error: 279
@@ -174,7 +168,7 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 9999]`.
-	fn overwrite_key(l: u32, ) -> Weight {
+	fn overwrite_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 37_732 nanoseconds.
 		Weight::from_ref_time(43_852_538_u64)
 			// Standard Error: 61
@@ -191,7 +185,7 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal VerificationKeys (r:0 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn delete_key(_l: u32, ) -> Weight {
+	fn delete_key_pair(_l: u32, ) -> Weight {
 		// Minimum execution time: 30_814 nanoseconds.
 		Weight::from_ref_time(34_440_507_u64)
 			.saturating_add(T::DbWeight::get().reads(3_u64))
@@ -214,36 +208,6 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	fn verify_groth16_linear_equation() -> Weight {
 		// Minimum execution time: 32_466_859 nanoseconds.
 		Weight::from_ref_time(32_557_109_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 43_192_946 nanoseconds.
-		Weight::from_ref_time(43_379_903_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 43_343_747 nanoseconds.
-		Weight::from_ref_time(43_538_873_000_u64)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 42_962_146 nanoseconds.
-		Weight::from_ref_time(44_068_421_000_u64)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -329,7 +293,7 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:0 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn store_key(l: u32, ) -> Weight {
+	fn store_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 33_270 nanoseconds.
 		Weight::from_ref_time(36_539_015_u64)
 			// Standard Error: 56
@@ -346,7 +310,7 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn overwrite_equal_key(l: u32, ) -> Weight {
+	fn overwrite_equal_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 39_501 nanoseconds.
 		Weight::from_ref_time(44_208_753_u64)
 			// Standard Error: 279
@@ -363,7 +327,7 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal VerificationKeyDeposits (r:1 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeyDeposits (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 9999]`.
-	fn overwrite_key(l: u32, ) -> Weight {
+	fn overwrite_key_pair(l: u32, ) -> Weight {
 		// Minimum execution time: 37_732 nanoseconds.
 		Weight::from_ref_time(43_852_538_u64)
 			// Standard Error: 61
@@ -380,7 +344,7 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal VerificationKeys (r:0 w:1)
 	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 10000]`.
-	fn delete_key(_l: u32, ) -> Weight {
+	fn delete_key_pair(_l: u32, ) -> Weight {
 		// Minimum execution time: 30_814 nanoseconds.
 		Weight::from_ref_time(34_440_507_u64)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
@@ -403,36 +367,6 @@ impl BenchmarkInfo for () {
 	fn verify_groth16_linear_equation() -> Weight {
 		// Minimum execution time: 32_466_859 nanoseconds.
 		Weight::from_ref_time(32_557_109_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_8() -> Weight {
-		// Minimum execution time: 43_192_946 nanoseconds.
-		Weight::from_ref_time(43_379_903_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_64() -> Weight {
-		// Minimum execution time: 43_343_747 nanoseconds.
-		Weight::from_ref_time(43_538_873_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: BabyLiminal VerificationKeys (r:1 w:0)
-	// Proof Skipped: BabyLiminal VerificationKeys (max_values: None, max_size: None, mode: Measured)
-	fn verify_groth16_merkle_tree_1024() -> Weight {
-		// Minimum execution time: 42_962_146 nanoseconds.
-		Weight::from_ref_time(44_068_421_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
