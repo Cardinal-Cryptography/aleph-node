@@ -16,7 +16,7 @@ jobs:
         SCACHE_REGION: eu-central-1
         AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-      options: -u $UID:$(id -g)
+      options: -u ubuntu:ubuntu
     steps:
       - name: Install nodejs
         run: |
