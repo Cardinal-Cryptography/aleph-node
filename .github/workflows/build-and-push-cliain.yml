@@ -71,7 +71,7 @@ jobs:
                   (steps.get-ref-properties.outputs.branch-name-flattened == 'main' && 'latest' ||
                   steps.get-ref-properties.outputs.branch-name-flattened) ||
                 matrix.runtime == 'liminal' && steps.get-ref-properties.outputs.sha }}
-        runs: |
+        run: |
           docker build -t "${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}" \
             -f ./bin/cliain/Dockerfile ./bin/cliain
           if [[ \
