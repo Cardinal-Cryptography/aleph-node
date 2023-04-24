@@ -24,7 +24,7 @@ jobs:
           cd /tmp
           wget https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz
           mkdir -p /usr/local/lib/nodejs
-          tar -xJvf node-v18.16.0-linux-x64.tar.xz -C /usr/local/lib/nodejs
+          tar -xJvf /tmp/node-v18.16.0-linux-x64.tar.xz -C /usr/local/lib/nodejs
           ln -s /usr/local/lib/nodejs/v18.16.0-linux-x64 /bin/nodejs
 
       - name: Checkout Source code
