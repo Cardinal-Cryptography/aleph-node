@@ -12,7 +12,6 @@ on:
         description: Node image tag
         required: true
         type: string
-        default: testnet
 
 jobs:
   check-vars-and-secrets:
