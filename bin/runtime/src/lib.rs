@@ -334,8 +334,9 @@ impl pallet_aleph::Config for Runtime {
 parameter_types! {
     // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
+    pub const MaximumProvingKeyLength: u32 = 10_000;
     pub const MaximumDataLength: u32 = 10_000;
-    pub const VerificationKeyDepositPerByte: u128 = MILLI_AZERO;
+    pub const KeyPairDepositPerByte: u128 = MILLI_AZERO;
 }
 
 #[cfg(feature = "liminal")]
@@ -344,8 +345,9 @@ impl pallet_baby_liminal::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_baby_liminal::AlephWeight<Runtime>;
     type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
+    type MaximumProvingKeyLength = MaximumProvingKeyLength;
     type MaximumDataLength = MaximumDataLength;
-    type VerificationKeyDepositPerByte = VerificationKeyDepositPerByte;
+    type KeyPairDepositPerByte = KeyPairDepositPerByte;
 }
 
 impl_opaque_keys! {
