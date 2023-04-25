@@ -1,10 +1,14 @@
+use subxt::rpc_params;
+use codec::Encode;
+use subxt::ext::sp_core::Bytes;
+
 use crate::{
     aleph_runtime::RuntimeCall::CommitteeManagement,
     api,
     pallet_committee_management::pallet::Call::{ban_from_committee, set_ban_config},
     primitives::{BanConfig, BanInfo, BanReason},
-    AccountId, AsConnection, BlockHash, ConnectionApi, EraIndex, RootConnection, SessionCount,
-    SudoCall, TxInfo, TxStatus,
+    AccountId, AsConnection, BlockHash, ConnectionApi, EraIndex, RootConnection, SessionCommittee,
+    SessionCount, SessionIndex, SessionValidatorError, SudoCall, TxInfo, TxStatus,
 };
 
 /// Pallet CommitteeManagement read-only api.
@@ -51,6 +55,12 @@ pub trait CommitteeManagementApi {
     ) -> Option<BanInfo>;
     /// Returns `committee-management.session_period` const of the committee-management pallet.
     async fn get_session_period(&self) -> anyhow::Result<u32>;
+
+    async fn get_session_committee(
+        &self,
+        session: SessionIndex,
+        at: Option<BlockHash>,
+    ) -> anyhow::Result<Result<SessionCommittee<AccountId>, SessionValidatorError>>;
 }
 
 /// any object that implements pallet committee-management api that requires sudo
@@ -144,6 +154,18 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
             .constants()
             .at(&addrs)
             .map_err(|e| e.into())
+    }
+
+    async fn get_session_committee(
+        &self,
+        session: SessionIndex,
+        at: Option<BlockHash>,
+    ) -> anyhow::Result<Result<SessionCommittee<AccountId>, SessionValidatorError>> {
+        let method = "state_call";
+        let api_method = "AlephSessionApi_session_committee";
+        let params = rpc_params![api_method,  Bytes(session.encode()), at];
+
+        self.rpc_call(method.to_string(), params).await
     }
 }
 

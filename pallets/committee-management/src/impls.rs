@@ -449,7 +449,7 @@ impl<T: Config> Pallet<T> {
         };
 
         // Historical session
-        if active_starting_index > session {
+        if session < active_starting_index {
             return Err(SessionValidatorError::OldEra);
         }
 

@@ -44,6 +44,7 @@ pub mod utility;
 pub mod waiting;
 
 pub use aleph_zero::api;
+use codec::{Decode, Encode};
 pub use runtime_types::*;
 
 /// An alias for token amount.
@@ -164,4 +165,19 @@ where
     AccountId: From<<P as Pair>::Public>,
 {
     AccountId::from(keypair.public())
+}
+
+/// Hold set of validators that produce blocks and set of validators that participate in finality
+/// during session.
+#[derive(Decode, Encode, Debug, Clone, PartialEq, Eq)]
+pub struct SessionCommittee<T> {
+    pub finality_committee: Vec<T>,
+    pub block_producers: Vec<T>,
+}
+
+#[derive(Decode, Encode, Debug, Clone, PartialEq, Eq)]
+pub enum SessionValidatorError {
+    SessionTooMuchIntoFuture { upper_limit: SessionIndex },
+    OldEra,
+    Other(Vec<u8>),
 }

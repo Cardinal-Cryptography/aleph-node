@@ -6288,10 +6288,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            113u8, 139u8, 172u8, 48u8, 77u8, 132u8, 253u8, 187u8, 78u8, 201u8,
-                            145u8, 146u8, 151u8, 205u8, 67u8, 94u8, 245u8, 172u8, 75u8, 12u8,
-                            132u8, 63u8, 71u8, 232u8, 149u8, 204u8, 76u8, 159u8, 129u8, 78u8,
-                            114u8, 87u8,
+                            175u8, 219u8, 33u8, 76u8, 172u8, 183u8, 227u8, 1u8, 6u8, 175u8, 171u8,
+                            33u8, 74u8, 24u8, 112u8, 185u8, 44u8, 111u8, 125u8, 246u8, 181u8, 62u8,
+                            76u8, 23u8, 10u8, 229u8, 50u8, 96u8, 32u8, 215u8, 3u8, 20u8,
                         ],
                     )
                 }
@@ -13438,6 +13437,18 @@ pub mod api {
                     )]
                     pub struct CheckMortality(pub runtime_types::sp_runtime::generic::era::Era);
                 }
+                pub mod check_non_zero_sender {
+                    use super::runtime_types;
+                    #[derive(
+                        :: subxt :: ext :: codec :: Decode,
+                        :: subxt :: ext :: codec :: Encode,
+                        Clone,
+                        Debug,
+                        Eq,
+                        PartialEq,
+                    )]
+                    pub struct CheckNonZeroSender;
+                }
                 pub mod check_nonce {
                     use super::runtime_types;
                     #[derive(
@@ -19821,9 +19832,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                0u8, 94u8, 223u8, 156u8, 0u8, 81u8, 124u8, 78u8, 54u8, 73u8, 237u8, 38u8, 62u8,
-                120u8, 53u8, 201u8, 242u8, 71u8, 152u8, 85u8, 69u8, 60u8, 225u8, 96u8, 116u8,
-                188u8, 83u8, 11u8, 83u8, 164u8, 203u8, 128u8,
+                84u8, 147u8, 37u8, 184u8, 2u8, 83u8, 61u8, 233u8, 92u8, 182u8, 166u8, 31u8, 25u8,
+                16u8, 201u8, 43u8, 175u8, 223u8, 180u8, 166u8, 135u8, 131u8, 190u8, 33u8, 173u8,
+                187u8, 163u8, 18u8, 185u8, 107u8, 119u8, 120u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)

@@ -68,8 +68,8 @@ pub mod pallet {
         BanHandler, BanReason, BlockCount, FinalityCommitteeManager, SessionCount,
         SessionValidators, ValidatorProvider,
     };
-    use sp_runtime::Perbill;
-    use sp_staking::EraIndex;
+    use sp_runtime::{DispatchResultWithInfo, Perbill};
+    use sp_staking::{EraIndex, SessionIndex};
     use sp_std::vec::Vec;
 
     use crate::{
