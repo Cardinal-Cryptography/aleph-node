@@ -1,6 +1,6 @@
 [package]
 name = "pallet-baby-liminal"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 license = "Apache 2.0"

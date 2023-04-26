@@ -86,7 +86,6 @@ benchmarks! {
 
     // Partial `verify` execution
 
-    // TODO: Verify that if fails for `LinearEquation`
     verify_data_too_long {
         // Excess. Unfortunately, anything like
         // `let e in (T::MaximumDataLength::get() + 1) .. (T::MaximumDataLength::get() * 1_000)`
@@ -102,7 +101,7 @@ benchmarks! {
 
     // TODO: Verify that if fails for `LinearEquation`
     // It shouldn't matter whether deserializing of proof fails, but for input it succeeds, or the
-    // other way round. The only thing that is important is that we don't read storage nor run
+    // other way round. The only thing that is important is that we neither read storage nor run the
     // verification procedure.
     verify_data_deserializing_fails {
         let l in 1 .. T::MaximumDataLength::get();
@@ -117,7 +116,7 @@ benchmarks! {
     }
 
     // TODO: Verify that if fails for `LinearEquation`
-    verify_key_deserializing_fails {
+    verify_key_pair_deserializing_fails {
         let l in 1 .. T::MaximumProvingKeyLength::get();
         let m in 1 .. T::MaximumVerificationKeyLength::get();
         let _ = insert_key_pair::<T>(vec![255u8; l as usize], vec![255u8; m as usize]);

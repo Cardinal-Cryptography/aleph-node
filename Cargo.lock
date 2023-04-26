@@ -399,7 +399,7 @@ dependencies = [
 
 [[package]]
 name = "aleph-runtime"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "baby-liminal-extension",
  "frame-benchmarking",
@@ -5624,7 +5624,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-baby-liminal"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bls12-381",
  "ark-groth16",

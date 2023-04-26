@@ -75,9 +75,10 @@ impl pallet_baby_liminal::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
     type Currency = Balances;
+    type MaximumProvingKeyLength = ConstU32<50_000>;
     type MaximumVerificationKeyLength = ConstU32<10_000>;
     type MaximumDataLength = ConstU32<10_000>;
-    type VerificationKeyDepositPerByte = ConstU64<10>;
+    type KeyPairDepositPerByte = ConstU64<10>;
 }
 
 pub fn new_test_ext() -> TestExternalities {
