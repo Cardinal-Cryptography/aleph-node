@@ -24,6 +24,9 @@ jobs:
         SCCACHE_CACHE_SIZE: 10G
         AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       max-parallel: 1
       matrix:
