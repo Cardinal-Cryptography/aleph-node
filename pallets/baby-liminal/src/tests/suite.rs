@@ -4,13 +4,17 @@ use sp_runtime::traits::Get;
 
 use super::setup::*;
 use crate::{
-    Error, KeyPairIdentifier, VerificationError, VerificationKeyDeposits, VerificationKeyOwners,
-    VerificationKeys,
+    Error, KeyPairDeposits, KeyPairIdentifier, KeyPairOwners, ProvingVerificationKeyPairs,
+    VerificationError,
 };
 
 type BabyLiminal = crate::Pallet<TestRuntime>;
 
 const IDENTIFIER: KeyPairIdentifier = [0; 8];
+
+fn pk() -> Vec<u8> {
+    include_bytes!("../resources/groth16/xor.pk.bytes").to_vec()
+}
 
 fn vk() -> Vec<u8> {
     include_bytes!("../resources/groth16/xor.vk.bytes").to_vec()
@@ -42,25 +46,39 @@ fn free_balance(account_id: u128) -> u64 {
 
 fn put_key() -> u64 {
     let owner = 1;
-    let key = vk();
-    let per_byte_fee: u64 = <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
-    let deposit = key.len() as u64 * per_byte_fee;
-    VerificationKeys::<TestRuntime>::insert(IDENTIFIER, BoundedVec::try_from(key).unwrap());
-    VerificationKeyOwners::<TestRuntime>::insert(IDENTIFIER, owner);
-    VerificationKeyDeposits::<TestRuntime>::insert((owner, IDENTIFIER), deposit);
+
+    let pk = BoundedVec::try_from(pk()).unwrap();
+    let vk = BoundedVec::try_from(vk()).unwrap();
+
+    let per_byte_fee: u64 = <TestRuntime as crate::Config>::KeyPairDepositPerByte::get();
+    let deposit = (pk.len() + vk.len()) as u64 * per_byte_fee;
+
+    let key_pair = (pk, vk);
+
+    ProvingVerificationKeyPairs::<TestRuntime>::insert(IDENTIFIER, key_pair);
+    KeyPairOwners::<TestRuntime>::insert(IDENTIFIER, owner);
+    KeyPairDeposits::<TestRuntime>::insert((owner, IDENTIFIER), deposit);
     <TestRuntime as crate::Config>::Currency::reserve(&owner, deposit)
         .expect("Could not reserve a deposit");
     deposit
 }
 
 #[test]
-fn stores_vk_with_fresh_identifier() {
+fn stores_key_pair_with_fresh_identifier() {
     new_test_ext().execute_with(|| {
-        assert_ok!(BabyLiminal::store_key(owner(), IDENTIFIER, vk()));
+        let proving_key = pk();
+        let verification_key = vk();
+        assert_ok!(BabyLiminal::store_key_pair(
+            owner(),
+            IDENTIFIER,
+            proving_key.clone(),
+            verification_key.clone(),
+        ));
 
-        let stored_key = VerificationKeys::<TestRuntime>::get(IDENTIFIER);
-        assert!(stored_key.is_some());
-        assert_eq!(stored_key.unwrap().to_vec(), vk());
+        let stored_key_pair = ProvingVerificationKeyPairs::<TestRuntime>::get(IDENTIFIER);
+        let (pk, vk) = stored_key_pair.unwrap();
+        assert_eq!(pk.to_vec(), proving_key);
+        assert_eq!(vk.to_vec(), verification_key);
     });
 }
 
@@ -70,7 +88,7 @@ fn does_not_overwrite_registered_key() {
         put_key();
 
         assert_err!(
-            BabyLiminal::store_key(owner(), IDENTIFIER, vk()),
+            BabyLiminal::store_key_pair(owner(), IDENTIFIER, pk(), vk()),
             Error::<TestRuntime>::IdentifierAlreadyInUse
         );
     });
@@ -81,7 +99,7 @@ fn not_owner_cannot_delete_key() {
     new_test_ext().execute_with(|| {
         put_key();
         assert_err!(
-            BabyLiminal::delete_key(not_owner(), IDENTIFIER),
+            BabyLiminal::delete_key_pair(not_owner(), IDENTIFIER),
             Error::<TestRuntime>::NotOwner
         );
     });
@@ -91,7 +109,7 @@ fn not_owner_cannot_delete_key() {
 fn owner_can_delete_key() {
     new_test_ext().execute_with(|| {
         put_key();
-        assert_ok!(BabyLiminal::delete_key(owner(), IDENTIFIER));
+        assert_ok!(BabyLiminal::delete_key_pair(owner(), IDENTIFIER));
     });
 }
 
@@ -100,7 +118,7 @@ fn not_owner_cannot_overwrite_key() {
     new_test_ext().execute_with(|| {
         put_key();
         assert_err!(
-            BabyLiminal::overwrite_key(not_owner(), IDENTIFIER, vk()),
+            BabyLiminal::overwrite_key_pair(not_owner(), IDENTIFIER, pk(), vk()),
             Error::<TestRuntime>::NotOwner
         );
     });
@@ -110,15 +128,19 @@ fn not_owner_cannot_overwrite_key() {
 fn owner_can_overwrite_key() {
     new_test_ext().execute_with(|| {
         put_key();
-        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, vk()));
+        assert_ok!(BabyLiminal::overwrite_key_pair(
+            owner(),
+            IDENTIFIER,
+            pk(),
+            vk()
+        ));
     });
 }
 
 #[test]
 fn key_deposits() {
     new_test_ext().execute_with(|| {
-        let per_byte_fee: u64 =
-            <TestRuntime as crate::Config>::VerificationKeyDepositPerByte::get();
+        let per_byte_fee: u64 = <TestRuntime as crate::Config>::KeyPairDepositPerByte::get();
 
         let reserved_balance_begin = reserved_balance(1);
         let deposit = put_key();
@@ -126,39 +148,84 @@ fn key_deposits() {
 
         assert_eq!(reserved_balance_begin + deposit, reserved_balance_after);
 
-        let long_key_size = 2 * vk().len();
-        let long_key = vec![0u8; long_key_size];
+        let long_proving_key_len = 2 * pk().len();
+        let long_proving_key = vec![0u8; long_proving_key_len];
+
+        let long_verification_key_len = 2 * vk().len();
+        let long_verification_key = vec![0u8; long_verification_key_len];
 
         let free_balance_before = free_balance(1);
-        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, long_key));
-        assert_eq!(
-            free_balance_before - free_balance(1),
-            (long_key_size as u64 * per_byte_fee) - deposit
-        );
+        assert_ok!(BabyLiminal::overwrite_key_pair(
+            owner(),
+            IDENTIFIER,
+            long_proving_key,
+            long_verification_key
+        ));
 
-        let short_key_size = vk().len() / 2;
-        let short_key = vec![0u8; short_key_size];
+        let balance_change =
+            ((long_proving_key_len + long_verification_key_len) as u64 * per_byte_fee) - deposit;
+
+        assert_eq!(free_balance_before - free_balance(1), balance_change,);
+
+        let short_proving_key_len = vk().len() / 2;
+        let short_proving_key = vec![0u8; short_proving_key_len];
+
+        let short_verification_key_len = vk().len() / 2;
+        let short_verification_key = vec![0u8; short_verification_key_len];
 
         let reserved_balance_before = reserved_balance(1);
-        assert_ok!(BabyLiminal::overwrite_key(owner(), IDENTIFIER, short_key));
+        assert_ok!(BabyLiminal::overwrite_key_pair(
+            owner(),
+            IDENTIFIER,
+            short_proving_key,
+            short_verification_key
+        ));
         let reserved_balance_after = reserved_balance(1);
+
+        let long_key_pair_len = long_proving_key_len + long_verification_key_len;
+        let short_key_pair_len = short_proving_key_len + short_verification_key_len;
+        let reserved_balance_change =
+            (long_key_pair_len - short_key_pair_len) as u64 * per_byte_fee;
         assert_eq!(
             reserved_balance_before - reserved_balance_after,
-            ((long_key_size - short_key_size) as u64 * per_byte_fee)
+            reserved_balance_change,
         );
 
-        assert_ok!(BabyLiminal::delete_key(owner(), IDENTIFIER));
+        assert_ok!(BabyLiminal::delete_key_pair(owner(), IDENTIFIER));
         assert_eq!(reserved_balance_begin, reserved_balance(1));
     });
 }
 
 #[test]
-fn does_not_store_too_long_key() {
+fn does_not_store_too_long_proving_key() {
     new_test_ext().execute_with(|| {
-        let limit: u32 = <TestRuntime as crate::Config>::MaximumVerificationKeyLength::get();
+        let proving_key_limit: u32 = <TestRuntime as crate::Config>::MaximumProvingKeyLength::get();
 
         assert_err!(
-            BabyLiminal::store_key(owner(), IDENTIFIER, vec![0; (limit + 1) as usize]),
+            BabyLiminal::store_key_pair(
+                owner(),
+                IDENTIFIER,
+                vec![0; (proving_key_limit + 1) as usize],
+                vec![0; 1]
+            ),
+            Error::<TestRuntime>::ProvingKeyTooLong
+        );
+    });
+}
+
+#[test]
+fn does_not_store_too_long_verification_key() {
+    new_test_ext().execute_with(|| {
+        let verification_key_limit: u32 =
+            <TestRuntime as crate::Config>::MaximumVerificationKeyLength::get();
+
+        assert_err!(
+            BabyLiminal::store_key_pair(
+                owner(),
+                IDENTIFIER,
+                vec![0; 1],
+                vec![0; (verification_key_limit + 1) as usize]
+            ),
             Error::<TestRuntime>::VerificationKeyTooLong
         );
     });
@@ -203,18 +270,20 @@ fn verify_shouts_when_no_key_was_registered() {
 
         assert_err!(
             result.map_err(|e| e.error),
-            Error::<TestRuntime>::UnknownVerificationKeyIdentifier
+            Error::<TestRuntime>::UnknownKeyPairIdentifier
         );
         assert!(result.unwrap_err().post_info.actual_weight.is_some());
     });
 }
 
 #[test]
-fn verify_shouts_when_key_is_not_deserializable() {
+fn verify_shouts_when_verification_key_is_not_deserializable() {
     new_test_ext().execute_with(|| {
-        VerificationKeys::<TestRuntime>::insert(
+        let pk = BoundedVec::try_from(pk()).unwrap();
+
+        ProvingVerificationKeyPairs::<TestRuntime>::insert(
             IDENTIFIER,
-            BoundedVec::try_from(vec![0, 1, 2]).unwrap(),
+            (pk, BoundedVec::try_from(vec![0, 1, 2]).unwrap()),
         );
 
         let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), input());

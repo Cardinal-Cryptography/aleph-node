@@ -180,7 +180,10 @@ pub mod pallet {
         ///
         /// Returns the deposit locked. Can only be called by the key pair owner.
         #[pallet::call_index(1)]
-        #[pallet::weight(T::WeightInfo::delete_key_pair(T::MaximumProvingKeyLength::get(), T::MaximumVerificationKeyLength::get()))]
+        #[pallet::weight(T::WeightInfo::delete_key_pair(
+            T::MaximumProvingKeyLength::get(),
+            T::MaximumVerificationKeyLength::get()
+        ))]
         pub fn delete_key_pair(
             origin: OriginFor<T>,
             identifier: KeyPairIdentifier,
