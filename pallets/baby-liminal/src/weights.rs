@@ -100,7 +100,6 @@ impl<I: BenchmarkInfo> WeightInfo for I {
     fn poseidon_four_to_one_host() -> Weight {
         <I as BenchmarkInfo>::poseidon_four_to_one_host()
     }
-    // TODO: compile results from benchmarks
 }
 
 /// Benchmark results for pallet_baby_liminal.
@@ -135,13 +134,11 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Proof Skipped: BabyLiminal KeyPairOwners (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
-	fn store_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 55_522 nanoseconds.
-		Weight::from_ref_time(60_894_201_u64)
-			// Standard Error: 21
-			.saturating_add(Weight::from_ref_time(750_u64).saturating_mul(l as u64))
-			// Standard Error: 108
-			.saturating_add(Weight::from_ref_time(760_u64).saturating_mul(m as u64))
+	fn store_key_pair(l: u32, _m: u32, ) -> Weight {
+		// Minimum execution time: 63_089 nanoseconds.
+		Weight::from_ref_time(91_741_426_u64)
+			// Standard Error: 73
+			.saturating_add(Weight::from_ref_time(1_511_u64).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
@@ -156,12 +153,12 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
 	fn overwrite_equal_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 70_212 nanoseconds.
-		Weight::from_ref_time(71_353_150_u64)
-			// Standard Error: 17
-			.saturating_add(Weight::from_ref_time(1_194_u64).saturating_mul(l as u64))
-			// Standard Error: 85
-			.saturating_add(Weight::from_ref_time(1_330_u64).saturating_mul(m as u64))
+		// Minimum execution time: 93_130 nanoseconds.
+		Weight::from_ref_time(82_421_569_u64)
+			// Standard Error: 73
+			.saturating_add(Weight::from_ref_time(1_833_u64).saturating_mul(l as u64))
+			// Standard Error: 367
+			.saturating_add(Weight::from_ref_time(2_928_u64).saturating_mul(m as u64))
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
@@ -176,12 +173,12 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	/// The range of component `l` is `[1, 49999]`.
 	/// The range of component `m` is `[1, 9999]`.
 	fn overwrite_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 68_927 nanoseconds.
-		Weight::from_ref_time(75_803_112_u64)
-			// Standard Error: 16
-			.saturating_add(Weight::from_ref_time(1_166_u64).saturating_mul(l as u64))
-			// Standard Error: 84
-			.saturating_add(Weight::from_ref_time(621_u64).saturating_mul(m as u64))
+		// Minimum execution time: 86_684 nanoseconds.
+		Weight::from_ref_time(107_460_968_u64)
+			// Standard Error: 89
+			.saturating_add(Weight::from_ref_time(1_335_u64).saturating_mul(l as u64))
+			// Standard Error: 445
+			.saturating_add(Weight::from_ref_time(1_996_u64).saturating_mul(m as u64))
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
@@ -195,9 +192,11 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
-	fn delete_key_pair(_l: u32, _m: u32, ) -> Weight {
-		// Minimum execution time: 41_474 nanoseconds.
-		Weight::from_ref_time(52_521_874_u64)
+	fn delete_key_pair(_l: u32, m: u32, ) -> Weight {
+		// Minimum execution time: 44_423 nanoseconds.
+		Weight::from_ref_time(67_514_324_u64)
+			// Standard Error: 186
+			.saturating_add(Weight::from_ref_time(190_u64).saturating_mul(m as u64))
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
@@ -206,8 +205,8 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal ProvingVerificationKeyPairs (r:1 w:0)
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 62_747_397 nanoseconds.
-		Weight::from_ref_time(72_221_961_000_u64)
+		// Minimum execution time: 72_502_203 nanoseconds.
+		Weight::from_ref_time(79_162_086_000_u64)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -216,8 +215,8 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Storage: BabyLiminal ProvingVerificationKeyPairs (r:1 w:0)
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 49_769_738 nanoseconds.
-		Weight::from_ref_time(58_800_838_000_u64)
+		// Minimum execution time: 68_018_273 nanoseconds.
+		Weight::from_ref_time(75_675_242_000_u64)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -225,8 +224,8 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `e` is `[1, 10000000]`.
 	fn verify_data_too_long(e: u32, ) -> Weight {
-		// Minimum execution time: 25_895 nanoseconds.
-		Weight::from_ref_time(37_556_499_u64)
+		// Minimum execution time: 32_854 nanoseconds.
+		Weight::from_ref_time(35_958_991_u64)
 			// Standard Error: 0
 			.saturating_add(Weight::from_ref_time(3_u64).saturating_mul(e as u64))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
@@ -236,8 +235,8 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_data_deserializing_fails(_l: u32, ) -> Weight {
-		// Minimum execution time: 37_957 nanoseconds.
-		Weight::from_ref_time(65_083_157_u64)
+		// Minimum execution time: 46_847 nanoseconds.
+		Weight::from_ref_time(106_964_995_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -248,52 +247,52 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
 	fn verify_key_pair_deserializing_fails(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 8_140_858 nanoseconds.
-		Weight::from_ref_time(10_528_674_257_u64)
-			// Standard Error: 1_527
-			.saturating_add(Weight::from_ref_time(2_161_u64).saturating_mul(l as u64))
-			// Standard Error: 7_639
-			.saturating_add(Weight::from_ref_time(32_334_u64).saturating_mul(m as u64))
+		// Minimum execution time: 9_441_040 nanoseconds.
+		Weight::from_ref_time(10_918_030_950_u64)
+			// Standard Error: 7_971
+			.saturating_add(Weight::from_ref_time(37_853_u64).saturating_mul(l as u64))
+			// Standard Error: 39_861
+			.saturating_add(Weight::from_ref_time(288_083_u64).saturating_mul(m as u64))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	fn poseidon_one_to_one_wasm() -> Weight {
-		// Minimum execution time: 8_917_016 nanoseconds.
-		Weight::from_ref_time(11_410_183_768_u64)
+		// Minimum execution time: 11_831_897 nanoseconds.
+		Weight::from_ref_time(13_787_523_695_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	fn poseidon_two_to_one_wasm() -> Weight {
-		// Minimum execution time: 14_771_525 nanoseconds.
-		Weight::from_ref_time(19_578_428_133_u64)
+		// Minimum execution time: 15_325_963 nanoseconds.
+		Weight::from_ref_time(21_231_915_816_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
 	fn poseidon_four_to_one_wasm() -> Weight {
-		// Minimum execution time: 26_044_364 nanoseconds.
-		Weight::from_ref_time(45_117_213_248_u64)
+		// Minimum execution time: 29_027_849 nanoseconds.
+		Weight::from_ref_time(51_988_519_712_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	fn poseidon_one_to_one_host() -> Weight {
-		// Minimum execution time: 1_365_564 nanoseconds.
-		Weight::from_ref_time(1_433_726_180_u64)
+		// Minimum execution time: 1_522_479 nanoseconds.
+		Weight::from_ref_time(1_987_640_409_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	fn poseidon_two_to_one_host() -> Weight {
-		// Minimum execution time: 2_178_422 nanoseconds.
-		Weight::from_ref_time(2_386_460_724_u64)
+		// Minimum execution time: 2_382_359 nanoseconds.
+		Weight::from_ref_time(2_504_322_809_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
 	fn poseidon_four_to_one_host() -> Weight {
-		// Minimum execution time: 4_059_555 nanoseconds.
-		Weight::from_ref_time(4_376_084_397_u64)
+		// Minimum execution time: 4_480_060 nanoseconds.
+		Weight::from_ref_time(5_203_863_502_u64)
 	}
 }
 
@@ -309,13 +308,11 @@ impl BenchmarkInfo for () {
 	// Proof Skipped: BabyLiminal KeyPairOwners (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
-	fn store_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 55_522 nanoseconds.
-		Weight::from_ref_time(60_894_201_u64)
-			// Standard Error: 21
-			.saturating_add(Weight::from_ref_time(750_u64).saturating_mul(l as u64))
-			// Standard Error: 108
-			.saturating_add(Weight::from_ref_time(760_u64).saturating_mul(m as u64))
+	fn store_key_pair(l: u32, _m: u32, ) -> Weight {
+		// Minimum execution time: 63_089 nanoseconds.
+		Weight::from_ref_time(91_741_426_u64)
+			// Standard Error: 73
+			.saturating_add(Weight::from_ref_time(1_511_u64).saturating_mul(l as u64))
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
@@ -330,12 +327,12 @@ impl BenchmarkInfo for () {
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
 	fn overwrite_equal_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 70_212 nanoseconds.
-		Weight::from_ref_time(71_353_150_u64)
-			// Standard Error: 17
-			.saturating_add(Weight::from_ref_time(1_194_u64).saturating_mul(l as u64))
-			// Standard Error: 85
-			.saturating_add(Weight::from_ref_time(1_330_u64).saturating_mul(m as u64))
+		// Minimum execution time: 93_130 nanoseconds.
+		Weight::from_ref_time(82_421_569_u64)
+			// Standard Error: 73
+			.saturating_add(Weight::from_ref_time(1_833_u64).saturating_mul(l as u64))
+			// Standard Error: 367
+			.saturating_add(Weight::from_ref_time(2_928_u64).saturating_mul(m as u64))
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
@@ -350,12 +347,12 @@ impl BenchmarkInfo for () {
 	/// The range of component `l` is `[1, 49999]`.
 	/// The range of component `m` is `[1, 9999]`.
 	fn overwrite_key_pair(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 68_927 nanoseconds.
-		Weight::from_ref_time(75_803_112_u64)
-			// Standard Error: 16
-			.saturating_add(Weight::from_ref_time(1_166_u64).saturating_mul(l as u64))
-			// Standard Error: 84
-			.saturating_add(Weight::from_ref_time(621_u64).saturating_mul(m as u64))
+		// Minimum execution time: 86_684 nanoseconds.
+		Weight::from_ref_time(107_460_968_u64)
+			// Standard Error: 89
+			.saturating_add(Weight::from_ref_time(1_335_u64).saturating_mul(l as u64))
+			// Standard Error: 445
+			.saturating_add(Weight::from_ref_time(1_996_u64).saturating_mul(m as u64))
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
@@ -369,9 +366,11 @@ impl BenchmarkInfo for () {
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
-	fn delete_key_pair(_l: u32, _m: u32, ) -> Weight {
-		// Minimum execution time: 41_474 nanoseconds.
-		Weight::from_ref_time(52_521_874_u64)
+	fn delete_key_pair(_l: u32, m: u32, ) -> Weight {
+		// Minimum execution time: 44_423 nanoseconds.
+		Weight::from_ref_time(67_514_324_u64)
+			// Standard Error: 186
+			.saturating_add(Weight::from_ref_time(190_u64).saturating_mul(m as u64))
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
@@ -380,8 +379,8 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal ProvingVerificationKeyPairs (r:1 w:0)
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	fn verify_groth16_xor() -> Weight {
-		// Minimum execution time: 62_747_397 nanoseconds.
-		Weight::from_ref_time(72_221_961_000_u64)
+		// Minimum execution time: 72_502_203 nanoseconds.
+		Weight::from_ref_time(79_162_086_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
@@ -390,8 +389,8 @@ impl BenchmarkInfo for () {
 	// Storage: BabyLiminal ProvingVerificationKeyPairs (r:1 w:0)
 	// Proof Skipped: BabyLiminal ProvingVerificationKeyPairs (max_values: None, max_size: None, mode: Measured)
 	fn verify_groth16_linear_equation() -> Weight {
-		// Minimum execution time: 49_769_738 nanoseconds.
-		Weight::from_ref_time(58_800_838_000_u64)
+		// Minimum execution time: 68_018_273 nanoseconds.
+		Weight::from_ref_time(75_675_242_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
@@ -399,8 +398,8 @@ impl BenchmarkInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `e` is `[1, 10000000]`.
 	fn verify_data_too_long(e: u32, ) -> Weight {
-		// Minimum execution time: 25_895 nanoseconds.
-		Weight::from_ref_time(37_556_499_u64)
+		// Minimum execution time: 32_854 nanoseconds.
+		Weight::from_ref_time(35_958_991_u64)
 			// Standard Error: 0
 			.saturating_add(Weight::from_ref_time(3_u64).saturating_mul(e as u64))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
@@ -410,8 +409,8 @@ impl BenchmarkInfo for () {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 10000]`.
 	fn verify_data_deserializing_fails(_l: u32, ) -> Weight {
-		// Minimum execution time: 37_957 nanoseconds.
-		Weight::from_ref_time(65_083_157_u64)
+		// Minimum execution time: 46_847 nanoseconds.
+		Weight::from_ref_time(106_964_995_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
@@ -422,51 +421,51 @@ impl BenchmarkInfo for () {
 	/// The range of component `l` is `[1, 50000]`.
 	/// The range of component `m` is `[1, 10000]`.
 	fn verify_key_pair_deserializing_fails(l: u32, m: u32, ) -> Weight {
-		// Minimum execution time: 8_140_858 nanoseconds.
-		Weight::from_ref_time(10_528_674_257_u64)
-			// Standard Error: 1_527
-			.saturating_add(Weight::from_ref_time(2_161_u64).saturating_mul(l as u64))
-			// Standard Error: 7_639
-			.saturating_add(Weight::from_ref_time(32_334_u64).saturating_mul(m as u64))
+		// Minimum execution time: 9_441_040 nanoseconds.
+		Weight::from_ref_time(10_918_030_950_u64)
+			// Standard Error: 7_971
+			.saturating_add(Weight::from_ref_time(37_853_u64).saturating_mul(l as u64))
+			// Standard Error: 39_861
+			.saturating_add(Weight::from_ref_time(288_083_u64).saturating_mul(m as u64))
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	fn poseidon_one_to_one_wasm() -> Weight {
-		// Minimum execution time: 8_917_016 nanoseconds.
-		Weight::from_ref_time(11_410_183_768_u64)
+		// Minimum execution time: 11_831_897 nanoseconds.
+		Weight::from_ref_time(13_787_523_695_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	fn poseidon_two_to_one_wasm() -> Weight {
-		// Minimum execution time: 14_771_525 nanoseconds.
-		Weight::from_ref_time(19_578_428_133_u64)
+		// Minimum execution time: 15_325_963 nanoseconds.
+		Weight::from_ref_time(21_231_915_816_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
 	fn poseidon_four_to_one_wasm() -> Weight {
-		// Minimum execution time: 26_044_364 nanoseconds.
-		Weight::from_ref_time(45_117_213_248_u64)
+		// Minimum execution time: 29_027_849 nanoseconds.
+		Weight::from_ref_time(51_988_519_712_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	fn poseidon_one_to_one_host() -> Weight {
-		// Minimum execution time: 1_365_564 nanoseconds.
-		Weight::from_ref_time(1_433_726_180_u64)
+		// Minimum execution time: 1_522_479 nanoseconds.
+		Weight::from_ref_time(1_987_640_409_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	fn poseidon_two_to_one_host() -> Weight {
-		// Minimum execution time: 2_178_422 nanoseconds.
-		Weight::from_ref_time(2_386_460_724_u64)
+		// Minimum execution time: 2_382_359 nanoseconds.
+		Weight::from_ref_time(2_504_322_809_u64)
 	}
 	/// The range of component `x` is `[0, 4294967295]`.
 	/// The range of component `y` is `[0, 4294967295]`.
 	/// The range of component `w` is `[0, 4294967295]`.
 	/// The range of component `z` is `[0, 4294967295]`.
 	fn poseidon_four_to_one_host() -> Weight {
-		// Minimum execution time: 4_059_555 nanoseconds.
-		Weight::from_ref_time(4_376_084_397_u64)
+		// Minimum execution time: 4_480_060 nanoseconds.
+		Weight::from_ref_time(5_203_863_502_u64)
 	}
 }

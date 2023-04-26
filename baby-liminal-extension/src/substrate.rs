@@ -40,7 +40,9 @@ where
     Env: ChainExtensionEnvironment<E, T> + Executor<T>,
     <T as SysConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
-    // We assume
+    // We assume synthetic lengths for proving and verification keys, necessary to setup benchmarks
+    // with a grid of parameters. The approximate key pair length measured in bytes is capped at
+    // the sum of the caps for the proving (50,000) and verification (10,000) keys.
     #[obce(
         weight(
             expr = r#"{
