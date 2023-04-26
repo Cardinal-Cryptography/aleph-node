@@ -134,6 +134,5 @@ jobs:
           context: ./bin/cliain
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
-          push: false
-          # push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+          push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
           tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}

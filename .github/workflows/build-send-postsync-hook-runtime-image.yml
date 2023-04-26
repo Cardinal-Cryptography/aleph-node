@@ -1,5 +1,5 @@
 ---
-name: Build, send and deploy postsync hook image.
+name: Build, send and deploy postsync hook image
 
 on:
   workflow_dispatch:
@@ -14,12 +14,50 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  build:
+  build-binary:
     needs: [check-vars-and-secrets]
     name: Save cliain binary as an artifact
     runs-on: self-hosted
-    env:
-      CARGO_INCREMENTAL: 0
+    container:
+      image: mikogs/rust-dev:v0.1.0
+      env:
+        RUSTC_WRAPPER: sccache
+        SCACHE_BUCKET: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+        SCACHE_REGION: eu-central-1
+        SCCACHE_ERROR_LOG: /tmp/sccache/log.txt
+        SCACHE_LOG: debug
+        SCCACHE_S3_KEY_PREFIX: sccache
+        SCCACHE_CACHE_SIZE: 10G
+        AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        CARGO_INCREMENTAL: 0
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+
+      - name: Build binary
+        run: |
+          pushd bin/cliain/
+          cargo build --release
+          popd
+
+      - name: Upload binary to GH Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cliain
+          path: bin/cliain/target/release/cliain
+          if-no-files-found: error
+          retention-days: 7
+
+  build-and-push-and-deploy-image:
+    needs: [build-binary]
+    name: Build and push and deploy docker image
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -28,20 +66,11 @@ jobs:
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
 
-      - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
+      - name: Download binary from GH Artifacts
+        uses: actions/download-artifact@v3
         with:
-          version: '3.6.1'
-          repo-token: ${{ secrets.CI_GH_TOKEN }}
-
-      - name: Build binary
-        run: |
-          pushd bin/cliain/
-          cargo build --release
-          popd
+          name: cliain
+          path: bin/cliain/target/release
 
       - name: Build runtime-update-hook
         run: |
