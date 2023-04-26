@@ -6,22 +6,31 @@ on:
     branches:
       - 'main'
   pull_request:
+    branches:
+      - 'A0-1294-run-cargo-in-docker'
   workflow_dispatch:
 
 jobs:
-  build-image:
+  build-binary:
     name: Build binary
     runs-on: self-hosted
+    container:
+      image: mikogs/rust-dev:v0.1.0
+      env:
+        RUSTC_WRAPPER: sccache
+        SCACHE_BUCKET: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+        SCACHE_REGION: eu-central-1
+        SCCACHE_ERROR_LOG: /tmp/sccache/log.txt
+        SCACHE_LOG: debug
+        SCCACHE_S3_KEY_PREFIX: sccache
+        SCCACHE_CACHE_SIZE: 10G
+        AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
     strategy:
       max-parallel: 1
       matrix:
         runtime: [standard, liminal]
       fail-fast: false
-    env:
-      ECR_PUBLIC_HOST: ${{ vars.ECR_PUBLIC_HOST }}
-      ECR_PUBLIC_REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
-      AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-      AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
@@ -40,9 +49,41 @@ jobs:
         if: ${{ matrix.runtime == 'liminal' }}
         run: ./.github/scripts/test_cliain_snark_relations.sh
 
+      - name: Upload binary to GH Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cliain-${{ matrix.runtime }}
+          path: bin/cliain/target/release/cliain
+          if-no-files-found: error
+          retention-days: 7
+
+  build-and-push-image:
+    needs: [build-binary]
+    name: Build and push image
+    runs-on: ubuntu-20.04
+    strategy:
+      max-parallel: 1
+      matrix:
+        runtime: [standard, liminal]
+      fail-fast: false
+    env:
+      ECR_PUBLIC_HOST: ${{ vars.ECR_PUBLIC_HOST }}
+      ECR_PUBLIC_REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
+      AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+      AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+    steps:
+      - name: GIT | Checkout source code
+        uses: actions/checkout@v3
+
       - name: Call action get-ref-properties
         id: get-ref-properties
         uses: ./.github/actions/get-ref-properties
+
+      - name: Download binary from GH Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: cliain-${{ matrix.runtime }}
+          path: bin/cliain/target/release
 
       - name: Login to ECR
         if: >
@@ -87,5 +128,6 @@ jobs:
           context: ./bin/cliain
           builder: ${{ steps.buildx.outputs.name }}
           file: ./bin/cliain/Dockerfile
-          push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+          push: false
+          # push: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
           tags: ${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}
