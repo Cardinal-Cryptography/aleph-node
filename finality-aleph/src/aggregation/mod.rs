@@ -83,7 +83,7 @@ where
     pub fn new_legacy(
         multikeychain: &'a Keychain,
         rmc_network: LN,
-        metrics: Option<Metrics<<B as Block>::Hash>>,
+        metrics: Metrics<<B as Block>::Hash>,
     ) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
@@ -97,7 +97,7 @@ where
             legacy_aleph_bft::Keychain::node_count(multikeychain),
             scheduler,
         );
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(metrics);
+        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(Some(metrics));
         let aggregator_io = LegacyAggregator::<B, LN>::new(
             messages_for_rmc,
             messages_from_rmc,
@@ -114,7 +114,7 @@ where
     pub fn new_current(
         multikeychain: &'a Keychain,
         rmc_network: CN,
-        metrics: Option<Metrics<<B as Block>::Hash>>,
+        metrics: Metrics<<B as Block>::Hash>,
     ) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();

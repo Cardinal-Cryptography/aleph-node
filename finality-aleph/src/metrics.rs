@@ -71,11 +71,26 @@ pub(crate) enum Checkpoint {
 
 #[derive(Clone)]
 pub struct Metrics<H: Key> {
-    inner: Arc<Mutex<Inner<H>>>,
+    inner: Option<Arc<Mutex<Inner<H>>>>,
 }
 
 impl<H: Key> Metrics<H> {
-    pub fn register(registry: &Registry) -> Result<Self, PrometheusError> {
+    pub fn register<F: FnOnce(PrometheusError)>(
+        registry: Option<&Registry>,
+        on_registration_failed: F,
+    ) -> Metrics<H> {
+        let inner = match registry {
+            Some(r) => Self::try_register(r).map_err(on_registration_failed).ok(),
+            None => {
+                on_registration_failed(PrometheusError::Msg("registry not available".to_string()));
+                None
+            }
+        };
+
+        Metrics { inner }
+    }
+
+    fn try_register(registry: &Registry) -> Result<Arc<Mutex<Inner<H>>>, PrometheusError> {
         use Checkpoint::*;
         let keys = [
             Importing,
@@ -108,7 +123,7 @@ impl<H: Key> Metrics<H> {
                 .collect(),
         }));
 
-        Ok(Self { inner })
+        Ok(inner)
     }
 
     pub(crate) fn report_block(
@@ -117,9 +132,11 @@ impl<H: Key> Metrics<H> {
         checkpoint_time: Instant,
         checkpoint_type: Checkpoint,
     ) {
-        self.inner
-            .lock()
-            .report_block(hash, checkpoint_time, checkpoint_type);
+        if let Some(inner) = &self.inner {
+            inner
+                .lock()
+                .report_block(hash, checkpoint_time, checkpoint_type);
+        }
     }
 }
 
@@ -129,8 +146,19 @@ mod tests {
 
     use super::*;
 
+    fn register_dummy_metrics() -> Metrics<usize> {
+        Metrics::<usize>::register(Some(&Registry::new()), |_| panic!())
+    }
+
     fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
-        m.inner.lock().starts.get(&c).unwrap().len()
+        m.inner
+            .as_ref()
+            .expect("There are some metrics")
+            .lock()
+            .starts
+            .get(&c)
+            .unwrap()
+            .len()
     }
 
     fn check_reporting_with_memory_excess(metrics: &Metrics<usize>, checkpoint: Checkpoint) {
@@ -144,21 +172,32 @@ mod tests {
     }
 
     #[test]
+    fn registration_with_no_register_creates_empty_metrics() {
+        let mut registration_failed = false;
+        let m = Metrics::<usize>::register(None, |_| {
+            registration_failed = true;
+        });
+        m.report_block(0, Instant::now(), Checkpoint::Ordered);
+        assert_eq!(registration_failed, true);
+        assert!(m.inner.is_none());
+    }
+
+    #[test]
     fn should_keep_entries_up_to_defined_limit() {
-        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
+        let m = register_dummy_metrics();
         check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
     }
 
     #[test]
     fn should_manage_space_for_checkpoints_independently() {
-        let m = Metrics::<usize>::register(&Registry::new()).unwrap();
+        let m = register_dummy_metrics();
         check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
         check_reporting_with_memory_excess(&m, Checkpoint::Imported);
     }
 
     #[test]
     fn given_not_monotonic_clock_when_report_block_is_called_repeatedly_code_does_not_panic() {
-        let metrics = Metrics::<usize>::register(&Registry::new()).unwrap();
+        let metrics = register_dummy_metrics();
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         metrics.report_block(0, later_timestamp, Checkpoint::Ordering);

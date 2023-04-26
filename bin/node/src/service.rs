@@ -91,7 +91,7 @@ pub fn new_partial(
             mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
             mpsc::UnboundedReceiver<Justification<<Block as BlockT>::Header>>,
             Option<Telemetry>,
-            Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
+            Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>,
         ),
     >,
     ServiceError,
@@ -140,12 +140,8 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = config.prometheus_registry().cloned().and_then(|r| {
-        Metrics::register(&r)
-            .map_err(|err| {
-                warn!("Failed to register Prometheus metrics\n{:?}", err);
-            })
-            .ok()
+    let metrics = Metrics::register(config.prometheus_registry(), |err| {
+        warn!("Failed to register Prometheus metrics\n{:?}", err)
     });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
