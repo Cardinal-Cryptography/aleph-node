@@ -44,18 +44,18 @@ jobs:
           file: 'Cargo.toml'
           field: 'workspace.exclude'
 
-      - name: Format output
-        id: format_output
-        run: |
-          packages="$(echo ${{ steps.read_excluded.outputs.value }} \
-          | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
-          targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
-
-          packages="${packages//$'\n'/'%0A'}"
-          targets="${targets//$'\n'/'%0A'}"
-
-          echo "packages=$packages" >> $GITHUB_OUTPUT
-          echo "targets=$targets" >> $GITHUB_OUTPUT
+      #      - name: Format output
+      #        id: format_output
+      #        run: |
+      #          packages="$(echo ${{ steps.read_excluded.outputs.value }} \
+      #          | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
+      #          targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
+      #
+      #          packages="${packages//$'\n'/'%0A'}"
+      #          targets="${targets//$'\n'/'%0A'}"
+      #
+      #          echo "packages=$packages" >> $GITHUB_OUTPUT
+      #          echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check excluded packages
         run: |
@@ -66,9 +66,9 @@ jobs:
           cargo install cargo-dylint dylint-link
           cargo install cargo-contract --vers ^2.0 --force --locked
 
-          packages="${{ steps.format_output.outputs.packages }}"
-          packages="${packages//'%0A'/$'\n'}"
-          for p in ${packages[@]}
+          # packages="${{ steps.format_output.outputs.packages }}"
+          # packages="${packages//'%0A'/$'\n'}"
+          for p in ${{ join(steps.read_excluded.outputs.value, ' ') }}
           do
             echo "Checking package $p..."
             pushd "$p"
