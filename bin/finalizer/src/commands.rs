@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt, fs, path::PathBuf};
+use std::{collections::BTreeMap, fmt::{Display, Formatter, Result as FmtResult}, fs, path::PathBuf};
 
 use aleph_client::{
     aleph_keypair_from_string, api, pallets::aleph::AlephRpc, primitives::app::Public,
@@ -23,8 +23,8 @@ struct HashNum {
     hash: H256,
 }
 
-impl fmt::Display for HashNum {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for HashNum {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "[{}, {}]", self.num, pretty_print_h256(&self.hash))
     }
 }
@@ -69,8 +69,8 @@ struct FinalizationPlan {
     target: HashNum,
 }
 
-impl fmt::Display for ChainStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for ChainStatus {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "best: {}, finalized: {}", self.best, self.finalized)
     }
 }
