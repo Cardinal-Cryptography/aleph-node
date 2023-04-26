@@ -411,7 +411,7 @@ pub mod pallet {
             let (_, verification_key) =
                 ProvingVerificationKeyPairs::<T>::get(verification_key_identifier).ok_or((
                     Error::<T>::UnknownKeyPairIdentifier,
-                    Some(T::WeightInfo::verify_key_deserializing_fails(0)),
+                    Some(T::WeightInfo::verify_key_pair_deserializing_fails(0, 0)),
                 ))?;
 
             let verification_key: S::VerifyingKey =
@@ -419,7 +419,8 @@ pub mod pallet {
                     log::error!("Deserializing verification key failed: {:?}", e);
                     (
                         Error::<T>::DeserializingVerificationKeyFailed,
-                        Some(T::WeightInfo::verify_key_deserializing_fails(
+                        Some(T::WeightInfo::verify_key_pair_deserializing_fails(
+                            0,
                             verification_key.len() as u32,
                         )),
                     )

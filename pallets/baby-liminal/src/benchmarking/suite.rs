@@ -99,7 +99,6 @@ benchmarks! {
         )
     }
 
-    // TODO: Verify that if fails for `LinearEquation`
     // It shouldn't matter whether deserializing of proof fails, but for input it succeeds, or the
     // other way round. The only thing that is important is that we neither read storage nor run the
     // verification procedure.
@@ -115,7 +114,6 @@ benchmarks! {
         )
     }
 
-    // TODO: Verify that if fails for `LinearEquation`
     verify_key_pair_deserializing_fails {
         let l in 1 .. T::MaximumProvingKeyLength::get();
         let m in 1 .. T::MaximumVerificationKeyLength::get();

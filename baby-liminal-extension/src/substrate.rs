@@ -18,8 +18,14 @@ use crate::{
 pub type ByteCount = u32;
 
 /// Provides a weight of `store_key_pair` dispatchable.
-pub fn weight_of_store_key_pair<T: BabyLiminalConfig>(key_pair_len: ByteCount) -> Weight {
-    <<T as BabyLiminalConfig>::WeightInfo as WeightInfo>::store_key_pair(key_pair_len)
+pub fn weight_of_store_key_pair<T: BabyLiminalConfig>(
+    proving_key_len: ByteCount,
+    verification_key_len: ByteCount,
+) -> Weight {
+    <<T as BabyLiminalConfig>::WeightInfo as WeightInfo>::store_key_pair(
+        proving_key_len,
+        verification_key_len,
+    )
 }
 
 #[derive(Default)]
@@ -34,6 +40,7 @@ where
     Env: ChainExtensionEnvironment<E, T> + Executor<T>,
     <T as SysConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
+    // We assume
     #[obce(
         weight(
             expr = r#"{
@@ -41,11 +48,18 @@ where
                     .in_len()
                     .saturating_sub(size_of::<KeyPairIdentifier>() as ByteCount);
 
-                if approx_key_pair_len > 10_000 {
+                if approx_key_pair_len > 60_000 {
                     return Ok(RetVal::Converging(BABY_LIMINAL_STORE_KEY_PAIR_TOO_LONG_KEY_PAIR));
                 }
 
-                weight_of_store_key_pair::<T>(approx_key_pair_len)
+                let synthetic_verification_key_len = 1;
+                let synthetic_proving_key_len = approx_key_pair_len.saturating_sub(
+                    synthetic_verification_key_len as ByteCount
+                );
+
+                weight_of_store_key_pair::<T>(
+                    synthetic_proving_key_len, synthetic_verification_key_len
+                )
             }"#,
             pre_charge
         ),
@@ -60,11 +74,13 @@ where
     ) -> Result<(), BabyLiminalError> {
         let pre_charged = self.pre_charged().unwrap();
 
-        let key_pair_len = proving_key.len() + verification_key.len();
         // Now we know the exact key length.
         self.env.adjust_weight(
             pre_charged,
-            weight_of_store_key_pair::<T>(key_pair_len as ByteCount),
+            weight_of_store_key_pair::<T>(
+                proving_key.len() as ByteCount,
+                verification_key.len() as ByteCount,
+            ),
         );
 
         match Env::store_key_pair(origin, identifier, proving_key, verification_key) {
