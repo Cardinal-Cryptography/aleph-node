@@ -38,6 +38,7 @@ jobs:
           components: clippy rustfmt
 
       - name: Check excluded packages
+        shell: bash
         run: |
           rustup component add clippy rustfmt
           rustup target add wasm32-unknown-unknown
@@ -49,7 +50,7 @@ jobs:
           for p in $(cat Cargo.toml | yj -t | jq -r '.workspace.exclude[]')
           do
             echo "Checking package $p..."
-            cd "$p"
+            pushd "$p"
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
@@ -67,7 +68,7 @@ jobs:
                cargo clippy -- --no-deps -D warnings
             fi
             cargo fmt --all --check
-            cd ..
+            popd
           done
 
       - name: Install nono
