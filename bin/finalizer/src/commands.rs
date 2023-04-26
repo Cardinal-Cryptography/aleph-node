@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, fmt::{Display, Formatter, Result as FmtResult}, fs, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fmt::{Display, Formatter, Result as FmtResult},
+    fs,
+    path::PathBuf,
+};
 
 use aleph_client::{
     aleph_keypair_from_string, api, pallets::aleph::AlephRpc, primitives::app::Public,
