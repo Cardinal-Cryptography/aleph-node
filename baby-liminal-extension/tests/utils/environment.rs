@@ -7,7 +7,7 @@ use std::{
 };
 
 use baby_liminal_extension::{
-    executor::Executor, substrate::ByteCount, BabyLiminalExtension, VerificationKeyIdentifier,
+    executor::Executor, substrate::ByteCount, BabyLiminalExtension, KeyPairIdentifier,
 };
 use obce::substrate::{
     frame_support::weights::Weight, sp_runtime::AccountId32, ChainExtensionEnvironment,
@@ -15,7 +15,7 @@ use obce::substrate::{
 };
 use pallet_baby_liminal::Error;
 
-use crate::utils::{STORE_KEY_ID, VERIFY_ID};
+use crate::utils::{STORE_KEY_PAIR_ID, VERIFY_ID};
 
 /// In order to compute final fee (after all adjustments) sometimes we will have to subtract
 /// weights.
@@ -179,11 +179,11 @@ impl<
 /// The returned value will be an upperbound - it will be the sum of the whole key encoding
 /// (including its length).
 impl<RM: ReadingMode, const STORE_KEY_RESPONDER: Responder, const VERIFY_RESPONDER: Responder>
-    MockedEnvironment<STORE_KEY_ID, RM, STORE_KEY_RESPONDER, VERIFY_RESPONDER>
+    MockedEnvironment<STORE_KEY_PAIR_ID, RM, STORE_KEY_RESPONDER, VERIFY_RESPONDER>
 {
-    pub fn approx_key_len(&self) -> ByteCount {
+    pub fn approx_key_pair_len(&self) -> ByteCount {
         self.in_len
-            .checked_sub(size_of::<VerificationKeyIdentifier>() as ByteCount)
+            .checked_sub(size_of::<KeyPairIdentifier>() as ByteCount)
             .unwrap()
     }
 }
@@ -234,10 +234,6 @@ where
         Ok(())
     }
 
-    fn ext(&mut self) -> &mut E {
-        todo!()
-    }
-
     fn charge_weight(&mut self, amount: Weight) -> Result<Weight, CriticalError> {
         self.charging_channel.send(amount.into()).unwrap();
         Ok(amount)
@@ -247,6 +243,10 @@ where
         self.charging_channel
             .send(RevertibleWeight::neg(charged - actual_weight))
             .unwrap();
+    }
+
+    fn ext(&mut self) -> &mut E {
+        todo!()
     }
 }
 
@@ -264,22 +264,26 @@ pub const fn make_errorer<const ERROR: Error<()>, const WEIGHT: Option<u64>>() -
 }
 
 /// Executor that will return `Ok(())` for `store_key` and scream for `verify`.
-pub type StoreKeyOkayer =
-    MockedEnvironment<STORE_KEY_ID, StandardMode, { Responder::Okayer }, { Responder::Panicker }>;
+pub type StoreKeyPairOkayer = MockedEnvironment<
+    STORE_KEY_PAIR_ID,
+    StandardMode,
+    { Responder::Okayer },
+    { Responder::Panicker },
+>;
 /// Executor that will return `Ok(())` for `verify` and scream for `store_key`.
 pub type VerifyOkayer =
     MockedEnvironment<VERIFY_ID, StandardMode, { Responder::Panicker }, { Responder::Okayer }>;
 
 pub const NO_WEIGHT: Option<u64> = None;
 
-/// Executor that will return `Err(ERROR)` for `store_key` and scream for `verify`.
-pub type StoreKeyErrorer<const ERROR: Error<()>> = MockedEnvironment<
-    STORE_KEY_ID,
+/// Executor that will return `Err(ERROR)` for `store_key_pair` and scream for `verify`.
+pub type StoreKeyPairErrorer<const ERROR: Error<()>> = MockedEnvironment<
+    STORE_KEY_PAIR_ID,
     StandardMode,
     { make_errorer::<ERROR, NO_WEIGHT>() },
     { Responder::Panicker },
 >;
-/// Executor that will return `Err(ERROR)` for `verify` and scream for `store_key`.
+/// Executor that will return `Err(ERROR)` for `verify` and scream for `store_key_pair`.
 pub type VerifyErrorer<const ERROR: Error<()>, const WEIGHT: Option<u64>> = MockedEnvironment<
     VERIFY_ID,
     StandardMode,
@@ -297,20 +301,21 @@ impl<
 {
     type ErrorGenericType = ();
 
-    fn store_key(
+    fn store_key_pair(
         _: AccountId32,
-        _: VerificationKeyIdentifier,
+        _: KeyPairIdentifier,
+        _: Vec<u8>,
         _: Vec<u8>,
     ) -> Result<(), Error<Self::ErrorGenericType>> {
         match STORE_KEY_RESPONDER {
-            Responder::Panicker => panic!("Function `store_key` shouldn't have been executed"),
+            Responder::Panicker => panic!("Function `store_key_pair` shouldn't have been executed"),
             Responder::Okayer => Ok(()),
             Responder::Errorer(e, _) => Err(e),
         }
     }
 
     fn verify(
-        _: VerificationKeyIdentifier,
+        _: KeyPairIdentifier,
         _: Vec<u8>,
         _: Vec<u8>,
     ) -> Result<(), (Error<Self::ErrorGenericType>, Option<Weight>)> {

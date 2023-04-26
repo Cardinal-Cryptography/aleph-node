@@ -3,8 +3,8 @@ use std::sync::mpsc::Receiver;
 use aleph_runtime::Runtime;
 use baby_liminal_extension::{
     executor::Executor,
-    substrate::{weight_of_store_key, Extension},
-    BabyLiminalExtension, VerificationKeyIdentifier,
+    substrate::{weight_of_store_key_pair, Extension},
+    BabyLiminalExtension, KeyPairIdentifier,
 };
 use obce::substrate::{
     frame_support::weights::Weight, pallet_contracts::chain_extension::RetVal,
@@ -15,15 +15,16 @@ use scale::{Decode, Encode};
 mod environment;
 
 pub use environment::{
-    CorruptedMode, MockedEnvironment, Responder, RevertibleWeight, StandardMode, StoreKeyErrorer,
-    StoreKeyOkayer, VerifyErrorer, VerifyOkayer,
+    CorruptedMode, MockedEnvironment, Responder, RevertibleWeight, StandardMode,
+    StoreKeyPairErrorer, StoreKeyPairOkayer, VerifyErrorer, VerifyOkayer,
 };
 use pallet_baby_liminal::{Config as BabyLiminalConfig, WeightInfo};
 
-pub const STORE_KEY_ID: u16 = obce::id!(BabyLiminalExtension::store_key);
+pub const STORE_KEY_PAIR_ID: u16 = obce::id!(BabyLiminalExtension::store_key_pair);
 pub const VERIFY_ID: u16 = obce::id!(BabyLiminalExtension::verify);
 
-const IDENTIFIER: VerificationKeyIdentifier = [1, 7, 2, 9, 1, 7, 2, 9];
+const IDENTIFIER: KeyPairIdentifier = [1, 7, 2, 9, 1, 7, 2, 9];
+const PK: [u8; 4] = [7, 8, 9, 10];
 const VK: [u8; 2] = [4, 1];
 const PROOF: [u8; 20] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4];
 const INPUT: [u8; 11] = [0, 5, 7, 7, 2, 1, 5, 6, 6, 4, 9];
@@ -35,10 +36,11 @@ const INPUT: [u8; 11] = [0, 5, 7, 7, 2, 1, 5, 6, 6, 4, 9];
 ///
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
 #[derive(Decode, Encode)]
-struct StoreKeyArgs {
+struct StoreKeyPairArgs {
     pub origin: AccountId32,
-    pub identifier: VerificationKeyIdentifier,
-    pub key: Vec<u8>,
+    pub identifier: KeyPairIdentifier,
+    pub proving_key: Vec<u8>,
+    pub verification_key: Vec<u8>,
 }
 
 /// Struct to be decoded from a byte slice passed from the contract.
@@ -49,17 +51,18 @@ struct StoreKeyArgs {
 /// It cannot be `MaxEncodedLen` due to `Vec<_>` and thus `Environment::read_as` cannot be used.
 #[derive(Decode, Encode)]
 struct VerifyArgs {
-    pub identifier: VerificationKeyIdentifier,
+    pub identifier: KeyPairIdentifier,
     pub proof: Vec<u8>,
     pub input: Vec<u8>,
 }
 
 /// Returns encoded arguments to `store_key`.
-pub fn store_key_args() -> Vec<u8> {
-    StoreKeyArgs {
+pub fn store_key_pair_args() -> Vec<u8> {
+    StoreKeyPairArgs {
         origin: AccountId32::from([0; 32]),
         identifier: IDENTIFIER,
-        key: VK.to_vec(),
+        proving_key: PK.to_vec(),
+        verification_key: VK.to_vec(),
     }
     .encode()
 }
@@ -79,7 +82,7 @@ pub fn charged(charging_listener: Receiver<RevertibleWeight>) -> RevertibleWeigh
     charging_listener.into_iter().sum()
 }
 
-pub fn simulate_store_key<Env>(
+pub fn simulate_store_key_pair<Env>(
     (env, charging_listener): (Env, Receiver<RevertibleWeight>),
     expected_ret_val: u32,
 ) where
@@ -90,7 +93,7 @@ pub fn simulate_store_key<Env>(
     assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
     assert_eq!(
         charged(charging_listener),
-        weight_of_store_key::<Runtime>(VK.len() as u32).into()
+        weight_of_store_key_pair::<Runtime>(PK.len() as u32, VK.len() as u32).into()
     );
 }
 
