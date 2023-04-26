@@ -37,26 +37,6 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy rustfmt
 
-      - name: Read excluded packages from Cargo.toml
-        id: read_excluded
-        uses: SebRollen/toml-action@v1.0.2
-        with:
-          file: 'Cargo.toml'
-          field: 'workspace.exclude'
-
-      #      - name: Format output
-      #        id: format_output
-      #        run: |
-      #          packages="$(echo ${{ steps.read_excluded.outputs.value }} \
-      #          | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
-      #          targets="$(echo "$packages" | sed -r 's/[A-Za-z0-9_/-]+/&\/target\//g')"
-      #
-      #          packages="${packages//$'\n'/'%0A'}"
-      #          targets="${targets//$'\n'/'%0A'}"
-      #
-      #          echo "packages=$packages" >> $GITHUB_OUTPUT
-      #          echo "targets=$targets" >> $GITHUB_OUTPUT
-
       - name: Check excluded packages
         run: |
           rustup component add clippy rustfmt
@@ -66,9 +46,7 @@ jobs:
           cargo install cargo-dylint dylint-link
           cargo install cargo-contract --vers ^2.0 --force --locked
 
-          # packages="${{ steps.format_output.outputs.packages }}"
-          # packages="${packages//'%0A'/$'\n'}"
-          for p in ${{ join(steps.read_excluded.outputs.value, ' ') }}
+          for p in $(cat Cargo.toml | yj -t | jq -r '.workspace.exclude[]')
           do
             echo "Checking package $p..."
             pushd "$p"
