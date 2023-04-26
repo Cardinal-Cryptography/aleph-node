@@ -30,6 +30,11 @@ jobs:
         runtime: [standard, liminal]
       fail-fast: false
     steps:
+      - name: Start sccache server
+        run: |
+          mkdir /tmp/sccache
+          /usr/local/bin/sccache --start-server &
+
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
 
