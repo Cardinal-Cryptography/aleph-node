@@ -49,7 +49,7 @@ jobs:
           for p in $(cat Cargo.toml | yj -t | jq -r '.workspace.exclude[]')
           do
             echo "Checking package $p..."
-            pushd "$p"
+            cd "$p"
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
@@ -67,7 +67,7 @@ jobs:
                cargo clippy -- --no-deps -D warnings
             fi
             cargo fmt --all --check
-            popd
+            cd ..
           done
 
       - name: Install nono
