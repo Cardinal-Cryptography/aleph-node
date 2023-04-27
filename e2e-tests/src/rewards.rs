@@ -1,20 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use aleph_client::{
-    account_from_keypair,
-    pallets::{
-        author::AuthorRpc,
-        balances::{BalanceUserApi, BalanceUserBatchExtApi},
-        committee_management::CommitteeManagementApi,
-        elections::{ElectionsApi, ElectionsSudoApi},
-        session::{SessionApi, SessionUserApi},
-        staking::{StakingApi, StakingUserApi},
-    },
-    primitives::{CommitteeSeats, EraValidators},
-    utility::BlocksApi,
-    waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, SignedConnection, TxStatus,
-};
+use aleph_client::{account_from_keypair, pallets::{
+    author::AuthorRpc,
+    balances::{BalanceUserApi, BalanceUserBatchExtApi},
+    committee_management::CommitteeManagementApi,
+    elections::{ElectionsApi, ElectionsSudoApi},
+    session::{SessionApi, SessionUserApi},
+    staking::{StakingApi, StakingUserApi},
+}, primitives::{CommitteeSeats, EraValidators}, utility::BlocksApi, waiting::{AlephWaiting, BlockStatus, WaitingExt}, AccountId, SignedConnection, TxStatus, AsConnection};
 use anyhow::anyhow;
 use log::{debug, info};
 use primitives::{Balance, BlockHash, EraIndex, SessionIndex, LENIENT_THRESHOLD, TOKEN};
@@ -158,7 +151,7 @@ async fn get_node_performance<S: ElectionsApi + CommitteeManagementApi>(
 }
 
 pub async fn check_points<
-    S: ElectionsApi + CommitteeManagementApi + AlephWaiting + BlocksApi + StakingApi,
+    S: AsConnection + Sync,
 >(
     connection: &S,
     session: SessionIndex,
@@ -327,7 +320,7 @@ pub async fn setup_validators(
         )
         .await?;
 
-    root_connection.wait_for_n_eras(1, BlockStatus::Best).await;
+    root_connection.wait_for_n_eras(2, BlockStatus::Best).await;
     let session = root_connection.get_session(None).await;
 
     let first_block_in_session = root_connection.first_block_of_session(session).await?;

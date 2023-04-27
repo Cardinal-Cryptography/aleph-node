@@ -1,27 +1,44 @@
 use std::{collections::HashSet, iter::empty};
 
 use aleph_client::{
-    pallets::session::SessionApi,
+    pallets::{committee_management::CommitteeManagementApi, session::SessionApi},
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
-    AccountId,
+    AccountId, AsConnection,
 };
 use log::debug;
 use primitives::SessionIndex;
 
-pub async fn get_and_test_members_for_session<C: SessionApi + BlocksApi>(
+pub async fn get_reserved_and_non_reserved_for_session<C: AsConnection + Sync>(
+    connection: &C,
+    validators: &EraValidators<AccountId>,
+    session: SessionIndex,
+) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
+    let first_block = connection
+        .as_connection()
+        .first_block_of_session(session)
+        .await?;
+
+    let committee = connection
+        .as_connection()
+        .get_session_committee(session, first_block)
+        .await?
+        .expect("Committee should be known at this point")
+        .block_producers;
+
+    Ok(committee
+        .into_iter()
+        .partition(|id| validators.reserved.contains(id)))
+}
+
+pub async fn get_and_test_members_for_session<C: AsConnection + Sync>(
     connection: &C,
     seats: CommitteeSeats,
     era_validators: &EraValidators<AccountId>,
     session: SessionIndex,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let reserved_members_for_session =
-        get_members_subset_for_session(seats.reserved_seats, &era_validators.reserved, session);
-    let non_reserved_members_for_session = get_members_subset_for_session(
-        seats.non_reserved_seats,
-        &era_validators.non_reserved,
-        session,
-    );
+    let (reserved_members_for_session, non_reserved_members_for_session) =
+        get_reserved_and_non_reserved_for_session(connection, era_validators, session).await?;
 
     let reserved_members_bench =
         get_bench_members(&era_validators.reserved, &reserved_members_for_session);

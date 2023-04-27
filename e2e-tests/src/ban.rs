@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use aleph_client::{
     api::committee_management::events::BanValidators,
     pallets::{
@@ -66,8 +68,14 @@ pub fn check_validators(
     expected_non_reserved: &[AccountId],
     era_validators: EraValidators<AccountId>,
 ) -> EraValidators<AccountId> {
-    assert_eq!(era_validators.reserved, expected_reserved);
-    assert_eq!(era_validators.non_reserved, expected_non_reserved);
+    assert_eq!(
+        HashSet::<_>::from_iter(&era_validators.reserved),
+        HashSet::<_>::from_iter(expected_reserved)
+    );
+    assert_eq!(
+        HashSet::<_>::from_iter(&era_validators.non_reserved),
+        HashSet::<_>::from_iter(expected_non_reserved)
+    );
 
     era_validators
 }
