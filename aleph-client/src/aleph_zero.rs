@@ -6287,10 +6287,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            64u8, 2u8, 119u8, 64u8, 77u8, 132u8, 160u8, 75u8, 63u8, 93u8, 118u8,
-                            253u8, 158u8, 196u8, 200u8, 42u8, 102u8, 222u8, 202u8, 144u8, 92u8,
-                            212u8, 176u8, 30u8, 47u8, 35u8, 115u8, 89u8, 160u8, 111u8, 141u8,
-                            179u8,
+                            11u8, 240u8, 14u8, 236u8, 5u8, 121u8, 187u8, 158u8, 64u8, 64u8, 249u8,
+                            143u8, 50u8, 125u8, 89u8, 116u8, 77u8, 175u8, 93u8, 111u8, 79u8, 203u8,
+                            204u8, 116u8, 156u8, 157u8, 191u8, 23u8, 224u8, 26u8, 128u8, 109u8,
                         ],
                     )
                 }
@@ -12936,9 +12935,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
                     ::subxt::metadata::DecodeStaticType<
-                        runtime_types::pallet_committee_management::ChangingValue<
-                            runtime_types::sp_arithmetic::per_things::Perquintill,
-                        >,
+                        runtime_types::sp_arithmetic::per_things::Perquintill,
                     >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -12949,9 +12946,10 @@ pub mod api {
                         "LenientThreshold",
                         vec![],
                         [
-                            118u8, 16u8, 232u8, 58u8, 68u8, 242u8, 76u8, 215u8, 212u8, 40u8, 146u8,
-                            120u8, 89u8, 226u8, 124u8, 216u8, 255u8, 213u8, 122u8, 155u8, 85u8,
-                            33u8, 89u8, 2u8, 70u8, 31u8, 160u8, 228u8, 132u8, 0u8, 109u8, 55u8,
+                            210u8, 203u8, 81u8, 229u8, 150u8, 247u8, 113u8, 129u8, 136u8, 57u8,
+                            199u8, 98u8, 73u8, 227u8, 92u8, 181u8, 184u8, 99u8, 165u8, 110u8,
+                            147u8, 191u8, 178u8, 105u8, 124u8, 206u8, 8u8, 208u8, 19u8, 40u8, 99u8,
+                            130u8,
                         ],
                     )
                 }
@@ -13140,10 +13138,8 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
                     ::subxt::metadata::DecodeStaticType<
-                        runtime_types::pallet_committee_management::ChangingValue<
-                            runtime_types::primitives::SessionValidators<
-                                ::subxt::ext::sp_core::crypto::AccountId32,
-                            >,
+                        runtime_types::pallet_committee_management::CurrentAndNextSessionValidators<
+                            ::subxt::ext::sp_core::crypto::AccountId32,
                         >,
                     >,
                     ::subxt::storage::address::Yes,
@@ -14263,9 +14259,9 @@ pub mod api {
                 Eq,
                 PartialEq,
             )]
-            pub struct ChangingValue<_0> {
-                pub next: _0,
-                pub current: _0,
+            pub struct CurrentAndNextSessionValidators<_0> {
+                pub next: runtime_types::primitives::SessionValidators<_0>,
+                pub current: runtime_types::primitives::SessionValidators<_0>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -19899,9 +19895,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                29u8, 199u8, 103u8, 53u8, 177u8, 197u8, 154u8, 24u8, 219u8, 104u8, 151u8, 89u8,
-                112u8, 29u8, 141u8, 219u8, 25u8, 110u8, 139u8, 252u8, 95u8, 39u8, 20u8, 184u8,
-                67u8, 69u8, 31u8, 89u8, 222u8, 2u8, 14u8, 196u8,
+                94u8, 104u8, 212u8, 231u8, 3u8, 9u8, 113u8, 27u8, 236u8, 173u8, 76u8, 94u8, 178u8,
+                106u8, 184u8, 117u8, 134u8, 175u8, 72u8, 157u8, 28u8, 69u8, 227u8, 15u8, 79u8,
+                194u8, 7u8, 68u8, 90u8, 191u8, 112u8, 70u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)

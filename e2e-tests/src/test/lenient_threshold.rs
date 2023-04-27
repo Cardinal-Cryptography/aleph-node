@@ -15,9 +15,6 @@ pub async fn set_lenient_threshold_test() -> anyhow::Result<()> {
     root_connection
         .set_lenient_threshold(69, TxStatus::Finalized)
         .await?;
-    root_connection
-        .wait_for_n_eras(1, BlockStatus::Finalized)
-        .await;
 
     assert_eq!(
         Some(Perquintill::from_percent(69)),
