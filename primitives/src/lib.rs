@@ -310,6 +310,11 @@ impl<T> Default for SessionValidators<T> {
     }
 }
 
+/// Information provider from `pallet_session`. Loose pallet coupling via traits.
+pub trait SessionInfoProvider {
+    fn current_session() -> SessionIndex;
+}
+
 pub trait BannedValidators {
     type AccountId;
     /// returns currently banned validators

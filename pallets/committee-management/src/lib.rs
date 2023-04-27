@@ -66,10 +66,10 @@ pub mod pallet {
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use primitives::{
         BanHandler, BanReason, BlockCount, FinalityCommitteeManager, SessionCount,
-        SessionValidators, ValidatorProvider,
+        SessionInfoProvider, SessionValidators, ValidatorProvider,
     };
-    use sp_runtime::{DispatchResultWithInfo, Perbill};
-    use sp_staking::{EraIndex, SessionIndex};
+    use sp_runtime::Perbill;
+    use sp_staking::EraIndex;
     use sp_std::vec::Vec;
 
     use crate::{
@@ -92,6 +92,7 @@ pub mod pallet {
         /// Something that handles removal of the validators
         type ValidatorExtractor: ValidatorExtractor<AccountId = Self::AccountId>;
         type FinalityCommitteeManager: FinalityCommitteeManager<Self::AccountId>;
+        type SessionInfoProvider: SessionInfoProvider;
         /// Nr of blocks in the session.
         #[pallet::constant]
         type SessionPeriod: Get<u32>;

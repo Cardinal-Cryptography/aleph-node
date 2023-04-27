@@ -1,13 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
-use aleph_client::{account_from_keypair, pallets::{
-    author::AuthorRpc,
-    balances::{BalanceUserApi, BalanceUserBatchExtApi},
-    committee_management::CommitteeManagementApi,
-    elections::{ElectionsApi, ElectionsSudoApi},
-    session::{SessionApi, SessionUserApi},
-    staking::{StakingApi, StakingUserApi},
-}, primitives::{CommitteeSeats, EraValidators}, utility::BlocksApi, waiting::{AlephWaiting, BlockStatus, WaitingExt}, AccountId, SignedConnection, TxStatus, AsConnection};
+use aleph_client::{
+    account_from_keypair,
+    pallets::{
+        author::AuthorRpc,
+        balances::{BalanceUserApi, BalanceUserBatchExtApi},
+        committee_management::CommitteeManagementApi,
+        elections::{ElectionsApi, ElectionsSudoApi},
+        session::{SessionApi, SessionUserApi},
+        staking::{StakingApi, StakingUserApi},
+    },
+    primitives::{CommitteeSeats, EraValidators},
+    utility::BlocksApi,
+    waiting::{AlephWaiting, BlockStatus, WaitingExt},
+    AccountId, AsConnection, SignedConnection, TxStatus,
+};
 use anyhow::anyhow;
 use log::{debug, info};
 use primitives::{Balance, BlockHash, EraIndex, SessionIndex, LENIENT_THRESHOLD, TOKEN};
@@ -150,9 +157,7 @@ async fn get_node_performance<S: ElectionsApi + CommitteeManagementApi>(
     lenient_performance
 }
 
-pub async fn check_points<
-    S: AsConnection + Sync,
->(
+pub async fn check_points<S: AsConnection + Sync>(
     connection: &S,
     session: SessionIndex,
     era: EraIndex,

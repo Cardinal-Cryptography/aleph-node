@@ -2,8 +2,8 @@ use codec::Encode;
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
-    SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
-    LENIENT_THRESHOLD,
+    SessionCommittee, SessionInfoProvider, SessionValidatorError, SessionValidators,
+    ValidatorProvider, LENIENT_THRESHOLD,
 };
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use sp_runtime::{Perbill, Perquintill};
@@ -438,6 +438,8 @@ impl<T: Config> Pallet<T> {
             _ => return Err(SessionValidatorError::Other("No active era".encode())),
         };
 
+        let current_session = T::SessionInfoProvider::current_session();
+
         let active_starting_index = match T::EraInfoProvider::era_start_session_index(ae) {
             Some(asi) => asi,
             // Shouldn't happen
@@ -449,11 +451,17 @@ impl<T: Config> Pallet<T> {
         };
 
         // Historical session
-        if session < active_starting_index {
+        if session < active_starting_index - 1 {
             return Err(SessionValidatorError::OldEra);
         }
 
         let planned_era_end = active_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
+
+        if current_session == planned_era_end {
+            return Err(SessionValidatorError::Other(
+                "We no longer can compute committee for this session".encode(),
+            ));
+        }
 
         if session <= planned_era_end {
             let era_validators = T::ValidatorProvider::current_era_validators().ok_or(

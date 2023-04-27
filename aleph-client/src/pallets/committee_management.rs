@@ -1,14 +1,14 @@
-use subxt::rpc_params;
 use codec::Encode;
-use subxt::ext::sp_core::Bytes;
+use primitives::{SessionCommittee, SessionValidatorError};
+use subxt::{ext::sp_core::Bytes, rpc_params};
 
 use crate::{
     aleph_runtime::RuntimeCall::CommitteeManagement,
     api,
     pallet_committee_management::pallet::Call::{ban_from_committee, set_ban_config},
     primitives::{BanConfig, BanInfo, BanReason},
-    AccountId, AsConnection, BlockHash, ConnectionApi, EraIndex, RootConnection, SessionCommittee,
-    SessionCount, SessionIndex, SessionValidatorError, SudoCall, TxInfo, TxStatus,
+    AccountId, AsConnection, BlockHash, ConnectionApi, EraIndex, RootConnection, SessionCount,
+    SessionIndex, SudoCall, TxInfo, TxStatus,
 };
 
 /// Pallet CommitteeManagement read-only api.
@@ -56,6 +56,9 @@ pub trait CommitteeManagementApi {
     /// Returns `committee-management.session_period` const of the committee-management pallet.
     async fn get_session_period(&self) -> anyhow::Result<u32>;
 
+    /// Returns committee for a given session. If session belongs to era `E` which spawns across sessions
+    /// n...m then block `at` should be in one of the session from `n-1...m-1` otherwise it will return an error.
+    /// This can compute committee for future sessions in the current era.
     async fn get_session_committee(
         &self,
         session: SessionIndex,
@@ -163,7 +166,7 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     ) -> anyhow::Result<Result<SessionCommittee<AccountId>, SessionValidatorError>> {
         let method = "state_call";
         let api_method = "AlephSessionApi_session_committee";
-        let params = rpc_params![api_method,  Bytes(session.encode()), at];
+        let params = rpc_params![api_method, Bytes(session.encode()), at];
 
         self.rpc_call(method.to_string(), params).await
     }

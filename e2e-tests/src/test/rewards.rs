@@ -1,9 +1,13 @@
-use aleph_client::{pallets::{
-    committee_management::CommitteeManagementApi,
-    elections::ElectionsApi,
-    session::SessionApi,
-    staking::{StakingApi, StakingSudoApi},
-}, primitives::{CommitteeSeats, EraValidators}, utility::{BlocksApi, SessionEraApi}, waiting::{AlephWaiting, BlockStatus, WaitingExt}, AccountId, SignedConnection, SignedConnectionApi, TxStatus, AsConnection};
+use aleph_client::{
+    pallets::{
+        session::SessionApi,
+        staking::{StakingApi, StakingSudoApi},
+    },
+    primitives::{CommitteeSeats, EraValidators},
+    utility::{SessionEraApi},
+    waiting::{AlephWaiting, BlockStatus, WaitingExt},
+    AccountId, AsConnection, SignedConnection, TxStatus,
+};
 use log::info;
 use primitives::{staking::MIN_VALIDATOR_BOND, EraIndex, SessionIndex};
 
@@ -15,7 +19,6 @@ use crate::{
         validators_bond_extra_stakes,
     },
 };
-use crate::elections::get_reserved_and_non_reserved_for_session;
 
 // Maximum difference between fractions of total reward that a validator gets.
 // Two values are compared: one calculated in tests and the other one based on data
@@ -25,9 +28,6 @@ const MAX_DIFFERENCE: f64 = 0.07;
 #[tokio::test]
 pub async fn points_basic() -> anyhow::Result<()> {
     let config = setup_test();
-    let connection = config.get_first_signed_connection().await;
-    let p = get_reserved_and_non_reserved_for_session(&connection, &connection.get_current_era_validators(connection.first_block_of_session(14).await?).await, 14).await?;
-    log::error!("{:?}", p);
     let (era_validators, committee_size, start_session) = setup_validators(config).await?;
 
     let connection = config.get_first_signed_connection().await;
@@ -262,9 +262,7 @@ pub async fn change_stake_and_force_new_era() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn check_points_after_force_new_era<
-    S: AsConnection + Sync,
->(
+async fn check_points_after_force_new_era<S: AsConnection + Sync>(
     connection: &S,
     start_session: SessionIndex,
     start_era: EraIndex,

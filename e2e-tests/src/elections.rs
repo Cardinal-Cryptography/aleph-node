@@ -1,27 +1,32 @@
 use std::{collections::HashSet, iter::empty};
 
 use aleph_client::{
-    pallets::{committee_management::CommitteeManagementApi, session::SessionApi},
+    pallets::{
+        committee_management::CommitteeManagementApi, elections::ElectionsApi, session::SessionApi,
+        staking::StakingApi,
+    },
     primitives::{CommitteeSeats, EraValidators},
-    utility::BlocksApi,
+    utility::{BlocksApi, SessionEraApi},
     AccountId, AsConnection,
 };
-use log::debug;
-use primitives::SessionIndex;
+use log::{debug};
+use primitives::{SessionIndex};
 
-pub async fn get_reserved_and_non_reserved_for_session<C: AsConnection + Sync>(
+pub async fn compute_session_committee<C: AsConnection + Sync>(
     connection: &C,
-    validators: &EraValidators<AccountId>,
     session: SessionIndex,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
-    let first_block = connection
-        .as_connection()
-        .first_block_of_session(session)
-        .await?;
+    let sessions_per_era = connection.get_session_per_era().await?;
+    let era = connection.get_active_era_for_session(session).await?;
+    let first_session = era * sessions_per_era;
+    let first_block_in_era = connection.first_block_of_session(first_session).await?;
+
+    let validators = connection
+        .get_current_era_validators(first_block_in_era)
+        .await;
 
     let committee = connection
-        .as_connection()
-        .get_session_committee(session, first_block)
+        .get_session_committee(session, first_block_in_era)
         .await?
         .expect("Committee should be known at this point")
         .block_producers;
@@ -38,8 +43,7 @@ pub async fn get_and_test_members_for_session<C: AsConnection + Sync>(
     session: SessionIndex,
 ) -> anyhow::Result<(Vec<AccountId>, Vec<AccountId>)> {
     let (reserved_members_for_session, non_reserved_members_for_session) =
-        get_reserved_and_non_reserved_for_session(connection, era_validators, session).await?;
-
+        compute_session_committee(connection, session).await?;
     let reserved_members_bench =
         get_bench_members(&era_validators.reserved, &reserved_members_for_session);
     let non_reserved_members_bench = get_bench_members(
