@@ -51,27 +51,19 @@ async fn finalize_from_to<C: AsConnection + Sync>(
     Ok(())
 }
 
-/// Tests emergency finalizer. Runs on 6 nodes 0-6.
-/// * Setup finalizer
-/// * setup 0-4 to be validators in the next era
-/// * setup 2-6 to be validators in the next next era
-/// * disable 0-1.
-/// * wait for next era
-/// * check if finalization stopped
-/// * use finalizer to advance into next-next era
-/// * check if finalization resumed
-#[tokio::test]
-async fn chain_dead_scenario() -> anyhow::Result<()> {
+async fn setup() -> anyhow::Result<AlephKeyPair> {
     let config = setup_test();
     let (finalizer, _seed) = AlephKeyPair::generate();
-    let root = config.create_root_connection().await;
+    let connection = config.create_root_connection().await;
 
-    root.set_emergency_finalizer(finalizer.public().into(), TxStatus::Finalized)
+    connection
+        .set_emergency_finalizer(finalizer.public().into(), TxStatus::Finalized)
         .await?;
-    root.wait_for_n_sessions(2, BlockStatus::Finalized).await;
+    connection
+        .wait_for_n_sessions(2, BlockStatus::Finalized)
+        .await;
 
     let accounts = get_validators_keys(config);
-    let connection = config.create_root_connection().await;
 
     let new_validators: Vec<AccountId> = accounts
         .iter()
@@ -102,6 +94,25 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
         )
         .await?;
     disable_validators(&[0, 1]).await?;
+
+    Ok(finalizer)
+}
+
+/// Tests emergency finalizer. Runs on 6 nodes 0-6.
+/// * Setup finalizer
+/// * setup 0-4 to be validators in the next era
+/// * setup 2-6 to be validators in the next next era
+/// * disable 0-1.
+/// * wait for next era
+/// * check if finalization stopped
+/// * use finalizer to advance into next-next era
+/// * check if finalization resumed
+#[tokio::test]
+async fn chain_dead_scenario() -> anyhow::Result<()> {
+    let config = setup_test();
+    let finalizer = setup().await?;
+    let connection = config.create_root_connection().await;
+
     let last_finalized = connection.get_finalized_block_hash().await?;
     let last_finalized_before = connection.get_block_number(last_finalized).await?.unwrap();
     sleep(Duration::from_secs(50));
@@ -113,6 +124,8 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
         "at most 20 blocks can be created after finalization stops"
     );
     let current_era = connection.get_active_era(Some(last_finalized)).await;
+
+    // use finalizer to advance into the next era
     while current_era == connection.get_active_era(Some(last_finalized)).await {
         let last_best_block = connection.get_best_block().await?.unwrap();
         let last_best_block = connection.get_block_hash(last_best_block).await?.unwrap();
