@@ -14,7 +14,7 @@ async fn set_emergency_finalizer_test() -> anyhow::Result<()> {
     let root = config.create_root_connection().await;
     let current_finalizer = root.as_connection().emergency_finalizer(None).await;
 
-    assert!(current_finalizer != Some(public));
+    assert_ne!(current_finalizer, Some(public));
 
     root.set_emergency_finalizer(finalizer.public().into(), TxStatus::Finalized)
         .await?;
@@ -22,5 +22,13 @@ async fn set_emergency_finalizer_test() -> anyhow::Result<()> {
 
     let current_finalizer = root.as_connection().emergency_finalizer(None).await;
     assert_eq!(current_finalizer, Some(public));
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn chain_dead_scenario() -> anyhow::Result<()> {
+
+
     Ok(())
 }
