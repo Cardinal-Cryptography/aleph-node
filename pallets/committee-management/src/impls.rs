@@ -316,8 +316,8 @@ impl<T: Config> Pallet<T> {
             reserved_seats as usize,
             non_reserved_seats as usize,
             non_reserved_finality_seats as usize,
-            &reserved,
-            &non_reserved,
+            reserved,
+            non_reserved,
         )
     }
 
@@ -464,16 +464,18 @@ impl<T: Config> Pallet<T> {
         }
 
         if session <= planned_era_end {
-            let era_validators = T::ValidatorProvider::current_era_validators().ok_or(
-                SessionValidatorError::Other("Couldn't get validators for current era".encode()),
-            )?;
-            let committee_seats = T::ValidatorProvider::current_era_committee_size().ok_or(
-                SessionValidatorError::Other(
-                    "Couldn't get committee-seats for current era".encode(),
-                ),
-            )?;
+            let era_validators =
+                T::ValidatorProvider::current_era_validators().ok_or_else(|| {
+                    SessionValidatorError::Other("Couldn't get validators for current era".encode())
+                })?;
+            let committee_seats =
+                T::ValidatorProvider::current_era_committee_size().ok_or_else(|| {
+                    SessionValidatorError::Other(
+                        "Couldn't get committee-seats for current era".encode(),
+                    )
+                })?;
             return Self::rotate_committee_inner(&era_validators, committee_seats, session)
-                .ok_or(SessionValidatorError::Other("Internal error".encode()));
+                .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()));
         }
         Err(SessionValidatorError::SessionTooMuchIntoFuture {
             upper_limit: planned_era_end,
