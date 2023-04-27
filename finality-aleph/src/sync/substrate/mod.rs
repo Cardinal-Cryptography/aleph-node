@@ -103,7 +103,6 @@ pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Sen
     fn translate(
         &self,
         raw_justification: AlephJustification,
-        hash: H::Hash,
-        number: H::Number,
+        block_id: BlockId<H>,
     ) -> Result<Justification<H>, Self::Error>;
 }

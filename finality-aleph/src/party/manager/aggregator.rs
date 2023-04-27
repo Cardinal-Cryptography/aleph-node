@@ -75,8 +75,7 @@ where
     // The unwrap might actually fail if data availability is not implemented correctly.
     let justification = match justification_translator.translate(
         AlephJustification::CommitteeMultisignature(multisignature),
-        hash,
-        number,
+        BlockId::new(hash, number),
     ) {
         Ok(justification) => justification,
         Err(e) => {

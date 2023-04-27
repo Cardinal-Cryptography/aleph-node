@@ -1,4 +1,9 @@
-use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
+use std::{
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    hash::Hash,
+    path::PathBuf,
+    sync::Arc,
+};
 
 use aleph_primitives::{AuthorityId, BlockNumber};
 use codec::{Codec, Decode, Encode, Output};
@@ -226,7 +231,7 @@ pub struct BlockId<H: Header<Number = BlockNumber>> {
 }
 
 impl<H: Header<Number = BlockNumber>> BlockId<H> {
-    fn new(hash: H::Hash, number: BlockNumber) -> Self {
+    pub fn new(hash: H::Hash, number: BlockNumber) -> Self {
         BlockId { hash, number }
     }
 }
@@ -244,6 +249,12 @@ impl<SH: Header<Number = BlockNumber>> Hash for BlockId<SH> {
     {
         self.hash.hash(state);
         self.number.hash(state);
+    }
+}
+
+impl<H: Header<Number = BlockNumber>> Display for BlockId<H> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(f, "#{} ({})", self.number, self.hash,)
     }
 }
 
