@@ -1,3 +1,4 @@
+use codec::{Decode, Encode};
 use subxt::ext::sp_runtime::Perquintill;
 
 use crate::{
@@ -166,7 +167,7 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
 
         self.get_storage_entry_maybe(&addrs, at)
             .await
-            .map(|lt| Perquintill::from_perthousand(lt.current.0))
+            .map(|lt| Perquintill::decode(&mut &*lt.current.encode()).unwrap())
     }
 }
 
