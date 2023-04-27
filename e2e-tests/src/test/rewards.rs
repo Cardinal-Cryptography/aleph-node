@@ -4,7 +4,7 @@ use aleph_client::{
         staking::{StakingApi, StakingSudoApi},
     },
     primitives::{CommitteeSeats, EraValidators},
-    utility::{SessionEraApi},
+    utility::SessionEraApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, AsConnection, SignedConnection, TxStatus,
 };

@@ -10,10 +10,8 @@ use aleph_client::{
 use anyhow::anyhow;
 
 use crate::{
-    accounts::account_ids_from_keys,
-    config::setup_test,
+    accounts::account_ids_from_keys, config::setup_test, elections::compute_session_committee,
     validators::get_test_validators,
-    elections::compute_session_committee
 };
 
 const TEST_LENGTH: u32 = 5;
@@ -58,10 +56,7 @@ pub async fn validators_rotate() -> anyhow::Result<()> {
             .get_validators(connection.first_block_of_session(session).await?)
             .await;
 
-        let (_, non_reserved) = compute_session_committee(
-            &root_connection,
-            session,
-        ).await?;
+        let (_, non_reserved) = compute_session_committee(&root_connection, session).await?;
 
         for nr in non_reserved.clone() {
             *non_reserved_count.entry(nr).or_insert(0) += 1;

@@ -9,8 +9,8 @@ use aleph_client::{
     utility::{BlocksApi, SessionEraApi},
     AccountId, AsConnection,
 };
-use log::{debug};
-use primitives::{SessionIndex};
+use log::debug;
+use primitives::SessionIndex;
 
 pub async fn compute_session_committee<C: AsConnection + Sync>(
     connection: &C,
