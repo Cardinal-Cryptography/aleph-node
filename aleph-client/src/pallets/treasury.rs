@@ -1,17 +1,23 @@
-use frame_support::PalletId;
-use primitives::{Balance, MILLISECS_PER_BLOCK};
-use sp_runtime::traits::AccountIdConversion;
+use primitives::{staking::era_payout, MILLISECS_PER_BLOCK};
 use subxt::ext::sp_runtime::MultiAddress;
 
 use crate::{
     api,
     connections::{AsConnection, TxInfo},
+    frame_support::PalletId,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{committee_management::CommitteeManagementApi, staking::StakingApi},
-    AccountId, BlockHash,
+    sp_core::TypeId,
+    sp_runtime::traits::AccountIdConversion,
+    AccountId, Balance, BlockHash,
     Call::Treasury,
     ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
 };
+
+// Copied from `frame_support`.
+impl TypeId for PalletId {
+    const TYPE_ID: [u8; 4] = *b"modl";
+}
 
 /// Pallet treasury read-only api.
 #[async_trait::async_trait]
@@ -135,6 +141,6 @@ impl<C: AsConnection + Sync> TreasureApiExt for C {
         let sessions_per_era = self.get_session_per_era().await?;
         let millisecs_per_era =
             MILLISECS_PER_BLOCK * session_period as u64 * sessions_per_era as u64;
-        Ok(primitives::staking::era_payout(millisecs_per_era).1)
+        Ok(era_payout(millisecs_per_era).1)
     }
 }

@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
+#![feature(min_specialization)]
 
 mod errors;
 
@@ -9,17 +10,28 @@ pub mod button_game {
     #[cfg(feature = "std")]
     use ink::storage::traits::StorageLayout;
     use ink::{
-        codegen::EmitEvent,
-        env::{call::FromAccountId, CallFlags},
+        codegen::{EmitEvent, Env},
+        env::{
+            call::{build_call, ExecutionInput, FromAccountId},
+            set_code_hash, CallFlags, DefaultEnvironment,
+        },
         prelude::vec,
         reflect::ContractEventBase,
+        storage::{traits::ManualKey, Lazy},
         ToAccountId,
     };
     use marketplace::marketplace::MarketplaceRef;
-    use openbrush::contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref};
+    use openbrush::{
+        contracts::psp22::{extensions::mintable::PSP22MintableRef, PSP22Ref},
+        traits::Storage,
+    };
     use scale::{Decode, Encode};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
 
     use crate::errors::GameError;
+
+    pub const ONE_TOKEN: Balance = 1_000_000_000_000;
+    pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
 
     /// Result type
     type ButtonResult<T> = core::result::Result<T, GameError>;
@@ -49,12 +61,31 @@ pub mod button_game {
         score: Balance,
     }
 
+    /// Event emitted when a reward token is minted to a players account
+    ///
+    /// Could be a regular player or the Pressiah
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct RewardMinted {
+        when: BlockNumber,
+        #[ink(topic)]
+        reward_token: AccountId,
+        to: AccountId,
+        amount: Balance,
+    }
+
     /// Event emitted when the finished game is reset and pressiah is rewarded
     #[ink(event)]
     #[derive(Debug)]
     pub struct GameReset {
         when: BlockNumber,
     }
+
+    #[ink(event)]
+    pub struct Halted;
+
+    #[ink(event)]
+    pub struct Resumed;
 
     /// Scoring strategy indicating what kind of reward users get for pressing the button
     #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
@@ -68,9 +99,9 @@ pub mod button_game {
         ThePressiahCometh,
     }
 
-    /// Game contracts storage
-    #[ink(storage)]
-    pub struct ButtonGame {
+    #[derive(Debug)]
+    #[ink::storage_item]
+    pub struct Data {
         /// How long does TheButton live for?
         pub button_lifetime: BlockNumber,
         /// stores the last account that pressed The Button
@@ -95,6 +126,40 @@ pub mod button_game {
         pub round: u64,
     }
 
+    /// Game contracts storage
+    #[ink(storage)]
+    #[derive(Storage)]
+    pub struct ButtonGame {
+        pub data: Lazy<Data, ManualKey<0x44415441>>,
+        /// is contract in the halted state
+        #[storage_field]
+        pub halted: HaltableData,
+    }
+
+    impl Internal for ButtonGame {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
+        }
+
+        fn _after_resume(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+    }
+
+    impl Haltable for ButtonGame {}
+
     impl ButtonGame {
         #[ink(constructor)]
         pub fn new(
@@ -112,8 +177,8 @@ pub mod button_game {
             let access_control = AccountId::from(ACCESS_CONTROL_PUBKEY);
             let access_control = AccessControlRef::from_account_id(access_control);
 
-            match ButtonGame::check_role(&access_control, caller, required_role) {
-                Ok(_) => Self::init(
+            match access_control.has_role(caller, required_role) {
+                true => Self::init(
                     access_control,
                     ticket_token,
                     reward_token,
@@ -121,7 +186,7 @@ pub mod button_game {
                     button_lifetime,
                     scoring,
                 ),
-                Err(why) => panic!("Could not initialize the contract {:?}", why),
+                false => panic!("Caller is not allowed to initialize this contract"),
             }
         }
 
@@ -130,13 +195,14 @@ pub mod button_game {
         /// Deadline is the block number at which the game will end if there are no more participants
         #[ink(message)]
         pub fn deadline(&self) -> BlockNumber {
-            self.last_press + self.button_lifetime
+            let data = self.data.get().unwrap();
+            data.last_press + data.button_lifetime
         }
 
         /// Returns the curent round number
         #[ink(message)]
         pub fn round(&self) -> u64 {
-            self.round
+            self.data.get().unwrap().round
         }
 
         /// Returns the buttons status
@@ -149,31 +215,31 @@ pub mod button_game {
         /// If button is dead, this is The Pressiah.
         #[ink(message)]
         pub fn last_presser(&self) -> Option<AccountId> {
-            self.last_presser
+            self.data.get().unwrap().last_presser
         }
 
         /// Returns the current access control contract address
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control.to_account_id()
+            self.data.get().unwrap().access_control.to_account_id()
         }
 
         /// Returns address of the game's reward token
         #[ink(message)]
         pub fn reward_token(&self) -> AccountId {
-            self.reward_token
+            self.data.get().unwrap().reward_token
         }
 
         /// Returns address of the game's ticket token
         #[ink(message)]
         pub fn ticket_token(&self) -> AccountId {
-            self.ticket_token
+            self.data.get().unwrap().ticket_token
         }
 
         /// Returns the address of the marketplace for exchanging this game's rewards for tickets.
         #[ink(message)]
         pub fn marketplace(&self) -> AccountId {
-            self.marketplace.to_account_id()
+            self.data.get().unwrap().marketplace.to_account_id()
         }
 
         /// Returns own code hash
@@ -189,6 +255,8 @@ pub mod button_game {
         /// If called on alive button, instantaneously mints reward tokens to the caller
         #[ink(message)]
         pub fn press(&mut self) -> ButtonResult<()> {
+            self.check_halted()?;
+
             if self.is_dead() {
                 return Err(GameError::AfterDeadline);
             }
@@ -202,16 +270,20 @@ pub mod button_game {
             // or does not have enough balance
             self.transfer_ticket(caller, this, 1u128)?;
 
-            let score = self.score(now);
+            let mut data = self.data.get().unwrap();
+
+            let score = self.score(now, self.deadline(), data.last_press, data.presses);
 
             // mints reward tokens to pay out the reward
             // contract needs to have a Minter role on the reward token contract
             self.mint_reward(caller, score)?;
 
-            self.presses += 1;
-            self.last_presser = Some(caller);
-            self.last_press = now;
-            self.total_rewards += score;
+            data.presses += 1;
+            data.last_presser = Some(caller);
+            data.last_press = now;
+            data.total_rewards += score;
+
+            self.data.set(&data);
 
             Self::emit_event(
                 self.env(),
@@ -245,11 +317,12 @@ pub mod button_game {
         /// Implementing contract is responsible for setting up proper AccessControl
         #[ink(message)]
         pub fn set_access_control(&mut self, new_access_control: AccountId) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
-            self.access_control = AccessControlRef::from_account_id(new_access_control);
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.access_control = AccessControlRef::from_account_id(new_access_control);
+            self.data.set(&data);
+
             Ok(())
         }
 
@@ -261,11 +334,12 @@ pub mod button_game {
             &mut self,
             new_button_lifetime: BlockNumber,
         ) -> ButtonResult<()> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
-            self.button_lifetime = new_button_lifetime;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.button_lifetime = new_button_lifetime;
+            self.data.set(&data);
+
             Ok(())
         }
 
@@ -275,10 +349,35 @@ pub mod button_game {
         #[ink(message)]
         pub fn terminate(&mut self) -> ButtonResult<()> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            let required_role = Role::Admin(this);
-            ButtonGame::check_role(&self.access_control, caller, required_role)?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
+        }
+
+        /// Upgrades contract code
+        #[ink(message)]
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            callback: Option<Selector>,
+        ) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
+
+            // Optionally call a callback function in the new contract that performs the storage data migration.
+            // By convention this function should be called `migrate`, it should take no arguments
+            // and be call-able only by `this` contract's instance address.
+            // To ensure the latter the `migrate` in the updated contract can e.g. check if it has an Admin role on self.
+            //
+            // `delegatecall` ensures that the target contract is called within the caller contracts context.
+            if let Some(selector) = callback {
+                build_call::<DefaultEnvironment>()
+                    .delegate(Hash::from(code_hash))
+                    .exec_input(ExecutionInput::new(ink::env::call::Selector::new(selector)))
+                    .returns::<ButtonResult<()>>()
+                    .invoke()?;
+            }
+
+            Ok(())
         }
 
         //===================================================================================================
@@ -294,7 +393,8 @@ pub mod button_game {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
 
-            let contract = Self {
+            let mut data = Lazy::new();
+            data.set(&Data {
                 access_control,
                 button_lifetime,
                 reward_token,
@@ -306,6 +406,13 @@ pub mod button_game {
                 presses: 0,
                 total_rewards: 0,
                 round: 0,
+            });
+
+            let contract = Self {
+                data,
+                halted: HaltableData {
+                    halted: Lazy::default(),
+                },
             };
 
             Self::emit_event(
@@ -324,18 +431,22 @@ pub mod button_game {
         fn reset_state(&mut self) -> ButtonResult<()> {
             let now = self.env().block_number();
 
-            self.presses = 0;
-            self.last_presser = None;
-            self.last_press = now;
-            self.total_rewards = 0;
-            self.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+            let mut data = self.data.get().unwrap();
+
+            data.presses = 0;
+            data.last_presser = None;
+            data.last_press = now;
+            data.total_rewards = 0;
+            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+
+            self.data.set(&data);
 
             Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
         }
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
-            if let Some(pressiah) = self.last_presser {
+            if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_score();
                 self.mint_reward(pressiah, reward)?;
             };
@@ -352,9 +463,10 @@ pub mod button_game {
         }
 
         fn transfer_tickets_to_marketplace(&self) -> ButtonResult<()> {
+            let data = self.data.get().unwrap();
             PSP22Ref::transfer_builder(
-                &self.ticket_token,
-                self.marketplace.to_account_id(),
+                &data.ticket_token,
+                data.marketplace.to_account_id(),
                 self.held_tickets(),
                 vec![],
             )
@@ -365,37 +477,47 @@ pub mod button_game {
         }
 
         fn held_tickets(&self) -> Balance {
-            PSP22Ref::balance_of(&self.ticket_token, self.env().account_id())
+            PSP22Ref::balance_of(
+                &self.data.get().unwrap().ticket_token,
+                self.env().account_id(),
+            )
         }
 
         fn reset_marketplace(&mut self) -> ButtonResult<()> {
-            self.marketplace.reset()?;
-
+            self.data.get().unwrap().marketplace.reset()?;
             Ok(())
         }
 
-        fn check_role(
-            access_control: &AccessControlRef,
-            account: AccountId,
-            role: Role,
-        ) -> ButtonResult<()> {
-            if access_control.has_role(account, role) {
+        fn check_role(&self, account: AccountId, role: Role) -> ButtonResult<()> {
+            if self
+                .data
+                .get()
+                .unwrap()
+                .access_control
+                .has_role(account, role)
+            {
                 Ok(())
             } else {
                 Err(GameError::MissingRole(role))
             }
         }
 
-        fn score(&self, now: BlockNumber) -> Balance {
-            match self.scoring {
-                Scoring::EarlyBirdSpecial => self.deadline().saturating_sub(now) as Balance,
-                Scoring::BackToTheFuture => now.saturating_sub(self.last_press) as Balance,
-                Scoring::ThePressiahCometh => (self.presses + 1) as Balance,
+        fn score(
+            &self,
+            now: BlockNumber,
+            deadline: BlockNumber,
+            last_press: BlockNumber,
+            presses: u128,
+        ) -> Balance {
+            match self.data.get().unwrap().scoring {
+                Scoring::EarlyBirdSpecial => deadline.saturating_sub(now) as Balance,
+                Scoring::BackToTheFuture => now.saturating_sub(last_press) as Balance,
+                Scoring::ThePressiahCometh => (presses + 1) as Balance,
             }
         }
 
         fn pressiah_score(&self) -> Balance {
-            (self.total_rewards / 4) as Balance
+            (self.data.get().unwrap().total_rewards / 4) as Balance
         }
 
         fn transfer_ticket(
@@ -404,15 +526,49 @@ pub mod button_game {
             to: AccountId,
             value: Balance,
         ) -> ButtonResult<()> {
-            PSP22Ref::transfer_from_builder(&self.ticket_token, from, to, value, vec![])
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .invoke()?;
+            PSP22Ref::transfer_from_builder(
+                &self.data.get().unwrap().ticket_token,
+                from,
+                to,
+                value,
+                vec![],
+            )
+            .call_flags(CallFlags::default().set_allow_reentry(true))
+            .invoke()?;
 
             Ok(())
         }
 
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
-            PSP22MintableRef::mint(&self.reward_token, to, amount)?;
+            let data = self.data.get().unwrap();
+
+            // scale the amount to always pay out full token units
+            let scaled_amount = match data.scoring {
+                // we map the score from it's domain to [1,100] reward tokens
+                // this way the amount of minted reward tokens is independent from the button's lifetime
+                // and the rewards are always paid out using full token units
+                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => map_domain(
+                    amount,
+                    0,
+                    data.button_lifetime as Balance,
+                    ONE_TOKEN,
+                    ONE_HUNDRED_TOKENS,
+                ),
+
+                Scoring::ThePressiahCometh => amount.saturating_mul(ONE_TOKEN),
+            };
+
+            PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
+
+            Self::emit_event(
+                self.env(),
+                Event::RewardMinted(RewardMinted {
+                    when: self.env().block_number(),
+                    reward_token: data.reward_token,
+                    to,
+                    amount: scaled_amount,
+                }),
+            );
 
             Ok(())
         }
@@ -422,6 +578,45 @@ pub mod button_game {
             EE: EmitEvent<ButtonGame>,
         {
             emitter.emit_event(event);
+        }
+    }
+
+    /// Performs mapping of a value that lives in a [in_min, in_max] domain
+    /// to the [out_min, out_max] domain.
+    ///
+    /// Function is an implementation of the following formula:
+    /// out_min + (out_max - out_min) * ((value - in_min) / (in_max - in_min))
+    /// using saturating integer operations
+    fn map_domain(
+        value: Balance,
+        in_min: Balance,
+        in_max: Balance,
+        out_min: Balance,
+        out_max: Balance,
+    ) -> Balance {
+        // Calculate the input range and the output range
+        let in_range = in_max.saturating_sub(in_min);
+        let out_range = out_max.saturating_sub(out_min);
+
+        // Map the input value to the output range
+        let scaled_value = (value.saturating_sub(in_min))
+            .saturating_mul(out_range)
+            .div_euclid(in_range);
+
+        // Convert the scaled value to the output domain
+        out_min.saturating_add(scaled_value)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_map_domain() {
+            assert_eq!(
+                map_domain(272, 0, 900, ONE_TOKEN, ONE_HUNDRED_TOKENS),
+                3092 * ONE_TOKEN / 100
+            );
         }
     }
 }

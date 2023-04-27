@@ -7,7 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 #[cfg(feature = "liminal")]
-use baby_liminal_extension::substrate::Extension;
+use baby_liminal_extension::substrate::Extension as BabyLiminalExtension;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -376,6 +376,7 @@ impl pallet_committee_management::Config for Runtime {
     type ValidatorProvider = Elections;
     type ValidatorRewardsHandler = Staking;
     type ValidatorExtractor = Staking;
+    type FinalityCommitteeManager = Aleph;
     type SessionPeriod = SessionPeriod;
 }
 
@@ -713,7 +714,7 @@ impl pallet_contracts::Config for Runtime {
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     #[cfg(feature = "liminal")]
-    type ChainExtension = Extension;
+    type ChainExtension = BabyLiminalExtension;
     #[cfg(not(feature = "liminal"))]
     type ChainExtension = ();
     type DeletionQueueDepth = DeletionQueueDepth;
@@ -831,6 +832,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
+    frame_system::CheckNonZeroSender<Runtime>,
     frame_system::CheckSpecVersion<Runtime>,
     frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,

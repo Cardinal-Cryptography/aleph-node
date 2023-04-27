@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use aleph_primitives::BlockNumber;
 use codec::{Decode, Encode};
@@ -15,7 +15,10 @@ mod status_notifier;
 mod translator;
 mod verification;
 
-pub use verification::SessionVerifier;
+pub use chain_status::SubstrateChainStatus;
+pub use status_notifier::SubstrateChainStatusNotifier;
+pub use translator::Error as TranslateError;
+pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
 impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
     type Identifier = BlockId<H>;
@@ -36,11 +39,36 @@ impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
     }
 }
 
+/// Proper `AlephJustification` or a variant indicating virtual justification
+/// for the genesis block, which is the only block that can be the top finalized
+/// block with no proper justification.
+#[derive(Clone, Debug, Encode, Decode)]
+pub enum InnerJustification {
+    AlephJustification(AlephJustification),
+    Genesis,
+}
+
 /// A justification, including the related header.
 #[derive(Clone, Debug, Encode, Decode)]
 pub struct Justification<H: SubstrateHeader<Number = BlockNumber>> {
     header: H,
-    raw_justification: AlephJustification,
+    inner_justification: InnerJustification,
+}
+
+impl<H: SubstrateHeader<Number = BlockNumber>> Justification<H> {
+    pub fn aleph_justification(header: H, aleph_justification: AlephJustification) -> Self {
+        Justification {
+            header,
+            inner_justification: InnerJustification::AlephJustification(aleph_justification),
+        }
+    }
+
+    pub fn genesis_justification(header: H) -> Self {
+        Justification {
+            header,
+            inner_justification: InnerJustification::Genesis,
+        }
+    }
 }
 
 impl<H: SubstrateHeader<Number = BlockNumber>> Header for Justification<H> {
@@ -69,8 +97,8 @@ impl<H: SubstrateHeader<Number = BlockNumber>> JustificationT for Justification<
 }
 
 /// Translates raw aleph justifications into ones acceptable to sync.
-pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>> {
-    type Error: Display;
+pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Send + Sync {
+    type Error: Display + Debug;
 
     fn translate(
         &self,

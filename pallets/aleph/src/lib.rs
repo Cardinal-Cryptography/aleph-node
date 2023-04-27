@@ -22,7 +22,6 @@ mod mock;
 mod tests;
 
 mod impls;
-mod migrations;
 mod traits;
 
 use frame_support::{
@@ -38,16 +37,14 @@ use sp_std::prelude::*;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
-    use frame_system::{
-        ensure_root,
-        pallet_prelude::{BlockNumberFor, OriginFor},
-    };
+    use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use pallet_session::SessionManager;
-    use pallets_support::StorageMigration;
+    use sp_std::collections::btree_set::BTreeSet;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
 
@@ -76,32 +73,6 @@ pub mod pallet {
     #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            let on_chain = <Pallet<T> as GetStorageVersion>::on_chain_storage_version();
-            T::DbWeight::get().reads(1)
-                + match on_chain {
-                    _ if on_chain == STORAGE_VERSION => Weight::zero(),
-                    _ if on_chain == StorageVersion::new(1) => {
-                        migrations::v1_to_v2::Migration::<T, Self>::migrate()
-                    }
-                    _ if on_chain == StorageVersion::new(0) => {
-                        migrations::v0_to_v1::Migration::<T, Self>::migrate()
-                            + migrations::v1_to_v2::Migration::<T, Self>::migrate()
-                    }
-                    _ => {
-                        log::warn!(
-                            target: "pallet_aleph",
-                            "On chain storage version of pallet aleph is {:?} but it should not be bigger than 2",
-                            on_chain
-                        );
-                        Weight::zero()
-                    }
-                }
-        }
-    }
-
     /// Default finality version. Relevant for sessions before the first version change occurs.
     #[pallet::type_value]
     pub(crate) fn DefaultFinalityVersion<T: Config>() -> Version {
@@ -122,6 +93,10 @@ pub mod pallet {
     #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> =
         StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
+
+    /// Set of account ids that will be used as authorities in the next session
+    #[pallet::storage]
+    pub type NextFinalityCommittee<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn emergency_finalizer)]
@@ -154,7 +129,7 @@ pub mod pallet {
         ) {
             if !authorities.is_empty() {
                 if !<Authorities<T>>::get().is_empty() {
-                    log::error!(target: "pallet_aleph","Authorities are already initialized!");
+                    log::error!(target: LOG_TARGET, "Authorities are already initialized!");
                 } else {
                     <Authorities<T>>::put(authorities);
                 }
@@ -165,11 +140,37 @@ pub mod pallet {
             }
         }
 
-        pub(crate) fn update_authorities(
-            authorities: &[T::AuthorityId],
-            next_authorities: &[T::AuthorityId],
-        ) {
-            <Authorities<T>>::put(authorities);
+        fn get_authorities_for_next_session(
+            next_authorities: Vec<(&T::AccountId, T::AuthorityId)>,
+        ) -> Vec<T::AuthorityId> {
+            let next_committee_ids: BTreeSet<_> =
+                NextFinalityCommittee::<T>::get().into_iter().collect();
+
+            let next_committee_authorities: Vec<_> = next_authorities
+                .into_iter()
+                .filter_map(|(account_id, auth_id)| {
+                    if next_committee_ids.contains(account_id) {
+                        Some(auth_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            if next_committee_authorities.len() != next_committee_ids.len() {
+                log::error!(
+                    target: LOG_TARGET,
+                    "Not all committee members were converted to keys."
+                );
+            }
+
+            next_committee_authorities
+        }
+
+        pub(crate) fn update_authorities(next_authorities: Vec<(&T::AccountId, T::AuthorityId)>) {
+            let next_authorities = Self::get_authorities_for_next_session(next_authorities);
+
+            <Authorities<T>>::put(<NextAuthorities<T>>::get());
             <NextAuthorities<T>>::put(next_authorities);
         }
 
@@ -293,16 +294,14 @@ pub mod pallet {
             Self::initialize_authorities(authorities.as_slice(), authorities.as_slice());
         }
 
-        fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
+        fn on_new_session<'a, I: 'a>(changed: bool, _: I, queued_validators: I)
         where
             I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
             T::AccountId: 'a,
         {
             Self::update_emergency_finalizer();
             if changed {
-                let (_, authorities): (Vec<_>, Vec<_>) = validators.unzip();
-                let (_, next_authorities): (Vec<_>, Vec<_>) = queued_validators.unzip();
-                Self::update_authorities(authorities.as_slice(), next_authorities.as_slice());
+                Self::update_authorities(queued_validators.collect());
             }
         }
 

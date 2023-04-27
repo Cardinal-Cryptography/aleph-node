@@ -1,5 +1,4 @@
 use codec::Encode;
-use primitives::{BlockNumber, SessionIndex, Version};
 use subxt::rpc_params;
 
 use crate::{
@@ -10,9 +9,9 @@ use crate::{
     },
     connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
-    AccountId, AlephKeyPair, BlockHash,
+    AccountId, AlephKeyPair, BlockHash, BlockNumber,
     Call::Aleph,
-    ConnectionApi, Pair, RootConnection, SudoCall, TxStatus,
+    ConnectionApi, Pair, RootConnection, SessionIndex, SudoCall, TxStatus, Version,
 };
 
 // TODO replace docs with link to pallet aleph docs, once they are published
@@ -23,6 +22,8 @@ pub trait AlephApi {
     async fn finality_version(&self, at: Option<BlockHash>) -> Version;
     /// Gets the finality version for the next session.
     async fn next_session_finality_version(&self, at: Option<BlockHash>) -> Version;
+    /// Gets the emergency finalizer
+    async fn emergency_finalizer(&self, at: Option<BlockHash>) -> Option<[u8; 32]>;
 }
 
 /// Pallet aleph API that requires sudo.
@@ -82,6 +83,14 @@ impl<C: ConnectionApi> AlephApi for C {
 
         self.rpc_call(method.to_string(), params).await.unwrap()
     }
+
+    async fn emergency_finalizer(&self, at: Option<BlockHash>) -> Option<[u8; 32]> {
+        let addrs = api::storage().aleph().emergency_finalizer();
+
+        self.get_storage_entry_maybe(&addrs, at)
+            .await
+            .map(|public| public.0 .0)
+    }
 }
 
 #[async_trait::async_trait]
@@ -125,7 +134,7 @@ impl<C: ConnectionApi> AlephRpc for C {
         let raw_signature: &[u8] = signature.as_ref();
         let params = rpc_params![raw_signature, hash, number];
 
-        let _: () = self.rpc_call(method.to_string(), params).await?;
+        let _: () = self.rpc_call_no_return(method.to_string(), params).await?;
 
         Ok(())
     }

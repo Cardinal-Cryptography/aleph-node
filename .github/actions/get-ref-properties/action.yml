@@ -15,6 +15,9 @@ outputs:
   branch-name-for-argo:
     description: Branch name that matches [a-z0-9-.]+ for ArgoCD app name
     value: ${{ steps.branch.outputs.name-for-argo }}
+  branch-name-for-argo-with-sha:
+    description: Image tag from branch name and commit SHA
+    value: ${{ steps.branch.outputs.name-for-argo }}_${{ steps.commit.outputs.sha }}
   tag:
     description: Tag name
     value: ${{ steps.tag.outputs.name || steps.release.outputs.ref }}
@@ -45,8 +48,9 @@ runs:
       run: |
         echo name=$(echo ${HEAD_REF#refs/heads/}) >> $GITHUB_OUTPUT
         echo name-flattened=$(echo ${HEAD_REF#refs/heads/} | tr / -) >> $GITHUB_OUTPUT
-        echo name-for-argo=$(echo ${HEAD_REF#refs/heads/} \
-          | tr / - | tr '[:upper:]' '[:lower:]' | tr -c '[a-z0-9-.]' '-') >> $GITHUB_OUTPUT
+        echo name-for-argo=$(printf ${HEAD_REF#refs/heads/} \
+          | tr / - | tr '[:upper:]' '[:lower:]' | tr -c '[a-z0-9-.]' '-' \
+          | cut -c1-40 | sed 's|-$||g') >> $GITHUB_OUTPUT
 
     - name: Get branch name if release or pre-release was created
       if: ${{ !startsWith(github.ref, 'refs/') }}
@@ -60,3 +64,4 @@ runs:
       shell: bash
       run: |
         echo sha=$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
+

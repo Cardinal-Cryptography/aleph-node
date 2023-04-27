@@ -9,8 +9,6 @@
 #![feature(auto_traits)]
 #![feature(negative_impls)]
 
-extern crate core;
-
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -45,7 +43,7 @@ pub mod utility;
 /// Waiting for some events API.
 pub mod waiting;
 
-pub use ::primitives::{Balance, BlockNumber};
+pub use ::primitives::*;
 pub use aleph_zero::api;
 pub use runtime_types::*;
 

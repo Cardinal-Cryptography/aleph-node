@@ -2,6 +2,11 @@
 
 set -euox pipefail
 
+# --- GLOBAL CONSTANTS
+NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
+
+CONTRACTS_PATH=$(pwd)/contracts
+
 # --- FUNCTIONS
 
 function run_ink_builder() {
@@ -152,18 +157,15 @@ function deploy_marketplace {
   local ticket_token=$5
   local game_token=$6
 
+  local sale_price_multiplier=2
+
   # --- CREATE AN INSTANCE OF THE CONTRACT
 
   cd "$CONTRACTS_PATH"/marketplace
 
-  local blocks_per_hour=3600
-  local initial_price="$INITIAL_PRICE"
-  local min_price=1
-  local sale_price_multiplier=2
-
   local contract_address
   contract_address=$(cargo_contract instantiate --url "$NODE" --constructor new \
-    --args "$ticket_token" "$game_token" "$initial_price" "$min_price" "$sale_price_multiplier" "$blocks_per_hour" \
+    --args "$ticket_token" "$game_token" "$INITIAL_PRICE" "$MINIMAL_PRICE" "$sale_price_multiplier" "$AUCTION_LENGTH" \
     --suri "$AUTHORITY_SEED" --salt "$salt" --skip-confirm --output-json)
   contract_address=$(echo "$contract_address" | jq -r '.contract')
 
@@ -226,12 +228,6 @@ function deploy_wrapped_azero {
 
   echo "wrapped Azero contract instance address: $contract_address"
 
-  # --- GRANT PRIVILEGES ON THE CONTRACT
-
-  cd "$CONTRACTS_PATH"/access_control
-
-  cargo_contract call --url "$NODE" --contract "$ACCESS_CONTROL" --message grant_role --args "$AUTHORITY" 'Admin('"$contract_address"')' --suri "$AUTHORITY_SEED" --skip-confirm
-
   eval "$__resultvar='$contract_address'"
 }
 
@@ -242,12 +238,6 @@ function link_bytecode() {
 
   sed -i 's/'"$placeholder"'/'"$replacement"'/' "target/ink/$contract.contract"
 }
-
-# --- GLOBAL CONSTANTS
-
-NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
-
-CONTRACTS_PATH=$(pwd)/contracts
 
 # --- COMPILE CONTRACTS
 
@@ -274,7 +264,13 @@ cd "$CONTRACTS_PATH"/simple_dex
 cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/wrapped_azero
-cargo_contract build --release
+if [ "${ENV_NAME}" = "devnet" ] || [ "${ENV_NAME}" = "dev" ]; then
+  echo "Compiling wrapped_azero for devnet environments. This will include an unguarded terminate flag!"
+  cargo_contract build --release --features devnet
+else
+  echo "Compiling wrapped_azero for production environments."
+  cargo_contract build --release
+fi
 
 # # --- DEPLOY ACCESS CONTROL CONTRACT
 
