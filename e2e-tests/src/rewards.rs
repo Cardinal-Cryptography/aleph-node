@@ -38,6 +38,10 @@ type RewardPoint = u32;
 pub async fn set_invalid_keys_for_validator<S: WaitingExt + SessionUserApi>(
     controller_connections: Vec<S>,
 ) -> anyhow::Result<()> {
+    if controller_connections.is_empty() {
+        return Ok(());
+    }
+
     let mut rng = rand::thread_rng();
     for con in &controller_connections {
         let mut invalid_keys = [0u8; 64];

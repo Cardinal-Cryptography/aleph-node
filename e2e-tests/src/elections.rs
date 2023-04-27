@@ -79,28 +79,6 @@ pub async fn get_and_test_members_for_session<C: AsConnection + Sync>(
     Ok((members_active, members_bench))
 }
 
-/// Computes a list of validators that should be elected for a given session, based on description in our elections pallet.
-/// Panics if `nodes_per_session` is greater than length of `era_validators`.
-pub fn get_members_subset_for_session(
-    nodes_per_session: u32,
-    era_validators: &[AccountId],
-    session: SessionIndex,
-) -> Vec<AccountId> {
-    let validators_len = era_validators.len();
-    let session: usize = session.try_into().unwrap();
-    let nodes_per_session: usize = nodes_per_session.try_into().unwrap();
-    assert!(nodes_per_session <= validators_len);
-    let first_index = session.saturating_mul(nodes_per_session) % validators_len;
-
-    era_validators
-        .iter()
-        .cycle()
-        .skip(first_index)
-        .take(nodes_per_session)
-        .cloned()
-        .collect()
-}
-
 fn get_bench_members(all_members: &[AccountId], members_active: &[AccountId]) -> Vec<AccountId> {
     all_members
         .iter()
