@@ -47,11 +47,11 @@ pub async fn set_invalid_keys_for_validator<S: WaitingExt + SessionUserApi>(
         let mut invalid_keys = [0u8; 64];
         rng.fill(&mut invalid_keys);
 
-        // wait until our node is forced to use new keys, i.e. current session + 2
-        con.set_keys(invalid_keys.to_vec().into(), TxStatus::InBlock)
+        con.set_keys(invalid_keys.to_vec().into(), TxStatus::Submitted)
             .await
             .unwrap();
     }
+    // wait until our node is forced to use new keys, i.e. current session + 2
     controller_connections[0]
         .wait_for_n_sessions(2, BlockStatus::Best)
         .await;
