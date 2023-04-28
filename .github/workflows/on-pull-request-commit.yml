@@ -564,11 +564,14 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Run e2e test
+        env:
+          VALIDATOR_COUNT: 6
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: chain_dead_scenario
           follow-up-finalization-check: true
-        timeout-minutes: 15
+          node-count: 6
+        timeout-minutes: 8
 
   check-e2e-test-suite-completion:
     needs: [
