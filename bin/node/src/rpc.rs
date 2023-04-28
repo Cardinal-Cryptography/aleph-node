@@ -7,13 +7,16 @@
 
 use std::sync::Arc;
 
-use aleph_runtime::{opaque::Block, AccountId, Balance, Index};
+use aleph_runtime::{
+    opaque::{Block, Header},
+    AccountId, Balance, Index,
+};
 use finality_aleph::{Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::RpcModule;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
-use sp_api::{BlockT, ProvideRuntimeApi};
+use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
@@ -25,7 +28,7 @@ pub struct FullDeps<C, P, JT> {
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
-    pub import_justification_tx: mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
+    pub import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
     pub justification_translator: JT,
 }
 
@@ -41,7 +44,7 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    JT: JustificationTranslator<<Block as BlockT>::Header> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};
