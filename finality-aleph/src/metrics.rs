@@ -173,12 +173,12 @@ mod tests {
 
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
-        let mut registration_failed = false;
+        let mut on_registration_failed_callback_called = false;
         let m = Metrics::<usize>::register(None, |_| {
-            registration_failed = true;
+            on_registration_failed_callback_called = true;
         });
         m.report_block(0, Instant::now(), Checkpoint::Ordered);
-        assert_eq!(registration_failed, true);
+        assert!(on_registration_failed_callback_called);
         assert!(m.inner.is_none());
     }
 

@@ -97,6 +97,7 @@ where
             legacy_aleph_bft::Keychain::node_count(multikeychain),
             scheduler,
         );
+        // For the compatibility with the legacy aggregator we need extra `Some` layer
         let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(Some(metrics));
         let aggregator_io = LegacyAggregator::<B, LN>::new(
             messages_for_rmc,
