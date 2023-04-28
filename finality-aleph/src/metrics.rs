@@ -20,6 +20,8 @@ const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 pub trait Key: Hash + Eq + Debug + Copy {}
 impl<T: Hash + Eq + Debug + Copy> Key for T {}
 
+const LOG_TARGET: &str = "aleph-metrics";
+
 struct Inner<H: Key> {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
@@ -28,7 +30,13 @@ struct Inner<H: Key> {
 
 impl<H: Key> Inner<H> {
     fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
-        trace!(target: "aleph-metrics", "Reporting block stage: {:?} (hash: {:?}, at: {:?}", checkpoint_type, hash, checkpoint_time);
+        trace!(
+            target: LOG_TARGET,
+            "Reporting block stage: {:?} (hash: {:?}, at: {:?}",
+            checkpoint_type,
+            hash,
+            checkpoint_time
+        );
 
         self.starts.entry(checkpoint_type).and_modify(|starts| {
             starts.put(hash, checkpoint_time);
@@ -44,9 +52,15 @@ impl<H: Key> Inner<H> {
                 let duration = match checkpoint_time.checked_duration_since(*start) {
                     Some(duration) => duration,
                     None => {
-                        warn!(target: "aleph-metrics", "Earlier metrics time {:?} is later that current one \
+                        warn!(
+                            target: LOG_TARGET,
+                            "Earlier metrics time {:?} is later that current one \
                         {:?}. Checkpoint type {:?}, block: {:?}",
-                            *start, checkpoint_time, checkpoint_type, hash);
+                            *start,
+                            checkpoint_time,
+                            checkpoint_type,
+                            hash
+                        );
                         Duration::new(0, 0)
                     }
                 };
@@ -75,21 +89,11 @@ pub struct Metrics<H: Key> {
 }
 
 impl<H: Key> Metrics<H> {
-    pub fn new(registry: Option<&Registry>) -> Metrics<H> {
-        let inner = match registry {
-            Some(r) => Self::try_register(r)
-                .map_err(|err| warn!("Failed to register Prometheus metrics\n{:?}", err))
-                .ok(),
-            None => {
-                warn!("Failed to register Prometheus metrics: registry not available");
-                None
-            }
-        };
-
-        Metrics { inner }
+    pub fn noop() -> Metrics<H> {
+        Metrics { inner: None }
     }
 
-    fn try_register(registry: &Registry) -> Result<Arc<Mutex<Inner<H>>>, PrometheusError> {
+    pub fn new(registry: &Registry) -> Result<Metrics<H>, PrometheusError> {
         use Checkpoint::*;
         let keys = [
             Importing,
@@ -113,16 +117,16 @@ impl<H: Key> Metrics<H> {
             );
         }
 
-        let inner = Arc::new(Mutex::new(Inner {
+        let inner = Some(Arc::new(Mutex::new(Inner {
             prev,
             gauges,
             starts: keys
                 .iter()
                 .map(|k| (*k, LruCache::new(MAX_BLOCKS_PER_CHECKPOINT)))
                 .collect(),
-        }));
+        })));
 
-        Ok(inner)
+        Ok(Metrics { inner })
     }
 
     pub(crate) fn report_block(
@@ -146,7 +150,7 @@ mod tests {
     use super::*;
 
     fn register_dummy_metrics() -> Metrics<usize> {
-        Metrics::<usize>::new(Some(&Registry::new()))
+        Metrics::<usize>::new(&Registry::new()).unwrap()
     }
 
     fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
@@ -172,7 +176,7 @@ mod tests {
 
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
-        let m = Metrics::<usize>::new(None);
+        let m = Metrics::<usize>::noop();
         m.report_block(0, Instant::now(), Checkpoint::Ordered);
         assert!(m.inner.is_none());
     }

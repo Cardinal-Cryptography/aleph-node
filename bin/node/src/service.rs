@@ -35,6 +35,8 @@ use crate::{
     rpc::FullDeps as RpcFullDeps,
 };
 
+const LOG_TARGET: &str = "aleph-metrics";
+
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
@@ -140,7 +142,18 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = Metrics::new(config.prometheus_registry());
+    let metrics_or_error = match config.prometheus_registry() {
+        Some(register) => Metrics::new(register).map_err(|err| format!("{:?}", err)),
+        None => Err("registry not available".to_string()),
+    };
+
+    let metrics = metrics_or_error.unwrap_or_else(|err| {
+        warn!(
+            target: LOG_TARGET,
+            "Failed to register Prometheus metrics:{:?}", err
+        );
+        Metrics::noop()
+    });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
