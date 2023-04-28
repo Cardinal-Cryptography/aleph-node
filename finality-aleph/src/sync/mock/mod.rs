@@ -4,7 +4,7 @@ use codec::{Decode, Encode};
 use sp_core::H256;
 
 use crate::{
-    sync::{Block as BlockT, ChainStatusNotification, Header, Justification as JustificationT},
+    sync::{Block, ChainStatusNotification, Header, Justification},
     BlockIdentifier,
 };
 
@@ -117,7 +117,7 @@ impl Header for MockBlock {
     }
 }
 
-impl BlockT for MockBlock {
+impl Block for MockBlock {
     type Header = MockHeader;
 
     fn header(&self) -> &Self::Header {
@@ -152,7 +152,7 @@ impl Header for MockJustification {
     }
 }
 
-impl JustificationT for MockJustification {
+impl Justification for MockJustification {
     type Header = MockHeader;
     type Unverified = Self;
 
