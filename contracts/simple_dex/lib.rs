@@ -487,7 +487,7 @@ mod simple_dex {
             token_in: AccountId,
             token_out: AccountId,
             amount_token_out: Balance,
-        ) {
+        ) -> Balance {
             let this = self.env().account_id();
             let balance_token_in = self.balance_of(token_in, this);
             let balance_token_out = self.balance_of(token_out, this);
