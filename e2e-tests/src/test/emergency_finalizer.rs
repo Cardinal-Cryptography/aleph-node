@@ -115,7 +115,7 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
 
     let last_finalized = connection.get_finalized_block_hash().await?;
     let last_finalized_before = connection.get_block_number(last_finalized).await?.unwrap();
-    sleep(Duration::from_secs(50));
+    sleep(Duration::from_secs(40));
     let mut last_finalized = connection.get_finalized_block_hash().await?;
     let last_finalized_now = connection.get_block_number(last_finalized).await?.unwrap();
 
@@ -136,7 +136,7 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
             finalizer.clone(),
         )
         .await?;
-        sleep(Duration::from_secs(50));
+        sleep(Duration::from_secs(40));
 
         last_finalized = connection.get_finalized_block_hash().await?;
     }
