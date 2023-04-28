@@ -377,7 +377,7 @@ mod tests {
             client,
             session_boundaries,
             config,
-            Metrics::new(None),
+            Metrics::noop(),
         );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
