@@ -482,7 +482,7 @@ mod simple_dex {
         /// A_in = B_i * ((B_o / (B_o - A_o)) - 1)
         /// Mostly useful for traders
         #[ink(message)]
-        pub fn in_give_out(
+        pub fn in_given_out(
             &self,
             token_in: AccountId,
             token_out: AccountId,
