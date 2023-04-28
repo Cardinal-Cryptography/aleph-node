@@ -477,10 +477,39 @@ mod simple_dex {
 
             Ok(())
         }
-
-        /// Swap trade output given a curve with equal token weights
+        /// Returns the swap trade input given a desired amount and assuming a curve with equal token weights
         ///
-        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
+        /// A_in = B_i * ((B_o / (B_o - A_o)) - 1)
+        /// Mostly useful for traders
+        #[ink(message)]
+        pub fn in_give_out(
+            &self,
+            token_in: AccountId,
+            token_out: AccountId,
+            amount_token_out: Balance,
+        ) {
+            let this = self.env().account_id();
+            let balance_token_in = self.balance_of(token_in, this);
+            let balance_token_out = self.balance_of(token_out, this);
+
+            let op0 = balance_token_out
+                .checked_sub(amount_token_in)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op1 = balance_token_out
+                .checked_div(op0)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op2 = op1.checked_sub(1).ok_or(DexError::Arithmethic)?;
+
+            balance_token_in
+                .checked_mul(op2)
+                .ok_or(DexError::Arithmethic)?
+        }
+
+        /// Return swap trade output given a curve with equal token weights
+        ///
+        /// B_o - (100 * B_o * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
         /// where swap_fee (integer) is a percentage of the trade that goes towards the pool
         /// and is used to pay the liquidity providers
         #[ink(message)]
