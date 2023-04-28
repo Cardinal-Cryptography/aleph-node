@@ -12,7 +12,7 @@ use finality_aleph::{
     Protocol, ProtocolNaming, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::warn;
+use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
@@ -34,8 +34,6 @@ use crate::{
     aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor,
     rpc::FullDeps as RpcFullDeps,
 };
-
-const LOG_TARGET: &str = "aleph-metrics";
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -142,18 +140,19 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics_or_error = match config.prometheus_registry() {
-        Some(register) => Metrics::new(register).map_err(|err| format!("{:?}", err)),
-        None => Err("registry not available".to_string()),
+    let metrics = match config.prometheus_registry() {
+        Some(register) => match Metrics::new(register) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!("Failed to register Prometheus metrics:{:?}", e);
+                Metrics::noop()
+            }
+        },
+        None => {
+            info!("Running without the metrics not available");
+            Metrics::noop()
+        }
     };
-
-    let metrics = metrics_or_error.unwrap_or_else(|err| {
-        warn!(
-            target: LOG_TARGET,
-            "Failed to register Prometheus metrics:{:?}", err
-        );
-        Metrics::noop()
-    });
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
