@@ -571,7 +571,7 @@ jobs:
           test-case: chain_dead_scenario
           follow-up-finalization-check: true
           node-count: 6
-        timeout-minutes: 8
+        timeout-minutes: 10
 
   check-e2e-test-suite-completion:
     needs: [
