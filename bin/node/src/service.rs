@@ -140,9 +140,7 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = Metrics::register(config.prometheus_registry(), |err| {
-        warn!("Failed to register Prometheus metrics\n{:?}", err)
-    });
+    let metrics = Metrics::new(config.prometheus_registry());
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());

@@ -75,14 +75,13 @@ pub struct Metrics<H: Key> {
 }
 
 impl<H: Key> Metrics<H> {
-    pub fn register<F: FnOnce(PrometheusError)>(
-        registry: Option<&Registry>,
-        on_registration_failed: F,
-    ) -> Metrics<H> {
+    pub fn new(registry: Option<&Registry>) -> Metrics<H> {
         let inner = match registry {
-            Some(r) => Self::try_register(r).map_err(on_registration_failed).ok(),
+            Some(r) => Self::try_register(r)
+                .map_err(|err| warn!("Failed to register Prometheus metrics\n{:?}", err))
+                .ok(),
             None => {
-                on_registration_failed(PrometheusError::Msg("registry not available".to_string()));
+                warn!("Failed to register Prometheus metrics: registry not available");
                 None
             }
         };
@@ -147,7 +146,7 @@ mod tests {
     use super::*;
 
     fn register_dummy_metrics() -> Metrics<usize> {
-        Metrics::<usize>::register(Some(&Registry::new()), |_| panic!())
+        Metrics::<usize>::new(Some(&Registry::new()))
     }
 
     fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
@@ -173,12 +172,8 @@ mod tests {
 
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
-        let mut on_registration_failed_callback_called = false;
-        let m = Metrics::<usize>::register(None, |_| {
-            on_registration_failed_callback_called = true;
-        });
+        let m = Metrics::<usize>::new(None);
         m.report_block(0, Instant::now(), Checkpoint::Ordered);
-        assert!(on_registration_failed_callback_called);
         assert!(m.inner.is_none());
     }
 
