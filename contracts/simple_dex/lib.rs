@@ -487,13 +487,13 @@ mod simple_dex {
             token_in: AccountId,
             token_out: AccountId,
             amount_token_out: Balance,
-        ) -> Balance {
+        ) -> Result<Balance, DexError> {
             let this = self.env().account_id();
             let balance_token_in = self.balance_of(token_in, this);
             let balance_token_out = self.balance_of(token_out, this);
 
             let op0 = balance_token_out
-                .checked_sub(amount_token_in)
+                .checked_sub(amount_token_out)
                 .ok_or(DexError::Arithmethic)?;
 
             let op1 = balance_token_out
@@ -504,7 +504,7 @@ mod simple_dex {
 
             balance_token_in
                 .checked_mul(op2)
-                .ok_or(DexError::Arithmethic)?
+                .ok_or(DexError::Arithmethic)
         }
 
         /// Return swap trade output given a curve with equal token weights
