@@ -41,8 +41,7 @@ pub struct Service<
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    _block_requests_from_user:
-        mpsc::UnboundedReceiver<<<J as Justification>::Header as Header>::Identifier>,
+    _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -85,7 +84,7 @@ impl<
         (
             Self,
             impl JustificationSubmissions<J> + Clone,
-            impl RequestBlocks<<<J as Justification>::Header as Header>::Identifier>,
+            impl RequestBlocks<BlockIdFor<J>>,
         ),
         HandlerError<J, CS, V, F>,
     > {
