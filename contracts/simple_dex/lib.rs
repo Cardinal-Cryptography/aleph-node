@@ -477,6 +477,7 @@ mod simple_dex {
 
             Ok(())
         }
+
         /// Returns the swap trade input given a desired amount and assuming a curve with equal token weights
         ///
         /// A_in = B_i * ((B_o / (B_o - A_o)) - 1)
