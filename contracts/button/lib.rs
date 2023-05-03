@@ -573,7 +573,7 @@ pub mod button_game {
         }
 
         fn pressiah_reward(&self) -> Balance {
-            (self.data.get().unwrap().total_rewards / 4) as Balance
+            (self.data.get().unwrap().total_rewards / 2) as Balance
         }
 
         fn transfer_ticket(
