@@ -20,7 +20,7 @@ export INITIAL_PRICE=50000000000000 # 50 tokens
 export MINIMAL_PRICE=$BUTTON_MIN_REWARD
 
 # how many blocks will elapse between INITAL and MINIMAL price
-export AUCTION_LENGTH=3600 # 1 hour
+export AUCTION_LENGTH=43200 # 12 hours
 
 # semi-serious environment with no hacks
 export ENV_NAME=devnet
