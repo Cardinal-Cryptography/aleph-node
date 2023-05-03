@@ -30,9 +30,6 @@ pub mod button_game {
 
     use crate::errors::GameError;
 
-    pub const ONE_TOKEN: Balance = 1_000_000_000_000;
-    pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
-
     /// Result type
     type ButtonResult<T> = core::result::Result<T, GameError>;
 
@@ -124,6 +121,10 @@ pub mod button_game {
         pub scoring: Scoring,
         /// current round number
         pub round: u64,
+        /// minimal reward denominated in reward tokens that can be minted to a player for single press
+        pub min_reward: Balance,
+        /// maximal reward denominated in reward tokens that can be minted to a player for single press
+        pub max_reward: Balance,
     }
 
     /// Game contracts storage
@@ -168,6 +169,8 @@ pub mod button_game {
             marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
+            min_reward: Balance,
+            max_reward: Balance,
         ) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
@@ -185,6 +188,8 @@ pub mod button_game {
                     marketplace,
                     button_lifetime,
                     scoring,
+                    min_reward,
+                    max_reward,
                 ),
                 false => panic!("Caller is not allowed to initialize this contract"),
             }
@@ -282,11 +287,11 @@ pub mod button_game {
                     score,
                     0,
                     data.button_lifetime as Balance,
-                    ONE_TOKEN,
-                    ONE_HUNDRED_TOKENS,
+                    data.min_reward,
+                    data.max_reward,
                 ),
 
-                Scoring::ThePressiahCometh => score.saturating_mul(ONE_TOKEN),
+                Scoring::ThePressiahCometh => score.saturating_mul(data.min_reward),
             };
 
             // mints reward tokens to pay out the reward
@@ -361,6 +366,34 @@ pub mod button_game {
             Ok(())
         }
 
+        /// Sets button minimal reward to a new value
+        ///
+        /// Can only be called by the contract admin
+        #[ink(message)]
+        pub fn set_min_reward(&mut self, min_reward: Balance) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.min_reward = min_reward;
+            self.data.set(&data);
+
+            Ok(())
+        }
+
+        /// Sets button maximal reward to a new value
+        ///
+        /// Can only be called by the contract admin
+        #[ink(message)]
+        pub fn set_max_reward(&mut self, max_reward: Balance) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.max_reward = max_reward;
+            self.data.set(&data);
+
+            Ok(())
+        }
+
         /// Terminates the contract
         ///
         /// Should only be called by the contract Admin
@@ -400,6 +433,7 @@ pub mod button_game {
 
         //===================================================================================================
 
+        #[allow(clippy::too_many_arguments)]
         fn init(
             access_control: AccessControlRef,
             ticket_token: AccountId,
@@ -407,6 +441,8 @@ pub mod button_game {
             marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
+            min_reward: Balance,
+            max_reward: Balance,
         ) -> Self {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
@@ -424,6 +460,8 @@ pub mod button_game {
                 presses: 0,
                 total_rewards: 0,
                 round: 0,
+                min_reward,
+                max_reward,
             });
 
             let contract = Self {
@@ -612,6 +650,9 @@ pub mod button_game {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        pub const ONE_TOKEN: Balance = 1_000_000_000_000;
+        pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
 
         #[test]
         fn test_map_domain() {
