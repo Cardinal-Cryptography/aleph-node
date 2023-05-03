@@ -36,25 +36,13 @@ pub mod button_game {
     /// Event type
     type Event = <ButtonGame as ContractEventBase>::Type;
 
-    /// Event emitted when TheButton is created
-    #[ink(event)]
-    #[derive(Debug)]
-    pub struct ButtonCreated {
-        #[ink(topic)]
-        reward_token: AccountId,
-        #[ink(topic)]
-        ticket_token: AccountId,
-        start: BlockNumber,
-        deadline: BlockNumber,
-    }
-
     /// Event emitted when TheButton is pressed
     #[ink(event)]
     #[derive(Debug)]
     pub struct ButtonPressed {
         #[ink(topic)]
         by: AccountId,
-        when: BlockNumber,
+        round: u64,
         score: Balance,
     }
 
@@ -64,18 +52,29 @@ pub mod button_game {
     #[ink(event)]
     #[derive(Debug)]
     pub struct RewardMinted {
-        when: BlockNumber,
+        round: u64,
         #[ink(topic)]
         reward_token: AccountId,
+        #[ink(topic)]
         to: AccountId,
-        amount: Balance,
+        reward: Balance,
+    }
+
+    /// Event emitted when ThePressiah is found at the start of a new round
+    /// triggered by a `reset` tx
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct PressiahFound {
+        #[ink(topic)]
+        pressiah: AccountId,
+        reward: Balance,
     }
 
     /// Event emitted when the finished game is reset and pressiah is rewarded
     #[ink(event)]
     #[derive(Debug)]
-    pub struct GameReset {
-        when: BlockNumber,
+    pub struct ButtonReset {
+        by: AccountId,
     }
 
     #[ink(event)]
@@ -312,8 +311,9 @@ pub mod button_game {
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
                     by: caller,
-                    when: now,
+                    // when: now,
                     score,
+                    round: data.round,
                 }),
             );
 
@@ -329,9 +329,18 @@ pub mod button_game {
         pub fn reset(&mut self) -> ButtonResult<()> {
             self.ensure_dead()?;
             self.reward_pressiah()?;
-            self.reset_state()?;
             self.transfer_tickets_to_marketplace()?;
-            self.reset_marketplace()
+            self.reset_marketplace()?;
+            self.reset_state()?;
+
+            Self::emit_event(
+                self.env(),
+                Event::ButtonReset(ButtonReset {
+                    by: self.env().caller(),
+                }),
+            );
+
+            Ok(())
         }
 
         /// Sets new access control contract address
@@ -445,7 +454,6 @@ pub mod button_game {
             max_reward: Balance,
         ) -> Self {
             let now = Self::env().block_number();
-            let deadline = now + button_lifetime;
 
             let mut data = Lazy::new();
             data.set(&Data {
@@ -464,24 +472,12 @@ pub mod button_game {
                 max_reward,
             });
 
-            let contract = Self {
+            Self {
                 data,
                 halted: HaltableData {
                     halted: Lazy::default(),
                 },
-            };
-
-            Self::emit_event(
-                Self::env(),
-                Event::ButtonCreated(ButtonCreated {
-                    start: now,
-                    deadline,
-                    ticket_token,
-                    reward_token,
-                }),
-            );
-
-            contract
+            }
         }
 
         fn reset_state(&mut self) -> ButtonResult<()> {
@@ -497,13 +493,16 @@ pub mod button_game {
 
             self.data.set(&data);
 
-            Self::emit_event(self.env(), Event::GameReset(GameReset { when: now }));
             Ok(())
         }
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
             if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_reward();
+                Self::emit_event(
+                    self.env(),
+                    Event::PressiahFound(PressiahFound { pressiah, reward }),
+                );
                 self.mint_reward(pressiah, reward)?;
             };
 
@@ -595,18 +594,18 @@ pub mod button_game {
             Ok(())
         }
 
-        fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
+        fn mint_reward(&self, to: AccountId, reward: Balance) -> ButtonResult<()> {
             let data = self.data.get().unwrap();
 
-            PSP22MintableRef::mint(&data.reward_token, to, amount)?;
+            PSP22MintableRef::mint(&data.reward_token, to, reward)?;
 
             Self::emit_event(
                 self.env(),
                 Event::RewardMinted(RewardMinted {
-                    when: self.env().block_number(),
+                    round: data.round,
                     reward_token: data.reward_token,
                     to,
-                    amount,
+                    reward,
                 }),
             );
 
