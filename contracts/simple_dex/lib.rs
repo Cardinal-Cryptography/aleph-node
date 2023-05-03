@@ -102,7 +102,21 @@ mod simple_dex {
     }
 
     #[ink(event)]
+    pub struct Withdrawn {
+        caller: AccountId,
+        #[ink(topic)]
+        token: AccountId,
+        amount: Balance,
+    }
+
+    #[ink(event)]
     pub struct SwapPairAdded {
+        #[ink(topic)]
+        pair: SwapPair,
+    }
+
+    #[ink(event)]
+    pub struct SwapPairRemoved {
         #[ink(topic)]
         pair: SwapPair,
     }
@@ -114,12 +128,6 @@ mod simple_dex {
     pub struct Resumed;
 
     #[ink(event)]
-    pub struct SwapPairRemoved {
-        #[ink(topic)]
-        pair: SwapPair,
-    }
-
-    #[ink(event)]
     pub struct Swapped {
         caller: AccountId,
         #[ink(topic)]
@@ -128,13 +136,6 @@ mod simple_dex {
         token_out: AccountId,
         amount_in: Balance,
         amount_out: Balance,
-    }
-
-    #[ink(event)]
-    pub struct SwapFeeSet {
-        #[ink(topic)]
-        caller: AccountId,
-        swap_fee_percentage: u128,
     }
 
     #[derive(Debug)]
@@ -327,6 +328,15 @@ mod simple_dex {
                 |(token_out, amount)| -> Result<(), DexError> {
                     // transfer token_out from the contract to the caller
                     self.transfer_tx(token_out, caller, amount)?;
+                    Self::emit_event(
+                        self.env(),
+                        Event::Withdrawn(Withdrawn {
+                            caller,
+                            token: token_out,
+                            amount,
+                        }),
+                    );
+
                     Ok(())
                 },
             )?;
@@ -349,15 +359,6 @@ mod simple_dex {
             let caller = self.env().caller();
 
             self.check_role(caller, Role::Admin(self.env().account_id()))?;
-
-            // emit event
-            Self::emit_event(
-                self.env(),
-                Event::SwapFeeSet(SwapFeeSet {
-                    caller,
-                    swap_fee_percentage,
-                }),
-            );
 
             let mut data = self.data.get().unwrap();
             data.swap_fee_percentage = swap_fee_percentage;
@@ -427,7 +428,6 @@ mod simple_dex {
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.remove(&pair);
-
             Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
 
             Ok(())
