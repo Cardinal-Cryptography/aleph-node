@@ -11,7 +11,7 @@ export BUTTON_MIN_REWARD=1000000000000 # 1 token
 export BUTTON_MAX_REWARD=100000000000000 # 100 tokens
 
 # mint this many ticket tokens
-export TICKET_BALANCE=7000
+export TICKET_BALANCE=14000
 
 # initial price of ticket on the marketplace
 export INITIAL_PRICE=50000000000000 # 50 tokens
