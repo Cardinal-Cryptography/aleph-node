@@ -7,11 +7,11 @@ use std::{
 use aleph_primitives::BlockNumber;
 use codec::{Decode, Encode};
 use sp_runtime::{
-    traits::{Block as BlockT, Header as HeaderT, NumberFor},
+    traits::{Block as BlockT, Header as HeaderT},
     SaturatedConversion,
 };
 
-use crate::{data_io::MAX_DATA_BRANCH_LEN, BlockHashNum, SessionBoundaries};
+use crate::{data_io::MAX_DATA_BRANCH_LEN, IdentifierFor, SessionBoundaries};
 
 /// Represents a proposal we obtain from another node. Note that since the proposal might come from
 /// a malicious node there is no guarantee that the block hashes in the proposal correspond to real blocks
@@ -30,25 +30,25 @@ use crate::{data_io::MAX_DATA_BRANCH_LEN, BlockHashNum, SessionBoundaries};
 #[derive(Clone, Debug, Encode, Decode)]
 pub struct UnvalidatedAlephProposal<B: BlockT> {
     pub branch: Vec<B::Hash>,
-    pub number: NumberFor<B>,
+    pub number: BlockNumber,
 }
 
 /// Represents possible invalid states as described in [UnvalidatedAlephProposal].
 #[derive(Debug, PartialEq, Eq)]
-pub enum ValidationError<B: BlockT> {
+pub enum ValidationError {
     BranchEmpty,
     BranchTooLong {
         branch_size: usize,
     },
     BlockNumberOutOfBounds {
         branch_size: usize,
-        block_number: NumberFor<B>,
+        block_number: BlockNumber,
     },
     BlockOutsideSessionBoundaries {
-        session_start: NumberFor<B>,
-        session_end: NumberFor<B>,
-        top_block: NumberFor<B>,
-        bottom_block: NumberFor<B>,
+        session_start: BlockNumber,
+        session_end: BlockNumber,
+        top_block: BlockNumber,
+        bottom_block: BlockNumber,
     },
 }
 
@@ -83,7 +83,7 @@ where
     pub(crate) fn validate_bounds(
         &self,
         session_boundaries: &SessionBoundaries,
-    ) -> Result<AlephProposal<B>, ValidationError<B>> {
+    ) -> Result<AlephProposal<B>, ValidationError> {
         use ValidationError::*;
 
         if self.branch.len() > MAX_DATA_BRANCH_LEN {
@@ -127,7 +127,7 @@ where
 #[derive(Clone, Debug, Encode, Decode)]
 pub struct AlephProposal<B: BlockT> {
     branch: Vec<B::Hash>,
-    number: NumberFor<B>,
+    number: BlockNumber,
 }
 
 // Need to be implemented manually, as deriving does not work (`BlockT` is not `Hash`).
@@ -154,8 +154,9 @@ impl<B: BlockT> Index<usize> for AlephProposal<B> {
     }
 }
 
-impl<B: BlockT> AlephProposal<B>
+impl<B> AlephProposal<B>
 where
+    B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
 {
     /// Outputs the length the branch.
@@ -164,7 +165,7 @@ where
     }
 
     /// Outputs the highest block in the branch.
-    pub fn top_block(&self) -> BlockHashNum<B> {
+    pub fn top_block(&self) -> IdentifierFor<B> {
         (
             *self
                 .branch
@@ -176,7 +177,7 @@ where
     }
 
     /// Outputs the lowest block in the branch.
-    pub fn bottom_block(&self) -> BlockHashNum<B> {
+    pub fn bottom_block(&self) -> IdentifierFor<B> {
         // Assumes that the data is within bounds
         (
             *self
@@ -207,7 +208,7 @@ where
 
     /// Outputs the block corresponding to the number in the proposed branch in case num is
     /// between the lowest and highest block number of the branch. Otherwise returns None.
-    pub fn block_at_num(&self, num: BlockNumber) -> Option<BlockHashNum<B>> {
+    pub fn block_at_num(&self, num: BlockNumber) -> Option<IdentifierFor<B>> {
         if self.number_bottom_block() <= num && num <= self.number_top_block() {
             let ind: usize = (num - self.number_bottom_block()).saturated_into();
             return Some((self.branch[ind], num).into());
@@ -217,7 +218,7 @@ where
 
     /// Outputs an iterator over blocks starting at num. If num is too high, the iterator is
     /// empty, if it's too low the whole branch is returned.
-    pub fn blocks_from_num(&self, num: BlockNumber) -> impl Iterator<Item = BlockHashNum<B>> + '_ {
+    pub fn blocks_from_num(&self, num: BlockNumber) -> impl Iterator<Item = IdentifierFor<B>> + '_ {
         let num = max(num, self.number_bottom_block());
         self.branch
             .iter()
@@ -236,8 +237,12 @@ pub enum PendingProposalStatus {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum ProposalStatus<B: BlockT> {
-    Finalize(Vec<BlockHashNum<B>>),
+pub enum ProposalStatus<B>
+where
+    B: BlockT,
+    B::Header: HeaderT<Number = BlockNumber>,
+{
+    Finalize(Vec<IdentifierFor<B>>),
     Ignore,
     Pending(PendingProposalStatus),
 }
