@@ -94,15 +94,8 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Deposited {
-        caller: AccountId,
-        #[ink(topic)]
-        token: AccountId,
-        amount: Balance,
-    }
-
-    #[ink(event)]
     pub struct Withdrawn {
+        #[ink(topic)]
         caller: AccountId,
         #[ink(topic)]
         token: AccountId,
@@ -265,46 +258,6 @@ mod simple_dex {
                     amount_out: amount_token_out,
                 }),
             );
-
-            Ok(())
-        }
-
-        /// Liquidity deposit
-        ///
-        /// Can only be performed by an account with a LiquidityProvider role
-        /// Caller needs to give at least the passed amount of allowance to the contract to spend the deposited tokens on his behalf
-        /// prior to executing this tx
-        #[ink(message)]
-        pub fn deposit(&mut self, deposits: Vec<(AccountId, Balance)>) -> Result<(), DexError> {
-            let this = self.env().account_id();
-            let caller = self.env().caller();
-
-            // check role, under normal circumstances only designated account can add liquidity
-            // when halted only Admin can make deposits
-            match self.is_halted() {
-                false => self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?,
-                true => self.check_role(caller, Role::Admin(this))?,
-            }
-
-            deposits
-                .into_iter()
-                .try_for_each(|(token_in, amount)| -> Result<(), DexError> {
-                    // transfer token_in from the caller to the contract
-                    // will revert if the contract does not have enough allowance from the caller
-                    // in which case the whole tx is reverted
-                    self.transfer_from_tx(token_in, caller, this, amount)?;
-
-                    Self::emit_event(
-                        self.env(),
-                        Event::Deposited(Deposited {
-                            caller,
-                            token: token_in,
-                            amount,
-                        }),
-                    );
-
-                    Ok(())
-                })?;
 
             Ok(())
         }

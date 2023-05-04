@@ -26,7 +26,7 @@ pub mod button_game {
         traits::Storage,
     };
     use scale::{Decode, Encode};
-    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Round, Selector};
 
     use crate::errors::GameError;
 
@@ -42,7 +42,7 @@ pub mod button_game {
     pub struct ButtonPressed {
         #[ink(topic)]
         by: AccountId,
-        round: u64,
+        round: Round,
         score: Balance,
     }
 
@@ -73,9 +73,7 @@ pub mod button_game {
     /// Event emitted when the finished game is reset and pressiah is rewarded
     #[ink(event)]
     #[derive(Debug)]
-    pub struct ButtonReset {
-        by: AccountId,
-    }
+    pub struct ButtonReset {}
 
     #[ink(event)]
     pub struct Halted;
@@ -311,7 +309,6 @@ pub mod button_game {
                 self.env(),
                 Event::ButtonPressed(ButtonPressed {
                     by: caller,
-                    // when: now,
                     score,
                     round: data.round,
                 }),
@@ -333,12 +330,7 @@ pub mod button_game {
             self.reset_marketplace()?;
             self.reset_state()?;
 
-            Self::emit_event(
-                self.env(),
-                Event::ButtonReset(ButtonReset {
-                    by: self.env().caller(),
-                }),
-            );
+            Self::emit_event(self.env(), Event::ButtonReset(ButtonReset {}));
 
             Ok(())
         }
@@ -499,11 +491,12 @@ pub mod button_game {
         fn reward_pressiah(&self) -> ButtonResult<()> {
             if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_reward();
+                self.mint_reward(pressiah, reward)?;
+
                 Self::emit_event(
                     self.env(),
                     Event::PressiahFound(PressiahFound { pressiah, reward }),
                 );
-                self.mint_reward(pressiah, reward)?;
             };
 
             Ok(())
