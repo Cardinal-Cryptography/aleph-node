@@ -105,6 +105,7 @@ pub mod wrapped_azero {
     #[ink(event)]
     #[derive(Debug)]
     pub struct Wrapped {
+        #[ink(topic)]
         caller: AccountId,
         amount: Balance,
     }
@@ -112,6 +113,7 @@ pub mod wrapped_azero {
     #[ink(event)]
     #[derive(Debug)]
     pub struct Unwrapped {
+        #[ink(topic)]
         caller: AccountId,
         amount: Balance,
     }
