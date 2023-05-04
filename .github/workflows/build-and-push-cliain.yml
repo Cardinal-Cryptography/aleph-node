@@ -66,11 +66,10 @@ jobs:
         env:
           REGISTRY: ${{ env.ECR_PUBLIC_REGISTRY }}
           IMAGE_NAME: ${{ matrix.runtime == 'standard' && 'cliain' || 'cliain-liminal' }}
-          TAG: >
-            ${{ matrix.runtime == 'standard' &&
-                  (steps.get-ref-properties.outputs.branch-name-flattened == 'main' && 'latest' ||
-                  steps.get-ref-properties.outputs.branch-name-flattened) ||
-                matrix.runtime == 'liminal' && steps.get-ref-properties.outputs.sha }}
+          TAG: ${{ matrix.runtime == 'standard' &&
+               (steps.get-ref-properties.outputs.branch-name-flattened == 'main' && 'latest' ||
+               steps.get-ref-properties.outputs.branch-name-flattened) ||
+               matrix.runtime == 'liminal' && steps.get-ref-properties.outputs.sha }}
         run: |
           docker build -t "${{ env.REGISTRY }}${{ env.IMAGE_NAME }}:${{ env.TAG }}" \
             -f ./bin/cliain/Dockerfile ./bin/cliain
