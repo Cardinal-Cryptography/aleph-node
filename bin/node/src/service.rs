@@ -144,12 +144,12 @@ pub fn new_partial(
         Some(register) => match Metrics::new(register) {
             Ok(metrics) => metrics,
             Err(e) => {
-                warn!("Failed to register Prometheus metrics:{:?}", e);
+                warn!("Failed to register Prometheus metrics: {:?}.", e);
                 Metrics::noop()
             }
         },
         None => {
-            info!("Running without the metrics not available");
+            info!("Running with the metrics is not available.");
             Metrics::noop()
         }
     };
