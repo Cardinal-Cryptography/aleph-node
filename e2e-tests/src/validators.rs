@@ -182,7 +182,8 @@ pub async fn get_controller_connections_to_nodes(
 /// gets ws address to `n-th` node
 pub fn validator_address(index: u32) -> String {
     const BASE: &str = "ws://127.0.0.1";
-    const FIRST_PORT: u32 = 9944;
+    /// locally its 9944 :|
+    const FIRST_PORT: u32 = 9943;
 
     let port = FIRST_PORT + index;
 
