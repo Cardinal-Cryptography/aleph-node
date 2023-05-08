@@ -16,6 +16,7 @@ use crate::{
     justification::{backwards_compatible_decode, DecodeError},
     metrics::{Checkpoint, Metrics},
     sync::substrate::{Justification, JustificationTranslator},
+    BlockId,
 };
 
 /// A wrapper around a block import that also marks the start and end of the import of every block
@@ -27,7 +28,7 @@ where
     I: BlockImport<B> + Send + Sync,
 {
     inner: I,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: Metrics<<B::Header as Header>::Hash>,
 }
 
 impl<B, I> TracingBlockImport<B, I>
@@ -35,7 +36,7 @@ where
     B: BlockT,
     I: BlockImport<B> + Send + Sync,
 {
-    pub fn new(inner: I, metrics: Option<Metrics<<B::Header as Header>::Hash>>) -> Self {
+    pub fn new(inner: I, metrics: Metrics<<B::Header as Header>::Hash>) -> Self {
         TracingBlockImport { inner, metrics }
     }
 }
@@ -61,14 +62,14 @@ where
         cache: HashMap<[u8; 4], Vec<u8>>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Importing);
-        };
+        self.metrics
+            .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block, cache).await;
 
-        if let (Some(m), Ok(ImportResult::Imported(_))) = (&self.metrics, &result) {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Imported);
+        if let Ok(ImportResult::Imported(_)) = &result {
+            self.metrics
+                .report_block(post_hash, Instant::now(), Checkpoint::Imported);
         }
         result
     }
@@ -126,11 +127,10 @@ where
 
     fn send_justification(
         &mut self,
-        hash: B::Hash,
-        number: BlockNumber,
+        block_id: BlockId<B::Header>,
         justification: SubstrateJustification,
     ) -> Result<(), SendJustificationError<B::Header, JT::Error>> {
-        debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
+        debug!(target: "aleph-justification", "Importing justification for block {}.", block_id);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
                 ConsensusError::ClientImport("Aleph can import only Aleph justifications.".into()),
@@ -140,7 +140,7 @@ where
         let aleph_justification = backwards_compatible_decode(justification_raw)?;
         let justification = self
             .translator
-            .translate(aleph_justification, hash, number)
+            .translate(aleph_justification, block_id)
             .map_err(SendJustificationError::Translate)?;
 
         self.justification_tx
@@ -186,9 +186,10 @@ where
             {
                 debug!(target: "aleph-justification", "Got justification along imported block {:?}", number);
 
-                if let Err(e) =
-                    self.send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
-                {
+                if let Err(e) = self.send_justification(
+                    BlockId::new(post_hash, number),
+                    (ALEPH_ENGINE_ID, justification),
+                ) {
                     warn!(target: "aleph-justification", "Error while receiving justification for block {:?}: {:?}", post_hash, e);
                 }
             }
@@ -221,7 +222,7 @@ where
     ) -> Result<(), Self::Error> {
         use SendJustificationError::*;
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);
-        self.send_justification(hash, number, justification)
+        self.send_justification(BlockId::new(hash, number), justification)
             .map_err(|error| match error {
                 Send(_) => ConsensusError::ClientImport(String::from(
                     "Could not send justification to ConsensusParty",
