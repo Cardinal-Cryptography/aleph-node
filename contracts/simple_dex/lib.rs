@@ -94,7 +94,8 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Deposited {
+    pub struct Withdrawn {
+        #[ink(topic)]
         caller: AccountId,
         #[ink(topic)]
         token: AccountId,
@@ -108,16 +109,16 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Halted;
-
-    #[ink(event)]
-    pub struct Resumed;
-
-    #[ink(event)]
     pub struct SwapPairRemoved {
         #[ink(topic)]
         pair: SwapPair,
     }
+
+    #[ink(event)]
+    pub struct Halted;
+
+    #[ink(event)]
+    pub struct Resumed;
 
     #[ink(event)]
     pub struct Swapped {
@@ -128,13 +129,6 @@ mod simple_dex {
         token_out: AccountId,
         amount_in: Balance,
         amount_out: Balance,
-    }
-
-    #[ink(event)]
-    pub struct SwapFeeSet {
-        #[ink(topic)]
-        caller: AccountId,
-        swap_fee_percentage: u128,
     }
 
     #[derive(Debug)]
@@ -268,46 +262,6 @@ mod simple_dex {
             Ok(())
         }
 
-        /// Liquidity deposit
-        ///
-        /// Can only be performed by an account with a LiquidityProvider role
-        /// Caller needs to give at least the passed amount of allowance to the contract to spend the deposited tokens on his behalf
-        /// prior to executing this tx
-        #[ink(message)]
-        pub fn deposit(&mut self, deposits: Vec<(AccountId, Balance)>) -> Result<(), DexError> {
-            let this = self.env().account_id();
-            let caller = self.env().caller();
-
-            // check role, under normal circumstances only designated account can add liquidity
-            // when halted only Admin can make deposits
-            match self.is_halted() {
-                false => self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?,
-                true => self.check_role(caller, Role::Admin(this))?,
-            }
-
-            deposits
-                .into_iter()
-                .try_for_each(|(token_in, amount)| -> Result<(), DexError> {
-                    // transfer token_in from the caller to the contract
-                    // will revert if the contract does not have enough allowance from the caller
-                    // in which case the whole tx is reverted
-                    self.transfer_from_tx(token_in, caller, this, amount)?;
-
-                    Self::emit_event(
-                        self.env(),
-                        Event::Deposited(Deposited {
-                            caller,
-                            token: token_in,
-                            amount,
-                        }),
-                    );
-
-                    Ok(())
-                })?;
-
-            Ok(())
-        }
-
         #[ink(message)]
         pub fn withdrawal(
             &mut self,
@@ -327,6 +281,15 @@ mod simple_dex {
                 |(token_out, amount)| -> Result<(), DexError> {
                     // transfer token_out from the contract to the caller
                     self.transfer_tx(token_out, caller, amount)?;
+                    Self::emit_event(
+                        self.env(),
+                        Event::Withdrawn(Withdrawn {
+                            caller,
+                            token: token_out,
+                            amount,
+                        }),
+                    );
+
                     Ok(())
                 },
             )?;
@@ -349,15 +312,6 @@ mod simple_dex {
             let caller = self.env().caller();
 
             self.check_role(caller, Role::Admin(self.env().account_id()))?;
-
-            // emit event
-            Self::emit_event(
-                self.env(),
-                Event::SwapFeeSet(SwapFeeSet {
-                    caller,
-                    swap_fee_percentage,
-                }),
-            );
 
             let mut data = self.data.get().unwrap();
             data.swap_fee_percentage = swap_fee_percentage;
@@ -427,7 +381,6 @@ mod simple_dex {
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.remove(&pair);
-
             Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
 
             Ok(())
