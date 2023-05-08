@@ -52,7 +52,7 @@ pub mod button_game {
     #[ink(event)]
     #[derive(Debug)]
     pub struct RewardMinted {
-        round: u64,
+        round: Round,
         #[ink(topic)]
         reward_token: AccountId,
         #[ink(topic)]
@@ -117,7 +117,7 @@ pub mod button_game {
         /// scoring strategy
         pub scoring: Scoring,
         /// current round number
-        pub round: u64,
+        pub round: Round,
         /// minimal reward denominated in reward tokens that can be minted to a player for single press
         pub min_reward: Balance,
         /// maximal reward denominated in reward tokens that can be minted to a player for single press
