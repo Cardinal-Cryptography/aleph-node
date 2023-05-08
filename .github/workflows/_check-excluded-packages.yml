@@ -24,6 +24,7 @@ jobs:
     steps:
       - name: Start sccache server
         run: |
+          env
           mkdir /tmp/sccache
           /usr/local/bin/sccache --start-server &
 
