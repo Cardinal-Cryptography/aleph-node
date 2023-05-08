@@ -25,6 +25,7 @@ jobs:
       - name: Start sccache server
         run: |
           env
+          echo $SCCACHE_BUCKET
           mkdir /tmp/sccache
           /usr/local/bin/sccache --start-server &
 
