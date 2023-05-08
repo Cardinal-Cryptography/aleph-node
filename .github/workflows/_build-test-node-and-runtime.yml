@@ -12,7 +12,7 @@ jobs:
     container:
       image: ${{ vars.ECR_PUBLIC_REGISTRY }}rust-dev:v0.1.0
       env:
-        RUSTC_WRAPPER: sccache
+        #RUSTC_WRAPPER: sccache
         SCCACHE_BUCKET: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
         SCCACHE_REGION: ${{ secrets.CI_MAINNET_S3BUCKET_REGION }}
         AWS_ACCESS_KEY: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
