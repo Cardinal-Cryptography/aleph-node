@@ -24,8 +24,10 @@ jobs:
     steps:
       - name: Start sccache server
         run: |
-          env
-          echo $SCCACHE_BUCKET
+          id -u
+          id -g
+          mkdir -p /github/home/.config/sccache
+          touch /github/home/.config/sccache/config
           mkdir /tmp/sccache
           /usr/local/bin/sccache --start-server &
 
