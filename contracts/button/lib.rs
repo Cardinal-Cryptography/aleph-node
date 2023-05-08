@@ -319,21 +319,32 @@ pub mod button_game {
 
         /// Resets the game
         ///
-        /// Erases the storage and pays award to the Pressiah
+        /// Erases the storage and pays the award to the Pressiah
         /// Can be called by any account on behalf of a player
         /// Can only be called after button's deadline
         #[ink(message)]
         pub fn reset(&mut self) -> ButtonResult<()> {
             self.ensure_dead()?;
 
-            // TODO
-            self.reward_pressiah()?;
+            self.do_reward_pressiah()?;
             self.transfer_tickets_to_marketplace()?;
             self.reset_marketplace()?;
             self.reset_state()?;
 
             Self::emit_event(self.env(), Event::ButtonReset(ButtonReset {}));
 
+            Ok(())
+        }
+
+        /// Rewards the Pressiah
+        ///
+        /// Does not reset any other state beyond the last_presser record
+        /// Can only be called after button's deadline
+        /// Can be called by any account
+        #[ink(message)]
+        pub fn reward_pressiah(&mut self) -> ButtonResult<()> {
+            self.ensure_dead()?;
+            self.do_reward_pressiah()?;
             Ok(())
         }
 
@@ -474,27 +485,7 @@ pub mod button_game {
             }
         }
 
-        fn reset_state(&mut self) -> ButtonResult<()> {
-            let now = self.env().block_number();
-
-            let mut data = self.data.get().unwrap();
-
-            data.presses = 0;
-
-            // TODO
-            data.last_presser = None;
-            data.last_press = now;
-            // END: TODO
-
-            data.total_rewards = 0;
-            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
-
-            self.data.set(&data);
-
-            Ok(())
-        }
-
-        fn reward_pressiah(&self) -> ButtonResult<()> {
+        fn do_reward_pressiah(&mut self) -> ButtonResult<()> {
             if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_reward();
                 self.mint_reward(pressiah, reward)?;
@@ -503,7 +494,27 @@ pub mod button_game {
                     self.env(),
                     Event::PressiahFound(PressiahFound { pressiah, reward }),
                 );
+
+                let mut data = self.data.get().unwrap();
+                data.last_presser = None;
+                self.data.set(&data);
             };
+
+            Ok(())
+        }
+
+        fn reset_state(&mut self) -> ButtonResult<()> {
+            let now = self.env().block_number();
+
+            let mut data = self.data.get().unwrap();
+
+            data.presses = 0;
+            data.last_presser = None;
+            data.last_press = now;
+            data.total_rewards = 0;
+            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+
+            self.data.set(&data);
 
             Ok(())
         }
