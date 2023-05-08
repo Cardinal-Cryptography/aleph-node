@@ -485,6 +485,22 @@ pub mod button_game {
             }
         }
 
+        fn reset_state(&mut self) -> ButtonResult<()> {
+            let now = self.env().block_number();
+
+            let mut data = self.data.get().unwrap();
+
+            data.presses = 0;
+            data.last_presser = None;
+            data.last_press = now;
+            data.total_rewards = 0;
+            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
+
+            self.data.set(&data);
+
+            Ok(())
+        }
+
         fn do_reward_pressiah(&mut self) -> ButtonResult<()> {
             if let Some(pressiah) = self.data.get().unwrap().last_presser {
                 let reward = self.pressiah_reward();
@@ -499,22 +515,6 @@ pub mod button_game {
                 data.last_presser = None;
                 self.data.set(&data);
             };
-
-            Ok(())
-        }
-
-        fn reset_state(&mut self) -> ButtonResult<()> {
-            let now = self.env().block_number();
-
-            let mut data = self.data.get().unwrap();
-
-            data.presses = 0;
-            data.last_presser = None;
-            data.last_press = now;
-            data.total_rewards = 0;
-            data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
-
-            self.data.set(&data);
 
             Ok(())
         }
