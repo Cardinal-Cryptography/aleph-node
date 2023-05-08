@@ -502,7 +502,9 @@ pub mod button_game {
         }
 
         fn do_reward_pressiah(&mut self) -> ButtonResult<()> {
-            if let Some(pressiah) = self.data.get().unwrap().last_presser {
+            let mut data = self.data.get().unwrap();
+
+            if let Some(pressiah) = data.last_presser {
                 let reward = self.pressiah_reward();
                 self.mint_reward(pressiah, reward)?;
 
@@ -511,7 +513,6 @@ pub mod button_game {
                     Event::PressiahFound(PressiahFound { pressiah, reward }),
                 );
 
-                let mut data = self.data.get().unwrap();
                 data.last_presser = None;
                 self.data.set(&data);
             };
