@@ -30,9 +30,6 @@ pub mod button_game {
 
     use crate::errors::GameError;
 
-    pub const ONE_TOKEN: Balance = 1_000_000_000_000;
-    pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
-
     /// Result type
     type ButtonResult<T> = core::result::Result<T, GameError>;
 
@@ -124,6 +121,10 @@ pub mod button_game {
         pub scoring: Scoring,
         /// current round number
         pub round: u64,
+        /// minimal reward denominated in reward tokens that can be minted to a player for single press
+        pub min_reward: Balance,
+        /// maximal reward denominated in reward tokens that can be minted to a player for single press
+        pub max_reward: Balance,
     }
 
     /// Game contracts storage
@@ -168,6 +169,8 @@ pub mod button_game {
             marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
+            min_reward: Balance,
+            max_reward: Balance,
         ) -> Self {
             let caller = Self::env().caller();
             let code_hash = Self::env()
@@ -185,6 +188,8 @@ pub mod button_game {
                     marketplace,
                     button_lifetime,
                     scoring,
+                    min_reward,
+                    max_reward,
                 ),
                 false => panic!("Caller is not allowed to initialize this contract"),
             }
@@ -274,14 +279,32 @@ pub mod button_game {
 
             let score = self.score(now, self.deadline(), data.last_press, data.presses);
 
+            let reward = match data.scoring {
+                // we map the score from it's domain to [1,100] reward tokens
+                // this way the amount of minted reward tokens is independent from the button's lifetime
+                // and the rewards are always paid out using full token units
+                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => map_domain(
+                    score,
+                    0,
+                    data.button_lifetime as Balance,
+                    data.min_reward,
+                    data.max_reward,
+                ),
+
+                Scoring::ThePressiahCometh => score.saturating_mul(data.min_reward),
+            };
+
             // mints reward tokens to pay out the reward
             // contract needs to have a Minter role on the reward token contract
-            self.mint_reward(caller, score)?;
+            self.mint_reward(caller, reward)?;
 
             data.presses += 1;
             data.last_presser = Some(caller);
             data.last_press = now;
-            data.total_rewards += score;
+            data.total_rewards = data
+                .total_rewards
+                .checked_add(reward)
+                .ok_or(GameError::Arithmethic)?;
 
             self.data.set(&data);
 
@@ -343,6 +366,34 @@ pub mod button_game {
             Ok(())
         }
 
+        /// Sets button minimal reward to a new value
+        ///
+        /// Can only be called by the contract admin
+        #[ink(message)]
+        pub fn set_min_reward(&mut self, min_reward: Balance) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.min_reward = min_reward;
+            self.data.set(&data);
+
+            Ok(())
+        }
+
+        /// Sets button maximal reward to a new value
+        ///
+        /// Can only be called by the contract admin
+        #[ink(message)]
+        pub fn set_max_reward(&mut self, max_reward: Balance) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+
+            let mut data = self.data.get().unwrap();
+            data.max_reward = max_reward;
+            self.data.set(&data);
+
+            Ok(())
+        }
+
         /// Terminates the contract
         ///
         /// Should only be called by the contract Admin
@@ -382,6 +433,7 @@ pub mod button_game {
 
         //===================================================================================================
 
+        #[allow(clippy::too_many_arguments)]
         fn init(
             access_control: AccessControlRef,
             ticket_token: AccountId,
@@ -389,6 +441,8 @@ pub mod button_game {
             marketplace: AccountId,
             button_lifetime: BlockNumber,
             scoring: Scoring,
+            min_reward: Balance,
+            max_reward: Balance,
         ) -> Self {
             let now = Self::env().block_number();
             let deadline = now + button_lifetime;
@@ -406,6 +460,8 @@ pub mod button_game {
                 presses: 0,
                 total_rewards: 0,
                 round: 0,
+                min_reward,
+                max_reward,
             });
 
             let contract = Self {
@@ -447,7 +503,7 @@ pub mod button_game {
 
         fn reward_pressiah(&self) -> ButtonResult<()> {
             if let Some(pressiah) = self.data.get().unwrap().last_presser {
-                let reward = self.pressiah_score();
+                let reward = self.pressiah_reward();
                 self.mint_reward(pressiah, reward)?;
             };
 
@@ -516,8 +572,8 @@ pub mod button_game {
             }
         }
 
-        fn pressiah_score(&self) -> Balance {
-            (self.data.get().unwrap().total_rewards / 4) as Balance
+        fn pressiah_reward(&self) -> Balance {
+            (self.data.get().unwrap().total_rewards / 2) as Balance
         }
 
         fn transfer_ticket(
@@ -542,23 +598,7 @@ pub mod button_game {
         fn mint_reward(&self, to: AccountId, amount: Balance) -> ButtonResult<()> {
             let data = self.data.get().unwrap();
 
-            // scale the amount to always pay out full token units
-            let scaled_amount = match data.scoring {
-                // we map the score from it's domain to [1,100] reward tokens
-                // this way the amount of minted reward tokens is independent from the button's lifetime
-                // and the rewards are always paid out using full token units
-                Scoring::EarlyBirdSpecial | Scoring::BackToTheFuture => map_domain(
-                    amount,
-                    0,
-                    data.button_lifetime as Balance,
-                    ONE_TOKEN,
-                    ONE_HUNDRED_TOKENS,
-                ),
-
-                Scoring::ThePressiahCometh => amount.saturating_mul(ONE_TOKEN),
-            };
-
-            PSP22MintableRef::mint(&data.reward_token, to, scaled_amount)?;
+            PSP22MintableRef::mint(&data.reward_token, to, amount)?;
 
             Self::emit_event(
                 self.env(),
@@ -566,7 +606,7 @@ pub mod button_game {
                     when: self.env().block_number(),
                     reward_token: data.reward_token,
                     to,
-                    amount: scaled_amount,
+                    amount,
                 }),
             );
 
@@ -610,6 +650,9 @@ pub mod button_game {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        pub const ONE_TOKEN: Balance = 1_000_000_000_000;
+        pub const ONE_HUNDRED_TOKENS: Balance = 100_000_000_000_000;
 
         #[test]
         fn test_map_domain() {
