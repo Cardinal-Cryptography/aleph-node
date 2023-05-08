@@ -54,6 +54,7 @@ jobs:
   build-and-push-and-deploy-image:
     needs: [build-binary]
     name: Build and push and deploy docker image
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
