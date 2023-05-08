@@ -14,76 +14,93 @@ use crate::{
     abft::SignatureSet,
     aggregation::Aggregator,
     crypto::Signature,
-    justification::{AlephJustification, JustificationNotification},
+    justification::AlephJustification,
     metrics::Checkpoint,
     network::data::Network,
     party::{
         manager::aggregator::AggregatorVersion::{Current, Legacy},
         AuthoritySubtaskCommon, Task,
     },
-    BlockHashNum, BlockIdentifier, CurrentRmcNetworkData, IdentifierFor, Keychain,
-    LegacyRmcNetworkData, Metrics, SessionBoundaries, STATUS_REPORT_INTERVAL,
+    sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
+    BlockId, CurrentRmcNetworkData, IdentifierFor, Keychain, LegacyRmcNetworkData, Metrics,
+    SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
 /// IO channels used by the aggregator task.
-pub struct IO<BI: BlockIdentifier> {
-    pub blocks_from_interpreter: mpsc::UnboundedReceiver<BI>,
-    pub justifications_for_chain: mpsc::UnboundedSender<JustificationNotification<BI>>,
+pub struct IO<H, JS, JT>
+where
+    H: Header<Number = BlockNumber>,
+    JS: JustificationSubmissions<Justification<H>> + Send + Sync + Clone,
+    JT: JustificationTranslator<H> + Send + Sync + Clone,
+{
+    pub blocks_from_interpreter: mpsc::UnboundedReceiver<BlockId<H>>,
+    pub justifications_for_chain: JS,
+    pub justification_translator: JT,
 }
 
 async fn process_new_block_data<B, CN, LN>(
     aggregator: &mut Aggregator<'_, B, CN, LN>,
-    block: BlockHashNum<B>,
-    metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
+    block: IdentifierFor<B>,
+    metrics: &Metrics<<B::Header as Header>::Hash>,
 ) where
     B: Block,
+    B::Header: Header<Number = BlockNumber>,
     CN: Network<CurrentRmcNetworkData<B>>,
     LN: Network<LegacyRmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    if let Some(metrics) = &metrics {
-        metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
-    }
+    metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
 
     aggregator.start_aggregation(block.hash).await;
 }
 
-fn process_hash<B, C>(
+fn process_hash<B, C, JS, JT>(
     hash: B::Hash,
     multisignature: SignatureSet<Signature>,
-    justifications_for_chain: &mpsc::UnboundedSender<JustificationNotification<IdentifierFor<B>>>,
+    justifications_for_chain: &mut JS,
+    justification_translator: &JT,
     client: &Arc<C>,
 ) -> Result<(), ()>
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     C: HeaderBackend<B> + Send + Sync + 'static,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
 {
     let number = client.number(hash).unwrap().unwrap();
     // The unwrap might actually fail if data availability is not implemented correctly.
-    let notification = JustificationNotification {
-        justification: AlephJustification::CommitteeMultisignature(multisignature),
-        block_id: (hash, number).into(),
+    let justification = match justification_translator.translate(
+        AlephJustification::CommitteeMultisignature(multisignature),
+        BlockId::new(hash, number),
+    ) {
+        Ok(justification) => justification,
+        Err(e) => {
+            error!(target: "aleph-party", "Issue with translating justification from Aggregator to Sync Justification: {}.", e);
+            return Err(());
+        }
     };
-    if let Err(e) = justifications_for_chain.unbounded_send(notification) {
-        error!(target: "aleph-party", "Issue with sending justification from Aggregator to JustificationHandler {:?}.", e);
+    if let Err(e) = justifications_for_chain.submit(justification) {
+        error!(target: "aleph-party", "Issue with sending justification from Aggregator to JustificationHandler {}.", e);
         return Err(());
     }
     Ok(())
 }
 
-async fn run_aggregator<B, C, CN, LN>(
+async fn run_aggregator<B, C, CN, LN, JS, JT>(
     mut aggregator: Aggregator<'_, B, CN, LN>,
-    io: IO<IdentifierFor<B>>,
+    io: IO<B::Header, JS, JT>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: Metrics<<B::Header as Header>::Hash>,
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
     C: HeaderBackend<B> + Send + Sync + 'static,
     LN: Network<LegacyRmcNetworkData<B>>,
     CN: Network<CurrentRmcNetworkData<B>>,
@@ -91,11 +108,12 @@ where
 {
     let IO {
         blocks_from_interpreter,
-        justifications_for_chain,
+        mut justifications_for_chain,
+        justification_translator,
     } = io;
 
     let blocks_from_interpreter = blocks_from_interpreter.take_while(|block| {
-        let block_num = block.num;
+        let block_num = block.number;
         async move {
             if block_num == session_boundaries.last_block() {
                 debug!(target: "aleph-party", "Aggregator is processing last block in session.");
@@ -127,7 +145,7 @@ where
             }
             multisigned_hash = aggregator.next_multisigned_hash() => {
                 if let Some((hash, multisignature)) = multisigned_hash {
-                    process_hash(hash, multisignature, &justifications_for_chain, &client)?;
+                    process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client)?;
                     if Some(hash) == hash_of_last_block {
                         hash_of_last_block = None;
                     }
@@ -159,18 +177,20 @@ pub enum AggregatorVersion<CN, LN> {
 }
 
 /// Runs the justification signature aggregator within a single session.
-pub fn task<B, C, CN, LN>(
+pub fn task<B, C, CN, LN, JS, JT>(
     subtask_common: AuthoritySubtaskCommon,
     client: Arc<C>,
-    io: IO<IdentifierFor<B>>,
+    io: IO<B::Header, JS, JT>,
     session_boundaries: SessionBoundaries,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: Metrics<<B::Header as Header>::Hash>,
     multikeychain: Keychain,
     version: AggregatorVersion<CN, LN>,
 ) -> Task
 where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
+    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
     C: HeaderBackend<B> + Send + Sync + 'static,
     LN: Network<LegacyRmcNetworkData<B>> + 'static,
     CN: Network<CurrentRmcNetworkData<B>> + 'static,
