@@ -328,8 +328,11 @@ pub mod button_game {
         #[ink(message)]
         pub fn reset(&mut self) -> ButtonResult<()> {
             self.ensure_dead()?;
+
+            // TODO
             self.reward_pressiah()?;
             self.reset_state()?;
+
             self.transfer_tickets_to_marketplace()?;
             self.reset_marketplace()
         }
@@ -490,8 +493,12 @@ pub mod button_game {
             let mut data = self.data.get().unwrap();
 
             data.presses = 0;
+
+            // TODO
             data.last_presser = None;
             data.last_press = now;
+            // END: TODO
+
             data.total_rewards = 0;
             data.round = data.round.checked_add(1).ok_or(GameError::Arithmethic)?;
 
