@@ -35,10 +35,10 @@ RUNTIME_CACHE_SIZE=${RUNTIME_CACHE_SIZE:-2}
 MAX_RUNTIME_INSTANCES=${MAX_RUNTIME_INSTANCES:-8}
 BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
 
-if [[ "true" == "$PURGE_BEFORE_START" ]]; then
-  echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
-  aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
-fi
+#if [[ "true" == "$PURGE_BEFORE_START" ]]; then
+#  echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
+#  aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
+#fi
 
 ARGS=(
   --validator
