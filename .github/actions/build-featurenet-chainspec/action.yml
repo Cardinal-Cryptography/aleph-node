@@ -51,6 +51,9 @@ runs:
 
     - name: Generate and save data and chainspec
       shell: bash
+      env:
+        # yamllint disable-line rule:line-length
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
         docker run --rm \
           -e SOURCE_NET=${{ inputs.base-net }} \
@@ -58,6 +61,6 @@ runs:
           -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
-          -e FEATURENET_NAME=${{ inputs.featurenet-name }} \
+          -e FEATURENET_NAME=${{ env.APP_NAME }} \
           mikogs/tmp-featurenet-helper \
           generate-data-dir generate-chainspec save-data-to-s3
