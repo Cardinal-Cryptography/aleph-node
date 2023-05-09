@@ -100,5 +100,12 @@ runs:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
-        aws s3 rm --recursive \
-          s3://${{ inputs.featurenet-keys-s3bucket-name }}/${{ env.APP_NAME }}
+        docker run --rm \
+          -e SOURCE_NET=${{ inputs.base-net }} \
+          -e AWS_ACCESS_KEY_ID \
+          -e AWS_SECRET_ACCESS_KEY \
+          -e AWS_REGION \
+          -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
+          -e FEATURENET_NAME=${{ env.APP_NAME }} \
+          mikogs/tmp-featurenet-helper \
+          delete-data-from-s3
