@@ -39,7 +39,6 @@ BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
 #  echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
 #  aleph-node purge-chain --base-path "${BASE_PATH}" --chain "${CHAIN}" -y
 #fi
-#
 
 ARGS=(
   --validator
