@@ -7,7 +7,7 @@ use primitives::SessionIndex;
 use crate::accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, NodeKeys};
 
 static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
-    let node = get_env("NODE_URL").unwrap_or_else(|| "ws://127.0.0.1:9944".to_string());
+    let node = get_env("NODE_URL").unwrap_or_else(|| "ws://127.0.0.1:9943".to_string());
     let validator_count = get_env("VALIDATOR_COUNT").unwrap_or(5);
     let validators_seeds = env::var("VALIDATORS_SEEDS")
         .ok()
