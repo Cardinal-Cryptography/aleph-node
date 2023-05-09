@@ -578,6 +578,12 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
 
+      - name: debug
+        uses: lhotari/action-upterm@v1
+        with:
+          ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+          limit-access-to-actor: true
+
       - name: Run e2e test
         env:
           VALIDATOR_COUNT: 6
