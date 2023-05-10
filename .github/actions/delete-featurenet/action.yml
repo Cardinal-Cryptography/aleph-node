@@ -15,6 +15,9 @@ inputs:
   aws-secret-access-key:
     description: 'AWS Secret Access Key to be used in the action'
     required: true
+  ecr-public-registry:
+    description: "ECR public registry, with slash at the end, eg. 'public.ecr.aws/something/'"
+    required: true
   featurenet-keys-s3bucket-name:
     description: 'S3 bucket name with featurenet keys'
     required: true
@@ -107,5 +110,5 @@ runs:
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ env.APP_NAME }} \
-          mikogs/tmp-featurenet-helper \
+          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.1.0 \
           delete-data-from-s3
