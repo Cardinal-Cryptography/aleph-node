@@ -90,12 +90,13 @@ runs:
         add: "*.yaml"
         cwd: "${{ inputs.repo-apps-name }}"
 
-    #- name: Refresh Argo and wait for the deletion to be finished
-    #  shell: bash
-    #  run: |
-    #    cd "${{ inputs.repo-apps-name }}"
-    #    ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-    #      "${{ inputs.argo-sync-user-token }}"
+    # Temporarily commented out until ArgoCD access is fixed
+    # - name: Refresh Argo and wait for the deletion to be finished
+    #   shell: bash
+    #   run: |
+    #     cd "${{ inputs.repo-apps-name }}"
+    #     ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+    #       "${{ inputs.argo-sync-user-token }}"
 
     - name: Clean S3 storage
       shell: bash
@@ -104,7 +105,7 @@ runs:
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
         docker run --rm \
-          -e SOURCE_NET=${{ inputs.base-net }} \
+          -e SOURCE_NET=testnet \
           -e AWS_ACCESS_KEY_ID \
           -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION \
