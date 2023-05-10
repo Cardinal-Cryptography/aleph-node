@@ -234,10 +234,8 @@ impl<T: Config> Pallet<T> {
     }
 
     fn blocks_to_produce_per_session() -> u32 {
-        T::SessionPeriod::get().saturating_div(
-            T::ValidatorProvider::current_era_committee_size()
-                .size(),
-        )
+        T::SessionPeriod::get()
+            .saturating_div(T::ValidatorProvider::current_era_committee_size().size())
     }
 
     pub fn adjust_rewards_for_session() {
