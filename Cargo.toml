@@ -37,6 +37,7 @@ exclude = [
     "fork-off",
     "relations/ark",
     "relations/ark/src/proc_macro",
+    "relations/jf",
     "scripts/synthetic-network/synthetic-link",
 ]
 
