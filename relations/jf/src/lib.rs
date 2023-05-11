@@ -25,14 +25,20 @@ pub fn generate_srs<R: CryptoRng + RngCore>(
     Ok(srs)
 }
 
+/// Common API for all relations.
 pub trait Relation: Default {
+    /// Public input to the relation. Must be marshallable.
     type PublicInput: Marshall;
+    /// Private input to the relation.
     type PrivateInput;
 
+    /// Constructs new relation object from public and private inputs.
     fn new(public_input: Self::PublicInput, private_input: Self::PrivateInput) -> Self;
 
+    /// Include this relation in the circuit.
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()>;
 
+    /// Generate the circuit just for this relation.
     fn generate_circuit(&self) -> PlonkResult<PlonkCircuit<CircuitField>> {
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
         self.generate_subcircuit(&mut circuit)?;
@@ -40,12 +46,14 @@ pub trait Relation: Default {
         Ok(circuit)
     }
 
+    /// Generate the proving and verifying keys for this relation.
     fn generate_keys(
         srs: &UniversalSrs<Curve>,
     ) -> PlonkResult<(ProvingKey<Curve>, VerifyingKey<Curve>)> {
         PlonkKzgSnark::<Curve>::preprocess(srs, &Self::default().generate_circuit()?)
     }
 
+    /// Generate the proof for this relation.
     fn prove<R: CryptoRng + RngCore>(
         &self,
         pk: &ProvingKey<Curve>,
@@ -60,6 +68,8 @@ pub trait Relation: Default {
     }
 }
 
+/// Describe how to marshall a type into a vector of circuit fields.
 pub trait Marshall {
+    /// Marshall the type into a vector of circuit fields.
     fn marshall(&self) -> Vec<CircuitField>;
 }
