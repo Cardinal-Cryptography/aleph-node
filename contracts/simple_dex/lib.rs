@@ -446,19 +446,7 @@ mod simple_dex {
             let balance_token_in = self.balance_of(token_in, this);
             let balance_token_out = self.balance_of(token_out, this);
 
-            let op0 = balance_token_out
-                .checked_sub(amount_token_out)
-                .ok_or(DexError::Arithmethic)?;
-
-            let op1 = balance_token_out
-                .checked_div(op0)
-                .ok_or(DexError::Arithmethic)?;
-
-            let op2 = op1.checked_sub(1).ok_or(DexError::Arithmethic)?;
-
-            balance_token_in
-                .checked_mul(op2)
-                .ok_or(DexError::Arithmethic)
+            Self::_in_given_out(amount_token_out, balance_token_in, balance_token_out)
         }
 
         /// Return swap trade output given a curve with equal token weights
@@ -477,40 +465,45 @@ mod simple_dex {
             let balance_token_in = self.balance_of(token_in, this);
             let balance_token_out = self.balance_of(token_out, this);
 
-            Self::_out_given_in(
-                amount_token_in,
-                balance_token_in,
-                balance_token_out,
-                self.data.get().unwrap().swap_fee_percentage,
-            )
+            Self::_out_given_in(amount_token_in, balance_token_in, balance_token_out)
+        }
+
+        fn _in_given_out(
+            amount_token_out: Balance,
+            balance_token_in: Balance,
+            balance_token_out: Balance,
+        ) -> Result<Balance, DexError> {
+            let op0 = balance_token_in
+                .checked_mul(balance_token_out)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op1 = balance_token_out
+                .checked_sub(amount_token_out)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op2 = op0.checked_div(op1).ok_or(DexError::Arithmethic)?;
+
+            op2.checked_sub(balance_token_in)
+                .ok_or(DexError::Arithmethic)
         }
 
         fn _out_given_in(
             amount_token_in: Balance,
             balance_token_in: Balance,
             balance_token_out: Balance,
-            swap_fee_percentage: Balance,
         ) -> Result<Balance, DexError> {
-            let op0 = amount_token_in
-                .checked_mul(swap_fee_percentage)
+            let op1 = balance_token_out
+                .checked_mul(balance_token_in)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op1 = balance_token_in
+            let op2 = balance_token_in
                 .checked_add(amount_token_in)
-                .and_then(|result| result.checked_mul(100))
                 .ok_or(DexError::Arithmethic)?;
 
-            let op2 = op1.checked_sub(op0).ok_or(DexError::Arithmethic)?;
-
-            let op3 = balance_token_in
-                .checked_mul(balance_token_out)
-                .and_then(|result| result.checked_mul(100))
-                .ok_or(DexError::Arithmethic)?;
-
-            let op4 = op3.checked_div(op2).ok_or(DexError::Arithmethic)?;
+            let op3 = op1.checked_div(op2).ok_or(DexError::Arithmethic)?;
 
             balance_token_out
-                .checked_sub(op4)
+                .checked_sub(op3)
                 // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
                 .and_then(|result| result.checked_sub((op3 % op2 > 0).into()))
                 .ok_or(DexError::Arithmethic)
@@ -589,20 +582,37 @@ mod simple_dex {
 
         use super::*;
 
+        #[test]
+        fn test_in_given_out() {
+            let balance_in = 1054100000000000u128;
+            let balance_out = 991358845313840u128;
+
+            let dust = 1u128;
+            let expected_amount_in = 1000000000000u128;
+
+            // 939587570196u128;
+            let amount_out =
+                SimpleDex::_out_given_in(expected_amount_in, balance_in, balance_out).unwrap();
+
+            let amount_in = SimpleDex::_in_given_out(amount_out, balance_in, balance_out).unwrap();
+
+            assert_eq!(amount_in, expected_amount_in - dust);
+        }
+
         proptest! {
             #[test]
             fn rounding_benefits_dex(
                 balance_token_a in 1..1000u128,
                 balance_token_b in 1..1000u128,
                 pay_token_a in 1..1000u128,
-                fee_percentage in 0..10u128
+
             ) {
                 let get_token_b =
-                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, fee_percentage).unwrap();
+                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b).unwrap();
                 let balance_token_a = balance_token_a + pay_token_a;
                 let balance_token_b = balance_token_b - get_token_b;
                 let get_token_a =
-                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, fee_percentage).unwrap();
+                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a).unwrap();
 
                 assert!(get_token_a <= pay_token_a);
             }
