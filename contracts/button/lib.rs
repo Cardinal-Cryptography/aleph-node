@@ -256,8 +256,14 @@ pub mod button_game {
         ///
         /// ThePressiah will receive half of that amount as his reward
         #[ink(message)]
-        pub fn total_rewards(&self) -> u64 {
+        pub fn total_rewards(&self) -> Balance {
             self.data.get().unwrap().total_rewards
+        }
+
+        /// Returns button lifetime measured in blocks
+        #[ink(message)]
+        pub fn button_lifetime(&self) -> u32 {
+            self.data.get().unwrap().button_lifetime
         }
 
         /// Presses the button
