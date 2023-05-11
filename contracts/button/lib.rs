@@ -319,19 +319,32 @@ pub mod button_game {
 
         /// Resets the game
         ///
-        /// Erases the storage and pays award to the Pressiah
+        /// Erases the storage and pays the award to the Pressiah
         /// Can be called by any account on behalf of a player
         /// Can only be called after button's deadline
         #[ink(message)]
         pub fn reset(&mut self) -> ButtonResult<()> {
             self.ensure_dead()?;
-            self.reward_pressiah()?;
+
+            self.do_reward_pressiah()?;
             self.transfer_tickets_to_marketplace()?;
             self.reset_marketplace()?;
             self.reset_state()?;
 
             Self::emit_event(self.env(), Event::ButtonReset(ButtonReset {}));
 
+            Ok(())
+        }
+
+        /// Rewards the Pressiah
+        ///
+        /// Does not reset any other state beyond the last_presser record
+        /// Can only be called after button's deadline
+        /// Can be called by any account
+        #[ink(message)]
+        pub fn reward_pressiah(&mut self) -> ButtonResult<()> {
+            self.ensure_dead()?;
+            self.do_reward_pressiah()?;
             Ok(())
         }
 
@@ -488,8 +501,10 @@ pub mod button_game {
             Ok(())
         }
 
-        fn reward_pressiah(&self) -> ButtonResult<()> {
-            if let Some(pressiah) = self.data.get().unwrap().last_presser {
+        fn do_reward_pressiah(&mut self) -> ButtonResult<()> {
+            let mut data = self.data.get().unwrap();
+
+            if let Some(pressiah) = data.last_presser {
                 let reward = self.pressiah_reward();
                 self.mint_reward(pressiah, reward)?;
 
@@ -497,6 +512,9 @@ pub mod button_game {
                     self.env(),
                     Event::PressiahFound(PressiahFound { pressiah, reward }),
                 );
+
+                data.last_presser = None;
+                self.data.set(&data);
             };
 
             Ok(())
