@@ -102,7 +102,7 @@ pub mod button_game {
         pub last_presser: Option<AccountId>,
         /// block number of the last press, set to current block number at button start/reset
         pub last_press: BlockNumber,
-        /// sum of rewards paid to players in the current iteration
+        /// sum of rewards paid to players in the current round
         pub total_rewards: u128,
         /// counter for the number of presses
         pub presses: u128,
@@ -201,7 +201,7 @@ pub mod button_game {
             data.last_press + data.button_lifetime
         }
 
-        /// Returns the curent round number
+        /// Returns the current round number
         #[ink(message)]
         pub fn round(&self) -> u64 {
             self.data.get().unwrap().round
@@ -250,6 +250,14 @@ pub mod button_game {
             self.env()
                 .own_code_hash()
                 .map_err(|_| GameError::CantRetrieveOwnCodeHash)
+        }
+
+        /// Returns the pool of rewards paid out in this round
+        ///
+        /// ThePressiah will receive half of that amount as his reward
+        #[ink(message)]
+        pub fn total_rewards(&self) -> u64 {
+            self.data.get().unwrap().total_rewards
         }
 
         /// Presses the button
