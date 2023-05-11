@@ -16,11 +16,12 @@ pub type PlonkResult<T> = Result<T, PlonkError>;
 pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = ark_bls12_381::Fr;
 
+#[cfg(any(test, feature = "test-srs"))]
 pub fn generate_srs<R: CryptoRng + RngCore>(
     max_degree: usize,
     rng: &mut R,
 ) -> PlonkResult<UniversalSrs<Curve>> {
-    let srs = PlonkKzgSnark::<Curve>::universal_setup(max_degree, rng).unwrap();
+    let srs = PlonkKzgSnark::<Curve>::universal_setup_for_testing(max_degree, rng).unwrap();
     Ok(srs)
 }
 

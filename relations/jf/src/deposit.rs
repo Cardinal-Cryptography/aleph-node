@@ -61,7 +61,7 @@ impl Relation for DepositRelation {
         // todo: extract token amount limiting to at least constant, or even better to a function/type
         circuit.enforce_leq_constant(token_amount_var, CircuitField::from(u128::MAX))?;
 
-        let zero = circuit.create_constant_variable(CircuitField::zero())?;
+        let zero_var = circuit.create_constant_variable(CircuitField::zero())?;
 
         // Check that the note is valid.
         // todo: move to a common place
@@ -70,8 +70,8 @@ impl Relation for DepositRelation {
             token_amount_var,
             trapdoor_var,
             nullifier_var,
-            zero,
-            zero,
+            zero_var,
+            zero_var,
         ];
         let computed_note_var = RescueNativeGadget::<CircuitField>::rescue_sponge_no_padding(
             circuit,
@@ -87,12 +87,17 @@ impl Relation for DepositRelation {
 
 #[cfg(test)]
 mod tests {
+    use jf_plonk::{
+        proof_system::{PlonkKzgSnark, UniversalSNARK},
+        transcript::StandardTranscript,
+    };
     use jf_relation::Circuit;
 
     use crate::{
         deposit::{DepositPrivateInput, DepositPublicInput, DepositRelation},
+        generate_srs,
         shielder_types::compute_note,
-        Marshall, Relation,
+        Curve, Marshall, Relation,
     };
 
     fn relation() -> DepositRelation {
@@ -121,6 +126,32 @@ mod tests {
         let circuit = DepositRelation::generate_circuit(&relation).unwrap();
         circuit
             .check_circuit_satisfiability(&relation.public.marshall())
+            .unwrap();
+    }
+
+    #[test]
+    fn deposit_constraints_incorrectness_with_wrong_note() {
+        let mut relation = relation();
+        relation.public.note[0] += 1;
+        let circuit = DepositRelation::generate_circuit(&relation).unwrap();
+        assert!(circuit
+            .check_circuit_satisfiability(&relation.public.marshall())
+            .is_err());
+    }
+
+    #[test]
+    fn deposit_proving_procedure() {
+        let rng = &mut jf_utils::test_rng();
+        let srs = generate_srs(10_000, rng).unwrap();
+
+        let (pk, vk) = DepositRelation::generate_keys(&srs).unwrap();
+
+        let relation = relation();
+        let proof = relation.prove(&pk, rng).unwrap();
+
+        let public_input = relation.public.marshall();
+
+        PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(&vk, &public_input, &proof, None)
             .unwrap();
     }
 }
