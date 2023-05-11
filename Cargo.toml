@@ -35,8 +35,8 @@ exclude = [
     "e2e-tests",
     "flooder",
     "fork-off",
-    "relations",
-    "relations/src/proc_macro",
+    "relations/ark",
+    "relations/ark/src/proc_macro",
     "scripts/synthetic-network/synthetic-link",
 ]
 
