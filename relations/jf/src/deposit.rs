@@ -1,3 +1,4 @@
+use ark_ff::Zero;
 use jf_primitives::circuit::rescue::RescueNativeGadget;
 use jf_relation::{Circuit, PlonkCircuit};
 
@@ -39,23 +40,18 @@ impl Relation for DepositRelation {
     type PublicInput = DepositPublicInput;
     type PrivateInput = DepositPrivateInput;
 
-    fn new(
-        public_input: Self::PublicInput,
-        private_input: Self::PrivateInput,
-    ) -> PlonkResult<Self> {
-        Ok(Self {
+    fn new(public_input: Self::PublicInput, private_input: Self::PrivateInput) -> Self {
+        Self {
             public: public_input,
             private: private_input,
-        })
+        }
     }
 
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
         // Register public inputs.
         let note_var = circuit.create_public_variable(convert_hash(self.public.note))?;
-        let token_id_var =
-            circuit.create_public_variable(CircuitField::from(self.public.token_id))?;
-        let token_amount_var =
-            circuit.create_public_variable(CircuitField::from(self.public.token_amount))?;
+        let token_id_var = circuit.create_public_variable(self.public.token_id.into())?;
+        let token_amount_var = circuit.create_public_variable(self.public.token_amount.into())?;
 
         // Register private inputs.
         let trapdoor_var = circuit.create_variable(convert_hash(self.private.trapdoor))?;
@@ -65,6 +61,8 @@ impl Relation for DepositRelation {
         // todo: extract token amount limiting to at least constant, or even better to a function/type
         circuit.enforce_leq_constant(token_amount_var, CircuitField::from(u128::MAX))?;
 
+        let zero = circuit.create_constant_variable(CircuitField::zero())?;
+
         // Check that the note is valid.
         // todo: move to a common place
         let inputs: [usize; 6] = [
@@ -72,15 +70,57 @@ impl Relation for DepositRelation {
             token_amount_var,
             trapdoor_var,
             nullifier_var,
-            circuit.zero(),
-            circuit.zero(),
+            zero,
+            zero,
         ];
-        let computed_note_var =
-            RescueNativeGadget::<CircuitField>::rescue_sponge_no_padding(circuit, &inputs[..], 1)?
-                [0];
+        let computed_note_var = RescueNativeGadget::<CircuitField>::rescue_sponge_no_padding(
+            circuit,
+            inputs.as_slice(),
+            1,
+        )?[0];
 
         circuit.enforce_equal(note_var, computed_note_var)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use jf_relation::Circuit;
+
+    use crate::{
+        deposit::{DepositPrivateInput, DepositPublicInput, DepositRelation},
+        shielder_types::compute_note,
+        Marshall, Relation,
+    };
+
+    fn relation() -> DepositRelation {
+        let token_id = 0;
+        let token_amount = 10;
+        let trapdoor = [1; 4];
+        let nullifier = [2; 4];
+        let note = compute_note(token_id, token_amount, trapdoor, nullifier);
+
+        DepositRelation::new(
+            DepositPublicInput {
+                note,
+                token_id,
+                token_amount,
+            },
+            DepositPrivateInput {
+                trapdoor,
+                nullifier,
+            },
+        )
+    }
+
+    #[test]
+    fn deposit_constraints_correctness() {
+        let relation = relation();
+        let circuit = DepositRelation::generate_circuit(&relation).unwrap();
+        circuit
+            .check_circuit_satisfiability(&relation.public.marshall())
+            .unwrap();
     }
 }

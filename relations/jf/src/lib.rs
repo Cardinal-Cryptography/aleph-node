@@ -28,8 +28,7 @@ pub trait Relation: Default {
     type PublicInput: Marshall;
     type PrivateInput;
 
-    fn new(public_input: Self::PublicInput, private_input: Self::PrivateInput)
-        -> PlonkResult<Self>;
+    fn new(public_input: Self::PublicInput, private_input: Self::PrivateInput) -> Self;
 
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()>;
 
