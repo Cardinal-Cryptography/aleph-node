@@ -158,15 +158,19 @@ class Chain:
         for i in idx:
             self.nodes[i].purge()
 
-    def fork(self, forkoff_path, ws_endpoint):
+    def fork(self, forkoff_path, ws_endpoint, snapshot_file=None):
         """Replace the chainspec of this chain with the state forked from the given `ws_endpoint`.
         This method should be run after bootstrapping the chain, but before starting it.
         'forkoff_path' should be a path to fork-off binary."""
         forked = op.join(self.path, 'forked.json')
+        chainspec = op.join(self.path, 'chainspec.json')
+        snapshot = snapshot_file if snapshot_file else op.join(self.path, 'snapshot.json')
         cmd = [check_file(forkoff_path), '--ws-rpc-endpoint', ws_endpoint,
-                '--initial-spec-path', op.join(self.path, 'chainspec.json'),
-                '--snapshot-path', op.join(self.path, 'snapshot.json'),
+                '--initial-spec-path', chainspec,
+                '--snapshot-path', snapshot,
                 '--combined-spec-path', forked]
+        if snapshot_file:
+            cmd.append('--use-snapshot-file')
         subprocess.run(cmd, check=True)
         self.set_chainspec(forked)
 

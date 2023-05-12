@@ -36,17 +36,19 @@ class Node:
 
     def start(self, name, backup=True):
         """Start the node. `name` is used to name the logfile and for the --name flag."""
+        if self.running:
+            print('Node already running')
+            return
         cmd = [self.binary, '--name', name] + self._stdargs() + self._nodeargs(backup) + flags_from_dict(self.flags)
-
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
             self.process = subprocess.Popen(cmd, stderr=logfile, stdout=subprocess.DEVNULL)
         self.running = True
 
     def stop(self):
-        """Stop the node by sending SIGKILL."""
+        """Stop the node by sending SIGTERM."""
         if self.running:
-            self.process.kill()
+            self.process.terminate()
             self.running = False
 
     def purge(self):
