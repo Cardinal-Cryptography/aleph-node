@@ -54,7 +54,7 @@ pub trait Relation: Default {
     }
 
     /// Generate the proof for this relation.
-    fn prove<R: CryptoRng + RngCore>(
+    fn generate_proof<R: CryptoRng + RngCore>(
         &self,
         pk: &ProvingKey<Curve>,
         rng: &mut R,

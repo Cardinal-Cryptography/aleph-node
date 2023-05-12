@@ -1,4 +1,4 @@
-use ark_ff::BigInteger256;
+use ark_ff::{BigInteger256, PrimeField};
 use jf_primitives::crhf::{FixedLengthRescueCRHF, CRHF};
 
 use crate::CircuitField;
@@ -27,7 +27,8 @@ pub fn compute_note(
         0.into(),
         0.into(),
     ];
+    // todo: move conversion somewhere else
     FixedLengthRescueCRHF::<CircuitField, 6, 1>::evaluate(input).unwrap()[0]
+        .into_bigint()
         .0
-         .0
 }

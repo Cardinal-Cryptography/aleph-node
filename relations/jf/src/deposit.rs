@@ -147,7 +147,7 @@ mod tests {
         let (pk, vk) = DepositRelation::generate_keys(&srs).unwrap();
 
         let relation = relation();
-        let proof = relation.prove(&pk, rng).unwrap();
+        let proof = relation.generate_proof(&pk, rng).unwrap();
 
         let public_input = relation.public.marshall();
 
