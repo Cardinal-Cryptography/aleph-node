@@ -22,7 +22,7 @@ jobs:
   create-updatenet:
     needs: [check-vars-and-secrets]
     name: Create updatenet
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
