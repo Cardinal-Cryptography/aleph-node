@@ -473,18 +473,15 @@ mod simple_dex {
             balance_token_in: Balance,
             balance_token_out: Balance,
         ) -> Result<Balance, DexError> {
-            let op0 = balance_token_in
-                .checked_mul(balance_token_out)
+            let op1 = balance_token_in
+                .checked_mul(amount_token_out)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op1 = balance_token_out
+            let op2 = balance_token_out
                 .checked_sub(amount_token_out)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op2 = op0.checked_div(op1).ok_or(DexError::Arithmethic)?;
-
-            op2.checked_sub(balance_token_in)
-                .ok_or(DexError::Arithmethic)
+            op1.checked_div(op2).ok_or(DexError::Arithmethic)
         }
 
         fn _out_given_in(
@@ -493,20 +490,14 @@ mod simple_dex {
             balance_token_out: Balance,
         ) -> Result<Balance, DexError> {
             let op1 = balance_token_out
-                .checked_mul(balance_token_in)
+                .checked_mul(amount_token_in)
                 .ok_or(DexError::Arithmethic)?;
 
             let op2 = balance_token_in
                 .checked_add(amount_token_in)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op3 = op1.checked_div(op2).ok_or(DexError::Arithmethic)?;
-
-            balance_token_out
-                .checked_sub(op3)
-                // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
-                .and_then(|result| result.checked_sub((op3 % op2 > 0).into()))
-                .ok_or(DexError::Arithmethic)
+            op1.checked_div(op2).ok_or(DexError::Arithmethic)
         }
 
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
@@ -590,9 +581,10 @@ mod simple_dex {
             let dust = 1u128;
             let expected_amount_in = 1000000000000u128;
 
-            // 939587570196u128;
             let amount_out =
                 SimpleDex::_out_given_in(expected_amount_in, balance_in, balance_out).unwrap();
+
+            assert_eq!(939587570196u128, amount_out);
 
             let amount_in = SimpleDex::_in_given_out(amount_out, balance_in, balance_out).unwrap();
 
