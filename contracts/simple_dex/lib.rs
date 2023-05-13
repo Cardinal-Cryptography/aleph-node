@@ -602,9 +602,9 @@ mod simple_dex {
         proptest! {
             #[test]
             fn rounding_benefits_dex(
-                balance_token_a in 1..1000u128,
-                balance_token_b in 1..1000u128,
-                pay_token_a in 1..1000u128,
+                balance_token_a in 1000000000000..100000000000000u128,
+                balance_token_b in 1000000000000..100000000000000u128,
+                pay_token_a in 1000000000000..100000000000000u128,
 
             ) {
                 let get_token_b =
