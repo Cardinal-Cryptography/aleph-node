@@ -90,13 +90,12 @@ runs:
         add: "*.yaml"
         cwd: "${{ inputs.repo-apps-name }}"
 
-    # Temporarily commented out until ArgoCD access is fixed
-    # - name: Refresh Argo and wait for the deletion to be finished
-    #   shell: bash
-    #   run: |
-    #     cd "${{ inputs.repo-apps-name }}"
-    #     ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-    #       "${{ inputs.argo-sync-user-token }}"
+    - name: Refresh Argo and wait for the deletion to be finished
+      shell: bash
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+          "${{ inputs.argo-sync-user-token }}"
 
     - name: Clean S3 storage
       shell: bash

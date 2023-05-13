@@ -172,18 +172,15 @@ runs:
         add: "*.yaml"
         cwd: "${{ inputs.repo-apps-name }}"
 
-    # yamllint disable rule:line-length
-    # Temporarily commented out until ArgoCD is fixed
-    # - name: Refresh Argo and wait for the creation to be finished
-    #   if: inputs.no-refresh != 'true'
-    #   env:
-    #     # yamllint disable-line rule:line-length
-    #     APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
-    #   shell: bash
-    #   run: |
-    #     cd "${{ inputs.repo-apps-name }}"
-    #     ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-    #       "${{ inputs.argo-sync-user-token }}" \
-    #       "${{ env.APP_NAME }}" \
-    #       "${{ inputs.create-hook }}"
-    # yamllint enable rule:line-length
+    - name: Refresh Argo and wait for the creation to be finished
+      if: inputs.no-refresh != 'true'
+      env:
+        # yamllint disable-line rule:line-length
+        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+      shell: bash
+      run: |
+        cd "${{ inputs.repo-apps-name }}"
+        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
+          "${{ inputs.argo-sync-user-token }}" \
+          "${{ env.APP_NAME }}" \
+          "${{ inputs.create-hook }}"
