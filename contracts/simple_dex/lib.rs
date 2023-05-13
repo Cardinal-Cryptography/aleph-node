@@ -601,6 +601,27 @@ mod simple_dex {
 
         proptest! {
             #[test]
+            fn proptest_in_given_out(
+                amount_in   in 1000000000000..100000000000000u128,
+                balance_in  in 1000000000000..100000000000000u128,
+                balance_out in 1000000000000..100000000000000u128,
+            ) {
+
+                // let balance_in = 1054100000000000u128;
+                // let balance_out = 991358845313840u128;
+
+                let amount_out =
+                    SimpleDex::_out_given_in(amount_in, balance_in, balance_out).unwrap();
+
+                let in_given_out = SimpleDex::_in_given_out(amount_out, balance_in, balance_out).unwrap();
+                let dust = 1u128;
+
+                assert!(amount_in - in_given_out <= 100 * dust);
+            }
+        }
+
+        proptest! {
+            #[test]
             fn rounding_benefits_dex(
                 balance_token_a in 1000000000000..100000000000000u128,
                 balance_token_b in 1000000000000..100000000000000u128,
