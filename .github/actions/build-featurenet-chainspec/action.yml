@@ -62,5 +62,5 @@ runs:
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ env.APP_NAME }} \
-          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.1.0 \
+          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.2.0 \
           generate-data-dir generate-chainspec save-data-to-s3
