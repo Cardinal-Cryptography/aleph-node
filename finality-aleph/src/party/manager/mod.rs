@@ -468,7 +468,7 @@ where
         let our_consensus_keys: HashSet<_> = match self.keystore.keys(KEY_TYPE).await {
             Ok(keys) => keys.into_iter().collect(),
             Err(e) => {
-                warn!(target: "aleph-data-store", "No validator keys present on machine: {}", e);
+                warn!(target: "aleph-data-store", "Error accessing keystore: {}", e);
                 return None;
             }
         };
