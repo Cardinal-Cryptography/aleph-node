@@ -7,6 +7,8 @@ use aleph_client::{
     waiting::{BlockStatus, WaitingExt},
     AccountId, AsConnection, Pair, SignedConnection, TxStatus,
 };
+use aleph_client::api::sudo::events::Sudid;
+use aleph_client::waiting::AlephWaiting;
 use log::info;
 
 use crate::{
@@ -36,6 +38,8 @@ async fn prepare_test() -> anyhow::Result<()> {
         non_reserved_finality_seats: 1,
     };
 
+    info!("validators: {:?}", new_validators);
+
     connection
         .change_validators(
             Some(new_validators[0..3].to_vec()),
@@ -44,6 +48,10 @@ async fn prepare_test() -> anyhow::Result<()> {
             TxStatus::InBlock,
         )
         .await?;
+    connection.wait_for_event(|e: &Sudid| {
+        info!("{:?}", e);
+        true
+    }, BlockStatus::Best).await;
     connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
 
     Ok(())
