@@ -16,7 +16,13 @@ ark-serialize = { version = "0.4.0", default-features = false }
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 
 sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", default-features = false }
-jf-plonk = { git = "https://github.com/EspressoSystems/jellyfish" }
+jf-plonk = { git = "https://github.com/EspressoSystems/jellyfish", rev = "45328b802dd7d28d278ca364d54df0a9c6f337cc" }
+
+[dev-dependencies]
+jf-plonk = { git = "https://github.com/EspressoSystems/jellyfish", rev = "45328b802dd7d28d278ca364d54df0a9c6f337cc", features = ["test-srs"] }
+jf-relation = { git = "https://github.com/EspressoSystems/jellyfish", rev = "45328b802dd7d28d278ca364d54df0a9c6f337cc" }
+jf-utils = { git = "https://github.com/EspressoSystems/jellyfish", rev = "45328b802dd7d28d278ca364d54df0a9c6f337cc" }
+
 
 [features]
 default = ["std"]

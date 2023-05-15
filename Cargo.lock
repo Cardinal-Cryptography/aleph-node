@@ -4069,6 +4069,8 @@ dependencies = [
  "ark-bls12-381 0.4.0",
  "ark-serialize 0.4.2",
  "jf-plonk",
+ "jf-relation",
+ "jf-utils",
  "parity-scale-codec",
  "sp-runtime-interface",
 ]
@@ -4076,7 +4078,7 @@ dependencies = [
 [[package]]
 name = "jf-plonk"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish#45328b802dd7d28d278ca364d54df0a9c6f337cc"
+source = "git+https://github.com/EspressoSystems/jellyfish?rev=45328b802dd7d28d278ca364d54df0a9c6f337cc#45328b802dd7d28d278ca364d54df0a9c6f337cc"
 dependencies = [
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
@@ -4105,7 +4107,7 @@ dependencies = [
 [[package]]
 name = "jf-primitives"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish#45328b802dd7d28d278ca364d54df0a9c6f337cc"
+source = "git+https://github.com/EspressoSystems/jellyfish?rev=45328b802dd7d28d278ca364d54df0a9c6f337cc#45328b802dd7d28d278ca364d54df0a9c6f337cc"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -4146,7 +4148,7 @@ dependencies = [
 [[package]]
 name = "jf-relation"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish#45328b802dd7d28d278ca364d54df0a9c6f337cc"
+source = "git+https://github.com/EspressoSystems/jellyfish?rev=45328b802dd7d28d278ca364d54df0a9c6f337cc#45328b802dd7d28d278ca364d54df0a9c6f337cc"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -4171,7 +4173,7 @@ dependencies = [
 [[package]]
 name = "jf-utils"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish#45328b802dd7d28d278ca364d54df0a9c6f337cc"
+source = "git+https://github.com/EspressoSystems/jellyfish?rev=45328b802dd7d28d278ca364d54df0a9c6f337cc#45328b802dd7d28d278ca364d54df0a9c6f337cc"
 dependencies = [
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
