@@ -98,7 +98,7 @@ async fn setup() -> anyhow::Result<AlephKeyPair> {
     Ok(finalizer)
 }
 
-/// Tests emergency finalizer. Runs on 6 nodes 0-6.
+/// Tests emergency finalizer. Runs on 6 nodes 0-5.
 /// * Setup finalizer
 /// * setup 0-4 to be validators in the next era
 /// * setup 2-6 to be validators in the next next era
