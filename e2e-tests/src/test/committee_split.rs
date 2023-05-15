@@ -44,7 +44,7 @@ async fn prepare_test() -> anyhow::Result<()> {
             TxStatus::InBlock,
         )
         .await?;
-    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
+    connection.wait_for_n_eras(4, BlockStatus::Finalized).await;
 
     Ok(())
 }
