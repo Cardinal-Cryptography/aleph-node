@@ -44,7 +44,7 @@ async fn finalize_from_to<C: AsConnection + Sync>(
     let from = connection.get_block_number(from).await?.unwrap();
     let to = connection.get_block_number(to).await?.unwrap();
 
-    for i in (from + 1)..to {
+    for i in (from + 1)..=to {
         let hash = connection.get_block_hash(i).await?.unwrap();
         connection.emergency_finalize(i, hash, finalizer).await?
     }
