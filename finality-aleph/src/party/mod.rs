@@ -121,7 +121,7 @@ where
         {
             match backup::rotate(self.backup_saving_path.clone(), session_id.0) {
                 Ok(backup) => {
-                    info!(target: "aleph-party", "Running session {:?} as authority id {:?}", session_id, node_id);
+                    debug!(target: "aleph-party", "Running session {:?} as authority id {:?}", session_id, node_id);
                     Some(
                         self.session_manager
                             .spawn_authority_task_for_session(

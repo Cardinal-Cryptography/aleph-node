@@ -37,7 +37,13 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use primitives::{staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError, AuthorityId as AlephId, BlockNumber, SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN, SessionInfoProvider};
+use primitives::{
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
+    AuthorityId as AlephId, BlockNumber, SessionAuthorityData, SessionCommittee, SessionIndex,
+    SessionInfoProvider, SessionValidatorError, Version as FinalityVersion, ADDRESSES_ENCODING,
+    DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
+};
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Index, Signature};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
@@ -295,8 +301,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 pub struct SessionInfoImpl;
-impl SessionInfoProvider for SessionInfoImpl
-{
+impl SessionInfoProvider for SessionInfoImpl {
     fn current_session() -> SessionIndex {
         pallet_session::CurrentIndex::<Runtime>::get()
     }
@@ -314,7 +319,6 @@ impl pallet_aleph::Config for Runtime {
     >;
     type NextSessionAuthorityProvider = Session;
 }
-
 
 #[cfg(feature = "liminal")]
 parameter_types! {

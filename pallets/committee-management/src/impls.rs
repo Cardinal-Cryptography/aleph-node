@@ -438,7 +438,11 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    // Calculates
+    /// Calculates committee for the given session.
+    /// If the era `E` starts in the session `a`, and ends in session `b` then from session `a-1`
+    /// to session `b-1` this function can answer question who will be in the committee in the era `E`.
+    /// In the last session of the era `E` this can be used to determine all of the sessions in the
+    /// era `E+1`.
     pub fn session_committee_for_session(
         session: SessionIndex,
     ) -> Result<SessionCommittee<T::AccountId>, SessionValidatorError> {
