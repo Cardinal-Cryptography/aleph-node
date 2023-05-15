@@ -27,7 +27,7 @@ pub fn generate_srs<R: CryptoRng + RngCore>(
 }
 
 /// Common API for all relations.
-pub trait Relation{
+pub trait Relation {
     /// Include this relation in the circuit and return all variables that are needed for outside circuit.
     fn generate_subcircuit(
         &self,

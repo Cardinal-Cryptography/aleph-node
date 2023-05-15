@@ -13,7 +13,6 @@ pub enum NoteType {
     Spend,
 }
 
-
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct NoteRelation {
     pub note: Note,
@@ -87,30 +86,28 @@ impl Relation for NoteRelation {
 
 #[cfg(test)]
 mod tests {
-use jf_relation::{Circuit, PlonkCircuit, Variable};
+    use jf_relation::{Circuit, PlonkCircuit, Variable};
 
     use crate::{
+        note::{NoteRelation, NoteType},
         shielder_types::compute_note,
-         PublicInput,
-        note::{NoteRelation, NoteType}, CircuitField,
-        Relation
+        CircuitField, PublicInput, Relation,
     };
 
-    fn spend_relation(token_id_var: Variable) -> NoteRelation {
+    fn note_relation(token_id_var: Variable, note_type: NoteType) -> NoteRelation {
         let token_id = 0;
         let token_amount = 10;
         let trapdoor = [1; 4];
         let nullifier = [2; 4];
         let note = compute_note(token_id, token_amount, trapdoor, nullifier);
-        let note_type = NoteType::Spend;
 
-        NoteRelation{
+        NoteRelation {
             note,
             nullifier,
             token_id_var,
             token_amount,
             trapdoor,
-            note_type
+            note_type,
         }
     }
 
@@ -120,35 +117,13 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
         let token_id_var = circuit.create_public_variable(token_id.into()).unwrap();
         let mut public_input = vec![CircuitField::from(token_id)];
-        circuit
-            .check_circuit_satisfiability(&public_input)
-            .unwrap();
+        circuit.check_circuit_satisfiability(&public_input).unwrap();
 
-        let relation = spend_relation(token_id_var);
+        let relation = note_relation(token_id_var, NoteType::Spend);
         relation.generate_subcircuit(&mut circuit).unwrap();
         public_input.extend(relation.public_input());
 
-        circuit
-            .check_circuit_satisfiability(&public_input)
-            .unwrap();
-    }
-
-    fn deposit_relation(token_id_var: Variable) -> NoteRelation {
-        let token_id = 0;
-        let token_amount = 10;
-        let trapdoor = [1; 4];
-        let nullifier = [2; 4];
-        let note = compute_note(token_id, token_amount, trapdoor, nullifier);
-        let note_type = NoteType::Deposit;
-
-        NoteRelation{
-            note,
-            nullifier,
-            token_id_var,
-            token_amount,
-            trapdoor,
-            note_type
-        }
+        circuit.check_circuit_satisfiability(&public_input).unwrap();
     }
 
     #[test]
@@ -157,16 +132,12 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
         let token_id_var = circuit.create_public_variable(token_id.into()).unwrap();
         let mut public_input = vec![CircuitField::from(token_id)];
-        circuit
-            .check_circuit_satisfiability(&public_input)
-            .unwrap();
+        circuit.check_circuit_satisfiability(&public_input).unwrap();
 
-        let relation = deposit_relation(token_id_var);
+        let relation = note_relation(token_id_var, NoteType::Deposit);
         relation.generate_subcircuit(&mut circuit).unwrap();
         public_input.extend(relation.public_input());
 
-        circuit
-            .check_circuit_satisfiability(&public_input)
-            .unwrap();
+        circuit.check_circuit_satisfiability(&public_input).unwrap();
     }
-
+}
