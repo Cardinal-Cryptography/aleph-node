@@ -117,10 +117,10 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
     let last_finalized_before = connection.get_block_number(last_finalized).await?.unwrap();
     sleep(Duration::from_secs(40));
     let mut last_finalized = connection.get_finalized_block_hash().await?;
-    let last_finalized_now = connection.get_block_number(last_finalized).await?.unwrap();
+    let last_best_block = connection.get_best_block().await?.unwrap();
 
     assert!(
-        last_finalized_now - last_finalized_before <= 20,
+        last_best_block - last_finalized_before <= 20,
         "at most 20 blocks can be created after finalization stops"
     );
     let current_era = connection.get_active_era(Some(last_finalized)).await;
