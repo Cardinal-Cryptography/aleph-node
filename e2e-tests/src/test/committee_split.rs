@@ -48,11 +48,7 @@ async fn prepare_test() -> anyhow::Result<()> {
             TxStatus::InBlock,
         )
         .await?;
-    connection.wait_for_event(|e: &Sudid| {
-        info!("{:?}", e);
-        true
-    }, BlockStatus::Best).await;
-    connection.wait_for_n_eras(3, BlockStatus::Finalized).await;
+    connection.wait_for_n_eras(2, BlockStatus::Finalized).await;
 
     Ok(())
 }
