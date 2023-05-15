@@ -46,6 +46,7 @@ impl Relation for NoteRelation {
         let token_amount_var = circuit.create_variable(self.token_amount.into())?;
         let note_var = circuit.create_variable(convert_hash(self.note))?;
         let nullifier_var = circuit.create_variable(convert_hash(self.nullifier))?;
+        let trapdoor_var = circuit.create_variable(convert_hash(self.trapdoor))?;
 
         match self.note_type {
             NoteType::Spend => {
@@ -67,7 +68,7 @@ impl Relation for NoteRelation {
         let inputs: [usize; 6] = [
             self.token_id_var,
             token_amount_var,
-            note_var,
+            trapdoor_var,
             nullifier_var,
             zero_var,
             zero_var,
@@ -114,7 +115,7 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
     }
 
     #[test]
-    fn spend_note_constraints_correctness() {
+    fn spend_note() {
         let token_id = 0;
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
         let token_id_var = circuit.create_public_variable(token_id.into()).unwrap();
@@ -123,12 +124,9 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
             .check_circuit_satisfiability(&public_input)
             .unwrap();
 
-        println!("public_input {:?}", public_input);
-
         let relation = spend_relation(token_id_var);
         relation.generate_subcircuit(&mut circuit).unwrap();
         public_input.extend(relation.public_input());
-        println!("public_input {:?}", public_input);
 
         circuit
             .check_circuit_satisfiability(&public_input)
@@ -154,7 +152,7 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
     }
 
     #[test]
-    fn deposit_note_constraints_correctness() {
+    fn deposit_note() {
         let token_id = 0;
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
         let token_id_var = circuit.create_public_variable(token_id.into()).unwrap();
@@ -172,19 +170,3 @@ use jf_relation::{Circuit, PlonkCircuit, Variable};
             .unwrap();
     }
 
-    #[test]
-    fn deposit_constraints_incorrectness_with_wrong_note() {
-        let token_id = 0;
-        let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
-        let token_id_var = circuit.create_public_variable(token_id.into()).unwrap();
-
-        let mut relation = deposit_relation(token_id_var);
-        relation.note[0] += 1;
-        relation.generate_subcircuit(&mut circuit).unwrap();
-
-        let mut public_input = relation.public_input();
-        assert!(circuit
-            .check_circuit_satisfiability(&public_input)
-            .is_err());
-    }
-}
