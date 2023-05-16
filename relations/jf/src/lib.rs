@@ -30,6 +30,7 @@ pub fn generate_srs<R: CryptoRng + RngCore>(
 pub trait Relation: Default {
     /// Include this relation in the circuit.
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()>;
+
     /// Generate the circuit just for this relation.
     fn generate_circuit(&self) -> PlonkResult<PlonkCircuit<CircuitField>> {
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
