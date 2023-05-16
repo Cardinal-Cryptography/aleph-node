@@ -1,11 +1,11 @@
 use std::fmt::{Debug, Display};
 
-use aleph_primitives::{Block, Header, BlockNumber};
+use aleph_primitives::{Block, BlockNumber, Header};
 use codec::{Decode, Encode};
 use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
-    sync::{Header as HeaderT, Block as BlockT, Justification as JustificationT},
+    sync::{Block as BlockT, Header as HeaderT, Justification as JustificationT},
     AlephJustification, BlockId,
 };
 
