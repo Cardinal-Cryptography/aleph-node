@@ -1,4 +1,4 @@
-use jf_relation::{Circuit, PlonkCircuit, Variable};
+use jf_relation::{PlonkCircuit, Variable};
 
 use crate::{
     note::{NoteRelation, NoteType},
@@ -46,11 +46,10 @@ impl Relation for DepositRelation {
         &self,
         circuit: &mut PlonkCircuit<CircuitField>,
     ) -> PlonkResult<Vec<Variable>> {
-        let token_id_var = circuit.create_public_variable(self.public.token_id.into())?;
         NoteRelation {
             note: self.public.note,
             nullifier: self.private.nullifier,
-            token_id_var,
+            token_id: self.public.token_id,
             token_amount: self.public.token_amount,
             trapdoor: self.private.trapdoor,
             note_type: NoteType::Deposit,
