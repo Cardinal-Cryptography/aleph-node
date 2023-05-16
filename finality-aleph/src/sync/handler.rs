@@ -1,3 +1,4 @@
+use core::marker::PhantomData;
 use std::{
     collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
@@ -10,7 +11,7 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, Interest},
-        BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier, LOG_TARGET,
+        Block, BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier, LOG_TARGET,
     },
     BlockIdentifier,
 };
@@ -19,20 +20,21 @@ use crate::{
 const MAX_JUSTIFICATION_BATCH: usize = 100;
 
 /// Handler for data incoming from the network.
-pub struct Handler<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
+pub struct Handler<B: Block, I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
 {
     chain_status: CS,
     verifier: V,
     finalizer: F,
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
+    phantom: PhantomData<B>,
 }
 
 /// What actions can the handler recommend as a reaction to some data.
 #[derive(Clone, Debug)]
-pub enum SyncAction<J: Justification> {
+pub enum SyncAction<B: Block, J: Justification> {
     /// A response for the peer that sent us the data.
-    Response(NetworkData<J>),
+    Response(NetworkData<B, J>),
     /// A task that should be performed periodically. At the moment these are only requests for blocks,
     /// so it always contains the id of the block.
     Task(BlockIdFor<J>),
@@ -40,7 +42,7 @@ pub enum SyncAction<J: Justification> {
     Noop,
 }
 
-impl<J: Justification> SyncAction<J> {
+impl<B: Block, J: Justification> SyncAction<B, J> {
     fn state_broadcast_response(
         justification: J::Unverified,
         other_justification: Option<J::Unverified>,
@@ -52,7 +54,7 @@ impl<J: Justification> SyncAction<J> {
     }
 
     fn request_response(justifications: Vec<J::Unverified>) -> Self {
-        SyncAction::Response(NetworkData::RequestResponse(justifications))
+        SyncAction::Response(NetworkData::RequestResponse(Vec::new(), justifications))
     }
 }
 
@@ -92,8 +94,8 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
-    Handler<I, J, CS, V, F>
+impl<B: Block, I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
+    Handler<B, I, J, CS, V, F>
 {
     /// New handler with the provided chain interfaces.
     pub fn new(
@@ -215,7 +217,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
         let mut number = request.state().top_justification().id().number() + 1;
         let mut justifications = vec![];
         while justifications.len() < MAX_JUSTIFICATION_BATCH {
@@ -281,7 +283,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         &mut self,
         state: State<J>,
         peer: I,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
         use Error::*;
         let remote_top_number = state.top_justification().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
