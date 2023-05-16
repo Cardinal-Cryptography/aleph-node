@@ -1,73 +1,73 @@
-use ark_ff::Zero;
+use ark_ff::{Zero};
 use jf_primitives::circuit::rescue::RescueNativeGadget;
 use jf_relation::{Circuit, PlonkCircuit, Variable};
 
 use crate::{
     shielder_types::{convert_hash, Note, Nullifier, TokenAmount, TokenId, Trapdoor},
-    CircuitField, PlonkResult, PublicInput, Relation,
+    CircuitField, PlonkResult, PublicInput,
 };
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum NoteType {
     Deposit,
     Spend,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct NoteRelation {
+pub struct SourcedNote{
     pub note: Note,
-    pub nullifier: Nullifier,
     pub token_id: TokenId,
     pub token_amount: TokenAmount,
     pub trapdoor: Trapdoor,
+    pub nullifier: Nullifier,
     pub note_type: NoteType,
 }
 
-impl PublicInput for NoteRelation {
-    fn public_input(&self) -> Vec<CircuitField> {
-        match self.note_type {
-            NoteType::Spend => {
-                vec![convert_hash(self.nullifier)]
-            }
-            NoteType::Deposit => {
-                vec![
-                    self.token_id.into(),
-                    self.token_amount.into(),
-                    convert_hash(self.note),
-                ]
-            }
-        }
-    }
+pub struct SourcedNoteVar {
+    pub note_var: Variable,
+    pub token_id_var: Variable,
+    pub token_amount_var: Variable,
+    pub trapdoor_var: Variable,
+    pub nullifier_var: Variable,
 }
 
-impl Relation for NoteRelation {
-    fn generate_subcircuit(
-        &self,
-        circuit: &mut PlonkCircuit<CircuitField>,
-    ) -> PlonkResult<Vec<Variable>> {
-        // Register inputs.
-        let token_id_var = circuit.create_variable(self.token_id.into())?;
-        let token_amount_var = circuit.create_variable(self.token_amount.into())?;
-        let note_var = circuit.create_variable(convert_hash(self.note))?;
-        let nullifier_var = circuit.create_variable(convert_hash(self.nullifier))?;
-        let trapdoor_var = circuit.create_variable(convert_hash(self.trapdoor))?;
+pub trait NoteGadget {
+    fn create_note_variable(&mut self, note: &SourcedNote) -> PlonkResult<SourcedNoteVar>;
+    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<Variable>;
+}
 
-        match self.note_type {
+impl NoteGadget for PlonkCircuit<CircuitField> {
+    fn create_note_variable(&mut self, note: &SourcedNote) -> PlonkResult<SourcedNoteVar> {
+        let note_var = self.create_variable(convert_hash(note.note))?;
+        let token_id_var = self.create_variable(note.token_id.into())?;
+        let token_amount_var = self.create_variable(note.token_amount.into())?;
+        let nullifier_var = self.create_variable(convert_hash(note.nullifier))?;
+        let trapdoor_var = self.create_variable(convert_hash(note.trapdoor))?;
+
+        match note.note_type {
             NoteType::Spend => {
-                circuit.set_variable_public(nullifier_var)?;
+                self.set_variable_public(nullifier_var)?;
             }
             NoteType::Deposit => {
-                circuit.set_variable_public(token_id_var)?;
-                circuit.set_variable_public(token_amount_var)?;
-                circuit.set_variable_public(note_var)?;
+                self.set_variable_public(note_var)?;
+                self.set_variable_public(token_id_var)?;
+                self.set_variable_public(token_amount_var)?;
             }
         }
 
         // Ensure that the token amount is valid.
         // todo: extract token amount limiting to at least constant, or even better to a function/type
-        circuit.enforce_leq_constant(token_amount_var, CircuitField::from(u128::MAX))?;
+        self.enforce_leq_constant(token_amount_var, CircuitField::from(u128::MAX))?;
 
-        let zero_var = circuit.create_constant_variable(CircuitField::zero())?;
+        Ok(SourcedNoteVar {
+            note_var, token_id_var, token_amount_var, nullifier_var, trapdoor_var,
+        })
+    }
+
+    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<Variable> {
+        let SourcedNoteVar {
+            note_var, token_id_var, token_amount_var, nullifier_var, trapdoor_var,
+        } = note_var;
+
+        let zero_var = self.create_constant_variable(CircuitField::zero())?;
 
         // Check that the note is valid.
         let inputs: [usize; 6] = [
@@ -78,15 +78,33 @@ impl Relation for NoteRelation {
             zero_var,
             zero_var,
         ];
+
         let computed_note_var = RescueNativeGadget::<CircuitField>::rescue_sponge_no_padding(
-            circuit,
+            self,
             inputs.as_slice(),
             1,
         )?[0];
 
-        circuit.enforce_equal(note_var, computed_note_var)?;
+        self.enforce_equal(note_var, computed_note_var)?;
 
-        Ok(vec![token_amount_var])
+        Ok(token_amount_var)
+    }
+}
+
+impl PublicInput for SourcedNote{
+    fn public_input(&self) -> Vec<CircuitField> {
+        match self.note_type {
+            NoteType::Spend => {
+                vec![convert_hash(self.nullifier)]
+            }
+            NoteType::Deposit => {
+                vec![
+                    convert_hash(self.note),
+                    self.token_id.into(),
+                    self.token_amount.into(),
+                ]
+            }
+        }
     }
 }
 
@@ -95,19 +113,19 @@ mod tests {
     use jf_relation::{Circuit, PlonkCircuit};
 
     use crate::{
-        note::{NoteRelation, NoteType},
+        note::{SourcedNote, NoteType, NoteGadget},
         shielder_types::compute_note,
-        CircuitField, PublicInput, Relation,
+        CircuitField, PublicInput,
     };
 
-    fn note_relation(note_type: NoteType) -> NoteRelation {
+    fn gen_note(note_type: NoteType) -> SourcedNote{
         let token_id = 0;
         let token_amount = 10;
         let trapdoor = [1; 4];
         let nullifier = [2; 4];
         let note = compute_note(token_id, token_amount, trapdoor, nullifier);
 
-        NoteRelation {
+        SourcedNote{
             note,
             nullifier,
             token_id,
@@ -120,10 +138,12 @@ mod tests {
     fn test_note(note_type: NoteType) {
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
 
-        let relation = note_relation(note_type);
-        relation.generate_subcircuit(&mut circuit).unwrap();
-        let public_input = relation.public_input();
+        let note = gen_note(note_type);
 
+        let note_var = circuit.create_note_variable(&note).unwrap();
+        circuit.enforce_note_preimage(note_var).unwrap();
+
+        let public_input = note.public_input();
         circuit.check_circuit_satisfiability(&public_input).unwrap();
     }
 

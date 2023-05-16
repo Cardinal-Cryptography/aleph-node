@@ -6,7 +6,7 @@ use jf_plonk::{
     },
     transcript::StandardTranscript,
 };
-use jf_relation::{PlonkCircuit, Variable};
+use jf_relation::{PlonkCircuit};
 use rand_core::{CryptoRng, RngCore};
 
 pub mod deposit;
@@ -27,16 +27,12 @@ pub fn generate_srs<R: CryptoRng + RngCore>(
 }
 
 /// Common API for all relations.
-pub trait Relation {
-    /// Include this relation in the circuit and return all variables that are needed for outside circuit.
+pub trait Relation: Default  {
+    /// Include this relation in the circuit.
     fn generate_subcircuit(
         &self,
         circuit: &mut PlonkCircuit<CircuitField>,
-    ) -> PlonkResult<Vec<Variable>>;
-}
-
-/// Common API
-pub trait ProofSystem: Relation + Default {
+    ) -> PlonkResult<()>;
     /// Generate the circuit just for this relation.
     fn generate_circuit(&self) -> PlonkResult<PlonkCircuit<CircuitField>> {
         let mut circuit = PlonkCircuit::<CircuitField>::new_turbo_plonk();
