@@ -31,7 +31,7 @@ pub struct SourcedNoteVar {
 
 pub trait NoteGadget {
     fn create_note_variable(&mut self, note: &SourcedNote) -> PlonkResult<SourcedNoteVar>;
-    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<Variable>;
+    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<()>;
 }
 
 impl NoteGadget for PlonkCircuit<CircuitField> {
@@ -66,7 +66,7 @@ impl NoteGadget for PlonkCircuit<CircuitField> {
         })
     }
 
-    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<Variable> {
+    fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<()> {
         let SourcedNoteVar {
             note_var,
             token_id_var,
@@ -95,7 +95,7 @@ impl NoteGadget for PlonkCircuit<CircuitField> {
 
         self.enforce_equal(note_var, computed_note_var)?;
 
-        Ok(token_amount_var)
+        Ok(())
     }
 }
 

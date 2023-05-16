@@ -52,15 +52,7 @@ pub struct DepositPrivateInput {
 
 impl Relation for DepositRelation {
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
-        let note = SourcedNote {
-            note: self.deposit_note.note,
-            nullifier: self.deposit_note.nullifier,
-            token_id: self.deposit_note.token_id,
-            token_amount: self.deposit_note.token_amount,
-            trapdoor: self.deposit_note.trapdoor,
-            note_type: NoteType::Deposit,
-        };
-        let note_var = circuit.create_note_variable(&note)?;
+        let note_var = circuit.create_note_variable(&self.deposit_note)?;
         circuit.enforce_note_preimage(note_var)?;
 
         Ok(())
