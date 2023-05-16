@@ -14,9 +14,9 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        Block, BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
-        Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
-        LOG_TARGET,
+        Block, BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification,
+        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
+        RequestBlocks, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };

@@ -6,7 +6,7 @@ use log::warn;
 
 use crate::{
     network::GossipNetwork,
-    sync::{BlockIdFor, Justification, Block, LOG_TARGET},
+    sync::{Block, BlockIdFor, Justification, LOG_TARGET},
     Version,
 };
 
@@ -71,7 +71,7 @@ impl<J: Justification> Request<J> {
 
 /// Data to be sent over the network.
 #[derive(Clone, Debug, Encode, Decode)]
-enum NetworkDataV1<J: Justification> {
+pub enum NetworkDataV1<J: Justification> {
     /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
     /// send what we are missing, and sometines just use the justifications to update their own
     /// state.
@@ -101,13 +101,17 @@ pub enum NetworkData<B: Block, J: Justification> {
     RequestResponse(Vec<B>, Vec<J::Unverified>),
 }
 
-impl<B:Block, J:Justification> From<NetworkDataV1<J>> for NetworkData<B, J> {
+impl<B: Block, J: Justification> From<NetworkDataV1<J>> for NetworkData<B, J> {
     fn from(data: NetworkDataV1<J>) -> Self {
         match data {
             NetworkDataV1::StateBroadcast(state) => NetworkData::StateBroadcast(state),
-            NetworkDataV1::StateBroadcastResponse(justification, maybe_justification) => NetworkData::StateBroadcastResponse(justification, maybe_justification),
+            NetworkDataV1::StateBroadcastResponse(justification, maybe_justification) => {
+                NetworkData::StateBroadcastResponse(justification, maybe_justification)
+            }
             NetworkDataV1::Request(request) => NetworkData::Request(request),
-            NetworkDataV1::RequestResponse(justifications) => NetworkData::RequestResponse(Vec::new(), justifications),
+            NetworkDataV1::RequestResponse(justifications) => {
+                NetworkData::RequestResponse(Vec::new(), justifications)
+            }
         }
     }
 }
@@ -180,7 +184,8 @@ impl<B: Block, J: Justification> Decode for VersionedNetworkData<B, J> {
         let version = Version::decode(input)?;
         let num_bytes = ByteCount::decode(input)?;
         match version {
-            Version(1) => Ok(V1(NetworkData::decode(input)?)),
+            Version(1) => Ok(V1(NetworkDataV1::decode(input)?)),
+            Version(2) => Ok(V2(NetworkData::decode(input)?)),
             _ => {
                 if num_bytes > MAX_SYNC_MESSAGE_SIZE {
                     Err("Sync message has unknown version and is encoded as more than the maximum size.")?;
@@ -194,12 +199,15 @@ impl<B: Block, J: Justification> Decode for VersionedNetworkData<B, J> {
 }
 
 /// Wrap around a network to avoid thinking about versioning.
-pub struct VersionWrapper<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>> {
+pub struct VersionWrapper<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>>
+{
     inner: N,
     _phantom: PhantomData<(B, J)>,
 }
 
-impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>> VersionWrapper<B, J, N> {
+impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>>
+    VersionWrapper<B, J, N>
+{
     /// Wrap the inner network.
     pub fn new(inner: N) -> Self {
         VersionWrapper {
@@ -210,13 +218,17 @@ impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>> V
 }
 
 #[async_trait::async_trait]
-impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>> GossipNetwork<NetworkData<B, J>>
-    for VersionWrapper<B, J, N>
+impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>>
+    GossipNetwork<NetworkData<B, J>> for VersionWrapper<B, J, N>
 {
     type Error = N::Error;
     type PeerId = N::PeerId;
 
-    fn send_to(&mut self, data: NetworkData<B, J>, peer_id: Self::PeerId) -> Result<(), Self::Error> {
+    fn send_to(
+        &mut self,
+        data: NetworkData<B, J>,
+        peer_id: Self::PeerId,
+    ) -> Result<(), Self::Error> {
         self.inner.send_to(VersionedNetworkData::V2(data), peer_id)
     }
 

@@ -11,7 +11,8 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, Interest},
-        Block, BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier, LOG_TARGET,
+        Block, BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier,
+        LOG_TARGET,
     },
     BlockIdentifier,
 };
@@ -20,8 +21,14 @@ use crate::{
 const MAX_JUSTIFICATION_BATCH: usize = 100;
 
 /// Handler for data incoming from the network.
-pub struct Handler<B: Block, I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
-{
+pub struct Handler<
+    B: Block,
+    I: PeerId,
+    J: Justification,
+    CS: ChainStatus<J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+> {
     chain_status: CS,
     verifier: V,
     finalizer: F,
@@ -94,8 +101,14 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-impl<B: Block, I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
-    Handler<B, I, J, CS, V, F>
+impl<
+        B: Block,
+        I: PeerId,
+        J: Justification,
+        CS: ChainStatus<J>,
+        V: Verifier<J>,
+        F: Finalizer<J>,
+    > Handler<B, I, J, CS, V, F>
 {
     /// New handler with the provided chain interfaces.
     pub fn new(
@@ -117,6 +130,7 @@ impl<B: Block, I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, 
             finalizer,
             forest,
             session_info: SessionBoundaryInfo::new(period),
+            phantom: PhantomData,
         };
         handler.refresh_forest()?;
         Ok(handler)
@@ -348,13 +362,14 @@ mod tests {
     use crate::{
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request},
-            mock::{Backend, MockHeader, MockJustification, MockPeerId, MockVerifier},
+            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId, MockVerifier},
             ChainStatus, Header, Justification,
         },
         BlockIdentifier, SessionPeriod,
     };
 
-    type MockHandler = Handler<MockPeerId, MockJustification, Backend, MockVerifier, Backend>;
+    type MockHandler =
+        Handler<MockBlock, MockPeerId, MockJustification, Backend, MockVerifier, Backend>;
 
     const SESSION_PERIOD: usize = 20;
 
@@ -456,7 +471,7 @@ mod tests {
         let header = import_branch(&backend, 1)[0].clone();
         // header already imported, Handler should initialize Forest properly
         let verifier = MockVerifier {};
-        let mut handler = Handler::new(
+        let mut handler: Handler<MockBlock, _, _, _, _, _> = Handler::new(
             backend.clone(),
             verifier,
             backend.clone(),
@@ -660,7 +675,7 @@ mod tests {
             number % 20 < 10 || number % 20 == 19
         });
         match handler.handle_request(request).expect("correct request") {
-            SyncAction::Response(NetworkData::RequestResponse(sent_justifications)) => {
+            SyncAction::Response(NetworkData::RequestResponse(_, sent_justifications)) => {
                 assert_eq!(sent_justifications.len(), 100);
                 for (sent_justification, justification) in
                     sent_justifications.iter().zip(justifications)
