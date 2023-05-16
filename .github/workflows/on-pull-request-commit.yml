@@ -589,7 +589,7 @@ jobs:
         timeout-minutes: 8
 
   run-e2e-committee-split-test-success-with-all-non-reserved-dead:
-    needs: [ build-test-node-image-and-e2e-client-image ]
+    needs: [build-test-node-image-and-e2e-client-image]
     name: Run committee split test with all non-reserved nodes dead
     runs-on: ubuntu-20.04
     steps:
