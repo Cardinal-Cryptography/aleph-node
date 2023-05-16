@@ -17,10 +17,6 @@ sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryp
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 sp-staking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 
-# Liminal-related dependencies
-sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", default-features = false, optional = true }
-liminal-ark-poseidon = { version = "0.1.0", default-features = false, optional = true }
-
 [features]
 default = ["std"]
 std = [
@@ -35,15 +31,3 @@ std = [
     "sp-staking/std",
 ]
 short_session = []
-
-# Liminal-related features
-liminal = [
-    "sp-runtime-interface",
-    "liminal-ark-poseidon",
-]
-liminal-std = [
-    "liminal",
-    "std",
-    "sp-runtime-interface/std",
-    "liminal-ark-poseidon/std",
-]
