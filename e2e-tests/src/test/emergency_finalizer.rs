@@ -100,8 +100,8 @@ async fn setup() -> anyhow::Result<AlephKeyPair> {
 
 /// Tests emergency finalizer. Runs on 6 nodes 0-5.
 /// * Setup finalizer
-/// * setup 0-4 to be validators in the next era
-/// * setup 2-6 to be validators in the next next era
+/// * setup 0-3 to be validators in the next era
+/// * setup 2-5 to be validators in the next next era
 /// * disable 0-1.
 /// * wait for next era
 /// * check if finalization stopped
@@ -113,15 +113,14 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
     let finalizer = setup().await?;
     let connection = config.create_root_connection().await;
 
-    let last_finalized = connection.get_finalized_block_hash().await?;
-    let last_finalized_before = connection.get_block_number(last_finalized).await?.unwrap();
+    let last_best_block_before = connection.get_best_block().await?.unwrap();
     sleep(Duration::from_secs(40));
     let mut last_finalized = connection.get_finalized_block_hash().await?;
     let last_best_block = connection.get_best_block().await?.unwrap();
 
     assert!(
-        last_best_block - last_finalized_before <= 20,
-        "at most 20 blocks can be created after finalization stops"
+        last_best_block - last_best_block_before <= 20,
+        "at most 20 blocks can be created after finalization stops. from {last_best_block_before} to {last_best_block}"
     );
     let current_era = connection.get_active_era(Some(last_finalized)).await;
 
