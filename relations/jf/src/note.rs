@@ -3,7 +3,7 @@ use jf_primitives::circuit::rescue::RescueNativeGadget;
 use jf_relation::{Circuit, PlonkCircuit, Variable};
 
 use crate::{
-    shielder_types::{convert_hash, Note, Nullifier, TokenAmount, TokenId, Trapdoor},
+    shielder_types::{convert_array, Note, Nullifier, TokenAmount, TokenId, Trapdoor},
     CircuitField, PlonkResult, PublicInput,
 };
 
@@ -36,11 +36,11 @@ pub trait NoteGadget {
 
 impl NoteGadget for PlonkCircuit<CircuitField> {
     fn create_note_variable(&mut self, note: &SourcedNote) -> PlonkResult<SourcedNoteVar> {
-        let note_var = self.create_variable(convert_hash(note.note))?;
+        let note_var = self.create_variable(convert_array(note.note))?;
         let token_id_var = self.create_variable(note.token_id.into())?;
         let token_amount_var = self.create_variable(note.token_amount.into())?;
-        let nullifier_var = self.create_variable(convert_hash(note.nullifier))?;
-        let trapdoor_var = self.create_variable(convert_hash(note.trapdoor))?;
+        let nullifier_var = self.create_variable(convert_array(note.nullifier))?;
+        let trapdoor_var = self.create_variable(convert_array(note.trapdoor))?;
 
         match note.note_type {
             NoteType::Spend => {
@@ -103,11 +103,11 @@ impl PublicInput for SourcedNote {
     fn public_input(&self) -> Vec<CircuitField> {
         match self.note_type {
             NoteType::Spend => {
-                vec![convert_hash(self.nullifier)]
+                vec![convert_array(self.nullifier)]
             }
             NoteType::Deposit => {
                 vec![
-                    convert_hash(self.note),
+                    convert_array(self.note),
                     self.token_id.into(),
                     self.token_amount.into(),
                 ]
