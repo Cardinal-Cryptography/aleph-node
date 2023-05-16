@@ -1,13 +1,13 @@
-use jf_relation::{PlonkCircuit };
+use jf_relation::PlonkCircuit;
 
 use crate::{
-    note::{SourcedNote, NoteType, NoteGadget},
+    note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{Note, Nullifier, TokenAmount, TokenId, Trapdoor},
     CircuitField, PlonkResult, PublicInput, Relation,
 };
 
 pub struct DepositRelation {
-    deposit_note: SourcedNote
+    deposit_note: SourcedNote,
 }
 
 impl Default for DepositRelation {
@@ -18,14 +18,16 @@ impl Default for DepositRelation {
 
 impl DepositRelation {
     pub fn new(public: DepositPublicInput, private: DepositPrivateInput) -> Self {
-        Self{ deposit_note: SourcedNote {
-            note: public.note,
-            token_id: public.token_id,
-            token_amount: public.token_amount,
-            trapdoor: private.trapdoor,
-            nullifier: private.nullifier,
-            note_type: NoteType::Deposit ,
-        }}
+        Self {
+            deposit_note: SourcedNote {
+                note: public.note,
+                token_id: public.token_id,
+                token_amount: public.token_amount,
+                trapdoor: private.trapdoor,
+                nullifier: private.nullifier,
+                note_type: NoteType::Deposit,
+            },
+        }
     }
 }
 
@@ -49,11 +51,8 @@ pub struct DepositPrivateInput {
 }
 
 impl Relation for DepositRelation {
-    fn generate_subcircuit(
-        &self,
-        circuit: &mut PlonkCircuit<CircuitField>,
-    ) -> PlonkResult<()> {
-        let note = SourcedNote{
+    fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
+        let note = SourcedNote {
             note: self.deposit_note.note,
             nullifier: self.deposit_note.nullifier,
             token_id: self.deposit_note.token_id,
@@ -80,7 +79,7 @@ mod tests {
         deposit::{DepositPrivateInput, DepositPublicInput, DepositRelation},
         generate_srs,
         shielder_types::compute_note,
-        Curve, Relation, PublicInput,
+        Curve, PublicInput, Relation,
     };
 
     fn relation() -> DepositRelation {

@@ -1,4 +1,4 @@
-use ark_ff::{Zero};
+use ark_ff::Zero;
 use jf_primitives::circuit::rescue::RescueNativeGadget;
 use jf_relation::{Circuit, PlonkCircuit, Variable};
 
@@ -12,7 +12,7 @@ pub enum NoteType {
     Spend,
 }
 
-pub struct SourcedNote{
+pub struct SourcedNote {
     pub note: Note,
     pub token_id: TokenId,
     pub token_amount: TokenAmount,
@@ -58,13 +58,21 @@ impl NoteGadget for PlonkCircuit<CircuitField> {
         self.enforce_leq_constant(token_amount_var, CircuitField::from(u128::MAX))?;
 
         Ok(SourcedNoteVar {
-            note_var, token_id_var, token_amount_var, nullifier_var, trapdoor_var,
+            note_var,
+            token_id_var,
+            token_amount_var,
+            nullifier_var,
+            trapdoor_var,
         })
     }
 
     fn enforce_note_preimage(&mut self, note_var: SourcedNoteVar) -> PlonkResult<Variable> {
         let SourcedNoteVar {
-            note_var, token_id_var, token_amount_var, nullifier_var, trapdoor_var,
+            note_var,
+            token_id_var,
+            token_amount_var,
+            nullifier_var,
+            trapdoor_var,
         } = note_var;
 
         let zero_var = self.create_constant_variable(CircuitField::zero())?;
@@ -91,7 +99,7 @@ impl NoteGadget for PlonkCircuit<CircuitField> {
     }
 }
 
-impl PublicInput for SourcedNote{
+impl PublicInput for SourcedNote {
     fn public_input(&self) -> Vec<CircuitField> {
         match self.note_type {
             NoteType::Spend => {
@@ -113,19 +121,19 @@ mod tests {
     use jf_relation::{Circuit, PlonkCircuit};
 
     use crate::{
-        note::{SourcedNote, NoteType, NoteGadget},
+        note::{NoteGadget, NoteType, SourcedNote},
         shielder_types::compute_note,
         CircuitField, PublicInput,
     };
 
-    fn gen_note(note_type: NoteType) -> SourcedNote{
+    fn gen_note(note_type: NoteType) -> SourcedNote {
         let token_id = 0;
         let token_amount = 10;
         let trapdoor = [1; 4];
         let nullifier = [2; 4];
         let note = compute_note(token_id, token_amount, trapdoor, nullifier);
 
-        SourcedNote{
+        SourcedNote {
             note,
             nullifier,
             token_id,
