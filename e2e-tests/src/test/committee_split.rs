@@ -1,14 +1,13 @@
 use std::{thread::sleep, time::Duration};
 
 use aleph_client::{
+    api::sudo::events::Sudid,
     pallets::{elections::ElectionsSudoApi, session::SessionApi},
     primitives::CommitteeSeats,
     utility::BlocksApi,
-    waiting::{BlockStatus, WaitingExt},
+    waiting::{AlephWaiting, BlockStatus, WaitingExt},
     AccountId, AsConnection, Pair, SignedConnection, TxStatus,
 };
-use aleph_client::api::sudo::events::Sudid;
-use aleph_client::waiting::AlephWaiting;
 use log::info;
 
 use crate::{
