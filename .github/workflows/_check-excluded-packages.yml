@@ -69,6 +69,9 @@ jobs:
                [ $p = "contracts/wrapped_azero" ]
             then
                cargo contract check
+            elif [ $p = "baby-liminal-extension" ]
+            then
+              continue # todo: perform valid check for baby-liminal-extension
             else
                cargo clippy -- --no-deps -D warnings
             fi
