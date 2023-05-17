@@ -2,11 +2,11 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
-use log::{trace, debug, warn};
+use log::{debug, trace, warn};
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
-use sp_consensus::{Error as ConsensusError, BlockOrigin};
+use sp_consensus::{BlockOrigin, Error as ConsensusError};
 use sp_runtime::{
     traits::{Block as BlockT, Header},
     Justification as SubstrateJustification,
