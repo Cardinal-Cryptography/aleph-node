@@ -169,6 +169,7 @@ fn check_merkle_proof(
     let index_var = circuit.create_variable(leaf_index.into())?;
     let proof_var = MerkleTreeGadget::create_membership_proof_variable(circuit, merkle_proof)?;
     let root_var = MerkleTreeGadget::create_root_variable(circuit, convert_array(merkle_root))?;
+    circuit.set_variable_public(root_var)?;
 
     MerkleTreeGadget::enforce_membership_proof(circuit, index_var, proof_var, root_var)
         .map_err(Into::into)
@@ -180,56 +181,99 @@ mod tests {
         proof_system::{PlonkKzgSnark, UniversalSNARK},
         transcript::StandardTranscript,
     };
+    use jf_primitives::merkle_tree::{
+        prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
+        UniversalMerkleTreeScheme,
+    };
     use jf_relation::Circuit;
+    use num_bigint::BigUint;
+    use ark_ff::PrimeField;
 
     use crate::{
-        deposit::{WithdrawPrivateInput, WithdrawPublicInput, WithdrawRelation},
         generate_srs,
-        shielder_types::compute_note,
-        Curve, Marshall, Relation,
+        shielder_types::{compute_note, convert_array},
+        withdraw::{WithdrawPrivateInput, WithdrawPublicInput, WithdrawRelation},
+        Curve, PublicInput, Relation,
     };
 
     fn relation() -> WithdrawRelation {
-        let token_id = 0;
-        let token_amount = 10;
-        let trapdoor = [1; 4];
-        let nullifier = [2; 4];
-        let note = compute_note(token_id, token_amount, trapdoor, nullifier);
+        let token_id = 1;
+        let whole_token_amount = 10;
+        let spend_trapdoor = [1; 4];
+        let spend_nullifier = [2; 4];
+        let spend_note = compute_note(
+            token_id,
+            whole_token_amount,
+            spend_trapdoor,
+            spend_nullifier,
+        );
 
-        WithdrawRelation::new(
-            WithdrawPublicInput {
-                note,
-                token_id,
-                token_amount,
-            },
-            WithdrawPrivateInput {
-                trapdoor,
-                nullifier,
-            },
-        )
+        let deposit_token_amount = 7;
+        let deposit_trapdoor = [3; 4];
+        let deposit_nullifier = [4; 4];
+        let deposit_note = compute_note(
+            token_id,
+            deposit_token_amount,
+            deposit_trapdoor,
+            deposit_nullifier,
+        );
+
+        let height = 11;
+        let leaf_index = 0u64;
+        let uid = BigUint::from(leaf_index);
+        let elem = convert_array(spend_note);
+        let mt =
+            RescueSparseMerkleTree::from_kv_set(height as usize, &[(uid.clone(), elem)]).unwrap();
+        let (retrieved_elem, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
+        assert_eq!(retrieved_elem, elem);
+        assert!(mt.verify(&uid, merkle_proof.clone()).expect("succeed"));
+        let merkle_root = mt.commitment().digest().into_bigint().0;
+
+        let public_input = WithdrawPublicInput {
+            fee: 1,
+            recipient: [7; 32],
+            token_id,
+            spend_nullifier,
+            token_amount_out: 3,
+            merkle_root,
+            deposit_note,
+        };
+
+        let private_input = WithdrawPrivateInput {
+            spend_trapdoor,
+            deposit_trapdoor,
+            deposit_nullifier,
+            merkle_proof,
+            leaf_index,
+            spend_note,
+            whole_token_amount,
+            deposit_token_amount,
+        };
+
+        WithdrawRelation::new(public_input, private_input)
     }
 
     #[test]
-    fn deposit_constraints_correctness() {
+    fn withdraw_constraints_correctness() {
         let relation = relation();
         let circuit = WithdrawRelation::generate_circuit(&relation).unwrap();
         circuit
-            .check_circuit_satisfiability(&relation.public.marshall())
+            .check_circuit_satisfiability(&relation.public_input())
             .unwrap();
     }
 
     #[test]
-    fn deposit_constraints_incorrectness_with_wrong_note() {
+    fn withdraw_constraints_incorrectness_with_wrong_note() {
         let mut relation = relation();
-        relation.public.note[0] += 1;
+        relation.spend_note.note[0] += 1;
         let circuit = WithdrawRelation::generate_circuit(&relation).unwrap();
         assert!(circuit
-            .check_circuit_satisfiability(&relation.public.marshall())
+            .check_circuit_satisfiability(&relation.public_input())
             .is_err());
     }
 
     #[test]
-    fn deposit_proving_procedure() {
+    fn withdraw_proving_procedure() {
         let rng = &mut jf_utils::test_rng();
         let srs = generate_srs(10_000, rng).unwrap();
 
@@ -238,7 +282,7 @@ mod tests {
         let relation = relation();
         let proof = relation.generate_proof(&pk, rng).unwrap();
 
-        let public_input = relation.public.marshall();
+        let public_input = relation.public_input();
 
         PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(&vk, &public_input, &proof, None)
             .unwrap();
