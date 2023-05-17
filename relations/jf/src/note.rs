@@ -10,10 +10,7 @@ use crate::{
 pub enum NoteType {
     Deposit,
     Spend,
-<<<<<<< HEAD
     Redeposit,
-=======
->>>>>>> main
 }
 
 pub struct SourcedNote {
