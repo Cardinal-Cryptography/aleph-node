@@ -1,10 +1,6 @@
-use ark_bls12_381::Fr;
 use jf_primitives::{
-    circuit::merkle_tree::{Merkle3AryMembershipProofVar, MerkleTreeGadget, RescueDigestGadget},
-    merkle_tree::{
-        prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
-        UniversalMerkleTreeScheme,
-    },
+    circuit::merkle_tree::{Merkle3AryMembershipProofVar, RescueDigestGadget},
+    merkle_tree::{prelude::RescueSparseMerkleTree, MerkleTreeScheme, UniversalMerkleTreeScheme},
 };
 use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
@@ -12,20 +8,20 @@ use num_bigint::BigUint;
 use crate::{
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
-        convert_account, convert_array, Account, LeafIndex, MerklePath, MerkleRoot, Note,
-        Nullifier, TokenAmount, TokenId, Trapdoor,
+        convert_account, convert_array, Account, LeafIndex, MerkleRoot, Note, Nullifier,
+        TokenAmount, TokenId, Trapdoor,
     },
     CircuitField, PlonkResult, PublicInput, Relation,
 };
 
 pub struct WithdrawRelation {
     spend_note: SourcedNote,
-    deposit_note: SourcedNote,
+    redeposit_note: SourcedNote,
     fee: TokenAmount,
     recipient: Account,
     token_amount_out: TokenAmount,
     merkle_root: MerkleRoot,
-    merkle_path: MerklePath,
+    merkle_proof: MerkleProof,
     leaf_index: LeafIndex,
 }
 
@@ -34,6 +30,7 @@ impl Default for WithdrawRelation {
         Self::new(Default::default(), Default::default())
     }
 }
+
 #[derive(Default)]
 pub struct WithdrawPublicInput {
     pub fee: TokenAmount,
@@ -44,16 +41,38 @@ pub struct WithdrawPublicInput {
     pub merkle_root: MerkleRoot,
     pub deposit_note: Note,
 }
-#[derive(Default)]
+
 pub struct WithdrawPrivateInput {
     pub spend_trapdoor: Trapdoor,
     pub deposit_trapdoor: Trapdoor,
     pub deposit_nullifier: Nullifier,
-    pub merkle_path: MerklePath,
+    pub merkle_proof: MerkleProof,
     pub leaf_index: LeafIndex,
     pub spend_note: Note,
     pub whole_token_amount: TokenAmount,
     pub deposit_token_amount: TokenAmount,
+}
+
+impl Default for WithdrawPrivateInput {
+    fn default() -> Self {
+        let height = 11;
+        let uid = BigUint::from(0u64);
+        let elem = CircuitField::from(0u64);
+        let mt =
+            RescueSparseMerkleTree::from_kv_set(height as usize, &[(uid.clone(), elem)]).unwrap();
+        let (_, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
+
+        Self {
+            spend_trapdoor: Default::default(),
+            deposit_trapdoor: Default::default(),
+            deposit_nullifier: Default::default(),
+            merkle_proof,
+            leaf_index: Default::default(),
+            spend_note: Default::default(),
+            whole_token_amount: Default::default(),
+            deposit_token_amount: Default::default(),
+        }
+    }
 }
 
 impl WithdrawRelation {
@@ -66,27 +85,29 @@ impl WithdrawRelation {
             nullifier: public.spend_nullifier,
             note_type: NoteType::Spend,
         };
-        let deposit_note = SourcedNote {
+        let redeposit_note = SourcedNote {
             note: public.deposit_note,
             token_id: public.token_id,
-            token_amount: public.deposit_token_amount,
+            token_amount: private.deposit_token_amount,
             trapdoor: private.deposit_trapdoor,
             nullifier: private.deposit_nullifier,
-            note_type: NoteType::Deposit,
+            note_type: NoteType::Redeposit,
         };
-        let whole_token_amount = private.whole_token_amount;
+
         Self {
             spend_note,
-            deposit_note,
+            redeposit_note,
             fee: public.fee,
             recipient: public.recipient,
-            whole_token_amount,
+            token_amount_out: public.token_amount_out,
+            merkle_root: public.merkle_root,
+            merkle_proof: private.merkle_proof,
+            leaf_index: private.leaf_index,
         }
     }
 }
 
 impl PublicInput for WithdrawRelation {
-    // TODO fix
     fn public_input(&self) -> Vec<CircuitField> {
         let mut public_input = vec![
             self.fee.into(),
@@ -94,7 +115,8 @@ impl PublicInput for WithdrawRelation {
             self.token_amount_out.into(),
         ];
         public_input.extend(self.spend_note.public_input());
-        public_input.extend(self.deposit_note.public_input());
+        public_input.extend(self.redeposit_note.public_input());
+        public_input.push(convert_array(self.merkle_root));
 
         public_input
     }
@@ -102,8 +124,8 @@ impl PublicInput for WithdrawRelation {
 
 impl Relation for WithdrawRelation {
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
-        let fee_var = circuit.create_public_variable(self.fee.into())?;
-        let recipient_var = circuit.create_public_variable(convert_account(self.recipient))?;
+        let _fee_var = circuit.create_public_variable(self.fee.into())?;
+        let _recipient_var = circuit.create_public_variable(convert_account(self.recipient))?;
         let token_amount_out_var = circuit.create_public_variable(self.token_amount_out.into())?;
         circuit.enforce_leq_constant(token_amount_out_var, CircuitField::from(u128::MAX))?;
 
@@ -111,43 +133,45 @@ impl Relation for WithdrawRelation {
         let whole_token_amount_var = spend_note_var.token_amount_var;
         circuit.enforce_note_preimage(spend_note_var)?;
 
-        let deposit_note_var = circuit.create_note_variable(&self.deposit_note)?;
+        let deposit_note_var = circuit.create_note_variable(&self.redeposit_note)?;
         let deposit_amount_var = deposit_note_var.token_amount_var;
         circuit.enforce_note_preimage(deposit_note_var)?;
 
         let token_sum_var = circuit.add(token_amount_out_var, deposit_amount_var)?;
-        circuit.enforce_equal(token_sum_var, whole_token_amount_var);
+        circuit.enforce_equal(token_sum_var, whole_token_amount_var)?;
 
-        build_merkle_proof(&mut circuit, convert_array(self.spend_note.note))?;
+        check_merkle_proof(
+            circuit,
+            self.leaf_index,
+            self.merkle_root,
+            &self.merkle_proof,
+        )?;
 
         Ok(())
     }
 }
-type MerkleTree = dyn MerkleTreeGadget<
-    RescueSparseMerkleTree<BigUint, Fr>,
+
+// TODO refactor when implementing DepositAndMerge
+type MerkleTree = RescueSparseMerkleTree<BigUint, CircuitField>;
+type MerkleTreeGadget = dyn jf_primitives::circuit::merkle_tree::MerkleTreeGadget<
+    MerkleTree,
     MembershipProofVar = Merkle3AryMembershipProofVar,
     DigestGadget = RescueDigestGadget,
 >;
+type MerkleProof = <MerkleTree as MerkleTreeScheme>::MembershipProof;
 
-fn build_merkle_proof(
+fn check_merkle_proof(
     circuit: &mut PlonkCircuit<CircuitField>,
-    elem: CircuitField,
+    leaf_index: LeafIndex,
+    merkle_root: MerkleRoot,
+    merkle_proof: &MerkleProof,
 ) -> PlonkResult<()> {
-    let height = 11;
-    let uid = BigUint::from(0u64);
+    let index_var = circuit.create_variable(leaf_index.into())?;
+    let proof_var = MerkleTreeGadget::create_membership_proof_variable(circuit, merkle_proof)?;
+    let root_var = MerkleTreeGadget::create_root_variable(circuit, convert_array(merkle_root))?;
 
-    let mt = RescueSparseMerkleTree::from_kv_set(height as usize, &[(uid.clone(), elem)]).unwrap();
-
-    let expected_root = mt.commitment().digest();
-    let (retrieved_elem, proof) = mt.lookup(&uid).expect_ok().unwrap();
-    assert_eq!(retrieved_elem, elem);
-    assert!(mt.verify(&uid, proof.clone()).expect("succeed"));
-
-    let uid_var = circuit.create_variable(uid.into()).unwrap();
-    let proof_var = MerkleTree::create_membership_proof_variable(circuit, &proof).unwrap();
-    let root_var = MerkleTree::create_root_variable(circuit, expected_root).unwrap();
-    MerkleTree::enforce_membership_proof(circuit, uid_var, proof_var, root_var).unwrap();
-    Ok(())
+    MerkleTreeGadget::enforce_membership_proof(circuit, index_var, proof_var, root_var)
+        .map_err(Into::into)
 }
 
 #[cfg(test)]
