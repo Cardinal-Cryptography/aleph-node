@@ -172,7 +172,7 @@ runs:
         pr_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.aleph-node-image }}"
         ./Ops.sh create-featurenet \
           "${{ env.APP_NAME }}" \
-          "${pr_image}"
+          "${pr_image}" \
           "false" \
           "false" \
           "${{ inputs.update == 'true' && inputs.rolling-update-partition || '0' }}"
