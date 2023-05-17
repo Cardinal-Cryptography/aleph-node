@@ -89,7 +89,7 @@ runs:
         fi
         if [[
           "${{ inputs.update }}" == "true" && \
-          ! "${{ inputs.rolling-update-partition }}" =~ ^[0-9]{1,2}$
+          ! "${{ inputs.rolling-update-partition }}" =~ ^[0-9]$
         ]]
         then
           echo "!!! Partition for Rolling Update is invalid"
