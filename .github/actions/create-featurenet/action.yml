@@ -48,6 +48,7 @@ inputs:
     required: false
     default: 'false'
   rolling-update-partition:
+    # yamllint disable-line rule:line-length
     description: "All aleph-node-validator-N with an ordinal N that is great than or equal to the partition will be updated. Default value: 0"
     required: false
     default: '0'
