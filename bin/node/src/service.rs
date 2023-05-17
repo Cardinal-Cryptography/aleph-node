@@ -25,9 +25,7 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
-use sp_runtime::{
-    traits::{Block as BlockT, Header as HeaderT},
-};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
     aleph_cli::AlephCli,
@@ -327,19 +325,10 @@ pub fn new_authority(
 
     let finalized = client.info().finalized_hash;
 
-    let session_period = SessionPeriod(
-        client
-            .runtime_api()
-            .session_period(finalized)
-            .unwrap(),
-    );
+    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
 
-    let millisecs_per_block = MillisecsPerBlock(
-        client
-            .runtime_api()
-            .millisecs_per_block(finalized)
-            .unwrap(),
-    );
+    let millisecs_per_block =
+        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
