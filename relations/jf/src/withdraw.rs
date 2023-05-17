@@ -5,6 +5,8 @@ use jf_primitives::{
 use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
 
+const TREE_HEIGTH: usize = 11;
+
 use crate::{
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
@@ -55,11 +57,10 @@ pub struct WithdrawPrivateInput {
 
 impl Default for WithdrawPrivateInput {
     fn default() -> Self {
-        let height = 11;
         let uid = BigUint::from(0u64);
         let elem = CircuitField::from(0u64);
         let mt =
-            RescueSparseMerkleTree::from_kv_set(height as usize, &[(uid.clone(), elem)]).unwrap();
+            RescueSparseMerkleTree::from_kv_set(TREE_HEIGTH, &[(uid.clone(), elem)]).unwrap();
         let (_, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
 
         Self {
@@ -218,12 +219,11 @@ mod tests {
             deposit_nullifier,
         );
 
-        let height = 11;
         let leaf_index = 0u64;
         let uid = BigUint::from(leaf_index);
         let elem = convert_array(spend_note);
         let mt =
-            RescueSparseMerkleTree::from_kv_set(height as usize, &[(uid.clone(), elem)]).unwrap();
+            RescueSparseMerkleTree::from_kv_set(TREE_HEIGTH, &[(uid.clone(), elem)]).unwrap();
         let (retrieved_elem, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
         assert_eq!(retrieved_elem, elem);
         assert!(mt.verify(&uid, merkle_proof.clone()).expect("succeed"));
