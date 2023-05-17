@@ -89,7 +89,7 @@ jobs:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
     if: always() && github.ref_name == 'main'
-    needs: [ push-node-image-to-ecr ]
+    needs: [push-node-image-to-ecr]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
