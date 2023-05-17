@@ -18,7 +18,7 @@ jobs:
   delete-updatenet:
     needs: [check-vars-and-secrets]
     name: Delete updatenet
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Validate inputs
         shell: bash
