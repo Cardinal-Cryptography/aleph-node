@@ -177,6 +177,7 @@ fn check_merkle_proof(
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::PrimeField;
     use jf_plonk::{
         proof_system::{PlonkKzgSnark, UniversalSNARK},
         transcript::StandardTranscript,
@@ -187,7 +188,6 @@ mod tests {
     };
     use jf_relation::Circuit;
     use num_bigint::BigUint;
-    use ark_ff::PrimeField;
 
     use crate::{
         generate_srs,
