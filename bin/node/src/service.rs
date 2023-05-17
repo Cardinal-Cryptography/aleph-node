@@ -26,7 +26,6 @@ use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::{
-    generic::BlockId,
     traits::{Block as BlockT, Header as HeaderT},
 };
 
@@ -265,7 +264,7 @@ fn setup(
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
             block_announce_validator_builder: None,
-            warp_sync: None,
+            warp_sync_params: None,
         })?;
 
     let rpc_builder = {
@@ -326,19 +325,19 @@ pub fn new_authority(
             .path(),
     );
 
-    let finalized = client.info().finalized_number;
+    let finalized = client.info().finalized_hash;
 
     let session_period = SessionPeriod(
         client
             .runtime_api()
-            .session_period(&BlockId::Number(finalized))
+            .session_period(finalized)
             .unwrap(),
     );
 
     let millisecs_per_block = MillisecsPerBlock(
         client
             .runtime_api()
-            .millisecs_per_block(&BlockId::Number(finalized))
+            .millisecs_per_block(finalized)
             .unwrap(),
     );
 

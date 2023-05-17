@@ -5,10 +5,7 @@ use futures::StreamExt;
 use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block, Header},
-};
+use sp_runtime::traits::{Block, Header};
 use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
     RwLock,
@@ -65,33 +62,31 @@ where
     BE: Backend<B> + 'static,
 {
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
-        match self
-            .client
-            .runtime_api()
-            .authority_data(&BlockId::Number(block_number))
-        {
+        let block_hash = self.client.block_hash(block_number).unwrap()?;
+        match self.client.runtime_api().authority_data(block_hash) {
             Ok(data) => Some(data),
             Err(_) => self
                 .client
                 .runtime_api()
-                .authorities(&BlockId::Number(block_number))
+                .authorities(block_hash)
                 .map(|authorities| SessionAuthorityData::new(authorities, None))
                 .ok(),
         }
     }
 
     fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
+        let block_hash = self.client.block_hash(block_number).unwrap()?;
         match self
             .client
             .runtime_api()
-            .next_session_authority_data(&BlockId::Number(block_number))
+            .next_session_authority_data(block_hash)
             .map(|r| r.ok())
         {
             Ok(maybe_data) => maybe_data,
             Err(_) => self
                 .client
                 .runtime_api()
-                .next_session_authorities(&BlockId::Number(block_number))
+                .next_session_authorities(block_hash)
                 .map(|r| {
                     r.map(|authorities| SessionAuthorityData::new(authorities, None))
                         .ok()

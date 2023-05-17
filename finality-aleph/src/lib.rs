@@ -12,7 +12,9 @@ use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
+use sc_client_api::{
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
+};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
@@ -196,6 +198,7 @@ pub trait ClientForAleph<B, BE>:
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
+    + BlockBackend<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -212,7 +215,8 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
+        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+        + BlockBackend<B>,
 {
 }
 
