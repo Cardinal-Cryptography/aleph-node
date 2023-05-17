@@ -45,7 +45,7 @@ jobs:
             echo "!!! Invalid destination node image tag"
             exit 1
           fi
-          if [[ ! "${{ inputs.rolling-update-partition }}" =~ ^[0-9]{1,2}$ ]]
+          if [[ ! "${{ inputs.rolling-update-partition }}" =~ ^[0-9]$ ]]
           then
             echo "!!! Invalid rolling update partition"
             exit 1
