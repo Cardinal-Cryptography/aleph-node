@@ -13,7 +13,7 @@ jobs:
   delete-featurenet:
     needs: [check-vars-and-secrets]
     name: Delete featurenet
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
