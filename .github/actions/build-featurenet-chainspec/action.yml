@@ -55,6 +55,7 @@ runs:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
+        docker pull ${{ inputs.ecr-public-registry }}featurenet-helper:v0.2.0
         docker run --rm \
           -e SOURCE_NET=${{ inputs.base-net }} \
           -e AWS_ACCESS_KEY_ID \
