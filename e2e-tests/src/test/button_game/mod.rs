@@ -144,16 +144,23 @@ pub async fn simple_dex() -> Result<()> {
         .await?;
     assert_recv_id(&mut events, "Approval").await;
 
-    dex.deposit(
-        authority_conn,
-        &[
-            (token1, mega(3000)),
-            (token2, mega(5000)),
-            (token3, mega(10000)),
-        ],
-    )
-    .await?;
-    assert_recv_id(&mut events, "Deposited").await;
+    token1
+        .transfer(authority_conn, dex.contract.address(), mega(3000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
+
+    token2
+        .transfer(authority_conn, dex.contract.address(), mega(5000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
+
+    token3
+        .transfer(authority_conn, dex.contract.address(), mega(10000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
 
     let more_than_liquidity = mega(1_000_000);
     let res = dex
