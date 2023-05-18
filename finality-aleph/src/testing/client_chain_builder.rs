@@ -76,7 +76,7 @@ impl ClientChainBuilder {
         digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
         let block = self
             .client_builder
-            .new_block_at(&BlockId::Hash(*parent), digest, false)
+            .new_block_at(parent, digest, false)
             .unwrap()
             .build()
             .unwrap()
