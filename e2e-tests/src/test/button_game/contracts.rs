@@ -188,6 +188,10 @@ impl ButtonInstance {
         self.contract.contract_read0(conn, "reward_token").await
     }
 
+    pub async fn last_presser<C: ConnectionApi>(&self, conn: &C) -> Result<Option<AccountId>> {
+        self.contract.contract_read0(conn, "last_presser").await
+    }
+
     pub async fn marketplace<C: ConnectionApi>(&self, conn: &C) -> Result<AccountId> {
         self.contract.contract_read0(conn, "marketplace").await
     }

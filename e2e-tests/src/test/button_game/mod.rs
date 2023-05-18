@@ -458,12 +458,17 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
         .await?;
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
+
+    let pressiah = button.last_presser(&conn).await?;
+
     let event = assert_recv_id(&mut events, "ButtonReset").await;
 
     let_assert!(reset_at = event.block_details.unwrap().block_number);
 
-    // pressiah reward is minted
-    let _ = assert_recv_id(&mut events, "RewardMinted").await;
+    if pressiah.is_some() {
+        // pressiah reward is minted
+        assert_recv_id(&mut events, "RewardMinted").await;
+    }
 
     let old_button_balance = ticket_token
         .balance_of(&conn, &button.as_ref().into())
@@ -518,7 +523,7 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
     let event = assert_recv_id(&mut events, "RewardMinted").await;
-    let_assert!(Some(&Value::UInt(pressiah_reward)) = event.data.get("amount"));
+    let_assert!(Some(&Value::UInt(pressiah_reward)) = event.data.get("reward"));
 
     assert!(
         reward_token.balance_of(&conn, player.account_id()).await?
