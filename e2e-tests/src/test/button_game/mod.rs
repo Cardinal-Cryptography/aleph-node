@@ -299,7 +299,7 @@ pub async fn marketplace() -> Result<()> {
     assert!(event.contract == marketplace.as_ref().into());
     let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
     assert!(price <= later_price);
-    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("account_id"));
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("by"));
     assert!(acc_id == &player.account_id().to_string());
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
     assert!(reward_token.balance_of(&conn, player.account_id()).await? <= player_balance - price);
