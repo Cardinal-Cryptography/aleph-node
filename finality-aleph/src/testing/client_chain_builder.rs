@@ -3,7 +3,6 @@ use std::{default::Default, sync::Arc};
 use aleph_primitives::BlockNumber;
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
-use sp_api::BlockId;
 use sp_consensus::BlockOrigin;
 use sp_core::hash::H256;
 use sp_runtime::{traits::Block as BlockT, Digest};
