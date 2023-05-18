@@ -458,8 +458,13 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
         .await?;
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
-    let event = assert_recv_id(&mut events, "GameReset").await;
-    let_assert!(Some(&Value::UInt(reset_at)) = event.data.get("when"));
+    let event = assert_recv_id(&mut events, "ButtonReset").await;
+
+    let_assert!(reset_at = event.block_details.unwrap().block_number);
+
+    // pressiah reward is minted
+    let _ = assert_recv_id(&mut events, "RewardMinted").await;
+
     let old_button_balance = ticket_token
         .balance_of(&conn, &button.as_ref().into())
         .await?;
@@ -470,8 +475,10 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
     button.press(&sign(&conn, player)).await?;
 
     let event = assert_recv_id(&mut events, "RewardMinted").await;
-    let_assert!(Some(&Value::UInt(first_reward_amount)) = event.data.get("amount"));
+    let_assert!(Some(&Value::UInt(first_reward_amount)) = event.data.get("reward"));
+
     assert!(event.data.get("to") == Some(&Value::Literal(player.account_id().to_string())));
+
     assert!(reward_token.balance_of(&conn, player.account_id()).await? == first_reward_amount);
     assert!(first_reward_amount > 0);
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
@@ -481,22 +488,27 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
             .await?
             == old_button_balance + 1
     );
-    let_assert!(Some(&Value::UInt(first_press_at)) = event.data.get("when"));
+    // let_assert!(Some(&Value::UInt(first_press_at)) = event.data.get("when"));
+
+    let_assert!(first_press_at = event.block_details.unwrap().block_number);
 
     info!("Waiting before pressing again");
     sleep(Duration::from_secs(3)).await;
 
     button.press(&sign(&conn, player)).await?;
     let event = assert_recv_id(&mut events, "RewardMinted").await;
-    let_assert!(Some(&Value::UInt(second_reward_amount)) = event.data.get("amount"));
-    let_assert!(Some(&Value::UInt(second_press_at)) = event.data.get("when"));
+    let_assert!(Some(&Value::UInt(second_reward_amount)) = event.data.get("reward"));
+
+    // let_assert!(Some(&Value::UInt(second_press_at)) = event.data.get("when"));
+    let_assert!(second_press_at = event.block_details.unwrap().block_number);
+
     let first_presser_time = first_press_at - reset_at;
     let second_presser_time = second_press_at - first_press_at;
 
     score_check(
-        first_presser_time,
+        first_presser_time.into(),
         first_reward_amount,
-        second_presser_time,
+        second_presser_time.into(),
         second_reward_amount,
     );
 
