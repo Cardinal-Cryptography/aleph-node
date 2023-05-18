@@ -268,7 +268,7 @@ pub async fn marketplace() -> Result<()> {
     let player = &player;
 
     marketplace.reset(&sign(&conn, &authority)).await?;
-    assert_recv_id(&mut events, "Reset").await;
+    assert_recv_id(&mut events, "MarketplaceReset").await;
     ticket_token
         .transfer(&sign(&conn, &authority), &marketplace.as_ref().into(), 2)
         .await?;
@@ -295,7 +295,7 @@ pub async fn marketplace() -> Result<()> {
         .await?;
     marketplace.buy(&sign(&conn, player), None).await?;
 
-    let event = assert_recv_id(&mut events, "Bought").await;
+    let event = assert_recv_id(&mut events, "TicketBought").await;
     assert!(event.contract == marketplace.as_ref().into());
     let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
     assert!(price <= later_price);
@@ -315,14 +315,14 @@ pub async fn marketplace() -> Result<()> {
             .is_err(),
         "set price too low, should fail"
     );
-    refute_recv_id(&mut events, "Bought").await;
+    refute_recv_id(&mut events, "TicketBought").await;
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
 
     info!("Setting max price high enough");
     marketplace
         .buy(&sign(&conn, player), Some(latest_price * 2))
         .await?;
-    assert_recv_id(&mut events, "Bought").await;
+    assert_recv_id(&mut events, "TicketBought").await;
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 2);
 
     Ok(())
@@ -357,8 +357,8 @@ pub async fn button_game_reset() -> Result<()> {
 
     button.reset(&sign(&conn, &authority)).await?;
 
-    assert_recv_id(&mut events, "GameReset").await;
-    assert_recv_id(&mut events, "Reset").await;
+    assert_recv_id(&mut events, "ButtonReset").await;
+    assert_recv_id(&mut events, "MarketplaceReset").await;
 
     let deadline_new = button.deadline(&conn).await?;
     assert!(deadline_new > deadline_old);
