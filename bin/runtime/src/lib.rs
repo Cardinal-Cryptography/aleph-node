@@ -6,8 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-#[cfg(feature = "liminal")]
-use baby_liminal_extension::substrate::Extension as BabyLiminalExtension;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
