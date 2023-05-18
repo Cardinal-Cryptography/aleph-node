@@ -57,7 +57,7 @@ pub async fn wrapped_azero() -> Result<()> {
     let balance_before = conn.get_free_balance(account_id.clone(), None).await;
     wazero.unwrap(account_conn, alephs(1)).await?;
 
-    let event = assert_recv_id(&mut events, "UnWrapped").await;
+    let event = assert_recv_id(&mut events, "Unwrapped").await;
     let balance_after = conn.get_free_balance(account_id.clone(), None).await;
     let max_fee = alephs(1) / 100;
     assert!(balance_after - balance_before > alephs(1) - max_fee);
