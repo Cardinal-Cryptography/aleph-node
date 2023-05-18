@@ -191,10 +191,10 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::{
-        generate_srs, CircuitField,
-        shielder_types::{compute_note, convert_array, convert_account},
-        withdraw::{WithdrawPrivateInput, WithdrawPublicInput, TREE_HEIGTH, WithdrawRelation},
-        Curve, PublicInput, Relation,
+        generate_srs,
+        shielder_types::{compute_note, convert_account, convert_array},
+        withdraw::{WithdrawPrivateInput, WithdrawPublicInput, WithdrawRelation, TREE_HEIGTH},
+        CircuitField, Curve, PublicInput, Relation,
     };
 
     fn relation() -> WithdrawRelation {
@@ -295,14 +295,19 @@ mod tests {
         let (pk, vk) = WithdrawRelation::generate_keys(&srs).unwrap();
 
         let relation = relation();
-        let true_input = relation .public_input();
+        let true_input = relation.public_input();
         let proof = relation.generate_proof(&pk, rng).unwrap();
 
         let mut input_with_corrupted_fee = true_input.clone();
         input_with_corrupted_fee[0] = CircuitField::from(2u64);
         assert_ne!(true_input[0], input_with_corrupted_fee[0]);
 
-        let invalid_proof = PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(&vk, &input_with_corrupted_fee, &proof, None);
+        let invalid_proof = PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(
+            &vk,
+            &input_with_corrupted_fee,
+            &proof,
+            None,
+        );
         assert!(invalid_proof.is_err());
 
         let mut input_with_corrupted_recipient = true_input.clone();
@@ -310,7 +315,12 @@ mod tests {
         input_with_corrupted_recipient[1] = convert_account(fake_recipient);
         assert_ne!(true_input[1], input_with_corrupted_recipient[1]);
 
-        let invalid_proof = PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(&vk, &input_with_corrupted_recipient, &proof, None);
+        let invalid_proof = PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(
+            &vk,
+            &input_with_corrupted_recipient,
+            &proof,
+            None,
+        );
         assert!(invalid_proof.is_err());
     }
 }
