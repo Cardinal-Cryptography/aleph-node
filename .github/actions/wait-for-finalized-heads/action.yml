@@ -12,11 +12,16 @@ inputs:
   json-rpc-endpoint:
     description: 'JSON RPC endpoint, eg. https://dev.azero.dev'
     required: true
+  repo-apps-checkout:
+    description: "Checkout apps repository"
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
   steps:
     - name: Checkout argocd apps repo
+      if: inputs.repo-apps-checkout == 'true'
       uses: actions/checkout@v3
       with:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
