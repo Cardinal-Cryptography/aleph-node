@@ -132,11 +132,15 @@ impl Relation for WithdrawRelation {
 
         let spend_note_var = circuit.create_note_variable(&self.spend_note)?;
         let whole_token_amount_var = spend_note_var.token_amount_var;
+        let spend_token_id_var = spend_note_var.token_id_var;
         circuit.enforce_note_preimage(spend_note_var)?;
 
         let deposit_note_var = circuit.create_note_variable(&self.redeposit_note)?;
         let deposit_amount_var = deposit_note_var.token_amount_var;
+        let deposit_token_id_var = deposit_note_var.token_id_var;
         circuit.enforce_note_preimage(deposit_note_var)?;
+
+        circuit.enforce_equal(deposit_token_id_var, spend_token_id_var)?;
 
         let token_sum_var = circuit.add(token_amount_out_var, deposit_amount_var)?;
         circuit.enforce_equal(token_sum_var, whole_token_amount_var)?;
