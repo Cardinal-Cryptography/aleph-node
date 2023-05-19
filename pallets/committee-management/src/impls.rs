@@ -2,8 +2,7 @@ use codec::Encode;
 use frame_support::{log::info, pallet_prelude::Get};
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
-    SessionCommittee, SessionInfoProvider, SessionValidatorError, SessionValidators,
-    ValidatorProvider,
+    SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
 };
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use sp_runtime::{Perbill, Perquintill};
@@ -446,15 +445,13 @@ impl<T: Config> Pallet<T> {
     pub fn session_committee_for_session(
         session: SessionIndex,
     ) -> Result<SessionCommittee<T::AccountId>, SessionValidatorError> {
-        let ae = match T::EraInfoProvider::active_era() {
-            Some(ae) => ae,
-            _ => return Err(SessionValidatorError::Other("No active era".encode())),
+        let ce = match T::EraInfoProvider::current_era() {
+            Some(ce) => ce,
+            _ => return Err(SessionValidatorError::Other("No current era".encode())),
         };
 
-        let current_session = T::SessionInfoProvider::current_session();
-
-        let active_starting_index = match T::EraInfoProvider::era_start_session_index(ae) {
-            Some(asi) => asi,
+        let current_starting_index = match T::EraInfoProvider::era_start_session_index(ce) {
+            Some(csi) => csi,
             // Shouldn't happen
             None => {
                 return Err(SessionValidatorError::Other(
@@ -464,17 +461,11 @@ impl<T: Config> Pallet<T> {
         };
 
         // Historical session
-        if session < active_starting_index - 1 {
+        if session < current_starting_index {
             return Err(SessionValidatorError::OldEra);
         }
 
-        let planned_era_end = active_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
-
-        if current_session == planned_era_end {
-            return Err(SessionValidatorError::Other(
-                "We no longer can compute committee for this session".encode(),
-            ));
-        }
+        let planned_era_end = current_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
 
         if session <= planned_era_end {
             let era_validators =
@@ -490,6 +481,7 @@ impl<T: Config> Pallet<T> {
             return Self::rotate_committee_inner(&era_validators, committee_seats, session)
                 .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()));
         }
+
         Err(SessionValidatorError::SessionTooMuchIntoFuture {
             upper_limit: planned_era_end,
         })
