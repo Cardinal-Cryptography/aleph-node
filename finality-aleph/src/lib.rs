@@ -4,7 +4,8 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-
+use sc_consensus::import_queue::ImportQueueService;
+use aleph_primitives::{Block as AlephBlock, Header as AlephHeader, Hash as AlephHash};
 use aleph_primitives::{AuthorityId, BlockNumber};
 use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
@@ -15,7 +16,6 @@ use futures::{
 use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
-use sc_network_common::ExHashT;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
@@ -266,20 +266,16 @@ impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
     }
 }
 
-pub struct AlephConfig<B, H, C, SC, CS>
-where
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
-    H: ExHashT,
-{
-    pub network: Arc<NetworkService<B, H>>,
+pub struct AlephConfig<C, SC, CS> {
+    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
     pub client: Arc<C>,
     pub chain_status: CS,
+    pub import_queue_handle: Box<dyn ImportQueueService<AlephBlock>>,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
-    pub metrics: Metrics<<B::Header as Header>::Hash>,
+    pub justification_rx: mpsc::UnboundedReceiver<Justification<AlephHeader>>,
+    pub metrics: Metrics<AlephHash>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,

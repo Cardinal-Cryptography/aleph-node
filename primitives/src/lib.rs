@@ -39,6 +39,7 @@ pub type AuthorityId = app::Public;
 
 pub type Balance = u128;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+pub type Hash = sp_core::H256;
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 pub type BlockId = generic::BlockId<Block>;
 pub type BlockHash = <Header as HeaderT>::Hash;

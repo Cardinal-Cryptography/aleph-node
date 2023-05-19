@@ -1,8 +1,10 @@
 use std::{collections::HashSet, iter, time::Duration};
-
+use core::marker::PhantomData;
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use tokio::time::{interval_at, Instant};
+use sc_consensus::import_queue::ImportQueueService;
+use aleph_primitives::{Block as AlephBlock, Header as AlephHeader, Hash as AlephHash};
 
 use crate::{
     network::GossipNetwork,
@@ -14,7 +16,7 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
+        Block, BlockImport, BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
         Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
         LOG_TARGET,
     },
@@ -27,12 +29,15 @@ const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
+    B: Block,
     J: Justification,
     N: GossipNetwork<VersionedNetworkData<J>>,
     CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<J>,
     V: Verifier<J>,
     F: Finalizer<J>,
+    BI: Send,
+    // BI: BlockImport<B> + Send,
 > {
     network: VersionWrapper<J, N>,
     handler: Handler<N::PeerId, J, CS, V, F>,
@@ -42,6 +47,10 @@ pub struct Service<
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
+    // _block_importer: BI,
+    // _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
+    _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
+    _phantom: PhantomData<(B, BI)>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -61,13 +70,16 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
 }
 
 impl<
+        B: Block,
         J: Justification,
         N: GossipNetwork<VersionedNetworkData<J>>,
         CE: ChainStatusNotifier<J::Header>,
         CS: ChainStatus<J>,
         V: Verifier<J>,
         F: Finalizer<J>,
-    > Service<J, N, CE, CS, V, F>
+        BI: Send,
+        // BI: BlockImport<B> + Send,
+    > Service<B, J, N, CE, CS, V, F, BI>
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
@@ -78,6 +90,9 @@ impl<
         chain_status: CS,
         verifier: V,
         finalizer: F,
+        // _block_importer: BI,
+        // _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
+        _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
         period: SessionPeriod,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     ) -> Result<
@@ -104,6 +119,8 @@ impl<
                 justifications_from_user,
                 additional_justifications_from_user,
                 _block_requests_from_user,
+                _block_importer,
+                _phantom: PhantomData,
             },
             justifications_for_sync,
             block_requests_for_sync,

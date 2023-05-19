@@ -50,6 +50,12 @@ pub trait Block: Clone + Codec + Debug + Send + Sync + 'static {
     fn header(&self) -> &Self::Header;
 }
 
+/// The block importer.
+pub trait BlockImport<B>: Send + 'static {
+    /// Import the block.
+    fn import_block(&mut self, block: &B);
+}
+
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone + Send + Sync + Debug + 'static {
     type Header: Header;

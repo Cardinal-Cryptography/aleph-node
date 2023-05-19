@@ -1,10 +1,12 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+use futures::Future;
+use std::pin::Pin;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
+use sc_consensus::ImportQueue;
 use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
@@ -346,6 +348,8 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let import_queue_handle = import_queue.service();
+
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
@@ -413,6 +417,7 @@ pub fn new_authority(
         network,
         client,
         chain_status,
+        import_queue_handle,
         select_chain,
         session_period,
         millisecs_per_block,
