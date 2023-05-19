@@ -1003,9 +1003,9 @@ impl_runtime_apis! {
         }
 
         fn session_committee(
-            at: SessionIndex,
+            session: SessionIndex,
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
-            CommitteeManagement::session_committee_for_session(at)
+            CommitteeManagement::session_committee_for_session(session)
         }
     }
 

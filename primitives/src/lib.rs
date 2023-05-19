@@ -229,7 +229,7 @@ pub enum ApiError {
 
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
 pub enum SessionValidatorError {
-    SessionTooMuchIntoFuture { upper_limit: SessionIndex },
+    SessionTooFarIntoFuture { upper_limit: SessionIndex },
     OldEra,
     Other(Vec<u8>),
 }
@@ -277,7 +277,7 @@ sp_api::decl_runtime_apis! {
         fn finality_version() -> Version;
         fn next_session_finality_version() -> Version;
         fn session_committee(
-            at: SessionIndex,
+            session: SessionIndex,
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
     }
 }

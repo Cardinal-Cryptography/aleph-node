@@ -482,7 +482,7 @@ impl<T: Config> Pallet<T> {
                 .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()));
         }
 
-        Err(SessionValidatorError::SessionTooMuchIntoFuture {
+        Err(SessionValidatorError::SessionTooFarIntoFuture {
             upper_limit: planned_era_end,
         })
     }
