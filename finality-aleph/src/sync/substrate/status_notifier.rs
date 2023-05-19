@@ -1,4 +1,7 @@
-use std::{fmt::{Display, Error as FmtError, Formatter}, time::{Duration, Instant}};
+use std::{
+    fmt::{Display, Error as FmtError, Formatter},
+    time::{Duration, Instant},
+};
 
 use aleph_primitives::BlockNumber;
 use futures::StreamExt;
@@ -6,7 +9,10 @@ use sc_client_api::client::{FinalityNotifications, ImportNotifications};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 use tokio::{select, time::sleep};
 
-use crate::sync::{ChainStatus, Header, BlockIdentifier, ChainStatusNotification, ChainStatusNotifier, SubstrateChainStatus, substrate::chain_status::Error as ChainStatusError};
+use crate::sync::{
+    substrate::chain_status::Error as ChainStatusError, BlockIdentifier, ChainStatus,
+    ChainStatusNotification, ChainStatusNotifier, Header, SubstrateChainStatus,
+};
 
 /// What can go wrong when waiting for next chain status notification.
 #[derive(Debug)]
@@ -17,7 +23,7 @@ where
 {
     JustificationStreamClosed,
     ImportStreamClosed,
-    ChainStatusError(ChainStatusError<B>),
+    ChainStatus(ChainStatusError<B>),
     MajorSyncFallback,
 }
 
@@ -35,7 +41,7 @@ where
             ImportStreamClosed => {
                 write!(f, "import notification stream has ended")
             }
-            ChainStatusError(e) => {
+            ChainStatus(e) => {
                 write!(f, "chain status error: {}", e)
             }
             MajorSyncFallback => {
@@ -45,7 +51,9 @@ where
     }
 }
 
-/// Substrate specific implementation of `ChainStatusNotifier`.
+/// Substrate specific implementation of `ChainStatusNotifier`. If no blocks are reported through
+/// the usual channels for some time it falls back to reading the DB directly and produces
+/// notifications that way.
 pub struct SubstrateChainStatusNotifier<B>
 where
     B: BlockT,
@@ -100,15 +108,18 @@ where
 
     async fn next(&mut self) -> Result<ChainStatusNotification<B::Header>, Self::Error> {
         if self.catching_up {
-            match self.header_at(self.last_reported + 1).map_err(Error::ChainStatusError)? {
+            match self
+                .header_at(self.last_reported + 1)
+                .map_err(Error::ChainStatus)?
+            {
                 Some(header) => {
                     self.last_reported += 1;
                     return Ok(ChainStatusNotification::BlockImported(header));
-                },
+                }
                 None => {
                     self.catching_up = false;
                     self.trying_since = Instant::now();
-                },
+                }
             }
         }
         select! {
@@ -130,7 +141,7 @@ where
                 .map(|block| ChainStatusNotification::BlockImported(block.header))
                 .ok_or(Error::ImportStreamClosed)
             },
-            _ = sleep(Duration::from_secs(3).saturating_sub(Instant::now() - self.trying_since)) => {
+            _ = sleep(Duration::from_secs(2).saturating_sub(Instant::now() - self.trying_since)) => {
                 self.catching_up = true;
                 Err(Error::MajorSyncFallback)
             }

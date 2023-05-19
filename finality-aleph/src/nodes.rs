@@ -27,9 +27,8 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        SubstrateChainStatus, ChainStatus, Justification, Service as SyncService,
-        SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
-        VerifierCache,
+        ChainStatus, Justification, Service as SyncService, SubstrateChainStatus,
+        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
     },
     AlephConfig,
 };
@@ -47,8 +46,9 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<B, H, C, BE, SC>(aleph_config: AlephConfig<B, H, C, SC, SubstrateChainStatus<B>>)
-where
+pub async fn run_validator_node<B, H, C, BE, SC>(
+    aleph_config: AlephConfig<B, H, C, SC, SubstrateChainStatus<B>>,
+) where
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
@@ -135,7 +135,8 @@ where
         client.finality_notification_stream(),
         client.import_notification_stream(),
         chain_status.clone(),
-    ).expect("chain status notifier should set up correctly");
+    )
+    .expect("chain status notifier should set up correctly");
 
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(Some(justification)) => justification.header().clone(),
