@@ -16,6 +16,7 @@ use crate::{
     CircuitField, PlonkResult, PublicInput, Relation,
 };
 
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct WithdrawRelation {
     spend_note: SourcedNote,
     redeposit_note: SourcedNote,
@@ -33,7 +34,7 @@ impl Default for WithdrawRelation {
     }
 }
 
-#[derive(Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Default, Debug)]
 pub struct WithdrawPublicInput {
     pub fee: TokenAmount,
     pub recipient: Account,
@@ -44,6 +45,7 @@ pub struct WithdrawPublicInput {
     pub deposit_note: Note,
 }
 
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct WithdrawPrivateInput {
     pub spend_trapdoor: Trapdoor,
     pub deposit_trapdoor: Trapdoor,

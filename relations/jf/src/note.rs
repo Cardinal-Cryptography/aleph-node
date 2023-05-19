@@ -7,12 +7,14 @@ use crate::{
     CircuitField, PlonkResult, PublicInput,
 };
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum NoteType {
     Deposit,
     Spend,
     Redeposit,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SourcedNote {
     pub note: Note,
     pub token_id: TokenId,
@@ -22,6 +24,7 @@ pub struct SourcedNote {
     pub note_type: NoteType,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Default, Debug)]
 pub struct SourcedNoteVar {
     pub note_var: Variable,
     pub token_id_var: Variable,
