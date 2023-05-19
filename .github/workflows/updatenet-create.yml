@@ -72,6 +72,7 @@ jobs:
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
+          # yamllint disable-line rule:line-length
           json-rpc-endpoint: https://ws-fe-updnet-${{ github.run_id }}.dev.azero.dev
 
       - name: Finish featurenet Deployment
