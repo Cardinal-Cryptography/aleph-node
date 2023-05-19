@@ -21,6 +21,7 @@ sp-runtime = { workspace = true }
 sp-staking = { workspace = true }
 sp-std = { workspace = true }
 
+pallets-support = { workspace = true }
 primitives = { workspace = true }
 
 [features]
