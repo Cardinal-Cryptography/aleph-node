@@ -6234,6 +6234,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallets-support"
+version = "0.1.4"
+dependencies = [
+ "frame-support",
+ "sp-std",
+]
+
+[[package]]
 name = "parity-db"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

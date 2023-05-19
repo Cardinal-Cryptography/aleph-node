@@ -10,6 +10,7 @@ members = [
     "pallets/aleph",
     "pallets/elections",
     "pallets/committee-management",
+    "pallets/support",
     "poseidon",
     "primitives",
 ]
@@ -178,6 +179,7 @@ network-clique = { path = "clique" }
 pallet-aleph = { path = "pallets/aleph", default-features = false }
 pallet-committee-management = { path = "pallets/committee-management", default-features = false }
 pallet-elections = { path = "pallets/elections", default-features = false }
+pallets-support = { path = "pallets/support", default-features = false }
 primitives = { path = "primitives", default-features = false }
 
 # Liminal-related dependencies
