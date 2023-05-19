@@ -500,7 +500,6 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
             .await?
             == old_button_balance + 1
     );
-    // let_assert!(Some(&Value::UInt(first_press_at)) = event.data.get("when"));
 
     let_assert!(first_press_at = event.block_details.unwrap().block_number);
 
@@ -511,7 +510,6 @@ async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
     let event = assert_recv_id(&mut events, "RewardMinted").await;
     let_assert!(Some(&Value::UInt(second_reward_amount)) = event.data.get("reward"));
 
-    // let_assert!(Some(&Value::UInt(second_press_at)) = event.data.get("when"));
     let_assert!(second_press_at = event.block_details.unwrap().block_number);
 
     let first_presser_time = first_press_at - reset_at;
