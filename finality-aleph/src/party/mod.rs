@@ -188,16 +188,16 @@ where
                 } => {
                     let next_session_authorities = next_session_authority_data.authorities();
                     match self.session_manager.node_idx(next_session_authorities).await {
-                         Some(next_session_node_id) => if let Err(e) = self
-                                .session_manager
-                                .early_start_validator_session(
-                                    next_session_id,
-                                    next_session_node_id,
-                                    next_session_authorities,
-                                ).await
-                            {
-                                warn!(target: "aleph-party", "Failed to early start validator session{:?}: {}", next_session_id, e);
-                            }
+                         Some(next_session_node_id) => (), //if let Err(e) = self
+                                // .session_manager
+                                // .early_start_validator_session(
+                                //     next_session_id,
+                                //     next_session_node_id,
+                                //     next_session_authorities,
+                                // ).await
+                            // {
+                                // warn!(target: "aleph-party", "Failed to early start validator session{:?}: {}", next_session_id, e);
+                            // }
                         None => {
                             if let Err(e) = self
                                 .session_manager
