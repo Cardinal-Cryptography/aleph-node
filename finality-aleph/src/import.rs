@@ -2,11 +2,11 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
-use log::{debug, trace, warn};
+use log::{debug, warn};
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
-use sp_consensus::{BlockOrigin, Error as ConsensusError};
+use sp_consensus::{Error as ConsensusError};
 use sp_runtime::{
     traits::{Block as BlockT, Header},
     Justification as SubstrateJustification,
@@ -177,10 +177,6 @@ where
         let post_hash = block.post_hash();
 
         let justifications = block.justifications.take();
-        if matches!(block.origin, BlockOrigin::NetworkInitialSync) {
-            trace!(target: "aleph-justification", "Treating block {:?} {:?} from major sync as from a normal sync.", number, block.header.hash());
-            block.origin = BlockOrigin::NetworkBroadcast;
-        }
 
         debug!(target: "aleph-justification", "Importing block {:?} {:?} {:?}", number, block.header.hash(), block.post_hash());
         let result = self.inner.import_block(block, cache).await;
