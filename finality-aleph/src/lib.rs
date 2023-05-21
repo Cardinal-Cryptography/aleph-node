@@ -12,7 +12,9 @@ use futures::{
 };
 use parity_scale_codec::{Codec, Decode, Encode, Output};
 use primitives as aleph_primitives;
-use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
+use sc_client_api::{
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
+};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_common::ExHashT;
