@@ -1,6 +1,5 @@
 use std::{default::Default, sync::Arc};
 
-use aleph_primitives::BlockNumber;
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_consensus::BlockOrigin;
@@ -9,6 +8,7 @@ use sp_runtime::{traits::Block as BlockT, Digest};
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
 use crate::{
+    aleph_primitives::BlockNumber,
     testing::mocks::{TBlock, THeader, TestClient},
     IdentifierFor,
 };

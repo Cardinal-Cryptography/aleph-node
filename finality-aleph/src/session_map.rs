@@ -1,6 +1,5 @@
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
-use aleph_primitives::{AlephSessionApi, BlockNumber, SessionAuthorityData};
 use futures::StreamExt;
 use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
@@ -11,7 +10,11 @@ use tokio::sync::{
     RwLock,
 };
 
-use crate::{session::SessionBoundaryInfo, ClientForAleph, SessionId, SessionPeriod};
+use crate::{
+    aleph_primitives::{AlephSessionApi, BlockNumber, SessionAuthorityData},
+    session::SessionBoundaryInfo,
+    ClientForAleph, SessionId, SessionPeriod,
+};
 
 const PRUNING_THRESHOLD: u32 = 10;
 const LOG_TARGET: &str = "aleph-session-updater";
@@ -31,7 +34,7 @@ pub trait AuthorityProvider {
 pub struct AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     BE: Backend<B> + 'static,
 {
@@ -42,7 +45,7 @@ where
 impl<C, B, BE> AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -71,7 +74,7 @@ where
 impl<C, B, BE> AuthorityProvider for AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -122,7 +125,7 @@ pub trait FinalityNotifier {
 pub struct FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -135,7 +138,7 @@ where
 impl<C, B, BE> FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -153,7 +156,7 @@ where
 impl<C, B, BE> FinalityNotifier for FinalityNotifierImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     B: Block,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -384,13 +387,12 @@ where
 mod tests {
     use std::time::Duration;
 
-    use aleph_primitives::BlockNumber;
     use futures_timer::Delay;
     use sc_utils::mpsc::tracing_unbounded;
     use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
-    use crate::session::testing::authority_data;
+    use crate::{aleph_primitives::BlockNumber, session::testing::authority_data};
 
     const FIRST_THRESHOLD: u32 = PRUNING_THRESHOLD + 1;
     const SECOND_THRESHOLD: u32 = 2 * PRUNING_THRESHOLD + 1;
