@@ -52,6 +52,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Copy production binary to S3 Mainnet AWS bucket
+        # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@A0-4219-add-actions-from-aleph-node
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
@@ -68,6 +69,7 @@ jobs:
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
+        # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@A0-4219-add-actions-from-aleph-node
         with:
           source-path: target/production/wbuild/aleph-runtime
