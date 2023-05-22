@@ -47,7 +47,7 @@ pub async fn set_invalid_keys_for_validator<S: WaitingExt + SessionUserApi>(
         let mut invalid_keys = [0u8; 64];
         rng.fill(&mut invalid_keys);
 
-        con.set_keys(invalid_keys.to_vec().into(), TxStatus::Submitted)
+        con.set_keys(invalid_keys.to_vec().into(), TxStatus::Finalized)
             .await
             .unwrap();
     }
