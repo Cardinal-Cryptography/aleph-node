@@ -141,7 +141,7 @@ where
                 .map(|block| ChainStatusNotification::BlockImported(block.header))
                 .ok_or(Error::ImportStreamClosed)
             },
-            _ = sleep(Duration::from_secs(2).saturating_sub(Instant::now() - self.trying_since)) => {
+            _ = sleep((self.trying_since + Duration::from_secs(2)).saturating_duration_since(Instant::now())) => {
                 self.catching_up = true;
                 Err(Error::MajorSyncFallback)
             }

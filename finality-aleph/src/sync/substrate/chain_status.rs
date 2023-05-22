@@ -5,7 +5,7 @@ use std::{
 
 use aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID};
 use log::warn;
-use sc_client_api::{blockchain::HeaderBackend, Backend as _};
+use sc_client_api::{Backend as _, HeaderBackend};
 use sc_service::TFullBackend;
 use sp_blockchain::{Backend as _, Error as BackendError, Info};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
