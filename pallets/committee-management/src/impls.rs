@@ -458,32 +458,26 @@ impl<T: Config> Pallet<T> {
                 ))
             }
         };
-
-        // Historical session
-        if session < current_starting_index {
-            return Err(SessionValidatorError::OldEra);
-        }
-
         let planned_era_end = current_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
 
-        if session <= planned_era_end {
-            let era_validators =
-                T::ValidatorProvider::current_era_validators().ok_or_else(|| {
-                    SessionValidatorError::Other("Couldn't get validators for current era".encode())
-                })?;
-            let committee_seats =
-                T::ValidatorProvider::current_era_committee_size().ok_or_else(|| {
-                    SessionValidatorError::Other(
-                        "Couldn't get committee-seats for current era".encode(),
-                    )
-                })?;
-            return Self::select_committee(&era_validators, committee_seats, session)
-                .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()));
+        if session < current_starting_index || session > planned_era_end {
+            return Err(SessionValidatorError::SessionNotWithinRange {
+                lower_limit: current_starting_index,
+                upper_limit: planned_era_end,
+            });
         }
 
-        Err(SessionValidatorError::SessionTooFarIntoFuture {
-            upper_limit: planned_era_end,
-        })
+        let era_validators = T::ValidatorProvider::current_era_validators().ok_or_else(|| {
+            SessionValidatorError::Other("Couldn't get validators for current era".encode())
+        })?;
+        let committee_seats =
+            T::ValidatorProvider::current_era_committee_size().ok_or_else(|| {
+                SessionValidatorError::Other(
+                    "Couldn't get committee-seats for current era".encode(),
+                )
+            })?;
+        Self::select_committee(&era_validators, committee_seats, session)
+            .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()))
     }
 }
 
