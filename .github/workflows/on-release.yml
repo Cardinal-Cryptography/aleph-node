@@ -27,7 +27,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

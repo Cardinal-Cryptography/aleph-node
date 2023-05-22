@@ -49,7 +49,7 @@ runs:
 
     - name: Get branch name and commit SHA
       id: get-ref-properties
-      uses: ./.github/actions/get-ref-properties
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
     - name: Checkout argocd apps repo
       uses: actions/checkout@v3

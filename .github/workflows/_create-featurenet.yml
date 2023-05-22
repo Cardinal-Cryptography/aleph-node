@@ -59,7 +59,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
       - name: Start featurenet Deployment
         uses: bobheadxi/deployments@v1.1.0
@@ -103,7 +103,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
       - name: Update featurenet app and re-deploy it
         uses: ./.github/actions/create-featurenet

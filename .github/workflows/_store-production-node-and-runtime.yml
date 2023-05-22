@@ -20,7 +20,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
       - name: Download release binary from GH artifacts
         uses: actions/download-artifact@v3
@@ -51,7 +51,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Copy production binary to S3 Mainnet AWS bucket
-        uses: ./.github/actions/copy-file-to-s3
+        uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@A0-4219-add-actions-from-aleph-node
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
@@ -67,7 +67,7 @@ jobs:
         if: >
           env.SECRETS_AWS_MAINNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_AWS_MAINNET_SECRET_ACCESS_KEY != ''
-        uses: ./.github/actions/copy-file-to-s3
+        uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@A0-4219-add-actions-from-aleph-node
         with:
           source-path: target/production/wbuild/aleph-runtime
           source-filename: aleph_runtime.compact.wasm
