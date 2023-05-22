@@ -18,4 +18,4 @@ jobs:
     steps:
       - name: VALIDATE | Execute github-actions-validator
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/yaml-validate@A0-4219-add-actions-from-aleph-node
+        uses: Cardinal-Cryptography/github-actions/yaml-validate@v1

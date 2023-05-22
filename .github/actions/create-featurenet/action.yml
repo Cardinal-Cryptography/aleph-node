@@ -99,7 +99,7 @@ runs:
     - name: Get branch name and commit SHA
       id: get-ref-properties
       # yamllint disable-line rule:line-length
-      uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
     - name: Build chainspec for testnet FE and send it to S3
       if: inputs.update != 'true' && inputs.aleph-node-image == 'testnet'
