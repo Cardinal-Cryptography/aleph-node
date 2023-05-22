@@ -1,6 +1,5 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use aleph_primitives::BlockNumber;
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
@@ -12,6 +11,7 @@ use sp_keystore::CryptoStore;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
+    aleph_primitives::BlockNumber,
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     justification::Requester,
@@ -53,7 +53,7 @@ where
     B::Header: Header<Number = BlockNumber>,
     H: ExHashT,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     CS: ChainStatus<SubstrateJustification<B::Header>> + JustificationTranslator<B::Header>,
     SC: SelectChain<B> + 'static,
@@ -149,7 +149,7 @@ where
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-    let (sync_service, justifications_for_sync) = match SyncService::new(
+    let (sync_service, justifications_for_sync, _) = match SyncService::new(
         block_sync_network,
         chain_events,
         chain_status.clone(),
