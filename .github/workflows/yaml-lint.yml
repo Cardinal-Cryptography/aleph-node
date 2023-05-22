@@ -19,6 +19,3 @@ jobs:
       - name: LINT | Execute YAML linter
         # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/yaml-lint@A0-4219-add-actions-from-aleph-node
-      - name:
-        run: |
-          find .
