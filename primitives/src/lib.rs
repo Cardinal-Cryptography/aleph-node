@@ -231,13 +231,13 @@ pub struct VersionChange {
     pub session: SessionIndex,
 }
 
-/// An consensus log item for Aleph.
+/// Consensus log item for Aleph.
 #[cfg_attr(feature = "std", derive(Serialize))]
 #[derive(Decode, Encode, PartialEq, Eq, Clone, sp_runtime::RuntimeDebug)]
 pub enum ConsensusLog<N: sp_runtime::RuntimeAppPublic> {
-	/// Change of the authorities.
+    /// Change of the authorities.
     #[codec(index = 1)]
-	AlephAuthorityChange(Vec<N>),
+    AlephAuthorityChange(Vec<N>),
 }
 
 sp_api::decl_runtime_apis! {
