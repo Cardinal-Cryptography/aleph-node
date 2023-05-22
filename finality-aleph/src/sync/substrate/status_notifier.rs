@@ -5,13 +5,14 @@ use std::{
 
 use aleph_primitives::BlockNumber;
 use futures::StreamExt;
+use log::debug;
 use sc_client_api::client::{FinalityNotifications, ImportNotifications};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 use tokio::{select, time::sleep};
 
 use crate::sync::{
     substrate::chain_status::Error as ChainStatusError, BlockIdentifier, ChainStatus,
-    ChainStatusNotification, ChainStatusNotifier, Header, SubstrateChainStatus,
+    ChainStatusNotification, ChainStatusNotifier, Header, SubstrateChainStatus, LOG_TARGET,
 };
 
 /// What can go wrong when waiting for next chain status notification.
@@ -24,7 +25,6 @@ where
     JustificationStreamClosed,
     ImportStreamClosed,
     ChainStatus(ChainStatusError<B>),
-    MajorSyncFallback,
 }
 
 impl<B> Display for Error<B>
@@ -43,9 +43,6 @@ where
             }
             ChainStatus(e) => {
                 write!(f, "chain status error: {}", e)
-            }
-            MajorSyncFallback => {
-                write!(f, "waited too long, falling back to manual reporting")
             }
         }
     }
@@ -107,43 +104,49 @@ where
     type Error = Error<B>;
 
     async fn next(&mut self) -> Result<ChainStatusNotification<B::Header>, Self::Error> {
-        if self.catching_up {
-            match self
-                .header_at(self.last_reported + 1)
-                .map_err(Error::ChainStatus)?
-            {
-                Some(header) => {
-                    self.last_reported += 1;
-                    return Ok(ChainStatusNotification::BlockImported(header));
-                }
-                None => {
-                    self.catching_up = false;
-                    self.trying_since = Instant::now();
-                }
-            }
-        }
-        select! {
-            maybe_block = self.finality_notifications.next() => {
-                self.trying_since = Instant::now();
-                maybe_block
-                    .map(|block| ChainStatusNotification::BlockFinalized(block.header))
-                    .ok_or(Error::JustificationStreamClosed)
-            },
-            maybe_block = self.import_notifications.next() => {
-                if let Some(block) = &maybe_block {
-                    let number = block.header.id().number();
-                    if number > self.last_reported {
-                        self.last_reported = number;
+        loop {
+            if self.catching_up {
+                match self
+                    .header_at(self.last_reported + 1)
+                    .map_err(Error::ChainStatus)?
+                {
+                    Some(header) => {
+                        self.last_reported += 1;
+                        return Ok(ChainStatusNotification::BlockImported(header));
+                    }
+                    None => {
+                        self.catching_up = false;
+                        self.trying_since = Instant::now();
+                        debug!(
+                            target: LOG_TARGET,
+                            "Manual reporting caught up, back to normal waiting for imports."
+                        );
                     }
                 }
-                self.trying_since = Instant::now();
-                maybe_block
-                .map(|block| ChainStatusNotification::BlockImported(block.header))
-                .ok_or(Error::ImportStreamClosed)
-            },
-            _ = sleep((self.trying_since + Duration::from_secs(2)).saturating_duration_since(Instant::now())) => {
-                self.catching_up = true;
-                Err(Error::MajorSyncFallback)
+            }
+            select! {
+                maybe_block = self.finality_notifications.next() => {
+                    self.trying_since = Instant::now();
+                    return maybe_block
+                        .map(|block| ChainStatusNotification::BlockFinalized(block.header))
+                        .ok_or(Error::JustificationStreamClosed)
+                },
+                maybe_block = self.import_notifications.next() => {
+                    if let Some(block) = &maybe_block {
+                        let number = block.header.id().number();
+                        if number > self.last_reported {
+                            self.last_reported = number;
+                        }
+                    }
+                    self.trying_since = Instant::now();
+                    return maybe_block
+                        .map(|block| ChainStatusNotification::BlockImported(block.header))
+                        .ok_or(Error::ImportStreamClosed)
+                },
+                _ = sleep((self.trying_since + Duration::from_secs(2)).saturating_duration_since(Instant::now())) => {
+                    self.catching_up = true;
+                    debug!(target: LOG_TARGET, "No new blocks for 2 seconds, falling back to manual reporting.");
+                }
             }
         }
     }

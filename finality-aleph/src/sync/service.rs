@@ -359,9 +359,9 @@ impl<
                             }
                         },
                         Err(e) => error!(
-                                        target: LOG_TARGET,
-                                        "Error when retrieving Handler state: {}.", e
-                                    ),
+                            target: LOG_TARGET,
+                            "Error when retrieving Handler state: {}.", e
+                        ),
                     }
                 }
             }
