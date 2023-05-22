@@ -26,13 +26,15 @@ mod traits;
 
 use frame_support::{
     log,
-    sp_runtime::BoundToRuntimeAppPublic,
+    sp_runtime::{BoundToRuntimeAppPublic, DigestItem},
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
+use primitives::{ALEPH_ENGINE_ID, ConsensusLog::AlephAuthorityChange};
+
 #[cfg(feature = "std")]
 use primitives::LEGACY_FINALITY_VERSION;
-use primitives::{SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION};
+use primitives::{SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, DEFAULT_SESSION_PERIOD};
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -42,7 +44,7 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
-    use frame_system::{ensure_root, pallet_prelude::OriginFor};
+    use frame_system::{ensure_root, pallet_prelude::{OriginFor, BlockNumberFor}};
     use pallet_session::SessionManager;
     use sp_std::collections::btree_set::BTreeSet;
     #[cfg(feature = "std")]
@@ -121,6 +123,19 @@ pub mod pallet {
     #[pallet::getter(fn finality_version_change)]
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
+
+        #[pallet::hooks]
+        impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+            fn on_finalize(block_number: T::BlockNumber) {
+                if block_number % DEFAULT_SESSION_PERIOD.into() == (DEFAULT_SESSION_PERIOD - 1).into() {
+		            <frame_system::Pallet<T>>::deposit_log(
+                        DigestItem::Consensus(
+                            ALEPH_ENGINE_ID, 
+                            AlephAuthorityChange::<T::AuthorityId>(<NextAuthorities<T>>::get()).encode()
+                        ));
+                }
+            }
+        }
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
