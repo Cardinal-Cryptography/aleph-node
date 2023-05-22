@@ -230,7 +230,10 @@ pub enum ApiError {
 
 #[derive(Encode, Decode, PartialEq, Eq, Debug)]
 pub enum SessionValidatorError {
-    SessionNotWithinRange { lower_limit: SessionIndex, upper_limit: SessionIndex },
+    SessionNotWithinRange {
+        lower_limit: SessionIndex,
+        upper_limit: SessionIndex,
+    },
     OldEra,
     Other(Vec<u8>),
 }
