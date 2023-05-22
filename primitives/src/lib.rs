@@ -234,7 +234,6 @@ pub enum SessionValidatorError {
         lower_limit: SessionIndex,
         upper_limit: SessionIndex,
     },
-    OldEra,
     Other(Vec<u8>),
 }
 
