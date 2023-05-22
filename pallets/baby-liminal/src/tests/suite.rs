@@ -14,7 +14,7 @@ type BabyLiminal = crate::Pallet<TestRuntime>;
 
 const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
 
-static ARTIFACTS: Lazy<Artifacts> = Lazy::new(|| get_artifacts());
+static ARTIFACTS: Lazy<Artifacts> = Lazy::new(get_artifacts);
 
 fn vk() -> Vec<u8> {
     ARTIFACTS.vk.clone()

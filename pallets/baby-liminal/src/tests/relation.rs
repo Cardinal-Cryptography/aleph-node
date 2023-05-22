@@ -3,7 +3,7 @@ use jf_plonk::{
     proof_system::{PlonkKzgSnark, UniversalSNARK},
     transcript::StandardTranscript,
 };
-use jf_relation::{Arithmetization, Circuit, PlonkCircuit, Variable};
+use jf_relation::{Arithmetization, Circuit, PlonkCircuit};
 
 use crate::{CircuitField, Curve};
 
