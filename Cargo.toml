@@ -182,11 +182,11 @@ pallets-support = { path = "pallets/support", default-features = false }
 primitives = { path = "primitives", default-features = false }
 
 # Liminal-related dependencies
-ark-bls12-381 = { version = "0.4.0" }
-ark-ff = { version = "0.4.0", default-features = false }
-ark-serialize = { version = "0.4.0", default-features = false }
-ark-r1cs-std = { version = "0.4.0", default-features = false }
-ark-relations = { version = "0.4.0", default-features = false }
+ark-bls12-381 = { version = "^0.3.0" }
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0" , default-features = false }
+ark-relations = { version = "^0.3.0", default-features = false }
 
 liminal-ark-pnbr-poseidon-parameters = { version = "0.1.0", default-features = false }
 liminal-ark-pnbr-poseidon-paramgen = { version = "0.1.0" }
