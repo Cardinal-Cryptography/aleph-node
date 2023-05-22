@@ -1,5 +1,5 @@
-use codec::Encode;
 use frame_support::{log::info, pallet_prelude::Get};
+use parity_scale_codec::Encode;
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
     SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
@@ -83,7 +83,7 @@ fn choose_finality_committee<T: Clone>(
     finality_committee
 }
 
-fn rotate<AccountId: Clone + PartialEq>(
+fn select_committee_inner<AccountId: Clone + PartialEq>(
     current_session: SessionIndex,
     reserved_seats: usize,
     non_reserved_seats: usize,
@@ -303,7 +303,7 @@ impl<T: Config> Pallet<T> {
         CurrentAndNextSessionValidatorsStorage::<T>::put(session_validators);
     }
 
-    pub(crate) fn rotate_committee_inner(
+    pub(crate) fn select_committee(
         era_validators: &EraValidators<T::AccountId>,
         committee_seats: CommitteeSeats,
         current_session: SessionIndex,
@@ -319,7 +319,7 @@ impl<T: Config> Pallet<T> {
             non_reserved_finality_seats,
         } = committee_seats;
 
-        rotate(
+        select_committee_inner(
             current_session,
             reserved_seats as usize,
             non_reserved_seats as usize,
@@ -338,8 +338,7 @@ impl<T: Config> Pallet<T> {
         let era_validators = T::ValidatorProvider::current_era_validators()?;
         let committee_seats = T::ValidatorProvider::current_era_committee_size()?;
 
-        let committee =
-            Self::rotate_committee_inner(&era_validators, committee_seats, current_session);
+        let committee = Self::select_committee(&era_validators, committee_seats, current_session);
 
         if let Some(c) = &committee {
             Self::store_session_validators(
@@ -478,7 +477,7 @@ impl<T: Config> Pallet<T> {
                         "Couldn't get committee-seats for current era".encode(),
                     )
                 })?;
-            return Self::rotate_committee_inner(&era_validators, committee_seats, session)
+            return Self::select_committee(&era_validators, committee_seats, session)
                 .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()));
         }
 
@@ -495,8 +494,8 @@ mod tests {
     use sp_runtime::Perquintill;
 
     use crate::impls::{
-        calculate_adjusted_session_points, compute_validator_scaled_total_rewards, rotate,
-        MAX_REWARD,
+        calculate_adjusted_session_points, compute_validator_scaled_total_rewards,
+        select_committee_inner, MAX_REWARD,
     };
 
     const THRESHOLD: Perquintill = Perquintill::from_percent(90);
@@ -626,7 +625,7 @@ mod tests {
 
             let expected_committee: BTreeSet<_> = BTreeSet::from_iter(expected_committee);
             let committee: BTreeSet<_> = BTreeSet::from_iter(
-                rotate(
+                select_committee_inner(
                     session_index,
                     reserved_seats,
                     non_reserved_seats,

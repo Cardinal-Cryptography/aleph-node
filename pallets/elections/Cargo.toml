@@ -41,14 +41,10 @@ std = [
     "pallet-staking/std",
     "sp-core/std",
     "sp-runtime/std",
-<<<<<<< HEAD
     "rand/std",
-=======
     "sp-std/std",
     "sp-staking/std",
-
     "primitives/std",
->>>>>>> origin/main
 ]
 try-runtime = [
     "frame-support/try-runtime",
