@@ -95,7 +95,7 @@ jobs:
           # ${CHECK}
           # ${CHECK} --features ink
 
-          cd ../poseidon/
+          cd poseidon/
           ${CHECK}
           ${CHECK} --features circuit
 
