@@ -28,7 +28,7 @@ pub type BalanceOf<T> =
 
 #[frame_support::pallet]
 pub mod pallet {
-
+    use ark_bls12_381::Bls12_381;
     use ark_serialize::CanonicalDeserialize;
     use frame_support::{
         dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,

@@ -360,7 +360,6 @@ dependencies = [
  "futures",
  "hex",
  "hex-literal",
- "jellyfier",
  "jsonrpsee",
  "libp2p 0.49.0",
  "log",
@@ -671,7 +670,6 @@ dependencies = [
  "hashbrown 0.13.2",
  "itertools",
  "num-traits",
- "rayon",
  "zeroize",
 ]
 
@@ -745,7 +743,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
- "rayon",
  "rustc_version 0.4.0",
  "zeroize",
 ]
@@ -852,7 +849,6 @@ dependencies = [
  "ark-std 0.4.0",
  "derivative",
  "hashbrown 0.13.2",
- "rayon",
 ]
 
 [[package]]
@@ -981,7 +977,6 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "rayon",
 ]
 
 [[package]]
@@ -1164,7 +1159,6 @@ dependencies = [
  "obce",
  "pallet-baby-liminal",
  "parity-scale-codec",
- "primitives",
 ]
 
 [[package]]
@@ -1403,13 +1397,10 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 [[package]]
 name = "blst"
 version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
+source = "git+https://github.com/EspressoSystems/blst.git?branch=no-std#faefc7fcb21864aaf4f6f443636ce8924108fcbd"
 dependencies = [
  "cc",
  "glob",
- "threadpool",
- "which",
  "zeroize",
 ]
 
@@ -3880,27 +3871,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
-name = "jellyfier"
-version = "0.0.0"
-dependencies = [
- "ark-bls12-381 0.4.0",
- "ark-serialize 0.4.2",
- "jf-plonk",
- "jf-relation",
- "jf-utils",
- "parity-scale-codec",
- "sp-runtime-interface",
-]
-
-[[package]]
 name = "jf-plonk"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish?rev=7323d81e39f7da463923143f8be97558b8855df4#7323d81e39f7da463923143f8be97558b8855df4"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
 dependencies = [
- "ark-bls12-377",
- "ark-bls12-381 0.4.0",
- "ark-bn254",
- "ark-bw6-761",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
@@ -3919,7 +3893,6 @@ dependencies = [
  "merlin 3.0.0",
  "num-bigint",
  "rand_chacha 0.3.1",
- "rayon",
  "serde",
  "sha3",
  "tagged-base64",
@@ -3928,7 +3901,7 @@ dependencies = [
 [[package]]
 name = "jf-primitives"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish?rev=7323d81e39f7da463923143f8be97558b8855df4#7323d81e39f7da463923143f8be97558b8855df4"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -3957,7 +3930,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "rand_chacha 0.3.1",
- "rayon",
  "serde",
  "sha2 0.10.6",
  "sha3",
@@ -3969,7 +3941,7 @@ dependencies = [
 [[package]]
 name = "jf-relation"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish?rev=7323d81e39f7da463923143f8be97558b8855df4#7323d81e39f7da463923143f8be97558b8855df4"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -3988,20 +3960,18 @@ dependencies = [
  "jf-utils",
  "num-bigint",
  "rand_chacha 0.3.1",
- "rayon",
 ]
 
 [[package]]
 name = "jf-utils"
 version = "0.3.0"
-source = "git+https://github.com/EspressoSystems/jellyfish?rev=7323d81e39f7da463923143f8be97558b8855df4#7323d81e39f7da463923143f8be97558b8855df4"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
 dependencies = [
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-serialize 0.4.2",
  "ark-std 0.4.0",
  "digest 0.10.6",
- "rayon",
  "serde",
  "sha2 0.10.6",
  "tagged-base64",
@@ -4925,19 +4895,6 @@ dependencies = [
  "liminal-ark-pnbr-poseidon-paramgen",
  "liminal-ark-pnbr-poseidon-permutation",
  "liminal-ark-pnbr-sponge",
- "paste",
-]
-
-[[package]]
-name = "liminal-ark-poseidon"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ff555fb3914d246c1d478b66d248d4e59daac3784f05c24a707a55d9a6bd2b"
-dependencies = [
- "ark-bls12-381 0.3.0",
- "ark-ff 0.3.0",
- "liminal-ark-pnbr-poseidon-parameters",
- "liminal-ark-pnbr-poseidon-permutation",
  "paste",
 ]
 
@@ -5866,7 +5823,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jf-plonk",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -5897,6 +5854,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-session",
  "pallet-staking",
+ "pallets-support",
  "parity-scale-codec",
  "primitives",
  "rand 0.8.5",
@@ -5967,6 +5925,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-staking",
+ "pallets-support",
  "parity-scale-codec",
  "primitives",
  "scale-info",
@@ -6653,7 +6612,6 @@ dependencies = [
 name = "primitives"
 version = "0.7.0"
 dependencies = [
- "liminal-ark-poseidon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -6661,7 +6619,6 @@ dependencies = [
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-staking",
  "sp-std",
 ]
@@ -10361,7 +10318,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.6",
- "rand 0.8.5",
+ "rand 0.7.3",
  "static_assertions",
 ]
 
