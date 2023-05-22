@@ -239,10 +239,6 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn adjust_rewards_for_session() {
-        if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
-            return;
-        }
-
         let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
