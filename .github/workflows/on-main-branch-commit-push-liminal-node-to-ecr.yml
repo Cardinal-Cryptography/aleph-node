@@ -30,7 +30,8 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
-        id: get-ref-properties
+        id: get-ref-
+        # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-4219-add-actions-from-aleph-node
 
       - name: Download node production binary from artifacts
