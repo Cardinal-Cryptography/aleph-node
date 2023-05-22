@@ -3785,7 +3785,7 @@ checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 [[package]]
 name = "jf-plonk"
 version = "0.3.0"
-source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
@@ -3813,7 +3813,7 @@ dependencies = [
 [[package]]
 name = "jf-primitives"
 version = "0.3.0"
-source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -3853,7 +3853,7 @@ dependencies = [
 [[package]]
 name = "jf-relation"
 version = "0.3.0"
-source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381 0.4.0",
@@ -3877,7 +3877,7 @@ dependencies = [
 [[package]]
 name = "jf-utils"
 version = "0.3.0"
-source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#442cc2d15157097b8626c3bb1d2847f75bd36f8f"
+source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
@@ -5733,8 +5733,15 @@ dependencies = [
  "frame-support",
  "frame-system",
  "jf-plonk",
+ "jf-relation",
+ "jf-utils",
+ "once_cell",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 

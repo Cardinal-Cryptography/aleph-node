@@ -21,10 +21,16 @@ sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptogr
 jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "pallet", default-features = false }
 
 [dev-dependencies]
+once_cell = { version = "1.17.1" }
 pallet-balances = { default-features = false, git = 'https://github.com/Cardinal-Cryptography/substrate.git', branch = "aleph-v0.9.38" }
 sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", features = ["disable_panic_handler", "disable_oom"] }
 sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
+
+jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "pallet", default-features = false, features = ["test-srs"] }
+jf-relation = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "pallet", default-features = false }
+jf-utils = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "pallet", default-features = false }
+
 
 [features]
 default = ["std"]
