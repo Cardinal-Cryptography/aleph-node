@@ -9,20 +9,15 @@ license = "Apache 2.0"
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 
-ark-relations = { version = "^0.3.0", default-features = false }
-ark-serialize = { version = "^0.3.0", default-features = false }
-ark-snark = { version = "^0.3.0", default-features = false }
-
-ark-bls12-381 = { version = "^0.3.0" }
-ark-groth16 = { version = "^0.3.0", default-features = false }
+ark-bls12-381 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-serialize = { version = "0.4.0", default-features = false }
 
 frame-benchmarking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", optional = true }
 frame-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 frame-system = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
 
-primitives = { path = "../../primitives", default-features = false }
-
+# we are waiting for: https://github.com/EspressoSystems/jellyfish/issues/258
 jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "pallet", default-features = false }
 
 [dev-dependencies]
@@ -35,8 +30,6 @@ sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryp
 default = ["std"]
 std = [
     "ark-bls12-381/std",
-    "ark-groth16/std",
-    "ark-relations/std",
     "ark-serialize/std",
 
     "codec/std",
@@ -50,7 +43,6 @@ std = [
     "sp-runtime/std",
     "pallet-balances/std",
 
-    "primitives/std",
     "jf-plonk/std",
 ]
 runtime-benchmarks = [

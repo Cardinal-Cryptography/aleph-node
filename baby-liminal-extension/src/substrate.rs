@@ -108,7 +108,7 @@ where
             Err((Error::DeserializingVerificationKeyFailed, _)) => {
                 Err(BabyLiminalError::DeserializingVerificationKeyFailed)
             }
-            Err((Error::VerificationFailed(_), _)) => Err(BabyLiminalError::VerificationFailed),
+            Err((Error::VerificationFailed, _)) => Err(BabyLiminalError::VerificationFailed),
             Err((Error::IncorrectProof, _)) => Err(BabyLiminalError::IncorrectProof),
             Err((_, _)) => Err(BabyLiminalError::VerifyErrorUnknown),
         }

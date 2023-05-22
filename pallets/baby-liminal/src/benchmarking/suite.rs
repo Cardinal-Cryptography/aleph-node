@@ -9,7 +9,7 @@ use frame_support::{
 use frame_system::RawOrigin;
 
 use crate::{
-    BalanceOf, Config, Pallet, VerificationKeyDeposits, VerificationKeyIdentifier,
+    BalanceOf, Call, Config, Pallet, VerificationKeyDeposits, VerificationKeyIdentifier,
     VerificationKeyOwners, VerificationKeys,
 };
 
