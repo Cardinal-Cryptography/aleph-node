@@ -228,19 +228,13 @@ impl<T: Config> Pallet<T> {
             )
         })
     }
+
     fn blocks_to_produce_per_session() -> u32 {
-        T::SessionPeriod::get().saturating_div(
-            T::ValidatorProvider::current_era_committee_size()
-                .unwrap_or_default()
-                .size(),
-        )
+        T::SessionPeriod::get()
+            .saturating_div(T::ValidatorProvider::current_era_committee_size().size())
     }
 
     pub fn adjust_rewards_for_session() {
-        if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
-            return;
-        }
-
         let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
@@ -335,8 +329,8 @@ impl<T: Config> Pallet<T> {
     where
         T::AccountId: Clone + PartialEq,
     {
-        let era_validators = T::ValidatorProvider::current_era_validators()?;
-        let committee_seats = T::ValidatorProvider::current_era_committee_size()?;
+        let era_validators = T::ValidatorProvider::current_era_validators();
+        let committee_seats = T::ValidatorProvider::current_era_committee_size();
 
         let committee = Self::select_committee(&era_validators, committee_seats, current_session);
 
@@ -467,15 +461,8 @@ impl<T: Config> Pallet<T> {
             });
         }
 
-        let era_validators = T::ValidatorProvider::current_era_validators().ok_or_else(|| {
-            SessionValidatorError::Other("Couldn't get validators for current era".encode())
-        })?;
-        let committee_seats =
-            T::ValidatorProvider::current_era_committee_size().ok_or_else(|| {
-                SessionValidatorError::Other(
-                    "Couldn't get committee-seats for current era".encode(),
-                )
-            })?;
+        let era_validators = T::ValidatorProvider::current_era_validators();
+        let committee_seats = T::ValidatorProvider::current_era_committee_size();
         Self::select_committee(&era_validators, committee_seats, session)
             .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()))
     }
