@@ -563,6 +563,17 @@ dependencies = [
 
 [[package]]
 name = "ark-bls12-381"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65be532f9dd1e98ad0150b037276cde464c6f371059e6dd02c0222395761f6aa"
+dependencies = [
+ "ark-ec 0.3.0",
+ "ark-ff 0.3.0",
+ "ark-std 0.3.0",
+]
+
+[[package]]
+name = "ark-bls12-381"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c775f0d12169cba7aae4caeb547bb6a50781c7449a8aa53793827c9ec4abf488"
@@ -663,7 +674,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba6d678bb98a7e4f825bd4e332e93ac4f5a114ce2e3340dee4d7dc1c7ab5b323"
 dependencies = [
- "ark-bls12-381",
+ "ark-bls12-381 0.4.0",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-std 0.4.0",
@@ -772,7 +783,7 @@ checksum = "440ad4569974910adbeb84422b7e622b79e08d27142afd113785b7fcfb446186"
 dependencies = [
  "ark-ec 0.3.0",
  "ark-ff 0.3.0",
- "ark-r1cs-std 0.3.1",
+ "ark-r1cs-std",
  "ark-relations 0.3.0",
  "ark-std 0.3.0",
  "derivative",
@@ -807,23 +818,6 @@ dependencies = [
  "ark-std 0.3.0",
  "derivative",
  "num-bigint",
- "num-traits",
- "tracing",
-]
-
-[[package]]
-name = "ark-r1cs-std"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de1d1472e5cb020cb3405ce2567c91c8d43f21b674aef37b0202f5c3304761db"
-dependencies = [
- "ark-ec 0.4.2",
- "ark-ff 0.4.2",
- "ark-relations 0.4.0",
- "ark-std 0.4.0",
- "derivative",
- "num-bigint",
- "num-integer",
  "num-traits",
  "tracing",
 ]
@@ -3823,7 +3817,7 @@ version = "0.3.0"
 source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-bls12-377",
- "ark-bls12-381",
+ "ark-bls12-381 0.4.0",
  "ark-bn254",
  "ark-bw6-761",
  "ark-crypto-primitives",
@@ -3863,7 +3857,7 @@ version = "0.3.0"
 source = "git+https://github.com/Cardinal-Cryptography/jellyfish?branch=pallet#d26c6bef9103c229603a1e8c8995bdb8b8b33fab"
 dependencies = [
  "ark-bls12-377",
- "ark-bls12-381",
+ "ark-bls12-381 0.4.0",
  "ark-bn254",
  "ark-bw6-761",
  "ark-ec 0.4.2",
@@ -4792,7 +4786,7 @@ dependencies = [
  "ark-ec 0.3.0",
  "ark-ff 0.3.0",
  "ark-nonnative-field",
- "ark-r1cs-std 0.3.1",
+ "ark-r1cs-std",
  "ark-relations 0.3.0",
  "ark-serialize 0.3.0",
  "ark-std 0.3.0",
@@ -4806,10 +4800,10 @@ dependencies = [
 name = "liminal-ark-poseidon"
 version = "0.1.0"
 dependencies = [
- "ark-bls12-381",
- "ark-ff 0.4.2",
- "ark-r1cs-std 0.4.0",
- "ark-relations 0.4.0",
+ "ark-bls12-381 0.3.0",
+ "ark-ff 0.3.0",
+ "ark-r1cs-std",
+ "ark-relations 0.3.0",
  "liminal-ark-pnbr-poseidon-parameters",
  "liminal-ark-pnbr-poseidon-paramgen",
  "liminal-ark-pnbr-poseidon-permutation",
@@ -5734,7 +5728,7 @@ dependencies = [
 name = "pallet-baby-liminal"
 version = "0.1.0"
 dependencies = [
- "ark-bls12-381",
+ "ark-bls12-381 0.4.0",
  "ark-serialize 0.4.2",
  "frame-benchmarking",
  "frame-support",
