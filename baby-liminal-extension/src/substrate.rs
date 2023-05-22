@@ -76,13 +76,7 @@ where
         }
     }
 
-    #[obce(
-        weight(
-            expr = "<<T as BabyLiminalConfig>::WeightInfo as WeightInfo>::verify()",
-            pre_charge
-        ),
-        ret_val
-    )]
+    #[obce(weight(expr = "Weight::default()", pre_charge), ret_val)]
     fn verify(
         &mut self,
         identifier: VerificationKeyIdentifier,

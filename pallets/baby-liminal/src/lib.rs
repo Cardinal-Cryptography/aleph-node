@@ -28,7 +28,6 @@ pub type BalanceOf<T> =
 
 #[frame_support::pallet]
 pub mod pallet {
-    use ark_bls12_381::Bls12_381;
     use ark_serialize::CanonicalDeserialize;
     use frame_support::{
         dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
@@ -267,7 +266,7 @@ pub mod pallet {
         /// system)
         /// - verifying procedure fails (e.g. incompatible verification key and proof)
         /// - proof is incorrect
-        #[pallet::weight(T::WeightInfo::verify())]
+        #[pallet::weight(0)]
         #[pallet::call_index(3)]
         pub fn verify(
             _origin: OriginFor<T>,
@@ -348,12 +347,7 @@ pub mod pallet {
                 + public_input.len().saturating_sub(data_length_limit);
             ensure!(
                 data_length_excess == 0,
-                (
-                    Error::<T>::DataTooLong,
-                    Some(T::WeightInfo::verify_data_too_long(
-                        data_length_excess as u32
-                    ))
-                )
+                (Error::<T>::DataTooLong, Some(Weight::default()))
             );
 
             let proof_len = proof.len() as u32;
@@ -361,7 +355,7 @@ pub mod pallet {
                 log::error!("Deserializing proof failed: {:?}", e);
                 (
                     Error::<T>::DeserializingProofFailed,
-                    Some(T::WeightInfo::verify_data_deserializing_fails(proof_len)),
+                    Some(Weight::default()),
                 )
             })?;
 
@@ -370,25 +364,21 @@ pub mod pallet {
                     log::error!("Deserializing public input failed: {:?}", e);
                     (
                         Error::<T>::DeserializingPublicInputFailed,
-                        Some(T::WeightInfo::verify_data_deserializing_fails(
-                            proof_len + public_input.len() as u32,
-                        )),
+                        Some(Weight::default()),
                     )
                 })?;
 
             let verification_key =
                 VerificationKeys::<T>::get(verification_key_identifier).ok_or((
                     Error::<T>::UnknownVerificationKeyIdentifier,
-                    Some(T::WeightInfo::verify_key_deserializing_fails(0)),
+                    Some(Weight::default()),
                 ))?;
             let verification_key: S::VerifyingKey =
                 CanonicalDeserialize::deserialize(&**verification_key).map_err(|e| {
                     log::error!("Deserializing verification key failed: {:?}", e);
                     (
                         Error::<T>::DeserializingVerificationKeyFailed,
-                        Some(T::WeightInfo::verify_key_deserializing_fails(
-                            verification_key.len() as u32,
-                        )),
+                        Some(Weight::default()),
                     )
                 })?;
 
