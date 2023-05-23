@@ -30,7 +30,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1

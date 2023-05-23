@@ -22,7 +22,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
         with:
           targets: wasm32-unknown-unknown
 
