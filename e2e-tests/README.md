@@ -33,3 +33,12 @@ contracts/adder$ NODE_URL=wss://ws.dev.azero.dev AUTHORITY="$THE_SEED" ./deploy.
 e2e-tests$ RUST_BACKTRACE=1 SUDO_SEED="$THE_SEED" NODE_URL=wss://ws.dev.azero.dev:443 \
   ADDER=$DEPLOY_ADDRESS ADDER_METADATA=../contracts/adder/target/ink/metadata.json cargo test adder -- --nocapture
 ```
+
+## Running on feature net
+
+Run a feature net by adding an appropriate label to a pull request, ie `trigger:create-featurenet`
+or `trigger:create-hotfix-featurenet`, then after its started run
+
+```bash
+$ NODE_URL=wss://ws-fe-temp-branch-for-pr.dev.azero.dev cargo test name_of_one_test
+```
