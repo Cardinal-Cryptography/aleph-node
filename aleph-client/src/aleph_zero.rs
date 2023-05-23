@@ -3,7 +3,7 @@ pub mod api {
     use super::api as root_mod;
     pub static PALLETS: [&str; 22usize] = [
         "System",
-        "InsecureRandomnessCollectiveFlip",
+        "RandomnessCollectiveFlip",
         "Scheduler",
         "Aura",
         "Timestamp",
@@ -1021,7 +1021,7 @@ pub mod api {
             }
         }
     }
-    pub mod insecure_randomness_collective_flip {
+    pub mod randomness_collective_flip {
         use super::{root_mod, runtime_types};
         pub mod storage {
             use super::runtime_types;
@@ -1043,7 +1043,7 @@ pub mod api {
                     (),
                 > {
                     ::subxt::storage::address::StaticStorageAddress::new(
-                        "InsecureRandomnessCollectiveFlip",
+                        "RandomnessCollectiveFlip",
                         "RandomMaterial",
                         vec![],
                         [
@@ -6216,9 +6216,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            53u8, 252u8, 163u8, 243u8, 218u8, 7u8, 106u8, 108u8, 237u8, 40u8, 73u8,
-                            99u8, 80u8, 199u8, 47u8, 112u8, 182u8, 197u8, 75u8, 169u8, 29u8, 105u8,
-                            29u8, 240u8, 190u8, 25u8, 174u8, 95u8, 240u8, 91u8, 108u8, 94u8,
+                            78u8, 250u8, 125u8, 211u8, 180u8, 245u8, 185u8, 178u8, 189u8, 143u8,
+                            144u8, 57u8, 187u8, 46u8, 30u8, 123u8, 106u8, 183u8, 33u8, 19u8, 155u8,
+                            119u8, 119u8, 163u8, 70u8, 177u8, 58u8, 232u8, 206u8, 149u8, 206u8,
+                            249u8,
                         ],
                     )
                 }
@@ -19678,10 +19679,10 @@ pub mod api {
         pub fn system(&self) -> system::storage::StorageApi {
             system::storage::StorageApi
         }
-        pub fn insecure_randomness_collective_flip(
+        pub fn randomness_collective_flip(
             &self,
-        ) -> insecure_randomness_collective_flip::storage::StorageApi {
-            insecure_randomness_collective_flip::storage::StorageApi
+        ) -> randomness_collective_flip::storage::StorageApi {
+            randomness_collective_flip::storage::StorageApi
         }
         pub fn scheduler(&self) -> scheduler::storage::StorageApi {
             scheduler::storage::StorageApi
@@ -19802,9 +19803,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                54u8, 62u8, 3u8, 234u8, 196u8, 123u8, 100u8, 65u8, 89u8, 214u8, 72u8, 91u8, 73u8,
-                179u8, 4u8, 10u8, 193u8, 214u8, 172u8, 111u8, 213u8, 53u8, 181u8, 167u8, 8u8,
-                202u8, 7u8, 234u8, 141u8, 13u8, 70u8, 125u8,
+                220u8, 120u8, 48u8, 151u8, 216u8, 69u8, 229u8, 10u8, 196u8, 131u8, 241u8, 177u8,
+                23u8, 106u8, 24u8, 22u8, 180u8, 28u8, 179u8, 97u8, 174u8, 102u8, 75u8, 138u8, 56u8,
+                38u8, 213u8, 26u8, 147u8, 96u8, 53u8, 77u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
