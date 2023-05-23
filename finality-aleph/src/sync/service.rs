@@ -10,9 +10,9 @@ use crate::{
         data::{
             BranchKnowledge, NetworkData, Request, State, VersionWrapper, VersionedNetworkData,
         },
-        forest::Interest,
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
+        tasks::{ProcessingResult, RequestTask},
         ticker::Ticker,
         BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
         Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
@@ -36,7 +36,7 @@ pub struct Service<
 > {
     network: VersionWrapper<J, N>,
     handler: Handler<N::PeerId, J, CS, V, F>,
-    tasks: TaskQueue<BlockIdFor<J>>,
+    tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
@@ -110,16 +110,9 @@ impl<
         ))
     }
 
-    fn backup_request(&mut self, block_id: BlockIdFor<J>) {
-        self.tasks.schedule_in(block_id, Duration::from_secs(5));
-    }
-
-    fn delayed_request(&mut self, block_id: BlockIdFor<J>) {
-        self.tasks.schedule_in(block_id, Duration::from_millis(500));
-    }
-
-    fn request(&mut self, block_id: BlockIdFor<J>) {
-        self.tasks.schedule_in(block_id, Duration::ZERO);
+    fn request_highest_justified(&mut self, block_id: BlockIdFor<J>) {
+        self.tasks
+            .schedule_in(RequestTask::new_highest_justified(block_id), Duration::ZERO);
     }
 
     fn broadcast(&mut self) {
@@ -174,7 +167,7 @@ impl<
         use SyncAction::*;
         match action {
             Response(data) => self.send_to(data, peer),
-            Task(block_id) => self.request(block_id),
+            HighestJustified(block_id) => self.request_highest_justified(block_id),
             Noop => (),
         }
     }
@@ -205,7 +198,6 @@ impl<
             "Handling {:?} justifications.",
             justifications.len()
         );
-        let mut previous_block_id = None;
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
@@ -223,18 +215,12 @@ impl<
                 }
             };
             if let Some(block_id) = maybe_block_id {
-                if let Some(previous_block_id) = previous_block_id {
-                    self.backup_request(previous_block_id);
-                }
-                previous_block_id = Some(block_id);
+                debug!(
+                    target: LOG_TARGET,
+                    "Initiating a request for highest justified block {:?}.", block_id
+                );
+                self.request_highest_justified(block_id);
             }
-        }
-        if let Some(block_id) = previous_block_id {
-            debug!(
-                target: LOG_TARGET,
-                "Initiating a request for {:?}.", block_id
-            );
-            self.request(block_id);
         }
     }
 
@@ -279,29 +265,13 @@ impl<
         }
     }
 
-    fn handle_task(&mut self, block_id: BlockIdFor<J>) {
-        trace!(target: LOG_TARGET, "Handling a task for {:?}.", block_id);
-        use Interest::*;
-        match self.handler.block_state(&block_id) {
-            HighestJustified {
-                know_most,
-                branch_knowledge,
-            }
-            | TopRequired {
-                know_most,
-                branch_knowledge,
-            } => {
-                self.send_request_for(block_id.clone(), branch_knowledge, know_most);
-                self.delayed_request(block_id);
-            }
-            Required {
-                know_most,
-                branch_knowledge,
-            } => {
-                self.send_request_for(block_id.clone(), branch_knowledge, know_most);
-                self.backup_request(block_id);
-            }
-            Uninterested => (),
+    fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
+        trace!(target: LOG_TARGET, "Handling task {}.", task);
+        if let ProcessingResult::Request((block_id, branch_knowledge, know_most), (task, delay)) =
+            task.process(self.handler.forest())
+        {
+            self.send_request_for(block_id, branch_knowledge, know_most);
+            self.tasks.schedule_in(task, delay);
         }
     }
 
@@ -340,7 +310,7 @@ impl<
                     Ok((data, peer)) => self.handle_network_data(data, peer),
                     Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
                 },
-                Some(block_id) = self.tasks.pop() => self.handle_task(block_id),
+                Some(task) = self.tasks.pop() => self.handle_task(task),
                 _ = self.broadcast_ticker.wait_and_tick() => self.broadcast(),
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
