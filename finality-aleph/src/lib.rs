@@ -4,9 +4,10 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use sc_consensus::import_queue::ImportQueueService;
-use aleph_primitives::{Block as AlephBlock, Header as AlephHeader, Hash as AlephHash};
-use aleph_primitives::{AuthorityId, BlockNumber};
+
+use aleph_primitives::{
+    AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash, Header as AlephHeader,
+};
 use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
@@ -14,7 +15,7 @@ use futures::{
     Future,
 };
 use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
-use sc_consensus::BlockImport;
+use sc_consensus::{import_queue::ImportQueueService, BlockImport};
 use sc_network::NetworkService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};

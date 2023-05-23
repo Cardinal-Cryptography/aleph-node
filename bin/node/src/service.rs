@@ -1,12 +1,10 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use futures::Future;
-use std::pin::Pin;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use sc_consensus::ImportQueue;
+
 use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
@@ -16,6 +14,7 @@ use finality_aleph::{
 use futures::channel::mpsc;
 use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
+use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;

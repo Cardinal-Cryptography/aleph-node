@@ -1,11 +1,12 @@
 use std::fmt::{Debug, Display};
-use sc_consensus::import_queue::ImportQueueService;
+
 use aleph_primitives::{Block, BlockNumber, Header};
 use codec::{Decode, Encode};
+use sc_consensus::import_queue::ImportQueueService;
 use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
-    sync::{Block as BlockT, Header as HeaderT, Justification as JustificationT, BlockImport},
+    sync::{Block as BlockT, BlockImport, Header as HeaderT, Justification as JustificationT},
     AlephJustification, BlockId,
 };
 
@@ -20,19 +21,9 @@ pub use status_notifier::SubstrateChainStatusNotifier;
 pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-// impl<T: Send + Sync + 'static> BlockImport<Block> for T {
-//     /// Import the block.
-//     fn import_block(&mut self, block: &Block) {
-//         ()
-//     }
-// }
-
 impl BlockImport<Block> for Box<dyn ImportQueueService<Block>> {
     /// Import the block.
-    fn import_block(&mut self, block: &Block) {
-        ()
-        // self.import_blocks(sp_consensus::BlockOrigin::NetworkBroadcast, vec![block.into()]);
-    }
+    fn import_block(&mut self, _block: &Block) {}
 }
 
 impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for H {

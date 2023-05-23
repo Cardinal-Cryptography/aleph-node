@@ -1,10 +1,9 @@
-use std::{collections::HashSet, iter, time::Duration};
 use core::marker::PhantomData;
+use std::{collections::HashSet, iter, time::Duration};
+
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use tokio::time::{interval_at, Instant};
-use sc_consensus::import_queue::ImportQueueService;
-use aleph_primitives::{Block as AlephBlock, Header as AlephHeader, Hash as AlephHash};
 
 use crate::{
     network::GossipNetwork,
@@ -16,9 +15,9 @@ use crate::{
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         ticker::Ticker,
-        Block, BlockImport, BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
-        Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
-        LOG_TARGET,
+        Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
+        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
+        RequestBlocks, Verifier, LOG_TARGET,
     },
     SessionPeriod,
 };
@@ -36,8 +35,7 @@ pub struct Service<
     CS: ChainStatus<J>,
     V: Verifier<J>,
     F: Finalizer<J>,
-    BI: Send,
-    // BI: BlockImport<B> + Send,
+    BI: BlockImport<B>,
 > {
     network: VersionWrapper<J, N>,
     handler: Handler<N::PeerId, J, CS, V, F>,
@@ -47,10 +45,8 @@ pub struct Service<
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
-    // _block_importer: BI,
-    // _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
-    _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
-    _phantom: PhantomData<(B, BI)>,
+    _block_importer: BI,
+    _phantom: PhantomData<B>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -77,22 +73,20 @@ impl<
         CS: ChainStatus<J>,
         V: Verifier<J>,
         F: Finalizer<J>,
-        BI: Send,
-        // BI: BlockImport<B> + Send,
+        BI: BlockImport<B>,
     > Service<B, J, N, CE, CS, V, F, BI>
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
     /// and an interface for requesting blocks.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network: N,
         chain_events: CE,
         chain_status: CS,
         verifier: V,
         finalizer: F,
-        // _block_importer: BI,
-        // _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
-        _block_importer: Box<dyn ImportQueueService<AlephBlock>>,
+        _block_importer: BI,
         period: SessionPeriod,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     ) -> Result<

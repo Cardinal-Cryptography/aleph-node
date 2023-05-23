@@ -150,7 +150,7 @@ pub trait ChainStatus<J: Justification>: Clone + Send + Sync + 'static {
 /// Chiefly ones created by ABFT, but others will also be handled appropriately.
 /// The block corresponding to the submitted `Justification` MUST be obtained and
 /// imported into the Substrate database by the user, as soon as possible.
-pub trait JustificationSubmissions<J: Justification> {
+pub trait JustificationSubmissions<J: Justification>: Clone + Send + 'static {
     type Error: Display;
 
     /// Submit a justification to the underlying justification sync.

@@ -1,17 +1,15 @@
 use std::{marker::PhantomData, sync::Arc};
-use sc_consensus::import_queue::ImportQueueService;
-use aleph_primitives::{Block as AlephBlock, Header as AlephHeader, Hash as AlephHash};
-use sp_api::ProvideRuntimeApi;
-use aleph_primitives::{Block, Header};
+
+use aleph_primitives::{Block as AlephBlock, Block, Header};
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
 use network_clique::{Service, SpawnHandleT};
 use sc_client_api::Backend;
-// use sc_network_common::ExHashT;
+use sc_consensus::import_queue::ImportQueueService;
+use sp_api::ProvideRuntimeApi;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-// use sp_runtime::traits::{Block, Header};
 
 use crate::{
     crypto::AuthorityPen,
@@ -49,13 +47,9 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-
-trait X: Send + Sync {}
-impl<T: Send + Sync> X for T {}
-
 pub async fn run_validator_node<A, C, CS, BE, SC>(aleph_config: AlephConfig<C, SC, CS>)
 where
-    C: crate::ClientForAleph<Block, BE> + ProvideRuntimeApi<Block, Api=A> + Send + Sync + 'static,
+    C: crate::ClientForAleph<Block, BE> + ProvideRuntimeApi<Block, Api = A> + Send + Sync + 'static,
     A: aleph_primitives::AlephSessionApi<Block> + Send + 'static,
     BE: Backend<Block> + 'static,
     CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
@@ -154,7 +148,20 @@ where
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
 
-    let (sync_service, justifications_for_sync, _): (SyncService<aleph_primitives::Block, _, _, _, _, _, _, Box<dyn ImportQueueService<AlephBlock>>>, _, _) = match SyncService::new(
+    let (sync_service, justifications_for_sync, _): (
+        SyncService<
+            aleph_primitives::Block,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Box<dyn ImportQueueService<AlephBlock>>,
+        >,
+        _,
+        _,
+    ) = match SyncService::new(
         block_sync_network,
         chain_events,
         chain_status.clone(),
