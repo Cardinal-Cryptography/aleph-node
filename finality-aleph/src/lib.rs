@@ -5,14 +5,15 @@ use std::{
     sync::Arc,
 };
 
-use aleph_primitives::{
-    AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash, Header as AlephHeader,
-};
-use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
     channel::{mpsc, oneshot},
     Future,
+};
+use parity_scale_codec::{Codec, Decode, Encode, Output};
+use primitives as aleph_primitives;
+use primitives::{
+    AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash, Header as AlephHeader,
 };
 use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::{import_queue::ImportQueueService, BlockImport};
@@ -114,7 +115,9 @@ pub enum VersionedEitherMessage<L, R> {
 }
 
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
-    fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(
+        input: &mut I,
+    ) -> Result<Self, parity_scale_codec::Error> {
         let version = Version::decode(input)?;
         if version == L::VERSION {
             return Ok(VersionedEitherMessage::Left(L::decode(input)?));

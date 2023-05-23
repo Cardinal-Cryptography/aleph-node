@@ -1,4 +1,4 @@
-use jf_plonk::{
+pub use jf_plonk::{
     errors::PlonkError,
     proof_system::{
         structs::{Proof, ProvingKey, UniversalSrs, VerifyingKey},
@@ -12,6 +12,7 @@ use rand_core::{CryptoRng, RngCore};
 pub mod deposit;
 pub mod note;
 pub mod shielder_types;
+pub mod withdraw;
 
 pub type PlonkResult<T> = Result<T, PlonkError>;
 pub type Curve = ark_bls12_381::Bls12_381;

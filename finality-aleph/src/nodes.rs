@@ -1,6 +1,5 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use aleph_primitives::{Block as AlephBlock, Block, Header};
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
@@ -12,6 +11,7 @@ use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 
 use crate::{
+    aleph_primitives::{Block, Header},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     justification::Requester,
@@ -49,8 +49,8 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
 
 pub async fn run_validator_node<A, C, CS, BE, SC>(aleph_config: AlephConfig<C, SC, CS>)
 where
+    A: crate::aleph_primitives::AlephSessionApi<Block> + Send + 'static,
     C: crate::ClientForAleph<Block, BE> + ProvideRuntimeApi<Block, Api = A> + Send + Sync + 'static,
-    A: aleph_primitives::AlephSessionApi<Block> + Send + 'static,
     BE: Backend<Block> + 'static,
     CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
@@ -149,16 +149,7 @@ where
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
 
     let (sync_service, justifications_for_sync, _): (
-        SyncService<
-            aleph_primitives::Block,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            Box<dyn ImportQueueService<AlephBlock>>,
-        >,
+        SyncService<Block, _, _, _, _, _, _, Box<dyn ImportQueueService<Block>>>,
         _,
         _,
     ) = match SyncService::new(
