@@ -123,7 +123,9 @@ pub mod pallet {
         VerificationKeyOverwritten(VerificationKeyIdentifier),
 
         /// Proof has been successfully verified.
-        VerificationSucceeded,
+        ///
+        /// \[ identifier \]
+        VerificationSucceeded(VerificationKeyIdentifier),
     }
 
     #[pallet::pallet]
@@ -390,7 +392,7 @@ pub mod pallet {
                 None,
             ) {
                 Ok(_) => {
-                    Self::deposit_event(Event::VerificationSucceeded);
+                    Self::deposit_event(Event::VerificationSucceeded(verification_key_identifier));
                     Ok(())
                 }
                 Err(PlonkError::WrongProof) => Err((Error::<T>::IncorrectProof, None)),
