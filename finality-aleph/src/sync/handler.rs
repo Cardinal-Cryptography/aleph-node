@@ -21,14 +21,15 @@ use crate::{
 const MAX_JUSTIFICATION_BATCH: usize = 100;
 
 /// Handler for data incoming from the network.
-pub struct Handler<
+pub struct Handler<B, I, J, CS, V, F>
+where
     B: Block,
     I: PeerId,
     J: Justification,
     CS: ChainStatus<J>,
     V: Verifier<J>,
     F: Finalizer<J>,
-> {
+{
     chain_status: CS,
     verifier: V,
     finalizer: F,
@@ -101,14 +102,14 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-impl<
-        B: Block,
-        I: PeerId,
-        J: Justification,
-        CS: ChainStatus<J>,
-        V: Verifier<J>,
-        F: Finalizer<J>,
-    > Handler<B, I, J, CS, V, F>
+impl<B, I, J, CS, V, F> Handler<B, I, J, CS, V, F>
+where
+    B: Block,
+    I: PeerId,
+    J: Justification,
+    CS: ChainStatus<J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     /// New handler with the provided chain interfaces.
     pub fn new(

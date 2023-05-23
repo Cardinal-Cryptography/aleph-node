@@ -15,7 +15,6 @@ use primitives as aleph_primitives;
 use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
-use sc_network_common::ExHashT;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
@@ -28,7 +27,9 @@ use crate::{
         SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
     },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
-    aleph_primitives::{AuthorityId, BlockNumber},
+    aleph_primitives::{
+        AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash, Header as AlephHeader,
+    },
     compatibility::{Version, Versioned},
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
@@ -269,20 +270,15 @@ impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
     }
 }
 
-pub struct AlephConfig<B, H, C, SC, CS>
-where
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
-    H: ExHashT,
-{
-    pub network: Arc<NetworkService<B, H>>,
+pub struct AlephConfig<C, SC, CS> {
+    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
     pub client: Arc<C>,
     pub chain_status: CS,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
-    pub metrics: Metrics<<B::Header as Header>::Hash>,
+    pub justification_rx: mpsc::UnboundedReceiver<Justification<AlephHeader>>,
+    pub metrics: Metrics<AlephHash>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,

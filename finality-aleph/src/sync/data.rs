@@ -73,7 +73,7 @@ impl<J: Justification> Request<J> {
 #[derive(Clone, Debug, Encode, Decode)]
 pub enum NetworkDataV1<J: Justification> {
     /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
-    /// send what we are missing, and sometines just use the justifications to update their own
+    /// send what we are missing, and sometimes just use the justifications to update their own
     /// state.
     StateBroadcast(State<J>),
     /// Response to a state broadcast. Contains at most two justifications that the peer will
@@ -89,7 +89,7 @@ pub enum NetworkDataV1<J: Justification> {
 #[derive(Clone, Debug, Encode, Decode)]
 pub enum NetworkData<B: Block, J: Justification> {
     /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
-    /// send what we are missing, and sometines just use the justifications to update their own
+    /// send what we are missing, and sometimes just use the justifications to update their own
     /// state.
     StateBroadcast(State<J>),
     /// Response to a state broadcast. Contains at most two justifications that the peer will
