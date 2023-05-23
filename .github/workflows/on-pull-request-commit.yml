@@ -94,7 +94,7 @@ jobs:
           test-case: token_transfer
         timeout-minutes: 3
 
-  run-e2e-fee_calculation-test:
+  run-e2e-fee-calculation-test:
     needs: [build-test-node-image-and-e2e-client-image]
     name: Run e2e fee calculation test
     runs-on: ubuntu-20.04
