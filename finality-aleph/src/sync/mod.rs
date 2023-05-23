@@ -53,7 +53,7 @@ pub trait Block: Clone + Codec + Debug + Send + Sync + 'static {
 /// The block importer.
 pub trait BlockImport<B>: Send + 'static {
     /// Import the block.
-    fn import_block(&mut self, block: &B);
+    fn import_block(&mut self, block: B);
 }
 
 /// The verified justification of a block, including a header.

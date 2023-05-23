@@ -1,7 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use parity_scale_codec::{Decode, Encode};
-use sc_consensus::import_queue::ImportQueueService;
+use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
+use sp_consensus::BlockOrigin;
 use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
@@ -22,8 +23,22 @@ pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
 impl BlockImport<Block> for Box<dyn ImportQueueService<Block>> {
-    /// Import the block.
-    fn import_block(&mut self, _block: &Block) {}
+    fn import_block(&mut self, block: Block) {
+        let origin = BlockOrigin::NetworkBroadcast;
+        let incoming_block = IncomingBlock::<Block> {
+            hash: block.header.hash(),
+            header: Some(block.header),
+            body: Some(block.extrinsics),
+            indexed_body: None,
+            justifications: None,
+            origin: None,
+            allow_missing_state: false,
+            skip_execution: false,
+            import_existing: false,
+            state: None,
+        };
+        self.import_blocks(origin, vec![incoming_block]);
+    }
 }
 
 impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for H {
