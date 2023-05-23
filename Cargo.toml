@@ -6,7 +6,6 @@ members = [
     "bin/runtime",
     "clique",
     "finality-aleph",
-    "pallets/baby-liminal",
     "pallets/aleph",
     "pallets/elections",
     "pallets/committee-management",

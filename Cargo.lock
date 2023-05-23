@@ -5734,15 +5734,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "jf-plonk",
- "jf-relation",
- "jf-utils",
- "once_cell",
- "pallet-balances",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "sp-std",
 ]
 
