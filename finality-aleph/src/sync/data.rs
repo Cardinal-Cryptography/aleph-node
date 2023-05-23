@@ -116,6 +116,21 @@ impl<B: Block, J: Justification> From<NetworkDataV1<J>> for NetworkData<B, J> {
     }
 }
 
+impl<B: Block, J: Justification> From<NetworkData<B, J>> for NetworkDataV1<J> {
+    fn from(data: NetworkData<B, J>) -> Self {
+        match data {
+            NetworkData::StateBroadcast(state) => NetworkDataV1::StateBroadcast(state),
+            NetworkData::StateBroadcastResponse(justification, maybe_justification) => {
+                NetworkDataV1::StateBroadcastResponse(justification, maybe_justification)
+            }
+            NetworkData::Request(request) => NetworkDataV1::Request(request),
+            NetworkData::RequestResponse(_, justifications) => {
+                NetworkDataV1::RequestResponse(justifications)
+            }
+        }
+    }
+}
+
 /// Version wrapper around the network data.
 #[derive(Clone, Debug)]
 pub enum VersionedNetworkData<B: Block, J: Justification> {
@@ -229,6 +244,10 @@ impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>>
         data: NetworkData<B, J>,
         peer_id: Self::PeerId,
     ) -> Result<(), Self::Error> {
+        self.inner.send_to(
+            VersionedNetworkData::V1(data.clone().into()),
+            peer_id.clone(),
+        )?;
         self.inner.send_to(VersionedNetworkData::V2(data), peer_id)
     }
 
@@ -237,11 +256,17 @@ impl<B: Block, J: Justification, N: GossipNetwork<VersionedNetworkData<B, J>>>
         data: NetworkData<B, J>,
         peer_ids: HashSet<Self::PeerId>,
     ) -> Result<(), Self::Error> {
+        self.inner.send_to_random(
+            VersionedNetworkData::V1(data.clone().into()),
+            peer_ids.clone(),
+        )?;
         self.inner
             .send_to_random(VersionedNetworkData::V2(data), peer_ids)
     }
 
     fn broadcast(&mut self, data: NetworkData<B, J>) -> Result<(), Self::Error> {
+        self.inner
+            .broadcast(VersionedNetworkData::V1(data.clone().into()))?;
         self.inner.broadcast(VersionedNetworkData::V2(data))
     }
 
