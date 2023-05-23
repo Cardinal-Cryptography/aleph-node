@@ -100,7 +100,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2606,6 +2606,7 @@ dependencies = [
  "pallets-support",
  "parity-scale-codec",
  "primitives",
+ "rand 0.8.5",
  "scale-info",
  "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",
  "sp-io 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.38)",

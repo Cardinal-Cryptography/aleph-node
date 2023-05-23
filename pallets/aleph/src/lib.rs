@@ -50,12 +50,13 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
+    use primitives::SessionInfoProvider;
     use sp_std::collections::btree_set::BTreeSet;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
 
     use super::*;
-    use crate::traits::{NextSessionAuthorityProvider, SessionInfoProvider};
+    use crate::traits::NextSessionAuthorityProvider;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
