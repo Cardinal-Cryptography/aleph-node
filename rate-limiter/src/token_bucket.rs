@@ -5,57 +5,58 @@ use std::{
 
 #[derive(Clone)]
 pub struct TokenBucket {
-    rate: f64,
-    token_limit: usize,
-    available: usize,
-    requested: usize,
+    rate_per_second: u64,
+    available: u64,
+    requested: u64,
     last_update: Instant,
 }
 
 impl TokenBucket {
-    pub fn new(rate: f64) -> Self {
-        let token_limit = rate as usize;
+    pub fn new(rate_per_second: u64) -> Self {
         Self {
-            rate,
-            token_limit,
-            available: token_limit,
+            rate_per_second,
+            available: rate_per_second,
             requested: 0,
             last_update: Instant::now(),
         }
     }
 
     #[cfg(test)]
-    pub fn new_with_now(rate: f64, now: Instant) -> Self {
-        let token_limit = rate as usize;
+    pub fn new_with_now(rate_per_second: u64, now: Instant) -> Self {
         Self {
-            rate,
-            token_limit,
-            available: token_limit,
-            requested: 0,
             last_update: now,
+            ..Self::new(rate_per_second)
         }
     }
 
     fn calculate_delay(&self) -> Duration {
-        Duration::from_secs_f64((self.requested - self.available) as f64 / self.rate)
+        let delay_micros = (self.requested - self.available)
+            .saturating_mul(1_000_000)
+            .saturating_div(self.rate_per_second);
+        Duration::from_micros(delay_micros)
     }
 
-    fn update_units(&mut self, now: Instant) -> usize {
+    fn update_units(&mut self, now: Instant) -> u64 {
         let time_since_last_update = now.duration_since(self.last_update);
-        let new_units = (time_since_last_update.as_secs_f64() * self.rate).floor() as usize;
+        let new_units = time_since_last_update
+            .as_micros()
+            .saturating_mul(self.rate_per_second as u128)
+            .saturating_div(1_000_000)
+            .try_into()
+            .unwrap_or(u64::MAX);
         self.available = self.available.saturating_add(new_units);
         self.last_update = now;
 
         let used = min(self.available, self.requested);
         self.available -= used;
         self.requested -= used;
-        self.available = min(self.available, self.token_limit);
+        self.available = min(self.available, self.token_limit());
         self.available
     }
 
     pub fn rate_limit(
         &mut self,
-        requested: usize,
+        requested: u64,
         mut now: impl FnMut() -> Instant,
     ) -> Option<Duration> {
         if self.requested > 0 || self.available < requested {
@@ -73,8 +74,12 @@ impl TokenBucket {
             }
         }
         self.available -= requested;
-        self.available = min(self.available, self.token_limit);
+        self.available = min(self.available, self.token_limit());
         None
+    }
+
+    fn token_limit(&self) -> u64 {
+        self.rate_per_second
     }
 }
 
@@ -86,7 +91,7 @@ mod tests {
 
     #[test]
     fn token_bucket_sanity_check() {
-        let limit_per_second = 10_f64;
+        let limit_per_second = 10;
         let now = Instant::now();
         let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
@@ -107,7 +112,7 @@ mod tests {
 
     #[test]
     fn no_slowdown_while_within_rate_limit() {
-        let limit_per_second = 10_f64;
+        let limit_per_second = 10;
         let now = Instant::now();
         let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
@@ -139,7 +144,7 @@ mod tests {
 
     #[test]
     fn slowdown_when_limit_reached() {
-        let limit_per_second = 10_f64;
+        let limit_per_second = 10;
         let now = Instant::now();
         let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
@@ -157,7 +162,7 @@ mod tests {
 
     #[test]
     fn buildup_tokens_but_no_more_than_limit() {
-        let limit_per_second = 10_f64;
+        let limit_per_second = 10;
         let now = Instant::now();
         let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 
@@ -178,7 +183,7 @@ mod tests {
 
     #[test]
     fn multiple_calls_buildup_wait_time() {
-        let limit_per_second = 10_f64;
+        let limit_per_second = 10;
         let now = Instant::now();
         let mut rate_limiter = TokenBucket::new_with_now(limit_per_second, now);
 

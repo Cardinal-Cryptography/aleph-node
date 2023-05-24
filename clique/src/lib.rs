@@ -5,9 +5,9 @@ use std::{
     pin::Pin,
 };
 
-use futures::Future;
+use futures::FutureExt;
 use parity_scale_codec::Codec;
-use rate_limiter::{SleepingRateLimiter, TokenBucket};
+use rate_limiter::{RateLimiterTask, SleepingRateLimiter, TokenBucket};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod crypto;
@@ -186,12 +186,12 @@ impl Listener for TcpListener {
 }
 
 pub struct RateLimitedAsyncReadWrite<A> {
-    rate_limiter: SleepingRateLimiter,
+    rate_limiter: RateLimiterTask,
     read: A,
 }
 
 impl<A> RateLimitedAsyncReadWrite<A> {
-    pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
+    pub fn new(read: A, rate_limiter: RateLimiterTask) -> Self {
         Self { rate_limiter, read }
     }
 }
@@ -203,19 +203,18 @@ impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncReadWrite<A> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let this = self.get_mut();
-        if Pin::new(&mut this.rate_limiter.current_sleep())
-            .poll(cx)
-            .is_pending()
-        {
-            return std::task::Poll::Pending;
-        }
+        let sleeping_rate_limiter = match this.rate_limiter.poll_unpin(cx) {
+            std::task::Poll::Ready(rate_limiter) => rate_limiter,
+            _ => return std::task::Poll::Pending,
+        };
 
         let filled_before = buf.filled().len();
         let result = Pin::new(&mut this.read).poll_read(cx, buf);
         let filled_after = buf.filled().len();
         let last_read_size = filled_after - filled_before;
+        let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
 
-        this.rate_limiter.rate_limit(last_read_size);
+        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size);
 
         result
     }
@@ -286,7 +285,7 @@ impl<A: Data, D: Dialer<A>> Dialer<A> for RateLimitingDialer<D> {
         let connection = self.dialer.connect(address).await?;
         Ok(RateLimitedAsyncReadWrite::new(
             connection,
-            SleepingRateLimiter::new(self.rate_limiter.clone()),
+            RateLimiterTask::new(SleepingRateLimiter::new(self.rate_limiter.clone())),
         ))
     }
 }
@@ -314,7 +313,7 @@ impl<L: Listener + Send> Listener for RateLimitingListener<L> {
         let connection = self.listener.accept().await?;
         Ok(RateLimitedAsyncReadWrite::new(
             connection,
-            SleepingRateLimiter::new(self.rate_limiter.clone()),
+            RateLimiterTask::new(SleepingRateLimiter::new(self.rate_limiter.clone())),
         ))
     }
 }
