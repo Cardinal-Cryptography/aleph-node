@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
         with:
           targets: wasm32-unknown-unknown
           components: clippy rustfmt
@@ -69,6 +69,10 @@ jobs:
                [ $p = "contracts/wrapped_azero" ]
             then
                cargo contract check
+            elif [ $p = "baby-liminal-extension" ]
+            then
+              cargo clippy --release --no-default-features --features substrate \
+                --target wasm32-unknown-unknown -- --no-deps -D warnings
             else
                cargo clippy -- --no-deps -D warnings
             fi
@@ -91,6 +95,6 @@ jobs:
           ${CHECK}
           ${CHECK} --features circuit
 
-          cd ../relations/
+          cd ../relations/ark/
           ${CHECK}
           ${CHECK} --features circuit

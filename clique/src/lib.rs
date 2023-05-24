@@ -5,8 +5,8 @@ use std::{
     pin::Pin,
 };
 
-use codec::Codec;
 use futures::Future;
+use parity_scale_codec::Codec;
 use rate_limiter::{SleepingRateLimiter, TokenBucket};
 use tokio::io::{AsyncRead, AsyncWrite};
 

@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, Justification, Metrics, MillisecsPerBlock,
@@ -13,7 +12,7 @@ use finality_aleph::{
     TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::warn;
+use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
@@ -33,6 +32,7 @@ use sp_runtime::{
 
 use crate::{
     aleph_cli::AlephCli,
+    aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE},
     chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::AlephExecutor,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
@@ -94,7 +94,7 @@ pub fn new_partial(
             mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
             mpsc::UnboundedReceiver<Justification<<Block as BlockT>::Header>>,
             Option<Telemetry>,
-            Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
+            Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>,
         ),
     >,
     ServiceError,
@@ -143,13 +143,19 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = config.prometheus_registry().cloned().and_then(|r| {
-        Metrics::register(&r)
-            .map_err(|err| {
-                warn!("Failed to register Prometheus metrics\n{:?}", err);
-            })
-            .ok()
-    });
+    let metrics = match config.prometheus_registry() {
+        Some(register) => match Metrics::new(register) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!("Failed to register Prometheus metrics: {:?}.", e);
+                Metrics::noop()
+            }
+        },
+        None => {
+            info!("Running with the metrics is not available.");
+            Metrics::noop()
+        }
+    };
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());

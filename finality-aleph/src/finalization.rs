@@ -1,7 +1,6 @@
 use core::result::Result;
 use std::{marker::PhantomData, sync::Arc, time::Instant};
 
-use aleph_primitives::BlockNumber;
 use log::{debug, warn};
 use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
 use sp_blockchain::Error;
@@ -10,7 +9,10 @@ use sp_runtime::{
     Justification,
 };
 
-use crate::{metrics::Checkpoint, BlockId, BlockIdentifier, IdentifierFor, Metrics};
+use crate::{
+    aleph_primitives::BlockNumber, metrics::Checkpoint, BlockId, BlockIdentifier, IdentifierFor,
+    Metrics,
+};
 
 pub trait BlockFinalizer<BI: BlockIdentifier> {
     fn finalize_block(&self, block: BI, justification: Justification) -> Result<(), Error>;
@@ -23,7 +25,7 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    metrics: Option<Metrics<B::Hash>>,
+    metrics: Metrics<B::Hash>,
     phantom: PhantomData<BE>,
 }
 
@@ -33,7 +35,7 @@ where
     BE: Backend<B>,
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
-    pub(crate) fn new(client: Arc<C>, metrics: Option<Metrics<B::Hash>>) -> Self {
+    pub(crate) fn new(client: Arc<C>, metrics: Metrics<B::Hash>) -> Self {
         AlephFinalizer {
             client,
             metrics,
@@ -74,9 +76,8 @@ where
         match &update_res {
             Ok(_) => {
                 debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number);
-                if let Some(metrics) = &self.metrics {
-                    metrics.report_block(hash, Instant::now(), Checkpoint::Finalized);
-                }
+                self.metrics
+                    .report_block(hash, Instant::now(), Checkpoint::Finalized);
             }
             Err(_) => {
                 debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number)

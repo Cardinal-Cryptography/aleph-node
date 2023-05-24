@@ -1,15 +1,14 @@
 use aleph_client::{
     account_from_keypair,
-    api::{transaction_payment::events::TransactionFeePaid, treasury::events::Rejected},
+    api::treasury::events::Rejected,
     pallets::{
         balances::{BalanceApi, BalanceUserApi},
-        fee::TransactionPaymentApi,
         system::SystemApi,
         treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
     },
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
-    AccountId, ConnectionApi, KeyPair, RootConnection, SignedConnection, TxStatus,
+    AsConnection, ConnectionApi, KeyPair, RootConnection, SignedConnection, TxStatus,
 };
 use log::info;
 use primitives::Balance;
@@ -19,7 +18,7 @@ use crate::{accounts::get_validators_raw_keys, config::setup_test, transfer::set
 /// Returns current treasury free funds and total issuance.
 ///
 /// Takes two storage reads.
-async fn balance_info<C: ConnectionApi>(connection: &C) -> (Balance, Balance) {
+async fn balance_info<C: ConnectionApi + AsConnection>(connection: &C) -> (Balance, Balance) {
     let treasury_balance = connection
         .get_free_balance(connection.treasury_account().await, None)
         .await;
@@ -41,7 +40,11 @@ pub async fn channeling_fee_and_tip() -> anyhow::Result<()> {
     let (treasury_balance_before, issuance_before) = balance_info(&connection).await;
     let possible_treasury_gain_from_staking = connection.possible_treasury_payout().await?;
 
-    let (fee, _) = current_fees(&connection, to, Some(tip), transfer_amount).await;
+    let transfer = connection
+        .transfer_with_tip(to, transfer_amount, tip, TxStatus::Finalized)
+        .await?;
+    let fee = connection.get_tx_fee(transfer).await?;
+
     let (treasury_balance_after, issuance_after) = balance_info(&connection).await;
 
     check_issuance(
@@ -153,29 +156,4 @@ async fn reject_treasury_proposal(connection: &RootConnection, id: u32) -> anyho
     handle.await?;
 
     Ok(())
-}
-
-async fn current_fees(
-    connection: &SignedConnection,
-    to: AccountId,
-    tip: Option<Balance>,
-    transfer_value: Balance,
-) -> (Balance, u128) {
-    let actual_multiplier = connection.get_next_fee_multiplier(None).await;
-
-    let tx_info = match tip {
-        None => connection.transfer(to, transfer_value, TxStatus::Finalized),
-        Some(tip) => connection.transfer_with_tip(to, transfer_value, tip, TxStatus::Finalized),
-    }
-    .await
-    .unwrap();
-
-    let events = connection.get_tx_events(tx_info).await.unwrap();
-    let event = events.find_first::<TransactionFeePaid>().unwrap().unwrap();
-
-    let fee = event.actual_fee;
-
-    info!("fee payed: {}", fee);
-
-    (fee, actual_multiplier)
 }
