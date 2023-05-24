@@ -165,7 +165,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
         use VertexHandleMut::*;
         if let Candidate(mut entry) = self.get_mut(id) {
             let vertex = entry.get_mut();
-            let required = vertex.vertex.required();
+            let required = vertex.vertex.importable();
             if let Some(parent_id) = vertex.vertex.parent().cloned() {
                 match self.get_mut(&parent_id) {
                     Unknown(entry) => {
@@ -464,7 +464,7 @@ impl<I: PeerId, J: Justification> Forest<I, J> {
     pub fn importable(&self, id: &BlockIdFor<J>) -> bool {
         use VertexHandle::Candidate;
         match self.get(id) {
-            Candidate(vertex) => vertex.vertex.required(),
+            Candidate(vertex) => vertex.vertex.importable(),
             _ => false,
         }
     }

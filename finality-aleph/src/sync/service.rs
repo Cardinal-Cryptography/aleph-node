@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter, time::Duration};
+use std::{iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
@@ -7,12 +7,10 @@ use tokio::time::{interval_at, Instant};
 use crate::{
     network::GossipNetwork,
     sync::{
-        data::{
-            BranchKnowledge, NetworkData, Request, State, VersionWrapper, VersionedNetworkData,
-        },
+        data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
-        tasks::{ProcessingResult, RequestTask},
+        tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
         BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
         Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks, Verifier,
@@ -111,6 +109,10 @@ impl<
     }
 
     fn request_highest_justified(&mut self, block_id: BlockIdFor<J>) {
+        debug!(
+            target: LOG_TARGET,
+            "Initiating a request for highest justified block {:?}.", block_id
+        );
         self.tasks
             .schedule_in(RequestTask::new_highest_justified(block_id), Duration::ZERO);
     }
@@ -133,12 +135,7 @@ impl<
         }
     }
 
-    fn send_request_for(
-        &mut self,
-        block_id: BlockIdFor<J>,
-        branch_knowledge: BranchKnowledge<J>,
-        peers: HashSet<N::PeerId>,
-    ) {
+    fn send_request(&mut self, pre_request: PreRequest<N::PeerId, J>) {
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
@@ -149,7 +146,7 @@ impl<
                 return;
             }
         };
-        let request = Request::new(block_id, branch_knowledge, state);
+        let (request, peers) = pre_request.with_state(state);
         trace!(target: LOG_TARGET, "Sending a request: {:?}", request);
         let data = NetworkData::Request(request);
         if let Err(e) = self.network.send_to_random(data, peers) {
@@ -215,10 +212,6 @@ impl<
                 }
             };
             if let Some(block_id) = maybe_block_id {
-                debug!(
-                    target: LOG_TARGET,
-                    "Initiating a request for highest justified block {:?}.", block_id
-                );
                 self.request_highest_justified(block_id);
             }
         }
@@ -267,10 +260,9 @@ impl<
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
         trace!(target: LOG_TARGET, "Handling task {}.", task);
-        if let ProcessingResult::Request((block_id, branch_knowledge, know_most), (task, delay)) =
-            task.process(self.handler.forest())
+        if let TaskAction::Request(pre_request, (task, delay)) = task.process(self.handler.forest())
         {
-            self.send_request_for(block_id, branch_knowledge, know_most);
+            self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);
         }
     }
