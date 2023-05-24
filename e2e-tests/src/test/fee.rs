@@ -15,7 +15,7 @@ use crate::{config::setup_test, fee::current_fees, transfer::setup_for_transfer}
 static DESTINATIONS: Lazy<Vec<AccountId>> = Lazy::new(|| {
     (0..1400)
         .map(|i| keypair_from_string(&format!("//{i}")).account_id().clone())
-        .collect::<Vec<_>>()
+        .collect()
 });
 
 /// The level of occupancy in a block.
@@ -30,7 +30,7 @@ pub async fn fee_calculation() -> anyhow::Result<()> {
     let config = setup_test();
     let (connection, to) = setup_for_transfer(config).await;
 
-    let minimal_multiplier: FixedU128 = FixedU128::from(1);
+    let minimal_multiplier = FixedU128::from(1);
 
     let (no_traffic_fee, no_traffic_multiplier) =
         current_fees(&connection, to.clone(), None, 1).await;
