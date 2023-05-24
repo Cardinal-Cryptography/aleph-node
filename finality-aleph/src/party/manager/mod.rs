@@ -333,8 +333,8 @@ where
         let last_block_of_previous_session_hash = self
             .client
             .block_hash(last_block_of_previous_session)
-            .unwrap()
-            .unwrap();
+            .expect("Previous session ended, the block should be present")
+            .expect("Previous session ended, we should have the hash.");
 
         let params = SubtasksParams {
             n_members: authorities.len(),
