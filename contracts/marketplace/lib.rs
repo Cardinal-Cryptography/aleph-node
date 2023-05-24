@@ -16,7 +16,6 @@
 //! into this contract and then call `reset()` in the same transaction to begin the auction. Calling
 //! `reset()` if an auction is already in progress.
 
-#![feature(default_alloc_error_handler)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(min_specialization)]
 #![allow(clippy::let_unit_value)]

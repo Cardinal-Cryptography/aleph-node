@@ -1,4 +1,3 @@
-#![feature(default_alloc_error_handler)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::let_unit_value)]
 #![feature(min_specialization)]
