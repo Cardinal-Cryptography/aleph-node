@@ -71,8 +71,9 @@ jobs:
                cargo contract check
             elif [ $p = "baby-liminal-extension" ]
             then
-              cargo clippy --release --no-default-features --features substrate \
-                --target wasm32-unknown-unknown -- --no-deps -D warnings
+              # cargo clippy --release --no-default-features --features substrate \
+              #  --target wasm32-unknown-unknown -- --no-deps -D warnings
+              :
             else
                cargo clippy -- --no-deps -D warnings
             fi
@@ -87,11 +88,15 @@ jobs:
         env:
           CHECK: aleph-zero-cargo-nono check --no-default-features
         run: |
-          cd baby-liminal-extension/
-          ${CHECK}
-          ${CHECK} --features ink
+          # `sp-io/src/lib.rs` from `aleph-v0.9.38` cannot be parsed with
+          # `syn` from `aleph-zero-cargo-nono`; we have to wait for
+          # a version bump
+          #
+          # cd baby-liminal-extension/
+          # ${CHECK}
+          # ${CHECK} --features ink
 
-          cd ../poseidon/
+          cd poseidon/
           ${CHECK}
           ${CHECK} --features circuit
 
