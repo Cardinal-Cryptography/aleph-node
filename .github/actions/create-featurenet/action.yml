@@ -172,7 +172,6 @@ runs:
         ./Ops.sh create-featurenet \
           "${{ env.APP_NAME }}" \
           "${{ inputs.aleph-node-image }}"
-        find ${{ github.workspace }}/${{ inputs.repo-featurenets-name }}
 
     - name: Start featurenet from image tag
       if: >
