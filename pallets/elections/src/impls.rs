@@ -1,6 +1,6 @@
 use primitives::{CommitteeSeats, EraValidators};
-use rand_pcg::Pcg64Mcg;
 use rand::{seq::SliceRandom, SeedableRng};
+use rand_pcg::Pcg64Mcg;
 use sp_staking::EraIndex;
 use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
