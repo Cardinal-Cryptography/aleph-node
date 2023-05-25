@@ -16,6 +16,7 @@ use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
+use sc_network_sync::SyncingService;
 use sc_service::{
     error::Error as ServiceError, Configuration, KeystoreContainer, NetworkStarter, RpcHandlers,
     TFullClient, TaskManager,
@@ -25,7 +26,6 @@ use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
-use sc_network_sync::SyncingService;
 
 use crate::{
     aleph_cli::AlephCli,
@@ -298,7 +298,13 @@ fn setup(
         telemetry: telemetry.as_mut(),
     })?;
 
-    Ok((rpc_handlers, network, sync_network, protocol_naming, network_starter))
+    Ok((
+        rpc_handlers,
+        network,
+        sync_network,
+        protocol_naming,
+        network_starter,
+    ))
 }
 
 /// Builds a new service for a full client.
