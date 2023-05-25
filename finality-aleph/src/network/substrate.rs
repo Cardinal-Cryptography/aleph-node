@@ -9,8 +9,10 @@ use sc_network::{
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
     NetworkSyncForkRequest, NotificationSenderT, PeerId, ProtocolName,
 };
-use sc_network_common::{sync::SyncEvent, ExHashT};
-use sc_network_common::sync::SyncEventStream;
+use sc_network_common::{
+    sync::{SyncEvent, SyncEventStream},
+    ExHashT,
+};
 use sc_network_sync::SyncingService;
 use sp_runtime::traits::{Block, Header};
 use tokio::select;
@@ -290,7 +292,11 @@ impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
     fn event_stream(&self) -> Self::EventStream {
         NetworkEventStream {
             stream: Box::pin(self.network.as_ref().event_stream("aleph-network")),
-            sync_stream: Box::pin(self.sync_network.as_ref().event_stream("aleph-syncing-network")),
+            sync_stream: Box::pin(
+                self.sync_network
+                    .as_ref()
+                    .event_stream("aleph-syncing-network"),
+            ),
             naming: self.naming.clone(),
             network: self.network.clone(),
         }
