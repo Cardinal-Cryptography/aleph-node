@@ -6,7 +6,7 @@ use network_clique::{
     Dialer, Listener, PeerId, PublicKey, RateLimitingDialer, RateLimitingListener, SecretKey,
 };
 use parity_scale_codec::{Decode, Encode};
-use rate_limiter::TokenBucket;
+use rate_limiter::{SleepingRateLimiter, TokenBucket};
 use sp_core::crypto::KeyTypeId;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 
@@ -228,6 +228,7 @@ pub async fn new_rate_limited_network<A: ToSocketAddrs>(
 > {
     let (dialer, listener, identity) =
         new_tcp_network(listening_addresses, external_addresses, authority_pen).await?;
+    let rate_limiter = SleepingRateLimiter::new(rate_limiter);
     Ok((
         RateLimitingDialer::new(dialer, rate_limiter.clone()),
         RateLimitingListener::new(listener, rate_limiter),

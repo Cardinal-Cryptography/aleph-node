@@ -5,9 +5,12 @@ use std::{
     pin::Pin,
 };
 
-use futures::FutureExt;
+use futures::{
+    future::{ready, BoxFuture},
+    FutureExt,
+};
 use parity_scale_codec::Codec;
-use rate_limiter::{RateLimiterTask, SleepingRateLimiter, TokenBucket};
+use rate_limiter::SleepingRateLimiter;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod crypto;
@@ -186,13 +189,16 @@ impl Listener for TcpListener {
 }
 
 pub struct RateLimitedAsyncRead<A> {
-    rate_limiter: RateLimiterTask,
+    rate_limiter: BoxFuture<'static, SleepingRateLimiter>,
     read: A,
 }
 
 impl<A> RateLimitedAsyncRead<A> {
-    pub fn new(read: A, rate_limiter: RateLimiterTask) -> Self {
-        Self { rate_limiter, read }
+    pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
+        Self {
+            rate_limiter: ready(rate_limiter).boxed(),
+            read,
+        }
     }
 }
 
@@ -214,7 +220,7 @@ impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
         let last_read_size = filled_after - filled_before;
         let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
 
-        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size);
+        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
 
         result
     }
@@ -285,11 +291,11 @@ impl<A: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<A> {
 #[derive(Clone)]
 pub struct RateLimitingDialer<D> {
     dialer: D,
-    rate_limiter: TokenBucket,
+    rate_limiter: SleepingRateLimiter,
 }
 
 impl<D> RateLimitingDialer<D> {
-    pub fn new(dialer: D, rate_limiter: TokenBucket) -> Self {
+    pub fn new(dialer: D, rate_limiter: SleepingRateLimiter) -> Self {
         Self {
             dialer,
             rate_limiter,
@@ -315,10 +321,7 @@ where
         let connection = self.dialer.connect(address).await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(
-                receiver,
-                RateLimiterTask::new(SleepingRateLimiter::new(self.rate_limiter.clone())),
-            ),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
             sender,
         ))
     }
@@ -326,11 +329,11 @@ where
 
 pub struct RateLimitingListener<L> {
     listener: L,
-    rate_limiter: TokenBucket,
+    rate_limiter: SleepingRateLimiter,
 }
 
 impl<L> RateLimitingListener<L> {
-    pub fn new(listener: L, rate_limiter: TokenBucket) -> Self {
+    pub fn new(listener: L, rate_limiter: SleepingRateLimiter) -> Self {
         Self {
             listener,
             rate_limiter,
@@ -350,10 +353,7 @@ impl<L: Listener + Send> Listener for RateLimitingListener<L> {
         let connection = self.listener.accept().await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(
-                receiver,
-                RateLimiterTask::new(SleepingRateLimiter::new(self.rate_limiter.clone())),
-            ),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
             sender,
         ))
     }
