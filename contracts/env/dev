@@ -19,9 +19,9 @@ export INITIAL_PRICE_BTF=1000000000000 # 1 token
 export INITIAL_PRICE_TPC=1000000000000 # 1 token
 
 # the price of ticket on the marketplace does not go below this value
-export MINIMAL_PRICE_EBS=100
-export MINIMAL_PRICE_BTF=100
-export MINIMAL_PRICE_TPC=100
+export MINIMAL_PRICE_EBS=100 # 1e-10 token
+export MINIMAL_PRICE_BTF=100 # 1e-10 token
+export MINIMAL_PRICE_TPC=100 # 1e-10 token
 
 # how many blocks will elapse between INITAL and MINIMAL price
 export AUCTION_LENGTH=60
