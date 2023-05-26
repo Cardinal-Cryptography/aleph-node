@@ -27,7 +27,7 @@ impl SleepingRateLimiter {
         }
     }
 
-    fn set_sleep(&mut self, read_size: u64) -> &mut Pin<Box<Sleep>> {
+    fn set_sleep(&mut self, read_size: usize) -> &mut Pin<Box<Sleep>> {
         let mut now = None;
         let mut now_closure = || *now.get_or_insert_with(Instant::now);
         let next_wait = self.rate_limiter.rate_limit(read_size, &mut now_closure);
@@ -38,7 +38,7 @@ impl SleepingRateLimiter {
         &mut self.sleep
     }
 
-    pub async fn rate_limit(mut self, read_size: u64) -> Self {
+    pub async fn rate_limit(mut self, read_size: usize) -> Self {
         self.set_sleep(read_size).await;
         self
     }
@@ -78,8 +78,7 @@ impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
         let filled_before = buf.filled().len();
         let result = Pin::new(&mut self.read).poll_read(cx, buf);
         let filled_after = buf.filled().len();
-        let last_read_size = filled_after - filled_before;
-        let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
+        let last_read_size = filled_after.saturating_sub(filled_before);
 
         self.rate_limiter
             .set(sleeping_rate_limiter.rate_limit(last_read_size));

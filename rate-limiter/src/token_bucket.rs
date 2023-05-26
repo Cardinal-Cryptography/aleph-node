@@ -5,14 +5,14 @@ use std::{
 
 #[derive(Clone)]
 pub struct TokenBucket {
-    rate_per_second: u64,
-    available: u64,
-    requested: u64,
+    rate_per_second: usize,
+    available: usize,
+    requested: usize,
     last_update: Instant,
 }
 
 impl TokenBucket {
-    pub fn new(rate_per_second: u64) -> Self {
+    pub fn new(rate_per_second: usize) -> Self {
         Self {
             rate_per_second,
             available: rate_per_second,
@@ -22,7 +22,7 @@ impl TokenBucket {
     }
 
     #[cfg(test)]
-    pub fn new_with_now(rate_per_second: u64, now: Instant) -> Self {
+    pub fn new_with_now(rate_per_second: usize, now: Instant) -> Self {
         Self {
             last_update: now,
             ..Self::new(rate_per_second)
@@ -33,17 +33,17 @@ impl TokenBucket {
         let delay_micros = (self.requested - self.available)
             .saturating_mul(1_000_000)
             .saturating_div(self.rate_per_second);
-        Duration::from_micros(delay_micros)
+        Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX))
     }
 
-    fn update_units(&mut self, now: Instant) -> u64 {
+    fn update_units(&mut self, now: Instant) -> usize {
         let time_since_last_update = now.duration_since(self.last_update);
         let new_units = time_since_last_update
             .as_micros()
             .saturating_mul(self.rate_per_second as u128)
             .saturating_div(1_000_000)
             .try_into()
-            .unwrap_or(u64::MAX);
+            .unwrap_or(usize::MAX);
         self.available = self.available.saturating_add(new_units);
         self.last_update = now;
 
@@ -56,7 +56,7 @@ impl TokenBucket {
 
     pub fn rate_limit(
         &mut self,
-        requested: u64,
+        requested: usize,
         mut now: impl FnMut() -> Instant,
     ) -> Option<Duration> {
         if self.requested > 0 || self.available < requested {
@@ -78,7 +78,7 @@ impl TokenBucket {
         None
     }
 
-    fn token_limit(&self) -> u64 {
+    fn token_limit(&self) -> usize {
         self.rate_per_second
     }
 }

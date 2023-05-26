@@ -277,7 +277,7 @@ impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
 #[derive(Clone)]
 pub struct RateLimiterConfig {
     /// Maximum bitrate per node (bytes per second) of the alephbft validator network.
-    pub alephbft_bit_rate_per_connection: u64,
+    pub alephbft_bit_rate_per_connection: usize,
 }
 
 impl Default for RateLimiterConfig {
