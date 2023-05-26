@@ -5,7 +5,6 @@ use futures::channel::oneshot;
 use log::{debug, error};
 use network_clique::{Service, SpawnHandleT};
 use sc_client_api::Backend;
-use sc_consensus::import_queue::ImportQueueService;
 use sp_api::ProvideRuntimeApi;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
@@ -148,11 +147,7 @@ where
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
 
-    let (sync_service, justifications_for_sync, _): (
-        SyncService<Block, _, _, _, _, _, _, Box<dyn ImportQueueService<Block>>>,
-        _,
-        _,
-    ) = match SyncService::new(
+    let (sync_service, justifications_for_sync, _) = match SyncService::new(
         block_sync_network,
         chain_events,
         chain_status.clone(),
