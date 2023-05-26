@@ -1,14 +1,12 @@
 //! A network for maintaining direct connections between all nodes.
+#![feature(type_alias_impl_trait)]
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     pin::Pin,
 };
 
-use futures::{
-    future::{ready, BoxFuture},
-    FutureExt,
-};
+use futures::{Future, FutureExt};
 use parity_scale_codec::Codec;
 use rate_limiter::SleepingRateLimiter;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -188,15 +186,17 @@ impl Listener for TcpListener {
     }
 }
 
+type SleepFuture = impl Future<Output = SleepingRateLimiter>;
+
 pub struct RateLimitedAsyncRead<A> {
-    rate_limiter: BoxFuture<'static, SleepingRateLimiter>,
+    rate_limiter: Pin<Box<SleepFuture>>,
     read: A,
 }
 
 impl<A> RateLimitedAsyncRead<A> {
     pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
         Self {
-            rate_limiter: ready(rate_limiter).boxed(),
+            rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
             read,
         }
     }
@@ -220,7 +220,8 @@ impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
         let last_read_size = filled_after - filled_before;
         let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
 
-        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
+        this.rate_limiter
+            .set(sleeping_rate_limiter.rate_limit(last_read_size));
 
         result
     }
