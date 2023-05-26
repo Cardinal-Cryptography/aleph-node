@@ -4,7 +4,7 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
 use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
-use rate_limiter::{SleepingRateLimiter, TokenBucket};
+use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
@@ -99,9 +99,8 @@ where
     .await
     .expect("we should have working networking");
 
-    let alephbft_rate_limiter = SleepingRateLimiter::new(TokenBucket::new(
-        rate_limiter_config.alephbft_bit_rate_per_connection,
-    ));
+    let alephbft_rate_limiter =
+        SleepingRateLimiter::new(rate_limiter_config.alephbft_bit_rate_per_connection);
     let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.clone());
     let listener = RateLimitingListener::new(listener, alephbft_rate_limiter);
 

@@ -15,14 +15,17 @@ pub struct SleepingRateLimiter {
 
 impl Clone for SleepingRateLimiter {
     fn clone(&self) -> Self {
-        Self::new(self.rate_limiter.clone())
+        Self {
+            rate_limiter: self.rate_limiter.clone(),
+            sleep: Box::pin(tokio::time::sleep(Duration::ZERO)),
+        }
     }
 }
 
 impl SleepingRateLimiter {
-    pub fn new(rate_limiter: TokenBucket) -> Self {
+    pub fn new(rate_per_second: usize) -> Self {
         Self {
-            rate_limiter,
+            rate_limiter: TokenBucket::new(rate_per_second),
             sleep: Box::pin(tokio::time::sleep(Duration::ZERO)),
         }
     }
