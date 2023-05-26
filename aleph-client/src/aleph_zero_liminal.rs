@@ -1,7 +1,7 @@
 #[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
-    pub static PALLETS: [&str; 23usize] = [
+    pub static PALLETS: [&str; 22usize] = [
         "System",
         "RandomnessCollectiveFlip",
         "Scheduler",
@@ -24,7 +24,6 @@ pub mod api {
         "NominationPools",
         "Identity",
         "CommitteeManagement",
-        "BabyLiminal",
     ];
     #[derive(
         :: subxt :: ext :: codec :: Decode,
@@ -69,8 +68,6 @@ pub mod api {
         Identity(identity::Event),
         #[codec(index = 21)]
         CommitteeManagement(committee_management::Event),
-        #[codec(index = 22)]
-        BabyLiminal(baby_liminal::Event),
     }
     pub mod system {
         use super::{root_mod, runtime_types};
@@ -727,10 +724,10 @@ pub mod api {
                         "Events",
                         vec![],
                         [
-                            151u8, 84u8, 216u8, 179u8, 143u8, 159u8, 32u8, 196u8, 121u8, 173u8,
-                            253u8, 190u8, 153u8, 217u8, 251u8, 103u8, 224u8, 67u8, 246u8, 48u8,
-                            207u8, 160u8, 101u8, 107u8, 186u8, 234u8, 112u8, 134u8, 48u8, 137u8,
-                            148u8, 155u8,
+                            156u8, 191u8, 53u8, 128u8, 209u8, 94u8, 193u8, 56u8, 232u8, 30u8,
+                            106u8, 63u8, 231u8, 134u8, 151u8, 135u8, 86u8, 177u8, 71u8, 67u8,
+                            155u8, 119u8, 48u8, 21u8, 39u8, 210u8, 87u8, 138u8, 188u8, 48u8, 87u8,
+                            182u8,
                         ],
                     )
                 }
@@ -1175,10 +1172,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            47u8, 228u8, 239u8, 154u8, 71u8, 163u8, 194u8, 159u8, 252u8, 235u8,
-                            222u8, 221u8, 55u8, 148u8, 216u8, 193u8, 203u8, 202u8, 15u8, 38u8,
-                            99u8, 80u8, 59u8, 54u8, 75u8, 177u8, 171u8, 109u8, 238u8, 209u8, 6u8,
-                            188u8,
+                            102u8, 218u8, 69u8, 12u8, 207u8, 180u8, 239u8, 82u8, 57u8, 160u8, 59u8,
+                            54u8, 177u8, 42u8, 76u8, 210u8, 136u8, 9u8, 131u8, 62u8, 236u8, 69u8,
+                            158u8, 102u8, 171u8, 211u8, 202u8, 63u8, 174u8, 143u8, 191u8, 93u8,
                         ],
                     )
                 }
@@ -1222,9 +1218,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            30u8, 220u8, 181u8, 134u8, 190u8, 20u8, 218u8, 241u8, 125u8, 120u8,
-                            87u8, 196u8, 146u8, 62u8, 72u8, 45u8, 118u8, 139u8, 123u8, 2u8, 73u8,
-                            34u8, 222u8, 186u8, 229u8, 238u8, 246u8, 3u8, 111u8, 58u8, 66u8, 116u8,
+                            77u8, 126u8, 155u8, 48u8, 94u8, 89u8, 178u8, 33u8, 14u8, 161u8, 126u8,
+                            44u8, 195u8, 179u8, 115u8, 54u8, 25u8, 148u8, 153u8, 163u8, 168u8,
+                            61u8, 190u8, 166u8, 156u8, 75u8, 68u8, 103u8, 49u8, 13u8, 49u8, 3u8,
                         ],
                     )
                 }
@@ -1265,9 +1261,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            253u8, 172u8, 98u8, 66u8, 105u8, 96u8, 178u8, 59u8, 23u8, 50u8, 81u8,
-                            237u8, 230u8, 128u8, 195u8, 1u8, 251u8, 85u8, 160u8, 133u8, 186u8,
-                            196u8, 139u8, 61u8, 15u8, 32u8, 7u8, 40u8, 215u8, 244u8, 155u8, 167u8,
+                            22u8, 29u8, 111u8, 4u8, 237u8, 232u8, 254u8, 181u8, 119u8, 201u8, 75u8,
+                            20u8, 0u8, 239u8, 217u8, 43u8, 21u8, 67u8, 230u8, 35u8, 227u8, 228u8,
+                            227u8, 114u8, 23u8, 83u8, 16u8, 199u8, 111u8, 121u8, 72u8, 172u8,
                         ],
                     )
                 }
@@ -1294,10 +1290,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            93u8, 168u8, 102u8, 96u8, 187u8, 69u8, 198u8, 103u8, 175u8, 68u8, 99u8,
-                            188u8, 89u8, 154u8, 188u8, 243u8, 100u8, 238u8, 40u8, 231u8, 165u8,
-                            230u8, 45u8, 100u8, 124u8, 154u8, 154u8, 165u8, 154u8, 123u8, 162u8,
-                            123u8,
+                            44u8, 22u8, 214u8, 182u8, 40u8, 142u8, 3u8, 126u8, 64u8, 13u8, 167u8,
+                            27u8, 112u8, 143u8, 156u8, 198u8, 189u8, 23u8, 215u8, 14u8, 176u8,
+                            61u8, 101u8, 255u8, 207u8, 22u8, 198u8, 75u8, 163u8, 57u8, 50u8, 237u8,
                         ],
                     )
                 }
@@ -6219,10 +6214,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            64u8, 120u8, 240u8, 240u8, 193u8, 69u8, 228u8, 3u8, 1u8, 38u8, 154u8,
-                            152u8, 3u8, 152u8, 191u8, 224u8, 86u8, 76u8, 182u8, 244u8, 123u8,
-                            112u8, 35u8, 117u8, 122u8, 204u8, 25u8, 233u8, 189u8, 43u8, 48u8,
-                            147u8,
+                            121u8, 198u8, 49u8, 33u8, 221u8, 200u8, 71u8, 54u8, 50u8, 255u8, 69u8,
+                            98u8, 141u8, 190u8, 197u8, 51u8, 195u8, 209u8, 73u8, 30u8, 215u8,
+                            215u8, 194u8, 107u8, 53u8, 225u8, 78u8, 165u8, 196u8, 248u8, 150u8,
+                            155u8,
                         ],
                     )
                 }
@@ -7769,9 +7764,9 @@ pub mod api {
                         "batch",
                         Batch { calls },
                         [
-                            105u8, 29u8, 96u8, 61u8, 112u8, 43u8, 40u8, 88u8, 100u8, 180u8, 135u8,
-                            35u8, 47u8, 21u8, 153u8, 103u8, 38u8, 236u8, 146u8, 177u8, 156u8, 19u8,
-                            161u8, 196u8, 254u8, 187u8, 255u8, 130u8, 59u8, 99u8, 106u8, 201u8,
+                            143u8, 72u8, 204u8, 149u8, 49u8, 0u8, 235u8, 220u8, 251u8, 4u8, 235u8,
+                            111u8, 153u8, 154u8, 89u8, 159u8, 43u8, 7u8, 246u8, 129u8, 183u8, 24u8,
+                            56u8, 179u8, 39u8, 86u8, 79u8, 229u8, 73u8, 167u8, 50u8, 10u8,
                         ],
                     )
                 }
@@ -7801,9 +7796,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            97u8, 45u8, 80u8, 218u8, 197u8, 19u8, 107u8, 152u8, 124u8, 253u8, 51u8,
-                            245u8, 89u8, 151u8, 253u8, 161u8, 128u8, 105u8, 42u8, 14u8, 81u8, 64u8,
-                            189u8, 61u8, 13u8, 210u8, 27u8, 32u8, 163u8, 83u8, 199u8, 100u8,
+                            142u8, 232u8, 78u8, 230u8, 208u8, 219u8, 4u8, 201u8, 130u8, 7u8, 243u8,
+                            47u8, 82u8, 168u8, 238u8, 211u8, 25u8, 119u8, 113u8, 248u8, 145u8,
+                            111u8, 1u8, 165u8, 128u8, 231u8, 113u8, 229u8, 59u8, 116u8, 12u8,
+                            253u8,
                         ],
                     )
                 }
@@ -7829,9 +7825,10 @@ pub mod api {
                         "batch_all",
                         BatchAll { calls },
                         [
-                            148u8, 243u8, 182u8, 191u8, 142u8, 15u8, 87u8, 125u8, 94u8, 41u8, 25u8,
-                            123u8, 45u8, 172u8, 175u8, 151u8, 22u8, 200u8, 31u8, 93u8, 43u8, 197u8,
-                            15u8, 82u8, 110u8, 227u8, 200u8, 114u8, 154u8, 57u8, 130u8, 182u8,
+                            158u8, 130u8, 207u8, 227u8, 186u8, 199u8, 167u8, 157u8, 93u8, 146u8,
+                            1u8, 204u8, 5u8, 60u8, 106u8, 121u8, 163u8, 179u8, 200u8, 89u8, 51u8,
+                            234u8, 191u8, 41u8, 116u8, 135u8, 233u8, 121u8, 70u8, 170u8, 68u8,
+                            171u8,
                         ],
                     )
                 }
@@ -7854,10 +7851,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            193u8, 37u8, 158u8, 179u8, 78u8, 233u8, 245u8, 170u8, 73u8, 193u8,
-                            121u8, 103u8, 193u8, 88u8, 192u8, 225u8, 2u8, 72u8, 221u8, 76u8, 126u8,
-                            46u8, 211u8, 26u8, 193u8, 202u8, 197u8, 47u8, 230u8, 102u8, 136u8,
-                            205u8,
+                            125u8, 140u8, 200u8, 210u8, 94u8, 104u8, 227u8, 100u8, 62u8, 197u8,
+                            69u8, 29u8, 117u8, 15u8, 209u8, 181u8, 146u8, 152u8, 178u8, 252u8,
+                            36u8, 142u8, 172u8, 216u8, 120u8, 193u8, 120u8, 237u8, 169u8, 219u8,
+                            228u8, 73u8,
                         ],
                     )
                 }
@@ -7883,9 +7880,10 @@ pub mod api {
                         "force_batch",
                         ForceBatch { calls },
                         [
-                            165u8, 77u8, 4u8, 145u8, 173u8, 136u8, 178u8, 170u8, 181u8, 106u8,
-                            41u8, 85u8, 131u8, 123u8, 241u8, 64u8, 192u8, 220u8, 145u8, 4u8, 159u8,
-                            179u8, 68u8, 195u8, 69u8, 58u8, 4u8, 235u8, 123u8, 58u8, 222u8, 59u8,
+                            219u8, 237u8, 126u8, 204u8, 95u8, 252u8, 118u8, 180u8, 252u8, 34u8,
+                            183u8, 179u8, 189u8, 66u8, 162u8, 17u8, 230u8, 60u8, 50u8, 219u8, 78u8,
+                            72u8, 76u8, 108u8, 206u8, 196u8, 213u8, 189u8, 200u8, 76u8, 202u8,
+                            188u8,
                         ],
                     )
                 }
@@ -7908,10 +7906,10 @@ pub mod api {
                             weight,
                         },
                         [
-                            22u8, 230u8, 22u8, 83u8, 243u8, 56u8, 251u8, 112u8, 132u8, 208u8,
-                            100u8, 30u8, 110u8, 246u8, 191u8, 123u8, 233u8, 226u8, 178u8, 242u8,
-                            16u8, 130u8, 242u8, 81u8, 95u8, 5u8, 108u8, 42u8, 3u8, 133u8, 91u8,
-                            90u8,
+                            63u8, 184u8, 190u8, 245u8, 107u8, 203u8, 212u8, 123u8, 145u8, 168u8,
+                            2u8, 9u8, 232u8, 89u8, 95u8, 157u8, 25u8, 133u8, 134u8, 120u8, 98u8,
+                            163u8, 207u8, 97u8, 155u8, 22u8, 149u8, 140u8, 224u8, 127u8, 212u8,
+                            136u8,
                         ],
                     )
                 }
@@ -8131,9 +8129,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            191u8, 71u8, 199u8, 46u8, 51u8, 212u8, 179u8, 31u8, 242u8, 49u8, 141u8,
-                            232u8, 130u8, 89u8, 195u8, 202u8, 46u8, 65u8, 48u8, 126u8, 240u8,
-                            196u8, 251u8, 244u8, 78u8, 240u8, 77u8, 167u8, 98u8, 76u8, 184u8, 86u8,
+                            219u8, 36u8, 174u8, 176u8, 114u8, 121u8, 78u8, 222u8, 255u8, 113u8,
+                            205u8, 6u8, 227u8, 98u8, 9u8, 203u8, 235u8, 175u8, 64u8, 87u8, 251u8,
+                            166u8, 64u8, 123u8, 82u8, 109u8, 11u8, 246u8, 181u8, 73u8, 32u8, 194u8,
                         ],
                     )
                 }
@@ -8197,9 +8195,9 @@ pub mod api {
                             max_weight,
                         },
                         [
-                            159u8, 13u8, 143u8, 8u8, 144u8, 118u8, 63u8, 63u8, 160u8, 101u8, 183u8,
-                            1u8, 236u8, 92u8, 112u8, 133u8, 185u8, 98u8, 2u8, 170u8, 220u8, 110u8,
-                            133u8, 31u8, 174u8, 102u8, 126u8, 145u8, 169u8, 83u8, 55u8, 6u8,
+                            115u8, 232u8, 108u8, 218u8, 101u8, 69u8, 67u8, 3u8, 29u8, 161u8, 64u8,
+                            221u8, 130u8, 13u8, 76u8, 152u8, 202u8, 111u8, 116u8, 114u8, 215u8,
+                            80u8, 42u8, 116u8, 172u8, 198u8, 41u8, 200u8, 203u8, 52u8, 212u8, 90u8,
                         ],
                     )
                 }
@@ -8597,10 +8595,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            202u8, 120u8, 161u8, 81u8, 207u8, 136u8, 152u8, 212u8, 59u8, 48u8,
-                            19u8, 17u8, 101u8, 13u8, 146u8, 61u8, 92u8, 242u8, 164u8, 61u8, 160u8,
-                            164u8, 223u8, 117u8, 74u8, 23u8, 255u8, 135u8, 90u8, 134u8, 107u8,
-                            43u8,
+                            152u8, 237u8, 122u8, 101u8, 88u8, 242u8, 97u8, 78u8, 144u8, 145u8,
+                            87u8, 211u8, 19u8, 246u8, 248u8, 214u8, 97u8, 57u8, 181u8, 80u8, 6u8,
+                            102u8, 171u8, 70u8, 244u8, 157u8, 134u8, 169u8, 201u8, 144u8, 46u8,
+                            48u8,
                         ],
                     )
                 }
@@ -8625,10 +8623,9 @@ pub mod api {
                             weight,
                         },
                         [
-                            0u8, 75u8, 57u8, 116u8, 151u8, 4u8, 51u8, 188u8, 34u8, 167u8, 193u8,
-                            221u8, 117u8, 240u8, 222u8, 153u8, 113u8, 56u8, 5u8, 199u8, 150u8,
-                            127u8, 212u8, 100u8, 244u8, 254u8, 35u8, 108u8, 10u8, 43u8, 107u8,
-                            163u8,
+                            180u8, 130u8, 204u8, 200u8, 223u8, 122u8, 250u8, 11u8, 212u8, 116u8,
+                            35u8, 251u8, 19u8, 239u8, 96u8, 96u8, 47u8, 171u8, 128u8, 162u8, 140u8,
+                            60u8, 122u8, 117u8, 119u8, 196u8, 6u8, 20u8, 29u8, 250u8, 95u8, 61u8,
                         ],
                     )
                 }
@@ -8680,10 +8677,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            64u8, 40u8, 233u8, 144u8, 53u8, 17u8, 95u8, 225u8, 236u8, 156u8, 212u8,
-                            37u8, 227u8, 255u8, 184u8, 195u8, 223u8, 234u8, 141u8, 61u8, 10u8,
-                            50u8, 165u8, 232u8, 17u8, 239u8, 147u8, 184u8, 151u8, 178u8, 194u8,
-                            116u8,
+                            107u8, 60u8, 57u8, 193u8, 10u8, 86u8, 33u8, 166u8, 182u8, 238u8, 183u8,
+                            148u8, 49u8, 212u8, 197u8, 181u8, 235u8, 159u8, 151u8, 236u8, 137u8,
+                            75u8, 172u8, 52u8, 82u8, 69u8, 171u8, 191u8, 24u8, 110u8, 212u8, 92u8,
                         ],
                     )
                 }
@@ -10083,6 +10079,9 @@ pub mod api {
                     runtime_types::pallet_nomination_pools::ConfigOp<::core::primitive::u32>,
                 pub max_members_per_pool:
                     runtime_types::pallet_nomination_pools::ConfigOp<::core::primitive::u32>,
+                pub global_max_commission: runtime_types::pallet_nomination_pools::ConfigOp<
+                    runtime_types::sp_arithmetic::per_things::Perbill,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -10154,6 +10153,59 @@ pub mod api {
             pub struct ClaimPayoutOther {
                 pub other: ::subxt::ext::sp_core::crypto::AccountId32,
             }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct SetCommission {
+                pub pool_id: ::core::primitive::u32,
+                pub new_commission: ::core::option::Option<(
+                    runtime_types::sp_arithmetic::per_things::Perbill,
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                )>,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct SetCommissionMax {
+                pub pool_id: ::core::primitive::u32,
+                pub max_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct SetCommissionChangeRate {
+                pub pool_id: ::core::primitive::u32,
+                pub change_rate: runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                    ::core::primitive::u32,
+                >,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: CompactAs,
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct ClaimCommission {
+                pub pool_id: ::core::primitive::u32,
+            }
             pub struct TransactionApi;
             impl TransactionApi {
                 #[doc = "Stake funds with a pool. The amount to bond is transferred from the member to the"]
@@ -10209,7 +10261,7 @@ pub mod api {
                     )
                 }
                 #[doc = "A bonded member can use this to claim their payout based on the rewards that the pool"]
-                #[doc = "has accumulated since their last claimed payout (OR since joining if this is there first"]
+                #[doc = "has accumulated since their last claimed payout (OR since joining if this is their first"]
                 #[doc = "time claiming rewards). The payout will be transferred to the member's account."]
                 #[doc = ""]
                 #[doc = "The member will earn rewards pro rata based on the members stake vs the sum of the"]
@@ -10494,8 +10546,8 @@ pub mod api {
                 }
                 #[doc = "Set a new metadata for the pool."]
                 #[doc = ""]
-                #[doc = "The dispatch origin of this call must be signed by the bouncer, or the root role"]
-                #[doc = "of the pool."]
+                #[doc = "The dispatch origin of this call must be signed by the bouncer, or the root role of the"]
+                #[doc = "pool."]
                 pub fn set_metadata(
                     &self,
                     pool_id: ::core::primitive::u32,
@@ -10522,6 +10574,7 @@ pub mod api {
                 #[doc = "* `max_pools` - Set [`MaxPools`]."]
                 #[doc = "* `max_members` - Set [`MaxPoolMembers`]."]
                 #[doc = "* `max_members_per_pool` - Set [`MaxPoolMembersPerPool`]."]
+                #[doc = "* `global_max_commission` - Set [`GlobalMaxCommission`]."]
                 pub fn set_configs(
                     &self,
                     min_join_bond: runtime_types::pallet_nomination_pools::ConfigOp<
@@ -10539,6 +10592,9 @@ pub mod api {
                     max_members_per_pool: runtime_types::pallet_nomination_pools::ConfigOp<
                         ::core::primitive::u32,
                     >,
+                    global_max_commission: runtime_types::pallet_nomination_pools::ConfigOp<
+                        runtime_types::sp_arithmetic::per_things::Perbill,
+                    >,
                 ) -> ::subxt::tx::StaticTxPayload<SetConfigs> {
                     ::subxt::tx::StaticTxPayload::new(
                         "NominationPools",
@@ -10549,11 +10605,13 @@ pub mod api {
                             max_pools,
                             max_members,
                             max_members_per_pool,
+                            global_max_commission,
                         },
                         [
-                            143u8, 196u8, 211u8, 30u8, 71u8, 15u8, 150u8, 243u8, 7u8, 178u8, 179u8,
-                            168u8, 40u8, 116u8, 220u8, 140u8, 18u8, 206u8, 6u8, 189u8, 190u8, 37u8,
-                            68u8, 41u8, 45u8, 233u8, 247u8, 172u8, 185u8, 34u8, 243u8, 187u8,
+                            20u8, 66u8, 112u8, 172u8, 143u8, 78u8, 60u8, 159u8, 240u8, 102u8,
+                            245u8, 10u8, 207u8, 27u8, 99u8, 138u8, 217u8, 239u8, 101u8, 190u8,
+                            222u8, 253u8, 53u8, 77u8, 230u8, 225u8, 101u8, 109u8, 50u8, 144u8,
+                            31u8, 121u8,
                         ],
                     )
                 }
@@ -10689,6 +10747,104 @@ pub mod api {
                             52u8, 165u8, 191u8, 125u8, 180u8, 54u8, 27u8, 235u8, 195u8, 22u8, 55u8,
                             183u8, 209u8, 63u8, 116u8, 88u8, 154u8, 74u8, 100u8, 103u8, 88u8, 76u8,
                             35u8, 14u8, 39u8, 156u8, 219u8, 253u8, 123u8, 104u8, 168u8, 76u8,
+                        ],
+                    )
+                }
+                #[doc = "Set the commission of a pool."]
+                #[doc = "Both a commission percentage and a commission payee must be provided in the `current`"]
+                #[doc = "tuple. Where a `current` of `None` is provided, any current commission will be removed."]
+                #[doc = ""]
+                #[doc = "- If a `None` is supplied to `new_commission`, existing commission will be removed."]
+                pub fn set_commission(
+                    &self,
+                    pool_id: ::core::primitive::u32,
+                    new_commission: ::core::option::Option<(
+                        runtime_types::sp_arithmetic::per_things::Perbill,
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                    )>,
+                ) -> ::subxt::tx::StaticTxPayload<SetCommission> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "NominationPools",
+                        "set_commission",
+                        SetCommission {
+                            pool_id,
+                            new_commission,
+                        },
+                        [
+                            118u8, 240u8, 166u8, 40u8, 247u8, 44u8, 23u8, 92u8, 4u8, 78u8, 156u8,
+                            21u8, 178u8, 97u8, 197u8, 148u8, 61u8, 234u8, 15u8, 94u8, 248u8, 188u8,
+                            211u8, 13u8, 134u8, 10u8, 75u8, 59u8, 218u8, 13u8, 104u8, 115u8,
+                        ],
+                    )
+                }
+                #[doc = "Set the maximum commission of a pool."]
+                #[doc = ""]
+                #[doc = "- Initial max can be set to any `Perbill`, and only smaller values thereafter."]
+                #[doc = "- Current commission will be lowered in the event it is higher than a new max"]
+                #[doc = "  commission."]
+                pub fn set_commission_max(
+                    &self,
+                    pool_id: ::core::primitive::u32,
+                    max_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+                ) -> ::subxt::tx::StaticTxPayload<SetCommissionMax> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "NominationPools",
+                        "set_commission_max",
+                        SetCommissionMax {
+                            pool_id,
+                            max_commission,
+                        },
+                        [
+                            115u8, 90u8, 156u8, 35u8, 7u8, 125u8, 184u8, 123u8, 149u8, 232u8, 59u8,
+                            21u8, 42u8, 120u8, 14u8, 152u8, 184u8, 167u8, 18u8, 22u8, 148u8, 83u8,
+                            16u8, 81u8, 93u8, 182u8, 154u8, 182u8, 46u8, 40u8, 179u8, 187u8,
+                        ],
+                    )
+                }
+                #[doc = "Set the commission change rate for a pool."]
+                #[doc = ""]
+                #[doc = "Initial change rate is not bounded, whereas subsequent updates can only be more"]
+                #[doc = "restrictive than the current."]
+                pub fn set_commission_change_rate(
+                    &self,
+                    pool_id: ::core::primitive::u32,
+                    change_rate: runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                        ::core::primitive::u32,
+                    >,
+                ) -> ::subxt::tx::StaticTxPayload<SetCommissionChangeRate> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "NominationPools",
+                        "set_commission_change_rate",
+                        SetCommissionChangeRate {
+                            pool_id,
+                            change_rate,
+                        },
+                        [
+                            118u8, 194u8, 114u8, 197u8, 214u8, 246u8, 23u8, 237u8, 10u8, 90u8,
+                            230u8, 123u8, 172u8, 174u8, 98u8, 198u8, 160u8, 71u8, 113u8, 76u8,
+                            201u8, 201u8, 153u8, 92u8, 222u8, 252u8, 7u8, 184u8, 236u8, 235u8,
+                            126u8, 201u8,
+                        ],
+                    )
+                }
+                #[doc = "Claim pending commission."]
+                #[doc = ""]
+                #[doc = "The dispatch origin of this call must be signed by the `root` role of the pool. Pending"]
+                #[doc = "commission is paid out and added to total claimed commission`. Total pending commission"]
+                #[doc = "is reset to zero. the current."]
+                pub fn claim_commission(
+                    &self,
+                    pool_id: ::core::primitive::u32,
+                ) -> ::subxt::tx::StaticTxPayload<ClaimCommission> {
+                    ::subxt::tx::StaticTxPayload::new(
+                        "NominationPools",
+                        "claim_commission",
+                        ClaimCommission { pool_id },
+                        [
+                            139u8, 126u8, 219u8, 117u8, 140u8, 51u8, 163u8, 32u8, 83u8, 60u8,
+                            250u8, 44u8, 186u8, 194u8, 225u8, 84u8, 61u8, 181u8, 212u8, 160u8,
+                            156u8, 93u8, 16u8, 255u8, 165u8, 178u8, 25u8, 64u8, 187u8, 29u8, 169u8,
+                            174u8,
                         ],
                     )
                 }
@@ -10913,6 +11069,79 @@ pub mod api {
                 const PALLET: &'static str = "NominationPools";
                 const EVENT: &'static str = "UnbondingPoolSlashed";
             }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "A pool's commission setting has been changed."]
+            pub struct PoolCommissionUpdated {
+                pub pool_id: ::core::primitive::u32,
+                pub current: ::core::option::Option<(
+                    runtime_types::sp_arithmetic::per_things::Perbill,
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                )>,
+            }
+            impl ::subxt::events::StaticEvent for PoolCommissionUpdated {
+                const PALLET: &'static str = "NominationPools";
+                const EVENT: &'static str = "PoolCommissionUpdated";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "A pool's maximum commission setting has been changed."]
+            pub struct PoolMaxCommissionUpdated {
+                pub pool_id: ::core::primitive::u32,
+                pub max_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+            }
+            impl ::subxt::events::StaticEvent for PoolMaxCommissionUpdated {
+                const PALLET: &'static str = "NominationPools";
+                const EVENT: &'static str = "PoolMaxCommissionUpdated";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "A pool's commission `change_rate` has been changed."]
+            pub struct PoolCommissionChangeRateUpdated {
+                pub pool_id: ::core::primitive::u32,
+                pub change_rate: runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                    ::core::primitive::u32,
+                >,
+            }
+            impl ::subxt::events::StaticEvent for PoolCommissionChangeRateUpdated {
+                const PALLET: &'static str = "NominationPools";
+                const EVENT: &'static str = "PoolCommissionChangeRateUpdated";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            #[doc = "Pool commission has been claimed."]
+            pub struct PoolCommissionClaimed {
+                pub pool_id: ::core::primitive::u32,
+                pub commission: ::core::primitive::u128,
+            }
+            impl ::subxt::events::StaticEvent for PoolCommissionClaimed {
+                const PALLET: &'static str = "NominationPools";
+                const EVENT: &'static str = "PoolCommissionClaimed";
+            }
         }
         pub mod storage {
             use super::runtime_types;
@@ -11029,6 +11258,31 @@ pub mod api {
                         ],
                     )
                 }
+                #[doc = " The maximum commission that can be charged by a pool. Used on commission payouts to bound"]
+                #[doc = " pool commissions that are > `GlobalMaxCommission`, necessary if a future"]
+                #[doc = " `GlobalMaxCommission` is lower than some current pool commissions."]
+                pub fn global_max_commission(
+                    &self,
+                ) -> ::subxt::storage::address::StaticStorageAddress<
+                    ::subxt::metadata::DecodeStaticType<
+                        runtime_types::sp_arithmetic::per_things::Perbill,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    (),
+                > {
+                    ::subxt::storage::address::StaticStorageAddress::new(
+                        "NominationPools",
+                        "GlobalMaxCommission",
+                        vec![],
+                        [
+                            142u8, 252u8, 92u8, 128u8, 162u8, 4u8, 216u8, 39u8, 118u8, 201u8,
+                            138u8, 171u8, 76u8, 90u8, 133u8, 176u8, 161u8, 138u8, 214u8, 183u8,
+                            193u8, 115u8, 245u8, 151u8, 216u8, 84u8, 99u8, 175u8, 144u8, 196u8,
+                            103u8, 190u8,
+                        ],
+                    )
+                }
                 #[doc = " Active members."]
                 #[doc = ""]
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
@@ -11124,10 +11378,10 @@ pub mod api {
                             ::subxt::storage::address::StorageHasher::Twox64Concat,
                         )],
                         [
-                            212u8, 206u8, 61u8, 226u8, 20u8, 35u8, 147u8, 132u8, 46u8, 199u8,
-                            141u8, 175u8, 77u8, 16u8, 253u8, 92u8, 6u8, 197u8, 209u8, 39u8, 192u8,
-                            226u8, 188u8, 67u8, 47u8, 196u8, 249u8, 68u8, 148u8, 193u8, 203u8,
-                            81u8,
+                            3u8, 183u8, 140u8, 154u8, 74u8, 225u8, 69u8, 243u8, 150u8, 132u8,
+                            163u8, 26u8, 101u8, 45u8, 231u8, 178u8, 85u8, 144u8, 9u8, 112u8, 212u8,
+                            167u8, 131u8, 188u8, 203u8, 50u8, 177u8, 218u8, 154u8, 182u8, 80u8,
+                            232u8,
                         ],
                     )
                 }
@@ -11147,10 +11401,10 @@ pub mod api {
                         "BondedPools",
                         Vec::new(),
                         [
-                            212u8, 206u8, 61u8, 226u8, 20u8, 35u8, 147u8, 132u8, 46u8, 199u8,
-                            141u8, 175u8, 77u8, 16u8, 253u8, 92u8, 6u8, 197u8, 209u8, 39u8, 192u8,
-                            226u8, 188u8, 67u8, 47u8, 196u8, 249u8, 68u8, 148u8, 193u8, 203u8,
-                            81u8,
+                            3u8, 183u8, 140u8, 154u8, 74u8, 225u8, 69u8, 243u8, 150u8, 132u8,
+                            163u8, 26u8, 101u8, 45u8, 231u8, 178u8, 85u8, 144u8, 9u8, 112u8, 212u8,
+                            167u8, 131u8, 188u8, 203u8, 50u8, 177u8, 218u8, 154u8, 182u8, 80u8,
+                            232u8,
                         ],
                     )
                 }
@@ -11175,8 +11429,8 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " Reward pools. This is where there rewards for each pool accumulate. When a members payout"]
-                #[doc = " is claimed, the balance comes out fo the reward pool. Keyed by the bonded pools account."]
+                #[doc = " Reward pools. This is where there rewards for each pool accumulate. When a members payout is"]
+                #[doc = " claimed, the balance comes out fo the reward pool. Keyed by the bonded pools account."]
                 pub fn reward_pools(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
@@ -11196,14 +11450,15 @@ pub mod api {
                             ::subxt::storage::address::StorageHasher::Twox64Concat,
                         )],
                         [
-                            139u8, 123u8, 46u8, 107u8, 9u8, 83u8, 141u8, 12u8, 188u8, 225u8, 170u8,
-                            215u8, 154u8, 21u8, 100u8, 95u8, 237u8, 245u8, 46u8, 216u8, 199u8,
-                            184u8, 187u8, 155u8, 8u8, 16u8, 34u8, 177u8, 153u8, 65u8, 109u8, 198u8,
+                            235u8, 6u8, 2u8, 103u8, 137u8, 31u8, 109u8, 165u8, 129u8, 48u8, 154u8,
+                            219u8, 110u8, 198u8, 241u8, 31u8, 174u8, 10u8, 92u8, 233u8, 161u8,
+                            76u8, 53u8, 136u8, 172u8, 214u8, 192u8, 12u8, 239u8, 165u8, 195u8,
+                            96u8,
                         ],
                     )
                 }
-                #[doc = " Reward pools. This is where there rewards for each pool accumulate. When a members payout"]
-                #[doc = " is claimed, the balance comes out fo the reward pool. Keyed by the bonded pools account."]
+                #[doc = " Reward pools. This is where there rewards for each pool accumulate. When a members payout is"]
+                #[doc = " claimed, the balance comes out fo the reward pool. Keyed by the bonded pools account."]
                 pub fn reward_pools_root(
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
@@ -11219,9 +11474,10 @@ pub mod api {
                         "RewardPools",
                         Vec::new(),
                         [
-                            139u8, 123u8, 46u8, 107u8, 9u8, 83u8, 141u8, 12u8, 188u8, 225u8, 170u8,
-                            215u8, 154u8, 21u8, 100u8, 95u8, 237u8, 245u8, 46u8, 216u8, 199u8,
-                            184u8, 187u8, 155u8, 8u8, 16u8, 34u8, 177u8, 153u8, 65u8, 109u8, 198u8,
+                            235u8, 6u8, 2u8, 103u8, 137u8, 31u8, 109u8, 165u8, 129u8, 48u8, 154u8,
+                            219u8, 110u8, 198u8, 241u8, 31u8, 174u8, 10u8, 92u8, 233u8, 161u8,
+                            76u8, 53u8, 136u8, 172u8, 214u8, 192u8, 12u8, 239u8, 165u8, 195u8,
+                            96u8,
                         ],
                     )
                 }
@@ -11246,8 +11502,8 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " Groups of unbonding pools. Each group of unbonding pools belongs to a bonded pool,"]
-                #[doc = " hence the name sub-pools. Keyed by the bonded pools account."]
+                #[doc = " Groups of unbonding pools. Each group of unbonding pools belongs to a"]
+                #[doc = " bonded pool, hence the name sub-pools. Keyed by the bonded pools account."]
                 pub fn sub_pools_storage(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
@@ -11274,8 +11530,8 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " Groups of unbonding pools. Each group of unbonding pools belongs to a bonded pool,"]
-                #[doc = " hence the name sub-pools. Keyed by the bonded pools account."]
+                #[doc = " Groups of unbonding pools. Each group of unbonding pools belongs to a"]
+                #[doc = " bonded pool, hence the name sub-pools. Keyed by the bonded pools account."]
                 pub fn sub_pools_storage_root(
                     &self,
                 ) -> ::subxt::storage::address::StaticStorageAddress<
@@ -13187,440 +13443,6 @@ pub mod api {
             }
         }
     }
-    pub mod baby_liminal {
-        use super::{root_mod, runtime_types};
-        #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
-        pub mod calls {
-            use super::{root_mod, runtime_types};
-            type DispatchError = runtime_types::sp_runtime::DispatchError;
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            pub struct StoreKey {
-                pub identifier: [::core::primitive::u8; 8usize],
-                pub key: ::std::vec::Vec<::core::primitive::u8>,
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            pub struct DeleteKey {
-                pub identifier: [::core::primitive::u8; 8usize],
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            pub struct OverwriteKey {
-                pub identifier: [::core::primitive::u8; 8usize],
-                pub key: ::std::vec::Vec<::core::primitive::u8>,
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            pub struct Verify {
-                pub verification_key_identifier: [::core::primitive::u8; 8usize],
-                pub proof: ::std::vec::Vec<::core::primitive::u8>,
-                pub public_input: ::std::vec::Vec<::core::primitive::u8>,
-            }
-            pub struct TransactionApi;
-            impl TransactionApi {
-                #[doc = "Stores `key` under `identifier` in `VerificationKeys` map."]
-                #[doc = ""]
-                #[doc = "Fails if:"]
-                #[doc = "- `key.len()` is greater than `MaximumVerificationKeyLength`, or"]
-                #[doc = "- `identifier` has been already used"]
-                #[doc = ""]
-                #[doc = "`key` can come from any proving system - there are no checks that verify it, in"]
-                #[doc = "particular, `key` can contain just trash bytes."]
-                pub fn store_key(
-                    &self,
-                    identifier: [::core::primitive::u8; 8usize],
-                    key: ::std::vec::Vec<::core::primitive::u8>,
-                ) -> ::subxt::tx::StaticTxPayload<StoreKey> {
-                    ::subxt::tx::StaticTxPayload::new(
-                        "BabyLiminal",
-                        "store_key",
-                        StoreKey { identifier, key },
-                        [
-                            243u8, 81u8, 216u8, 10u8, 107u8, 147u8, 211u8, 131u8, 111u8, 111u8,
-                            36u8, 129u8, 8u8, 8u8, 204u8, 239u8, 255u8, 126u8, 63u8, 76u8, 2u8,
-                            27u8, 247u8, 191u8, 74u8, 220u8, 90u8, 41u8, 141u8, 124u8, 84u8, 218u8,
-                        ],
-                    )
-                }
-                #[doc = "Deletes a key stored under `identifier` in `VerificationKeys` map."]
-                #[doc = ""]
-                #[doc = "Returns the deposit locked. Can only be called by the key owner."]
-                pub fn delete_key(
-                    &self,
-                    identifier: [::core::primitive::u8; 8usize],
-                ) -> ::subxt::tx::StaticTxPayload<DeleteKey> {
-                    ::subxt::tx::StaticTxPayload::new(
-                        "BabyLiminal",
-                        "delete_key",
-                        DeleteKey { identifier },
-                        [
-                            168u8, 215u8, 20u8, 23u8, 157u8, 45u8, 189u8, 6u8, 196u8, 144u8, 96u8,
-                            229u8, 120u8, 4u8, 59u8, 18u8, 46u8, 151u8, 249u8, 177u8, 166u8, 101u8,
-                            176u8, 122u8, 24u8, 162u8, 185u8, 239u8, 208u8, 101u8, 151u8, 81u8,
-                        ],
-                    )
-                }
-                #[doc = "Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`"]
-                #[doc = ""]
-                #[doc = "Fails if `key.len()` is greater than `MaximumVerificationKeyLength`."]
-                #[doc = "Can only be called by the original owner of the key."]
-                #[doc = "It will require the caller to lock up additional funds (if the new key occupies more storage)"]
-                #[doc = "or reimburse the difference if it is shorter in its byte-length."]
-                pub fn overwrite_key(
-                    &self,
-                    identifier: [::core::primitive::u8; 8usize],
-                    key: ::std::vec::Vec<::core::primitive::u8>,
-                ) -> ::subxt::tx::StaticTxPayload<OverwriteKey> {
-                    ::subxt::tx::StaticTxPayload::new(
-                        "BabyLiminal",
-                        "overwrite_key",
-                        OverwriteKey { identifier, key },
-                        [
-                            238u8, 6u8, 195u8, 248u8, 5u8, 79u8, 142u8, 65u8, 226u8, 185u8, 219u8,
-                            201u8, 175u8, 63u8, 186u8, 66u8, 33u8, 2u8, 23u8, 198u8, 132u8, 83u8,
-                            31u8, 125u8, 82u8, 106u8, 77u8, 244u8, 244u8, 155u8, 191u8, 89u8,
-                        ],
-                    )
-                }
-                #[doc = "Verifies `proof` against `public_input` with a key that has been stored under"]
-                #[doc = "`verification_key_identifier`. All is done within Groth16 proving system."]
-                #[doc = ""]
-                #[doc = "Fails if:"]
-                #[doc = "- there is no verification key under `verification_key_identifier`"]
-                #[doc = "- verification key under `verification_key_identifier` cannot be deserialized"]
-                #[doc = "(e.g. it has been produced for another proving system)"]
-                #[doc = "- `proof` cannot be deserialized (e.g. it has been produced for another proving system)"]
-                #[doc = "- `public_input` cannot be deserialized (e.g. it has been produced for another proving"]
-                #[doc = "system)"]
-                #[doc = "- verifying procedure fails (e.g. incompatible verification key and proof)"]
-                #[doc = "- proof is incorrect"]
-                pub fn verify(
-                    &self,
-                    verification_key_identifier: [::core::primitive::u8; 8usize],
-                    proof: ::std::vec::Vec<::core::primitive::u8>,
-                    public_input: ::std::vec::Vec<::core::primitive::u8>,
-                ) -> ::subxt::tx::StaticTxPayload<Verify> {
-                    ::subxt::tx::StaticTxPayload::new(
-                        "BabyLiminal",
-                        "verify",
-                        Verify {
-                            verification_key_identifier,
-                            proof,
-                            public_input,
-                        },
-                        [
-                            68u8, 111u8, 180u8, 196u8, 114u8, 116u8, 175u8, 116u8, 35u8, 43u8,
-                            147u8, 207u8, 225u8, 160u8, 223u8, 166u8, 170u8, 109u8, 152u8, 46u8,
-                            107u8, 242u8, 170u8, 55u8, 249u8, 135u8, 20u8, 18u8, 200u8, 176u8,
-                            72u8, 252u8,
-                        ],
-                    )
-                }
-            }
-        }
-        #[doc = "\n\t\t\tThe [event](https://docs.substrate.io/main-docs/build/events-errors/) emitted\n\t\t\tby this pallet.\n\t\t\t"]
-        pub type Event = runtime_types::pallet_baby_liminal::pallet::Event;
-        pub mod events {
-            use super::runtime_types;
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            #[doc = "Verification key has been successfully stored."]
-            #[doc = ""]
-            #[doc = "\\[ account_id, identifier \\]"]
-            pub struct VerificationKeyStored(
-                pub ::subxt::ext::sp_core::crypto::AccountId32,
-                pub [::core::primitive::u8; 8usize],
-            );
-            impl ::subxt::events::StaticEvent for VerificationKeyStored {
-                const PALLET: &'static str = "BabyLiminal";
-                const EVENT: &'static str = "VerificationKeyStored";
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            #[doc = "Verification key has been successfully deleted."]
-            #[doc = ""]
-            #[doc = "\\[ identifier \\]"]
-            pub struct VerificationKeyDeleted(
-                pub ::subxt::ext::sp_core::crypto::AccountId32,
-                pub [::core::primitive::u8; 8usize],
-            );
-            impl ::subxt::events::StaticEvent for VerificationKeyDeleted {
-                const PALLET: &'static str = "BabyLiminal";
-                const EVENT: &'static str = "VerificationKeyDeleted";
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            #[doc = "Verification key has been successfully overwritten."]
-            #[doc = ""]
-            #[doc = "\\[ identifier \\]"]
-            pub struct VerificationKeyOverwritten(pub [::core::primitive::u8; 8usize]);
-            impl ::subxt::events::StaticEvent for VerificationKeyOverwritten {
-                const PALLET: &'static str = "BabyLiminal";
-                const EVENT: &'static str = "VerificationKeyOverwritten";
-            }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            #[doc = "Proof has been successfully verified."]
-            #[doc = ""]
-            #[doc = "\\[ identifier \\]"]
-            pub struct VerificationSucceeded(pub [::core::primitive::u8; 8usize]);
-            impl ::subxt::events::StaticEvent for VerificationSucceeded {
-                const PALLET: &'static str = "BabyLiminal";
-                const EVENT: &'static str = "VerificationSucceeded";
-            }
-        }
-        pub mod storage {
-            use super::runtime_types;
-            pub struct StorageApi;
-            impl StorageApi {
-                pub fn verification_keys(
-                    &self,
-                    _0: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<
-                        runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                            ::core::primitive::u8,
-                        >,
-                    >,
-                    ::subxt::storage::address::Yes,
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeys",
-                        vec![::subxt::storage::address::StorageMapKey::new(
-                            _0.borrow(),
-                            ::subxt::storage::address::StorageHasher::Twox64Concat,
-                        )],
-                        [
-                            15u8, 146u8, 55u8, 166u8, 254u8, 231u8, 4u8, 43u8, 62u8, 48u8, 130u8,
-                            135u8, 72u8, 24u8, 91u8, 198u8, 198u8, 32u8, 187u8, 170u8, 126u8, 38u8,
-                            120u8, 42u8, 184u8, 225u8, 208u8, 107u8, 36u8, 217u8, 151u8, 161u8,
-                        ],
-                    )
-                }
-                pub fn verification_keys_root(
-                    &self,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<
-                        runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                            ::core::primitive::u8,
-                        >,
-                    >,
-                    (),
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeys",
-                        Vec::new(),
-                        [
-                            15u8, 146u8, 55u8, 166u8, 254u8, 231u8, 4u8, 43u8, 62u8, 48u8, 130u8,
-                            135u8, 72u8, 24u8, 91u8, 198u8, 198u8, 32u8, 187u8, 170u8, 126u8, 38u8,
-                            120u8, 42u8, 184u8, 225u8, 208u8, 107u8, 36u8, 217u8, 151u8, 161u8,
-                        ],
-                    )
-                }
-                pub fn verification_key_owners(
-                    &self,
-                    _0: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<::subxt::ext::sp_core::crypto::AccountId32>,
-                    ::subxt::storage::address::Yes,
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeyOwners",
-                        vec![::subxt::storage::address::StorageMapKey::new(
-                            _0.borrow(),
-                            ::subxt::storage::address::StorageHasher::Twox64Concat,
-                        )],
-                        [
-                            214u8, 22u8, 180u8, 63u8, 1u8, 101u8, 210u8, 214u8, 75u8, 246u8, 219u8,
-                            103u8, 95u8, 25u8, 56u8, 97u8, 13u8, 46u8, 114u8, 84u8, 37u8, 121u8,
-                            188u8, 164u8, 105u8, 144u8, 82u8, 151u8, 121u8, 195u8, 180u8, 132u8,
-                        ],
-                    )
-                }
-                pub fn verification_key_owners_root(
-                    &self,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<::subxt::ext::sp_core::crypto::AccountId32>,
-                    (),
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeyOwners",
-                        Vec::new(),
-                        [
-                            214u8, 22u8, 180u8, 63u8, 1u8, 101u8, 210u8, 214u8, 75u8, 246u8, 219u8,
-                            103u8, 95u8, 25u8, 56u8, 97u8, 13u8, 46u8, 114u8, 84u8, 37u8, 121u8,
-                            188u8, 164u8, 105u8, 144u8, 82u8, 151u8, 121u8, 195u8, 180u8, 132u8,
-                        ],
-                    )
-                }
-                pub fn verification_key_deposits(
-                    &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::ext::sp_core::crypto::AccountId32>,
-                    _1: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
-                    ::subxt::storage::address::Yes,
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeyDeposits",
-                        vec![::subxt::storage::address::StorageMapKey::new(
-                            &(_0.borrow(), _1.borrow()),
-                            ::subxt::storage::address::StorageHasher::Twox64Concat,
-                        )],
-                        [
-                            56u8, 215u8, 74u8, 120u8, 187u8, 219u8, 92u8, 199u8, 141u8, 88u8, 57u8,
-                            211u8, 182u8, 197u8, 33u8, 185u8, 109u8, 113u8, 180u8, 99u8, 135u8,
-                            35u8, 177u8, 89u8, 233u8, 49u8, 142u8, 78u8, 34u8, 115u8, 210u8, 133u8,
-                        ],
-                    )
-                }
-                pub fn verification_key_deposits_root(
-                    &self,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
-                    (),
-                    (),
-                    ::subxt::storage::address::Yes,
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeyDeposits",
-                        Vec::new(),
-                        [
-                            56u8, 215u8, 74u8, 120u8, 187u8, 219u8, 92u8, 199u8, 141u8, 88u8, 57u8,
-                            211u8, 182u8, 197u8, 33u8, 185u8, 109u8, 113u8, 180u8, 99u8, 135u8,
-                            35u8, 177u8, 89u8, 233u8, 49u8, 142u8, 78u8, 34u8, 115u8, 210u8, 133u8,
-                        ],
-                    )
-                }
-            }
-        }
-        pub mod constants {
-            use super::runtime_types;
-            pub struct ConstantsApi;
-            impl ConstantsApi {
-                #[doc = " Limits how many bytes verification key can have."]
-                #[doc = ""]
-                #[doc = " Verification keys are stored, therefore this is separated from the limits on proof or"]
-                #[doc = " public input."]
-                pub fn maximum_verification_key_length(
-                    &self,
-                ) -> ::subxt::constants::StaticConstantAddress<
-                    ::subxt::metadata::DecodeStaticType<::core::primitive::u32>,
-                > {
-                    ::subxt::constants::StaticConstantAddress::new(
-                        "BabyLiminal",
-                        "MaximumVerificationKeyLength",
-                        [
-                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
-                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
-                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
-                            145u8,
-                        ],
-                    )
-                }
-                #[doc = " Limits how many bytes proof or public input can have."]
-                pub fn maximum_data_length(
-                    &self,
-                ) -> ::subxt::constants::StaticConstantAddress<
-                    ::subxt::metadata::DecodeStaticType<::core::primitive::u32>,
-                > {
-                    ::subxt::constants::StaticConstantAddress::new(
-                        "BabyLiminal",
-                        "MaximumDataLength",
-                        [
-                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
-                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
-                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
-                            145u8,
-                        ],
-                    )
-                }
-                #[doc = " Deposit amount for storing a verification key"]
-                #[doc = ""]
-                #[doc = " Will get locked and returned upon deleting the key by the owner"]
-                pub fn verification_key_deposit_per_byte(
-                    &self,
-                ) -> ::subxt::constants::StaticConstantAddress<
-                    ::subxt::metadata::DecodeStaticType<::core::primitive::u128>,
-                > {
-                    ::subxt::constants::StaticConstantAddress::new(
-                        "BabyLiminal",
-                        "VerificationKeyDepositPerByte",
-                        [
-                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
-                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
-                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
-                        ],
-                    )
-                }
-            }
-        }
-    }
     pub mod runtime_types {
         use super::runtime_types;
         pub mod aleph_runtime {
@@ -13695,8 +13517,6 @@ pub mod api {
                 Identity(runtime_types::pallet_identity::pallet::Call),
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
-                #[codec(index = 22)]
-                BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Call),
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13741,8 +13561,6 @@ pub mod api {
                 Identity(runtime_types::pallet_identity::pallet::Event),
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
-                #[codec(index = 22)]
-                BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Event),
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -14320,156 +14138,6 @@ pub mod api {
                     ScheduleFinalityVersionChange(runtime_types::primitives::VersionChange),
                     #[codec(index = 2)]
                     FinalityVersionChange(runtime_types::primitives::VersionChange),
-                }
-            }
-        }
-        pub mod pallet_baby_liminal {
-            use super::runtime_types;
-            pub mod pallet {
-                use super::runtime_types;
-                #[derive(
-                    :: subxt :: ext :: codec :: Decode,
-                    :: subxt :: ext :: codec :: Encode,
-                    Clone,
-                    Debug,
-                    Eq,
-                    PartialEq,
-                )]
-                #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
-                pub enum Call {
-                    #[codec(index = 0)]
-                    #[doc = "Stores `key` under `identifier` in `VerificationKeys` map."]
-                    #[doc = ""]
-                    #[doc = "Fails if:"]
-                    #[doc = "- `key.len()` is greater than `MaximumVerificationKeyLength`, or"]
-                    #[doc = "- `identifier` has been already used"]
-                    #[doc = ""]
-                    #[doc = "`key` can come from any proving system - there are no checks that verify it, in"]
-                    #[doc = "particular, `key` can contain just trash bytes."]
-                    store_key {
-                        identifier: [::core::primitive::u8; 8usize],
-                        key: ::std::vec::Vec<::core::primitive::u8>,
-                    },
-                    #[codec(index = 1)]
-                    #[doc = "Deletes a key stored under `identifier` in `VerificationKeys` map."]
-                    #[doc = ""]
-                    #[doc = "Returns the deposit locked. Can only be called by the key owner."]
-                    delete_key {
-                        identifier: [::core::primitive::u8; 8usize],
-                    },
-                    #[codec(index = 2)]
-                    #[doc = "Overwrites a key stored under `identifier` in `VerificationKeys` map with a new value `key`"]
-                    #[doc = ""]
-                    #[doc = "Fails if `key.len()` is greater than `MaximumVerificationKeyLength`."]
-                    #[doc = "Can only be called by the original owner of the key."]
-                    #[doc = "It will require the caller to lock up additional funds (if the new key occupies more storage)"]
-                    #[doc = "or reimburse the difference if it is shorter in its byte-length."]
-                    overwrite_key {
-                        identifier: [::core::primitive::u8; 8usize],
-                        key: ::std::vec::Vec<::core::primitive::u8>,
-                    },
-                    #[codec(index = 3)]
-                    #[doc = "Verifies `proof` against `public_input` with a key that has been stored under"]
-                    #[doc = "`verification_key_identifier`. All is done within Groth16 proving system."]
-                    #[doc = ""]
-                    #[doc = "Fails if:"]
-                    #[doc = "- there is no verification key under `verification_key_identifier`"]
-                    #[doc = "- verification key under `verification_key_identifier` cannot be deserialized"]
-                    #[doc = "(e.g. it has been produced for another proving system)"]
-                    #[doc = "- `proof` cannot be deserialized (e.g. it has been produced for another proving system)"]
-                    #[doc = "- `public_input` cannot be deserialized (e.g. it has been produced for another proving"]
-                    #[doc = "system)"]
-                    #[doc = "- verifying procedure fails (e.g. incompatible verification key and proof)"]
-                    #[doc = "- proof is incorrect"]
-                    verify {
-                        verification_key_identifier: [::core::primitive::u8; 8usize],
-                        proof: ::std::vec::Vec<::core::primitive::u8>,
-                        public_input: ::std::vec::Vec<::core::primitive::u8>,
-                    },
-                }
-                #[derive(
-                    :: subxt :: ext :: codec :: Decode,
-                    :: subxt :: ext :: codec :: Encode,
-                    Clone,
-                    Debug,
-                    Eq,
-                    PartialEq,
-                )]
-                #[doc = "\n\t\t\tCustom [dispatch errors](https://docs.substrate.io/main-docs/build/events-errors/)\n\t\t\tof this pallet.\n\t\t\t"]
-                pub enum Error {
-                    #[codec(index = 0)]
-                    #[doc = "This verification key identifier is already taken."]
-                    IdentifierAlreadyInUse,
-                    #[codec(index = 1)]
-                    #[doc = "There is no verification key available under this identifier."]
-                    UnknownVerificationKeyIdentifier,
-                    #[codec(index = 2)]
-                    #[doc = "Provided verification key is longer than `MaximumVerificationKeyLength` limit."]
-                    VerificationKeyTooLong,
-                    #[codec(index = 3)]
-                    #[doc = "Either proof or public input is longer than `MaximumDataLength` limit."]
-                    DataTooLong,
-                    #[codec(index = 4)]
-                    #[doc = "Couldn't deserialize proof."]
-                    DeserializingProofFailed,
-                    #[codec(index = 5)]
-                    #[doc = "Couldn't deserialize public input."]
-                    DeserializingPublicInputFailed,
-                    #[codec(index = 6)]
-                    #[doc = "Couldn't deserialize verification key from storage."]
-                    DeserializingVerificationKeyFailed,
-                    #[codec(index = 7)]
-                    #[doc = "Verification procedure has failed. Proof still can be correct."]
-                    VerificationFailed,
-                    #[codec(index = 8)]
-                    #[doc = "Proof has been found as incorrect."]
-                    IncorrectProof,
-                    #[codec(index = 9)]
-                    #[doc = "Unsigned request"]
-                    BadOrigin,
-                    #[codec(index = 10)]
-                    #[doc = "User has insufficient funds to lock the deposit for storing verification key"]
-                    CannotAffordDeposit,
-                    #[codec(index = 11)]
-                    #[doc = "Caller is not the owner of the key"]
-                    NotOwner,
-                }
-                #[derive(
-                    :: subxt :: ext :: codec :: Decode,
-                    :: subxt :: ext :: codec :: Encode,
-                    Clone,
-                    Debug,
-                    Eq,
-                    PartialEq,
-                )]
-                #[doc = "\n\t\t\tThe [event](https://docs.substrate.io/main-docs/build/events-errors/) emitted\n\t\t\tby this pallet.\n\t\t\t"]
-                pub enum Event {
-                    #[codec(index = 0)]
-                    #[doc = "Verification key has been successfully stored."]
-                    #[doc = ""]
-                    #[doc = "\\[ account_id, identifier \\]"]
-                    VerificationKeyStored(
-                        ::subxt::ext::sp_core::crypto::AccountId32,
-                        [::core::primitive::u8; 8usize],
-                    ),
-                    #[codec(index = 1)]
-                    #[doc = "Verification key has been successfully deleted."]
-                    #[doc = ""]
-                    #[doc = "\\[ identifier \\]"]
-                    VerificationKeyDeleted(
-                        ::subxt::ext::sp_core::crypto::AccountId32,
-                        [::core::primitive::u8; 8usize],
-                    ),
-                    #[codec(index = 2)]
-                    #[doc = "Verification key has been successfully overwritten."]
-                    #[doc = ""]
-                    #[doc = "\\[ identifier \\]"]
-                    VerificationKeyOverwritten([::core::primitive::u8; 8usize]),
-                    #[codec(index = 3)]
-                    #[doc = "Proof has been successfully verified."]
-                    #[doc = ""]
-                    #[doc = "\\[ identifier \\]"]
-                    VerificationSucceeded([::core::primitive::u8; 8usize]),
                 }
             }
         }
@@ -15172,6 +14840,9 @@ pub mod api {
                     TerminatedInConstructor,
                     #[codec(index = 21)]
                     #[doc = "A call tried to invoke a contract that is flagged as non-reentrant."]
+                    #[doc = "The only other cause is that a call from a contract into the runtime tried to call back"]
+                    #[doc = "into `pallet-contracts`. This would make the whole pallet reentrant with regard to"]
+                    #[doc = "contract code execution which is not supported."]
                     ReentranceDenied,
                     #[codec(index = 22)]
                     #[doc = "Origin doesn't have enough balance to pay the required storage deposits."]
@@ -16589,7 +16260,7 @@ pub mod api {
                     },
                     #[codec(index = 2)]
                     #[doc = "A bonded member can use this to claim their payout based on the rewards that the pool"]
-                    #[doc = "has accumulated since their last claimed payout (OR since joining if this is there first"]
+                    #[doc = "has accumulated since their last claimed payout (OR since joining if this is their first"]
                     #[doc = "time claiming rewards). The payout will be transferred to the member's account."]
                     #[doc = ""]
                     #[doc = "The member will earn rewards pro rata based on the members stake vs the sum of the"]
@@ -16763,8 +16434,8 @@ pub mod api {
                     #[codec(index = 10)]
                     #[doc = "Set a new metadata for the pool."]
                     #[doc = ""]
-                    #[doc = "The dispatch origin of this call must be signed by the bouncer, or the root role"]
-                    #[doc = "of the pool."]
+                    #[doc = "The dispatch origin of this call must be signed by the bouncer, or the root role of the"]
+                    #[doc = "pool."]
                     set_metadata {
                         pool_id: ::core::primitive::u32,
                         metadata: ::std::vec::Vec<::core::primitive::u8>,
@@ -16780,6 +16451,7 @@ pub mod api {
                     #[doc = "* `max_pools` - Set [`MaxPools`]."]
                     #[doc = "* `max_members` - Set [`MaxPoolMembers`]."]
                     #[doc = "* `max_members_per_pool` - Set [`MaxPoolMembersPerPool`]."]
+                    #[doc = "* `global_max_commission` - Set [`GlobalMaxCommission`]."]
                     set_configs {
                         min_join_bond: runtime_types::pallet_nomination_pools::ConfigOp<
                             ::core::primitive::u128,
@@ -16795,6 +16467,9 @@ pub mod api {
                         >,
                         max_members_per_pool: runtime_types::pallet_nomination_pools::ConfigOp<
                             ::core::primitive::u32,
+                        >,
+                        global_max_commission: runtime_types::pallet_nomination_pools::ConfigOp<
+                            runtime_types::sp_arithmetic::per_things::Perbill,
                         >,
                     },
                     #[codec(index = 12)]
@@ -16869,6 +16544,47 @@ pub mod api {
                     claim_payout_other {
                         other: ::subxt::ext::sp_core::crypto::AccountId32,
                     },
+                    #[codec(index = 17)]
+                    #[doc = "Set the commission of a pool."]
+                    #[doc = "Both a commission percentage and a commission payee must be provided in the `current`"]
+                    #[doc = "tuple. Where a `current` of `None` is provided, any current commission will be removed."]
+                    #[doc = ""]
+                    #[doc = "- If a `None` is supplied to `new_commission`, existing commission will be removed."]
+                    set_commission {
+                        pool_id: ::core::primitive::u32,
+                        new_commission: ::core::option::Option<(
+                            runtime_types::sp_arithmetic::per_things::Perbill,
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                        )>,
+                    },
+                    #[codec(index = 18)]
+                    #[doc = "Set the maximum commission of a pool."]
+                    #[doc = ""]
+                    #[doc = "- Initial max can be set to any `Perbill`, and only smaller values thereafter."]
+                    #[doc = "- Current commission will be lowered in the event it is higher than a new max"]
+                    #[doc = "  commission."]
+                    set_commission_max {
+                        pool_id: ::core::primitive::u32,
+                        max_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+                    },
+                    #[codec(index = 19)]
+                    #[doc = "Set the commission change rate for a pool."]
+                    #[doc = ""]
+                    #[doc = "Initial change rate is not bounded, whereas subsequent updates can only be more"]
+                    #[doc = "restrictive than the current."]
+                    set_commission_change_rate {
+                        pool_id: ::core::primitive::u32,
+                        change_rate: runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                            ::core::primitive::u32,
+                        >,
+                    },
+                    #[codec(index = 20)]
+                    #[doc = "Claim pending commission."]
+                    #[doc = ""]
+                    #[doc = "The dispatch origin of this call must be signed by the `root` role of the pool. Pending"]
+                    #[doc = "commission is paid out and added to total claimed commission`. Total pending commission"]
+                    #[doc = "is reset to zero. the current."]
+                    claim_commission { pool_id: ::core::primitive::u32 },
                 }
                 #[derive(
                     :: subxt :: ext :: codec :: Decode,
@@ -16972,12 +16688,30 @@ pub mod api {
                     #[doc = "Partial unbonding now allowed permissionlessly."]
                     PartialUnbondNotAllowedPermissionlessly,
                     #[codec(index = 21)]
+                    #[doc = "The pool's max commission cannot be set higher than the existing value."]
+                    MaxCommissionRestricted,
+                    #[codec(index = 22)]
+                    #[doc = "The supplied commission exceeds the max allowed commission."]
+                    CommissionExceedsMaximum,
+                    #[codec(index = 23)]
+                    #[doc = "Not enough blocks have surpassed since the last commission update."]
+                    CommissionChangeThrottled,
+                    #[codec(index = 24)]
+                    #[doc = "The submitted changes to commission change rate are not allowed."]
+                    CommissionChangeRateNotAllowed,
+                    #[codec(index = 25)]
+                    #[doc = "There is no pending commission to claim."]
+                    NoPendingCommission,
+                    #[codec(index = 26)]
+                    #[doc = "No commission current has been set."]
+                    NoCommissionCurrentSet,
+                    #[codec(index = 27)]
                     #[doc = "Pool id currently in use."]
                     PoolIdInUse,
-                    #[codec(index = 22)]
+                    #[codec(index = 28)]
                     #[doc = "Pool id provided is not correct/usable."]
                     InvalidPoolId,
-                    #[codec(index = 23)]
+                    #[codec(index = 29)]
                     #[doc = "Bonding extra is restricted to the exact pending reward amount."]
                     BondExtraRestricted,
                 }
@@ -17083,6 +16817,35 @@ pub mod api {
                         era: ::core::primitive::u32,
                         balance: ::core::primitive::u128,
                     },
+                    #[codec(index = 11)]
+                    #[doc = "A pool's commission setting has been changed."]
+                    PoolCommissionUpdated {
+                        pool_id: ::core::primitive::u32,
+                        current: ::core::option::Option<(
+                            runtime_types::sp_arithmetic::per_things::Perbill,
+                            ::subxt::ext::sp_core::crypto::AccountId32,
+                        )>,
+                    },
+                    #[codec(index = 12)]
+                    #[doc = "A pool's maximum commission setting has been changed."]
+                    PoolMaxCommissionUpdated {
+                        pool_id: ::core::primitive::u32,
+                        max_commission: runtime_types::sp_arithmetic::per_things::Perbill,
+                    },
+                    #[codec(index = 13)]
+                    #[doc = "A pool's commission `change_rate` has been changed."]
+                    PoolCommissionChangeRateUpdated {
+                        pool_id: ::core::primitive::u32,
+                        change_rate: runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                            ::core::primitive::u32,
+                        >,
+                    },
+                    #[codec(index = 14)]
+                    #[doc = "Pool commission has been claimed."]
+                    PoolCommissionClaimed {
+                        pool_id: ::core::primitive::u32,
+                        commission: ::core::primitive::u128,
+                    },
                 }
             }
             #[derive(
@@ -17108,12 +16871,13 @@ pub mod api {
                 PartialEq,
             )]
             pub struct BondedPoolInner {
-                pub points: ::core::primitive::u128,
-                pub state: runtime_types::pallet_nomination_pools::PoolState,
+                pub commission: runtime_types::pallet_nomination_pools::Commission,
                 pub member_counter: ::core::primitive::u32,
+                pub points: ::core::primitive::u128,
                 pub roles: runtime_types::pallet_nomination_pools::PoolRoles<
                     ::subxt::ext::sp_core::crypto::AccountId32,
                 >,
+                pub state: runtime_types::pallet_nomination_pools::PoolState,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -17132,6 +16896,39 @@ pub mod api {
                 PermissionlessWithdraw,
                 #[codec(index = 3)]
                 PermissionlessAll,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct Commission {
+                pub current: ::core::option::Option<(
+                    runtime_types::sp_arithmetic::per_things::Perbill,
+                    ::subxt::ext::sp_core::crypto::AccountId32,
+                )>,
+                pub max: ::core::option::Option<runtime_types::sp_arithmetic::per_things::Perbill>,
+                pub change_rate: ::core::option::Option<
+                    runtime_types::pallet_nomination_pools::CommissionChangeRate<
+                        ::core::primitive::u32,
+                    >,
+                >,
+                pub throttle_from: ::core::option::Option<::core::primitive::u32>,
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            pub struct CommissionChangeRate<_0> {
+                pub max_increase: runtime_types::sp_arithmetic::per_things::Perbill,
+                pub min_delay: _0,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -17211,6 +17008,8 @@ pub mod api {
                     runtime_types::sp_arithmetic::fixed_point::FixedU128,
                 pub last_recorded_total_payouts: ::core::primitive::u128,
                 pub total_rewards_claimed: ::core::primitive::u128,
+                pub total_commission_pending: ::core::primitive::u128,
+                pub total_commission_claimed: ::core::primitive::u128,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -20263,9 +20062,6 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::constants::ConstantsApi {
             committee_management::constants::ConstantsApi
         }
-        pub fn baby_liminal(&self) -> baby_liminal::constants::ConstantsApi {
-            baby_liminal::constants::ConstantsApi
-        }
     }
     pub struct StorageApi;
     impl StorageApi {
@@ -20334,9 +20130,6 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::storage::StorageApi {
             committee_management::storage::StorageApi
         }
-        pub fn baby_liminal(&self) -> baby_liminal::storage::StorageApi {
-            baby_liminal::storage::StorageApi
-        }
     }
     pub struct TransactionApi;
     impl TransactionApi {
@@ -20391,9 +20184,6 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::calls::TransactionApi {
             committee_management::calls::TransactionApi
         }
-        pub fn baby_liminal(&self) -> baby_liminal::calls::TransactionApi {
-            baby_liminal::calls::TransactionApi
-        }
     }
     #[doc = r" check whether the Client you are using is aligned with the statically generated codegen."]
     pub fn validate_codegen<T: ::subxt::Config, C: ::subxt::client::OfflineClientT<T>>(
@@ -20402,9 +20192,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                122u8, 97u8, 113u8, 156u8, 12u8, 137u8, 6u8, 34u8, 146u8, 125u8, 207u8, 173u8,
-                225u8, 26u8, 18u8, 163u8, 119u8, 80u8, 99u8, 193u8, 37u8, 125u8, 206u8, 17u8, 71u8,
-                80u8, 116u8, 68u8, 32u8, 9u8, 160u8, 62u8,
+                168u8, 128u8, 250u8, 174u8, 192u8, 105u8, 38u8, 136u8, 237u8, 46u8, 91u8, 110u8,
+                70u8, 191u8, 103u8, 63u8, 83u8, 124u8, 137u8, 154u8, 28u8, 5u8, 117u8, 36u8, 179u8,
+                6u8, 27u8, 117u8, 91u8, 190u8, 218u8, 58u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
