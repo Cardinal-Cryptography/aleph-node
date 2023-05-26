@@ -1,6 +1,5 @@
-use jf_primitives::{
-    circuit::merkle_tree::{Merkle3AryMembershipProofVar, RescueDigestGadget},
-    merkle_tree::{prelude::RescueSparseMerkleTree, MerkleTreeScheme, UniversalMerkleTreeScheme},
+use jf_primitives::merkle_tree::{
+    prelude::RescueSparseMerkleTree, MerkleTreeScheme, UniversalMerkleTreeScheme,
 };
 use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
@@ -13,7 +12,7 @@ use crate::{
         convert_account, convert_array, Account, LeafIndex, MerkleRoot, Note, Nullifier,
         TokenAmount, TokenId, Trapdoor,
     },
-    CircuitField, PlonkResult, PublicInput, Relation,
+    CircuitField, MerkleProof, MerkleTreeGadget, PlonkResult, PublicInput, Relation,
 };
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -157,15 +156,6 @@ impl Relation for WithdrawRelation {
         Ok(())
     }
 }
-
-// TODO refactor when implementing DepositAndMerge
-type MerkleTree = RescueSparseMerkleTree<BigUint, CircuitField>;
-type MerkleTreeGadget = dyn jf_primitives::circuit::merkle_tree::MerkleTreeGadget<
-    MerkleTree,
-    MembershipProofVar = Merkle3AryMembershipProofVar,
-    DigestGadget = RescueDigestGadget,
->;
-type MerkleProof = <MerkleTree as MerkleTreeScheme>::MembershipProof;
 
 fn check_merkle_proof(
     circuit: &mut PlonkCircuit<CircuitField>,

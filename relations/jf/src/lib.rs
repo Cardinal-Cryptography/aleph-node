@@ -6,7 +6,12 @@ pub use jf_plonk::{
     },
     transcript::StandardTranscript,
 };
+use jf_primitives::{
+    circuit::merkle_tree::{Merkle3AryMembershipProofVar, RescueDigestGadget},
+    merkle_tree::{prelude::RescueSparseMerkleTree, MerkleTreeScheme},
+};
 use jf_relation::PlonkCircuit;
+use num_bigint::BigUint;
 use rand_core::{CryptoRng, RngCore};
 
 pub mod deposit;
@@ -18,6 +23,14 @@ pub mod withdraw;
 pub type PlonkResult<T> = Result<T, PlonkError>;
 pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = ark_bls12_381::Fr;
+
+pub type MerkleTree = RescueSparseMerkleTree<BigUint, CircuitField>;
+pub type MerkleTreeGadget = dyn jf_primitives::circuit::merkle_tree::MerkleTreeGadget<
+    MerkleTree,
+    MembershipProofVar = Merkle3AryMembershipProofVar,
+    DigestGadget = RescueDigestGadget,
+>;
+pub type MerkleProof = <MerkleTree as MerkleTreeScheme>::MembershipProof;
 
 #[cfg(any(test, feature = "test-srs"))]
 pub fn generate_srs<R: CryptoRng + RngCore>(
