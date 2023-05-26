@@ -8,6 +8,8 @@ use tokio::{io::AsyncRead, time::Sleep};
 
 use crate::token_bucket::TokenBucket;
 
+/// Allows to limit access to some resource. Given a preferred rate (units of something) and last used amount of units of some
+/// resource, it calculates how long we should delay our next access to that resource in order to satisfy that rate.
 pub struct SleepingRateLimiter {
     rate_limiter: TokenBucket,
     sleep: Pin<Box<Sleep>>,
@@ -23,6 +25,7 @@ impl Clone for SleepingRateLimiter {
 }
 
 impl SleepingRateLimiter {
+    /// Constructs a instance of [SleepingRateLimiter] with given target rate-per-second.
     pub fn new(rate_per_second: usize) -> Self {
         Self {
             rate_limiter: TokenBucket::new(rate_per_second),
@@ -41,6 +44,8 @@ impl SleepingRateLimiter {
         &mut self.sleep
     }
 
+    /// Given `read_size`, that is an amount of units of some governed resource, delays return of `Self` to satisfy configure
+    /// rate.
     pub async fn rate_limit(mut self, read_size: usize) -> Self {
         self.set_sleep(read_size).await;
         self
@@ -49,25 +54,30 @@ impl SleepingRateLimiter {
 
 type SleepFuture = impl Future<Output = SleepingRateLimiter>;
 
-pub struct RateLimitedAsyncRead<A> {
+/// Implementation of the [AsyncRead](tokio::io::AsyncRead) trait that uses [SleepingRateLimiter] internally to limit rate at
+/// which its underlying `Read` is accessed.
+pub struct RateLimitedAsyncRead<Read> {
     rate_limiter: Pin<Box<SleepFuture>>,
-    read: A,
+    read: Read,
 }
 
-impl<A> RateLimitedAsyncRead<A> {
-    pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
+impl<Read> RateLimitedAsyncRead<Read> {
+    /// Constructs an instance of [RateLimitedAsyncRead] that uses already configured rate-limiting access governor
+    /// ([SleepingRateLimiter]).
+    pub fn new(read: Read, rate_limiter: SleepingRateLimiter) -> Self {
         Self {
             rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
             read,
         }
     }
 
-    pub fn inner(&self) -> &A {
+    /// Returns reference to internal `Read` instance.
+    pub fn inner(&self) -> &Read {
         &self.read
     }
 }
 
-impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
+impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,

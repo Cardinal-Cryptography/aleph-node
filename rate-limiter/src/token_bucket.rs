@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource.
 #[derive(Clone)]
 pub struct TokenBucket {
     rate_per_second: usize,
@@ -12,6 +13,7 @@ pub struct TokenBucket {
 }
 
 impl TokenBucket {
+    /// Constructs a instance of [TokenBucket] with given target rate-per-second.
     pub fn new(rate_per_second: usize) -> Self {
         Self {
             rate_per_second,
@@ -54,6 +56,8 @@ impl TokenBucket {
         self.available
     }
 
+    /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
+    /// configured rate limit.
     pub fn rate_limit(
         &mut self,
         requested: usize,

@@ -69,6 +69,9 @@ pub use crate::{
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
 
+/// Default value of the bit-rate limit per connection used by the validator-network.
+const ALEPHBFT_BIT_RATE_PER_CONNECTION: usize = 1024 * 1024;
+
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(
     naming: ProtocolNaming,
@@ -283,7 +286,7 @@ pub struct RateLimiterConfig {
 impl Default for RateLimiterConfig {
     fn default() -> Self {
         Self {
-            alephbft_bit_rate_per_connection: 1024 * 1024,
+            alephbft_bit_rate_per_connection: ALEPHBFT_BIT_RATE_PER_CONNECTION,
         }
     }
 }
