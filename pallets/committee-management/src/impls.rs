@@ -4,7 +4,7 @@ use primitives::{
     SessionValidators, ValidatorProvider,
 };
 use rand::{seq::SliceRandom, SeedableRng};
-use rand_pcg::Pcg64Mcg;
+use rand_pcg::Pcg32;
 use sp_runtime::{Perbill, Perquintill};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
@@ -65,7 +65,7 @@ fn shuffle_order_for_session<T>(
     validators: &mut Vec<T>,
     session: SessionIndex,
 ) {
-    let mut rng = Pcg64Mcg::seed_from_u64(session as u64);
+    let mut rng = Pcg32::seed_from_u64(session as u64);
 
     producers.shuffle(&mut rng);
     validators.shuffle(&mut rng);
