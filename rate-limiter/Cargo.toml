@@ -9,5 +9,5 @@ repository.workspace = true
 
 
 [dependencies]
-futures = "0.3"
-tokio = { version = "1.25", features = [ "time" ] }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["time"] }

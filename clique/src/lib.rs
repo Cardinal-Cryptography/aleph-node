@@ -1,14 +1,12 @@
 //! A network for maintaining direct connections between all nodes.
-#![feature(type_alias_impl_trait)]
+
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     pin::Pin,
 };
 
-use futures::{Future, FutureExt};
 use parity_scale_codec::Codec;
-use rate_limiter::SleepingRateLimiter;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod crypto;
@@ -18,11 +16,13 @@ mod manager;
 pub mod mock;
 mod outgoing;
 mod protocols;
+mod rate_limiting;
 mod service;
 #[cfg(test)]
 mod testing;
 
 pub use crypto::{PublicKey, SecretKey};
+pub use rate_limiting::{RateLimitingDialer, RateLimitingListener};
 pub use service::{Service, SpawnHandleT};
 
 const LOG_TARGET: &str = "network-clique";
@@ -186,46 +186,6 @@ impl Listener for TcpListener {
     }
 }
 
-type SleepFuture = impl Future<Output = SleepingRateLimiter>;
-
-pub struct RateLimitedAsyncRead<A> {
-    rate_limiter: Pin<Box<SleepFuture>>,
-    read: A,
-}
-
-impl<A> RateLimitedAsyncRead<A> {
-    pub fn new(read: A, rate_limiter: SleepingRateLimiter) -> Self {
-        Self {
-            rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
-            read,
-        }
-    }
-}
-
-impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let sleeping_rate_limiter = match self.rate_limiter.poll_unpin(cx) {
-            std::task::Poll::Ready(rate_limiter) => rate_limiter,
-            _ => return std::task::Poll::Pending,
-        };
-
-        let filled_before = buf.filled().len();
-        let result = Pin::new(&mut self.read).poll_read(cx, buf);
-        let filled_after = buf.filled().len();
-        let last_read_size = filled_after - filled_before;
-        let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
-
-        self.rate_limiter
-            .set(sleeping_rate_limiter.rate_limit(last_read_size));
-
-        result
-    }
-}
-
 pub struct Splitted<I, O>(I, O);
 
 impl<I: AsyncRead + Unpin, O: Unpin> AsyncRead for Splitted<I, O> {
@@ -278,82 +238,5 @@ impl<
 
     fn split(self) -> (Self::Sender, Self::Receiver) {
         (self.1, self.0)
-    }
-}
-
-impl<A: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<A> {
-    fn peer_address_info(&self) -> PeerAddressInfo {
-        self.read.peer_address_info()
-    }
-}
-
-#[derive(Clone)]
-pub struct RateLimitingDialer<D> {
-    dialer: D,
-    rate_limiter: SleepingRateLimiter,
-}
-
-impl<D> RateLimitingDialer<D> {
-    pub fn new(dialer: D, rate_limiter: SleepingRateLimiter) -> Self {
-        Self {
-            dialer,
-            rate_limiter,
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<A, D> Dialer<A> for RateLimitingDialer<D>
-where
-    A: Data,
-    D: Dialer<A>,
-    <D::Connection as Splittable>::Sender: Unpin,
-    <D::Connection as Splittable>::Receiver: Unpin,
-{
-    type Connection = Splitted<
-        RateLimitedAsyncRead<<D::Connection as Splittable>::Receiver>,
-        <D::Connection as Splittable>::Sender,
-    >;
-    type Error = D::Error;
-
-    async fn connect(&mut self, address: A) -> Result<Self::Connection, Self::Error> {
-        let connection = self.dialer.connect(address).await?;
-        let (sender, receiver) = connection.split();
-        Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
-            sender,
-        ))
-    }
-}
-
-pub struct RateLimitingListener<L> {
-    listener: L,
-    rate_limiter: SleepingRateLimiter,
-}
-
-impl<L> RateLimitingListener<L> {
-    pub fn new(listener: L, rate_limiter: SleepingRateLimiter) -> Self {
-        Self {
-            listener,
-            rate_limiter,
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<L: Listener + Send> Listener for RateLimitingListener<L> {
-    type Connection = Splitted<
-        RateLimitedAsyncRead<<L::Connection as Splittable>::Receiver>,
-        <L::Connection as Splittable>::Sender,
-    >;
-    type Error = L::Error;
-
-    async fn accept(&mut self) -> Result<Self::Connection, Self::Error> {
-        let connection = self.listener.accept().await?;
-        let (sender, receiver) = connection.split();
-        Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
-            sender,
-        ))
     }
 }
