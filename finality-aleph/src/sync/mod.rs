@@ -114,7 +114,11 @@ pub enum BlockStatus<J: Justification> {
 }
 
 /// The knowledge about the chain status.
-pub trait ChainStatus<J: Justification>: Clone + Send + Sync + 'static {
+pub trait ChainStatus<B, J>: Clone + Send + Sync + 'static
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
     type Error: Display;
 
     /// The status of the block.
@@ -122,6 +126,12 @@ pub trait ChainStatus<J: Justification>: Clone + Send + Sync + 'static {
         &self,
         id: <J::Header as Header>::Identifier,
     ) -> Result<BlockStatus<J>, Self::Error>;
+
+    /// Export a copy of the block.
+    fn block(
+        &self,
+        id: &<B::Header as Header>::Identifier,
+    ) -> Result<Option<B>, Self::Error>;
 
     /// The justification at this block number, if we have it. Should return None if the
     /// request is above the top finalized.

@@ -10,7 +10,7 @@ use sp_blockchain::{Backend as _, Error as BackendError, Info};
 use sp_runtime::traits::{Block as BlockT, Header as SubstrateHeader};
 
 use crate::{
-    aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID},
+    aleph_primitives::{BlockNumber, ALEPH_ENGINE_ID, Block as AlephBlock, Header as AlephHeader},
     justification::backwards_compatible_decode,
     sync::{
         substrate::{BlockId, Justification},
@@ -22,6 +22,7 @@ use crate::{
 #[derive(Debug)]
 pub enum Error<B: BlockT> {
     MissingHash(B::Hash),
+    MissingBody(B::Hash),
     MissingJustification(B::Hash),
     Backend(BackendError),
     MismatchedId,
@@ -36,6 +37,13 @@ impl<B: BlockT> Display for Error<B> {
                 write!(
                     f,
                     "data availability problem: no block for existing hash {:?}",
+                    hash
+                )
+            }
+            MissingBody(hash) => {
+                write!(
+                    f,
+                    "data availability problem: no block body for existing hash {:?}",
                     hash
                 )
             }
@@ -101,6 +109,10 @@ where
         self.backend.blockchain().header(hash)
     }
 
+    fn body_for_hash(&self, hash: B::Hash) -> Result<Option<Vec<B::Extrinsic>>, BackendError> {
+        self.backend.blockchain().body(hash)
+    }
+
     fn header(
         &self,
         id: &<B::Header as Header>::Identifier,
@@ -159,17 +171,14 @@ where
     }
 }
 
-impl<B> ChainStatus<Justification<B::Header>> for SubstrateChainStatus<B>
-where
-    B: BlockT,
-    B::Header: SubstrateHeader<Number = BlockNumber>,
+impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatus<AlephBlock>
 {
-    type Error = Error<B>;
+    type Error = Error<AlephBlock>;
 
     fn finalized_at(
         &self,
         number: BlockNumber,
-    ) -> Result<Option<Justification<B::Header>>, Self::Error> {
+    ) -> Result<Option<Justification<AlephHeader>>, Self::Error> {
         let id = match self.hash_for_number(number)? {
             Some(hash) => BlockId { hash, number },
             None => return Ok(None),
@@ -180,10 +189,25 @@ where
         }
     }
 
+    fn block(
+        &self,
+        id: &<AlephBlock as Header>::Identifier,
+    ) -> Result<Option<AlephBlock>, Self::Error> {
+        let header = match self.header(&id)? {
+            Some(header) => header,
+            None => return Ok(None),
+        };
+        let body = match self.body_for_hash(id.hash)? {
+            Some(body) => body,
+            None => return Err(Error::MissingBody(id.hash)),
+        };
+        Ok(Some(AlephBlock::new(header, body)))
+    }
+
     fn status_of(
         &self,
-        id: <B::Header as Header>::Identifier,
-    ) -> Result<BlockStatus<Justification<B::Header>>, Self::Error> {
+        id: <AlephBlock as Header>::Identifier,
+    ) -> Result<BlockStatus<Justification<AlephHeader>>, Self::Error> {
         let header = match self.header(&id)? {
             Some(header) => header,
             None => return Ok(BlockStatus::Unknown),
@@ -196,14 +220,14 @@ where
         }
     }
 
-    fn best_block(&self) -> Result<B::Header, Self::Error> {
+    fn best_block(&self) -> Result<AlephHeader, Self::Error> {
         let best_hash = self.best_hash();
 
         self.header_for_hash(best_hash)?
             .ok_or(Error::MissingHash(best_hash))
     }
 
-    fn top_finalized(&self) -> Result<Justification<B::Header>, Self::Error> {
+    fn top_finalized(&self) -> Result<Justification<AlephHeader>, Self::Error> {
         let finalized_hash = self.finalized_hash();
         let header = self
             .header_for_hash(finalized_hash)?
@@ -214,8 +238,8 @@ where
 
     fn children(
         &self,
-        id: <B::Header as Header>::Identifier,
-    ) -> Result<Vec<B::Header>, Self::Error> {
+        id: <AlephBlock as Header>::Identifier,
+    ) -> Result<Vec<AlephHeader>, Self::Error> {
         // This checks whether we have the block at all and the provided id is consistent.
         self.header(&id)?;
         Ok(self
@@ -224,7 +248,7 @@ where
             .children(id.hash)?
             .into_iter()
             .map(|hash| self.header_for_hash(hash))
-            .collect::<Result<Vec<Option<B::Header>>, BackendError>>()?
+            .collect::<Result<Vec<Option<AlephHeader>>, BackendError>>()?
             .into_iter()
             .flatten()
             .collect())
