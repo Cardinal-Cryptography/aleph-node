@@ -204,23 +204,22 @@ impl<A> RateLimitedAsyncRead<A> {
 
 impl<A: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<A> {
     fn poll_read(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        let sleeping_rate_limiter = match this.rate_limiter.poll_unpin(cx) {
+        let sleeping_rate_limiter = match self.rate_limiter.poll_unpin(cx) {
             std::task::Poll::Ready(rate_limiter) => rate_limiter,
             _ => return std::task::Poll::Pending,
         };
 
         let filled_before = buf.filled().len();
-        let result = Pin::new(&mut this.read).poll_read(cx, buf);
+        let result = Pin::new(&mut self.read).poll_read(cx, buf);
         let filled_after = buf.filled().len();
         let last_read_size = filled_after - filled_before;
         let last_read_size = last_read_size.try_into().unwrap_or(u64::MAX);
 
-        this.rate_limiter
+        self.rate_limiter
             .set(sleeping_rate_limiter.rate_limit(last_read_size));
 
         result
@@ -231,12 +230,11 @@ pub struct Splitted<I, O>(I, O);
 
 impl<I: AsyncRead + Unpin, O: Unpin> AsyncRead for Splitted<I, O> {
     fn poll_read(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        Pin::new(&mut this.0).poll_read(cx, buf)
+        Pin::new(&mut self.0).poll_read(cx, buf)
     }
 }
 
