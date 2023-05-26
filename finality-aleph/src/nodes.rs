@@ -3,8 +3,8 @@ use std::{marker::PhantomData, sync::Arc};
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
-use network_clique::{Service, SpawnHandleT};
-use rate_limiter::TokenBucket;
+use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
+use rate_limiter::{SleepingRateLimiter, TokenBucket};
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
@@ -18,7 +18,7 @@ use crate::{
     justification::Requester,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
-        tcp::{new_rate_limited_network, KEY_TYPE},
+        tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
     },
     party::{
@@ -90,17 +90,21 @@ where
     .await;
 
     debug!(target: "aleph-party", "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
-    let alephbft_rate_limiter =
-        TokenBucket::new(rate_limiter_config.alephbft_bit_rate_per_connection);
 
-    let (dialer, listener, network_identity) = new_rate_limited_network(
-        alephbft_rate_limiter,
+    let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
         external_addresses,
         &network_authority_pen,
     )
     .await
     .expect("we should have working networking");
+
+    let alephbft_rate_limiter = SleepingRateLimiter::new(TokenBucket::new(
+        rate_limiter_config.alephbft_bit_rate_per_connection,
+    ));
+    let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.clone());
+    let listener = RateLimitingListener::new(listener, alephbft_rate_limiter);
+
     let (validator_network_service, validator_network) = Service::new(
         dialer,
         listener,
