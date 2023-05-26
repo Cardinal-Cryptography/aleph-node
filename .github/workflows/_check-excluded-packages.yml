@@ -76,7 +76,7 @@ jobs:
                 :
             elif [ $p = "pallets/baby-liminal" ]
             then
-                cargo test
+                cargo test --features runtime-benchmarks
             else
                 cargo clippy -- --no-deps -D warnings
             fi
