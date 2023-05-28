@@ -698,15 +698,14 @@ impl pallet_contracts::Config for Runtime {
     type RuntimeCall = RuntimeCall;
     // The safest default is to allow no calls at all. This is unsafe experimental feature with no support in ink!
     type CallFilter = Nothing;
-    type DepositPerItem = DepositPerItem;
-    type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     type ChainExtension = ();
-    type DeletionQueueDepth = DeletionQueueDepth;
-    type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 16];
+    type DepositPerByte = DepositPerByte;
+    type DefaultDepositLimit = ExistentialDeposit;
+    type DepositPerItem = DepositPerItem;
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
     type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
@@ -867,6 +866,14 @@ impl_runtime_apis! {
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
+        }
+
+        fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+            Runtime::metadata_at_version(version)
+        }
+
+        fn metadata_versions() -> sp_std::vec::Vec<u32> {
+            Runtime::metadata_versions()
         }
     }
 
