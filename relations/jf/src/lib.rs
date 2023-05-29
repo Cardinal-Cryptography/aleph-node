@@ -10,9 +10,10 @@ use jf_primitives::{
     circuit::merkle_tree::{Merkle3AryMembershipProofVar, RescueDigestGadget},
     merkle_tree::{prelude::RescueSparseMerkleTree, MerkleTreeScheme},
 };
-use jf_relation::PlonkCircuit;
+use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
 use rand_core::{CryptoRng, RngCore};
+use shielder_types::{convert_array, LeafIndex, MerkleRoot};
 
 pub mod deposit;
 pub mod merge;
@@ -33,6 +34,21 @@ pub type MerkleTreeGadget = dyn jf_primitives::circuit::merkle_tree::MerkleTreeG
 pub type MerkleProof = <MerkleTree as MerkleTreeScheme>::MembershipProof;
 
 const MERKLE_TREE_HEIGHT: usize = 11;
+
+pub(crate) fn check_merkle_proof(
+    circuit: &mut PlonkCircuit<CircuitField>,
+    leaf_index: LeafIndex,
+    merkle_root: MerkleRoot,
+    merkle_proof: &MerkleProof,
+) -> PlonkResult<()> {
+    let index_var = circuit.create_variable(leaf_index.into())?;
+    let proof_var = MerkleTreeGadget::create_membership_proof_variable(circuit, merkle_proof)?;
+    let root_var = MerkleTreeGadget::create_root_variable(circuit, convert_array(merkle_root))?;
+    circuit.set_variable_public(root_var)?;
+
+    MerkleTreeGadget::enforce_membership_proof(circuit, index_var, proof_var, root_var)
+        .map_err(Into::into)
+}
 
 #[cfg(any(test, feature = "test-srs"))]
 pub fn generate_srs<R: CryptoRng + RngCore>(

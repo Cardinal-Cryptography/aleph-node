@@ -5,13 +5,13 @@ use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
 
 use crate::{
+    check_merkle_proof,
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
         convert_account, convert_array, Account, LeafIndex, MerkleRoot, Note, Nullifier,
         TokenAmount, TokenId, Trapdoor,
     },
-    CircuitField, MerkleProof, MerkleTreeGadget, PlonkResult, PublicInput, Relation,
-    MERKLE_TREE_HEIGHT,
+    CircuitField, MerkleProof, PlonkResult, PublicInput, Relation, MERKLE_TREE_HEIGHT,
 };
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -155,21 +155,6 @@ impl Relation for WithdrawRelation {
 
         Ok(())
     }
-}
-
-fn check_merkle_proof(
-    circuit: &mut PlonkCircuit<CircuitField>,
-    leaf_index: LeafIndex,
-    merkle_root: MerkleRoot,
-    merkle_proof: &MerkleProof,
-) -> PlonkResult<()> {
-    let index_var = circuit.create_variable(leaf_index.into())?;
-    let proof_var = MerkleTreeGadget::create_membership_proof_variable(circuit, merkle_proof)?;
-    let root_var = MerkleTreeGadget::create_root_variable(circuit, convert_array(merkle_root))?;
-    circuit.set_variable_public(root_var)?;
-
-    MerkleTreeGadget::enforce_membership_proof(circuit, index_var, proof_var, root_var)
-        .map_err(Into::into)
 }
 
 #[cfg(test)]
