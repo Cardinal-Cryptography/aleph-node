@@ -59,7 +59,7 @@ jobs:
     needs: [run-e2e-tests]
     if: always()
     runs-on: ubuntu-20.04
-      steps:
+    steps:
       - name: All e2e tests completed
         run: |
          echo "All e2e tests completed."
