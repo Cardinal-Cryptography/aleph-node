@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
         with:
           targets: wasm32-unknown-unknown
           components: clippy rustfmt
@@ -48,7 +48,7 @@ jobs:
 
           rustup component add rust-src --toolchain nightly-2022-10-30-x86_64-unknown-linux-gnu
           cargo install cargo-dylint dylint-link
-          cargo install cargo-contract --vers ^2.0 --force --locked
+          cargo install --version 2.1.0 --force --locked cargo-contract
 
           packages="${{ steps.format_output.outputs.packages }}"
           packages="${packages//'%0A'/$'\n'}"
@@ -68,9 +68,17 @@ jobs:
                [ $p = "contracts/ticket_token" ] ||
                [ $p = "contracts/wrapped_azero" ]
             then
-               cargo contract check
+                cargo contract check
+            elif [ $p = "baby-liminal-extension" ]
+            then
+                # cargo clippy --release --no-default-features --features substrate \
+                #  --target wasm32-unknown-unknown -- --no-deps -D warnings
+                :
+            elif [ $p = "pallets/baby-liminal" ]
+            then
+                cargo test --features runtime-benchmarks
             else
-               cargo clippy -- --no-deps -D warnings
+                cargo clippy -- --no-deps -D warnings
             fi
             cargo fmt --all --check
             popd
@@ -83,14 +91,18 @@ jobs:
         env:
           CHECK: aleph-zero-cargo-nono check --no-default-features
         run: |
-          cd baby-liminal-extension/
-          ${CHECK}
-          ${CHECK} --features ink
+          # `sp-io/src/lib.rs` from `aleph-v0.9.38` cannot be parsed with
+          # `syn` from `aleph-zero-cargo-nono`; we have to wait for
+          # a version bump
+          #
+          # cd baby-liminal-extension/
+          # ${CHECK}
+          # ${CHECK} --features ink
 
-          cd ../poseidon/
+          cd poseidon/
           ${CHECK}
           ${CHECK} --features circuit
 
-          cd ../relations/
+          cd ../relations/ark/
           ${CHECK}
           ${CHECK} --features circuit

@@ -1,17 +1,16 @@
 use std::{default::Default, sync::Arc};
 
-use aleph_primitives::BlockNumber;
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
-use sp_api::BlockId;
 use sp_consensus::BlockOrigin;
 use sp_core::hash::H256;
 use sp_runtime::{traits::Block as BlockT, Digest};
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
 use crate::{
+    aleph_primitives::BlockNumber,
     testing::mocks::{TBlock, THeader, TestClient},
-    BlockHashNum,
+    IdentifierFor,
 };
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
@@ -57,8 +56,8 @@ impl ClientChainBuilder {
         self.client.finalize_block(*hash, None).unwrap();
     }
 
-    pub fn genesis_hash_num(&self) -> BlockHashNum<TBlock> {
-        BlockHashNum::<TBlock>::new(self.client.info().genesis_hash, 0)
+    pub fn genesis_hash_num(&self) -> IdentifierFor<TBlock> {
+        IdentifierFor::<TBlock>::new(self.client.info().genesis_hash, 0)
     }
 
     pub fn genesis_hash(&self) -> H256 {
@@ -76,7 +75,7 @@ impl ClientChainBuilder {
         digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
         let block = self
             .client_builder
-            .new_block_at(&BlockId::Hash(*parent), digest, false)
+            .new_block_at(*parent, digest, false)
             .unwrap()
             .build()
             .unwrap()

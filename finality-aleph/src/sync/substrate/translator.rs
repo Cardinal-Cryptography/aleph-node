@@ -1,9 +1,9 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use aleph_primitives::BlockNumber;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
+    aleph_primitives::BlockNumber,
     justification::AlephJustification,
     sync::{
         substrate::{
@@ -48,11 +48,9 @@ where
     fn translate(
         &self,
         aleph_justification: AlephJustification,
-        hash: <B::Header as Header>::Hash,
-        number: BlockNumber,
+        block_id: BlockId<B::Header>,
     ) -> Result<Justification<B::Header>, Self::Error> {
         use BlockStatus::*;
-        let block_id = BlockId::new(hash, number);
         match self.status_of(block_id)? {
             Justified(Justification { header, .. }) | Present(header) => Ok(
                 Justification::aleph_justification(header, aleph_justification),

@@ -1,15 +1,12 @@
-use std::{
-    fmt::{Debug, Display},
-    hash::{Hash, Hasher},
-};
+use std::fmt::{Debug, Display};
 
-use aleph_primitives::BlockNumber;
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
 
 use crate::{
-    sync::{Header, Justification as JustificationT},
-    AlephJustification, BlockIdentifier,
+    aleph_primitives::{Block, BlockNumber, Header},
+    sync::{Block as BlockT, Header as HeaderT, Justification as JustificationT},
+    AlephJustification, BlockId,
 };
 
 mod chain_status;
@@ -23,41 +20,7 @@ pub use status_notifier::SubstrateChainStatusNotifier;
 pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-/// An identifier uniquely specifying a block and its height.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
-pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
-    hash: H::Hash,
-    number: H::Number,
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockId<H> {
-    pub fn new(hash: H::Hash, number: H::Number) -> Self {
-        BlockId { hash, number }
-    }
-
-    // This should be removed in A0-2228, all according to plan.
-    pub fn hash(&self) -> &H::Hash {
-        &self.hash
-    }
-}
-
-impl<SH: SubstrateHeader<Number = BlockNumber>> Hash for BlockId<SH> {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        self.hash.hash(state);
-        self.number.hash(state);
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
-    fn number(&self) -> u32 {
-        self.number
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
+impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for H {
     type Identifier = BlockId<H>;
 
     fn id(&self) -> Self::Identifier {
@@ -73,6 +36,15 @@ impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
             hash: *self.parent_hash(),
             number,
         })
+    }
+}
+
+impl BlockT for Block {
+    type Header = Header;
+
+    /// The header of the block.
+    fn header(&self) -> &Self::Header {
+        &self.header
     }
 }
 
@@ -108,7 +80,7 @@ impl<H: SubstrateHeader<Number = BlockNumber>> Justification<H> {
     }
 }
 
-impl<H: SubstrateHeader<Number = BlockNumber>> Header for Justification<H> {
+impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for Justification<H> {
     type Identifier = BlockId<H>;
 
     fn id(&self) -> Self::Identifier {
@@ -140,7 +112,6 @@ pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Sen
     fn translate(
         &self,
         raw_justification: AlephJustification,
-        hash: H::Hash,
-        number: H::Number,
+        block_id: BlockId<H>,
     ) -> Result<Justification<H>, Self::Error>;
 }

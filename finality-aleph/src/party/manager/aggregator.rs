@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use aleph_primitives::BlockNumber;
 use futures::{
     channel::{mpsc, oneshot},
     pin_mut, StreamExt,
@@ -13,6 +12,7 @@ use tokio::time;
 use crate::{
     abft::SignatureSet,
     aggregation::Aggregator,
+    aleph_primitives::BlockNumber,
     crypto::Signature,
     justification::AlephJustification,
     metrics::Checkpoint,
@@ -22,7 +22,7 @@ use crate::{
         AuthoritySubtaskCommon, Task,
     },
     sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
-    BlockHashNum, CurrentRmcNetworkData, HashNum, Keychain, LegacyRmcNetworkData, Metrics,
+    BlockId, CurrentRmcNetworkData, IdentifierFor, Keychain, LegacyRmcNetworkData, Metrics,
     SessionBoundaries, STATUS_REPORT_INTERVAL,
 };
 
@@ -33,25 +33,24 @@ where
     JS: JustificationSubmissions<Justification<H>> + Send + Sync + Clone,
     JT: JustificationTranslator<H> + Send + Sync + Clone,
 {
-    pub blocks_from_interpreter: mpsc::UnboundedReceiver<HashNum<H>>,
+    pub blocks_from_interpreter: mpsc::UnboundedReceiver<BlockId<H>>,
     pub justifications_for_chain: JS,
     pub justification_translator: JT,
 }
 
 async fn process_new_block_data<B, CN, LN>(
     aggregator: &mut Aggregator<'_, B, CN, LN>,
-    block: BlockHashNum<B>,
-    metrics: &Option<Metrics<<B::Header as Header>::Hash>>,
+    block: IdentifierFor<B>,
+    metrics: &Metrics<<B::Header as Header>::Hash>,
 ) where
     B: Block,
+    B::Header: Header<Number = BlockNumber>,
     CN: Network<CurrentRmcNetworkData<B>>,
     LN: Network<LegacyRmcNetworkData<B>>,
     <B as Block>::Hash: AsRef<[u8]>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    if let Some(metrics) = &metrics {
-        metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
-    }
+    metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
 
     aggregator.start_aggregation(block.hash).await;
 }
@@ -74,8 +73,7 @@ where
     // The unwrap might actually fail if data availability is not implemented correctly.
     let justification = match justification_translator.translate(
         AlephJustification::CommitteeMultisignature(multisignature),
-        hash,
-        number,
+        BlockId::new(hash, number),
     ) {
         Ok(justification) => justification,
         Err(e) => {
@@ -95,7 +93,7 @@ async fn run_aggregator<B, C, CN, LN, JS, JT>(
     io: IO<B::Header, JS, JT>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: Metrics<<B::Header as Header>::Hash>,
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
@@ -115,7 +113,7 @@ where
     } = io;
 
     let blocks_from_interpreter = blocks_from_interpreter.take_while(|block| {
-        let block_num = block.num;
+        let block_num = block.number;
         async move {
             if block_num == session_boundaries.last_block() {
                 debug!(target: "aleph-party", "Aggregator is processing last block in session.");
@@ -184,7 +182,7 @@ pub fn task<B, C, CN, LN, JS, JT>(
     client: Arc<C>,
     io: IO<B::Header, JS, JT>,
     session_boundaries: SessionBoundaries,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: Metrics<<B::Header as Header>::Hash>,
     multikeychain: Keychain,
     version: AggregatorVersion<CN, LN>,
 ) -> Task

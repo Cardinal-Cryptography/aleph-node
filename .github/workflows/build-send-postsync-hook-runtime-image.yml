@@ -26,10 +26,11 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        # yamllint disable-line rule:line-length
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
@@ -102,7 +103,7 @@ jobs:
             kustomize edit set image "send-runtime-hook-image-placeholder=${{ env.RELEASE_IMAGE }}"
 
       - name: GIT | Commit changes to argocd apps repository.
-        uses: EndBug/add-and-commit@v9.1.1
+        uses: EndBug/add-and-commit@v9.1.2
         with:
           author_name: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}

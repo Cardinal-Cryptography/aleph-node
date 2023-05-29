@@ -9,11 +9,17 @@ inputs:
   repo-apps-name:
     description: 'Name of the repository containing apps definitions'
     required: true
+  repo-featurenets-name:
+    description: 'Name of the repository containing featurenets manifests'
+    required: true
   aws-access-key-id:
     description: 'AWS Access Key ID to be used in the action'
     required: true
   aws-secret-access-key:
     description: 'AWS Secret Access Key to be used in the action'
+    required: true
+  ecr-public-registry:
+    description: "ECR public registry, with slash at the end, eg. 'public.ecr.aws/something/'"
     required: true
   featurenet-keys-s3bucket-name:
     description: 'S3 bucket name with featurenet keys'
@@ -46,7 +52,8 @@ runs:
 
     - name: Get branch name and commit SHA
       id: get-ref-properties
-      uses: ./.github/actions/get-ref-properties
+      # yamllint disable-line rule:line-length
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
     - name: Checkout argocd apps repo
       uses: actions/checkout@v3
@@ -54,6 +61,14 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
+        ref: main
+
+    - name: Checkout featurenets repo
+      uses: actions/checkout@v3
+      with:
+        repository: Cardinal-Cryptography/${{ inputs.repo-featurenets-name }}
+        token: ${{ inputs.gh-ci-token }}
+        path: "${{ inputs.repo-featurenets-name }}"
         ref: main
 
     - name: Configure AWS credentials
@@ -70,6 +85,7 @@ runs:
       env:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+        OPSSH_TARGETPATH: "${{ github.workspace }}/${{ inputs.repo-featurenets-name }}"
       run: |
         cd "${{ inputs.repo-apps-name }}"
         ./Ops.sh delete-featurenet "${{ env.APP_NAME }}"
@@ -85,7 +101,7 @@ runs:
         author_email: alephzero@10clouds.com
         message: "Delete featurenet ${{ env.APP_NAME }}"
         add: "*.yaml"
-        cwd: "${{ inputs.repo-apps-name }}"
+        cwd: "${{ inputs.repo-featurenets-name }}"
 
     - name: Refresh Argo and wait for the deletion to be finished
       shell: bash
@@ -100,5 +116,12 @@ runs:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
-        aws s3 rm --recursive \
-          s3://${{ inputs.featurenet-keys-s3bucket-name }}/${{ env.APP_NAME }}
+        docker run --rm \
+          -e SOURCE_NET=testnet \
+          -e AWS_ACCESS_KEY_ID \
+          -e AWS_SECRET_ACCESS_KEY \
+          -e AWS_REGION \
+          -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
+          -e FEATURENET_NAME=${{ env.APP_NAME }} \
+          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.2.0 \
+          delete-data-from-s3

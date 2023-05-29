@@ -4,7 +4,7 @@ use std::{
     marker::Send,
 };
 
-use codec::Codec;
+use parity_scale_codec::Codec;
 
 mod data;
 mod forest;
@@ -18,7 +18,7 @@ mod ticker;
 
 pub use service::Service;
 pub use substrate::{
-    BlockId, Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
+    Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
     SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
 };
 
@@ -31,12 +31,6 @@ pub trait PeerId: Debug + Clone + Hash + Eq {}
 
 impl<T: Debug + Clone + Hash + Eq> PeerId for T {}
 
-/// Informs the sync that it should attempt to acquire the specified data.
-pub trait Requester<BI: BlockIdentifier> {
-    /// The sync should attempt to acquire justifications for this block.
-    fn request_justification(&self, id: BI);
-}
-
 /// The header of a block, containing information about the parent relation.
 pub trait Header: Clone + Codec + Send + Sync + 'static {
     type Identifier: BlockIdentifier;
@@ -46,6 +40,14 @@ pub trait Header: Clone + Codec + Send + Sync + 'static {
 
     /// The identifier of this block's parent.
     fn parent_id(&self) -> Option<Self::Identifier>;
+}
+
+/// The block, including a header.
+pub trait Block: Clone + Codec + Debug + Send + Sync + 'static {
+    type Header: Header;
+
+    /// The header of the block.
+    fn header(&self) -> &Self::Header;
 }
 
 /// The verified justification of a block, including a header.
@@ -147,4 +149,13 @@ pub trait JustificationSubmissions<J: Justification> {
 
     /// Submit a justification to the underlying justification sync.
     fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error>;
+}
+
+/// An interface for requesting specific blocks from the block sync.
+/// Required by the data availability mechanism in ABFT.
+pub trait RequestBlocks<BI: BlockIdentifier> {
+    type Error: Display;
+
+    /// Request the given block.
+    fn request_block(&mut self, block_id: BI) -> Result<(), Self::Error>;
 }
