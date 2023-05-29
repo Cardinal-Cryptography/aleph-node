@@ -32,6 +32,8 @@ pub type MerkleTreeGadget = dyn jf_primitives::circuit::merkle_tree::MerkleTreeG
 >;
 pub type MerkleProof = <MerkleTree as MerkleTreeScheme>::MembershipProof;
 
+const MERKLE_TREE_HEIGHT: usize = 11;
+
 #[cfg(any(test, feature = "test-srs"))]
 pub fn generate_srs<R: CryptoRng + RngCore>(
     max_degree: usize,

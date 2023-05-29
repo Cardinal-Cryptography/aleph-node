@@ -4,8 +4,6 @@ use jf_primitives::merkle_tree::{
 use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
 
-const TREE_HEIGTH: usize = 11;
-
 use crate::{
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
@@ -13,6 +11,7 @@ use crate::{
         TokenAmount, TokenId, Trapdoor,
     },
     CircuitField, MerkleProof, MerkleTreeGadget, PlonkResult, PublicInput, Relation,
+    MERKLE_TREE_HEIGHT,
 };
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -60,7 +59,8 @@ impl Default for WithdrawPrivateInput {
     fn default() -> Self {
         let uid = BigUint::from(0u64);
         let elem = CircuitField::from(0u64);
-        let mt = RescueSparseMerkleTree::from_kv_set(TREE_HEIGTH, &[(uid.clone(), elem)]).unwrap();
+        let mt = RescueSparseMerkleTree::from_kv_set(MERKLE_TREE_HEIGHT, &[(uid.clone(), elem)])
+            .unwrap();
         let (_, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
 
         Self {
@@ -189,8 +189,8 @@ mod tests {
     use crate::{
         generate_srs,
         shielder_types::{compute_note, convert_account, convert_array},
-        withdraw::{WithdrawPrivateInput, WithdrawPublicInput, WithdrawRelation, TREE_HEIGTH},
-        CircuitField, Curve, PublicInput, Relation,
+        withdraw::{WithdrawPrivateInput, WithdrawPublicInput, WithdrawRelation},
+        CircuitField, Curve, PublicInput, Relation, MERKLE_TREE_HEIGHT,
     };
 
     fn relation() -> WithdrawRelation {
@@ -218,7 +218,8 @@ mod tests {
         let leaf_index = 0u64;
         let uid = BigUint::from(leaf_index);
         let elem = convert_array(spend_note);
-        let mt = RescueSparseMerkleTree::from_kv_set(TREE_HEIGTH, &[(uid.clone(), elem)]).unwrap();
+        let mt = RescueSparseMerkleTree::from_kv_set(MERKLE_TREE_HEIGHT, &[(uid.clone(), elem)])
+            .unwrap();
         let (retrieved_elem, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
         assert_eq!(retrieved_elem, elem);
         assert!(mt.verify(&uid, merkle_proof.clone()).expect("succeed"));
