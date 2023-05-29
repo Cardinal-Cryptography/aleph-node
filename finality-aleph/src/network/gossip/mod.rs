@@ -77,6 +77,8 @@ pub enum Event<P> {
 
 #[async_trait::async_trait]
 pub trait EventStream<P> {
+    /// Retrieves next event from the stream or returns None if the stream is closed.
+    /// This method's implementation must be cancellation safe.
     async fn next_event(&mut self) -> Option<Event<P>>;
 }
 
