@@ -7,31 +7,33 @@ use crate::{
     justification::LOG_TARGET,
     network::RequestBlocks,
     session::SessionBoundaryInfo,
-    sync::{ChainStatus, Header, Justification},
+    sync::{Block, ChainStatus, Header, Justification},
     BlockIdentifier,
 };
 
-pub struct Requester<J, RB, CS>
+pub struct Requester<B, J, RB, CS>
 where
-    J: Justification,
+    B: Block,
+    J: Justification<Header = B::Header>,
     RB: RequestBlocks<<J::Header as Header>::Identifier> + 'static,
-    CS: ChainStatus<J>,
+    CS: ChainStatus<B, J>,
 {
     block_requester: RB,
     chain_status: CS,
     boundary_info: SessionBoundaryInfo,
-    _phantom: PhantomData<J>,
+    _phantom: PhantomData<(B, J)>,
 }
 
 // This should only be necessary during the rolling update, so lets make the request period
 // ridiculously long, so that it doesn't introduce too much weird behaviour otherwise.
 const REQUEST_PERIOD: Duration = Duration::from_secs(60);
 
-impl<J, RB, CS> Requester<J, RB, CS>
+impl<B, J, RB, CS> Requester<B, J, RB, CS>
 where
-    J: Justification,
+    B: Block,
+    J: Justification<Header = B::Header>,
     RB: RequestBlocks<<J::Header as Header>::Identifier> + 'static,
-    CS: ChainStatus<J>,
+    CS: ChainStatus<B, J>,
 {
     pub fn new(block_requester: RB, chain_status: CS, boundary_info: SessionBoundaryInfo) -> Self {
         Requester {

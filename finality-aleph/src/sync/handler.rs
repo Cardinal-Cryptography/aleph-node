@@ -25,8 +25,8 @@ pub struct Handler<B, I, J, CS, V, F>
 where
     B: Block,
     I: PeerId,
-    J: Justification,
-    CS: ChainStatus<J>,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
 {
@@ -68,7 +68,14 @@ impl<B: Block, J: Justification> SyncAction<B, J> {
 
 /// What can go wrong when handling a piece of data.
 #[derive(Clone, Debug)]
-pub enum Error<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> {
+pub enum Error<B, J, CS, V, F>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
     Verifier(V::Error),
     ChainStatus(CS::Error),
     Finalizer(F::Error),
@@ -76,8 +83,13 @@ pub enum Error<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalize
     MissingJustification,
 }
 
-impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> Display
-    for Error<J, CS, V, F>
+impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
@@ -94,8 +106,13 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> Disp
     }
 }
 
-impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From<ForestError>
-    for Error<J, CS, V, F>
+impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     fn from(e: ForestError) -> Self {
         Error::Forest(e)
@@ -106,8 +123,8 @@ impl<B, I, J, CS, V, F> Handler<B, I, J, CS, V, F>
 where
     B: Block,
     I: PeerId,
-    J: Justification,
-    CS: ChainStatus<J>,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
 {
@@ -117,7 +134,7 @@ where
         verifier: V,
         finalizer: F,
         period: SessionPeriod,
-    ) -> Result<Self, Error<J, CS, V, F>> {
+    ) -> Result<Self, Error<B, J, CS, V, F>> {
         let forest = Forest::new(
             chain_status
                 .top_finalized()
@@ -138,7 +155,7 @@ where
     }
 
     // TODO(A0-1758): Move the code to `Self::new` to initialize the `Forest` properly.
-    pub fn refresh_forest(&mut self) -> Result<(), Error<J, CS, V, F>> {
+    pub fn refresh_forest(&mut self) -> Result<(), Error<B, J, CS, V, F>> {
         let top_finalized = self
             .chain_status
             .top_finalized()
@@ -172,7 +189,7 @@ where
         Ok(())
     }
 
-    fn try_finalize(&mut self) -> Result<(), Error<J, CS, V, F>> {
+    fn try_finalize(&mut self) -> Result<(), Error<B, J, CS, V, F>> {
         let mut number = self
             .chain_status
             .top_finalized()
@@ -205,11 +222,12 @@ where
 
     /// Handle a single verified justification.
     /// Return `Some(id)` if this justification was higher than the previously known highest justification.
+    #[allow(clippy::type_complexity)]
     fn handle_verified_justification(
         &mut self,
         justification: J,
         peer: Option<I>,
-    ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
+    ) -> Result<Option<BlockIdFor<J>>, Error<B, J, CS, V, F>> {
         let id = justification.header().id();
         let maybe_id = match self.forest.update_justification(justification, peer)? {
             true => Some(id),
@@ -220,7 +238,7 @@ where
     }
 
     /// Inform the handler that a block has been imported.
-    pub fn block_imported(&mut self, header: J::Header) -> Result<(), Error<J, CS, V, F>> {
+    pub fn block_imported(&mut self, header: J::Header) -> Result<(), Error<B, J, CS, V, F>> {
         self.forest.update_body(&header)?;
         self.try_finalize()
     }
@@ -229,10 +247,11 @@ where
     ///
     /// Currently ignores the requested id, it will only become important once we can request
     /// blocks.
+    #[allow(clippy::type_complexity)]
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<B, J, CS, V, F>> {
         let mut number = request.state().top_justification().id().number() + 1;
         let mut justifications = vec![];
         while justifications.len() < MAX_JUSTIFICATION_BATCH {
@@ -268,11 +287,12 @@ where
 
     /// Handle a single justification.
     /// Return `Some(id)` if this justification was higher than the previously known highest justification.
+    #[allow(clippy::type_complexity)]
     pub fn handle_justification(
         &mut self,
         justification: J::Unverified,
         peer: Option<I>,
-    ) -> Result<Option<BlockIdFor<J>>, Error<J, CS, V, F>> {
+    ) -> Result<Option<BlockIdFor<J>>, Error<B, J, CS, V, F>> {
         let justification = self
             .verifier
             .verify(justification)
@@ -283,7 +303,7 @@ where
     fn last_justification_unverified(
         &self,
         session: SessionId,
-    ) -> Result<J::Unverified, Error<J, CS, V, F>> {
+    ) -> Result<J::Unverified, Error<B, J, CS, V, F>> {
         use Error::*;
         Ok(self
             .chain_status
@@ -294,11 +314,12 @@ where
     }
 
     /// Handle a state broadcast returning the actions we should take in response.
+    #[allow(clippy::type_complexity)]
     pub fn handle_state(
         &mut self,
         state: State<J>,
         peer: I,
-    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<B, J, CS, V, F>> {
         use Error::*;
         let remote_top_number = state.top_justification().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
@@ -342,7 +363,7 @@ where
     }
 
     /// The current state of our database.
-    pub fn state(&self) -> Result<State<J>, Error<J, CS, V, F>> {
+    pub fn state(&self) -> Result<State<J>, Error<B, J, CS, V, F>> {
         let top_justification = self
             .chain_status
             .top_finalized()

@@ -28,10 +28,10 @@ const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<
     B: Block,
-    J: Justification,
+    J: Justification<Header = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<J::Header>,
-    CS: ChainStatus<J>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
 > {
@@ -63,10 +63,10 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
 
 impl<
         B: Block,
-        J: Justification,
+        J: Justification<Header = B::Header>,
         N: GossipNetwork<VersionedNetworkData<B, J>>,
-        CE: ChainStatusNotifier<J::Header>,
-        CS: ChainStatus<J>,
+        CE: ChainStatusNotifier<B::Header>,
+        CS: ChainStatus<B, J>,
         V: Verifier<J>,
         F: Finalizer<J>,
     > Service<B, J, N, CE, CS, V, F>
@@ -88,7 +88,7 @@ impl<
             impl JustificationSubmissions<J> + Clone,
             impl RequestBlocks<BlockIdFor<J>>,
         ),
-        HandlerError<J, CS, V, F>,
+        HandlerError<B, J, CS, V, F>,
     > {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;

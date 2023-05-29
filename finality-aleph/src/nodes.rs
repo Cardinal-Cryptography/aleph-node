@@ -50,7 +50,7 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
+    CS: ChainStatus<Block, SubstrateJustification<Header>> + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
