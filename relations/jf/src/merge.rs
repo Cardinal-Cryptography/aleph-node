@@ -206,8 +206,22 @@ impl Relation for MergeRelation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shielder_types::compute_note;
 
     fn merge_relation() -> MergeRelation {
+        let token_id = 1;
+
+        let first_old_token_amount = 7;
+        let first_old_trapdoor = [1; 4];
+        let first_old_nullifier = [2; 4];
+
+        let first_old_note = compute_note(
+            token_id,
+            first_old_token_amount,
+            first_old_trapdoor,
+            first_old_nullifier,
+        );
+
         todo!()
     }
 
