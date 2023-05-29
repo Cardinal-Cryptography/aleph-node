@@ -1,10 +1,11 @@
 use jf_primitives::merkle_tree::{
     prelude::RescueSparseMerkleTree, MerkleTreeScheme, UniversalMerkleTreeScheme,
 };
-use jf_relation::PlonkCircuit;
+use jf_relation::{Circuit, PlonkCircuit};
 use num_bigint::BigUint;
 
 use crate::{
+    check_merkle_proof,
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
         convert_account, convert_array, Account, LeafIndex, MerkleRoot, Note, Nullifier,
@@ -92,7 +93,7 @@ impl MergeRelation {
             token_amount: private.first_old_token_amount,
             trapdoor: private.first_old_trapdoor,
             nullifier: public.first_old_nullifier,
-            note_type: NoteType::Deposit,
+            note_type: NoteType::Spend,
         };
 
         let second_old_note = SourcedNote {
@@ -101,7 +102,7 @@ impl MergeRelation {
             token_amount: private.second_old_token_amount,
             trapdoor: private.second_old_trapdoor,
             nullifier: public.second_old_nullifier,
-            note_type: NoteType::Deposit,
+            note_type: NoteType::Spend,
         };
 
         let new_note = SourcedNote {
@@ -110,7 +111,7 @@ impl MergeRelation {
             token_amount: private.new_token_amount,
             trapdoor: private.new_trapdoor,
             nullifier: private.new_nullifier,
-            note_type: NoteType::Deposit,
+            note_type: NoteType::Redeposit,
         };
 
         Self {
@@ -132,38 +133,91 @@ impl Default for MergeRelation {
     }
 }
 
+impl PublicInput for MergeRelation {
+    fn public_input(&self) -> Vec<CircuitField> {
+        let mut public_input = Vec::new();
+        public_input.push(convert_array(self.merkle_root));
+        public_input.extend(self.first_old_note.public_input());
+        public_input.extend(self.second_old_note.public_input());
+        public_input.extend(self.new_note.public_input());
+        public_input
+    }
+}
+
 impl Relation for MergeRelation {
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
         //------------------------------
         // first_old_note = H(token_id, first_old_token_amount, first_old_trapdoor, first_old_nullifier)
         //------------------------------
         let first_old_note_var = circuit.create_note_variable(&self.first_old_note)?;
+        let first_old_note_token_amount_var = first_old_note_var.token_amount_var;
         circuit.enforce_note_preimage(first_old_note_var)?;
 
         //------------------------------
         // second_old_note = H(token_id, first_old_token_amount, first_old_trapdoor, first_old_nullifier)
         //------------------------------
         let second_old_note_var = circuit.create_note_variable(&self.second_old_note)?;
+        let second_old_note_token_amount_var = second_old_note_var.token_amount_var;
         circuit.enforce_note_preimage(second_old_note_var)?;
 
         //------------------------------
         // new_note = H(token_id, new_token_amount, new_trapdoor, new_nullifier)
         //------------------------------
         let new_note_var = circuit.create_note_variable(&self.new_note)?;
+        let new_note_token_amount_var = new_note_var.token_amount_var;
         circuit.enforce_note_preimage(new_note_var)?;
 
-        //  - `first_merkle_path` is a valid Merkle proof for `first_old_note` being present
-        //    at `first_leaf_index` in some Merkle tree with `merkle_root` hash in the root
-
+        //------------------------------
+        //  first_merkle_path is a valid Merkle proof for first_old_note being present
+        //  at first_leaf_index in a Merkle tree with merkle_root hash in the root
+        //------------------------------
         check_merkle_proof(
             circuit,
-            self.leaf_index,
+            self.first_leaf_index,
             self.merkle_root,
-            &self.merkle_proof,
+            &self.first_merkle_path,
         )?;
 
-        // merkle_proof_i is a valid merkle proof from merkle_root_i to note_i, for i=1,2
+        //------------------------------
+        //  second_merkle_path is a valid Merkle proof for second_old_note being present
+        //  at first_leaf_index in a Merkle tree with merkle_root hash in the root
+        //------------------------------
+        check_merkle_proof(
+            circuit,
+            self.second_leaf_index,
+            self.merkle_root,
+            &self.second_merkle_path,
+        )?;
 
+        //------------------------------
+        //  new_token_amount = token_amount + old_token_amount
+        //------------------------------
+
+        let old_notes_token_amount_sum_var = circuit.add(
+            first_old_note_token_amount_var,
+            second_old_note_token_amount_var,
+        )?;
+        circuit.enforce_equal(old_notes_token_amount_sum_var, new_note_token_amount_var)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn merge_relation() -> MergeRelation {
         todo!()
+    }
+
+    #[test]
+    fn merge_constraints_correctness() {
+        let relation = merge_relation();
+        let circuit = MergeRelation::generate_circuit(&relation).unwrap();
+
+        circuit
+            .check_circuit_satisfiability(&relation.public_input())
+            .unwrap();
     }
 }
