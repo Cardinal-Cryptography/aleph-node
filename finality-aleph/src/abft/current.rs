@@ -84,6 +84,6 @@ pub fn create_aleph_config(
     let mut config = default_config(n_members.into(), node_id.into(), session_id.0 as u64);
     config.delay_config.unit_creation_delay = unit_creation_delay_fn(unit_creation_delay);
     config.max_round = MAX_ROUNDS;
-    
+
     config
 }
