@@ -138,7 +138,7 @@ impl PublicInput for MergeRelation {
         public_input.push(convert_array(self.merkle_root));
         public_input.push(convert_array(self.merkle_root));
 
-        println!("DEBUG : {:? }", public_input);
+        // println!("DEBUG : {:? }", public_input);
 
         public_input
     }
@@ -247,11 +247,11 @@ mod tests {
 
         let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
 
-        let first_leaf_index = 1u64;
+        let first_leaf_index = 0u64;
         let first_uid = BigUint::from(first_leaf_index);
         let first_value = convert_array(first_old_note);
 
-        let second_leaf_index = 2u64;
+        let second_leaf_index = 1u64;
         let second_uid = BigUint::from(second_leaf_index);
         let second_value = convert_array(second_old_note);
 
