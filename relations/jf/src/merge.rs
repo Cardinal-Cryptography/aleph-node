@@ -204,7 +204,6 @@ impl Relation for MergeRelation {
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
-    use jf_plonk::circuit;
     use jf_primitives::merkle_tree::{
         prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
         UniversalMerkleTreeScheme,
@@ -335,6 +334,42 @@ mod tests {
     fn merge_constraints_invalid_first_old_note() {
         let mut invalid_relation = merge_relation();
         invalid_relation.first_old_note.token_amount += 1;
+
+        let constraints_correctness = merge_constraints_correctness(invalid_relation);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_second_old_note() {
+        let mut invalid_relation = merge_relation();
+        invalid_relation.second_old_note.token_amount += 1;
+
+        let constraints_correctness = merge_constraints_correctness(invalid_relation);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_new_note() {
+        let mut invalid_relation = merge_relation();
+        invalid_relation.new_note.token_amount += 1;
+
+        let constraints_correctness = merge_constraints_correctness(invalid_relation);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_first_leaf_index() {
+        let mut invalid_relation = merge_relation();
+        invalid_relation.first_leaf_index += 1;
+
+        let constraints_correctness = merge_constraints_correctness(invalid_relation);
+        assert!(!constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_second_leaf_index() {
+        let mut invalid_relation = merge_relation();
+        invalid_relation.second_leaf_index += 1;
 
         let constraints_correctness = merge_constraints_correctness(invalid_relation);
         assert!(!constraints_correctness);
