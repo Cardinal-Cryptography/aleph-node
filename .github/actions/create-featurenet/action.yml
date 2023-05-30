@@ -230,7 +230,9 @@ runs:
         author_email: alephzero@10clouds.com
         # yamllint disable-line rule:line-length
         message: "Upsert featurenet ${{ env.APP_NAME }} with image: ${{ inputs.aleph-node-image != '' && inputs.aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
-        add: "*.yaml"
+        add: 
+          - "*.yaml"
+          - "*.expiration.txt"
         cwd: "${{ inputs.repo-featurenets-name }}"
 
     - name: Refresh Argo and wait for the creation to be finished
