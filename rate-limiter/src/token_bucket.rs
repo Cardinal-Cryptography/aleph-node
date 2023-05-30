@@ -3,8 +3,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use log::trace;
+
+const LOG_TARGET: &str = "token-bucket";
+
 /// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TokenBucket {
     rate_per_second: usize,
     available: usize,
@@ -63,6 +67,12 @@ impl TokenBucket {
         requested: usize,
         mut now: impl FnMut() -> Instant,
     ) -> Option<Duration> {
+        trace!(
+            target: LOG_TARGET,
+            "TokenBucket called for {} of requested bytes. Internal state: {:?}.",
+            requested,
+            self
+        );
         if self.requested > 0 || self.available < requested {
             let now_value = now();
             assert!(
