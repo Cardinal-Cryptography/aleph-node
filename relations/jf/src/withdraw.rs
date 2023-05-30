@@ -151,6 +151,7 @@ impl Relation for WithdrawRelation {
             self.leaf_index,
             self.merkle_root,
             &self.merkle_proof,
+            true,
         )?;
 
         Ok(())

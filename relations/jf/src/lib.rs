@@ -40,11 +40,15 @@ pub(crate) fn check_merkle_proof(
     leaf_index: LeafIndex,
     merkle_root: MerkleRoot,
     merkle_proof: &MerkleProof,
+    register_root_as_public: bool,
 ) -> PlonkResult<()> {
     let index_var = circuit.create_variable(leaf_index.into())?;
     let proof_var = MerkleTreeGadget::create_membership_proof_variable(circuit, merkle_proof)?;
     let root_var = MerkleTreeGadget::create_root_variable(circuit, convert_array(merkle_root))?;
-    circuit.set_variable_public(root_var)?;
+
+    if register_root_as_public {
+        circuit.set_variable_public(root_var)?;
+    }
 
     MerkleTreeGadget::enforce_membership_proof(circuit, index_var, proof_var, root_var)
         .map_err(Into::into)

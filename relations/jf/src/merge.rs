@@ -136,7 +136,6 @@ impl PublicInput for MergeRelation {
         public_input.extend(self.second_old_note.public_input());
         public_input.extend(self.new_note.public_input());
         public_input.push(convert_array(self.merkle_root));
-        public_input.push(convert_array(self.merkle_root));
 
         public_input
     }
@@ -174,6 +173,7 @@ impl Relation for MergeRelation {
             self.first_leaf_index,
             self.merkle_root,
             &self.first_merkle_path,
+            true,
         )?;
 
         //------------------------------
@@ -185,6 +185,7 @@ impl Relation for MergeRelation {
             self.second_leaf_index,
             self.merkle_root,
             &self.second_merkle_path,
+            false,
         )?;
 
         //------------------------------
