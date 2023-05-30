@@ -187,6 +187,7 @@ runs:
           "${{ inputs.aleph-node-image }}"
 
     - name: Set featurenet expiration (from testnet/mainet)
+      # yamllint disable-line rule:line-length
       if: (inputs.aleph-node-image == 'testnet' || inputs.aleph-node-image == 'mainnet') && inputs.expiration != ''
       shell: bash
       env:
