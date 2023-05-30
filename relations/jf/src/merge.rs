@@ -138,8 +138,6 @@ impl PublicInput for MergeRelation {
         public_input.push(convert_array(self.merkle_root));
         public_input.push(convert_array(self.merkle_root));
 
-        // println!("DEBUG : {:? }", public_input);
-
         public_input
     }
 }
@@ -206,6 +204,7 @@ impl Relation for MergeRelation {
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
+    use jf_plonk::circuit;
     use jf_primitives::merkle_tree::{
         prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
         UniversalMerkleTreeScheme,
@@ -313,19 +312,31 @@ mod tests {
         MergeRelation::new(public, private)
     }
 
-    #[test]
-    fn merge_constraints_correctness() {
-        let relation = merge_relation();
+    fn merge_constraints_correctness(relation: MergeRelation) -> bool {
         let circuit = MergeRelation::generate_circuit(&relation).unwrap();
 
-        let is_satisfied = match circuit.check_circuit_satisfiability(&relation.public_input()) {
+        match circuit.check_circuit_satisfiability(&relation.public_input()) {
             Ok(_) => true,
             Err(why) => {
                 println!("circuit not satisfied: {}", why);
                 false
             }
-        };
+        }
+    }
 
-        assert!(is_satisfied);
+    #[test]
+    fn merge_constraints_valid_circuit() {
+        let relation = merge_relation();
+        let constraints_correctness = merge_constraints_correctness(relation);
+        assert!(constraints_correctness);
+    }
+
+    #[test]
+    fn merge_constraints_invalid_first_old_note() {
+        let mut invalid_relation = merge_relation();
+        invalid_relation.first_old_note.token_amount += 1;
+
+        let constraints_correctness = merge_constraints_correctness(invalid_relation);
+        assert!(!constraints_correctness);
     }
 }
