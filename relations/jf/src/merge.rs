@@ -205,6 +205,18 @@ impl Relation for MergeRelation {
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::PrimeField;
+    use jf_plonk::{
+        proof_system::{PlonkKzgSnark, UniversalSNARK},
+        transcript::StandardTranscript,
+    };
+    use jf_primitives::merkle_tree::{
+        prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
+        UniversalMerkleTreeScheme,
+    };
+    use jf_relation::Circuit;
+    use num_bigint::BigUint;
+
     use super::*;
     use crate::shielder_types::compute_note;
 
@@ -222,7 +234,87 @@ mod tests {
             first_old_nullifier,
         );
 
-        todo!()
+        let second_old_token_amount = 3;
+        let second_old_trapdoor = [3; 4];
+        let second_old_nullifier = [4; 4];
+
+        let second_old_note = compute_note(
+            token_id,
+            second_old_token_amount,
+            second_old_trapdoor,
+            second_old_nullifier,
+        );
+
+        let new_token_amount = 10;
+        let new_trapdoor = [5; 4];
+        let new_nullifier = [6; 4];
+
+        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
+
+        let first_leaf_index = 1u64;
+        let first_uid = BigUint::from(first_leaf_index);
+        let first_value = convert_array(first_old_note);
+
+        let second_leaf_index = 2u64;
+        let second_uid = BigUint::from(second_leaf_index);
+        let second_value = convert_array(second_old_note);
+
+        let tree = RescueSparseMerkleTree::from_kv_set(
+            MERKLE_TREE_HEIGHT,
+            &[
+                (first_uid.clone(), first_value),
+                (second_uid.clone(), second_value),
+            ],
+        )
+        .expect("create merkele tree from kv pairs");
+
+        let (first_value_retrieved, first_merkle_proof) = tree
+            .lookup(&first_uid)
+            .expect_ok()
+            .expect("lookup first old note in Merkle tree");
+
+        assert_eq!(first_value, first_value_retrieved);
+        assert!(tree
+            .verify(&first_uid, first_merkle_proof.clone())
+            .expect("succeed"));
+
+        let (second_value_retrieved, second_merkle_proof) = tree
+            .lookup(&second_uid)
+            .expect_ok()
+            .expect("lookup second old note in Merkle tree");
+
+        assert_eq!(second_value, second_value_retrieved);
+        assert!(tree
+            .verify(&second_uid, second_merkle_proof.clone())
+            .expect("succeed"));
+
+        let merkle_root = tree.commitment().digest().into_bigint().0;
+
+        let public = MergePublicInput {
+            token_id,
+            first_old_nullifier,
+            second_old_nullifier,
+            new_note,
+            merkle_root,
+        };
+
+        let private = MergePrivateInput {
+            first_old_trapdoor,
+            second_old_trapdoor,
+            new_trapdoor,
+            new_nullifier,
+            first_merkle_path: first_merkle_proof,
+            second_merkle_path: second_merkle_proof,
+            first_leaf_index,
+            second_leaf_index,
+            first_old_note,
+            second_old_note,
+            first_old_token_amount,
+            second_old_token_amount,
+            new_token_amount,
+        };
+
+        MergeRelation::new(public, private)
     }
 
     #[test]
@@ -230,8 +322,8 @@ mod tests {
         let relation = merge_relation();
         let circuit = MergeRelation::generate_circuit(&relation).unwrap();
 
-        circuit
+        assert!(circuit
             .check_circuit_satisfiability(&relation.public_input())
-            .unwrap();
+            .is_ok());
     }
 }
