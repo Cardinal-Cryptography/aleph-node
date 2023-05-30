@@ -8,52 +8,47 @@ use crate::{
     check_merkle_proof,
     note::{NoteGadget, NoteType, SourcedNote},
     shielder_types::{
-        convert_account, convert_array, Account, LeafIndex, MerkleRoot, Note, Nullifier,
-        TokenAmount, TokenId, Trapdoor,
+        convert_array, LeafIndex, MerkleRoot, Note, Nullifier, TokenAmount, TokenId, Trapdoor,
     },
     CircuitField, MerkleProof, PlonkResult, PublicInput, Relation, MERKLE_TREE_HEIGHT,
 };
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MergeRelation {
-    //
-    first_old_note: SourcedNote,
-    second_old_note: SourcedNote,
-    new_note: SourcedNote,
-    //
-    merkle_root: MerkleRoot,
-    //
-    first_merkle_path: MerkleProof,
     first_leaf_index: LeafIndex,
-    //
-    second_merkle_path: MerkleProof,
+    first_merkle_path: MerkleProof,
+    first_old_note: SourcedNote,
+    merkle_root: MerkleRoot,
+    new_note: SourcedNote,
     second_leaf_index: LeafIndex,
+    second_merkle_path: MerkleProof,
+    second_old_note: SourcedNote,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Default, Debug)]
 pub struct MergePublicInput {
-    pub token_id: TokenId,
     pub first_old_nullifier: Nullifier,
-    pub second_old_nullifier: Nullifier,
-    pub new_note: Note,
     pub merkle_root: MerkleRoot,
+    pub new_note: Note,
+    pub second_old_nullifier: Nullifier,
+    pub token_id: TokenId,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MergePrivateInput {
-    pub first_old_trapdoor: Trapdoor,
-    pub second_old_trapdoor: Trapdoor,
-    pub new_trapdoor: Trapdoor,
-    pub new_nullifier: Nullifier,
-    pub first_merkle_path: MerkleProof,
-    pub second_merkle_path: MerkleProof,
     pub first_leaf_index: LeafIndex,
-    pub second_leaf_index: LeafIndex,
+    pub first_merkle_path: MerkleProof,
     pub first_old_note: Note,
-    pub second_old_note: Note,
     pub first_old_token_amount: TokenAmount,
-    pub second_old_token_amount: TokenAmount,
+    pub first_old_trapdoor: Trapdoor,
+    pub new_nullifier: Nullifier,
     pub new_token_amount: TokenAmount,
+    pub new_trapdoor: Trapdoor,
+    pub second_leaf_index: LeafIndex,
+    pub second_merkle_path: MerkleProof,
+    pub second_old_note: Note,
+    pub second_old_token_amount: TokenAmount,
+    pub second_old_trapdoor: Trapdoor,
 }
 
 impl Default for MergePrivateInput {
@@ -136,10 +131,15 @@ impl Default for MergeRelation {
 impl PublicInput for MergeRelation {
     fn public_input(&self) -> Vec<CircuitField> {
         let mut public_input = Vec::new();
-        public_input.push(convert_array(self.merkle_root));
+
         public_input.extend(self.first_old_note.public_input());
         public_input.extend(self.second_old_note.public_input());
         public_input.extend(self.new_note.public_input());
+        public_input.push(convert_array(self.merkle_root));
+        public_input.push(convert_array(self.merkle_root));
+
+        println!("DEBUG : {:? }", public_input);
+
         public_input
     }
 }
@@ -206,10 +206,6 @@ impl Relation for MergeRelation {
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
-    use jf_plonk::{
-        proof_system::{PlonkKzgSnark, UniversalSNARK},
-        transcript::StandardTranscript,
-    };
     use jf_primitives::merkle_tree::{
         prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
         UniversalMerkleTreeScheme,
@@ -245,7 +241,7 @@ mod tests {
             second_old_nullifier,
         );
 
-        let new_token_amount = 10;
+        let new_token_amount = first_old_token_amount + second_old_token_amount;
         let new_trapdoor = [5; 4];
         let new_nullifier = [6; 4];
 
@@ -266,7 +262,7 @@ mod tests {
                 (second_uid.clone(), second_value),
             ],
         )
-        .expect("create merkele tree from kv pairs");
+        .expect("create Merkle tree from k-v pairs");
 
         let (first_value_retrieved, first_merkle_proof) = tree
             .lookup(&first_uid)
@@ -276,7 +272,7 @@ mod tests {
         assert_eq!(first_value, first_value_retrieved);
         assert!(tree
             .verify(&first_uid, first_merkle_proof.clone())
-            .expect("succeed"));
+            .expect("membership verified"));
 
         let (second_value_retrieved, second_merkle_proof) = tree
             .lookup(&second_uid)
@@ -286,7 +282,7 @@ mod tests {
         assert_eq!(second_value, second_value_retrieved);
         assert!(tree
             .verify(&second_uid, second_merkle_proof.clone())
-            .expect("succeed"));
+            .expect("membership verified"));
 
         let merkle_root = tree.commitment().digest().into_bigint().0;
 
@@ -322,8 +318,14 @@ mod tests {
         let relation = merge_relation();
         let circuit = MergeRelation::generate_circuit(&relation).unwrap();
 
-        assert!(circuit
-            .check_circuit_satisfiability(&relation.public_input())
-            .is_ok());
+        let is_satisfied = match circuit.check_circuit_satisfiability(&relation.public_input()) {
+            Ok(_) => true,
+            Err(why) => {
+                println!("circuit not satisfied: {}", why);
+                false
+            }
+        };
+
+        assert!(is_satisfied);
     }
 }
