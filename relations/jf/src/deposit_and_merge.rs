@@ -25,23 +25,23 @@ pub struct DepositAndMergeRelation {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Default, Debug)]
 pub struct DepositAndMergePublicInput {
+    pub deposit_token_amount: TokenAmount,
     pub merkle_root: MerkleRoot,
     pub new_note: Note,
     pub old_nullifier: Nullifier,
-    pub deposit_token_amount: TokenAmount,
     pub token_id: TokenId,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct DepositAndMergePrivateInput {
-    pub old_trapdoor: Trapdoor,
-    pub new_trapdoor: Trapdoor,
-    pub new_nullifier: Nullifier,
-    pub merkle_path: MerkleProof,
     pub leaf_index: LeafIndex,
+    pub merkle_path: MerkleProof,
+    pub new_nullifier: Nullifier,
+    pub new_token_amount: TokenAmount,
+    pub new_trapdoor: Trapdoor,
     pub old_note: Note,
     pub old_token_amount: TokenAmount,
-    pub new_token_amount: TokenAmount,
+    pub old_trapdoor: Trapdoor,
 }
 
 impl Default for DepositAndMergePrivateInput {
@@ -105,7 +105,6 @@ impl Default for DepositAndMergeRelation {
     }
 }
 
-// TODO : check
 impl PublicInput for DepositAndMergeRelation {
     fn public_input(&self) -> Vec<CircuitField> {
         let mut public_input = Vec::new();
@@ -131,6 +130,7 @@ impl Relation for DepositAndMergeRelation {
         //------------------------------
         // new_note = H(token_id, new_token_amount, new_trapdoor, new_nullifier)
         //------------------------------
+
         let new_note_var = circuit.create_note_variable(&self.new_note)?;
         let new_note_token_amount_var = new_note_var.token_amount_var;
         circuit.enforce_note_preimage(new_note_var)?;
@@ -139,6 +139,7 @@ impl Relation for DepositAndMergeRelation {
         //  merkle_path is a valid Merkle proof for old_note being present
         //  at leaf_index in a Merkle tree with merkle_root hash in the root
         //------------------------------
+
         check_merkle_proof(
             circuit,
             self.leaf_index,
@@ -150,10 +151,9 @@ impl Relation for DepositAndMergeRelation {
         //------------------------------
         //  new_token_amount = deposit_token_amount + old_token_amount
         //------------------------------
-        let token_sum_var = circuit.add(
-            old_note_token_amount_var,
-            self.deposit_token_amount as usize,
-        )?;
+
+        let deposit_token_amount_var = circuit.create_variable(self.deposit_token_amount.into())?;
+        let token_sum_var = circuit.add(old_note_token_amount_var, deposit_token_amount_var)?;
         circuit.enforce_equal(token_sum_var, new_note_token_amount_var)?;
 
         Ok(())
@@ -184,8 +184,8 @@ mod tests {
         let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
 
         let new_token_amount = deposit_token_amount + old_token_amount;
-        let new_trapdoor = [5; 4];
-        let new_nullifier = [6; 4];
+        let new_trapdoor = [3; 4];
+        let new_nullifier = [4; 4];
 
         let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
 
@@ -199,7 +199,7 @@ mod tests {
         let (value_retrieved, merkle_proof) = tree
             .lookup(&uid)
             .expect_ok()
-            .expect("lookup first old note in Merkle tree");
+            .expect("lookup old note in Merkle tree");
 
         assert_eq!(value, value_retrieved);
         assert!(tree
@@ -209,24 +209,43 @@ mod tests {
         let merkle_root = tree.commitment().digest().into_bigint().0;
 
         let public = DepositAndMergePublicInput {
+            deposit_token_amount,
             merkle_root,
             new_note,
             old_nullifier,
-            deposit_token_amount,
             token_id,
         };
 
         let private = DepositAndMergePrivateInput {
-            old_trapdoor,
-            new_trapdoor,
-            new_nullifier,
-            merkle_path: merkle_proof,
             leaf_index,
+            merkle_path: merkle_proof,
+            new_nullifier,
+            new_token_amount,
+            new_trapdoor,
             old_note,
             old_token_amount,
-            new_token_amount,
+            old_trapdoor,
         };
 
         DepositAndMergeRelation::new(public, private)
+    }
+
+    fn constraints_are_correct(relation: DepositAndMergeRelation) -> bool {
+        let circuit = DepositAndMergeRelation::generate_circuit(&relation).unwrap();
+
+        match circuit.check_circuit_satisfiability(&relation.public_input()) {
+            Ok(_) => true,
+            Err(why) => {
+                println!("circuit not satisfied: {}", why);
+                false
+            }
+        }
+    }
+
+    #[test]
+    fn test_valid_circuit() {
+        let relation = deposit_and_merge_relation();
+        let correct = constraints_are_correct(relation);
+        assert!(correct);
     }
 }
