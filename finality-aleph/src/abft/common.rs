@@ -47,7 +47,7 @@ pub fn sanity_check_round_delays(max_rounds: u16, round_delays: DelaySchedule) {
 
 fn sanity_check_round_delays_inner(max_rounds: u16, round_delays: DelaySchedule) -> bool {
     let mut total_delay = Duration::from_millis(0);
-    for t in 0..max_rounds {
+    for t in 0..=max_rounds {
         total_delay += round_delays(t as usize);
     }
     total_delay.as_millis() > SESSION_LEN_LOWER_BOUND_MS
