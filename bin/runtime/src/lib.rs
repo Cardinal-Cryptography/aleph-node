@@ -1006,10 +1006,6 @@ impl_runtime_apis! {
         fn session_validators() -> Vec<AccountId> {
             Session::validators()
         }
-
-        fn current_session() -> SessionIndex {
-            Session::current_index()
-        }
     }
 
     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
