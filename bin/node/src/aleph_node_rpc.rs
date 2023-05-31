@@ -194,11 +194,19 @@ where
 
         let parent = header.parent_hash();
 
+        let session_index_at_parent = self
+            .client
+            .runtime_api()
+            .current_session(*parent)
+            .map_err(|_| Error::SessionInfoNotAvailable)?;
+
         let block_producers_at_parent = self
             .client
             .runtime_api()
-            .session_validators(*parent)
-            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?;
+            .session_committee(*parent, session_index_at_parent)
+            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?
+            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?
+            .block_producers;
 
         Ok(Some(
             block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]

@@ -277,6 +277,7 @@ sp_api::decl_runtime_apis! {
         fn session_committee(session: SessionIndex)
             -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
         fn session_validators() -> Vec<AccountId>;
+        fn current_session() -> SessionIndex;
     }
 }
 
