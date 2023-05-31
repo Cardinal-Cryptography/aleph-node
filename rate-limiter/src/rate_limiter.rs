@@ -45,7 +45,7 @@ impl SleepingRateLimiter {
             self.sleep.set(tokio::time::sleep_until(wait_until.into()));
             trace!(
                 target: LOG_TARGET,
-                "Rate-Limiter will sleep for {:?} after reading {} byte(s).",
+                "Rate-Limiter will sleep until {:?} after reading {} byte(s).",
                 wait_until,
                 read_size
             );
