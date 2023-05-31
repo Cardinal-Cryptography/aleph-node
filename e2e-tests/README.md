@@ -40,5 +40,5 @@ Run a feature net by adding an appropriate label to a pull request, ie `trigger:
 or `trigger:create-hotfix-featurenet`, then after its started run
 
 ```bash
-$ NODE_URL=wss://ws-fe-temp-branch-for-pr.dev.azero.dev cargo test name_of_one_test
+e2e-tests$ NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test finalization
 ```
