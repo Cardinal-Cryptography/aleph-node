@@ -163,6 +163,10 @@ impl Relation for DepositAndMergeRelation {
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
+    use jf_plonk::{
+        proof_system::{PlonkKzgSnark, UniversalSNARK},
+        transcript::StandardTranscript,
+    };
     use jf_primitives::merkle_tree::{
         prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
         UniversalMerkleTreeScheme,
@@ -171,7 +175,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use super::*;
-    use crate::shielder_types::compute_note;
+    use crate::{generate_srs, shielder_types::compute_note, Curve};
 
     fn deposit_and_merge_relation() -> DepositAndMergeRelation {
         let token_id = 1;
@@ -230,7 +234,7 @@ mod tests {
         DepositAndMergeRelation::new(public, private)
     }
 
-    fn constraints_are_correct(relation: DepositAndMergeRelation) -> bool {
+    fn is_correct(relation: DepositAndMergeRelation) -> bool {
         let circuit = DepositAndMergeRelation::generate_circuit(&relation).unwrap();
 
         match circuit.check_circuit_satisfiability(&relation.public_input()) {
@@ -243,9 +247,36 @@ mod tests {
     }
 
     #[test]
-    fn test_valid_circuit() {
+    fn test_valid_relation() {
+        let valid_relation = deposit_and_merge_relation();
+        assert!(is_correct(valid_relation));
+    }
+
+    #[test]
+    fn test_invalid_relation() {
+        let mut invalid_relation = deposit_and_merge_relation();
+        invalid_relation.leaf_index = 1;
+        assert!(!is_correct(invalid_relation));
+    }
+
+    #[test]
+    fn proving_procedure() {
+        let rng = &mut jf_utils::test_rng();
+        let srs = generate_srs(10_000, rng).unwrap();
+
+        let (pk, vk) = DepositAndMergeRelation::generate_keys(&srs).unwrap();
+
         let relation = deposit_and_merge_relation();
-        let correct = constraints_are_correct(relation);
-        assert!(correct);
+        let proof = relation.generate_proof(&pk, rng).unwrap();
+
+        let public_input = relation.public_input();
+
+        assert!(PlonkKzgSnark::<Curve>::verify::<StandardTranscript>(
+            &vk,
+            &public_input,
+            &proof,
+            None
+        )
+        .is_ok());
     }
 }
