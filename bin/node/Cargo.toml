@@ -37,6 +37,7 @@ sc-consensus-slots = { workspace = true }
 sc-executor = { workspace = true }
 sc-keystore = { workspace = true }
 sc-network = { workspace = true }
+sc-network-sync = { workspace = true }
 sc-service = { workspace = true }
 sc-telemetry = { workspace = true }
 sc-transaction-pool = { workspace = true }
@@ -63,7 +64,6 @@ frame-benchmarking = { workspace = true, optional = true }
 aleph-runtime = { workspace = true }
 finality-aleph = { workspace = true }
 primitives = { workspace = true }
-jellyfier = { workspace = true, optional = true }
 
 # These dependencies are used for the node's RPCs
 jsonrpsee = { workspace = true, features = ["server"] }
@@ -103,7 +103,6 @@ only_legacy = [
 # Liminal-related features
 liminal = [
     "aleph-runtime/liminal",
-    "jellyfier",
 ]
 liminal-try-runtime = [
     "liminal",
