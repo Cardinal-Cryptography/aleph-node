@@ -20,6 +20,7 @@ pub struct DepositAndMergeRelation {
     merkle_root: MerkleRoot,
     new_note: SourcedNote,
     old_note: SourcedNote,
+    deposit_token_amount: TokenAmount,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Default, Debug)]
@@ -27,7 +28,7 @@ pub struct DepositAndMergePublicInput {
     pub merkle_root: MerkleRoot,
     pub new_note: Note,
     pub old_nullifier: Nullifier,
-    pub token_amount: TokenAmount,
+    pub deposit_token_amount: TokenAmount,
     pub token_id: TokenId,
 }
 
@@ -93,6 +94,7 @@ impl DepositAndMergeRelation {
             merkle_path: private.merkle_path,
             leaf_index: private.leaf_index,
             merkle_root: public.merkle_root,
+            deposit_token_amount: public.deposit_token_amount,
         }
     }
 }
@@ -146,13 +148,85 @@ impl Relation for DepositAndMergeRelation {
         )?;
 
         //------------------------------
-        //  new_token_amount = token_amount + old_token_amount
+        //  new_token_amount = deposit_token_amount + old_token_amount
         //------------------------------
-
-        let token_amount_sum_var =
-            circuit.add(old_note_token_amount_var, old_note_token_amount_var)?;
-        circuit.enforce_equal(token_amount_sum_var, new_note_token_amount_var)?;
+        let token_sum_var = circuit.add(
+            old_note_token_amount_var,
+            self.deposit_token_amount as usize,
+        )?;
+        circuit.enforce_equal(token_sum_var, new_note_token_amount_var)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ark_ff::PrimeField;
+    use jf_primitives::merkle_tree::{
+        prelude::RescueSparseMerkleTree, MerkleCommitment, MerkleTreeScheme,
+        UniversalMerkleTreeScheme,
+    };
+    use jf_relation::Circuit;
+    use num_bigint::BigUint;
+
+    use super::*;
+    use crate::shielder_types::compute_note;
+
+    fn deposit_and_merge_relation() -> DepositAndMergeRelation {
+        let token_id = 1;
+        let deposit_token_amount = 3;
+
+        let old_token_amount = 7;
+        let old_trapdoor = [1; 4];
+        let old_nullifier = [2; 4];
+
+        let old_note = compute_note(token_id, old_token_amount, old_trapdoor, old_nullifier);
+
+        let new_token_amount = deposit_token_amount + old_token_amount;
+        let new_trapdoor = [5; 4];
+        let new_nullifier = [6; 4];
+
+        let new_note = compute_note(token_id, new_token_amount, new_trapdoor, new_nullifier);
+
+        let leaf_index = 0u64;
+        let uid = BigUint::from(leaf_index);
+        let value = convert_array(old_note);
+
+        let tree = RescueSparseMerkleTree::from_kv_set(MERKLE_TREE_HEIGHT, &[(uid.clone(), value)])
+            .expect("create Merkle tree from k-v pairs");
+
+        let (value_retrieved, merkle_proof) = tree
+            .lookup(&uid)
+            .expect_ok()
+            .expect("lookup first old note in Merkle tree");
+
+        assert_eq!(value, value_retrieved);
+        assert!(tree
+            .verify(&uid, merkle_proof.clone())
+            .expect("membership verified"));
+
+        let merkle_root = tree.commitment().digest().into_bigint().0;
+
+        let public = DepositAndMergePublicInput {
+            merkle_root,
+            new_note,
+            old_nullifier,
+            deposit_token_amount,
+            token_id,
+        };
+
+        let private = DepositAndMergePrivateInput {
+            old_trapdoor,
+            new_trapdoor,
+            new_nullifier,
+            merkle_path: merkle_proof,
+            leaf_index,
+            old_note,
+            old_token_amount,
+            new_token_amount,
+        };
+
+        DepositAndMergeRelation::new(public, private)
     }
 }

@@ -191,7 +191,6 @@ impl Relation for MergeRelation {
         //------------------------------
         //  new_token_amount = first_old_token_amount + second_old_token_amount
         //------------------------------
-
         let old_notes_token_amount_sum_var = circuit.add(
             first_old_note_token_amount_var,
             second_old_note_token_amount_var,
