@@ -274,9 +274,9 @@ sp_api::decl_runtime_apis! {
         fn millisecs_per_block() -> u64;
         fn finality_version() -> Version;
         fn next_session_finality_version() -> Version;
-        fn session_committee(
-            session: SessionIndex,
-        ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+        fn session_committee(session: SessionIndex)
+            -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+        fn session_validators() -> Vec<AccountId>;
     }
 }
 

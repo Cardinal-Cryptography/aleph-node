@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use finality_aleph::{AlephJustification, BlockId, Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::{
@@ -5,22 +7,39 @@ use jsonrpsee::{
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
-use sp_runtime::traits::Header;
+use primitives::{AccountId, AlephSessionApi, Signature};
+use sp_api::ProvideRuntimeApi;
+use sp_arithmetic::traits::Zero;
+use sp_blockchain::HeaderBackend;
+use sp_consensus_aura::digests::CompatibleDigestItem;
+use sp_runtime::{
+    traits::{Block as BlockT, Header as HeaderT},
+    DigestItem,
+};
 
 use crate::aleph_primitives::BlockNumber;
 
 /// System RPC errors.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// Justification argument is malformatted.
+    /// Justification argument is malformed.
     #[error("{0}")]
-    MalformattedJustificationArg(String),
+    MalformedJustificationArg(String),
     /// Provided block range couldn't be resolved to a list of blocks.
     #[error("Node is not fully functional: {}", .0)]
     FailedJustificationSend(String),
-    /// Justification argument is malformatted.
-    #[error("Failed to translate jsutification into an internal one: {}", .0)]
+    /// Justification argument is malformed.
+    #[error("Failed to translate justification into an internal one: {}", .0)]
     FailedJustificationTranslation(String),
+    /// Block doesn't have any Aura pre-runtime digest item.
+    #[error("Block doesn't have any Aura pre-runtime digest item.")]
+    BlockWithoutDigest,
+    /// Failed to get session data at the parent block.
+    #[error("Failed to get session data at the parent block.")]
+    SessionInfoNotAvailable,
+    /// Failed to get authority set at the parent block.
+    #[error("Failed to get authority set at the parent block.")]
+    AuthoritiesInfoNotAvailable,
 }
 
 // Base code for all system errors.
@@ -31,6 +50,12 @@ const MALFORMATTED_JUSTIFICATION_ARG_ERROR: i32 = BASE_ERROR + 1;
 const FAILED_JUSTIFICATION_SEND_ERROR: i32 = BASE_ERROR + 2;
 // AlephNodeApiServer failed to translate justification into internal representation.
 const FAILED_JUSTIFICATION_TRANSLATION_ERROR: i32 = BASE_ERROR + 3;
+// Block doesn't have any Aura pre-runtime digest item.
+const BLOCK_WITHOUT_DIGEST_ERROR: i32 = BASE_ERROR + 4;
+// Failed to get session data at the parent block.
+const SESSION_INFO_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 5;
+// Failed to get authority set at the parent block.
+const AUTHORITIES_INFO_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 6;
 
 impl From<Error> for JsonRpseeError {
     fn from(e: Error) -> Self {
@@ -40,7 +65,7 @@ impl From<Error> for JsonRpseeError {
                 e,
                 None::<()>,
             )),
-            Error::MalformattedJustificationArg(e) => CallError::Custom(ErrorObject::owned(
+            Error::MalformedJustificationArg(e) => CallError::Custom(ErrorObject::owned(
                 MALFORMATTED_JUSTIFICATION_ARG_ERROR,
                 e,
                 None::<()>,
@@ -50,6 +75,21 @@ impl From<Error> for JsonRpseeError {
                 e,
                 None::<()>,
             )),
+            Error::BlockWithoutDigest => CallError::Custom(ErrorObject::owned(
+                BLOCK_WITHOUT_DIGEST_ERROR,
+                "Block doesn't have any Aura pre-runtime digest item.",
+                None::<()>,
+            )),
+            Error::SessionInfoNotAvailable => CallError::Custom(ErrorObject::owned(
+                SESSION_INFO_NOT_AVAILABLE_ERROR,
+                "Failed to get session data at the parent block.",
+                None::<()>,
+            )),
+            Error::AuthoritiesInfoNotAvailable => CallError::Custom(ErrorObject::owned(
+                AUTHORITIES_INFO_NOT_AVAILABLE_ERROR,
+                "Failed to get authority set at the parent block.",
+                None::<()>,
+            )),
         }
         .into()
     }
@@ -57,57 +97,70 @@ impl From<Error> for JsonRpseeError {
 
 /// Aleph Node RPC API
 #[rpc(client, server)]
-pub trait AlephNodeApi<Hash, Number> {
+pub trait AlephNodeApi<Block: BlockT> {
     /// Finalize the block with given hash and number using attached signature. Returns the empty string or an error.
     #[method(name = "alephNode_emergencyFinalize")]
     fn aleph_node_emergency_finalize(
         &self,
         justification: Vec<u8>,
-        hash: Hash,
-        number: Number,
+        hash: Block::Hash,
+        number: <<Block as BlockT>::Header as HeaderT>::Number,
     ) -> RpcResult<()>;
+
+    /// Get the author of the block with given hash.
+    #[method(name = "chain_getBlockAuthor")]
+    fn aleph_node_block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>>;
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<H, JT>
+pub struct AlephNode<Block, JT, Client>
 where
-    H: Header<Number = BlockNumber>,
-    JT: JustificationTranslator<H> + Send + Sync + Clone + 'static,
+    Block: BlockT,
+    Block::Header: HeaderT<Number = BlockNumber>,
+    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
 {
-    import_justification_tx: mpsc::UnboundedSender<Justification<H>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification<Block::Header>>,
     justification_translator: JT,
+    client: Arc<Client>,
 }
 
-impl<H, JT> AlephNode<H, JT>
+impl<Block, JT, Client> AlephNode<Block, JT, Client>
 where
-    H: Header<Number = BlockNumber>,
-    JT: JustificationTranslator<H> + Send + Sync + Clone + 'static,
+    Block: BlockT,
+    Block::Header: HeaderT<Number = BlockNumber>,
+    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
+    Client: HeaderBackend<Block> + 'static,
 {
     pub fn new(
-        import_justification_tx: mpsc::UnboundedSender<Justification<H>>,
+        import_justification_tx: mpsc::UnboundedSender<Justification<Block::Header>>,
         justification_translator: JT,
+        client: Arc<Client>,
     ) -> Self {
         AlephNode {
             import_justification_tx,
             justification_translator,
+            client,
         }
     }
 }
 
-impl<H, JT> AlephNodeApiServer<H::Hash, BlockNumber> for AlephNode<H, JT>
+impl<Block, JT, Client> AlephNodeApiServer<Block> for AlephNode<Block, JT, Client>
 where
-    H: Header<Number = BlockNumber>,
-    JT: JustificationTranslator<H> + Send + Sync + Clone + 'static,
+    Block: BlockT,
+    Block::Header: HeaderT<Number = BlockNumber>,
+    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
+    Client: HeaderBackend<Block> + ProvideRuntimeApi<Block> + 'static,
+    Client::Api: AlephSessionApi<Block>,
 {
     fn aleph_node_emergency_finalize(
         &self,
         justification: Vec<u8>,
-        hash: H::Hash,
-        number: BlockNumber,
+        hash: Block::Hash,
+        number: <<Block as BlockT>::Header as HeaderT>::Number,
     ) -> RpcResult<()> {
         let justification: AlephJustification =
             AlephJustification::EmergencySignature(justification.try_into().map_err(|_| {
-                Error::MalformattedJustificationArg(
+                Error::MalformedJustificationArg(
                     "Provided justification cannot be converted into correct type".into(),
                 )
             })?);
@@ -124,5 +177,32 @@ where
                 )
             })?;
         Ok(())
+    }
+
+    fn aleph_node_block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>> {
+        let header = self.client.header(hash).unwrap().unwrap();
+        if header.number().is_zero() {
+            return Ok(None);
+        }
+
+        let slot = header
+            .digest()
+            .logs()
+            .iter()
+            .find_map(<DigestItem as CompatibleDigestItem<Signature>>::as_aura_pre_digest)
+            .ok_or(Error::BlockWithoutDigest)?;
+
+        let parent = header.parent_hash();
+
+        let block_producers_at_parent = self
+            .client
+            .runtime_api()
+            .session_validators(*parent)
+            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?;
+
+        Ok(Some(
+            block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]
+                .clone(),
+        ))
     }
 }

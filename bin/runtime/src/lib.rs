@@ -302,7 +302,7 @@ impl pallet_sudo::Config for Runtime {
 pub struct SessionInfoImpl;
 impl SessionInfoProvider for SessionInfoImpl {
     fn current_session() -> SessionIndex {
-        pallet_session::CurrentIndex::<Runtime>::get()
+        Session::current_index()
     }
 }
 
@@ -1001,6 +1001,10 @@ impl_runtime_apis! {
             session: SessionIndex,
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
             CommitteeManagement::session_committee_for_session(session)
+        }
+
+        fn session_validators() -> Vec<AccountId> {
+            Session::validators()
         }
     }
 
