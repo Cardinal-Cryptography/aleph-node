@@ -29,4 +29,5 @@ default = ["test-srs"]
 test-srs = [
     "jf-plonk/test-srs"
 ]
-
+parallel = ["jf-plonk/parallel", "jf-primitives/parallel", "jf-relation/parallel",
+"jf-utils/parallel"]
