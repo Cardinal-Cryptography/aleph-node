@@ -16,6 +16,7 @@ use rand_core::{CryptoRng, RngCore};
 use shielder_types::{convert_array, LeafIndex, MerkleRoot};
 
 pub mod deposit;
+pub mod deposit_and_merge;
 pub mod merge;
 pub mod note;
 pub mod shielder_types;
