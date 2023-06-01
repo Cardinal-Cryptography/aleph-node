@@ -12,6 +12,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
 use sp_consensus_aura::digests::CompatibleDigestItem;
+use sp_core::Bytes;
 use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT},
     DigestItem,
@@ -102,7 +103,7 @@ pub trait AlephNodeApi<Block: BlockT> {
     #[method(name = "alephNode_emergencyFinalize")]
     fn aleph_node_emergency_finalize(
         &self,
-        justification: Vec<u8>,
+        justification: Bytes,
         hash: Block::Hash,
         number: <<Block as BlockT>::Header as HeaderT>::Number,
     ) -> RpcResult<()>;
@@ -154,12 +155,12 @@ where
 {
     fn aleph_node_emergency_finalize(
         &self,
-        justification: Vec<u8>,
+        justification: Bytes,
         hash: Block::Hash,
         number: <<Block as BlockT>::Header as HeaderT>::Number,
     ) -> RpcResult<()> {
         let justification: AlephJustification =
-            AlephJustification::EmergencySignature(justification.try_into().map_err(|_| {
+            AlephJustification::EmergencySignature(justification.0.try_into().map_err(|_| {
                 Error::MalformedJustificationArg(
                     "Provided justification cannot be converted into correct type".into(),
                 )
