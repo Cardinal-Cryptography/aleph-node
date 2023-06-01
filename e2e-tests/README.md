@@ -42,3 +42,5 @@ or `trigger:create-hotfix-featurenet`, then after its started run
 ```bash
 e2e-tests$ NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test finalization
 ```
+
+where you can find your feature env address in https://github.com/Cardinal-Cryptography/aleph-node/deployments
