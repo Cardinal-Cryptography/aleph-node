@@ -5,7 +5,7 @@ export AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 export AUTHORITY_SEED=//Alice
 
 # how long do the games live for (in blocks)
-export LIFETIME=20
+export LIFETIME=10
 # scores are mapped to these values and then rewards are minted
 export BUTTON_MIN_REWARD=1000000000000 # 1 token
 export BUTTON_MAX_REWARD=100000000000000 # 100 tokens
@@ -14,10 +14,14 @@ export BUTTON_MAX_REWARD=100000000000000 # 100 tokens
 export TICKET_BALANCE=5000
 
 # initial price of ticket on the marketplace
-export INITIAL_PRICE=1000000000000
+export INITIAL_PRICE_EBS=1000000000000 # 1 token
+export INITIAL_PRICE_BTF=1000000000000 # 1 token
+export INITIAL_PRICE_TPC=1000000000000 # 1 token
 
 # the price of ticket on the marketplace does not go below this value
-export MINIMAL_PRICE=100
+export MINIMAL_PRICE_EBS=100 # 1e-10 token
+export MINIMAL_PRICE_BTF=100 # 1e-10 token
+export MINIMAL_PRICE_TPC=100 # 1e-10 token
 
 # how many blocks will elapse between INITAL and MINIMAL price
 export AUCTION_LENGTH=60

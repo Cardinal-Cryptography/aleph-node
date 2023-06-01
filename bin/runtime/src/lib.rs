@@ -6,8 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-#[cfg(feature = "liminal")]
-use baby_liminal_extension::substrate::Extension as BabyLiminalExtension;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -37,14 +35,15 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-pub use primitives::Balance;
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
     AuthorityId as AlephId, Block as AlephBlock, BlockId as AlephBlockId,
-    BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData,
-    Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS,
-    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
+    BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData, SessionCommittee,
+    SessionIndex, SessionInfoProvider, SessionValidatorError, Version as FinalityVersion,
+    ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
+pub use primitives::{AccountId, AccountIndex, Balance, Hash, Index, Signature};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -53,11 +52,10 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, IdentifyAccount, One,
-        OpaqueKeys, Verify,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, One, OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedU128, MultiSignature,
+    ApplyExtrinsicResult, FixedU128,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::EraIndex;
@@ -65,23 +63,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -139,7 +120,7 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // The whole process for a single block should take 1s, of which 400ms is for creation,
 // 200ms for propagation and 400ms for validation. Hence the block weight should be within 400ms.
 pub const MAX_BLOCK_WEIGHT: Weight =
-    Weight::from_ref_time(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(400));
+    Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(400), 0);
 
 // The storage deposit is roughly 1 TOKEN per 1kB -- this is the legacy value, used for pallet Identity and Multisig.
 pub const LEGACY_DEPOSIT_PER_BYTE: Balance = MILLI_AZERO;
@@ -318,10 +299,17 @@ impl pallet_sudo::Config for Runtime {
     type RuntimeCall = RuntimeCall;
 }
 
+pub struct SessionInfoImpl;
+impl SessionInfoProvider for SessionInfoImpl {
+    fn current_session() -> SessionIndex {
+        pallet_session::CurrentIndex::<Runtime>::get()
+    }
+}
+
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type RuntimeEvent = RuntimeEvent;
-    type SessionInfoProvider = Session;
+    type SessionInfoProvider = SessionInfoImpl;
     type SessionManager = SessionAndEraManager<
         Staking,
         Elections,
@@ -381,7 +369,7 @@ impl pallet_committee_management::Config for Runtime {
     type SessionPeriod = SessionPeriod;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
     pub const Offset: u32 = 0;
@@ -714,9 +702,6 @@ impl pallet_contracts::Config for Runtime {
     type DepositPerByte = DepositPerByte;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    #[cfg(feature = "liminal")]
-    type ChainExtension = BabyLiminalExtension;
-    #[cfg(not(feature = "liminal"))]
     type ChainExtension = ();
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
@@ -764,7 +749,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+        RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
         Timestamp: pallet_timestamp,
@@ -796,7 +781,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+        RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
         Timestamp: pallet_timestamp,
@@ -1011,11 +996,25 @@ impl_runtime_apis! {
         fn next_session_finality_version() -> FinalityVersion {
             Aleph::next_session_finality_version()
         }
+
+        fn session_committee(
+            session: SessionIndex,
+        ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
+            CommitteeManagement::session_committee_for_session(session)
+        }
     }
 
     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
-        fn pending_rewards(member_account: AccountId) -> Balance {
-            NominationPools::pending_rewards(member_account).unwrap_or_default()
+        fn pending_rewards(member: AccountId) -> Balance {
+            NominationPools::api_pending_rewards(member).unwrap_or_default()
+        }
+
+        fn points_to_balance(pool_id: pallet_nomination_pools::PoolId, points: Balance) -> Balance {
+            NominationPools::api_points_to_balance(pool_id, points)
+        }
+
+        fn balance_to_points(pool_id: pallet_nomination_pools::PoolId, new_funds: Balance) -> Balance {
+            NominationPools::api_balance_to_points(pool_id, new_funds)
         }
     }
 

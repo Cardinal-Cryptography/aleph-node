@@ -1,6 +1,5 @@
 use std::{collections::HashSet, marker::PhantomData, sync::Arc};
 
-use aleph_primitives::{AlephSessionApi, BlockNumber, KEY_TYPE};
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
@@ -8,16 +7,14 @@ use network_clique::SpawnHandleT;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block as BlockT, Header as HeaderT},
-};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
     abft::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
         run_legacy_member, SpawnHandle,
     },
+    aleph_primitives::{AlephSessionApi, BlockNumber, KEY_TYPE},
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     mpsc,
@@ -124,7 +121,7 @@ where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
@@ -333,6 +330,11 @@ where
         };
 
         let last_block_of_previous_session = session_boundaries.first_block().saturating_sub(1);
+        let last_block_of_previous_session_hash = self
+            .client
+            .block_hash(last_block_of_previous_session)
+            .expect("Previous session ended, the block should be present")
+            .expect("Previous session ended, we should have the hash.");
 
         let params = SubtasksParams {
             n_members: authorities.len(),
@@ -354,7 +356,7 @@ where
         match self
             .client
             .runtime_api()
-            .next_session_finality_version(&BlockId::Number(last_block_of_previous_session))
+            .next_session_finality_version(last_block_of_previous_session_hash)
         {
             #[cfg(feature = "only_legacy")]
             _ if self.only_legacy() => {
@@ -396,7 +398,7 @@ where
     B: BlockT,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,

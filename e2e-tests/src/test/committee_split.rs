@@ -36,6 +36,8 @@ async fn prepare_test() -> anyhow::Result<()> {
         non_reserved_finality_seats: 1,
     };
 
+    info!("validators: {:?}", new_validators);
+
     connection
         .change_validators(
             Some(new_validators[0..3].to_vec()),

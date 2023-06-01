@@ -5,17 +5,19 @@ use std::{
     sync::Arc,
 };
 
-use aleph_primitives::{AuthorityId, BlockNumber};
-use codec::{Codec, Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
+use parity_scale_codec::{Codec, Decode, Encode, Output};
+use primitives as aleph_primitives;
+use sc_client_api::{
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
+};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
-use sc_network_common::ExHashT;
+use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::CryptoStore;
@@ -28,6 +30,9 @@ use crate::{
         SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
     },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
+    aleph_primitives::{
+        AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash, Header as AlephHeader,
+    },
     compatibility::{Version, Versioned},
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
@@ -69,8 +74,8 @@ const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
 pub fn peers_set_config(
     naming: ProtocolNaming,
     protocol: Protocol,
-) -> sc_network_common::config::NonDefaultSetConfig {
-    let mut config = sc_network_common::config::NonDefaultSetConfig::new(
+) -> sc_network::config::NonDefaultSetConfig {
+    let mut config = sc_network::config::NonDefaultSetConfig::new(
         naming.protocol_name(&protocol),
         // max_notification_size should be larger than the maximum possible honest message size (in bytes).
         // Max size of alert is UNIT_SIZE * MAX_UNITS_IN_ALERT ~ 100 * 5000 = 50000 bytes
@@ -79,7 +84,7 @@ pub fn peers_set_config(
         1024 * 1024,
     );
 
-    config.set_config = sc_network_common::config::SetConfig::default();
+    config.set_config = sc_network::config::SetConfig::default();
     config.add_fallback_names(naming.fallback_protocol_names(&protocol));
     config
 }
@@ -113,7 +118,9 @@ pub enum VersionedEitherMessage<L, R> {
 }
 
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
-    fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(
+        input: &mut I,
+    ) -> Result<Self, parity_scale_codec::Error> {
         let version = Version::decode(input)?;
         if version == L::VERSION {
             return Ok(VersionedEitherMessage::Left(L::decode(input)?));
@@ -196,6 +203,7 @@ pub trait ClientForAleph<B, BE>:
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
+    + BlockBackend<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -212,7 +220,8 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
+        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+        + BlockBackend<B>,
 {
 }
 
@@ -266,20 +275,16 @@ impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
     }
 }
 
-pub struct AlephConfig<B, H, C, SC, CS>
-where
-    B: Block,
-    B::Header: Header<Number = BlockNumber>,
-    H: ExHashT,
-{
-    pub network: Arc<NetworkService<B, H>>,
+pub struct AlephConfig<C, SC, CS> {
+    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
+    pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
     pub chain_status: CS,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
-    pub metrics: Metrics<<B::Header as Header>::Hash>,
+    pub justification_rx: mpsc::UnboundedReceiver<Justification<AlephHeader>>,
+    pub metrics: Metrics<AlephHash>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,

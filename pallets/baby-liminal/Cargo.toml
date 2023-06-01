@@ -9,34 +9,32 @@ license = "Apache 2.0"
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 
-ark-relations = { version = "^0.3.0", default-features = false }
-ark-serialize = { version = "^0.3.0", default-features = false }
-ark-snark = { version = "^0.3.0", default-features = false }
+ark-bls12-381 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-serialize = { version = "0.4.0", default-features = false }
 
-ark-bls12-381 = { version = "^0.3.0" }
-ark-groth16 = { version = "^0.3.0", default-features = false }
+frame-benchmarking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41", optional = true }
+frame-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
+frame-system = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
+sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
 
-liminal-ark-poseidon = { version = "0.1.0", default-features = false, optional = true }
-
-frame-benchmarking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38", optional = true }
-frame-support = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-frame-system = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-sp-std = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-
-primitives = { path = "../../primitives", default-features = false }
+# we are waiting for: https://github.com/EspressoSystems/jellyfish/issues/258 and https://github.com/EspressoSystems/jellyfish/issues/268
+jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "substrate-compatible", default-features = false }
 
 [dev-dependencies]
-pallet-balances = { default-features = false, git = 'https://github.com/Cardinal-Cryptography/substrate.git', branch = "aleph-v0.9.38" }
-sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
-sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.38" }
+once_cell = { version = "1.17.1" }
+pallet-balances = { default-features = false, git = 'https://github.com/Cardinal-Cryptography/substrate.git', branch = "aleph-v0.9.41" }
+sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
+sp-io = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
+sp-runtime = { default-features = false, git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v0.9.41" }
+
+jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "substrate-compatible", default-features = false, features = ["test-srs"] }
+jf-relation = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "substrate-compatible", default-features = false }
+jf-utils = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "substrate-compatible", default-features = false }
 
 [features]
 default = ["std"]
 std = [
     "ark-bls12-381/std",
-    "ark-groth16/std",
-    "ark-relations/std",
     "ark-serialize/std",
 
     "codec/std",
@@ -50,10 +48,9 @@ std = [
     "sp-runtime/std",
     "pallet-balances/std",
 
-    "primitives/std",
+    "jf-plonk/std",
 ]
 runtime-benchmarks = [
-    "liminal-ark-poseidon",
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
