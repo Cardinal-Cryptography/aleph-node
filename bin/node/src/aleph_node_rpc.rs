@@ -7,12 +7,13 @@ use jsonrpsee::{
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
-use primitives::{AccountId, AlephSessionApi, Signature};
-use sp_api::ProvideRuntimeApi;
+use parity_scale_codec::Decode;
+use primitives::{AccountId, Signature};
+use sc_client_api::StorageProvider;
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
 use sp_consensus_aura::digests::CompatibleDigestItem;
-use sp_core::Bytes;
+use sp_core::{twox_128, Bytes};
 use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT},
     DigestItem,
@@ -38,9 +39,23 @@ pub enum Error {
     /// Failed to get session data at the parent block.
     #[error("Failed to get session data at the parent block.")]
     SessionInfoNotAvailable,
-    /// Failed to get authority set at the parent block.
-    #[error("Failed to get authority set at the parent block.")]
-    AuthoritiesInfoNotAvailable,
+    /// Failed to read storage.
+    #[error("Failed to read {0}/{1} at the block {2}: {3:?}.")]
+    FailedStorageRead(&'static str, &'static str, String, sp_blockchain::Error),
+    /// Failed to decode storage item.
+    #[error("Failed to decode storage item: {0}/{1} at the block {2}: {3:?}.")]
+    FailedStorageDecoding(
+        &'static str,
+        &'static str,
+        String,
+        parity_scale_codec::Error,
+    ),
+    /// Failed to decode header.
+    #[error("Failed to decode header of a block {0}: {1:?}.")]
+    FailedHeaderDecoding(String, sp_blockchain::Error),
+    /// Failed to find a block with provided hash.
+    #[error("Failed to find a block with hash {0}.")]
+    UnknownHash(String),
 }
 
 // Base code for all system errors.
@@ -55,8 +70,14 @@ const FAILED_JUSTIFICATION_TRANSLATION_ERROR: i32 = BASE_ERROR + 3;
 const BLOCK_WITHOUT_DIGEST_ERROR: i32 = BASE_ERROR + 4;
 // Failed to get session data at the parent block.
 const SESSION_INFO_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 5;
-// Failed to get authority set at the parent block.
-const AUTHORITIES_INFO_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 6;
+/// Failed to read storage.
+const FAILED_STORAGE_READ_ERROR: i32 = BASE_ERROR + 6;
+/// Failed to decode storage item.
+const FAILED_STORAGE_DECODING_ERROR: i32 = BASE_ERROR + 7;
+/// Failed to decode header.
+const FAILED_HEADER_DECODING_ERROR: i32 = BASE_ERROR + 8;
+/// Failed to find a block with provided hash.
+const UNKNOWN_HASH_ERROR: i32 = BASE_ERROR + 9;
 
 impl From<Error> for JsonRpseeError {
     fn from(e: Error) -> Self {
@@ -86,9 +107,28 @@ impl From<Error> for JsonRpseeError {
                 "Failed to get session data at the parent block.",
                 None::<()>,
             )),
-            Error::AuthoritiesInfoNotAvailable => CallError::Custom(ErrorObject::owned(
-                AUTHORITIES_INFO_NOT_AVAILABLE_ERROR,
-                "Failed to get authority set at the parent block.",
+            Error::FailedStorageRead(pallet, key, hash, err) => {
+                CallError::Custom(ErrorObject::owned(
+                    FAILED_STORAGE_READ_ERROR,
+                    format!("Failed to read {pallet}/{key} at the block {hash}: {err:?}."),
+                    None::<()>,
+                ))
+            }
+            Error::FailedStorageDecoding(pallet, key, hash, err) => {
+                CallError::Custom(ErrorObject::owned(
+                    FAILED_STORAGE_DECODING_ERROR,
+                    format!("Failed to decode {pallet}/{key} at the block {hash}: {err:?}.",),
+                    None::<()>,
+                ))
+            }
+            Error::FailedHeaderDecoding(hash, err) => CallError::Custom(ErrorObject::owned(
+                FAILED_HEADER_DECODING_ERROR,
+                format!("Failed to decode header of a block {hash}: {err:?}.",),
+                None::<()>,
+            )),
+            Error::UnknownHash(hash) => CallError::Custom(ErrorObject::owned(
+                UNKNOWN_HASH_ERROR,
+                format!("Failed to find a block with hash {hash}.",),
                 None::<()>,
             )),
         }
@@ -98,7 +138,7 @@ impl From<Error> for JsonRpseeError {
 
 /// Aleph Node RPC API
 #[rpc(client, server)]
-pub trait AlephNodeApi<Block: BlockT> {
+pub trait AlephNodeApi<Block: BlockT, BE> {
     /// Finalize the block with given hash and number using attached signature. Returns the empty string or an error.
     #[method(name = "alephNode_emergencyFinalize")]
     fn aleph_node_emergency_finalize(
@@ -114,26 +154,23 @@ pub trait AlephNodeApi<Block: BlockT> {
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<Block, JT, Client>
+pub struct AlephNode<Header, JT, Client>
 where
-    Block: BlockT,
-    Block::Header: HeaderT<Number = BlockNumber>,
-    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
+    Header: HeaderT<Number = BlockNumber>,
+    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
 {
-    import_justification_tx: mpsc::UnboundedSender<Justification<Block::Header>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
     justification_translator: JT,
     client: Arc<Client>,
 }
 
-impl<Block, JT, Client> AlephNode<Block, JT, Client>
+impl<Header, JT, Client> AlephNode<Header, JT, Client>
 where
-    Block: BlockT,
-    Block::Header: HeaderT<Number = BlockNumber>,
-    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
-    Client: HeaderBackend<Block> + 'static,
+    Header: HeaderT<Number = BlockNumber>,
+    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
 {
     pub fn new(
-        import_justification_tx: mpsc::UnboundedSender<Justification<Block::Header>>,
+        import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
         justification_translator: JT,
         client: Arc<Client>,
     ) -> Self {
@@ -145,13 +182,13 @@ where
     }
 }
 
-impl<Block, JT, Client> AlephNodeApiServer<Block> for AlephNode<Block, JT, Client>
+impl<Block, JT, Client, BE> AlephNodeApiServer<Block, BE> for AlephNode<Block::Header, JT, Client>
 where
     Block: BlockT,
     Block::Header: HeaderT<Number = BlockNumber>,
     JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
-    Client: HeaderBackend<Block> + ProvideRuntimeApi<Block> + 'static,
-    Client::Api: AlephSessionApi<Block>,
+    Client: HeaderBackend<Block> + StorageProvider<Block, BE> + 'static,
+    BE: sc_client_api::Backend<Block> + 'static,
 {
     fn aleph_node_emergency_finalize(
         &self,
@@ -181,7 +218,11 @@ where
     }
 
     fn aleph_node_block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>> {
-        let header = self.client.header(hash).unwrap().unwrap();
+        let header = self
+            .client
+            .header(hash)
+            .map_err(|e| Error::FailedHeaderDecoding(hash.to_string(), e))?
+            .ok_or(Error::UnknownHash(hash.to_string()))?;
         if header.number().is_zero() {
             return Ok(None);
         }
@@ -194,12 +235,22 @@ where
             .ok_or(Error::BlockWithoutDigest)?;
 
         let parent = header.parent_hash();
-
-        let block_producers_at_parent = self
+        let (pallet, key) = ("Session", "Validators");
+        let storage_key = [twox_128(pallet.as_bytes()), twox_128(key.as_bytes())].concat();
+        let block_producers_at_parent_encoded = match self
             .client
-            .runtime_api()
-            .session_validators(*parent)
-            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?;
+            .storage(*parent, &sc_client_api::StorageKey(storage_key))
+        {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => return Err(Error::SessionInfoNotAvailable.into()),
+            Err(e) => {
+                return Err(Error::FailedStorageRead(pallet, key, parent.to_string(), e).into())
+            }
+        };
+
+        let block_producers_at_parent =
+            Vec::<AccountId>::decode(&mut block_producers_at_parent_encoded.0.as_ref())
+                .map_err(|e| Error::FailedStorageDecoding(pallet, key, parent.to_string(), e))?;
 
         Ok(Some(
             block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]

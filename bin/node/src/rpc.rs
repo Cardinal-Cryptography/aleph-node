@@ -14,6 +14,7 @@ use aleph_runtime::{
 use finality_aleph::{Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::RpcModule;
+use sc_client_api::StorageProvider;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -33,17 +34,21 @@ pub struct FullDeps<C, P, JT> {
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P, JT>(
+pub fn create_full<C, P, JT, BE>(
     deps: FullDeps<C, P, JT>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
-    C: ProvideRuntimeApi<Block>,
-    C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
-    C: Send + Sync + 'static,
-    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-    C::Api: primitives::AlephSessionApi<Block>,
-    C::Api: BlockBuilder<Block>,
+    C: ProvideRuntimeApi<Block>
+        + HeaderBackend<Block>
+        + HeaderMetadata<Block, Error = BlockChainError>
+        + StorageProvider<Block, BE>
+        + Send
+        + Sync
+        + 'static,
+    BE: sc_client_api::Backend<Block> + 'static,
+    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>
+        + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
+        + BlockBuilder<Block>,
     P: TransactionPool + 'static,
     JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
 {
