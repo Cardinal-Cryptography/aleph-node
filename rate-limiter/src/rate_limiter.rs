@@ -72,14 +72,13 @@ impl SleepingRateLimiter {
 
 type SleepFuture = impl Future<Output = SleepingRateLimiter>;
 
-/// Implementation of the [AsyncRead](tokio::io::AsyncRead) trait that uses [SleepingRateLimiter] internally to limit rate at
-/// which its underlying `Read` is accessed.
+/// Wrapper around [SleepingRateLimiter] to simplify implementation of the [AsyncRead](tokio::io::AsyncRead) trait.
 pub struct RateLimiter {
     rate_limiter: Pin<Box<SleepFuture>>,
 }
 
 impl RateLimiter {
-    /// Constructs an instance of [RateLimitedAsyncRead] that uses already configured rate-limiting access governor
+    /// Constructs an instance of [RateLimiter] that uses already configured rate-limiting access governor
     /// ([SleepingRateLimiter]).
     pub fn new(rate_limiter: SleepingRateLimiter) -> Self {
         Self {
@@ -87,6 +86,7 @@ impl RateLimiter {
         }
     }
 
+    /// Helper method for the use of the [AsyncRead](tokio::io::AsyncRead) implementation.
     pub fn rate_limit<Read: AsyncRead + Unpin>(
         &mut self,
         read: std::pin::Pin<&mut Read>,
