@@ -79,6 +79,12 @@ pub struct RateLimitedAsyncRead<Read> {
     read: Read,
 }
 
+impl<Read> AsRef<Read> for RateLimitedAsyncRead<Read> {
+    fn as_ref(&self) -> &Read {
+        &self.read
+    }
+}
+
 impl<Read> RateLimitedAsyncRead<Read> {
     /// Constructs an instance of [RateLimitedAsyncRead] that uses already configured rate-limiting access governor
     /// ([SleepingRateLimiter]).
