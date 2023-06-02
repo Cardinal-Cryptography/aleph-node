@@ -36,9 +36,9 @@ pub enum Error {
     /// Block doesn't have any Aura pre-runtime digest item.
     #[error("Block doesn't have any Aura pre-runtime digest item.")]
     BlockWithoutDigest,
-    /// Failed to get session data at the parent block.
-    #[error("Failed to get session data at the parent block.")]
-    SessionInfoNotAvailable,
+    /// Failed to get storage item.
+    #[error("Failed to get storage item {0}/{1} at block {2}.")]
+    StorageItemNotAvailable(&'static str, &'static str, String),
     /// Failed to read storage.
     #[error("Failed to read {0}/{1} at the block {2}: {3:?}.")]
     FailedStorageRead(&'static str, &'static str, String, sp_blockchain::Error),
@@ -68,8 +68,8 @@ const FAILED_JUSTIFICATION_SEND_ERROR: i32 = BASE_ERROR + 2;
 const FAILED_JUSTIFICATION_TRANSLATION_ERROR: i32 = BASE_ERROR + 3;
 // Block doesn't have any Aura pre-runtime digest item.
 const BLOCK_WITHOUT_DIGEST_ERROR: i32 = BASE_ERROR + 4;
-// Failed to get session data at the parent block.
-const SESSION_INFO_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 5;
+// Failed to get storage item.
+const STORAGE_ITEM_NOT_AVAILABLE_ERROR: i32 = BASE_ERROR + 5;
 /// Failed to read storage.
 const FAILED_STORAGE_READ_ERROR: i32 = BASE_ERROR + 6;
 /// Failed to decode storage item.
@@ -102,11 +102,13 @@ impl From<Error> for JsonRpseeError {
                 "Block doesn't have any Aura pre-runtime digest item.",
                 None::<()>,
             )),
-            Error::SessionInfoNotAvailable => CallError::Custom(ErrorObject::owned(
-                SESSION_INFO_NOT_AVAILABLE_ERROR,
-                "Failed to get session data at the parent block.",
-                None::<()>,
-            )),
+            Error::StorageItemNotAvailable(pallet, key, hash) => {
+                CallError::Custom(ErrorObject::owned(
+                    STORAGE_ITEM_NOT_AVAILABLE_ERROR,
+                    format!("Failed to get storage item {pallet}/{key} at the block {hash}."),
+                    None::<()>,
+                ))
+            }
             Error::FailedStorageRead(pallet, key, hash, err) => {
                 CallError::Custom(ErrorObject::owned(
                     FAILED_STORAGE_READ_ERROR,
@@ -235,26 +237,50 @@ where
             .ok_or(Error::BlockWithoutDigest)?;
 
         let parent = header.parent_hash();
-        let (pallet, key) = ("Session", "Validators");
-        let storage_key = [twox_128(pallet.as_bytes()), twox_128(key.as_bytes())].concat();
-        let block_producers_at_parent_encoded = match self
-            .client
-            .storage(*parent, &sc_client_api::StorageKey(storage_key))
-        {
-            Ok(Some(bytes)) => bytes,
-            Ok(None) => return Err(Error::SessionInfoNotAvailable.into()),
-            Err(e) => {
-                return Err(Error::FailedStorageRead(pallet, key, parent.to_string(), e).into())
-            }
-        };
-
-        let block_producers_at_parent =
-            Vec::<AccountId>::decode(&mut block_producers_at_parent_encoded.0.as_ref())
-                .map_err(|e| Error::FailedStorageDecoding(pallet, key, parent.to_string(), e))?;
+        let block_producers_at_parent: Vec<AccountId> =
+            read_storage("Session", "Validators", &self.client, *parent)?;
 
         Ok(Some(
             block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]
                 .clone(),
         ))
     }
+}
+
+fn read_storage<
+    T: Decode,
+    Block: BlockT,
+    Backend: sc_client_api::Backend<Block>,
+    SP: StorageProvider<Block, Backend>,
+>(
+    pallet: &'static str,
+    pallet_item: &'static str,
+    storage_provider: &Arc<SP>,
+    block_hash: Block::Hash,
+) -> RpcResult<T> {
+    let storage_key = [
+        twox_128(pallet.as_bytes()),
+        twox_128(pallet_item.as_bytes()),
+    ]
+    .concat();
+
+    let item_encoded = match storage_provider
+        .storage(block_hash, &sc_client_api::StorageKey(storage_key))
+    {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => {
+            return Err(
+                Error::StorageItemNotAvailable(pallet, pallet_item, block_hash.to_string()).into(),
+            )
+        }
+        Err(e) => {
+            return Err(
+                Error::FailedStorageRead(pallet, pallet_item, block_hash.to_string(), e).into(),
+            )
+        }
+    };
+
+    T::decode(&mut item_encoded.0.as_ref()).map_err(|e| {
+        Error::FailedStorageDecoding(pallet, pallet_item, block_hash.to_string(), e).into()
+    })
 }
