@@ -74,36 +74,22 @@ type SleepFuture = impl Future<Output = SleepingRateLimiter>;
 
 /// Implementation of the [AsyncRead](tokio::io::AsyncRead) trait that uses [SleepingRateLimiter] internally to limit rate at
 /// which its underlying `Read` is accessed.
-pub struct RateLimitedAsyncRead<Read> {
+pub struct RateLimiter {
     rate_limiter: Pin<Box<SleepFuture>>,
-    read: Read,
 }
 
-impl<Read> AsRef<Read> for RateLimitedAsyncRead<Read> {
-    fn as_ref(&self) -> &Read {
-        &self.read
-    }
-}
-
-impl<Read> RateLimitedAsyncRead<Read> {
+impl RateLimiter {
     /// Constructs an instance of [RateLimitedAsyncRead] that uses already configured rate-limiting access governor
     /// ([SleepingRateLimiter]).
-    pub fn new(read: Read, rate_limiter: SleepingRateLimiter) -> Self {
+    pub fn new(rate_limiter: SleepingRateLimiter) -> Self {
         Self {
             rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
-            read,
         }
     }
 
-    /// Returns reference to internal `Read` instance.
-    pub fn inner(&self) -> &Read {
-        &self.read
-    }
-}
-
-impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
+    pub fn rate_limit<Read: AsyncRead + Unpin>(
+        &mut self,
+        read: std::pin::Pin<&mut Read>,
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
@@ -113,7 +99,7 @@ impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
         };
 
         let filled_before = buf.filled().len();
-        let result = Pin::new(&mut self.read).poll_read(cx, buf);
+        let result = read.poll_read(cx, buf);
         let filled_after = buf.filled().len();
         let last_read_size = filled_after.saturating_sub(filled_before);
 

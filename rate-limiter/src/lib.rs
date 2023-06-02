@@ -3,4 +3,4 @@
 mod rate_limiter;
 mod token_bucket;
 
-pub use crate::rate_limiter::{RateLimitedAsyncRead, SleepingRateLimiter};
+pub use crate::rate_limiter::{RateLimiter, SleepingRateLimiter};

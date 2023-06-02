@@ -1,10 +1,34 @@
-use rate_limiter::{RateLimitedAsyncRead, SleepingRateLimiter};
+use rate_limiter::{RateLimiter, SleepingRateLimiter};
+use tokio::io::AsyncRead;
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 
-impl<A: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<A> {
+pub struct RateLimitedAsyncRead<Read> {
+    rate_limiter: RateLimiter,
+    read: Read,
+}
+
+impl<Read> RateLimitedAsyncRead<Read> {
+    pub fn new(read: Read, rate_limiter: RateLimiter) -> Self {
+        Self { rate_limiter, read }
+    }
+}
+
+impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        let read = std::pin::Pin::new(&mut this.read);
+        this.rate_limiter.rate_limit(read, cx, buf)
+    }
+}
+
+impl<Read: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<Read> {
     fn peer_address_info(&self) -> PeerAddressInfo {
-        self.as_ref().peer_address_info()
+        self.read.peer_address_info()
     }
 }
 
@@ -42,7 +66,7 @@ where
         let connection = self.dialer.connect(address).await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
+            RateLimitedAsyncRead::new(receiver, RateLimiter::new(self.rate_limiter.clone())),
             sender,
         ))
     }
@@ -75,7 +99,7 @@ impl<L: Listener + Send> Listener for RateLimitingListener<L> {
         let connection = self.listener.accept().await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
+            RateLimitedAsyncRead::new(receiver, RateLimiter::new(self.rate_limiter.clone())),
             sender,
         ))
     }
