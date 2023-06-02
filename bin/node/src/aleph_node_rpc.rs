@@ -109,7 +109,10 @@ pub trait AlephNodeApi<Block: BlockT> {
 
     /// Get the author of the block with given hash.
     #[method(name = "chain_getBlockAuthor")]
-    fn aleph_node_block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>>;
+    fn aleph_node_block_author(
+        &self,
+        hash: Block::Hash,
+    ) -> RpcResult<Option<(Vec<AccountId>, Vec<AccountId>)>>;
 }
 
 /// Aleph Node API implementation
@@ -179,30 +182,39 @@ where
         Ok(())
     }
 
-    fn aleph_node_block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>> {
+    fn aleph_node_block_author(
+        &self,
+        hash: Block::Hash,
+    ) -> RpcResult<Option<(Vec<AccountId>, Vec<AccountId>)>> {
         let header = self.client.header(hash).unwrap().unwrap();
         if header.number().is_zero() {
             return Ok(None);
         }
 
-        let slot = header
-            .digest()
-            .logs()
-            .iter()
-            .find_map(<DigestItem as CompatibleDigestItem<Signature>>::as_aura_pre_digest)
-            .ok_or(Error::BlockWithoutDigest)?;
-
         let parent = header.parent_hash();
 
-        let block_producers_at_parent = self
+        let block_producers_at_parent_pallet_session = self
             .client
             .runtime_api()
             .session_validators(*parent)
             .map_err(|_| Error::AuthoritiesInfoNotAvailable)?;
 
-        Ok(Some(
-            block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]
-                .clone(),
-        ))
+        let session_index_at_parent = self
+            .client
+            .runtime_api()
+            .current_session(*parent)
+            .map_err(|_| Error::SessionInfoNotAvailable)?;
+        let block_producers_at_parent_pallet_cm = self
+            .client
+            .runtime_api()
+            .session_committee(*parent, session_index_at_parent)
+            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?
+            .map_err(|_| Error::AuthoritiesInfoNotAvailable)?
+            .block_producers;
+
+        Ok(Some((
+            block_producers_at_parent_pallet_session,
+            block_producers_at_parent_pallet_cm,
+        )))
     }
 }
