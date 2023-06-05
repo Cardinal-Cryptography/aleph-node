@@ -5,7 +5,7 @@ use std::{
 
 use log::trace;
 
-const LOG_TARGET: &str = "token-bucket";
+use crate::LOG_TARGET;
 
 /// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource.
 #[derive(Clone, Debug)]

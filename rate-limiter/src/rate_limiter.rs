@@ -7,9 +7,7 @@ use futures::{Future, FutureExt};
 use log::trace;
 use tokio::{io::AsyncRead, time::Sleep};
 
-use crate::token_bucket::TokenBucket;
-
-const LOG_TARGET: &str = "rate-limiter";
+use crate::{token_bucket::TokenBucket, LOG_TARGET};
 
 /// Allows to limit access to some resource. Given a preferred rate (units of something) and last used amount of units of some
 /// resource, it calculates how long we should delay our next access to that resource in order to satisfy that rate.
