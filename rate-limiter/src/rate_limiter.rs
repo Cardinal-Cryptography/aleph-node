@@ -60,7 +60,7 @@ impl SleepingRateLimiter {
     pub async fn rate_limit(mut self, read_size: usize) -> Self {
         trace!(
             target: LOG_TARGET,
-            "Rate-Limiter called with {}.",
+            "Rate-Limiter attempting to read {}.",
             read_size
         );
         if let Some(sleep) = self.set_sleep(read_size) {
