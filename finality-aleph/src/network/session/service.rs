@@ -319,7 +319,7 @@ where
                     pen,
                 };
                 let (actions, data_from_network) =
-                    self.manager.update_validator_session(pre_session).await?;
+                    self.manager.update_validator_session(pre_session)?;
                 if let Some(result_for_user) = result_for_user {
                     if result_for_user.send(data_from_network).is_err() {
                         warn!(target: "aleph-network", "Failed to send started session.")
@@ -332,7 +332,7 @@ where
                     session_id,
                     verifier,
                 };
-                self.manager.update_nonvalidator_session(pre_session).await
+                self.manager.update_nonvalidator_session(pre_session)
             }
             Stop(session_id) => Ok(self.manager.finish_session(session_id)),
         }

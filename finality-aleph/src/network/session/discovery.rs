@@ -115,8 +115,7 @@ mod tests {
                     crypto_basics.1.clone(),
                     SessionId(43),
                     address,
-                )
-                .await,
+                ),
             );
         }
         let non_validator = SessionHandler::new(
@@ -124,8 +123,7 @@ mod tests {
             crypto_basics.1.clone(),
             SessionId(43),
             random_address(),
-        )
-        .await;
+        );
         (
             Discovery::new(Duration::from_millis(MS_COOLDOWN)),
             handlers,

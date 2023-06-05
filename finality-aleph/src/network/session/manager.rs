@@ -144,7 +144,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             .collect()
     }
 
-    async fn start_validator_session(
+    fn start_validator_session(
         &mut self,
         pre_session: PreValidatorSession,
         address: NI::AddressingInformation,
@@ -159,7 +159,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             pen,
         } = pre_session;
         let handler =
-            SessionHandler::new(Some((node_id, pen)), verifier, session_id, address).await;
+            SessionHandler::new(Some((node_id, pen)), verifier, session_id, address);
         let discovery = Discovery::new(self.discovery_cooldown);
         let (data_for_user, data_from_network) = mpsc::unbounded();
         let data_for_user = Some(data_for_user);
@@ -175,7 +175,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     }
 
     /// Starts or updates a validator session.
-    pub async fn update_validator_session(
+    pub fn update_validator_session(
         &mut self,
         pre_session: PreValidatorSession,
     ) -> Result<
@@ -190,7 +190,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             Some(session) => session,
             None => {
                 let (maybe_message, data_from_network) =
-                    self.start_validator_session(pre_session, address).await;
+                    self.start_validator_session(pre_session, address);
                 return Ok((
                     ManagerActions {
                         maybe_command: None,
@@ -208,8 +208,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
         } = pre_session;
         let peers_to_stay = session
             .handler
-            .update(Some((node_id, pen)), verifier, address)
-            .await?
+            .update(Some((node_id, pen)), verifier, address)?
             .iter()
             .map(|address| address.peer_id())
             .collect();
@@ -232,7 +231,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
         ))
     }
 
-    async fn start_nonvalidator_session(
+    fn start_nonvalidator_session(
         &mut self,
         pre_session: PreNonvalidatorSession,
         address: NI::AddressingInformation,
@@ -241,7 +240,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             session_id,
             verifier,
         } = pre_session;
-        let handler = SessionHandler::new(None, verifier, session_id, address).await;
+        let handler = SessionHandler::new(None, verifier, session_id, address);
         let discovery = Discovery::new(self.discovery_cooldown);
         self.sessions.insert(
             session_id,
@@ -254,7 +253,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     }
 
     /// Starts or updates a nonvalidator session.
-    pub async fn update_nonvalidator_session(
+    pub fn update_nonvalidator_session(
         &mut self,
         pre_session: PreNonvalidatorSession,
     ) -> Result<ManagerActions<NI::AddressingInformation>, SessionHandlerError> {
@@ -263,11 +262,10 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             Some(session) => {
                 session
                     .handler
-                    .update(None, pre_session.verifier, address)
-                    .await?;
+                    .update(None, pre_session.verifier, address)?;
             }
             None => {
-                self.start_nonvalidator_session(pre_session, address).await;
+                self.start_nonvalidator_session(pre_session, address);
             }
         };
         Ok(ManagerActions::noop())
@@ -454,8 +452,8 @@ mod tests {
         Manager::new(random_address(), DISCOVERY_PERIOD)
     }
 
-    #[tokio::test]
-    async fn starts_nonvalidator_session() {
+    #[test]
+    fn starts_nonvalidator_session() {
         let mut manager = build();
         let (_, verifier) = crypto_basics(NUM_NODES).await;
         let session_id = SessionId(43);
@@ -467,7 +465,6 @@ mod tests {
                 session_id,
                 verifier,
             })
-            .await
             .unwrap();
         assert!(maybe_command.is_none());
         assert!(maybe_message.is_none());

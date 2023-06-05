@@ -5,7 +5,8 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::crypto::KeyTypeId;
+use sp_application_crypto::AppCrypto;
+use sp_core::crypto::{CryptoTypeId, KeyTypeId};
 pub use sp_runtime::{
     generic,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},

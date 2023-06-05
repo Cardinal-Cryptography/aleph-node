@@ -1,8 +1,11 @@
 use std::{convert::TryInto, sync::Arc};
+use std::any::Any;
 
 use parity_scale_codec::{Decode, Encode};
+use sp_application_crypto::AppCrypto;
 use sp_core::crypto::KeyTypeId;
-use sp_keystore::{CryptoStore, Error as KeystoreError};
+use sp_keystore::{Error as KeystoreError, Keystore};
+use sp_runtime::MultiSignature::Sr25519;
 use sp_runtime::RuntimeAppPublic;
 
 use crate::{
@@ -32,7 +35,7 @@ impl From<AuthoritySignature> for Signature {
 pub struct AuthorityPen {
     key_type_id: KeyTypeId,
     authority_id: AuthorityId,
-    keystore: Arc<dyn CryptoStore>,
+    keystore: Arc<dyn Keystore>,
 }
 
 impl AuthorityPen {
@@ -40,15 +43,14 @@ impl AuthorityPen {
     /// Will attempt to sign a test message to verify that signing works.
     /// Returns errors if anything goes wrong during this attempt, otherwise we assume the
     /// AuthorityPen will work for any future attempts at signing.
-    pub async fn new_with_key_type(
+    pub fn new_with_key_type(
         authority_id: AuthorityId,
-        keystore: Arc<dyn CryptoStore>,
+        keystore: Arc<dyn Keystore>,
         key_type: KeyTypeId,
     ) -> Result<Self, Error> {
         // Check whether this signing setup works
         let _: AuthoritySignature = keystore
-            .sign_with(key_type, &authority_id.clone().into(), b"test")
-            .await
+            .sign_with(key_type, AuthorityId::CRYPTO_ID, &authority_id.clone().to_raw_vec(), b"test")
             .map_err(Error::Keystore)?
             .ok_or_else(|| Error::KeyMissing(authority_id.clone()))?
             .try_into()
@@ -64,19 +66,18 @@ impl AuthorityPen {
     /// Will attempt to sign a test message to verify that signing works.
     /// Returns errors if anything goes wrong during this attempt, otherwise we assume the
     /// AuthorityPen will work for any future attempts at signing.
-    pub async fn new(
+    pub fn new(
         authority_id: AuthorityId,
-        keystore: Arc<dyn CryptoStore>,
+        keystore: Arc<dyn Keystore>,
     ) -> Result<Self, Error> {
-        Self::new_with_key_type(authority_id, keystore, KEY_TYPE).await
+        Self::new_with_key_type(authority_id, keystore, KEY_TYPE)
     }
 
     /// Cryptographically signs the message.
-    pub async fn sign(&self, msg: &[u8]) -> Signature {
+    pub fn sign(&self, msg: &[u8]) -> Signature {
         Signature(
             self.keystore
-                .sign_with(self.key_type_id, &self.authority_id.clone().into(), msg)
-                .await
+                .sign_with(self.key_type_id, AuthorityId::CRYPTO_ID, &self.authority_id.clone().to_raw_vec(), msg)
                 .expect("the keystore works")
                 .expect("we have the required key")
                 .try_into()
@@ -151,7 +152,7 @@ impl From<SignatureV1> for Signature {
 
 #[cfg(test)]
 mod tests {
-    use sp_keystore::{testing::KeyStore, CryptoStore};
+    use sp_keystore::{testing::KeyStore, Keystore};
 
     use super::*;
     use crate::abft::NodeIndex;

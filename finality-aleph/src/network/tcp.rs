@@ -43,7 +43,7 @@ impl SecretKey for AuthorityPen {
     type PublicKey = AuthorityIdWrapper;
 
     async fn sign(&self, message: &[u8]) -> Self::Signature {
-        AuthorityPen::sign(self, message).await
+        AuthorityPen::sign(self, message)
     }
 
     fn public_key(&self) -> Self::PublicKey {
@@ -118,13 +118,13 @@ impl NetworkIdentity for SignedTcpAddressingInformation {
 }
 
 impl SignedTcpAddressingInformation {
-    async fn new(
+    fn new(
         addresses: Vec<String>,
         authority_pen: &AuthorityPen,
     ) -> Result<SignedTcpAddressingInformation, AddressingInformationError> {
         let peer_id = authority_pen.authority_id();
         let addressing_information = TcpAddressingInformation::new(addresses, peer_id)?;
-        let signature = authority_pen.sign(&addressing_information.encode()).await;
+        let signature = authority_pen.sign(&addressing_information.encode());
         Ok(SignedTcpAddressingInformation {
             addressing_information,
             signature,
@@ -203,7 +203,7 @@ pub async fn new_tcp_network<A: ToSocketAddrs>(
     Error,
 > {
     let listener = TcpListener::bind(listening_addresses).await?;
-    let identity = SignedTcpAddressingInformation::new(external_addresses, authority_pen).await?;
+    let identity = SignedTcpAddressingInformation::new(external_addresses, authority_pen)?;
     Ok((TcpDialer {}, listener, identity))
 }
 

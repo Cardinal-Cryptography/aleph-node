@@ -47,7 +47,7 @@ pub enum HandlerError {
     TypeChange,
 }
 
-async fn construct_session_info<A: AddressingInformation>(
+fn construct_session_info<A: AddressingInformation>(
     authority_index_and_pen: &Option<(NodeIndex, AuthorityPen)>,
     session_id: SessionId,
     address: A,
@@ -60,7 +60,7 @@ async fn construct_session_info<A: AddressingInformation>(
                 node_id: *node_index,
                 session_id,
             };
-            let signature = authority_pen.sign(&auth_data.encode()).await;
+            let signature = authority_pen.sign(&auth_data.encode());
             let authentications = Authentication(auth_data, signature);
             (SessionInfo::OwnAuthentication(authentications), peer_id)
         }
@@ -71,14 +71,14 @@ async fn construct_session_info<A: AddressingInformation>(
 impl<A: AddressingInformation> Handler<A> {
     /// Creates a new session handler. It will be a validator session handler if the authority
     /// index and pen are provided.
-    pub async fn new(
+    pub fn new(
         authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
         session_id: SessionId,
         address: A,
     ) -> Handler<A> {
         let (session_info, own_peer_id) =
-            construct_session_info(&authority_index_and_pen, session_id, address).await;
+            construct_session_info(&authority_index_and_pen, session_id, address);
         Handler {
             peers_by_node: HashMap::new(),
             authentications: HashMap::new(),
@@ -175,7 +175,7 @@ impl<A: AddressingInformation> Handler<A> {
     /// All authentications will be rechecked, invalid ones purged.
     /// Own authentication will be regenerated.
     /// If successful returns a set of addresses that we should be connected to.
-    pub async fn update(
+    pub fn update(
         &mut self,
         authority_index_and_pen: Option<(NodeIndex, AuthorityPen)>,
         authority_verifier: AuthorityVerifier,
@@ -192,8 +192,7 @@ impl<A: AddressingInformation> Handler<A> {
             authority_verifier,
             self.session_id(),
             address,
-        )
-        .await;
+        );
 
         for (_, authentication) in authentications {
             self.handle_authentication(authentication);

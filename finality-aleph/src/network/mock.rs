@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use parity_scale_codec::{Decode, Encode, Output};
-use sp_keystore::{testing::KeyStore, CryptoStore};
+use sp_keystore::{testing::KeyStore, Keystore};
 use tokio::time::timeout;
 
 use crate::{
@@ -112,7 +112,7 @@ pub async fn crypto_basics(
     let keystore = Arc::new(KeyStore::new());
     let mut auth_ids = Vec::with_capacity(num_crypto_basics);
     for _ in 0..num_crypto_basics {
-        let pk = keystore.ed25519_generate_new(KEY_TYPE, None).await.unwrap();
+        let pk = keystore.ed25519_generate_new(KEY_TYPE, None).unwrap();
         auth_ids.push(AuthorityId::from(pk));
     }
     let mut result = Vec::with_capacity(num_crypto_basics);

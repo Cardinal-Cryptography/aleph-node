@@ -176,7 +176,6 @@ mod test {
             SessionId(37),
             identity.identity(),
         )
-        .await
     }
 
     fn authentication_v2(

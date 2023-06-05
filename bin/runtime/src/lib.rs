@@ -228,6 +228,10 @@ impl pallet_balances::Config for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+    type HoldIdentifier = ();
+    type FreezeIdentifier = ();
+    type MaxHolds = ConstU32<0>;
+    type MaxFreezes = ConstU32<0>;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -1045,7 +1049,7 @@ impl_runtime_apis! {
                 storage_deposit_limit,
                 input_data,
                 CONTRACTS_DEBUG_OUTPUT,
-                pallet_contracts::Determinism::Deterministic,
+                pallet_contracts::Determinism::Enforced,
             )
         }
 

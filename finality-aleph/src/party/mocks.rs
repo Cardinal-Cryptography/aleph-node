@@ -133,11 +133,11 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         AuthorityTask::new(Box::pin(handle), node_id, exit)
     }
 
-    async fn early_start_validator_session(
+    fn early_start_validator_session(
         &self,
         session: SessionId,
-        _node_id: NodeIndex,
-        _authorities: &[AuthorityId],
+        node_id: NodeIndex,
+        authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
         self.insert(self.session_early_started.clone(), session);
 
@@ -160,7 +160,7 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
         Ok(())
     }
 
-    async fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex> {
+    fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex> {
         let id = &*self.node_id.lock().unwrap();
 
         if let Some(id) = id {

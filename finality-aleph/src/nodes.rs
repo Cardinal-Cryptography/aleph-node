@@ -7,7 +7,7 @@ use network_clique::{Service, SpawnHandleT};
 use sc_client_api::Backend;
 use sc_network_common::ExHashT;
 use sp_consensus::SelectChain;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
@@ -37,13 +37,11 @@ use crate::{
 // How many sessions we remember.
 const VERIFIER_CACHE_SIZE: usize = 2;
 
-pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
+pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
         .ed25519_generate_new(KEY_TYPE, Some(mnemonic))
-        .await
         .expect("generating a key should work");
     AuthorityPen::new_with_key_type(validator_peer_id.into(), keystore, KEY_TYPE)
-        .await
         .expect("we just generated this key so everything should work")
 }
 
@@ -84,8 +82,7 @@ where
     let network_authority_pen = new_pen(
         Mnemonic::new(MnemonicType::Words12, Language::English).phrase(),
         keystore.clone(),
-    )
-    .await;
+    );
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
         external_addresses,

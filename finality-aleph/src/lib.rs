@@ -21,7 +21,7 @@ use sc_network_common::ExHashT;
 use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
 
@@ -286,7 +286,7 @@ where
     pub chain_status: CS,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
-    pub keystore: Arc<dyn CryptoStore>,
+    pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification<<B as Block>::Header>>,
     pub metrics: Metrics<<B::Header as Header>::Hash>,
     pub session_period: SessionPeriod,
