@@ -35,11 +35,10 @@ impl SleepingRateLimiter {
     }
 
     fn set_sleep(&mut self, read_size: usize) -> Option<&mut Pin<Box<Sleep>>> {
-        let mut now = None;
-        let mut now_closure = || *now.get_or_insert_with(Instant::now);
-        let next_wait = self.rate_limiter.rate_limit(read_size, &mut now_closure);
+        let now = Instant::now();
+        let next_wait = self.rate_limiter.rate_limit(read_size, now);
         if let Some(next_wait) = next_wait {
-            let wait_until = now_closure() + next_wait;
+            let wait_until = now + next_wait;
             self.sleep.set(tokio::time::sleep_until(wait_until.into()));
             trace!(
                 target: LOG_TARGET,
