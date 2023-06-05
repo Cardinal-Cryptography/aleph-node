@@ -136,8 +136,8 @@ impl NodeSessionManager for Arc<MockNodeSessionManager> {
     fn early_start_validator_session(
         &self,
         session: SessionId,
-        node_id: NodeIndex,
-        authorities: &[AuthorityId],
+        _node_id: NodeIndex,
+        _authorities: &[AuthorityId],
     ) -> Result<(), Self::Error> {
         self.insert(self.session_early_started.clone(), session);
 

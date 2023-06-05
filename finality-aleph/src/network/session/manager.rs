@@ -158,8 +158,7 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
             node_id,
             pen,
         } = pre_session;
-        let handler =
-            SessionHandler::new(Some((node_id, pen)), verifier, session_id, address);
+        let handler = SessionHandler::new(Some((node_id, pen)), verifier, session_id, address);
         let discovery = Discovery::new(self.discovery_cooldown);
         let (data_for_user, data_from_network) = mpsc::unbounded();
         let data_for_user = Some(data_for_user);
@@ -455,7 +454,7 @@ mod tests {
     #[test]
     fn starts_nonvalidator_session() {
         let mut manager = build();
-        let (_, verifier) = crypto_basics(NUM_NODES).await;
+        let (_, verifier) = crypto_basics(NUM_NODES);
         let session_id = SessionId(43);
         let ManagerActions {
             maybe_command,
@@ -474,10 +473,10 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn starts_validator_session() {
+    #[test]
+    fn starts_validator_session() {
         let mut manager = build();
-        let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
+        let (validator_data, verifier) = crypto_basics(NUM_NODES);
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         let (
@@ -493,7 +492,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         assert!(maybe_command.is_none());
         assert!(maybe_message.is_some());
@@ -503,7 +501,7 @@ mod tests {
     #[tokio::test]
     async fn stops_session() {
         let mut manager = build();
-        let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
+        let (validator_data, verifier) = crypto_basics(NUM_NODES);
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         let (
@@ -519,7 +517,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         assert!(maybe_command.is_none());
         assert!(maybe_message.is_some());
@@ -538,10 +535,10 @@ mod tests {
         assert!(data_from_network.next().await.is_none());
     }
 
-    #[tokio::test]
-    async fn handles_broadcast() {
+    #[test]
+    fn handles_broadcast() {
         let mut manager = build();
-        let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
+        let (validator_data, verifier) = crypto_basics(NUM_NODES);
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         manager
@@ -551,7 +548,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         let mut other_manager = build();
         let (node_id, pen) = validator_data[1].clone();
@@ -562,7 +558,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
         let (address, message) = (message.0.address(), message);
@@ -579,10 +574,10 @@ mod tests {
         assert!(maybe_message.is_some());
     }
 
-    #[tokio::test]
-    async fn sends_user_data() {
+    #[test]
+    fn sends_user_data() {
         let mut manager = build();
-        let (validator_data, verifier) = crypto_basics(NUM_NODES).await;
+        let (validator_data, verifier) = crypto_basics(NUM_NODES);
         let (node_id, pen) = validator_data[0].clone();
         let session_id = SessionId(43);
         manager
@@ -592,7 +587,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         let mut other_manager = build();
         let (node_id, pen) = validator_data[1].clone();
@@ -603,7 +597,6 @@ mod tests {
                 node_id,
                 pen,
             })
-            .await
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
         manager.on_discovery_message(message);

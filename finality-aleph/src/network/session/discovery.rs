@@ -99,24 +99,22 @@ mod tests {
         (0..NUM_NODES).map(|_| random_address()).collect()
     }
 
-    async fn build_number(
+    fn build_number(
         num_nodes: u8,
     ) -> (
         Discovery<MockAddressingInformation>,
         Vec<SessionHandler<MockAddressingInformation>>,
         SessionHandler<MockAddressingInformation>,
     ) {
-        let crypto_basics = crypto_basics(num_nodes.into()).await;
+        let crypto_basics = crypto_basics(num_nodes.into());
         let mut handlers = Vec::new();
         for (authority_index_and_pen, address) in crypto_basics.0.into_iter().zip(addresses()) {
-            handlers.push(
-                SessionHandler::new(
-                    Some(authority_index_and_pen),
-                    crypto_basics.1.clone(),
-                    SessionId(43),
-                    address,
-                ),
-            );
+            handlers.push(SessionHandler::new(
+                Some(authority_index_and_pen),
+                crypto_basics.1.clone(),
+                SessionId(43),
+                address,
+            ));
         }
         let non_validator = SessionHandler::new(
             None,
@@ -131,18 +129,18 @@ mod tests {
         )
     }
 
-    async fn build() -> (
+    fn build() -> (
         Discovery<MockAddressingInformation>,
         Vec<SessionHandler<MockAddressingInformation>>,
         SessionHandler<MockAddressingInformation>,
     ) {
-        build_number(NUM_NODES).await
+        build_number(NUM_NODES)
     }
 
-    #[tokio::test]
-    async fn broadcasts_when_clueless() {
+    #[test]
+    fn broadcasts_when_clueless() {
         for num_nodes in 2..NUM_NODES {
-            let (mut discovery, mut handlers, _) = build_number(num_nodes).await;
+            let (mut discovery, mut handlers, _) = build_number(num_nodes);
             let handler = &mut handlers[0];
             let maybe_authentication = discovery.discover_authorities(handler);
             assert_eq!(
@@ -154,16 +152,16 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn non_validator_discover_authorities_returns_empty_vector() {
-        let (mut discovery, _, non_validator) = build().await;
+    #[test]
+    fn non_validator_discover_authorities_returns_empty_vector() {
+        let (mut discovery, _, non_validator) = build();
         let maybe_authentication = discovery.discover_authorities(&non_validator);
         assert!(maybe_authentication.is_none());
     }
 
-    #[tokio::test]
-    async fn rebroadcasts_and_accepts_addresses() {
-        let (mut discovery, mut handlers, _) = build().await;
+    #[test]
+    fn rebroadcasts_and_accepts_addresses() {
+        let (mut discovery, mut handlers, _) = build();
         let authentication = authentication(&handlers[1]);
         let handler = &mut handlers[0];
         let (address, command) = discovery.handle_authentication(authentication.clone(), handler);
@@ -173,9 +171,9 @@ mod tests {
             ) if rebroadcast_authentication == authentication));
     }
 
-    #[tokio::test]
-    async fn non_validator_rebroadcasts() {
-        let (mut discovery, handlers, mut non_validator) = build().await;
+    #[test]
+    fn non_validator_rebroadcasts() {
+        let (mut discovery, handlers, mut non_validator) = build();
         let authentication = authentication(&handlers[1]);
         let (address, command) =
             discovery.handle_authentication(authentication.clone(), &mut non_validator);
@@ -185,9 +183,9 @@ mod tests {
             ) if rebroadcast_authentication == authentication));
     }
 
-    #[tokio::test]
-    async fn does_not_rebroadcast_wrong_authentications() {
-        let (mut discovery, mut handlers, _) = build().await;
+    #[test]
+    fn does_not_rebroadcast_wrong_authentications() {
+        let (mut discovery, mut handlers, _) = build();
         let Authentication(auth_data, _) = authentication(&handlers[1]);
         let Authentication(_, signature) = authentication(&handlers[2]);
         let authentication = Authentication(auth_data, signature);
@@ -197,9 +195,9 @@ mod tests {
         assert!(command.is_none());
     }
 
-    #[tokio::test]
-    async fn rebroadcasts_after_cooldown() {
-        let (mut discovery, mut handlers, _) = build().await;
+    #[test]
+    fn rebroadcasts_after_cooldown() {
+        let (mut discovery, mut handlers, _) = build();
         let authentication = authentication(&handlers[1]);
         let handler = &mut handlers[0];
         discovery.handle_authentication(authentication.clone(), handler);

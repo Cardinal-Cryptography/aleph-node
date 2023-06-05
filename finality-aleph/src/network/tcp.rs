@@ -214,7 +214,7 @@ pub mod testing {
     use crate::{crypto::AuthorityPen, network::NetworkIdentity};
 
     /// Creates a realistic identity.
-    pub async fn new_identity(
+    pub fn new_identity(
         external_addresses: Vec<String>,
         authority_pen: &AuthorityPen,
     ) -> impl NetworkIdentity<
@@ -222,7 +222,6 @@ pub mod testing {
         PeerId = AuthorityIdWrapper,
     > {
         SignedTcpAddressingInformation::new(external_addresses, authority_pen)
-            .await
             .expect("the provided addresses are fine")
     }
 }
