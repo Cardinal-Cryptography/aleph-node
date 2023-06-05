@@ -1,5 +1,3 @@
-#![feature(type_alias_impl_trait)]
-
 mod rate_limiter;
 mod token_bucket;
 

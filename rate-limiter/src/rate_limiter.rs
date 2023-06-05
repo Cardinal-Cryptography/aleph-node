@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures::{Future, FutureExt};
+use futures::{future::BoxFuture, FutureExt};
 use log::trace;
 use tokio::{io::AsyncRead, time::Sleep};
 
@@ -67,11 +67,9 @@ impl SleepingRateLimiter {
     }
 }
 
-type SleepFuture = impl Future<Output = SleepingRateLimiter>;
-
 /// Wrapper around [SleepingRateLimiter] to simplify implementation of the [AsyncRead](tokio::io::AsyncRead) trait.
 pub struct RateLimiter {
-    rate_limiter: Pin<Box<SleepFuture>>,
+    rate_limiter: BoxFuture<'static, SleepingRateLimiter>,
 }
 
 impl RateLimiter {
@@ -100,8 +98,7 @@ impl RateLimiter {
         let filled_after = buf.filled().len();
         let last_read_size = filled_after.saturating_sub(filled_before);
 
-        self.rate_limiter
-            .set(sleeping_rate_limiter.rate_limit(last_read_size));
+        self.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
 
         result
     }
