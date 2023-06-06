@@ -8,7 +8,7 @@ use crate::{
     network::GossipNetwork,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, Handler, HandlerTypes, SyncAction},
+        handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -42,19 +42,6 @@ where
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
-}
-
-impl<B, J, N, CE, CS, V, F> HandlerTypes for Service<B, J, N, CE, CS, V, F>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-    N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<B::Header>,
-    CS: ChainStatus<B, J>,
-    V: Verifier<J>,
-    F: Finalizer<J>,
-{
-    type Error = HandlerError<B, J, CS, V, F>;
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -100,7 +87,7 @@ where
             impl JustificationSubmissions<J> + Clone,
             impl RequestBlocks<BlockIdFor<J>>,
         ),
-        <Self as HandlerTypes>::Error,
+        HandlerError<B, J, CS, V, F>,
     > {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;
