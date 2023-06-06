@@ -54,7 +54,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    type Error = HandlerError<CS::Error, V::Error, F::Error>;
+    type Error = HandlerError<B, J, CS, V, F>;
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {

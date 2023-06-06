@@ -73,24 +73,28 @@ impl<B: Block, J: Justification> SyncAction<B, J> {
 
 /// What can go wrong when handling a piece of data.
 #[derive(Clone, Debug)]
-pub enum Error<ECS, EV, EF>
+pub enum Error<B, J, CS, V, F>
 where
-    ECS: Display,
-    EV: Display,
-    EF: Display,
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
-    Verifier(EV),
-    ChainStatus(ECS),
-    Finalizer(EF),
+    Verifier(V::Error),
+    ChainStatus(CS::Error),
+    Finalizer(F::Error),
     Forest(ForestError),
     MissingJustification,
 }
 
-impl<ECS, EV, EF> Display for Error<ECS, EV, EF>
+impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
 where
-    ECS: Display,
-    EV: Display,
-    EF: Display,
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
@@ -107,11 +111,13 @@ where
     }
 }
 
-impl<ECS, EV, EF> From<ForestError> for Error<ECS, EV, EF>
+impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
 where
-    ECS: Display,
-    EV: Display,
-    EF: Display,
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     fn from(e: ForestError) -> Self {
         Error::Forest(e)
@@ -127,7 +133,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    type Error = Error<CS::Error, V::Error, F::Error>;
+    type Error = Error<B, J, CS, V, F>;
 }
 
 impl<B, I, J, CS, V, F> Handler<B, I, J, CS, V, F>
