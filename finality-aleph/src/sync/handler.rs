@@ -1,3 +1,4 @@
+use core::marker::PhantomData;
 use std::{
     collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
@@ -9,8 +10,9 @@ use crate::{
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
     sync::{
         data::{NetworkData, Request, State},
-        forest::{Error as ForestError, Forest, Interest},
-        BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier, LOG_TARGET,
+        forest::{Error as ForestError, Forest},
+        Block, BlockIdFor, ChainStatus, Finalizer, Header, Justification, PeerId, Verifier,
+        LOG_TARGET,
     },
     BlockIdentifier,
 };
@@ -19,28 +21,35 @@ use crate::{
 const MAX_JUSTIFICATION_BATCH: usize = 100;
 
 /// Handler for data incoming from the network.
-pub struct Handler<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
+pub struct Handler<B, I, J, CS, V, F>
+where
+    B: Block,
+    I: PeerId,
+    J: Justification,
+    CS: ChainStatus<J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     chain_status: CS,
     verifier: V,
     finalizer: F,
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
+    phantom: PhantomData<B>,
 }
 
 /// What actions can the handler recommend as a reaction to some data.
 #[derive(Clone, Debug)]
-pub enum SyncAction<J: Justification> {
+pub enum SyncAction<B: Block, J: Justification> {
     /// A response for the peer that sent us the data.
-    Response(NetworkData<J>),
-    /// A task that should be performed periodically. At the moment these are only requests for blocks,
-    /// so it always contains the id of the block.
-    Task(BlockIdFor<J>),
+    Response(NetworkData<B, J>),
+    /// A request for the highest justified block that should be performed periodically.
+    HighestJustified(BlockIdFor<J>),
     /// Do nothing.
     Noop,
 }
 
-impl<J: Justification> SyncAction<J> {
+impl<B: Block, J: Justification> SyncAction<B, J> {
     fn state_broadcast_response(
         justification: J::Unverified,
         other_justification: Option<J::Unverified>,
@@ -52,7 +61,7 @@ impl<J: Justification> SyncAction<J> {
     }
 
     fn request_response(justifications: Vec<J::Unverified>) -> Self {
-        SyncAction::Response(NetworkData::RequestResponse(justifications))
+        SyncAction::Response(NetworkData::RequestResponse(Vec::new(), justifications))
     }
 }
 
@@ -92,8 +101,14 @@ impl<J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>> From
     }
 }
 
-impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finalizer<J>>
-    Handler<I, J, CS, V, F>
+impl<B, I, J, CS, V, F> Handler<B, I, J, CS, V, F>
+where
+    B: Block,
+    I: PeerId,
+    J: Justification,
+    CS: ChainStatus<J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     /// New handler with the provided chain interfaces.
     pub fn new(
@@ -115,6 +130,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
             finalizer,
             forest,
             session_info: SessionBoundaryInfo::new(period),
+            phantom: PhantomData,
         };
         handler.refresh_forest()?;
         Ok(handler)
@@ -215,7 +231,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
         let mut number = request.state().top_justification().id().number() + 1;
         let mut justifications = vec![];
         while justifications.len() < MAX_JUSTIFICATION_BATCH {
@@ -281,7 +297,7 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         &mut self,
         state: State<J>,
         peer: I,
-    ) -> Result<SyncAction<J>, Error<J, CS, V, F>> {
+    ) -> Result<SyncAction<B, J>, Error<J, CS, V, F>> {
         use Error::*;
         let remote_top_number = state.top_justification().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
@@ -296,14 +312,14 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
             // remote session number larger than ours, we can try to import the justification
             None => Ok(self
                 .handle_justification(state.top_justification(), Some(peer))?
-                .map(SyncAction::Task)
+                .map(SyncAction::HighestJustified)
                 .unwrap_or(SyncAction::Noop)),
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
                 true => Ok(self
                     .handle_justification(state.top_justification(), Some(peer))?
-                    .map(SyncAction::Task)
+                    .map(SyncAction::HighestJustified)
                     .unwrap_or(SyncAction::Noop)),
                 // remote top justification lower than ours, we can send a response
                 false => Ok(SyncAction::state_broadcast_response(
@@ -334,9 +350,9 @@ impl<I: PeerId, J: Justification, CS: ChainStatus<J>, V: Verifier<J>, F: Finaliz
         Ok(State::new(top_justification))
     }
 
-    /// The state of the identified block, whether we are interested in it and how much.
-    pub fn block_state(&mut self, block_id: &BlockIdFor<J>) -> Interest<I, J> {
-        self.forest.state(block_id)
+    /// The forest held by this handler, read only.
+    pub fn forest(&self) -> &Forest<I, J> {
+        &self.forest
     }
 }
 
@@ -346,13 +362,14 @@ mod tests {
     use crate::{
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request},
-            mock::{Backend, MockHeader, MockJustification, MockPeerId, MockVerifier},
+            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId, MockVerifier},
             ChainStatus, Header, Justification,
         },
         BlockIdentifier, SessionPeriod,
     };
 
-    type MockHandler = Handler<MockPeerId, MockJustification, Backend, MockVerifier, Backend>;
+    type MockHandler =
+        Handler<MockBlock, MockPeerId, MockJustification, Backend, MockVerifier, Backend>;
 
     const SESSION_PERIOD: usize = 20;
 
@@ -454,7 +471,7 @@ mod tests {
         let header = import_branch(&backend, 1)[0].clone();
         // header already imported, Handler should initialize Forest properly
         let verifier = MockVerifier {};
-        let mut handler = Handler::new(
+        let mut handler: Handler<MockBlock, _, _, _, _, _> = Handler::new(
             backend.clone(),
             verifier,
             backend.clone(),
@@ -658,7 +675,7 @@ mod tests {
             number % 20 < 10 || number % 20 == 19
         });
         match handler.handle_request(request).expect("correct request") {
-            SyncAction::Response(NetworkData::RequestResponse(sent_justifications)) => {
+            SyncAction::Response(NetworkData::RequestResponse(_, sent_justifications)) => {
                 assert_eq!(sent_justifications.len(), 100);
                 for (sent_justification, justification) in
                     sent_justifications.iter().zip(justifications)
