@@ -1,7 +1,4 @@
-use std::{
-    pin::Pin,
-    time::{Duration, Instant},
-};
+use std::time::Instant;
 
 use futures::{future::BoxFuture, FutureExt};
 use log::trace;
@@ -13,14 +10,12 @@ use crate::{token_bucket::TokenBucket, LOG_TARGET};
 /// resource, it calculates how long we should delay our next access to that resource in order to satisfy that rate.
 pub struct SleepingRateLimiter {
     rate_limiter: TokenBucket,
-    sleep: Pin<Box<Sleep>>,
 }
 
 impl Clone for SleepingRateLimiter {
     fn clone(&self) -> Self {
         Self {
             rate_limiter: self.rate_limiter.clone(),
-            sleep: Box::pin(tokio::time::sleep(Duration::ZERO)),
         }
     }
 }
@@ -30,23 +25,21 @@ impl SleepingRateLimiter {
     pub fn new(rate_per_second: usize) -> Self {
         Self {
             rate_limiter: TokenBucket::new(rate_per_second),
-            sleep: Box::pin(tokio::time::sleep(Duration::ZERO)),
         }
     }
 
-    fn set_sleep(&mut self, read_size: usize) -> Option<&mut Pin<Box<Sleep>>> {
+    fn set_sleep(&mut self, read_size: usize) -> Option<Sleep> {
         let now = Instant::now();
         let next_wait = self.rate_limiter.rate_limit(read_size, now);
         if let Some(next_wait) = next_wait {
             let wait_until = now + next_wait;
-            self.sleep.set(tokio::time::sleep_until(wait_until.into()));
             trace!(
                 target: LOG_TARGET,
                 "Rate-Limiter will sleep until {:?} after reading {} byte(s).",
                 wait_until,
                 read_size
             );
-            Some(&mut self.sleep)
+            Some(tokio::time::sleep_until(wait_until.into()))
         } else {
             None
         }
