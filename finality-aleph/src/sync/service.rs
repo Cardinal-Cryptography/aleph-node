@@ -8,7 +8,7 @@ use crate::{
     network::GossipNetwork,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, Handler, SyncAction},
+        handler::{Error as HandlerError, Handler, HandlerTypes, SyncAction},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -24,7 +24,8 @@ const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
 const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
-pub struct Service<
+pub struct Service<B, J, N, CE, CS, V, F>
+where
     B: Block,
     J: Justification<Header = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
@@ -32,7 +33,7 @@ pub struct Service<
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
-> {
+{
     network: VersionWrapper<B, J, N>,
     handler: Handler<B, N::PeerId, J, CS, V, F>,
     tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
@@ -41,6 +42,19 @@ pub struct Service<
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
+}
+
+impl<B, J, N, CE, CS, V, F> HandlerTypes for Service<B, J, N, CE, CS, V, F>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    N: GossipNetwork<VersionedNetworkData<B, J>>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
+    type Error = HandlerError<CS::Error, V::Error, F::Error>;
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -59,15 +73,15 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
     }
 }
 
-impl<
-        B: Block,
-        J: Justification<Header = B::Header>,
-        N: GossipNetwork<VersionedNetworkData<B, J>>,
-        CE: ChainStatusNotifier<B::Header>,
-        CS: ChainStatus<B, J>,
-        V: Verifier<J>,
-        F: Finalizer<J>,
-    > Service<B, J, N, CE, CS, V, F>
+impl<B, J, N, CE, CS, V, F> Service<B, J, N, CE, CS, V, F>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    N: GossipNetwork<VersionedNetworkData<B, J>>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
@@ -86,7 +100,7 @@ impl<
             impl JustificationSubmissions<J> + Clone,
             impl RequestBlocks<BlockIdFor<J>>,
         ),
-        HandlerError<B, J, CS, V, F>,
+        <Self as HandlerTypes>::Error,
     > {
         let network = VersionWrapper::new(network);
         let handler = Handler::new(chain_status, verifier, finalizer, period)?;

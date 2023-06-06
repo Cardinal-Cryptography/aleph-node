@@ -110,7 +110,10 @@ impl SubstrateChainStatus {
         self.backend.blockchain().body(hash)
     }
 
-    fn header(&self, id: &BlockIdFor<Justification<AlephHeader>>) -> Result<Option<AlephHeader>, Error> {
+    fn header(
+        &self,
+        id: &BlockIdFor<Justification<AlephHeader>>,
+    ) -> Result<Option<AlephHeader>, Error> {
         let maybe_header = self.header_for_hash(id.hash)?;
         match maybe_header
             .as_ref()
@@ -182,7 +185,10 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
         }
     }
 
-    fn block(&self, id: BlockIdFor<Justification<AlephHeader>>) -> Result<Option<AlephBlock>, Self::Error> {
+    fn block(
+        &self,
+        id: BlockIdFor<Justification<AlephHeader>>,
+    ) -> Result<Option<AlephBlock>, Self::Error> {
         let header = match self.header(&id)? {
             Some(header) => header,
             None => return Ok(None),
@@ -226,7 +232,10 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
             .ok_or(Error::MissingJustification(finalized_hash))
     }
 
-    fn children(&self, id: BlockIdFor<Justification<AlephHeader>>) -> Result<Vec<AlephHeader>, Self::Error> {
+    fn children(
+        &self,
+        id: BlockIdFor<Justification<AlephHeader>>,
+    ) -> Result<Vec<AlephHeader>, Self::Error> {
         // This checks whether we have the block at all and the provided id is consistent.
         self.header(&id)?;
         Ok(self
