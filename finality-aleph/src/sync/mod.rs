@@ -65,8 +65,6 @@ pub trait Justification: Clone + Send + Sync + Debug + 'static {
     fn into_unverified(self) -> Self::Unverified;
 }
 
-type BlockIdForBlock<B> = <<B as Block>::Header as Header>::Identifier;
-
 type BlockIdFor<J> = <<J as Justification>::Header as Header>::Identifier;
 
 /// A verifier of justifications.
@@ -125,7 +123,7 @@ where
     type Error: Display;
 
     /// The status of the block.
-    fn status_of(&self, id: BlockIdForBlock<B>) -> Result<BlockStatus<J>, Self::Error>;
+    fn status_of(&self, id: BlockIdFor<J>) -> Result<BlockStatus<J>, Self::Error>;
 
     /// Export a copy of the block.
     fn block(&self, id: <B::Header as Header>::Identifier) -> Result<Option<B>, Self::Error>;

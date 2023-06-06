@@ -16,7 +16,7 @@ use crate::{
     justification::backwards_compatible_decode,
     sync::{
         substrate::{BlockId, Justification},
-        BlockIdForBlock, BlockStatus, ChainStatus, LOG_TARGET,
+        BlockIdFor, BlockStatus, ChainStatus, LOG_TARGET,
     },
 };
 
@@ -110,7 +110,7 @@ impl SubstrateChainStatus {
         self.backend.blockchain().body(hash)
     }
 
-    fn header(&self, id: &BlockIdForBlock<AlephBlock>) -> Result<Option<AlephHeader>, Error> {
+    fn header(&self, id: &BlockIdFor<Justification<AlephHeader>>) -> Result<Option<AlephHeader>, Error> {
         let maybe_header = self.header_for_hash(id.hash)?;
         match maybe_header
             .as_ref()
@@ -182,7 +182,7 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
         }
     }
 
-    fn block(&self, id: BlockIdForBlock<AlephBlock>) -> Result<Option<AlephBlock>, Self::Error> {
+    fn block(&self, id: BlockIdFor<Justification<AlephHeader>>) -> Result<Option<AlephBlock>, Self::Error> {
         let header = match self.header(&id)? {
             Some(header) => header,
             None => return Ok(None),
@@ -196,7 +196,7 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
 
     fn status_of(
         &self,
-        id: BlockIdForBlock<AlephBlock>,
+        id: BlockIdFor<Justification<AlephHeader>>,
     ) -> Result<BlockStatus<Justification<AlephHeader>>, Self::Error> {
         let header = match self.header(&id)? {
             Some(header) => header,
@@ -226,7 +226,7 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
             .ok_or(Error::MissingJustification(finalized_hash))
     }
 
-    fn children(&self, id: BlockIdForBlock<AlephBlock>) -> Result<Vec<AlephHeader>, Self::Error> {
+    fn children(&self, id: BlockIdFor<Justification<AlephHeader>>) -> Result<Vec<AlephHeader>, Self::Error> {
         // This checks whether we have the block at all and the provided id is consistent.
         self.header(&id)?;
         Ok(self
