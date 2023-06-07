@@ -118,7 +118,7 @@ mod tests {
         }
         let non_validator = SessionHandler::new(
             None,
-            crypto_basics.1.clone(),
+            crypto_basics.1,
             SessionId(43),
             random_address(),
         );
