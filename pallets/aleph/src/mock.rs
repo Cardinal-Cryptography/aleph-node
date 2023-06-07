@@ -1,11 +1,12 @@
 #![cfg(test)]
 
 use frame_support::{
-    construct_runtime, parameter_types, sp_io,
+    construct_runtime,
+    pallet_prelude::ConstU32,
+    parameter_types, sp_io,
     traits::{OnFinalize, OnInitialize},
     weights::{RuntimeDbWeight, Weight},
 };
-use frame_support::pallet_prelude::ConstU32;
 use primitives::{AuthorityId, SessionInfoProvider};
 use sp_api_hidden_includes_construct_runtime::hidden_include::traits::GenesisBuild;
 use sp_core::H256;
