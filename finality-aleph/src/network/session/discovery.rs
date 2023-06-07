@@ -116,12 +116,8 @@ mod tests {
                 address,
             ));
         }
-        let non_validator = SessionHandler::new(
-            None,
-            crypto_basics.1,
-            SessionId(43),
-            random_address(),
-        );
+        let non_validator =
+            SessionHandler::new(None, crypto_basics.1, SessionId(43), random_address());
         (
             Discovery::new(Duration::from_millis(MS_COOLDOWN)),
             handlers,
