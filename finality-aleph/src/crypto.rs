@@ -1,7 +1,6 @@
 use std::{convert::TryInto, sync::Arc};
 
 use parity_scale_codec::{Decode, Encode};
-use sp_application_crypto::AppCrypto;
 use sp_core::crypto::KeyTypeId;
 use sp_keystore::{Error as KeystoreError, Keystore};
 use sp_runtime::RuntimeAppPublic;
@@ -48,12 +47,7 @@ impl AuthorityPen {
     ) -> Result<Self, Error> {
         // Check whether this signing setup works
         let _: AuthoritySignature = keystore
-            .sign_with(
-                key_type,
-                AuthorityId::CRYPTO_ID,
-                &authority_id.clone().to_raw_vec(),
-                b"test",
-            )
+            .ed25519_sign(key_type, &authority_id.clone().into(), b"test")
             .map_err(Error::Keystore)?
             .ok_or_else(|| Error::KeyMissing(authority_id.clone()))?
             .try_into()
@@ -77,12 +71,7 @@ impl AuthorityPen {
     pub fn sign(&self, msg: &[u8]) -> Signature {
         Signature(
             self.keystore
-                .sign_with(
-                    self.key_type_id,
-                    AuthorityId::CRYPTO_ID,
-                    &self.authority_id.clone().to_raw_vec(),
-                    msg,
-                )
+                .ed25519_sign(self.key_type_id, &self.authority_id.clone().into(), msg)
                 .expect("the keystore works")
                 .expect("we have the required key")
                 .try_into()
