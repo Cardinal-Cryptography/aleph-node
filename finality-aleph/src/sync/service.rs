@@ -5,6 +5,7 @@ use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use tokio::time::{interval_at, Instant};
 
+pub use crate::sync::handler::DatabaseIO;
 use crate::{
     network::GossipNetwork,
     session::SessionBoundaryInfo,
@@ -24,39 +25,6 @@ const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
 const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
-/// Handlers for interacting with the blockchain database.
-pub struct DatabaseIO<B, J, CS, F, BI>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-    CS: ChainStatus<B, J>,
-    F: Finalizer<J>,
-    BI: BlockImport<B>,
-{
-    chain_status: CS,
-    finalizer: F,
-    block_importer: BI,
-    _phantom: PhantomData<(B, J)>,
-}
-
-impl<B, J, CS, F, BI> DatabaseIO<B, J, CS, F, BI>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-    CS: ChainStatus<B, J>,
-    F: Finalizer<J>,
-    BI: BlockImport<B>,
-{
-    pub fn new(chain_status: CS, finalizer: F, block_importer: BI) -> Self {
-        Self {
-            chain_status,
-            finalizer,
-            block_importer,
-            _phantom: PhantomData,
-        }
-    }
-}
-
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<B, J, N, CE, CS, V, F, BI>
 where
@@ -70,14 +38,13 @@ where
     BI: BlockImport<B>,
 {
     network: VersionWrapper<B, J, N>,
-    handler: Handler<B, N::PeerId, J, CS, V, F>,
+    handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
     tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
-    _block_importer: BI,
     _phantom: PhantomData<B>,
 }
 
@@ -126,14 +93,8 @@ where
         ),
         HandlerError<B, J, CS, V, F>,
     > {
-        let DatabaseIO {
-            chain_status,
-            finalizer,
-            block_importer,
-            ..
-        } = database_io;
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(chain_status, verifier, finalizer, session_info)?;
+        let handler = Handler::new(database_io, verifier, session_info)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
@@ -148,7 +109,6 @@ where
                 justifications_from_user,
                 additional_justifications_from_user,
                 _block_requests_from_user,
-                _block_importer: block_importer,
                 _phantom: PhantomData,
             },
             justifications_for_sync,
