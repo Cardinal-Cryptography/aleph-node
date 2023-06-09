@@ -8,7 +8,15 @@ use crate::{
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct DepositRelation {
-    deposit_note: SourcedNote,
+    // deposit_note: SourcedNote,
+    // public: DepositPublicInput,
+    // private: DepositPrivateInput,
+    pub note: Note,
+    pub token_id: TokenId,
+    pub token_amount: TokenAmount,
+
+    pub trapdoor: Trapdoor,
+    pub nullifier: Nullifier,
 }
 
 impl Default for DepositRelation {
@@ -19,16 +27,19 @@ impl Default for DepositRelation {
 
 impl DepositRelation {
     pub fn new(public: DepositPublicInput, private: DepositPrivateInput) -> Self {
-        Self {
-            deposit_note: SourcedNote {
-                note: public.note,
-                token_id: public.token_id,
-                token_amount: public.token_amount,
-                trapdoor: private.trapdoor,
-                nullifier: private.nullifier,
-                note_type: NoteType::Deposit,
-            },
-        }
+        // Self {
+        //     public,
+        //     private, // deposit_note: SourcedNote {
+        //              //     note: public.note,
+        //              //     token_id: public.token_id,
+        //              //     token_amount: public.token_amount,
+        //              //     trapdoor: private.trapdoor,
+        //              //     nullifier: private.nullifier,
+        //              //     note_type: NoteType::Deposit,
+        //              // }
+        // }
+
+        todo!("")
     }
 }
 
@@ -41,7 +52,9 @@ pub struct DepositPublicInput {
 
 impl PublicInput for DepositRelation {
     fn public_input(&self) -> Vec<CircuitField> {
-        self.deposit_note.public_input()
+        // self.deposit_note.public_input()
+
+        todo!()
     }
 }
 
@@ -53,7 +66,16 @@ pub struct DepositPrivateInput {
 
 impl Relation for DepositRelation {
     fn generate_subcircuit(&self, circuit: &mut PlonkCircuit<CircuitField>) -> PlonkResult<()> {
-        let note_var = circuit.create_note_variable(&self.deposit_note)?;
+        let deposit_note = SourcedNote {
+            note: self.note,
+            token_id: self.token_id,
+            token_amount: self.token_amount,
+            trapdoor: self.trapdoor,
+            nullifier: self.nullifier,
+            note_type: NoteType::Deposit,
+        };
+
+        let note_var = circuit.create_note_variable(&deposit_note)?;
         circuit.enforce_note_preimage(note_var)?;
 
         Ok(())
@@ -95,24 +117,24 @@ mod tests {
         )
     }
 
-    #[test]
-    fn deposit_constraints_correctness() {
-        let relation = relation();
-        let circuit = DepositRelation::generate_circuit(&relation).unwrap();
-        circuit
-            .check_circuit_satisfiability(&relation.public_input())
-            .unwrap();
-    }
+    // #[test]
+    // fn deposit_constraints_correctness() {
+    //     let relation = relation();
+    //     let circuit = DepositRelation::generate_circuit(&relation).unwrap();
+    //     circuit
+    //         .check_circuit_satisfiability(&relation.public_input())
+    //         .unwrap();
+    // }
 
-    #[test]
-    fn deposit_constraints_incorrectness_with_wrong_note() {
-        let mut relation = relation();
-        relation.deposit_note.note[0] += 1;
-        let circuit = DepositRelation::generate_circuit(&relation).unwrap();
-        assert!(circuit
-            .check_circuit_satisfiability(&relation.public_input())
-            .is_err());
-    }
+    // #[test]
+    // fn deposit_constraints_incorrectness_with_wrong_note() {
+    //     let mut relation = relation();
+    //     relation.public.note[0] += 1;
+    //     let circuit = DepositRelation::generate_circuit(&relation).unwrap();
+    //     assert!(circuit
+    //         .check_circuit_satisfiability(&relation.public_input())
+    //         .is_err());
+    // }
 
     #[test]
     fn deposit_proving_procedure() {

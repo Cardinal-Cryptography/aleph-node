@@ -99,7 +99,7 @@ pub trait Relation: Default {
     }
 }
 
-/// Describe how get a vector of circuit fields.
+/// Describes how to get a vector of circuit fields.
 pub trait PublicInput {
     /// Get a vector of circuit fields.
     fn public_input(&self) -> Vec<CircuitField>;
