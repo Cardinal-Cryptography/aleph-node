@@ -5,7 +5,6 @@ use futures::channel::oneshot;
 use log::{debug, error};
 use network_clique::{Service, SpawnHandleT};
 use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
 use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 
@@ -13,7 +12,6 @@ use crate::{
     aleph_primitives::{Block, Header},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
-    justification::Requester,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
@@ -46,16 +44,17 @@ pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> Authorit
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<A, C, CS, BE, SC>(aleph_config: AlephConfig<C, SC, CS>)
+pub async fn run_validator_node<C, CS, BE, SC>(aleph_config: AlephConfig<C, SC, CS>)
 where
-    A: crate::aleph_primitives::AlephSessionApi<Block> + Send + 'static,
-    C: crate::ClientForAleph<Block, BE> + ProvideRuntimeApi<Block, Api = A> + Send + Sync + 'static,
+    C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
+    C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
+    CS: ChainStatus<Block, SubstrateJustification<Header>> + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
         network,
+        sync_network,
         client,
         chain_status,
         import_queue_handle,
@@ -102,21 +101,12 @@ where
     });
 
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
-        SubstrateNetwork::new(network.clone(), protocol_naming),
+        SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming),
         spawn_handle.clone(),
     );
     let gossip_network_task = async move { gossip_network_service.run().await };
 
-    let block_requester = network.clone();
-    let auxilliary_requester = Requester::new(
-        block_requester.clone(),
-        chain_status.clone(),
-        SessionBoundaryInfo::new(session_period),
-    );
-    spawn_handle.spawn("aleph/requester", async move {
-        debug!(target: "aleph-party", "Auxiliary justification requester has started.");
-        auxilliary_requester.run().await
-    });
+    let block_requester = sync_network.clone();
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone()),
@@ -146,7 +136,6 @@ where
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-
     let (sync_service, justifications_for_sync, _) = match SyncService::new(
         block_sync_network,
         chain_events,

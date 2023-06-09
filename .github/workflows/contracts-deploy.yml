@@ -69,7 +69,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.action == 'labeled' &&
        github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64, large]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -82,7 +82,8 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        # yamllint disable-line rule:line-length
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Install jq
         shell: bash

@@ -17,6 +17,7 @@ use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
+use sc_network_sync::SyncingService;
 use sc_service::{
     error::Error as ServiceError, Configuration, KeystoreContainer, NetworkStarter, RpcHandlers,
     TFullClient, TaskManager,
@@ -25,10 +26,7 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block as BlockT, Header as HeaderT},
-};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
     aleph_cli::AlephCli,
@@ -216,7 +214,7 @@ pub fn new_partial(
 fn setup(
     mut config: Configuration,
     backend: Arc<FullBackend>,
-    chain_status: SubstrateChainStatus<Block>,
+    chain_status: SubstrateChainStatus,
     keystore_container: &KeystoreContainer,
     import_queue: sc_consensus::DefaultImportQueue<Block, FullClient>,
     transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
@@ -228,6 +226,7 @@ fn setup(
     (
         RpcHandlers,
         Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Arc<SyncingService<Block>>,
         ProtocolNaming,
         NetworkStarter,
     ),
@@ -258,7 +257,7 @@ fn setup(
             Protocol::BlockSync,
         ));
 
-    let (network, system_rpc_tx, tx_handler_controller, network_starter) =
+    let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -266,7 +265,7 @@ fn setup(
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
             block_announce_validator_builder: None,
-            warp_sync: None,
+            warp_sync_params: None,
         })?;
 
     let rpc_builder = {
@@ -287,6 +286,7 @@ fn setup(
 
     let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         network: network.clone(),
+        sync_service: sync_network.clone(),
         client,
         keystore: keystore_container.sync_keystore(),
         task_manager,
@@ -299,7 +299,13 @@ fn setup(
         telemetry: telemetry.as_mut(),
     })?;
 
-    Ok((rpc_handlers, network, protocol_naming, network_starter))
+    Ok((
+        rpc_handlers,
+        network,
+        sync_network,
+        protocol_naming,
+        network_starter,
+    ))
 }
 
 /// Builds a new service for a full client.
@@ -327,21 +333,12 @@ pub fn new_authority(
             .path(),
     );
 
-    let finalized = client.info().finalized_number;
+    let finalized = client.info().finalized_hash;
 
-    let session_period = SessionPeriod(
-        client
-            .runtime_api()
-            .session_period(&BlockId::Number(finalized))
-            .unwrap(),
-    );
+    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
 
-    let millisecs_per_block = MillisecsPerBlock(
-        client
-            .runtime_api()
-            .millisecs_per_block(&BlockId::Number(finalized))
-            .unwrap(),
-    );
+    let millisecs_per_block =
+        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
@@ -351,7 +348,7 @@ pub fn new_authority(
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
-    let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
+    let (_rpc_handlers, network, sync_network, protocol_naming, network_starter) = setup(
         config,
         backend,
         chain_status.clone(),
@@ -396,8 +393,8 @@ pub fn new_authority(
             force_authoring,
             backoff_authoring_blocks,
             keystore: keystore_container.sync_keystore(),
-            sync_oracle: network.clone(),
-            justification_sync_link: network.clone(),
+            sync_oracle: sync_network.clone(),
+            justification_sync_link: sync_network.clone(),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
             telemetry: telemetry.as_ref().map(|x| x.handle()),
@@ -414,6 +411,7 @@ pub fn new_authority(
     }
     let aleph_config = AlephConfig {
         network,
+        sync_network,
         client,
         chain_status,
         import_queue_handle,

@@ -17,7 +17,7 @@ jobs:
   build:
     needs: [check-vars-and-secrets]
     name: Save cliain binary as an artifact
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
     steps:
@@ -26,10 +26,11 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        # yamllint disable-line rule:line-length
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
