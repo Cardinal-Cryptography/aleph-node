@@ -188,7 +188,7 @@ where
                 ),
                 e => warn!(
                     target: LOG_TARGET,
-                    "Error handling sync state from {:?}: {}.", peer, e
+                    "Failed to handle sync state from {:?}: {}.", peer, e
                 ),
             },
         }
@@ -223,7 +223,7 @@ where
                     e => {
                         warn!(
                             target: LOG_TARGET,
-                            "Error while handling justification from {:?}: {}.",
+                            "Failed to handle justification from {:?}: {}.",
                             peer.map_or("user".to_string(), |id| format!("{:?}", id)),
                             e
                         );
