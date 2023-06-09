@@ -7,6 +7,7 @@ use tokio::time::{interval_at, Instant};
 
 use crate::{
     network::GossipNetwork,
+    session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
         handler::{Error as HandlerError, Handler, SyncAction},
@@ -17,12 +18,44 @@ use crate::{
         ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
         RequestBlocks, Verifier, LOG_TARGET,
     },
-    SessionPeriod,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
 const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
+
+/// Handlers for interacting with the blockchain database.
+pub struct DatabaseIO<B, J, CS, F, BI>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+    F: Finalizer<J>,
+    BI: BlockImport<B>,
+{
+    chain_status: CS,
+    finalizer: F,
+    block_importer: BI,
+    _phantom: PhantomData<(B, J)>,
+}
+
+impl<B, J, CS, F, BI> DatabaseIO<B, J, CS, F, BI>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+    F: Finalizer<J>,
+    BI: BlockImport<B>,
+{
+    pub fn new(chain_status: CS, finalizer: F, block_importer: BI) -> Self {
+        Self {
+            chain_status,
+            finalizer,
+            block_importer,
+            _phantom: PhantomData,
+        }
+    }
+}
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<B, J, N, CE, CS, V, F, BI>
@@ -78,15 +111,12 @@ where
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
     /// and an interface for requesting blocks.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network: N,
         chain_events: CE,
-        chain_status: CS,
         verifier: V,
-        finalizer: F,
-        _block_importer: BI,
-        period: SessionPeriod,
+        database_io: DatabaseIO<B, J, CS, F, BI>,
+        session_info: SessionBoundaryInfo,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     ) -> Result<
         (
@@ -96,8 +126,14 @@ where
         ),
         HandlerError<B, J, CS, V, F>,
     > {
+        let DatabaseIO {
+            chain_status,
+            finalizer,
+            block_importer,
+            ..
+        } = database_io;
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(chain_status, verifier, finalizer, period)?;
+        let handler = Handler::new(chain_status, verifier, finalizer, session_info)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
@@ -112,7 +148,7 @@ where
                 justifications_from_user,
                 additional_justifications_from_user,
                 _block_requests_from_user,
-                _block_importer,
+                _block_importer: block_importer,
                 _phantom: PhantomData,
             },
             justifications_for_sync,

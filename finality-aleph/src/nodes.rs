@@ -24,9 +24,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, Justification, JustificationTranslator, Service as SyncService,
-        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, SubstrateJustification,
-        VerifierCache,
+        ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
+        Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+        SubstrateJustification, VerifierCache,
     },
     AlephConfig,
 };
@@ -123,26 +123,26 @@ where
         client.import_notification_stream(),
     );
 
+    let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(Some(justification)) => justification.header().clone(),
         _ => panic!("the genesis block should be finalized"),
     };
     let verifier = VerifierCache::new(
-        session_period,
+        session_info.clone(),
         SubstrateFinalizationInfo::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
+    let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
     let (sync_service, justifications_for_sync, _) = match SyncService::new(
         block_sync_network,
         chain_events,
-        chain_status.clone(),
         verifier,
-        finalizer,
-        import_queue_handle,
-        session_period,
+        database_io,
+        session_info.clone(),
         justification_rx,
     ) {
         Ok(x) => x,
@@ -191,7 +191,7 @@ where
             connection_manager,
             keystore,
         ),
-        session_info: SessionBoundaryInfo::new(session_period),
+        session_info,
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");

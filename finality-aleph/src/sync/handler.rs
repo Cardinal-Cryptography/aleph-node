@@ -7,7 +7,7 @@ use std::{
 use log::warn;
 
 use crate::{
-    session::{SessionBoundaryInfo, SessionId, SessionPeriod},
+    session::{SessionBoundaryInfo, SessionId},
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest},
@@ -150,7 +150,7 @@ where
         chain_status: CS,
         verifier: V,
         finalizer: F,
-        period: SessionPeriod,
+        session_info: SessionBoundaryInfo,
     ) -> Result<Self, <Self as HandlerTypes>::Error> {
         let forest = Forest::new(
             chain_status
@@ -164,7 +164,7 @@ where
             verifier,
             finalizer,
             forest,
-            session_info: SessionBoundaryInfo::new(period),
+            session_info,
             phantom: PhantomData,
         };
         handler.refresh_forest()?;
@@ -398,6 +398,7 @@ where
 mod tests {
     use super::{Handler, SyncAction};
     use crate::{
+        session::SessionBoundaryInfo,
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request},
             mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId, MockVerifier},
@@ -418,7 +419,7 @@ mod tests {
             backend.clone(),
             verifier,
             backend.clone(),
-            SessionPeriod(20),
+            SessionBoundaryInfo::new(SessionPeriod(20)),
         )
         .expect("mock backend works");
         (handler, backend, _keep)
@@ -513,7 +514,7 @@ mod tests {
             backend.clone(),
             verifier,
             backend.clone(),
-            SessionPeriod(20),
+            SessionBoundaryInfo::new(SessionPeriod(20)),
         )
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);

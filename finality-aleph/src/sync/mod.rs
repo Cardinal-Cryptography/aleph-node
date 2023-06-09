@@ -17,7 +17,7 @@ mod task_queue;
 mod tasks;
 mod ticker;
 
-pub use service::Service;
+pub use service::{DatabaseIO, Service};
 pub use substrate::{
     Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
     SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
