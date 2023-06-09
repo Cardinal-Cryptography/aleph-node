@@ -22,7 +22,10 @@ pub use status_notifier::SubstrateChainStatusNotifier;
 pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-impl BlockImport<Block> for Box<dyn ImportQueueService<Block>> {
+/// Wrapper around the trait object that we get from Substrate.
+pub struct BlockImporter(pub Box<dyn ImportQueueService<Block>>);
+
+impl BlockImport<Block> for BlockImporter {
     fn import_block(&mut self, block: Block) {
         let origin = BlockOrigin::NetworkBroadcast;
         let incoming_block = IncomingBlock::<Block> {
@@ -37,7 +40,7 @@ impl BlockImport<Block> for Box<dyn ImportQueueService<Block>> {
             import_existing: false,
             state: None,
         };
-        self.import_blocks(origin, vec![incoming_block]);
+        self.0.import_blocks(origin, vec![incoming_block]);
     }
 }
 

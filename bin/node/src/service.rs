@@ -7,8 +7,9 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, Justification, Metrics, MillisecsPerBlock,
-    Protocol, ProtocolNaming, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification, Metrics,
+    MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod, SubstrateChainStatus,
+    TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::{info, warn};
@@ -344,7 +345,7 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let import_queue_handle = import_queue.service();
+    let import_queue_handle = BlockImporter(import_queue.service());
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;

@@ -70,7 +70,6 @@ where
         external_addresses,
         validator_port,
         protocol_naming,
-        ..
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these

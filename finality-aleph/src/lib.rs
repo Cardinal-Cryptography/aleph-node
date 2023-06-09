@@ -18,7 +18,7 @@ use primitives::{
 use sc_client_api::{
     Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
 };
-use sc_consensus::{import_queue::ImportQueueService, BlockImport};
+use sc_consensus::BlockImport;
 use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
@@ -64,7 +64,10 @@ pub use crate::{
     network::{Protocol, ProtocolNaming},
     nodes::run_validator_node,
     session::SessionPeriod,
-    sync::{substrate::Justification, JustificationTranslator, SubstrateChainStatus},
+    sync::{
+        substrate::{BlockImporter, Justification},
+        JustificationTranslator, SubstrateChainStatus,
+    },
 };
 
 /// Constant defining how often components of finality-aleph should report their state
@@ -280,7 +283,7 @@ pub struct AlephConfig<C, SC, CS> {
     pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
     pub chain_status: CS,
-    pub import_queue_handle: Box<dyn ImportQueueService<AlephBlock>>,
+    pub import_queue_handle: BlockImporter,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn CryptoStore>,
