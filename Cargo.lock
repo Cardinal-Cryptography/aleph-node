@@ -5269,7 +5269,7 @@ dependencies = [
 
 [[package]]
 name = "network-clique"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aleph-bft-mock",
  "aleph-bft-types 0.8.1",
