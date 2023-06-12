@@ -25,7 +25,6 @@ use crate::{
 pub enum Error {
     MissingHash(AlephHash),
     MissingBody(AlephHash),
-    MissingIndexedBody(AlephHash),
     MissingJustification(AlephHash),
     Backend(BackendError),
     MismatchedId,
@@ -47,13 +46,6 @@ impl Display for Error {
                 write!(
                     f,
                     "data availability problem: no block body for existing hash {:?}",
-                    hash
-                )
-            }
-            MissingIndexedBody(hash) => {
-                write!(
-                    f,
-                    "data availability problem: no indexed block body for existing hash {:?}",
                     hash
                 )
             }
