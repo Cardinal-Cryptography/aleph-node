@@ -22,17 +22,24 @@ pub use status_notifier::SubstrateChainStatusNotifier;
 pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
+/// Contains the actual Substrate Block and all additional data required for Substrate sync.
+#[derive(Clone, Debug, Encode, Decode)]
+pub struct SubstrateSyncBlock {
+    inner: Block,
+    indexed_body: Option<Vec<Vec<u8>>>,
+}
+
 /// Wrapper around the trait object that we get from Substrate.
 pub struct BlockImporter(pub Box<dyn ImportQueueService<Block>>);
 
-impl BlockImport<Block> for BlockImporter {
-    fn import_block(&mut self, block: Block) {
+impl BlockImport<SubstrateSyncBlock> for BlockImporter {
+    fn import_block(&mut self, block: SubstrateSyncBlock) {
         let origin = BlockOrigin::NetworkBroadcast;
         let incoming_block = IncomingBlock::<Block> {
-            hash: block.header.hash(),
-            header: Some(block.header),
-            body: Some(block.extrinsics),
-            indexed_body: None,
+            hash: block.inner.header.hash(),
+            header: Some(block.inner.header),
+            body: Some(block.inner.extrinsics),
+            indexed_body: block.indexed_body,
             justifications: None,
             origin: None,
             allow_missing_state: false,
@@ -63,12 +70,12 @@ impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for H {
     }
 }
 
-impl BlockT for Block {
+impl BlockT for SubstrateSyncBlock {
     type Header = Header;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header {
-        &self.header
+        &self.inner.header
     }
 }
 

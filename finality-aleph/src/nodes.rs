@@ -26,7 +26,7 @@ use crate::{
     sync::{
         ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
         Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
-        SubstrateJustification, VerifierCache,
+        SubstrateJustification, SubstrateSyncBlock, VerifierCache,
     },
     AlephConfig,
 };
@@ -49,7 +49,8 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<Block, SubstrateJustification<Header>> + JustificationTranslator<Header>,
+    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification<Header>>
+        + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {

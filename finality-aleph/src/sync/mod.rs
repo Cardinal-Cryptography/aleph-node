@@ -20,7 +20,8 @@ mod ticker;
 pub use service::{DatabaseIO, Service};
 pub use substrate::{
     Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
-    SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
+    SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+    SubstrateSyncBlock, VerifierCache,
 };
 
 use crate::BlockIdentifier;

@@ -15,7 +15,7 @@ use crate::{
     },
     justification::backwards_compatible_decode,
     sync::{
-        substrate::{BlockId, Justification},
+        substrate::{BlockId, Justification, SubstrateSyncBlock},
         BlockIdFor, BlockStatus, ChainStatus, LOG_TARGET,
     },
 };
@@ -25,6 +25,7 @@ use crate::{
 pub enum Error {
     MissingHash(AlephHash),
     MissingBody(AlephHash),
+    MissingIndexedBody(AlephHash),
     MissingJustification(AlephHash),
     Backend(BackendError),
     MismatchedId,
@@ -46,6 +47,13 @@ impl Display for Error {
                 write!(
                     f,
                     "data availability problem: no block body for existing hash {:?}",
+                    hash
+                )
+            }
+            MissingIndexedBody(hash) => {
+                write!(
+                    f,
+                    "data availability problem: no indexed block body for existing hash {:?}",
                     hash
                 )
             }
@@ -110,6 +118,10 @@ impl SubstrateChainStatus {
         self.backend.blockchain().body(hash)
     }
 
+    fn indexed_body_for_hash(&self, hash: AlephHash) -> Result<Option<Vec<Vec<u8>>>, BackendError> {
+        self.backend.blockchain().block_indexed_body(hash)
+    }
+
     fn header(
         &self,
         id: &BlockIdFor<Justification<AlephHeader>>,
@@ -168,7 +180,7 @@ impl SubstrateChainStatus {
     }
 }
 
-impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatus {
+impl ChainStatus<SubstrateSyncBlock, Justification<AlephHeader>> for SubstrateChainStatus {
     type Error = Error;
 
     fn finalized_at(
@@ -188,7 +200,7 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
     fn block(
         &self,
         id: BlockIdFor<Justification<AlephHeader>>,
-    ) -> Result<Option<AlephBlock>, Self::Error> {
+    ) -> Result<Option<SubstrateSyncBlock>, Self::Error> {
         let header = match self.header(&id)? {
             Some(header) => header,
             None => return Ok(None),
@@ -197,7 +209,11 @@ impl ChainStatus<AlephBlock, Justification<AlephHeader>> for SubstrateChainStatu
             Some(body) => body,
             None => return Err(Error::MissingBody(id.hash)),
         };
-        Ok(Some(AlephBlock::new(header, body)))
+        let indexed_body = self.indexed_body_for_hash(id.hash)?;
+        Ok(Some(SubstrateSyncBlock {
+            inner: AlephBlock::new(header, body),
+            indexed_body,
+        }))
     }
 
     fn status_of(
