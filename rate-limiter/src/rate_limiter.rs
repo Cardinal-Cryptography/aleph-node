@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use futures::{future::BoxFuture, FutureExt};
 use log::trace;
-use tokio::io::AsyncRead;
+use tokio::{io::AsyncRead, time::sleep};
 
 use crate::{token_bucket::TokenBucket, LOG_TARGET};
 
@@ -38,21 +38,18 @@ impl SleepingRateLimiter {
         );
 
         let now = Instant::now();
-        let next_wait = self.rate_limiter.rate_limit(read_size, now);
-        let wait_until = if let Some(next_wait) = next_wait {
-            now + next_wait
-        } else {
-            return self;
-        };
+        let delay = self.rate_limiter.rate_limit(read_size, now);
 
-        trace!(
-            target: LOG_TARGET,
-            "Rate-Limiter will sleep until {:?} after reading {} byte(s).",
-            wait_until,
-            read_size
-        );
+        if let Some(delay) = delay {
+            trace!(
+                target: LOG_TARGET,
+                "Rate-Limiter will sleep {:?} after reading {} byte(s).",
+                delay,
+                read_size
+            );
+            sleep(delay).await;
+        }
 
-        tokio::time::sleep_until(wait_until.into()).await;
         self
     }
 }
