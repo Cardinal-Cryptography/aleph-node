@@ -12,7 +12,6 @@ use crate::{
     aleph_primitives::{Block, Header},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
-    justification::Requester,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
@@ -25,9 +24,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, Justification, JustificationTranslator, Service as SyncService,
-        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, SubstrateJustification,
-        VerifierCache,
+        ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
+        Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+        SubstrateJustification, SubstrateSyncBlock, VerifierCache,
     },
     AlephConfig,
 };
@@ -50,7 +49,8 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
+    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification<Header>>
+        + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
@@ -58,6 +58,7 @@ where
         sync_network,
         client,
         chain_status,
+        import_queue_handle,
         select_chain,
         spawn_handle,
         keystore,
@@ -70,7 +71,6 @@ where
         external_addresses,
         validator_port,
         protocol_naming,
-        ..
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -107,15 +107,6 @@ where
     let gossip_network_task = async move { gossip_network_service.run().await };
 
     let block_requester = sync_network.clone();
-    let auxilliary_requester = Requester::new(
-        block_requester.clone(),
-        chain_status.clone(),
-        SessionBoundaryInfo::new(session_period),
-    );
-    spawn_handle.spawn("aleph/requester", async move {
-        debug!(target: "aleph-party", "Auxiliary justification requester has started.");
-        auxilliary_requester.run().await
-    });
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone()),
@@ -133,31 +124,31 @@ where
         client.import_notification_stream(),
     );
 
+    let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(Some(justification)) => justification.header().clone(),
         _ => panic!("the genesis block should be finalized"),
     };
     let verifier = VerifierCache::new(
-        session_period,
+        session_info.clone(),
         SubstrateFinalizationInfo::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-    let (sync_service, justifications_for_sync, _) =
-        match SyncService::<Block, _, _, _, _, _, _>::new(
-            block_sync_network,
-            chain_events,
-            chain_status.clone(),
-            verifier,
-            finalizer,
-            session_period,
-            justification_rx,
-        ) {
-            Ok(x) => x,
-            Err(e) => panic!("Failed to initialize Sync service: {}", e),
-        };
+    let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
+    let (sync_service, justifications_for_sync, _) = match SyncService::new(
+        block_sync_network,
+        chain_events,
+        verifier,
+        database_io,
+        session_info.clone(),
+        justification_rx,
+    ) {
+        Ok(x) => x,
+        Err(e) => panic!("Failed to initialize Sync service: {}", e),
+    };
     let sync_task = async move { sync_service.run().await };
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
@@ -201,7 +192,7 @@ where
             connection_manager,
             keystore,
         ),
-        session_info: SessionBoundaryInfo::new(session_period),
+        session_info,
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");
