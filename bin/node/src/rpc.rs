@@ -7,10 +7,7 @@
 
 use std::sync::Arc;
 
-use aleph_runtime::{
-    opaque::{Block, Header},
-    AccountId, Balance, Index,
-};
+use aleph_runtime::{opaque::Block, AccountId, Balance, Index};
 use finality_aleph::{Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::RpcModule;
@@ -29,7 +26,7 @@ pub struct FullDeps<C, P, JT> {
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
-    pub import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
+    pub import_justification_tx: mpsc::UnboundedSender<Justification>,
     pub justification_translator: JT,
 }
 
@@ -50,7 +47,7 @@ where
         + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
         + BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};

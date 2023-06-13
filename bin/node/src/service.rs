@@ -27,11 +27,10 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
     aleph_cli::AlephCli,
-    aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE},
+    aleph_primitives::{AlephSessionApi, BlockHash, MAX_BLOCK_SIZE},
     chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::AlephExecutor,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
@@ -89,11 +88,11 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            TracingBlockImport<Block, Arc<FullClient>>,
-            mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
-            mpsc::UnboundedReceiver<Justification<<Block as BlockT>::Header>>,
+            TracingBlockImport<Arc<FullClient>>,
+            mpsc::UnboundedSender<Justification>,
+            mpsc::UnboundedReceiver<Justification>,
             Option<Telemetry>,
-            Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>,
+            Metrics<BlockHash>,
         ),
     >,
     ServiceError,
@@ -222,11 +221,11 @@ fn setup(
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<Justification<<Block as BlockT>::Header>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification>,
 ) -> Result<
     (
         RpcHandlers,
-        Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Arc<NetworkService<Block, BlockHash>>,
         Arc<SyncingService<Block>>,
         ProtocolNaming,
         NetworkStarter,

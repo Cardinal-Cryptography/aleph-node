@@ -8,7 +8,7 @@ use jsonrpsee::{
     types::error::{CallError, ErrorObject},
 };
 use parity_scale_codec::Decode;
-use primitives::{AccountId, Signature};
+use primitives::{AccountId, Block, BlockHash, BlockNumber, Signature};
 use sc_client_api::StorageProvider;
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
@@ -18,8 +18,6 @@ use sp_runtime::{
     traits::{Block as BlockT, Header as HeaderT},
     DigestItem,
 };
-
-use crate::aleph_primitives::BlockNumber;
 
 /// System RPC errors.
 #[derive(Debug, thiserror::Error)]
@@ -140,39 +138,37 @@ impl From<Error> for JsonRpseeError {
 
 /// Aleph Node RPC API
 #[rpc(client, server, namespace = "alephNode")]
-pub trait AlephNodeApi<Block: BlockT, BE> {
+pub trait AlephNodeApi<BE> {
     /// Finalize the block with given hash and number using attached signature. Returns the empty string or an error.
     #[method(name = "emergencyFinalize")]
     fn emergency_finalize(
         &self,
         justification: Bytes,
-        hash: Block::Hash,
-        number: <<Block as BlockT>::Header as HeaderT>::Number,
+        hash: BlockHash,
+        number: BlockNumber,
     ) -> RpcResult<()>;
 
     /// Get the author of the block with given hash.
     #[method(name = "getBlockAuthor")]
-    fn block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>>;
+    fn block_author(&self, hash: BlockHash) -> RpcResult<Option<AccountId>>;
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<Header, JT, Client>
+pub struct AlephNode<JT, Client>
 where
-    Header: HeaderT<Number = BlockNumber>,
-    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
-    import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification>,
     justification_translator: JT,
     client: Arc<Client>,
 }
 
-impl<Header, JT, Client> AlephNode<Header, JT, Client>
+impl<JT, Client> AlephNode<JT, Client>
 where
-    Header: HeaderT<Number = BlockNumber>,
-    JT: JustificationTranslator<Header> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     pub fn new(
-        import_justification_tx: mpsc::UnboundedSender<Justification<Header>>,
+        import_justification_tx: mpsc::UnboundedSender<Justification>,
         justification_translator: JT,
         client: Arc<Client>,
     ) -> Self {
@@ -184,19 +180,17 @@ where
     }
 }
 
-impl<Block, JT, Client, BE> AlephNodeApiServer<Block, BE> for AlephNode<Block::Header, JT, Client>
+impl<JT, Client, BE> AlephNodeApiServer<BE> for AlephNode<JT, Client>
 where
-    Block: BlockT,
-    Block::Header: HeaderT<Number = BlockNumber>,
-    JT: JustificationTranslator<Block::Header> + Send + Sync + Clone + 'static,
-    Client: HeaderBackend<Block> + StorageProvider<Block, BE> + 'static,
     BE: sc_client_api::Backend<Block> + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
+    Client: HeaderBackend<Block> + StorageProvider<Block, BE> + 'static,
 {
     fn emergency_finalize(
         &self,
         justification: Bytes,
-        hash: Block::Hash,
-        number: <<Block as BlockT>::Header as HeaderT>::Number,
+        hash: BlockHash,
+        number: BlockNumber,
     ) -> RpcResult<()> {
         let justification: AlephJustification =
             AlephJustification::EmergencySignature(justification.0.try_into().map_err(|_| {
@@ -219,7 +213,7 @@ where
         Ok(())
     }
 
-    fn block_author(&self, hash: Block::Hash) -> RpcResult<Option<AccountId>> {
+    fn block_author(&self, hash: BlockHash) -> RpcResult<Option<AccountId>> {
         let header = self
             .client
             .header(hash)
