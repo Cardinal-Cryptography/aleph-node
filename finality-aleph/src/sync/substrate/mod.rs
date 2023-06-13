@@ -3,10 +3,10 @@ use std::fmt::{Debug, Display};
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
 use sp_consensus::BlockOrigin;
-use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
+use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
-    aleph_primitives::{Block, BlockNumber, Header},
+    aleph_primitives::{Block, Header},
     sync::{Block as BlockT, BlockImport, Header as HeaderT, Justification as JustificationT},
     AlephJustification, BlockId,
 };
@@ -51,8 +51,8 @@ impl BlockImport<SubstrateSyncBlock> for BlockImporter {
     }
 }
 
-impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for H {
-    type Identifier = BlockId<H>;
+impl HeaderT for Header {
+    type Identifier = BlockId<Header>;
 
     fn id(&self) -> Self::Identifier {
         BlockId {
@@ -90,20 +90,20 @@ pub enum InnerJustification {
 
 /// A justification, including the related header.
 #[derive(Clone, Debug, Encode, Decode)]
-pub struct Justification<H: SubstrateHeader<Number = BlockNumber>> {
-    header: H,
+pub struct Justification {
+    header: Header,
     inner_justification: InnerJustification,
 }
 
-impl<H: SubstrateHeader<Number = BlockNumber>> Justification<H> {
-    pub fn aleph_justification(header: H, aleph_justification: AlephJustification) -> Self {
+impl Justification {
+    pub fn aleph_justification(header: Header, aleph_justification: AlephJustification) -> Self {
         Justification {
             header,
             inner_justification: InnerJustification::AlephJustification(aleph_justification),
         }
     }
 
-    pub fn genesis_justification(header: H) -> Self {
+    pub fn genesis_justification(header: Header) -> Self {
         Justification {
             header,
             inner_justification: InnerJustification::Genesis,
@@ -111,8 +111,8 @@ impl<H: SubstrateHeader<Number = BlockNumber>> Justification<H> {
     }
 }
 
-impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for Justification<H> {
-    type Identifier = BlockId<H>;
+impl HeaderT for Justification {
+    type Identifier = BlockId<Header>;
 
     fn id(&self) -> Self::Identifier {
         self.header().id()
@@ -123,8 +123,8 @@ impl<H: SubstrateHeader<Number = BlockNumber>> HeaderT for Justification<H> {
     }
 }
 
-impl<H: SubstrateHeader<Number = BlockNumber>> JustificationT for Justification<H> {
-    type Header = H;
+impl JustificationT for Justification {
+    type Header = Header;
     type Unverified = Self;
 
     fn header(&self) -> &Self::Header {
@@ -137,12 +137,12 @@ impl<H: SubstrateHeader<Number = BlockNumber>> JustificationT for Justification<
 }
 
 /// Translates raw aleph justifications into ones acceptable to sync.
-pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>>: Send + Sync {
+pub trait JustificationTranslator: Send + Sync {
     type Error: Display + Debug;
 
     fn translate(
         &self,
         raw_justification: AlephJustification,
-        block_id: BlockId<H>,
-    ) -> Result<Justification<H>, Self::Error>;
+        block_id: BlockId<Header>,
+    ) -> Result<Justification, Self::Error>;
 }

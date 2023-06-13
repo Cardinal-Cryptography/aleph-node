@@ -12,7 +12,7 @@ use tokio::time;
 use crate::{
     abft::SignatureSet,
     aggregation::Aggregator,
-    aleph_primitives::BlockNumber,
+    aleph_primitives::{BlockHash, BlockNumber},
     crypto::Signature,
     justification::AlephJustification,
     metrics::Checkpoint,
@@ -30,8 +30,8 @@ use crate::{
 pub struct IO<H, JS, JT>
 where
     H: Header<Number = BlockNumber>,
-    JS: JustificationSubmissions<Justification<H>> + Send + Sync + Clone,
-    JT: JustificationTranslator<H> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
+    JT: JustificationTranslator + Send + Sync + Clone,
 {
     pub blocks_from_interpreter: mpsc::UnboundedReceiver<BlockId<H>>,
     pub justifications_for_chain: JS,
@@ -43,7 +43,7 @@ async fn process_new_block_data<B, CN, LN>(
     block: IdentifierFor<B>,
     metrics: &Metrics<<B::Header as Header>::Hash>,
 ) where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     CN: Network<CurrentRmcNetworkData<B>>,
     LN: Network<LegacyRmcNetworkData<B>>,
@@ -63,11 +63,11 @@ fn process_hash<B, C, JS, JT>(
     client: &Arc<C>,
 ) -> Result<(), ()>
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     C: HeaderBackend<B> + Send + Sync + 'static,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
+    JT: JustificationTranslator + Send + Sync + Clone,
 {
     let number = client.number(hash).unwrap().unwrap();
     // The unwrap might actually fail if data availability is not implemented correctly.
@@ -97,10 +97,10 @@ async fn run_aggregator<B, C, CN, LN, JS, JT>(
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
+    JT: JustificationTranslator + Send + Sync + Clone,
     C: HeaderBackend<B> + Send + Sync + 'static,
     LN: Network<LegacyRmcNetworkData<B>>,
     CN: Network<CurrentRmcNetworkData<B>>,
@@ -187,10 +187,10 @@ pub fn task<B, C, CN, LN, JS, JT>(
     version: AggregatorVersion<CN, LN>,
 ) -> Task
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
     C: HeaderBackend<B> + Send + Sync + 'static,
     LN: Network<LegacyRmcNetworkData<B>> + 'static,
     CN: Network<CurrentRmcNetworkData<B>> + 'static,

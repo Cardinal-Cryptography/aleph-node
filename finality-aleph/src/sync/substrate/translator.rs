@@ -36,14 +36,14 @@ impl From<ChainStatusError> for Error {
     }
 }
 
-impl JustificationTranslator<AlephHeader> for SubstrateChainStatus {
+impl JustificationTranslator for SubstrateChainStatus {
     type Error = Error;
 
     fn translate(
         &self,
         aleph_justification: AlephJustification,
         block_id: BlockId<AlephHeader>,
-    ) -> Result<Justification<AlephHeader>, Self::Error> {
+    ) -> Result<Justification, Self::Error> {
         use BlockStatus::*;
         match self.status_of(block_id)? {
             Justified(Justification { header, .. }) | Present(header) => Ok(

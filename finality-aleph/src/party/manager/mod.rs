@@ -14,7 +14,7 @@ use crate::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
         run_legacy_member, SpawnHandle,
     },
-    aleph_primitives::{AlephSessionApi, BlockNumber, KEY_TYPE},
+    aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     mpsc,
@@ -65,14 +65,14 @@ type CurrentNetworkType<B> = SimpleNetwork<
 
 struct SubtasksParams<C, SC, B, N, BE, JS, JT>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     N: Network<VersionedNetworkData<B>> + 'static,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
+    JT: JustificationTranslator + Send + Sync + Clone,
 {
     n_members: usize,
     node_id: NodeIndex,
@@ -92,15 +92,15 @@ where
 
 pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
+    JT: JustificationTranslator + Send + Sync + Clone,
 {
     client: Arc<C>,
     select_chain: SC,
@@ -118,7 +118,7 @@ where
 
 impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
@@ -126,8 +126,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -403,7 +403,7 @@ where
 impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager
     for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
@@ -411,8 +411,8 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
+    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     type Error = SM::Error;
 

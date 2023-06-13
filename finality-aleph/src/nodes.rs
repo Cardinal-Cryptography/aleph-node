@@ -10,7 +10,7 @@ use sp_consensus::SelectChain;
 use sp_keystore::CryptoStore;
 
 use crate::{
-    aleph_primitives::{Block, Header},
+    aleph_primitives::Block,
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
@@ -50,8 +50,7 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification<Header>>
-        + JustificationTranslator<Header>,
+    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification> + JustificationTranslator,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
