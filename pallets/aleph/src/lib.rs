@@ -44,7 +44,9 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic, traits::EstimateNextSessionRotation};
+    use frame_support::{
+        pallet_prelude::*, sp_runtime::RuntimeAppPublic, traits::EstimateNextSessionRotation,
+    };
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
@@ -63,7 +65,9 @@ pub mod pallet {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type SessionInfoProvider: SessionInfoProvider;
-        type NextSessionRotation: EstimateNextSessionRotation<<Self as frame_system::Config>::BlockNumber>;
+        type NextSessionRotation: EstimateNextSessionRotation<
+            <Self as frame_system::Config>::BlockNumber,
+        >;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
     }
@@ -133,11 +137,14 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_finalize(block_number: T::BlockNumber) {
-            if let Some(session_change_block) = T::NextSessionRotation::estimate_next_session_rotation(block_number).0 { 
+            if let Some(session_change_block) =
+                T::NextSessionRotation::estimate_next_session_rotation(block_number).0
+            {
                 if session_change_block == block_number + 1u32.into() {
                     <frame_system::Pallet<T>>::deposit_log(DigestItem::Consensus(
                         ALEPH_ENGINE_ID,
-                        AlephAuthorityChange::<T::AuthorityId>(<NextAuthorities<T>>::get()).encode(),
+                        AlephAuthorityChange::<T::AuthorityId>(<NextAuthorities<T>>::get())
+                            .encode(),
                     ));
                 }
             }
