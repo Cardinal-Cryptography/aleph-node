@@ -10,7 +10,7 @@ use crate::{
     sync::{
         data::{BranchKnowledge, Request, State},
         forest::{Forest, Interest},
-        BlockIdFor, Header, Justification, PeerId,
+        Block, BlockIdFor, ChainStatus, Header, Justification, PeerId,
     },
     BlockIdentifier,
 };
@@ -134,11 +134,13 @@ impl<BI: BlockIdentifier> RequestTask<BI> {
     }
 
     /// Process the task using the information from the forest.
-    pub fn process<I, J>(self, forest: &Forest<I, J>) -> Action<I, J>
+    pub fn process<B, I, J, CS>(self, forest: &Forest<B, I, J, CS>) -> Action<I, J>
     where
+        B: Block,
         I: PeerId,
-        J: Justification,
+        J: Justification<Header = B::Header>,
         J::Header: Header<Identifier = BI>,
+        CS: ChainStatus<B, J>,
     {
         let RequestTask { id, kind, tries } = self;
         match kind.should_request(forest.request_interest(&id)) {
