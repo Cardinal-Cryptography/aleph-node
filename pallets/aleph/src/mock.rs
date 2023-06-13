@@ -5,6 +5,7 @@ use frame_support::{
     traits::{OnFinalize, OnInitialize},
     weights::{RuntimeDbWeight, Weight},
 };
+use pallet_session::PeriodicSessions;
 use primitives::{AuthorityId, SessionInfoProvider};
 use sp_api_hidden_includes_construct_runtime::hidden_include::traits::GenesisBuild;
 use sp_core::H256;
@@ -141,6 +142,7 @@ impl Config for Test {
     type AuthorityId = AuthorityId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = SessionInfoImpl;
+    type NextSessionRotation = PeriodicSessions<Period, Offset>;
     type SessionManager = ();
     type NextSessionAuthorityProvider = Session;
 }
