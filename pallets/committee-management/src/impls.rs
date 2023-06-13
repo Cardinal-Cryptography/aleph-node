@@ -432,9 +432,13 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    /// Calculates committee for the given session.
+    /// Predict finality committee and block producers for the given session. `session` must be
+    /// within the current era (current, in the staking context).
     ///
-    /// `session` must be within the current era.
+    /// If the active era `E` starts in the session `a`, and ends in session `b` then from session
+    /// `a` to session `b-1` this function can answer question who will be in the committee in the
+    /// era `E`. In the last session of the era `E` (`b`) this can be used to determine all of the
+    /// sessions in the era `E+1`.
     pub fn predict_session_committee_for_session(
         session: SessionIndex,
     ) -> Result<SessionCommittee<T::AccountId>, SessionValidatorError> {
