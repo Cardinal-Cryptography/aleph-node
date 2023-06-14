@@ -12,7 +12,7 @@
 , runTests ? false
 # forces naersk (helper tool for building rust projects under nix) to build in a single derivation, instead default way that uses deps and project derivations
 # it is used for building aleph-runtime (we don't want its dependencies to be build separately for a non-WASM architecture)
-, singleStep ? false
+, singleStep ? true
 # passed to rustc by cargo - it allows us to set the list of supported cpu features
 # we can use for example `-C target-cpu=native` which should produce a binary that is significantly faster than the one produced using `generic`
 # `generic` is the default `target-cpu` provided by cargo

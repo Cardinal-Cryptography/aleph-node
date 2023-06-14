@@ -44,9 +44,9 @@ rec {
   naersk =
     let
       naerskSrc = builtins.fetchTarball {
-        # link: https://github.com/nix-community/naersk/tree/2fc8ce9d3c025d59fee349c1f80be9785049d653
-        url = "https://github.com/nix-community/naersk/archive/2fc8ce9d3c025d59fee349c1f80be9785049d653.tar.gz";
-        sha256 = "1jhagazh69w7jfbrchhdss54salxc66ap1a1yd7xasc92vr0qsx4";
+        # link: https://github.com/nix-community/naersk/tree/d998160d6a076cfe8f9741e56aeec7e267e3e114
+        url = "https://github.com/nix-community/naersk/archive/d998160d6a076cfe8f9741e56aeec7e267e3e114.tar.gz";
+        sha256 = "1s10ygdsi17zjfiypwj7bhxys6yxws10hhq3ckfl3996v2q04d3v";
       };
     in
       nixpkgs.callPackage naerskSrc { inherit stdenv; cargo = rustToolchain.rust; rustc = rustToolchain.rust; };
