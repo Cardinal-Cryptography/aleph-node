@@ -1,22 +1,24 @@
+use core::marker::PhantomData;
 use std::{iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
 use tokio::time::{interval_at, Instant};
 
+pub use crate::sync::handler::DatabaseIO;
 use crate::{
     network::GossipNetwork,
+    session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
         handler::{Error as HandlerError, Handler, SyncAction},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
-        Block, BlockIdFor, BlockIdentifier, ChainStatus, ChainStatusNotification,
+        Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
         ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
         RequestBlocks, Verifier, LOG_TARGET,
     },
-    SessionPeriod,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
@@ -24,23 +26,26 @@ const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
 const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
-pub struct Service<
+pub struct Service<B, J, N, CE, CS, V, F, BI>
+where
     B: Block,
-    J: Justification,
+    J: Justification<Header = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<J::Header>,
-    CS: ChainStatus<J>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
-> {
+    BI: BlockImport<B>,
+{
     network: VersionWrapper<B, J, N>,
-    handler: Handler<B, N::PeerId, J, CS, V, F>,
+    handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
     tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
     broadcast_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
+    _phantom: PhantomData<B>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -59,15 +64,16 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
     }
 }
 
-impl<
-        B: Block,
-        J: Justification,
-        N: GossipNetwork<VersionedNetworkData<B, J>>,
-        CE: ChainStatusNotifier<J::Header>,
-        CS: ChainStatus<J>,
-        V: Verifier<J>,
-        F: Finalizer<J>,
-    > Service<B, J, N, CE, CS, V, F>
+impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    N: GossipNetwork<VersionedNetworkData<B, J>>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+    BI: BlockImport<B>,
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
@@ -75,10 +81,9 @@ impl<
     pub fn new(
         network: N,
         chain_events: CE,
-        chain_status: CS,
         verifier: V,
-        finalizer: F,
-        period: SessionPeriod,
+        database_io: DatabaseIO<B, J, CS, F, BI>,
+        session_info: SessionBoundaryInfo,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     ) -> Result<
         (
@@ -86,10 +91,10 @@ impl<
             impl JustificationSubmissions<J> + Clone,
             impl RequestBlocks<BlockIdFor<J>>,
         ),
-        HandlerError<J, CS, V, F>,
+        HandlerError<B, J, CS, V, F>,
     > {
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(chain_status, verifier, finalizer, period)?;
+        let handler = Handler::new(database_io, verifier, session_info)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
@@ -104,6 +109,7 @@ impl<
                 justifications_from_user,
                 additional_justifications_from_user,
                 _block_requests_from_user,
+                _phantom: PhantomData,
             },
             justifications_for_sync,
             block_requests_for_sync,
@@ -180,10 +186,16 @@ impl<
         );
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => self.perform_sync_action(action, peer),
-            Err(e) => warn!(
-                target: LOG_TARGET,
-                "Error handling sync state from {:?}: {}.", peer, e
-            ),
+            Err(e) => match e {
+                HandlerError::Verifier(e) => debug!(
+                    target: LOG_TARGET,
+                    "Could not verify justification in sync state from {:?}: {}.", peer, e
+                ),
+                e => warn!(
+                    target: LOG_TARGET,
+                    "Failed to handle sync state from {:?}: {}.", peer, e
+                ),
+            },
         }
     }
 
@@ -203,15 +215,26 @@ impl<
                 .handle_justification(justification, peer.clone())
             {
                 Ok(maybe_id) => maybe_id,
-                Err(e) => {
-                    warn!(
-                        target: LOG_TARGET,
-                        "Error while handling justification from {:?}: {}.",
-                        peer.map_or("user".to_string(), |id| format!("{:?}", id)),
-                        e
-                    );
-                    return;
-                }
+                Err(e) => match e {
+                    HandlerError::Verifier(e) => {
+                        debug!(
+                            target: LOG_TARGET,
+                            "Could not verify justification from {:?}: {}.",
+                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            e
+                        );
+                        return;
+                    }
+                    e => {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Failed to handle justification from {:?}: {}.",
+                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            e
+                        );
+                        return;
+                    }
+                },
             };
             if let Some(block_id) = maybe_block_id {
                 self.request_highest_justified(block_id);
@@ -344,9 +367,9 @@ impl<
                             }
                         },
                         Err(e) => error!(
-                                        target: LOG_TARGET,
-                                        "Error when retrieving Handler state: {}.", e
-                                    ),
+                            target: LOG_TARGET,
+                            "Error when retrieving Handler state: {}.", e
+                        ),
                     }
                 }
             }
