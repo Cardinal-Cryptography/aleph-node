@@ -46,7 +46,7 @@ use primitives::{
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Index, Signature};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{ConstU128, crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -708,7 +708,7 @@ impl pallet_contracts::Config for Runtime {
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 16];
     type DepositPerByte = DepositPerByte;
-    type DefaultDepositLimit = ExistentialDeposit;
+    type DefaultDepositLimit = ConstU128<{ u128::MAX }>;
     type DepositPerItem = DepositPerItem;
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
     type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
