@@ -140,7 +140,8 @@ with nixpkgs; naersk.buildPackage rec {
   postConfigure = ''
       ${nixpkgs.lib.optionalString providedCargoHome
          ''
-           export CARGO_HOME=${cargoHome}
+           cp -r ${cargoHome} .cargo_home
+           export CARGO_HOME=.cargo_home
          ''
        }
   '';
