@@ -7,12 +7,14 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, Justification, Metrics, MillisecsPerBlock,
-    Protocol, ProtocolNaming, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification, Metrics,
+    MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig, SessionPeriod,
+    SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
+use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
@@ -338,6 +340,8 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let import_queue_handle = BlockImporter(import_queue.service());
+
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
     let (_rpc_handlers, network, sync_network, protocol_naming, network_starter) = setup(
@@ -401,11 +405,20 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
+
+    let rate_limiter_config = RateLimiterConfig {
+        alephbft_bit_rate_per_connection: aleph_config
+            .alephbft_bit_rate_per_connection()
+            .try_into()
+            .unwrap_or(usize::MAX),
+    };
+
     let aleph_config = AlephConfig {
         network,
         sync_network,
         client,
         chain_status,
+        import_queue_handle,
         select_chain,
         session_period,
         millisecs_per_block,
@@ -418,6 +431,7 @@ pub fn new_authority(
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
         protocol_naming,
+        rate_limiter_config,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(
