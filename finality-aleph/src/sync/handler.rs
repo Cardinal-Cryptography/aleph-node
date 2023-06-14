@@ -792,13 +792,7 @@ mod tests {
         let _ = handler.state().expect("state works");
         let headers = import_branch(&backend, 2);
 
-        assert_eq!(
-            true,
-            handler.handle_internal_request(&headers[1].id()).unwrap()
-        );
-        assert_eq!(
-            false,
-            handler.handle_internal_request(&headers[1].id()).unwrap()
-        );
+        assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
+        assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
     }
 }
