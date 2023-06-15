@@ -22,7 +22,6 @@ pub struct AccountData(SubstrateAccountData<Balance>);
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, Default)]
 pub struct AccountInfo(SubstrateAccountInfo<u32, AccountData>);
 
-
 /// hack to deserialize ExtraFlags
 fn deserialize_flags(repr: u128) -> ExtraFlags {
     let mut def = ExtraFlags::old_logic();
