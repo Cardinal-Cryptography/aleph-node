@@ -16,6 +16,7 @@ cd scripts/synthetic-network/vendor/synthetic-network
 
 # this is a dirty-fix for the outdated version of node image used by the
 # synthetic-network's Dockerfile
+# TODO remove it after this push-request is merged into synthetic-network: https://github.com/daily-co/synthetic-network/pull/14
 docker pull node:20.3.0
 docker tag node:20.3.0 node:12.20.2
 
