@@ -288,7 +288,7 @@ mod tests {
             let (fake_id, _) = key();
             let fake_challenge = Challenge::new(fake_id);
             // send response with substituted challenge
-            let our_response = Response::new(&secret_key, &fake_challenge).await;
+            let our_response = Response::new(&secret_key, &fake_challenge);
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;
         }
@@ -315,7 +315,7 @@ mod tests {
             // prepare fake id
             let (fake_id, _) = key();
             // send response with substituted id
-            let mut our_response = Response::new(&secret_key, &challenge).await;
+            let mut our_response = Response::new(&secret_key, &challenge);
             our_response.public_key = fake_id;
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;
