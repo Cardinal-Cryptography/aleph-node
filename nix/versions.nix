@@ -18,7 +18,6 @@ rec {
       # this overlay allows us to use a version of the rust toolchain specified by the rust-toolchain.toml file
       rustOverlay =
         import (builtins.fetchTarball {
-          # link: https://github.com/mozilla/nixpkgs-mozilla/tree/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996
           url = "https://github.com/mozilla/nixpkgs-mozilla/archive/f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996.tar.gz";
           sha256 = "1rzz03h0b38l5sg61rmfvzpbmbd5fn2jsi1ccvq22rb76s1nbh8i";
         });
@@ -26,7 +25,6 @@ rec {
       # pinned version of nix packages
       # main reason for not using here the newest available version at the time or writing is that this way we depend on glibc version 2.31 (Ubuntu 20.04 LTS)
       nixpkgs = import (builtins.fetchTarball {
-        # link: https://github.com/NixOS/nixpkgs/tree/20.09
         url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/20.09.tar.gz";
         sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
       }) { overlays = [
@@ -44,7 +42,6 @@ rec {
   naersk =
     let
       naerskSrc = builtins.fetchTarball {
-        # link: https://github.com/nix-community/naersk/tree/d998160d6a076cfe8f9741e56aeec7e267e3e114
         url = "https://github.com/nix-community/naersk/archive/d998160d6a076cfe8f9741e56aeec7e267e3e114.tar.gz";
         sha256 = "1s10ygdsi17zjfiypwj7bhxys6yxws10hhq3ckfl3996v2q04d3v";
       };
