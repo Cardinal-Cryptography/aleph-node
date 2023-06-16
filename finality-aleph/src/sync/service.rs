@@ -125,6 +125,15 @@ where
             .schedule_in(RequestTask::new_highest_justified(block_id), Duration::ZERO);
     }
 
+    fn request_block(&mut self, block_id: BlockIdFor<J>) {
+        debug!(
+            target: LOG_TARGET,
+            "Initiating a request for block {:?}.", block_id
+        );
+        self.tasks
+            .schedule_in(RequestTask::new_block(block_id), Duration::ZERO);
+    }
+
     fn broadcast(&mut self) {
         let state = match self.handler.state() {
             Ok(state) => state,
@@ -321,7 +330,7 @@ where
         );
         match self.handler.handle_internal_request(&id) {
             Ok(true) => {
-                self.handle_task(RequestTask::new_block(id));
+                self.request_block(id);
             }
             Ok(_) => {
                 debug!(target: LOG_TARGET, "Already requested block {:?}.", id);

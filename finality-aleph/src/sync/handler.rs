@@ -437,7 +437,7 @@ where
     }
 
     /// Handle an internal block request.
-    /// Returns `true` if this was the first time something denoted interest in this block.
+    /// Returns `true` if this was the first time something indicated interest in this block.
     pub fn handle_internal_request(
         &mut self,
         id: &BlockIdFor<J>,
