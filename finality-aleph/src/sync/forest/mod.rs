@@ -302,8 +302,6 @@ where
     }
 
     /// Updates the provider block identifier, returns whether it became a new explicitly required.
-    // TODO(A0-1757): this will be used then, now only in tests.
-    #[allow(dead_code)]
     pub fn update_block_identifier(
         &mut self,
         id: &BlockIdFor<J>,
