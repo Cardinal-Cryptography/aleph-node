@@ -63,7 +63,7 @@ type CurrentNetworkType<B> = SimpleNetwork<
     SessionSender<CurrentRmcNetworkData<B>>,
 >;
 
-struct SubtasksParams<C, SC, B, N, BE, JS, JT>
+struct SubtasksParams<C, SC, B, N, BE, JS>
 where
     B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -72,7 +72,6 @@ where
     SC: SelectChain<B> + 'static,
     N: Network<VersionedNetworkData<B>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    JT: JustificationTranslator + Send + Sync + Clone,
 {
     n_members: usize,
     node_id: NodeIndex,
@@ -82,7 +81,7 @@ where
     subtask_common: SubtaskCommon,
     data_provider: DataProvider<B>,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    aggregator_io: aggregator::IO<B::Header, JS, JT>,
+    aggregator_io: aggregator::IO<B::Header, JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
     backup: ABFTBackup,
@@ -90,7 +89,7 @@ where
     phantom: PhantomData<BE>,
 }
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
     B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -100,14 +99,13 @@ where
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    JT: JustificationTranslator + Send + Sync + Clone,
 {
     client: Arc<C>,
     select_chain: SC,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
     justifications_for_sync: JS,
-    justification_translator: JT,
+    justification_translator: JustificationTranslator,
     block_requester: RB,
     metrics: Metrics<<B::Header as HeaderT>::Hash>,
     spawn_handle: SpawnHandle,
@@ -116,7 +114,7 @@ where
     _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
     B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -127,7 +125,6 @@ where
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -136,7 +133,7 @@ where
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
         justifications_for_sync: JS,
-        justification_translator: JT,
+        justification_translator: JustificationTranslator,
         block_requester: RB,
         metrics: Metrics<<B::Header as HeaderT>::Hash>,
         spawn_handle: SpawnHandle,
@@ -161,7 +158,7 @@ where
 
     fn legacy_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
+        params: SubtasksParams<C, SC, B, N, BE, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -219,7 +216,7 @@ where
 
     fn current_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
+        params: SubtasksParams<C, SC, B, N, BE, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -400,8 +397,8 @@ where
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager
-    for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS> NodeSessionManager
+    for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
     B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
@@ -412,7 +409,6 @@ where
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     type Error = SM::Error;
 

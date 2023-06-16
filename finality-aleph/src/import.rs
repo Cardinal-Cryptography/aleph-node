@@ -12,7 +12,7 @@ use crate::{
     aleph_primitives::{Block, BlockHash, BlockNumber, Header, ALEPH_ENGINE_ID},
     justification::{backwards_compatible_decode, DecodeError},
     metrics::{Checkpoint, Metrics},
-    sync::substrate::{Justification, JustificationTranslator},
+    sync::substrate::{Justification, JustificationTranslator, TranslateError},
     BlockId,
 };
 
@@ -71,14 +71,13 @@ where
 /// A wrapper around a block import that also extracts any present justifications and sends them to
 /// our components which will process them further and possibly finalize the block.
 #[derive(Clone)]
-pub struct AlephBlockImport<I, JT>
+pub struct AlephBlockImport<I>
 where
     I: BlockImport<Block> + Clone + Send,
-    JT: JustificationTranslator,
 {
     inner: I,
     justification_tx: UnboundedSender<Justification>,
-    translator: JT,
+    translator: JustificationTranslator,
 }
 
 #[derive(Debug)]
@@ -95,16 +94,15 @@ impl<TE: Debug> From<DecodeError> for SendJustificationError<TE> {
     }
 }
 
-impl<I, JT> AlephBlockImport<I, JT>
+impl<I> AlephBlockImport<I>
 where
     I: BlockImport<Block> + Clone + Send,
-    JT: JustificationTranslator,
 {
     pub fn new(
         inner: I,
         justification_tx: UnboundedSender<Justification>,
-        translator: JT,
-    ) -> AlephBlockImport<I, JT> {
+        translator: JustificationTranslator,
+    ) -> AlephBlockImport<I> {
         AlephBlockImport {
             inner,
             justification_tx,
@@ -116,7 +114,7 @@ where
         &mut self,
         block_id: BlockId<Header>,
         justification: SubstrateJustification,
-    ) -> Result<(), SendJustificationError<JT::Error>> {
+    ) -> Result<(), SendJustificationError<TranslateError>> {
         debug!(target: "aleph-justification", "Importing justification for block {}.", block_id);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
@@ -137,10 +135,9 @@ where
 }
 
 #[async_trait::async_trait]
-impl<I, JT> BlockImport<Block> for AlephBlockImport<I, JT>
+impl<I> BlockImport<Block> for AlephBlockImport<I>
 where
     I: BlockImport<Block> + Clone + Send,
-    JT: JustificationTranslator,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
@@ -184,10 +181,9 @@ where
 }
 
 #[async_trait::async_trait]
-impl<I, JT> JustificationImport<Block> for AlephBlockImport<I, JT>
+impl<I> JustificationImport<Block> for AlephBlockImport<I>
 where
     I: BlockImport<Block> + Clone + Send,
-    JT: JustificationTranslator,
 {
     type Error = ConsensusError;
 

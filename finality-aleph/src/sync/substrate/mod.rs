@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
@@ -7,19 +7,21 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    sync::{Block as BlockT, BlockImport, Header as HeaderT, Justification as JustificationT},
-    AlephJustification, BlockId,
+    sync::{Block as BlockT, BlockImport, Header as HeaderT},
+    BlockId,
 };
 
 mod chain_status;
 mod finalizer;
+mod justification;
 mod status_notifier;
-mod translator;
 mod verification;
 
 pub use chain_status::SubstrateChainStatus;
+pub use justification::{
+    InnerJustification, Justification, JustificationTranslator, TranslateError,
+};
 pub use status_notifier::SubstrateChainStatusNotifier;
-pub use translator::Error as TranslateError;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
 /// Contains the actual Substrate Block and all additional data required for Substrate sync.
@@ -77,72 +79,4 @@ impl BlockT for SubstrateSyncBlock {
     fn header(&self) -> &Self::Header {
         &self.inner.header
     }
-}
-
-/// Proper `AlephJustification` or a variant indicating virtual justification
-/// for the genesis block, which is the only block that can be the top finalized
-/// block with no proper justification.
-#[derive(Clone, Debug, Encode, Decode)]
-pub enum InnerJustification {
-    AlephJustification(AlephJustification),
-    Genesis,
-}
-
-/// A justification, including the related header.
-#[derive(Clone, Debug, Encode, Decode)]
-pub struct Justification {
-    header: Header,
-    inner_justification: InnerJustification,
-}
-
-impl Justification {
-    pub fn aleph_justification(header: Header, aleph_justification: AlephJustification) -> Self {
-        Justification {
-            header,
-            inner_justification: InnerJustification::AlephJustification(aleph_justification),
-        }
-    }
-
-    pub fn genesis_justification(header: Header) -> Self {
-        Justification {
-            header,
-            inner_justification: InnerJustification::Genesis,
-        }
-    }
-}
-
-impl HeaderT for Justification {
-    type Identifier = BlockId<Header>;
-
-    fn id(&self) -> Self::Identifier {
-        self.header().id()
-    }
-
-    fn parent_id(&self) -> Option<Self::Identifier> {
-        self.header().parent_id()
-    }
-}
-
-impl JustificationT for Justification {
-    type Header = Header;
-    type Unverified = Self;
-
-    fn header(&self) -> &Self::Header {
-        &self.header
-    }
-
-    fn into_unverified(self) -> Self::Unverified {
-        self
-    }
-}
-
-/// Translates raw aleph justifications into ones acceptable to sync.
-pub trait JustificationTranslator: Send + Sync {
-    type Error: Display + Debug;
-
-    fn translate(
-        &self,
-        raw_justification: AlephJustification,
-        block_id: BlockId<Header>,
-    ) -> Result<Justification, Self::Error>;
 }

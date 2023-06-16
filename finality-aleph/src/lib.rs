@@ -282,11 +282,11 @@ pub struct RateLimiterConfig {
     pub alephbft_bit_rate_per_connection: usize,
 }
 
-pub struct AlephConfig<C, SC, CS> {
+pub struct AlephConfig<C, SC> {
     pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
     pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
-    pub chain_status: CS,
+    pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,

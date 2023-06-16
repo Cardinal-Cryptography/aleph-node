@@ -154,22 +154,16 @@ pub trait AlephNodeApi<BE> {
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<JT, Client>
-where
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
-{
+pub struct AlephNode<Client> {
     import_justification_tx: mpsc::UnboundedSender<Justification>,
-    justification_translator: JT,
+    justification_translator: JustificationTranslator,
     client: Arc<Client>,
 }
 
-impl<JT, Client> AlephNode<JT, Client>
-where
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
-{
+impl<Client> AlephNode<Client> {
     pub fn new(
         import_justification_tx: mpsc::UnboundedSender<Justification>,
-        justification_translator: JT,
+        justification_translator: JustificationTranslator,
         client: Arc<Client>,
     ) -> Self {
         AlephNode {
@@ -180,10 +174,9 @@ where
     }
 }
 
-impl<JT, Client, BE> AlephNodeApiServer<BE> for AlephNode<JT, Client>
+impl<Client, BE> AlephNodeApiServer<BE> for AlephNode<Client>
 where
     BE: sc_client_api::Backend<Block> + 'static,
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
     Client: HeaderBackend<Block> + StorageProvider<Block, BE> + 'static,
 {
     fn emergency_finalize(

@@ -19,7 +19,7 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 /// Full client dependencies.
-pub struct FullDeps<C, P, JT> {
+pub struct FullDeps<C, P> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
@@ -27,12 +27,12 @@ pub struct FullDeps<C, P, JT> {
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
     pub import_justification_tx: mpsc::UnboundedSender<Justification>,
-    pub justification_translator: JT,
+    pub justification_translator: JustificationTranslator,
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P, JT, BE>(
-    deps: FullDeps<C, P, JT>,
+pub fn create_full<C, P, BE>(
+    deps: FullDeps<C, P>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
@@ -47,7 +47,6 @@ where
         + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
         + BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    JT: JustificationTranslator + Send + Sync + Clone + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};

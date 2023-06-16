@@ -7,9 +7,9 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification, Metrics,
-    MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig, SessionPeriod,
-    SubstrateChainStatus, TracingBlockImport,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
+    JustificationTranslator, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming,
+    RateLimiterConfig, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::{info, warn};
@@ -157,8 +157,10 @@ pub fn new_partial(
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let justification_translator = SubstrateChainStatus::new(backend.clone())
-        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?;
+    let justification_translator = JustificationTranslator::new(
+        SubstrateChainStatus::new(backend.clone())
+            .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {}", e)))?,
+    );
     let aleph_block_import = AlephBlockImport::new(
         tracing_block_import.clone(),
         justification_tx.clone(),
@@ -277,7 +279,7 @@ fn setup(
                 pool: pool.clone(),
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
-                justification_translator: chain_status.clone(),
+                justification_translator: JustificationTranslator::new(chain_status.clone()),
             };
 
             Ok(create_full_rpc(deps)?)
