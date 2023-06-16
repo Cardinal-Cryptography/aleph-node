@@ -305,7 +305,7 @@ where
 
     /// Handle a session command.
     /// Returns actions the manager wants to take or an error if the session command is invalid.
-    async fn handle_command(
+    fn handle_command(
         &mut self,
         command: SessionCommand<D>,
     ) -> Result<ManagerActions<NI::AddressingInformation>, SessionHandlerError> {
@@ -352,7 +352,7 @@ where
                 maybe_command = self.commands_from_user.next() => {
                     trace!(target: "aleph-network", "Manager received a command from user");
                     match maybe_command {
-                        Some(command) => match self.handle_command(command).await {
+                        Some(command) => match self.handle_command(command) {
                             Ok(to_send) => self.handle_manager_actions(to_send)?,
                             Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
                         },

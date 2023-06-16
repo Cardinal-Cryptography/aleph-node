@@ -42,7 +42,7 @@ impl SecretKey for AuthorityPen {
     type Signature = Signature;
     type PublicKey = AuthorityIdWrapper;
 
-    async fn sign(&self, message: &[u8]) -> Self::Signature {
+    fn sign(&self, message: &[u8]) -> Self::Signature {
         AuthorityPen::sign(self, message)
     }
 
