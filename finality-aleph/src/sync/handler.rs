@@ -5,7 +5,7 @@ use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
         data::{NetworkData, Request, State},
-        forest::{Error as ForestError, Forest},
+        forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
@@ -68,7 +68,7 @@ where
     chain_status: CS,
     verifier: V,
     finalizer: F,
-    forest: Forest<B, I, J, CS>,
+    forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
     _block_importer: BI,
     phantom: PhantomData<B>,
@@ -114,7 +114,8 @@ where
     Verifier(V::Error),
     ChainStatus(CS::Error),
     Finalizer(F::Error),
-    Forest(ForestError<B, J, CS>),
+    Forest(ForestError),
+    ForestInitialization(ForestInitializationError<B, J, CS>),
     MissingJustification,
 }
 
@@ -133,6 +134,7 @@ where
             ChainStatus(e) => write!(f, "chain status error: {}", e),
             Finalizer(e) => write!(f, "finalized error: {}", e),
             Forest(e) => write!(f, "forest error: {}", e),
+            ForestInitialization(e) => write!(f, "forest initialization error: {}", e),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -141,7 +143,7 @@ where
     }
 }
 
-impl<B, J, CS, V, F> From<ForestError<B, J, CS>> for Error<B, J, CS, V, F>
+impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
 where
     J: Justification,
     B: Block<Header = J::Header>,
@@ -149,7 +151,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    fn from(e: ForestError<B, J, CS>) -> Self {
+    fn from(e: ForestError) -> Self {
         Error::Forest(e)
     }
 }
@@ -189,7 +191,7 @@ where
             block_importer,
             ..
         } = database_io;
-        let forest = Forest::new(&chain_status).map_err(Error::Forest)?;
+        let forest = Forest::new(&chain_status).map_err(Error::ForestInitialization)?;
         Ok(Handler {
             chain_status,
             verifier,
@@ -384,7 +386,7 @@ where
     }
 
     /// The forest held by this handler, read only.
-    pub fn forest(&self) -> &Forest<B, I, J, CS> {
+    pub fn forest(&self) -> &Forest<I, J> {
         &self.forest
     }
 }
