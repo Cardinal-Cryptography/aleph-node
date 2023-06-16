@@ -21,7 +21,7 @@ use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use sp_runtime::traits::{BlakeTwo256, Block, Header};
 use tokio::time::Duration;
 
@@ -290,7 +290,7 @@ pub struct AlephConfig<C, SC> {
     pub import_queue_handle: BlockImporter,
     pub select_chain: SC,
     pub spawn_handle: SpawnHandle,
-    pub keystore: Arc<dyn CryptoStore>,
+    pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification>,
     pub metrics: Metrics<AlephHash>,
     pub session_period: SessionPeriod,
