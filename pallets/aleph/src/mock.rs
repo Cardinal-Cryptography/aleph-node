@@ -5,7 +5,6 @@ use frame_support::{
     traits::{OnFinalize, OnInitialize},
     weights::{RuntimeDbWeight, Weight},
 };
-use pallet_session::PeriodicSessions;
 use primitives::{AuthorityId, SessionInfoProvider};
 use sp_api_hidden_includes_construct_runtime::hidden_include::traits::GenesisBuild;
 use sp_core::H256;
@@ -17,6 +16,7 @@ use sp_runtime::{
 
 use super::*;
 use crate as pallet_aleph;
+use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::EstimateNextSessionRotation;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -101,9 +101,17 @@ impl pallet_balances::Config for Test {
 }
 
 pub struct SessionInfoImpl;
-impl SessionInfoProvider for SessionInfoImpl {
+impl SessionInfoProvider<<Test as frame_system::Config>::BlockNumber> for SessionInfoImpl {
     fn current_session() -> SessionIndex {
         pallet_session::CurrentIndex::<Test>::get()
+    }
+    fn next_session_block_number(
+        current_block: <Test as frame_system::Config>::BlockNumber,
+    ) -> Option<<Test as frame_system::Config>::BlockNumber> {
+        <Test as pallet_session::Config>::NextSessionRotation::estimate_next_session_rotation(
+            current_block,
+        )
+        .0
     }
 }
 
@@ -142,7 +150,6 @@ impl Config for Test {
     type AuthorityId = AuthorityId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = SessionInfoImpl;
-    type NextSessionRotation = PeriodicSessions<Period, Offset>;
     type SessionManager = ();
     type NextSessionAuthorityProvider = Session;
 }

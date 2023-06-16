@@ -64,6 +64,8 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::EstimateNextSessionRotation;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -300,9 +302,15 @@ impl pallet_sudo::Config for Runtime {
 }
 
 pub struct SessionInfoImpl;
-impl SessionInfoProvider for SessionInfoImpl {
+impl SessionInfoProvider<AlephBlockNumber> for SessionInfoImpl {
     fn current_session() -> SessionIndex {
         pallet_session::CurrentIndex::<Runtime>::get()
+    }
+    fn next_session_block_number(current_block: AlephBlockNumber) -> Option<AlephBlockNumber> {
+        <Runtime as pallet_session::Config>::NextSessionRotation::estimate_next_session_rotation(
+            current_block,
+        )
+        .0
     }
 }
 
@@ -310,7 +318,6 @@ impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = SessionInfoImpl;
-    type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type SessionManager = SessionAndEraManager<
         Staking,
         Elections,

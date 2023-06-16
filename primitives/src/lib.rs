@@ -12,7 +12,7 @@ pub use sp_runtime::{
     BoundedVec, ConsensusEngineId, OpaqueExtrinsic as UncheckedExtrinsic, Perbill,
 };
 use sp_runtime::{
-    traits::{IdentifyAccount, Verify},
+    traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify},
     MultiSignature, Perquintill,
 };
 pub use sp_staking::{EraIndex, SessionIndex};
@@ -320,8 +320,9 @@ impl<T> Default for SessionValidators<T> {
 }
 
 /// Information provider from `pallet_session`. Loose pallet coupling via traits.
-pub trait SessionInfoProvider {
+pub trait SessionInfoProvider<T: AtLeast32BitUnsigned> {
     fn current_session() -> SessionIndex;
+    fn next_session_block_number(current_block: T) -> Option<T>;
 }
 
 pub trait BannedValidators {

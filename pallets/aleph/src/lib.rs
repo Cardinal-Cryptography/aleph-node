@@ -44,9 +44,7 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{
-        pallet_prelude::*, sp_runtime::RuntimeAppPublic, traits::EstimateNextSessionRotation,
-    };
+    use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
     use frame_system::{
         ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
@@ -64,10 +62,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        type SessionInfoProvider: SessionInfoProvider;
-        type NextSessionRotation: EstimateNextSessionRotation<
-            <Self as frame_system::Config>::BlockNumber,
-        >;
+        type SessionInfoProvider: SessionInfoProvider<<Self as frame_system::Config>::BlockNumber>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
     }
@@ -138,7 +133,7 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_finalize(block_number: T::BlockNumber) {
             if let Some(session_change_block) =
-                T::NextSessionRotation::estimate_next_session_rotation(block_number).0
+                T::SessionInfoProvider::next_session_block_number(block_number)
             {
                 if session_change_block == block_number + 1u32.into() {
                     <frame_system::Pallet<T>>::deposit_log(DigestItem::Consensus(
