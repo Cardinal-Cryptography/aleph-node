@@ -1,9 +1,8 @@
 #[allow(dead_code, unused_imports, non_camel_case_types)]
 pub mod api {
     use super::api as root_mod;
-    pub static PALLETS: [&str; 22usize] = [
+    pub static PALLETS: [&str; 21usize] = [
         "System",
-        "RandomnessCollectiveFlip",
         "Scheduler",
         "Aura",
         "Timestamp",
@@ -36,37 +35,37 @@ pub mod api {
     pub enum Event {
         #[codec(index = 0)]
         System(system::Event),
-        #[codec(index = 2)]
+        #[codec(index = 1)]
         Scheduler(scheduler::Event),
-        #[codec(index = 5)]
+        #[codec(index = 4)]
         Balances(balances::Event),
-        #[codec(index = 6)]
+        #[codec(index = 5)]
         TransactionPayment(transaction_payment::Event),
-        #[codec(index = 8)]
+        #[codec(index = 7)]
         Staking(staking::Event),
-        #[codec(index = 10)]
+        #[codec(index = 9)]
         Session(session::Event),
-        #[codec(index = 11)]
+        #[codec(index = 10)]
         Aleph(aleph::Event),
-        #[codec(index = 12)]
+        #[codec(index = 11)]
         Elections(elections::Event),
-        #[codec(index = 13)]
+        #[codec(index = 12)]
         Treasury(treasury::Event),
-        #[codec(index = 14)]
+        #[codec(index = 13)]
         Vesting(vesting::Event),
-        #[codec(index = 15)]
+        #[codec(index = 14)]
         Utility(utility::Event),
-        #[codec(index = 16)]
+        #[codec(index = 15)]
         Multisig(multisig::Event),
-        #[codec(index = 17)]
+        #[codec(index = 16)]
         Sudo(sudo::Event),
-        #[codec(index = 18)]
+        #[codec(index = 17)]
         Contracts(contracts::Event),
-        #[codec(index = 19)]
+        #[codec(index = 18)]
         NominationPools(nomination_pools::Event),
-        #[codec(index = 20)]
+        #[codec(index = 19)]
         Identity(identity::Event),
-        #[codec(index = 21)]
+        #[codec(index = 20)]
         CommitteeManagement(committee_management::Event),
     }
     pub mod system {
@@ -1021,42 +1020,6 @@ pub mod api {
                             116u8, 33u8, 2u8, 170u8, 181u8, 147u8, 171u8, 169u8, 167u8, 227u8,
                             41u8, 144u8, 11u8, 236u8, 82u8, 100u8, 74u8, 60u8, 184u8, 72u8, 169u8,
                             90u8, 208u8, 135u8, 15u8, 117u8, 10u8, 123u8, 128u8, 193u8, 29u8, 70u8,
-                        ],
-                    )
-                }
-            }
-        }
-    }
-    pub mod randomness_collective_flip {
-        use super::{root_mod, runtime_types};
-        pub mod storage {
-            use super::runtime_types;
-            pub struct StorageApi;
-            impl StorageApi {
-                #[doc = " Series of block headers from the last 81 blocks that acts as random seed material. This"]
-                #[doc = " is arranged as a ring buffer with `block_number % 81` being the index into the `Vec` of"]
-                #[doc = " the oldest hash."]
-                pub fn random_material(
-                    &self,
-                ) -> ::subxt::storage::address::StaticStorageAddress<
-                    ::subxt::metadata::DecodeStaticType<
-                        runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                            ::subxt::ext::sp_core::H256,
-                        >,
-                    >,
-                    ::subxt::storage::address::Yes,
-                    ::subxt::storage::address::Yes,
-                    (),
-                > {
-                    ::subxt::storage::address::StaticStorageAddress::new(
-                        "RandomnessCollectiveFlip",
-                        "RandomMaterial",
-                        vec![],
-                        [
-                            152u8, 126u8, 73u8, 88u8, 54u8, 147u8, 6u8, 19u8, 214u8, 40u8, 159u8,
-                            30u8, 236u8, 61u8, 240u8, 65u8, 178u8, 94u8, 146u8, 152u8, 135u8,
-                            252u8, 160u8, 86u8, 123u8, 114u8, 251u8, 140u8, 98u8, 143u8, 217u8,
-                            242u8,
                         ],
                     )
                 }
@@ -6661,10 +6624,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            238u8, 1u8, 244u8, 43u8, 190u8, 78u8, 240u8, 93u8, 131u8, 11u8, 91u8,
-                            30u8, 227u8, 120u8, 217u8, 184u8, 43u8, 182u8, 123u8, 177u8, 14u8,
-                            115u8, 84u8, 216u8, 180u8, 3u8, 211u8, 174u8, 212u8, 124u8, 110u8,
-                            140u8,
+                            110u8, 55u8, 29u8, 101u8, 219u8, 153u8, 172u8, 249u8, 85u8, 178u8,
+                            105u8, 19u8, 34u8, 42u8, 204u8, 5u8, 60u8, 237u8, 18u8, 86u8, 229u8,
+                            189u8, 204u8, 113u8, 228u8, 126u8, 167u8, 127u8, 44u8, 209u8, 246u8,
+                            200u8,
                         ],
                     )
                 }
@@ -13942,37 +13905,37 @@ pub mod api {
             pub enum RuntimeCall {
                 #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Call),
-                #[codec(index = 2)]
+                #[codec(index = 1)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Call),
-                #[codec(index = 4)]
+                #[codec(index = 3)]
                 Timestamp(runtime_types::pallet_timestamp::pallet::Call),
-                #[codec(index = 5)]
+                #[codec(index = 4)]
                 Balances(runtime_types::pallet_balances::pallet::Call),
-                #[codec(index = 8)]
+                #[codec(index = 7)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Call),
-                #[codec(index = 10)]
+                #[codec(index = 9)]
                 Session(runtime_types::pallet_session::pallet::Call),
-                #[codec(index = 11)]
+                #[codec(index = 10)]
                 Aleph(runtime_types::pallet_aleph::pallet::Call),
-                #[codec(index = 12)]
+                #[codec(index = 11)]
                 Elections(runtime_types::pallet_elections::pallet::Call),
-                #[codec(index = 13)]
+                #[codec(index = 12)]
                 Treasury(runtime_types::pallet_treasury::pallet::Call),
-                #[codec(index = 14)]
+                #[codec(index = 13)]
                 Vesting(runtime_types::pallet_vesting::pallet::Call),
-                #[codec(index = 15)]
+                #[codec(index = 14)]
                 Utility(runtime_types::pallet_utility::pallet::Call),
-                #[codec(index = 16)]
+                #[codec(index = 15)]
                 Multisig(runtime_types::pallet_multisig::pallet::Call),
-                #[codec(index = 17)]
+                #[codec(index = 16)]
                 Sudo(runtime_types::pallet_sudo::pallet::Call),
-                #[codec(index = 18)]
+                #[codec(index = 17)]
                 Contracts(runtime_types::pallet_contracts::pallet::Call),
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 NominationPools(runtime_types::pallet_nomination_pools::pallet::Call),
-                #[codec(index = 20)]
+                #[codec(index = 19)]
                 Identity(runtime_types::pallet_identity::pallet::Call),
-                #[codec(index = 21)]
+                #[codec(index = 20)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
             }
             #[derive(
@@ -13986,37 +13949,37 @@ pub mod api {
             pub enum RuntimeEvent {
                 #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Event),
-                #[codec(index = 2)]
+                #[codec(index = 1)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Event),
-                #[codec(index = 5)]
+                #[codec(index = 4)]
                 Balances(runtime_types::pallet_balances::pallet::Event),
-                #[codec(index = 6)]
+                #[codec(index = 5)]
                 TransactionPayment(runtime_types::pallet_transaction_payment::pallet::Event),
-                #[codec(index = 8)]
+                #[codec(index = 7)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Event),
-                #[codec(index = 10)]
+                #[codec(index = 9)]
                 Session(runtime_types::pallet_session::pallet::Event),
-                #[codec(index = 11)]
+                #[codec(index = 10)]
                 Aleph(runtime_types::pallet_aleph::pallet::Event),
-                #[codec(index = 12)]
+                #[codec(index = 11)]
                 Elections(runtime_types::pallet_elections::pallet::Event),
-                #[codec(index = 13)]
+                #[codec(index = 12)]
                 Treasury(runtime_types::pallet_treasury::pallet::Event),
-                #[codec(index = 14)]
+                #[codec(index = 13)]
                 Vesting(runtime_types::pallet_vesting::pallet::Event),
-                #[codec(index = 15)]
+                #[codec(index = 14)]
                 Utility(runtime_types::pallet_utility::pallet::Event),
-                #[codec(index = 16)]
+                #[codec(index = 15)]
                 Multisig(runtime_types::pallet_multisig::pallet::Event),
-                #[codec(index = 17)]
+                #[codec(index = 16)]
                 Sudo(runtime_types::pallet_sudo::pallet::Event),
-                #[codec(index = 18)]
+                #[codec(index = 17)]
                 Contracts(runtime_types::pallet_contracts::pallet::Event),
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 NominationPools(runtime_types::pallet_nomination_pools::pallet::Event),
-                #[codec(index = 20)]
+                #[codec(index = 19)]
                 Identity(runtime_types::pallet_identity::pallet::Event),
-                #[codec(index = 21)]
+                #[codec(index = 20)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
             }
             #[derive(
@@ -20617,11 +20580,6 @@ pub mod api {
         pub fn system(&self) -> system::storage::StorageApi {
             system::storage::StorageApi
         }
-        pub fn randomness_collective_flip(
-            &self,
-        ) -> randomness_collective_flip::storage::StorageApi {
-            randomness_collective_flip::storage::StorageApi
-        }
         pub fn scheduler(&self) -> scheduler::storage::StorageApi {
             scheduler::storage::StorageApi
         }
@@ -20741,9 +20699,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                83u8, 144u8, 139u8, 193u8, 132u8, 226u8, 185u8, 194u8, 235u8, 219u8, 176u8, 55u8,
-                208u8, 157u8, 55u8, 90u8, 191u8, 114u8, 181u8, 100u8, 167u8, 49u8, 207u8, 53u8,
-                162u8, 99u8, 32u8, 215u8, 6u8, 197u8, 236u8, 127u8,
+                105u8, 135u8, 77u8, 69u8, 173u8, 118u8, 163u8, 4u8, 159u8, 25u8, 193u8, 249u8,
+                22u8, 42u8, 231u8, 223u8, 106u8, 153u8, 153u8, 45u8, 138u8, 57u8, 195u8, 114u8,
+                198u8, 115u8, 149u8, 202u8, 248u8, 154u8, 148u8, 233u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)

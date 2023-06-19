@@ -23,8 +23,8 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
-        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, OnRuntimeUpgrade,
-        SortedMembers, U128CurrencyToVote, WithdrawReasons,
+        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, SortedMembers,
+        U128CurrencyToVote, WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
@@ -379,8 +379,6 @@ impl pallet_committee_management::Config for Runtime {
     type FinalityCommitteeManager = Aleph;
     type SessionPeriod = SessionPeriod;
 }
-
-impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 parameter_types! {
     pub const Offset: u32 = 0;
@@ -767,7 +765,6 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system,
-        RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
         Timestamp: pallet_timestamp,
@@ -799,7 +796,6 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system,
-        RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
         Timestamp: pallet_timestamp,
