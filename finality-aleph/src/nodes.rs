@@ -3,16 +3,16 @@ use std::{marker::PhantomData, sync::Arc};
 use bip39::{Language, Mnemonic, MnemonicType};
 use futures::channel::oneshot;
 use log::{debug, error};
-use network_clique::{Service, SpawnHandleT};
+use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
+use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 
 use crate::{
     aleph_primitives::{Block, Header},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
-    justification::Requester,
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
@@ -25,9 +25,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, Justification, JustificationTranslator, Service as SyncService,
-        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, SubstrateJustification,
-        VerifierCache,
+        ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
+        Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+        SubstrateJustification, SubstrateSyncBlock, VerifierCache,
     },
     AlephConfig,
 };
@@ -35,13 +35,11 @@ use crate::{
 // How many sessions we remember.
 const VERIFIER_CACHE_SIZE: usize = 2;
 
-pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
+pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
         .ed25519_generate_new(KEY_TYPE, Some(mnemonic))
-        .await
         .expect("generating a key should work");
     AuthorityPen::new_with_key_type(validator_peer_id.into(), keystore, KEY_TYPE)
-        .await
         .expect("we just generated this key so everything should work")
 }
 
@@ -50,7 +48,8 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateJustification<Header>> + JustificationTranslator<Header>,
+    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification<Header>>
+        + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
@@ -58,6 +57,7 @@ where
         sync_network,
         client,
         chain_status,
+        import_queue_handle,
         select_chain,
         spawn_handle,
         keystore,
@@ -70,7 +70,7 @@ where
         external_addresses,
         validator_port,
         protocol_naming,
-        ..
+        rate_limiter_config,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -79,8 +79,10 @@ where
     let network_authority_pen = new_pen(
         Mnemonic::new(MnemonicType::Words12, Language::English).phrase(),
         keystore.clone(),
-    )
-    .await;
+    );
+
+    debug!(target: "aleph-party", "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
+
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
         external_addresses,
@@ -88,6 +90,12 @@ where
     )
     .await
     .expect("we should have working networking");
+
+    let alephbft_rate_limiter =
+        SleepingRateLimiter::new(rate_limiter_config.alephbft_bit_rate_per_connection);
+    let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.clone());
+    let listener = RateLimitingListener::new(listener, alephbft_rate_limiter);
+
     let (validator_network_service, validator_network) = Service::new(
         dialer,
         listener,
@@ -107,15 +115,6 @@ where
     let gossip_network_task = async move { gossip_network_service.run().await };
 
     let block_requester = sync_network.clone();
-    let auxilliary_requester = Requester::new(
-        block_requester.clone(),
-        chain_status.clone(),
-        SessionBoundaryInfo::new(session_period),
-    );
-    spawn_handle.spawn("aleph/requester", async move {
-        debug!(target: "aleph-party", "Auxiliary justification requester has started.");
-        auxilliary_requester.run().await
-    });
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone()),
@@ -133,31 +132,31 @@ where
         client.import_notification_stream(),
     );
 
+    let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(Some(justification)) => justification.header().clone(),
         _ => panic!("the genesis block should be finalized"),
     };
     let verifier = VerifierCache::new(
-        session_period,
+        session_info.clone(),
         SubstrateFinalizationInfo::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-    let (sync_service, justifications_for_sync, _) =
-        match SyncService::<Block, _, _, _, _, _, _>::new(
-            block_sync_network,
-            chain_events,
-            chain_status.clone(),
-            verifier,
-            finalizer,
-            session_period,
-            justification_rx,
-        ) {
-            Ok(x) => x,
-            Err(e) => panic!("Failed to initialize Sync service: {}", e),
-        };
+    let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
+    let (sync_service, justifications_for_sync, _request_block) = match SyncService::new(
+        block_sync_network,
+        chain_events,
+        verifier,
+        database_io,
+        session_info.clone(),
+        justification_rx,
+    ) {
+        Ok(x) => x,
+        Err(e) => panic!("Failed to initialize Sync service: {}", e),
+    };
     let sync_task = async move { sync_service.run().await };
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
@@ -201,7 +200,7 @@ where
             connection_manager,
             keystore,
         ),
-        session_info: SessionBoundaryInfo::new(session_period),
+        session_info,
     });
 
     debug!(target: "aleph-party", "Consensus party has started.");
