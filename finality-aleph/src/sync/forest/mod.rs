@@ -100,10 +100,10 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
             InitializationError::Error(e) => match e {
-                Error::TooNew => write!(f, "Error during initialization. There are more imported non-finalized blocks in the Substrate database that can fit into the Forest. Purge the block database and restart the node."),
-                e => write!(f, "Error during initialization: {}", e),
+                Error::TooNew => write!(f, "there are more imported non-finalized blocks in the database that can fit into the forest – purge the block database and restart the node"),
+                e => write!(f, "{}", e),
             },
-            InitializationError::ChainStatus(e) => write!(f, "ChainStatus error during initialization: {}", e),
+            InitializationError::ChainStatus(e) => write!(f, "chain status error: {}", e),
         }
     }
 }
