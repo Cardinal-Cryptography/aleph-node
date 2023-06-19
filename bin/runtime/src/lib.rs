@@ -23,8 +23,8 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
-        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, SortedMembers,
-        U128CurrencyToVote, WithdrawReasons,
+        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, OnRuntimeUpgrade,
+        SortedMembers, U128CurrencyToVote, WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
@@ -701,9 +701,17 @@ parameter_types! {
     pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
 }
 
+pub struct ZeroRandomness;
+
+impl Randomness<Hash, AlephBlockNumber> for ZeroRandomness {
+    fn random(_: &[u8]) -> (Hash, AlephBlockNumber) {
+        Default::default()
+    }
+}
+
 impl pallet_contracts::Config for Runtime {
     type Time = Timestamp;
-    type Randomness = RandomnessCollectiveFlip;
+    type Randomness = ZeroRandomness;
     type Currency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
