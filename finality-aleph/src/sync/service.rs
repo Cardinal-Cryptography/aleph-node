@@ -10,7 +10,9 @@ use crate::{
     session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, Handler, SyncAction},
+        handler::{
+            Error as HandlerError, Handler, SyncAction, MAX_BLOCK_BATCH, MAX_JUSTIFICATION_BATCH,
+        },
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -209,8 +211,18 @@ where
     fn handle_justifications(
         &mut self,
         justifications: Vec<J::Unverified>,
-        peer: Option<N::PeerId>,
+        maybe_peer: Option<N::PeerId>,
     ) {
+        if let (Some(peer), true) = (&maybe_peer, justifications.len() > MAX_JUSTIFICATION_BATCH) {
+            warn!(
+                target: LOG_TARGET,
+                "Peer {:?} sent too many justifications: {}, we expected at most {}, aborting.",
+                peer,
+                justifications.len(),
+                MAX_JUSTIFICATION_BATCH,
+            );
+            return;
+        }
         trace!(
             target: LOG_TARGET,
             "Handling {:?} justifications.",
@@ -219,7 +231,7 @@ where
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
-                .handle_justification(justification, peer.clone())
+                .handle_justification(justification, maybe_peer.clone())
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => match e {
@@ -227,7 +239,7 @@ where
                         debug!(
                             target: LOG_TARGET,
                             "Could not verify justification from {:?}: {}.",
-                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            maybe_peer.map_or("user".to_string(), |id| format!("{:?}", id)),
                             e
                         );
                         return;
@@ -236,7 +248,7 @@ where
                         warn!(
                             target: LOG_TARGET,
                             "Failed to handle justification from {:?}: {}.",
-                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            maybe_peer.map_or("user".to_string(), |id| format!("{:?}", id)),
                             e
                         );
                         return;
@@ -249,7 +261,17 @@ where
         }
     }
 
-    fn handle_blocks(&mut self, blocks: Vec<B>) {
+    fn handle_blocks(&mut self, blocks: Vec<B>, peer: N::PeerId) {
+        if blocks.len() > MAX_BLOCK_BATCH {
+            warn!(
+                target: LOG_TARGET,
+                "Peer {:?} sent too many blocks: {}, we expected at most {}, aborting.",
+                peer,
+                blocks.len(),
+                MAX_BLOCK_BATCH,
+            );
+            return;
+        }
         trace!(target: LOG_TARGET, "Handling {:?} blocks.", blocks.len());
         for block in blocks {
             self.handler.handle_block(block);
@@ -292,8 +314,8 @@ where
                 self.handle_state(state, peer);
             }
             RequestResponse(blocks, justifications) => {
-                self.handle_justifications(justifications, Some(peer));
-                self.handle_blocks(blocks);
+                self.handle_justifications(justifications, Some(peer.clone()));
+                self.handle_blocks(blocks, peer);
             }
         }
     }

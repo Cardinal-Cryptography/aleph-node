@@ -13,7 +13,10 @@ use crate::{
 };
 
 /// How many justifications we will send at most in response to an explicit query.
-const MAX_JUSTIFICATION_BATCH: usize = 100;
+pub const MAX_JUSTIFICATION_BATCH: usize = 100;
+
+/// How many blocks we will send at most in response to an explicit query.
+pub const MAX_BLOCK_BATCH: usize = 25;
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
