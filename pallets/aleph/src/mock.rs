@@ -2,7 +2,7 @@
 
 use frame_support::{
     construct_runtime, parameter_types, sp_io,
-    traits::{OnFinalize, OnInitialize},
+    traits::{EstimateNextSessionRotation, OnFinalize, OnInitialize},
     weights::{RuntimeDbWeight, Weight},
 };
 use primitives::{AuthorityId, SessionInfoProvider};
@@ -16,7 +16,6 @@ use sp_runtime::{
 
 use super::*;
 use crate as pallet_aleph;
-use crate::mock::sp_api_hidden_includes_construct_runtime::hidden_include::traits::EstimateNextSessionRotation;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
