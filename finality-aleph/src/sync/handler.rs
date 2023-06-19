@@ -70,7 +70,7 @@ where
     finalizer: F,
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
-    _block_importer: BI,
+    block_importer: BI,
     phantom: PhantomData<B>,
 }
 
@@ -198,7 +198,7 @@ where
             finalizer,
             forest,
             session_info,
-            _block_importer: block_importer,
+            block_importer,
             phantom: PhantomData,
         })
     }
@@ -248,6 +248,11 @@ where
         };
         self.try_finalize()?;
         Ok(maybe_id)
+    }
+
+    /// Handle a single block.
+    pub fn handle_block(&mut self, block: B) {
+        self.block_importer.import_block(block)
     }
 
     /// Inform the handler that a block has been imported.

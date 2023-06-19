@@ -249,6 +249,13 @@ where
         }
     }
 
+    fn handle_blocks(&mut self, blocks: Vec<B>) {
+        trace!(target: LOG_TARGET, "Handling {:?} blocks.", blocks.len());
+        for block in blocks {
+            self.handler.handle_block(block);
+        }
+    }
+
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
         trace!(
             target: LOG_TARGET,
@@ -282,10 +289,11 @@ where
             Request(request) => {
                 let state = request.state().clone();
                 self.handle_request(request, peer.clone());
-                self.handle_state(state, peer)
+                self.handle_state(state, peer);
             }
-            RequestResponse(_, justifications) => {
-                self.handle_justifications(justifications, Some(peer))
+            RequestResponse(blocks, justifications) => {
+                self.handle_justifications(justifications, Some(peer));
+                self.handle_blocks(blocks);
             }
         }
     }
