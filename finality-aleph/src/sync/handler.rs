@@ -255,7 +255,9 @@ where
 
     /// Handle a single block.
     pub fn handle_block(&mut self, block: B) {
-        self.block_importer.import_block(block)
+        if self.forest.importable(&block.header().id()) {
+            self.block_importer.import_block(block);
+        }
     }
 
     /// Inform the handler that a block has been imported.
