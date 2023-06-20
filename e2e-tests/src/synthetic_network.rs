@@ -1,3 +1,9 @@
+use aleph_client::{
+    utility::BlocksApi,
+    waiting::{AlephWaiting, BlockStatus},
+    SignedConnection,
+};
+use anyhow::anyhow;
 use log::info;
 use synthetic_link::SyntheticNetworkClient;
 
@@ -21,4 +27,26 @@ pub async fn set_out_latency(milliseconds: Milliseconds, synthetic_url: String) 
         .commit_config(&config)
         .await
         .expect("unable to commit network configuration");
+}
+
+pub async fn wait_for_further_finalized_blocks(
+    connection: &SignedConnection,
+    blocks_to_wait: u32,
+) -> anyhow::Result<()> {
+    let finalized = connection.get_finalized_block_hash().await?;
+    let finalized_number = connection
+        .get_block_number(finalized)
+        .await?
+        .ok_or(anyhow!(
+            "Failed to retrieve block number for hash {finalized:?}"
+        ))?;
+    let block_number_to_wait = finalized_number + blocks_to_wait;
+    info!(
+        "Current finalized block #{}, waiting for block #{}",
+        finalized_number, block_number_to_wait
+    );
+    connection
+        .wait_for_block(|n| n > block_number_to_wait, BlockStatus::Finalized)
+        .await;
+    Ok(())
 }
