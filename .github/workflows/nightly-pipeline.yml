@@ -3,6 +3,9 @@ name: Nightly pipeline
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - A0-2712
   schedule:
     - cron: '00 23 * * *'
 
