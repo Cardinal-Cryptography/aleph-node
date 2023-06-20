@@ -3,9 +3,6 @@ name: Nightly pipeline
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - A0-2712
   schedule:
     - cron: '00 23 * * *'
 
@@ -15,7 +12,7 @@ concurrency:
 
 jobs:
   check-vars-and-secrets:
-    name: Check vars and secret
+    name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
