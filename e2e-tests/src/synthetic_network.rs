@@ -12,7 +12,7 @@ use crate::config::Config;
 
 pub type Milliseconds = u64;
 
-const OUT_LATENCY: u64 = 200;
+pub const OUT_LATENCY: Milliseconds = 200;
 
 pub async fn set_out_latency(milliseconds: Milliseconds, synthetic_url: String) {
     info!(
@@ -59,17 +59,9 @@ pub async fn wait_for_further_finalized_blocks(
 pub async fn test_latency_template_test(
     config: &Config,
     validator_count: usize,
+    out_latency: Milliseconds,
 ) -> anyhow::Result<()> {
-    let out_latency = config.test_case_params.out_latency.unwrap_or(OUT_LATENCY);
-    let blocks_to_wait: u32 = 30;
-
     let connections = config.create_signed_connections().await;
-    join_all(
-        connections
-            .iter()
-            .map(|connection| wait_for_further_finalized_blocks(connection, blocks_to_wait)),
-    )
-    .await;
     join_all(
         config
             .synthetic_network_urls()
@@ -78,11 +70,21 @@ pub async fn test_latency_template_test(
             .map(|synthetic_url| set_out_latency(out_latency, synthetic_url)),
     )
     .await;
+    info!("Waiting for session 1");
     join_all(
         connections
             .iter()
-            .map(|connection| wait_for_further_finalized_blocks(connection, blocks_to_wait * 2)),
+            .map(|connection| connection.wait_for_session(1, BlockStatus::Finalized)),
     )
+    .await;
+    let blocks_to_wait_in_first_session = 30;
+    info!(
+        "Waiting for {} finalized blocks in sesssion 1 to make sure initial unit collection works.",
+        blocks_to_wait_in_first_session
+    );
+    join_all(connections.iter().map(|connection| {
+        wait_for_further_finalized_blocks(connection, blocks_to_wait_in_first_session)
+    }))
     .await;
     Ok(())
 }

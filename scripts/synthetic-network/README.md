@@ -44,6 +44,12 @@ cd ..
 .github/scripts/run_e2e_test.sh -t high_out_latency_for_all -m 5
 ```
 
+There's a `OUT_LATENCY` env which control output latency in e2e tests. If not specified, there's 200ms
+default used:
+```shell
+OUT_LATENCY=300 .github/scripts/run_e2e_test.sh -t high_out_latency_for_all -m 5
+```
+
 If you'd like to start `run_consensus_synthetic-network.sh` again, run below command first. 
 That will clear down docker storage, in particular it will clear previous latency setting.
 ```shell
