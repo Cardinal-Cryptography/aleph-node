@@ -14,16 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tmp-fail-job:
-    name: temp fail job
-    runs-on: ubuntu-20.04
-    steps:
-      - name: exit 1
-        run: exit 1
-        
   check-vars-and-secrets:
     name: Check vars and secrets
-    needs: [tmp-fail-job]
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
