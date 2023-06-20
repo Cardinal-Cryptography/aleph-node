@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   check-vars-and-secrets:
-    name: Check vars and secrets
+    name: Check vars and secret
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
