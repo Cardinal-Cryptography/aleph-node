@@ -4,7 +4,7 @@ use aleph_client::{
     SignedConnection,
 };
 use anyhow::anyhow;
-use futures::future::join_all;
+use futures::future::{join_all, try_join_all};
 use log::info;
 use synthetic_link::SyntheticNetworkClient;
 
@@ -82,9 +82,9 @@ pub async fn test_latency_template_test(
         "Waiting for {} finalized blocks in sesssion 1 to make sure initial unit collection works.",
         blocks_to_wait_in_first_session
     );
-    join_all(connections.iter().map(|connection| {
+    try_join_all(connections.iter().map(|connection| {
         wait_for_further_finalized_blocks(connection, blocks_to_wait_in_first_session)
     }))
-    .await;
+    .await?;
     Ok(())
 }
