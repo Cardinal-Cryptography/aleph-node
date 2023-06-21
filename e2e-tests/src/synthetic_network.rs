@@ -34,7 +34,7 @@ pub async fn set_out_latency(milliseconds: Milliseconds, synthetic_url: String) 
         .expect("unable to commit network configuration");
 }
 
-pub async fn wait_for_further_finalized_blocks(
+async fn wait_for_further_finalized_blocks(
     connection: &SignedConnection,
     blocks_to_wait: u32,
 ) -> anyhow::Result<()> {
