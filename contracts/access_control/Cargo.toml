@@ -27,3 +27,6 @@ std = [
     "shared_traits/std",
 ]
 ink-as-dependency = []
+
+[profile.dev]
+codegen-units = 16
