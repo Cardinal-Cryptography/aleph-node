@@ -218,12 +218,12 @@ impl<AccountId> Default for EraValidators<AccountId> {
     }
 }
 
-#[derive(Encode, Decode, PartialEq, Eq, Debug)]
+#[derive(Encode, Decode, TypeInfo, PartialEq, Eq, Debug)]
 pub enum ApiError {
     DecodeKey,
 }
 
-#[derive(Encode, Decode, PartialEq, Eq, Debug)]
+#[derive(Encode, Decode, TypeInfo, PartialEq, Eq, Debug)]
 pub enum SessionValidatorError {
     SessionNotWithinRange {
         lower_limit: SessionIndex,
@@ -233,7 +233,7 @@ pub enum SessionValidatorError {
 }
 
 /// All the data needed to verify block finalization justifications.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Debug, TypeInfo, Encode, Decode, PartialEq, Eq)]
 pub struct SessionAuthorityData {
     authorities: Vec<AuthorityId>,
     emergency_finalizer: Option<AuthorityId>,
@@ -262,6 +262,15 @@ pub type Version = u32;
 pub struct VersionChange {
     pub version_incoming: Version,
     pub session: SessionIndex,
+}
+
+/// Consensus log item for Aleph.
+#[cfg_attr(feature = "std", derive(Serialize))]
+#[derive(Decode, Encode, PartialEq, Eq, Clone, sp_runtime::RuntimeDebug)]
+pub enum ConsensusLog<N: sp_runtime::RuntimeAppPublic> {
+    /// Change of the authorities.
+    #[codec(index = 1)]
+    AlephAuthorityChange(Vec<N>),
 }
 
 sp_api::decl_runtime_apis! {
@@ -318,8 +327,9 @@ impl<T> Default for SessionValidators<T> {
 }
 
 /// Information provider from `pallet_session`. Loose pallet coupling via traits.
-pub trait SessionInfoProvider {
+pub trait SessionInfoProvider<T> {
     fn current_session() -> SessionIndex;
+    fn next_session_block_number(current_block: T) -> Option<T>;
 }
 
 pub trait BannedValidators {

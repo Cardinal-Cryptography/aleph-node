@@ -7,10 +7,10 @@ use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHan
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::{Block, Header},
+    aleph_primitives::Block,
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
@@ -26,8 +26,8 @@ use crate::{
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
         ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
-        Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
-        SubstrateJustification, SubstrateSyncBlock, VerifierCache,
+        OldSyncCompatibleRequestBlocks, Service as SyncService, SubstrateChainStatusNotifier,
+        SubstrateFinalizationInfo, VerifierCache,
     },
     AlephConfig,
 };
@@ -35,23 +35,19 @@ use crate::{
 // How many sessions we remember.
 const VERIFIER_CACHE_SIZE: usize = 2;
 
-pub async fn new_pen(mnemonic: &str, keystore: Arc<dyn CryptoStore>) -> AuthorityPen {
+pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
         .ed25519_generate_new(KEY_TYPE, Some(mnemonic))
-        .await
         .expect("generating a key should work");
     AuthorityPen::new_with_key_type(validator_peer_id.into(), keystore, KEY_TYPE)
-        .await
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<C, CS, BE, SC>(aleph_config: AlephConfig<C, SC, CS>)
+pub async fn run_validator_node<C, BE, SC>(aleph_config: AlephConfig<C, SC>)
 where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
     BE: Backend<Block> + 'static,
-    CS: ChainStatus<SubstrateSyncBlock, SubstrateJustification<Header>>
-        + JustificationTranslator<Header>,
     SC: SelectChain<Block> + 'static,
 {
     let AlephConfig {
@@ -81,8 +77,7 @@ where
     let network_authority_pen = new_pen(
         Mnemonic::new(MnemonicType::Words12, Language::English).phrase(),
         keystore.clone(),
-    )
-    .await;
+    );
 
     debug!(target: "aleph-party", "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
 
@@ -132,7 +127,7 @@ where
 
     let chain_events = SubstrateChainStatusNotifier::new(
         client.finality_notification_stream(),
-        client.import_notification_stream(),
+        client.every_import_notification_stream(),
     );
 
     let session_info = SessionBoundaryInfo::new(session_period);
@@ -149,7 +144,7 @@ where
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
     let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
-    let (sync_service, justifications_for_sync, _) = match SyncService::new(
+    let (sync_service, justifications_for_sync, request_block) = match SyncService::new(
         block_sync_network,
         chain_events,
         verifier,
@@ -182,9 +177,12 @@ where
     spawn_handle.spawn("aleph/gossip_network", gossip_network_task);
     debug!(target: "aleph-party", "Gossip network has started.");
 
+    let compatible_block_request =
+        OldSyncCompatibleRequestBlocks::new(block_requester.clone(), request_block);
+
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
-        sync_state: block_requester.clone(),
+        sync_state: block_requester,
         backup_saving_path,
         chain_state: ChainStateImpl {
             client: client.clone(),
@@ -196,8 +194,8 @@ where
             session_period,
             unit_creation_delay,
             justifications_for_sync,
-            chain_status.clone(),
-            block_requester,
+            JustificationTranslator::new(chain_status.clone()),
+            compatible_block_request,
             metrics,
             spawn_handle,
             connection_manager,

@@ -1,8 +1,10 @@
 #![cfg(test)]
 
 use frame_support::{
-    construct_runtime, parameter_types, sp_io,
-    traits::{OnFinalize, OnInitialize},
+    construct_runtime,
+    pallet_prelude::ConstU32,
+    parameter_types, sp_io,
+    traits::{EstimateNextSessionRotation, OnFinalize, OnInitialize},
     weights::{RuntimeDbWeight, Weight},
 };
 use primitives::{AuthorityId, SessionInfoProvider};
@@ -97,12 +99,24 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
     type WeightInfo = ();
     type MaxLocks = ();
+    type HoldIdentifier = ();
+    type FreezeIdentifier = ();
+    type MaxHolds = ConstU32<0>;
+    type MaxFreezes = ConstU32<0>;
 }
 
 pub struct SessionInfoImpl;
-impl SessionInfoProvider for SessionInfoImpl {
+impl SessionInfoProvider<<Test as frame_system::Config>::BlockNumber> for SessionInfoImpl {
     fn current_session() -> SessionIndex {
         pallet_session::CurrentIndex::<Test>::get()
+    }
+    fn next_session_block_number(
+        current_block: <Test as frame_system::Config>::BlockNumber,
+    ) -> Option<<Test as frame_system::Config>::BlockNumber> {
+        <Test as pallet_session::Config>::NextSessionRotation::estimate_next_session_rotation(
+            current_block,
+        )
+        .0
     }
 }
 

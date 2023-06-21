@@ -3,7 +3,6 @@ use std::{iter, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
-use tokio::time::{interval_at, Instant};
 
 pub use crate::sync::handler::DatabaseIO;
 use crate::{
@@ -11,19 +10,20 @@ use crate::{
     session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, Handler, SyncAction},
+        handler::{
+            Error as HandlerError, Handler, SyncAction, MAX_BLOCK_BATCH, MAX_JUSTIFICATION_BATCH,
+        },
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
         Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
-        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
-        RequestBlocks, Verifier, LOG_TARGET,
+        ChainStatusNotifier, Finalizer, Justification, JustificationSubmissions, RequestBlocks,
+        Verifier, LOG_TARGET,
     },
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
-const FINALIZATION_STALL_CHECK_PERIOD: Duration = Duration::from_secs(30);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<B, J, N, CE, CS, V, F, BI>
@@ -44,7 +44,7 @@ where
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    _block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
+    block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
     _phantom: PhantomData<B>,
 }
 
@@ -59,7 +59,7 @@ impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::
 impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
     type Error = mpsc::TrySendError<BI>;
 
-    fn request_block(&mut self, block_id: BI) -> Result<(), Self::Error> {
+    fn request_block(&self, block_id: BI) -> Result<(), Self::Error> {
         self.unbounded_send(block_id)
     }
 }
@@ -98,7 +98,7 @@ where
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
-        let (block_requests_for_sync, _block_requests_from_user) = mpsc::unbounded();
+        let (block_requests_for_sync, block_requests_from_user) = mpsc::unbounded();
         Ok((
             Service {
                 network,
@@ -108,7 +108,7 @@ where
                 chain_events,
                 justifications_from_user,
                 additional_justifications_from_user,
-                _block_requests_from_user,
+                block_requests_from_user,
                 _phantom: PhantomData,
             },
             justifications_for_sync,
@@ -123,6 +123,15 @@ where
         );
         self.tasks
             .schedule_in(RequestTask::new_highest_justified(block_id), Duration::ZERO);
+    }
+
+    fn request_block(&mut self, block_id: BlockIdFor<J>) {
+        debug!(
+            target: LOG_TARGET,
+            "Initiating a request for block {:?}.", block_id
+        );
+        self.tasks
+            .schedule_in(RequestTask::new_block(block_id), Duration::ZERO);
     }
 
     fn broadcast(&mut self) {
@@ -202,8 +211,18 @@ where
     fn handle_justifications(
         &mut self,
         justifications: Vec<J::Unverified>,
-        peer: Option<N::PeerId>,
+        maybe_peer: Option<N::PeerId>,
     ) {
+        if let (Some(peer), true) = (&maybe_peer, justifications.len() > MAX_JUSTIFICATION_BATCH) {
+            warn!(
+                target: LOG_TARGET,
+                "Peer {:?} sent too many justifications: {}, we expected at most {}, aborting.",
+                peer,
+                justifications.len(),
+                MAX_JUSTIFICATION_BATCH,
+            );
+            return;
+        }
         trace!(
             target: LOG_TARGET,
             "Handling {:?} justifications.",
@@ -212,7 +231,7 @@ where
         for justification in justifications {
             let maybe_block_id = match self
                 .handler
-                .handle_justification(justification, peer.clone())
+                .handle_justification(justification, maybe_peer.clone())
             {
                 Ok(maybe_id) => maybe_id,
                 Err(e) => match e {
@@ -220,7 +239,7 @@ where
                         debug!(
                             target: LOG_TARGET,
                             "Could not verify justification from {:?}: {}.",
-                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            maybe_peer.map_or("user".to_string(), |id| format!("{:?}", id)),
                             e
                         );
                         return;
@@ -229,7 +248,7 @@ where
                         warn!(
                             target: LOG_TARGET,
                             "Failed to handle justification from {:?}: {}.",
-                            peer.map_or("user".to_string(), |id| format!("{:?}", id)),
+                            maybe_peer.map_or("user".to_string(), |id| format!("{:?}", id)),
                             e
                         );
                         return;
@@ -239,6 +258,23 @@ where
             if let Some(block_id) = maybe_block_id {
                 self.request_highest_justified(block_id);
             }
+        }
+    }
+
+    fn handle_blocks(&mut self, blocks: Vec<B>, peer: N::PeerId) {
+        if blocks.len() > MAX_BLOCK_BATCH {
+            warn!(
+                target: LOG_TARGET,
+                "Peer {:?} sent too many blocks: {}, we expected at most {}, aborting.",
+                peer,
+                blocks.len(),
+                MAX_BLOCK_BATCH,
+            );
+            return;
+        }
+        trace!(target: LOG_TARGET, "Handling {:?} blocks.", blocks.len());
+        for block in blocks {
+            self.handler.handle_block(block);
         }
     }
 
@@ -275,10 +311,11 @@ where
             Request(request) => {
                 let state = request.state().clone();
                 self.handle_request(request, peer.clone());
-                self.handle_state(state, peer)
+                self.handle_state(state, peer);
             }
-            RequestResponse(_, justifications) => {
-                self.handle_justifications(justifications, Some(peer))
+            RequestResponse(blocks, justifications) => {
+                self.handle_justifications(justifications, Some(peer.clone()));
+                self.handle_blocks(blocks, peer);
             }
         }
     }
@@ -313,14 +350,30 @@ where
         }
     }
 
+    fn handle_internal_request(&mut self, id: BlockIdFor<J>) {
+        trace!(
+            target: LOG_TARGET,
+            "Handling an internal request for block {:?}.",
+            id,
+        );
+        match self.handler.handle_internal_request(&id) {
+            Ok(true) => {
+                self.request_block(id);
+            }
+            Ok(_) => {
+                debug!(target: LOG_TARGET, "Already requested block {:?}.", id);
+            }
+            Err(e) => {
+                warn!(
+                    target: LOG_TARGET,
+                    "Error handling internal request for block {:?}: {}.", id, e
+                );
+            }
+        }
+    }
+
     /// Stay synchronized.
     pub async fn run(mut self) {
-        // TODO(A0-1758): Remove after finishing the sync rewrite.
-        let mut stall_ticker = interval_at(
-            Instant::now() + FINALIZATION_STALL_CHECK_PERIOD,
-            FINALIZATION_STALL_CHECK_PERIOD,
-        );
-        let mut last_top_number = 0;
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => match maybe_data {
@@ -347,31 +400,13 @@ where
                     },
                     None => warn!(target: LOG_TARGET, "Channel with additional justifications from user closed."),
                 },
-                _ = stall_ticker.tick() => {
-                    match self.handler.state() {
-                        Ok(state) => {
-                            let top_number = state.top_justification().id().number();
-                            if top_number == last_top_number {
-                                error!(
-                                    target: LOG_TARGET,
-                                    "Sync stall detected, recreating the Forest."
-                                );
-                                if let Err(e) = self.handler.refresh_forest() {
-                                    error!(
-                                        target: LOG_TARGET,
-                                        "Error when recreating the Forest: {}.", e
-                                    );
-                                }
-                            } else {
-                                last_top_number = top_number;
-                            }
-                        },
-                        Err(e) => error!(
-                            target: LOG_TARGET,
-                            "Error when retrieving Handler state: {}.", e
-                        ),
-                    }
-                }
+                maybe_block_id = self.block_requests_from_user.next() => match maybe_block_id {
+                    Some(block_id) => {
+                        debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", block_id);
+                        self.handle_internal_request(block_id)
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with internal block request from user closed."),
+                },
             }
         }
     }

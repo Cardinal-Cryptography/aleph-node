@@ -1,24 +1,22 @@
 use core::marker::PhantomData;
-use std::{
-    collections::VecDeque,
-    fmt::{Debug, Display, Error as FmtError, Formatter},
-};
-
-use log::warn;
+use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
         data::{NetworkData, Request, State},
-        forest::{Error as ForestError, Forest},
+        forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
-        Verifier, LOG_TARGET,
+        Verifier,
     },
     BlockIdentifier,
 };
 
 /// How many justifications we will send at most in response to an explicit query.
-const MAX_JUSTIFICATION_BATCH: usize = 100;
+pub const MAX_JUSTIFICATION_BATCH: usize = 100;
+
+/// How many blocks we will send at most in response to an explicit query.
+pub const MAX_BLOCK_BATCH: usize = 25;
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -75,7 +73,7 @@ where
     finalizer: F,
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
-    _block_importer: BI,
+    block_importer: BI,
     phantom: PhantomData<B>,
 }
 
@@ -120,6 +118,7 @@ where
     ChainStatus(CS::Error),
     Finalizer(F::Error),
     Forest(ForestError),
+    ForestInitialization(ForestInitializationError<B, J, CS>),
     MissingJustification,
 }
 
@@ -138,6 +137,7 @@ where
             ChainStatus(e) => write!(f, "chain status error: {}", e),
             Finalizer(e) => write!(f, "finalized error: {}", e),
             Forest(e) => write!(f, "forest error: {}", e),
+            ForestInitialization(e) => write!(f, "forest initialization error: {}", e),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -194,59 +194,16 @@ where
             block_importer,
             ..
         } = database_io;
-        let forest = Forest::new(
-            chain_status
-                .top_finalized()
-                .map_err(Error::ChainStatus)?
-                .header()
-                .id(),
-        );
-        let mut handler = Handler {
+        let forest = Forest::new(&chain_status).map_err(Error::ForestInitialization)?;
+        Ok(Handler {
             chain_status,
             verifier,
             finalizer,
             forest,
             session_info,
-            _block_importer: block_importer,
+            block_importer,
             phantom: PhantomData,
-        };
-        handler.refresh_forest()?;
-        Ok(handler)
-    }
-
-    // TODO(A0-1758): Move the code to `Self::new` to initialize the `Forest` properly.
-    pub fn refresh_forest(&mut self) -> Result<(), <Self as HandlerTypes>::Error> {
-        let top_finalized = self
-            .chain_status
-            .top_finalized()
-            .map_err(Error::ChainStatus)?
-            .header()
-            .id();
-        let mut forest = Forest::new(top_finalized.clone());
-        let mut deque = VecDeque::from([top_finalized]);
-        while let Some(hash) = deque.pop_front() {
-            let children = self
-                .chain_status
-                .children(hash)
-                .map_err(Error::ChainStatus)?;
-            for header in children.iter() {
-                match forest.update_body(header) {
-                    Err(ForestError::TooNew) => {
-                        warn!(
-                                target: LOG_TARGET,
-                                "There are more imported non-finalized blocks that can fit into the Forest: {}.", ForestError::TooNew
-                            );
-                        self.forest = forest;
-                        return Ok(());
-                    }
-                    Err(e) => return Err(Error::Forest(e)),
-                    _ => (),
-                }
-            }
-            deque.extend(children.into_iter().map(|header| header.id()));
-        }
-        self.forest = forest;
-        Ok(())
+        })
     }
 
     fn try_finalize(&mut self) -> Result<(), <Self as HandlerTypes>::Error> {
@@ -294,6 +251,13 @@ where
         };
         self.try_finalize()?;
         Ok(maybe_id)
+    }
+
+    /// Handle a single block.
+    pub fn handle_block(&mut self, block: B) {
+        if self.forest.importable(&block.header().id()) {
+            self.block_importer.import_block(block);
+        }
     }
 
     /// Inform the handler that a block has been imported.
@@ -435,6 +399,17 @@ where
     pub fn forest(&self) -> &Forest<I, J> {
         &self.forest
     }
+
+    /// Handle an internal block request.
+    /// Returns `true` if this was the first time something indicated interest in this block.
+    pub fn handle_internal_request(
+        &mut self,
+        id: &BlockIdFor<J>,
+    ) -> Result<bool, <Self as HandlerTypes>::Error> {
+        let should_request = self.forest.update_block_identifier(id, None, true)?;
+
+        Ok(should_request)
+    }
 }
 
 #[cfg(test)]
@@ -569,27 +544,6 @@ mod tests {
                 == Some(justification.id())
         );
         // should be auto-finalized, if Forest knows about imported body
-        assert_eq!(
-            backend.top_finalized().expect("mock backend works"),
-            justification
-        );
-    }
-
-    #[test]
-    fn refreshes_forest() {
-        let (mut handler, backend, _keep) = setup();
-        let header = import_branch(&backend, 1)[0].clone();
-        // handler doesn't know about the impotred block, neither does the forest
-        handler.refresh_forest().expect("should refresh forest");
-        // now forest should know about the imported block
-        let justification = MockJustification::for_header(header);
-        let peer = rand::random();
-        assert!(
-            handler
-                .handle_justification(justification.clone().into_unverified(), peer)
-                .expect("correct justification")
-                == Some(justification.id())
-        );
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
             justification
@@ -773,5 +727,15 @@ mod tests {
                 other_action
             ),
         }
+    }
+
+    #[test]
+    fn handles_new_internal_request() {
+        let (mut handler, backend, _keep) = setup();
+        let _ = handler.state().expect("state works");
+        let headers = import_branch(&backend, 2);
+
+        assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
+        assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
     }
 }

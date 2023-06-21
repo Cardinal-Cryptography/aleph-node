@@ -5,8 +5,9 @@ use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
 use sc_client_api::Backend;
+use sp_application_crypto::RuntimeAppPublic;
 use sp_consensus::SelectChain;
-use sp_keystore::CryptoStore;
+use sp_keystore::Keystore;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
         run_legacy_member, SpawnHandle,
     },
-    aleph_primitives::{AlephSessionApi, BlockNumber, KEY_TYPE},
+    aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter},
     mpsc,
@@ -24,7 +25,6 @@ use crate::{
             split::split,
         },
         session::{SessionManager, SessionSender},
-        RequestBlocks,
     },
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
@@ -47,6 +47,7 @@ pub use task::{Handle, Task};
 use crate::{
     abft::{CURRENT_VERSION, LEGACY_VERSION},
     data_io::DataProvider,
+    sync::RequestBlocks,
 };
 
 #[cfg(feature = "only_legacy")]
@@ -63,16 +64,15 @@ type CurrentNetworkType<B> = SimpleNetwork<
     SessionSender<CurrentRmcNetworkData<B>>,
 >;
 
-struct SubtasksParams<C, SC, B, N, BE, JS, JT>
+struct SubtasksParams<C, SC, B, N, BE, JS>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     N: Network<VersionedNetworkData<B>> + 'static,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
     n_members: usize,
     node_id: NodeIndex,
@@ -82,7 +82,7 @@ where
     subtask_common: SubtaskCommon,
     data_provider: DataProvider<B>,
     ordered_data_interpreter: OrderedDataInterpreter<B, C>,
-    aggregator_io: aggregator::IO<B::Header, JS, JT>,
+    aggregator_io: aggregator::IO<B::Header, JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
     backup: ABFTBackup,
@@ -90,35 +90,34 @@ where
     phantom: PhantomData<BE>,
 }
 
-pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>> + 'static,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
     client: Arc<C>,
     select_chain: SC,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
     justifications_for_sync: JS,
-    justification_translator: JT,
+    justification_translator: JustificationTranslator,
     block_requester: RB,
     metrics: Metrics<<B::Header as HeaderT>::Hash>,
     spawn_handle: SpawnHandle,
     session_manager: SM,
-    keystore: Arc<dyn CryptoStore>,
+    keystore: Arc<dyn Keystore>,
     _phantom: PhantomData<BE>,
 }
 
-impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
@@ -126,8 +125,7 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -136,12 +134,12 @@ where
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
         justifications_for_sync: JS,
-        justification_translator: JT,
+        justification_translator: JustificationTranslator,
         block_requester: RB,
         metrics: Metrics<<B::Header as HeaderT>::Hash>,
         spawn_handle: SpawnHandle,
         session_manager: SM,
-        keystore: Arc<dyn CryptoStore>,
+        keystore: Arc<dyn Keystore>,
     ) -> Self {
         Self {
             client,
@@ -161,7 +159,7 @@ where
 
     fn legacy_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
+        params: SubtasksParams<C, SC, B, N, BE, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -219,7 +217,7 @@ where
 
     fn current_subtasks<N: Network<VersionedNetworkData<B>> + 'static>(
         &self,
-        params: SubtasksParams<C, SC, B, N, BE, JS, JT>,
+        params: SubtasksParams<C, SC, B, N, BE, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -288,7 +286,6 @@ where
         let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
             AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
-                .await
                 .expect("The keys should sign successfully");
         let multikeychain =
             Keychain::new(node_id, authority_verifier.clone(), authority_pen.clone());
@@ -400,10 +397,10 @@ where
 }
 
 #[async_trait]
-impl<C, SC, B, RB, BE, SM, JS, JT> NodeSessionManager
-    for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, JT>
+impl<C, SC, B, RB, BE, SM, JS> NodeSessionManager
+    for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
@@ -411,8 +408,7 @@ where
     SC: SelectChain<B> + 'static,
     RB: RequestBlocks<IdentifierFor<B>>,
     SM: SessionManager<VersionedNetworkData<B>>,
-    JS: JustificationSubmissions<Justification<B::Header>> + Send + Sync + Clone + 'static,
-    JT: JustificationTranslator<B::Header> + Send + Sync + Clone + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
 {
     type Error = SM::Error;
 
@@ -440,7 +436,7 @@ where
         )
     }
 
-    async fn early_start_validator_session(
+    fn early_start_validator_session(
         &self,
         session: SessionId,
         node_id: NodeIndex,
@@ -449,7 +445,6 @@ where
         let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
             AuthorityPen::new(authorities[node_id.0].clone(), self.keystore.clone())
-                .await
                 .expect("The keys should sign successfully");
         self.session_manager.early_start_validator_session(
             session,
@@ -474,8 +469,8 @@ where
         self.session_manager.stop_session(session)
     }
 
-    async fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex> {
-        let our_consensus_keys: HashSet<_> = match self.keystore.keys(KEY_TYPE).await {
+    fn node_idx(&self, authorities: &[AuthorityId]) -> Option<NodeIndex> {
+        let our_consensus_keys: HashSet<_> = match self.keystore.keys(KEY_TYPE) {
             Ok(keys) => keys.into_iter().collect(),
             Err(e) => {
                 warn!(target: "aleph-data-store", "Error accessing keystore: {}", e);
@@ -485,7 +480,7 @@ where
         trace!(target: "aleph-data-store", "Found {:?} consensus keys in our local keystore {:?}", our_consensus_keys.len(), our_consensus_keys);
         authorities
             .iter()
-            .position(|pkey| our_consensus_keys.contains(&pkey.into()))
+            .position(|pkey| our_consensus_keys.contains(&pkey.to_raw_vec()))
             .map(|id| id.into())
     }
 }
