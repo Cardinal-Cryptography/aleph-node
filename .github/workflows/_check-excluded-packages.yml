@@ -12,6 +12,7 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
       CARGO_CONTRACT_VERSION: 2.1.0
+      RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -44,10 +45,10 @@ jobs:
 
       - name: Check excluded packages
         run: |
-          rustup component add clippy rustfmt
-          rustup target add wasm32-unknown-unknown
+          # rustup component add clippy rustfmt
+          # rustup target add wasm32-unknown-unknown
 
-          rustup component add rust-src --toolchain nightly-2022-10-30-x86_64-unknown-linux-gnu
+          # rustup component add rust-src --toolchain ${RUST_TOOLCHAIN}
           cargo install cargo-dylint dylint-link
           cargo install --version $CARGO_CONTRACT_VERSION --force --locked cargo-contract
 
@@ -57,7 +58,7 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
-            cargo clean
+            rm -rf ~/.cargo/registry/ && cargo clean
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
