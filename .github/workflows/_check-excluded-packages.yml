@@ -11,6 +11,9 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
+      CARGO_CONTRACT_VERSION: 3.0.1
+      RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
+      RUST_CONTRACTS_TOOLCHAIN: nightly-2023-01-10-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -43,12 +46,11 @@ jobs:
 
       - name: Check excluded packages
         run: |
-          rustup component add clippy rustfmt
-          rustup target add wasm32-unknown-unknown
-
-          rustup component add rust-src --toolchain nightly-2022-10-30-x86_64-unknown-linux-gnu
-          cargo install cargo-dylint dylint-link
-          cargo install --version 2.1.0 --force --locked cargo-contract
+          rustup toolchain install ${RUST_CONTRACTS_TOOLCHAIN}
+          rustup toolchain install ${RUST_TOOLCHAIN}
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install cargo-dylint dylint-link
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION \
+            --force --locked cargo-contract
 
           packages="${{ steps.format_output.outputs.packages }}"
           packages="${packages//'%0A'/$'\n'}"
@@ -56,9 +58,10 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
+            rustup show
+            rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
 
             if [ $p = "contracts/adder" ] ||
-               [ $p = "contracts/poseidon_host_bench" ] ||
                [ $p = "contracts/access_control" ] ||
                [ $p = "contracts/adder" ] ||
                [ $p = "contracts/button" ] ||
@@ -66,26 +69,29 @@ jobs:
                [ $p = "contracts/marketplace" ] ||
                [ $p = "contracts/simple_dex" ] ||
                [ $p = "contracts/ticket_token" ] ||
-               [ $p = "contracts/wrapped_azero" ]
+               [ $p = "contracts/wrapped_azero" ] ||
+               [ $p = "contracts/shared_traits" ]
             then
                 cargo contract check
-            elif [ $p = "baby-liminal-extension" ]
+            elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ] ;
             then
                 # cargo clippy --release --no-default-features --features substrate \
                 #  --target wasm32-unknown-unknown -- --no-deps -D warnings
                 :
             elif [ $p = "pallets/baby-liminal" ]
             then
-                cargo test --features runtime-benchmarks
+                cargo +${RUST_TOOLCHAIN} test --features runtime-benchmarks
             else
-                cargo clippy -- --no-deps -D warnings
+                cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
             fi
             cargo fmt --all --check
             popd
           done
 
       - name: Install nono
-        run: cargo install aleph-zero-cargo-nono --locked
+        run: |
+          rm -rf ~/.cargo && cargo clean
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install aleph-zero-cargo-nono --locked
 
       - name: Assert that packages are compatible with no-std
         env:
