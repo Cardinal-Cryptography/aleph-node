@@ -36,5 +36,5 @@ services:
 
 networks:
   default:
-    external:
+      external: true
       name: node-network
