@@ -6,10 +6,10 @@ on:
     branches:
       - 'main'
   pull_request:
-  merge_group:
-  workflow_dispatch:
     paths:
       - bin/cliain/**
+  merge_group:
+  workflow_dispatch:
 
 jobs:
   build-image:
