@@ -90,8 +90,8 @@ jobs:
 
       - name: Install nono
         run: |
-          rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
-          cargo +${RUST_TOOLCHAIN} install aleph-zero-cargo-nono --locked
+          # rm -rf ~/.cargo/registry && cargo clean
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install aleph-zero-cargo-nono --locked
 
       - name: Assert that packages are compatible with no-std
         env:
