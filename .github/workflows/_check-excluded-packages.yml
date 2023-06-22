@@ -59,7 +59,7 @@ jobs:
             echo "Checking package $p..."
             pushd "$p"
             rustup show
-            rm -rf ~/.cargo/registry/cache && -rf ~/.cargo/registry/index && cargo clean
+            rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/access_control" ] ||
@@ -90,7 +90,7 @@ jobs:
 
       - name: Install nono
         run: |
-          rm -rf ~/.cargo/registry/cache && -rf ~/.cargo/registry/index && cargo clean
+          rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
           cargo +${RUST_TOOLCHAIN} install aleph-zero-cargo-nono --locked
 
       - name: Assert that packages are compatible with no-std
