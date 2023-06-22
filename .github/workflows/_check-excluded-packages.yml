@@ -47,7 +47,8 @@ jobs:
       - name: Check excluded packages
         run: |
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install cargo-dylint dylint-link
-          cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION --force --locked cargo-contract
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION \
+            --force --locked cargo-contract
 
           packages="${{ steps.format_output.outputs.packages }}"
           packages="${packages//'%0A'/$'\n'}"
@@ -55,6 +56,7 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
+            rustup show
             rm -rf ~/.cargo/registry/cache && -rf ~/.cargo/registry/index && cargo clean
 
             if [ $p = "contracts/adder" ] ||
