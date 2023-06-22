@@ -11,6 +11,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
+      CARGO_CONTRACT_VERSION: 2.1.0
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -48,7 +49,7 @@ jobs:
 
           rustup component add rust-src --toolchain nightly-2022-10-30-x86_64-unknown-linux-gnu
           cargo install cargo-dylint dylint-link
-          cargo install --version 2.1.0 --force --locked cargo-contract
+          cargo install --version $CARGO_CONTRACT_VERSION --force --locked cargo-contract
 
           packages="${{ steps.format_output.outputs.packages }}"
           packages="${packages//'%0A'/$'\n'}"
@@ -68,8 +69,8 @@ jobs:
                [ $p = "contracts/ticket_token" ] ||
                [ $p = "contracts/wrapped_azero" ]
             then
-                cargo contract check
-            elif [ $p = "baby-liminal-extension" ]
+                cargo clean && cargo contract check
+            elif [ $p = "baby-liminal-extension" ];
             then
                 # cargo clippy --release --no-default-features --features substrate \
                 #  --target wasm32-unknown-unknown -- --no-deps -D warnings
