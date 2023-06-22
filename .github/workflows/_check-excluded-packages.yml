@@ -11,8 +11,9 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
-      CARGO_CONTRACT_VERSION: 2.1.0
+      CARGO_CONTRACT_VERSION: 3.0.1
       RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
+      RUST_CONTRACTS_TOOLCHAIN: nightly-2023-01-10-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -45,12 +46,8 @@ jobs:
 
       - name: Check excluded packages
         run: |
-          # rustup component add clippy rustfmt
-          # rustup target add wasm32-unknown-unknown
-
-          # rustup component add rust-src --toolchain ${RUST_TOOLCHAIN}
-          cargo install cargo-dylint dylint-link
-          cargo install --version $CARGO_CONTRACT_VERSION --force --locked cargo-contract
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install cargo-dylint dylint-link
+          cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION --force --locked cargo-contract
 
           packages="${{ steps.format_output.outputs.packages }}"
           packages="${packages//'%0A'/$'\n'}"
@@ -58,7 +55,7 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
-            rm -rf ~/.cargo/registry/ && cargo clean
+            rm -rf ~/.cargo/registry/cache && -rf ~/.cargo/registry/index && cargo clean
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
@@ -80,16 +77,16 @@ jobs:
                 :
             elif [ $p = "pallets/baby-liminal" ]
             then
-                cargo test --features runtime-benchmarks
+                cargo +${RUST_TOOLCHAIN} test --features runtime-benchmarks
             else
-                cargo clippy -- --no-deps -D warnings
+                cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
             fi
             cargo fmt --all --check
             popd
           done
 
       - name: Install nono
-        run: cargo install aleph-zero-cargo-nono --locked
+        run: cargo +${RUST_TOOLCHAIN} install aleph-zero-cargo-nono --locked
 
       - name: Assert that packages are compatible with no-std
         env:
