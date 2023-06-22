@@ -46,6 +46,8 @@ jobs:
 
       - name: Check excluded packages
         run: |
+          rustup toolchain install ${RUST_CONTRACTS_TOOLCHAIN}
+          rustup toolchain install ${RUST_TOOLCHAIN}
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install cargo-dylint dylint-link
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION \
             --force --locked cargo-contract
