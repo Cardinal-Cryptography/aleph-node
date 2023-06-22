@@ -57,6 +57,7 @@ jobs:
           do
             echo "Checking package $p..."
             pushd "$p"
+            cargo clean
 
             if [ $p = "contracts/adder" ] ||
                [ $p = "contracts/poseidon_host_bench" ] ||
@@ -70,7 +71,7 @@ jobs:
                [ $p = "contracts/wrapped_azero" ] ||
                [ $p = "contracts/shared_traits" ]
             then
-                cargo clean && cargo contract check
+                cargo contract check
             elif [ $p = "baby-liminal-extension" ];
             then
                 # cargo clippy --release --no-default-features --features substrate \
