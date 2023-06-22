@@ -62,7 +62,6 @@ jobs:
             rm -rf ~/.cargo/registry/cache && -rf ~/.cargo/registry/index && cargo clean
 
             if [ $p = "contracts/adder" ] ||
-               [ $p = "contracts/poseidon_host_bench" ] ||
                [ $p = "contracts/access_control" ] ||
                [ $p = "contracts/adder" ] ||
                [ $p = "contracts/button" ] ||
@@ -74,7 +73,7 @@ jobs:
                [ $p = "contracts/shared_traits" ]
             then
                 cargo contract check
-            elif [ $p = "baby-liminal-extension" ];
+            elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ] ;
             then
                 # cargo clippy --release --no-default-features --features substrate \
                 #  --target wasm32-unknown-unknown -- --no-deps -D warnings
