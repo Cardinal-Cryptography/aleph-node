@@ -38,7 +38,9 @@ inputs:
     required: false
     default: ''
   aleph-node-image:
-    description: ''
+    description: |
+      Either string testnet or mainnet, in such case feature net is started from current Testnet
+      or Mainnet binary respetively. Othewrise, a 8 byte SHA of exisiting ECR aleph-node image tag.
     required: false
     default: ''
   expiration:
@@ -121,7 +123,8 @@ runs:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
-        echo "name=${{ env.APP_NAME }}" >> "$GITHUB_OUTPUT"
+        name_local=${{ env.APP_NAME }}
+        echo "name=$name_local" >> $GITHUB_OUTPUT
 
     - name: Start featurenet from PR branch
       shell: bash
