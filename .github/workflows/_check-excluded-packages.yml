@@ -52,41 +52,41 @@ jobs:
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION \
             --force --locked cargo-contract
 
-          # packages="${{ steps.format_output.outputs.packages }}"
-          # packages="${packages//'%0A'/$'\n'}"
-          # for p in ${packages[@]}
-          # do
-          #   echo "Checking package $p..."
-          #   pushd "$p"
-          #   rustup show
-          #   rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
+          packages="${{ steps.format_output.outputs.packages }}"
+          packages="${packages//'%0A'/$'\n'}"
+          for p in ${packages[@]}
+          do
+            echo "Checking package $p..."
+            pushd "$p"
+            rustup show
+            rm -rf ~/.cargo/registry/cache && rm -rf ~/.cargo/registry/index && cargo clean
 
-          #   if [ $p = "contracts/adder" ] ||
-          #      [ $p = "contracts/access_control" ] ||
-          #      [ $p = "contracts/adder" ] ||
-          #      [ $p = "contracts/button" ] ||
-          #      [ $p = "contracts/game_token" ] ||
-          #      [ $p = "contracts/marketplace" ] ||
-          #      [ $p = "contracts/simple_dex" ] ||
-          #      [ $p = "contracts/ticket_token" ] ||
-          #      [ $p = "contracts/wrapped_azero" ] ||
-          #      [ $p = "contracts/shared_traits" ]
-          #   then
-          #       cargo contract check
-          #   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ] ;
-          #   then
-          #       # cargo clippy --release --no-default-features --features substrate \
-          #       #  --target wasm32-unknown-unknown -- --no-deps -D warnings
-          #       :
-          #   elif [ $p = "pallets/baby-liminal" ]
-          #   then
-          #       cargo +${RUST_TOOLCHAIN} test --features runtime-benchmarks
-          #   else
-          #       cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
-          #   fi
-          #   cargo fmt --all --check
-          #   popd
-          # done
+            if [ $p = "contracts/adder" ] ||
+               [ $p = "contracts/access_control" ] ||
+               [ $p = "contracts/adder" ] ||
+               [ $p = "contracts/button" ] ||
+               [ $p = "contracts/game_token" ] ||
+               [ $p = "contracts/marketplace" ] ||
+               [ $p = "contracts/simple_dex" ] ||
+               [ $p = "contracts/ticket_token" ] ||
+               [ $p = "contracts/wrapped_azero" ] ||
+               [ $p = "contracts/shared_traits" ]
+            then
+                cargo contract check
+            elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ] ;
+            then
+                # cargo clippy --release --no-default-features --features substrate \
+                #  --target wasm32-unknown-unknown -- --no-deps -D warnings
+                :
+            elif [ $p = "pallets/baby-liminal" ]
+            then
+                cargo +${RUST_TOOLCHAIN} test --features runtime-benchmarks
+            else
+                cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
+            fi
+            cargo fmt --all --check
+            popd
+          done
 
       - name: Install nono
         run: |
