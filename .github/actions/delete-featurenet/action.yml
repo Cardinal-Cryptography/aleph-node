@@ -80,26 +80,30 @@ runs:
         aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Destroy feature branch
+    - name: Get argocd featurenet app name
+      id: get-argocd-featurnet-app-name
       shell: bash
       env:
         # yamllint disable-line rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
+      run: |
+        echo "name=${{ env.APP_NAME }}" >> "$GITHUB_OUTPUT"
+
+    - name: Destroy feature branch
+      shell: bash
+      env:
         OPSSH_TARGETPATH: "${{ github.workspace }}/${{ inputs.repo-featurenets-name }}"
       run: |
         cd "${{ inputs.repo-apps-name }}"
-        ./Ops.sh delete-featurenet "${{ env.APP_NAME }}"
+        ./Ops.sh delete-featurenet "${{ steps.get-argocd-featurnet-app-name.outputs.name }}"
       # yamllint enable rule:line-length
 
     - name: Commit deletion of the feature environment.
       uses: EndBug/add-and-commit@v9.1.1
-      env:
-        # yamllint disable-line rule:line-length
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       with:
         author_name: AlephZero Automation
         author_email: alephzero@10clouds.com
-        message: "Delete featurenet ${{ env.APP_NAME }}"
+        message: "Delete featurenet ${{ steps.get-argocd-featurnet-app-name.outputs.name }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
 
@@ -112,9 +116,6 @@ runs:
 
     - name: Clean S3 storage
       shell: bash
-      env:
-        # yamllint disable-line rule:line-length
-        APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
       run: |
         docker run --rm \
           -e SOURCE_NET=testnet \
@@ -122,6 +123,6 @@ runs:
           -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
-          -e FEATURENET_NAME=${{ env.APP_NAME }} \
+          -e FEATURENET_NAME=${{ steps.get-argocd-featurnet-app-name.outputs.name }} \
           ${{ inputs.ecr-public-registry }}featurenet-helper:v0.2.0 \
           delete-data-from-s3
