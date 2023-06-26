@@ -18,21 +18,27 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: Install rust toolchain
+      - name: Install rustup and rust toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
+
+      - name: Install prerequisites
         run: |
           rustup toolchain install ${RUST_CONTRACTS_TOOLCHAIN}
           rustup toolchain install ${RUST_TOOLCHAIN}
+
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install cargo-dylint dylint-link
           cargo +${RUST_CONTRACTS_TOOLCHAIN} install --version $CARGO_CONTRACT_VERSION \
             --force --locked cargo-contract
-          
+
+          cargo +${RUST_TOOLCHAIN} install aleph-zero-cargo-nono --locked
+
       - name: Check excluded packages
         run: |
-          ./scripts/run_checks_on_excluded_packages.sh          
-          
+          ./scripts/run_checks_on_excluded_packages.sh
+
       - name: Install nono
         run: |
-          cargo +${RUST_CONTRACTS_TOOLCHAIN} install aleph-zero-cargo-nono --locked
+
 
       - name: Assert that packages are compatible with no-std
         env:
