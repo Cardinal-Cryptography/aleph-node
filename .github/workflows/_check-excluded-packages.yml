@@ -39,7 +39,7 @@ jobs:
 
           cargo +${RUST_CONTRACTS_TOOLCHAIN} \
             install cargo-dylint dylint-link
-            
+
           cargo +${RUST_CONTRACTS_TOOLCHAIN} \
             install --version $CARGO_CONTRACT_VERSION \
             --force --locked cargo-contract
