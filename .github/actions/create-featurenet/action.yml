@@ -156,7 +156,7 @@ runs:
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
-          "${{ steps.get-node-commit-sha.outputs.sha }}" \
+          "${{ steps.get-ref-properties.outputs.sha }}" \
           "${fnet_aleph_node_image}" \
           "${{ inputs.rolling-update-partition }}"
       # yamllint enable rule:line-length
