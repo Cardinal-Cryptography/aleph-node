@@ -149,13 +149,14 @@ runs:
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
         elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
             "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
-          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}" | cut -c 7)
+          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}")
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
         else
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
+          "${{ steps.get-node-commit-sha.outputs.sha }}" \
           "${fnet_aleph_node_image}" \
           "${{ inputs.rolling-update-partition }}"
       # yamllint enable rule:line-length
