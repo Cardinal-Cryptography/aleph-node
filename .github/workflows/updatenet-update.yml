@@ -79,7 +79,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: fe-updnet-${{ inputs.name }}
-          aleph-node-image: ${{ inputs.destination }}
+          featurenet-aleph-node-image: ${{ inputs.destination }}
           rolling-update-partition: ${{ inputs.rolling-update-partition }}
 
       - name: Wait for the aleph-node binary to accept some blocks

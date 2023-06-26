@@ -78,7 +78,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: fe-updnet-${{ github.run_id }}
-          aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
+          featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
           expiration: ${{ inputs.expiration }}
 
       - name: Wait for the aleph-node binary to accept some blocks

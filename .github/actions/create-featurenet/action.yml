@@ -141,6 +141,7 @@ runs:
       shell: bash
       env:
         OPSSH_TARGETPATH: "${{ github.workspace }}/${{ inputs.repo-featurenets-name }}"
+      # yamllint disable rule:line-length
       run: |
         cd "${{ inputs.repo-apps-name }}"
         if [[ "${{ inputs.featurenet-aleph-node-image }}" == "" ]]; then
@@ -157,6 +158,7 @@ runs:
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
           "${fnet_aleph_node_image}" \
           "${{ inputs.rolling-update-partition }}"
+      # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
       if: inputs.expiration != ''
