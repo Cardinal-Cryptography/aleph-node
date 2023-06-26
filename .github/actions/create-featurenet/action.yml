@@ -37,10 +37,12 @@ inputs:
     description: 'Enter name instead of getting it from branch'
     required: false
     default: ''
-  aleph-node-image:
+  featurenet-aleph-node-image:
     description: |
-      Either string testnet or mainnet, in such case feature net is started from current Testnet
-      or Mainnet binary respetively. Othewrise, a 8 byte SHA of exisiting ECR aleph-node image tag.
+      Set feature net image either to:
+       * 'testnet' or 'mainnet' - to Testnet or Mainnet image respectively,
+       * a 7 byte SHA - to exisiting ECR aleph-node image tag
+       * empty value - to image built from PR
     required: false
     default: ''
   expiration:
@@ -69,10 +71,10 @@ runs:
           exit 1
         fi
         if [[
-          "${{ inputs.aleph-node-image }}" != "" && \
-          ! "${{ inputs.aleph-node-image }}" =~ ^[a-f0-9]{7}$ && \
-          "${{ inputs.aleph-node-image }}" != "testnet" && \
-          "${{ inputs.aleph-node-image }}" != "mainnet"
+          "${{ inputs.featurenet-aleph-node-image }}" != "" && \
+          ! "${{ inputs.featurenet-aleph-node-image }}" =~ ^[a-f0-9]{7}$ && \
+          "${{ inputs.featurenet-aleph-node-image }}" != "testnet" && \
+          "${{ inputs.featurenet-aleph-node-image }}" != "mainnet"
         ]]
         then
           echo "!!! Invalid feature net node image tag"
@@ -126,21 +128,33 @@ runs:
         name_local=${{ env.APP_NAME }}
         echo "name=$name_local" >> $GITHUB_OUTPUT
 
+    - name: Get node commit SHA
+      if: ${{ inputs.featurenet-aleph-node-image == 'testnet' ||
+              inputs.featurenet-aleph-node-image == 'mainnet' }}
+      id: get-node-commit-sha
+      uses: ./.github/actions/get-node-system-version
+      with:
+        env: ${{ inputs.featurenet-aleph-node-image }}
+
     - name: Start featurenet from PR branch
       shell: bash
       env:
         OPSSH_TARGETPATH: "${{ github.workspace }}/${{ inputs.repo-featurenets-name }}"
       run: |
         cd "${{ inputs.repo-apps-name }}"
-        if [[ "${{ inputs.aleph-node-image }}" == "" ]]; then
+        if [[ "${{ inputs.featurenet-aleph-node-image }}" == "" ]]; then
           pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
-          pr_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
+          fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
+        elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
+            "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
+          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}" | cut -c 7)
+          fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
         else
-          pr_image="${{ inputs.aleph-node-image }}"
+          fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
-          "${pr_image}" \
+          "${fnet_aleph_node_image}" \
           "${{ inputs.rolling-update-partition }}"
 
     - name: Set featurenet expiration
@@ -160,7 +174,7 @@ runs:
         author_name: AlephZero Automation
         author_email: alephzero@10clouds.com
         # yamllint disable-line rule:line-length
-        message: "Upsert featurenet ${{ steps.get-argocd-featurnet-app-name.outputs.name }} with image: ${{ inputs.aleph-node-image != '' && inputs.aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
+        message: "Upsert featurenet ${{ steps.get-argocd-featurnet-app-name.outputs.name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
 

@@ -116,14 +116,14 @@ runs:
           "${{ inputs.argo-sync-user-token }}"
 
     - name: Clean S3 storage
+      # TODO set to v0.3.0 when docker-featurenet-helper PR is merged
       shell: bash
       run: |
         docker run --rm \
-          -e SOURCE_NET=testnet \
           -e AWS_ACCESS_KEY_ID \
           -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ steps.get-argocd-featurnet-app-name.outputs.name }} \
-          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.2.0 \
-          delete-data-from-s3
+          ${{ inputs.ecr-public-registry }}featurenet-helper:A0-2728 \
+          delete-featuretnet-data-from-s3
