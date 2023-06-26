@@ -61,7 +61,8 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
-        ref: main
+        # TODO change to main when apps PR is merged
+        ref: A0-2728
 
     - name: Checkout featurenets repo
       uses: actions/checkout@v3
