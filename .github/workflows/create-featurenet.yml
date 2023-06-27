@@ -64,7 +64,7 @@ jobs:
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
   create-featurenet:
-    needs: [delete-featurenet-if-exists]
+    needs: [push-featurnet-node-image-to-ecr, delete-featurenet-if-exists]
     name: Create featurenet based on the PR
     runs-on: ubuntu-20.04
     outputs:
