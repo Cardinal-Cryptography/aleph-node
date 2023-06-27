@@ -41,16 +41,18 @@ jobs:
     uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
     secrets: inherit
 
-  delete-featurenet-if-exists:
+  create-featurenet:
     needs: [push-featurnet-node-image-to-ecr]
-    name: Delete featurenet (if exists already)
-    if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
+    name: Create featurenet based on the PR
     runs-on: [self-hosted, Linux, X64, large]
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Delete old featurenet app and data
+        if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
         uses: ./.github/actions/delete-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -62,16 +64,6 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-
-  create-featurenet:
-    needs: [push-featurnet-node-image-to-ecr, delete-featurenet-if-exists]
-    name: Create featurenet based on the PR
-    runs-on: ubuntu-20.04
-    outputs:
-      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
         id: get-ref-properties
