@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+# set -x
+set -eo pipefail
 
 TOML_FILE="Cargo.toml"
 RUST_TOOLCHAIN=nightly-2022-10-30-x86_64-unknown-linux-gnu
@@ -21,19 +22,10 @@ packages=${packages:10}
 
 for p in ${packages[@]}; do
 
-  echo "Checking package $p..."
+  echo "Checking package $p ..."
   pushd "$p"
 
-  if [ $p = "contracts/adder" ] ||
-       [ $p = "contracts/access_control" ] ||
-       [ $p = "contracts/adder" ] ||
-       [ $p = "contracts/button" ] ||
-       [ $p = "contracts/game_token" ] ||
-       [ $p = "contracts/marketplace" ] ||
-       [ $p = "contracts/simple_dex" ] ||
-       [ $p = "contracts/ticket_token" ] ||
-       [ $p = "contracts/wrapped_azero" ] ||
-       [ $p = "contracts/shared_traits" ] ; then
+  if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
     cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
     # cargo clippy --release --no-default-features --features substrate \
