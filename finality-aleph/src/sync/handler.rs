@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
-use std::fmt::{Debug, Display, Error as FmtError, Formatter};
-use std::iter;
+use std::{
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    iter,
+};
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
@@ -104,7 +106,11 @@ impl<B: Block, J: Justification> SyncAction<B, J> {
     }
 
     fn request_response(justifications: Vec<J::Unverified>) -> Self {
-        SyncAction::Response(NetworkData::RequestResponse(justifications, Vec::new(), Vec::new()))
+        SyncAction::Response(NetworkData::RequestResponse(
+            justifications,
+            Vec::new(),
+            Vec::new(),
+        ))
     }
 }
 
@@ -150,8 +156,12 @@ where
                 "justification for the last block of a past session missing"
             ),
             BadRequestResponse => write!(f, "incorrect request response"),
-            BlockNotImportable => write!(f, "cannot import a block that we do not consider required"),
-            HeaderNotRequired => write!(f, "cannot import a header that we do not consider required"),
+            BlockNotImportable => {
+                write!(f, "cannot import a block that we do not consider required")
+            }
+            HeaderNotRequired => {
+                write!(f, "cannot import a header that we do not consider required")
+            }
         }
     }
 }
@@ -313,7 +323,11 @@ where
         Ok(SyncAction::request_response(justifications))
     }
 
-    fn handle_justifications(&mut self, justifications: Vec<J::Unverified>, maybe_peer: Option<I>) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
+    fn handle_justifications(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        maybe_peer: Option<I>,
+    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
         use SyncAction::{HighestJustified, Noop};
         let mut sync_action = Noop;
         for justification in justifications {
@@ -321,12 +335,16 @@ where
                 Ok(justification) => justification,
                 Err(e) => return (sync_action, Some(Error::Verifier(e))),
             };
-            match (sync_action, self.handle_verified_justification(verified, maybe_peer.clone()))
-            {
+            match (
+                sync_action,
+                self.handle_verified_justification(verified, maybe_peer.clone()),
+            ) {
                 (sync_action, Err(e)) => return (sync_action, Some(e)),
-                (HighestJustified(current_id), Ok(Some(id))) => if current_id.number() < id.number() {
-                    sync_action = HighestJustified(id);
-                },
+                (HighestJustified(current_id), Ok(Some(id))) => {
+                    if current_id.number() < id.number() {
+                        sync_action = HighestJustified(id);
+                    }
+                }
                 (_, Ok(Some(id))) => sync_action = HighestJustified(id),
                 (_, Ok(None)) => (),
             }
@@ -334,7 +352,11 @@ where
         (sync_action, None)
     }
 
-    fn handle_justification(&mut self, justification: J::Unverified, peer: Option<I>) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
+    fn handle_justification(
+        &mut self,
+        justification: J::Unverified,
+        peer: Option<I>,
+    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
         // Handling a single justification will always result in either a proper SyncAction with no
         // error, or a Noop with error.
         let (sync_action, maybe_error) = self.handle_justifications(vec![justification], peer);
@@ -345,12 +367,20 @@ where
     }
 
     /// Handle a justification from user returning the action we should take.
-    pub fn handle_justification_from_user(&mut self, justification: J::Unverified) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
+    pub fn handle_justification_from_user(
+        &mut self,
+        justification: J::Unverified,
+    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
         self.handle_justification(justification, None)
     }
 
     /// Handle a state response returning the action we should take, and possibly an error.
-    pub fn handle_state_response(&mut self, justification: J::Unverified, maybe_justification: Option<J::Unverified>, peer: I) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
+    pub fn handle_state_response(
+        &mut self,
+        justification: J::Unverified,
+        maybe_justification: Option<J::Unverified>,
+        peer: I,
+    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
         self.handle_justifications(
             iter::once(justification)
                 .chain(maybe_justification)
@@ -360,9 +390,18 @@ where
     }
 
     /// Handle a request response returning the action we should take, and possibly an error.
-    pub fn handle_request_response(&mut self, justifications: Vec<J::Unverified>, headers: Vec<J::Header>, blocks: Vec<B>, peer: I) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
+    pub fn handle_request_response(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        headers: Vec<J::Header>,
+        blocks: Vec<B>,
+        peer: I,
+    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
         // verify
-        if justifications.len() > MAX_JUSTIFICATION_BATCH || headers.len() > MAX_HEADER_BATCH || blocks.len() > MAX_BLOCK_BATCH {
+        if justifications.len() > MAX_JUSTIFICATION_BATCH
+            || headers.len() > MAX_HEADER_BATCH
+            || blocks.len() > MAX_BLOCK_BATCH
+        {
             return (SyncAction::Noop, Some(Error::BadRequestResponse));
         }
 
@@ -374,7 +413,10 @@ where
 
         // handle headers
         for header in headers {
-            if let Err(e) = self.forest.update_required_header(&header, Some(peer.clone())) {
+            if let Err(e) = self
+                .forest
+                .update_required_header(&header, Some(peer.clone()))
+            {
                 return (sync_action, Some(Error::Forest(e)));
             }
         }

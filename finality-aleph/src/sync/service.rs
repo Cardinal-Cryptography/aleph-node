@@ -246,7 +246,6 @@ where
     //     }
     // }
 
-
     // fn handle_blocks(&mut self, blocks: Vec<B>, peer: N::PeerId) {
     //     if blocks.len() > MAX_BLOCK_BATCH {
     //         warn!(
@@ -264,8 +263,12 @@ where
     //     }
     // }
 
-
-    fn handle_state_response(&mut self, justification: J::Unverified, maybe_justification: Option<J::Unverified>, peer: N::PeerId) {
+    fn handle_state_response(
+        &mut self,
+        justification: J::Unverified,
+        maybe_justification: Option<J::Unverified>,
+        peer: N::PeerId,
+    ) {
         trace!(
             target: LOG_TARGET,
             "Handling state response {:?} {:?} received from {:?}.",
@@ -273,7 +276,10 @@ where
             maybe_justification,
             peer
         );
-        match self.handler.handle_state_response(justification, maybe_justification, peer.clone()) {
+        match self
+            .handler
+            .handle_state_response(justification, maybe_justification, peer.clone())
+        {
             Ok(Some(block_id)) => self.request_highest_justified(block_id),
             Ok(None) => (),
             Err(e) => match e {
@@ -306,33 +312,38 @@ where
         }
     }
 
-    fn handle_request_response(&mut self, justifications: Vec<J::Unverified>, headers: Vec<J::Header>, blocks: Vec<B>, peer: N::PeerId) {
-        let (maybe_block_id, maybe_error) = self.handler.handle_request_response(justifications, headers, blocks, peer);
+    fn handle_request_response(
+        &mut self,
+        justifications: Vec<J::Unverified>,
+        headers: Vec<J::Header>,
+        blocks: Vec<B>,
+        peer: N::PeerId,
+    ) {
+        let (maybe_block_id, maybe_error) =
+            self.handler
+                .handle_request_response(justifications, headers, blocks, peer);
         if let Some(block_id) = maybe_block_id {
             self.request_highest_justified(block_id);
         }
-        if let Err(e) = maybe_error {
-
-        }
+        if let Err(e) = maybe_error {}
     }
 
+    // if let (Some(peer), true) = (&maybe_peer, justifications.len() > MAX_JUSTIFICATION_BATCH) {
+    //     warn!(
+    //         target: LOG_TARGET,
+    //         "Peer {:?} sent too many justifications: {}, we expected at most {}, aborting.",
+    //         peer,
+    //         justifications.len(),
+    //         MAX_JUSTIFICATION_BATCH,
+    //     );
+    //     return;
+    // }
 
-        // if let (Some(peer), true) = (&maybe_peer, justifications.len() > MAX_JUSTIFICATION_BATCH) {
-        //     warn!(
-        //         target: LOG_TARGET,
-        //         "Peer {:?} sent too many justifications: {}, we expected at most {}, aborting.",
-        //         peer,
-        //         justifications.len(),
-        //         MAX_JUSTIFICATION_BATCH,
-        //     );
-        //     return;
-        // }
-
-        // trace!(
-        //     target: LOG_TARGET,
-        //     "Handling {:?} justifications.",
-        //     justifications.len()
-        // );
+    // trace!(
+    //     target: LOG_TARGET,
+    //     "Handling {:?} justifications.",
+    //     justifications.len()
+    // );
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
         trace!(
