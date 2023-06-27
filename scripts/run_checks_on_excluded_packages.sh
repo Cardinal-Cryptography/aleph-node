@@ -3,9 +3,23 @@
 # set -x
 set -eo pipefail
 
+function parse_toolchain() {
+  local toml_file=$1
+  local  __resultvar=$2
+
+  channel=$(cat $toml_file | grep channel)
+  channel=${channel:10}
+  # Remove leading and trailing whitespace, and quotes from the parsed value
+  channel=$(echo "$channel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+  channel=${channel}-x86_64-unknown-linux-gnu
+
+  eval $__resultvar="'$channel'"
+}
+
+
 TOML_FILE="Cargo.toml"
-RUST_TOOLCHAIN=nightly-2022-10-30-x86_64-unknown-linux-gnu
-RUST_CONTRACTS_TOOLCHAIN=nightly-2023-01-10-x86_64-unknown-linux-gnu
+parse_toolchain "rust-toolchain.toml" RUST_TOOLCHAIN
+parse_toolchain "contracts/rust-toolchain.toml" RUST_CONTRACTS_TOOLCHAIN
 
 # Read the TOML file and extract the `exclude` entries
 packages=$(awk -F ' *= *' '/^exclude *= *\[/ {found=1} found && /^\]$/ {found=0} found' "$TOML_FILE")
