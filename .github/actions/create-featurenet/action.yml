@@ -181,11 +181,3 @@ runs:
         message: "Upsert featurenet ${{ steps.get-argocd-featurnet-app-name.outputs.name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
-
-    - name: Refresh Argo and wait for the creation to be finished
-      shell: bash
-      run: |
-        cd "${{ inputs.repo-apps-name }}"
-        ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
-          "${{ inputs.argo-sync-user-token }}" \
-          "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \

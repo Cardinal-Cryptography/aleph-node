@@ -109,6 +109,7 @@ runs:
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
 
+    # we need self-hosted runner only because of this step
     - name: Refresh Argo and wait for the deletion to be finished
       shell: bash
       run: |
