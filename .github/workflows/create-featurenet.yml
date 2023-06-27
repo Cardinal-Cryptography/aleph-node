@@ -45,7 +45,7 @@ jobs:
     needs: [push-featurnet-node-image-to-ecr]
     name: Delete featurenet (if exists already)
     if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -124,7 +124,7 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
           env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
-          deployment_id: ${{ jobs.create-featurenet.outputs.deployment-id }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev#/explorer
           ref: ${{ github.head_ref }}
