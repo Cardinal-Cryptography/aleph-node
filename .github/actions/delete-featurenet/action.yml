@@ -128,4 +128,4 @@ runs:
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ steps.get-argocd-featurnet-app-name.outputs.name }} \
           ${{ inputs.ecr-public-registry }}featurenet-helper:A0-2728 \
-          delete-featuretnet-data-from-s3
+          delete-featurenet-data-from-s3
