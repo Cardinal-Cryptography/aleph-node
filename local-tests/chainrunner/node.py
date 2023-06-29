@@ -4,10 +4,11 @@ import os.path as op
 import re
 import requests
 import subprocess
+import time
 
 from substrateinterface import SubstrateInterface, Keypair
 
-from .utils import flags_from_dict
+from .utils import flags_from_dict, check_file, check_finalized
 
 
 class Node:
@@ -156,10 +157,25 @@ class Node:
                 return None
         return f'localhost:{port}'
 
+    def change_binary(self, new_binary, name, purge=False):
+        """Stop the node and change its binary to `new_binary`.
+        Optionally `purge` node's database.
+        Restart the node with new `name`.
+        Returns the highest finalized block seen by node before shutdown."""
+        check_file(new_binary)
+        self.stop()
+        time.sleep(5)
+        highest_finalized = check_finalized([self])[0]
+        if purge:
+            self.purge()
+        self.binary = new_binary
+        self.start(name)
+        return highest_finalized
+
     def update_runtime(self, runtime_path, sudo_phrase):
         """Compose and submit `set_code` extrinsic containing runtime from supplied `runtime_path`.
         `sudo_phrase` should be the seed phrase for chain's sudo account."""
-        with open(runtime_path, 'rb') as file:
+        with open(check_file(runtime_path), 'rb') as file:
             runtime = file.read()
         port = self.ws_port()
         subint = SubstrateInterface(url=f'ws://localhost:{port}', ss58_format=42)
