@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use bp_parachains::SingleParaStoredHeaderDataBuilder;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -200,6 +201,34 @@ impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
+}
+
+impl pallet_bridge_grandpa::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type BridgedChain = bp_westend::Westend;
+    type MaxFreeMandatoryHeadersPerBlock = ConstU32<4>;
+    type HeadersToKeep = ConstU32<{ bp_westend::DAYS as u32 }>;
+    type WeightInfo = pallet_bridge_grandpa::weights::BridgeWeight<Runtime>;
+}
+
+parameter_types! {
+    pub const WestendParasPalletName: &'static str = bp_westend::PARAS_PALLET_NAME;
+    pub const MaxWestendParaHeadDataSize: u32 = bp_westend::MAX_NESTED_PARACHAIN_HEAD_DATA_SIZE;
+}
+
+impl pallet_bridge_parachains::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_bridge_parachains::weights::BridgeWeight<Runtime>;
+    type BridgesGrandpaPalletInstance = ();
+    type ParasPalletName = WestendParasPalletName;
+    type ParaStoredHeaderDataBuilder = SingleParaStoredHeaderDataBuilder<AlephZeroParachain>;
+    type HeadsToKeep = ConstU32<1024>;
+    type MaxParaHeadDataSize = MaxWestendParaHeadDataSize;
+}
+
+parameter_types! {
+    pub const ParasPalletName: &'static str = "paras";
+    pub const MaxHeadDataSize: u32 = 1024;
 }
 
 parameter_types! {
@@ -770,6 +799,8 @@ construct_runtime!(
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
         CommitteeManagement: pallet_committee_management,
+        WestendBridgeGrandpa: pallet_bridge_grandpa::{Pallet, Call, Storage, Event<T>, Config<T>},
+        BridgeAlephParachain: pallet_bridge_parachains::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -849,7 +880,60 @@ mod benches {
     frame_benchmarking::define_benchmarks!([]);
 }
 
+#[derive(Debug, Clone)]
+pub struct AlephZeroParachain;
+
+impl bp_runtime::Chain for AlephZeroParachain {
+    type BlockNumber = AlephBlockNumber;
+    type Hash = Hash;
+    type Hasher = BlakeTwo256;
+    type Header = Header;
+    type AccountId = AccountId;
+    type Balance = Balance;
+    type Index = u32;
+    type Signature = sp_core::sr25519::Signature;
+
+    const STATE_VERSION: sp_runtime::StateVersion = sp_runtime::StateVersion::V1;
+
+    fn max_extrinsic_size() -> u32 {
+        todo!("max_extrinsic_size")
+    }
+
+    fn max_extrinsic_weight() -> Weight {
+        todo!("max_extrinsic_weight")
+    }
+}
+
+impl bp_runtime::Parachain for AlephZeroParachain {
+    const PARACHAIN_ID: u32 = 2106;
+}
+
+mod aleph_parachain_finality {
+    use crate::AlephZeroParachain;
+
+    sp_api::decl_runtime_apis! {
+        pub trait AlephParachainFinalityApi {
+            fn best_finalized() -> Option<bp_runtime::HeaderId<<AlephZeroParachain as bp_runtime::Chain>::Hash, <AlephZeroParachain as bp_runtime::Chain>::BlockNumber>>;
+        }
+    }
+}
+
 impl_runtime_apis! {
+    impl aleph_parachain_finality::AlephParachainFinalityApi<Block> for Runtime {
+        fn best_finalized() -> Option<bp_runtime::HeaderId<<AlephZeroParachain as bp_runtime::Chain>::Hash, <AlephZeroParachain as bp_runtime::Chain>::BlockNumber>> {
+            pallet_bridge_parachains::Pallet::<
+                Runtime,
+                (),
+            >::best_parachain_head_id::<AlephZeroParachain>().unwrap_or(None)
+        }
+    }
+
+    impl bp_westend::WestendFinalityApi<Block> for Runtime {
+        fn best_finalized() -> Option<bp_runtime::HeaderId<bp_westend::Hash, bp_westend::BlockNumber>> {
+            WestendBridgeGrandpa::best_finalized()
+        }
+    }
+
     impl sp_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
             VERSION

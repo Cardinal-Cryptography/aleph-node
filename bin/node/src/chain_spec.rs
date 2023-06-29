@@ -442,6 +442,7 @@ fn generate_genesis_config(
                 non_committee: vec![],
             },
         },
+        westend_bridge_grandpa: Default::default(),
     }
 }
 
