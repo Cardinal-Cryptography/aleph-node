@@ -47,10 +47,9 @@ def check_finalized(nodes):
     """Check nodes stats, print them and return finalized block number per node"""
     results = [node.highest_block() for node in nodes]
     highest, finalized = zip(*results)
-    print('Blocks seen by nodes:')
+    print('Blocks seen:')
     print('  Highest:   ', *highest)
     print('  Finalized: ', *finalized)
-
     return finalized
 
 
@@ -60,6 +59,7 @@ def check_version(nodes, verbose=False):
     If multiple runtime versions are reported, print error and return the maximum.
     If `verbose` is True, print the whole RPC response."""
     versions = set()
+    print('Node versions:')
     for i, node in enumerate(nodes):
         sysver = node.rpc('system_version').result
         resp = node.rpc('state_getRuntimeVersion')

@@ -4,7 +4,7 @@ import time
 from os.path import join, abspath
 
 from .node import Node
-from .utils import flags_from_dict, check_file
+from .utils import flags_from_dict, check_file, check_finalized, check_version
 
 
 # Seq is a wrapper type around int for supplying numerical parameters
@@ -148,6 +148,11 @@ class Chain:
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].stop()
+
+    def status(self):
+        """Prints to stdout basic status check of the chain: blocks seen by nodes and binaries versions."""
+        check_finalized(self)
+        check_version(self)
 
     def purge(self, nodes=None):
         """Delete the database of the chosen nodes. Optional `nodes` argument can be used to specify

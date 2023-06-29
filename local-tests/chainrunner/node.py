@@ -174,7 +174,8 @@ class Node:
 
     def update_runtime(self, runtime_path, sudo_phrase):
         """Compose and submit `set_code` extrinsic containing runtime from supplied `runtime_path`.
-        `sudo_phrase` should be the seed phrase for chain's sudo account."""
+        `sudo_phrase` should be the seed phrase for chain's sudo account.
+        Returns an instance of ExtrinsicReceipt."""
         with open(check_file(runtime_path), 'rb') as file:
             runtime = file.read()
         port = self.ws_port()
