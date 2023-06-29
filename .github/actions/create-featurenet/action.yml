@@ -55,6 +55,7 @@ inputs:
       All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
       will be updated. If not specified, all nodes will be updated.
     required: false
+    default: "0"
 
 runs:
   using: "composite"
@@ -129,14 +130,6 @@ runs:
         name_local=${{ env.APP_NAME }}
         echo "name=$name_local" >> $GITHUB_OUTPUT
 
-    - name: Get node commit SHA
-      if: ${{ inputs.featurenet-aleph-node-image == 'testnet' ||
-              inputs.featurenet-aleph-node-image == 'mainnet' }}
-      id: get-node-commit-sha
-      uses: ./.github/actions/get-node-system-version
-      with:
-        env: ${{ inputs.featurenet-aleph-node-image }}
-
     - name: Start featurenet from PR branch
       shell: bash
       env:
@@ -147,21 +140,22 @@ runs:
         if [[ "${{ inputs.featurenet-aleph-node-image }}" == "" ]]; then
           pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
-          fnet_aleph_node_for_bootstrap_s3_sha="${{ steps.get-ref-properties.outputs.sha }}"
+          fnet_bootstrap_chain_node_image="${{ steps.get-ref-properties.outputs.sha }}"
         elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
             "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
-          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}")
+          ecr_image_tag=$(echo "${{ steps.get-ref-properties-sha.outputs.sha }}")
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
-          fnet_aleph_node_for_bootstrap_s3_sha="${ecr_image_tag}"
+          fnet_bootstrap_chain_node_image="${{ inputs.featurenet-aleph-node-image }}"
         else
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
-          fnet_aleph_node_for_bootstrap_s3_sha="${{ inputs.featurenet-aleph-node-image }}"
+          fnet_bootstrap_chain_node_image="none"
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
-          "${fnet_aleph_node_for_bootstrap_s3_sha}" \
           "${fnet_aleph_node_image}" \
-          "${{ inputs.rolling-update-partition }}"
+          "${fnet_bootstrap_chain_node_image}" \
+          "${{ inputs.rolling-update-partition }}" \
+          false
       # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
