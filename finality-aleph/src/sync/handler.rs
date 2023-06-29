@@ -4,19 +4,20 @@ use std::{
     iter,
 };
 
+use log::debug;
+use primitives::BlockNumber;
+
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
-        data::{NetworkData, Request, State},
+        data::{BranchKnowledge, NetworkData, Request, State},
         forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
-        Block, BlockIdFor, BlockImport, ChainStatus, FinalizationStatus, Finalizer, Header,
-        Justification, PeerId, Verifier,
+        Block, BlockIdFor, BlockImport, ChainStatus, ChainStatusExt, ChainStatusExtError,
+        FinalizationStatus, Finalizer, Header, IsAncestor, Justification, PeerId, Verifier,
+        LOG_TARGET,
     },
     BlockIdentifier,
 };
-
-/// How many justifications we will send at most in response to an explicit query.
-pub const MAX_JUSTIFICATION_BATCH: usize = 100;
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -49,6 +50,41 @@ where
             _phantom: PhantomData,
         }
     }
+}
+
+fn into_vecs<B, J>(chunks: Vec<Chunk<B, J>>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
+    let mut blocks = vec![];
+    let mut headers = vec![];
+    let mut justifications = vec![];
+
+    for chunk in chunks {
+        match chunk {
+            Chunk::Blocks(bs) => blocks.extend(bs),
+            Chunk::Justification(j) => justifications.push(j),
+            Chunk::Headers(h) => headers.extend(h),
+        }
+    }
+
+    (blocks, justifications, headers)
+}
+
+enum Chunk<B, J>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
+    Blocks(Vec<B>),
+    Justification(J::Unverified),
+    Headers(Vec<J::Header>),
+}
+
+struct NewState<J: Justification> {
+    top_justification: BlockIdFor<J>,
+    top_imported: BlockIdFor<J>,
 }
 
 /// Types used by the Handler. For improved readability.
@@ -130,6 +166,7 @@ where
 {
     Verifier(V::Error),
     ChainStatus(CS::Error),
+    ChainStatusExt(ChainStatusExtError<CS::Error, J>),
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
@@ -160,6 +197,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
+            ChainStatusExt(e) => write!(f, "chain status error: {}", e),
         }
     }
 }
@@ -174,6 +212,19 @@ where
 {
     fn from(e: ForestError) -> Self {
         Error::Forest(e)
+    }
+}
+
+impl<B, J, CS, V, F> From<ChainStatusExtError<CS::Error, J>> for Error<B, J, CS, V, F>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
+    fn from(e: ChainStatusExtError<CS::Error, J>) -> Self {
+        Error::ChainStatusExt(e)
     }
 }
 
@@ -255,6 +306,22 @@ where
         }
     }
 
+    fn get_unverified_justification(
+        &self,
+        number: BlockNumber,
+    ) -> Result<Option<J::Unverified>, <Self as HandlerTypes>::Error> {
+        use FinalizationStatus::FinalizedWithJustification;
+
+        match self
+            .chain_status
+            .finalized_at(number)
+            .map_err(Error::ChainStatus)?
+        {
+            FinalizedWithJustification(j) => Ok(Some(j.into_unverified())),
+            _ => Ok(None),
+        }
+    }
+
     /// Inform the handler that a block has been imported.
     pub fn block_imported(
         &mut self,
@@ -264,50 +331,282 @@ where
         self.try_finalize()
     }
 
+    fn next_justification(
+        &self,
+        last_justification_number: BlockNumber,
+    ) -> Result<Option<J::Unverified>, <Self as HandlerTypes>::Error> {
+        let next_number = last_justification_number + 1;
+
+        match self.get_unverified_justification(next_number)? {
+            Some(justification) => return Ok(Some(justification)),
+            _ => {}
+        }
+
+        // either we have justification under `next_number`
+        // or we have to check last block of the session for it.
+        let last_block_of_session_number = self
+            .session_info
+            .last_block_of_session(self.session_info.session_id_from_block_num(next_number));
+
+        match self.get_unverified_justification(last_block_of_session_number)? {
+            Some(justification) => Ok(Some(justification)),
+            _ => Ok(None),
+        }
+    }
+
+    fn finalized_blocks_between(
+        &self,
+        mut from: BlockNumber,
+        to: BlockNumber,
+    ) -> Result<Vec<B>, <Self as HandlerTypes>::Error> {
+        use Error::ChainStatus;
+
+        let mut blocks = vec![];
+
+        while from != to && from < to {
+            let id = match self.chain_status.finalized_at(from + 1) {
+                Ok(FinalizationStatus::NotFinalized) | Err(_) => break,
+                Ok(FinalizationStatus::FinalizedWithJustification(j)) => j.header().id(),
+                Ok(FinalizationStatus::FinalizedByDescendant(header)) => header.id(),
+            };
+
+            let block = match self.chain_status.block(id).map_err(ChainStatus)? {
+                None => break,
+                Some(b) => b,
+            };
+            from += 1;
+            blocks.push(block);
+        }
+
+        Ok(blocks)
+    }
+
+    fn base_response(
+        &mut self,
+        their_top_justification: &BlockIdFor<J>,
+        their_top_imported: &BlockIdFor<J>,
+    ) -> Result<(Vec<Chunk<B, J>>, NewState<J>), <Self as HandlerTypes>::Error> {
+        let mut chunks = vec![];
+        let mut last_justification_sent = their_top_justification.clone();
+        let mut last_block_sent = their_top_imported.clone();
+
+        while let Some(justification) = self.next_justification(last_justification_sent.number())? {
+            let justification_number = justification.id().number();
+
+            // append blocks up to justification in increasing order if they dont have them
+            let mut blocks =
+                self.finalized_blocks_between(last_block_sent.number(), justification_number)?;
+            if !blocks.is_empty() {
+                blocks.reverse();
+                chunks.push(Chunk::Blocks(blocks));
+            }
+
+            // append headers in reverse order
+            let path = self
+                .chain_status
+                .headers_path(&justification.id(), &last_justification_sent)?;
+            if !path.is_empty() {
+                chunks.push(Chunk::Headers(path))
+            }
+
+            if justification_number > last_block_sent.number() {
+                last_block_sent = justification.id();
+            }
+            last_justification_sent = justification.id();
+
+            chunks.push(Chunk::Justification(justification));
+        }
+
+        Ok((
+            chunks,
+            NewState {
+                top_justification: last_justification_sent.clone(),
+                top_imported: last_block_sent,
+            },
+        ))
+    }
+
+    // returns true if we are sure this block belongs to fork
+    fn is_on_fork(&self, id: &BlockIdFor<J>) -> Result<bool, <Self as HandlerTypes>::Error> {
+        use Error::*;
+        let our_top_justified = self
+            .chain_status
+            .top_finalized()
+            .map_err(ChainStatus)?
+            .header()
+            .id();
+
+        let block = self.chain_status.block(id.clone()).map_err(ChainStatus)?;
+
+        if let Some(block) = block {
+            // if the block is under the top finalized check if the finaled block at block.number is
+            // equal to block
+            return if block.header().id().number() < our_top_justified.number() {
+                match self
+                    .chain_status
+                    .finalized_at(block.header().id().number())
+                    .map_err(ChainStatus)?
+                {
+                    FinalizationStatus::FinalizedWithJustification(j) => {
+                        Ok(j.header().id() != block.header().id())
+                    }
+                    FinalizationStatus::FinalizedByDescendant(header) => {
+                        Ok(header.id() != block.header().id())
+                    }
+                    FinalizationStatus::NotFinalized => Ok(true),
+                }
+            } else {
+                // otherwise check if block our top finalized is ancestor of the block
+                match self
+                    .chain_status
+                    .is_ancestor_of(&our_top_justified, &block.header().id())
+                {
+                    // if ancestor is unknown then we are not sure if the block is on the fork
+                    IsAncestor::Yes | IsAncestor::Unknown => Ok(false),
+                    IsAncestor::No => Ok(true),
+                }
+            };
+        }
+
+        // not sure if on fork
+        Ok(false)
+    }
+
+    fn chunks_to_target(
+        &self,
+        target: BlockIdFor<J>,
+        last_justification_sent: BlockIdFor<J>,
+        last_block_sent: BlockIdFor<J>,
+        last_header_known: BlockIdFor<J>,
+    ) -> Result<Vec<Chunk<B, J>>, <Self as HandlerTypes>::Error> {
+        let mut chunks = vec![];
+
+        if target.number() < last_justification_sent.number() {
+            return Ok(chunks);
+        }
+
+        let header_path = self
+            .chain_status
+            .headers_path(&last_header_known, &last_justification_sent)?;
+        if !header_path.is_empty() {
+            chunks.push(Chunk::Headers(header_path));
+        }
+
+        // 1. we send headers from their last known header to last_justification_sent
+        // 2. we feed them blocks from bottom if possible
+        if last_justification_sent == last_block_sent {
+            let mut blocks = self.chain_status.block_path(&target, &last_block_sent)?;
+            blocks.reverse();
+            chunks.push(Chunk::Blocks(blocks));
+        }
+
+        Ok(chunks)
+    }
+
+    fn most_helpful_response(
+        &mut self,
+        their_top_justification: BlockIdFor<J>,
+        their_top_imported: BlockIdFor<J>,
+        their_last_known_header: BlockIdFor<J>,
+        target: BlockIdFor<J>,
+    ) -> Result<Vec<Chunk<B, J>>, <Self as HandlerTypes>::Error> {
+        // smth is wrong with the request, just send the base response
+        if target.number() < their_top_imported.number()
+            || target.number() < their_last_known_header.number()
+        {
+            return self
+                .base_response(&their_top_justification, &their_top_justification)
+                .map(|(chunks, _)| chunks);
+        }
+
+        // their top imported is fork, just send the base response
+        if self.is_on_fork(&their_top_imported)? {
+            return self
+                .base_response(&their_top_justification, &their_top_justification)
+                .map(|(chunks, _)| chunks);
+        }
+
+        // their target is fork, send the base response but don't repeat blocks that they have
+        if self.is_on_fork(&target)? {
+            return self
+                .base_response(&their_top_justification, &their_top_imported)
+                .map(|(chunks, _)| chunks);
+        }
+
+        // their last known_header is fork, this means their target is also fork. send the base response
+        if self.is_on_fork(&their_last_known_header)? {
+            return self
+                .base_response(&their_top_justification, &their_top_justification)
+                .map(|(chunks, _)| chunks);
+        }
+
+        // Now we know:
+        // * their top_imported is all gucci
+        // * target is okey
+        // * their last_known_header is also gucci
+        // OR we dont know path that connects our state to theirs blocks.
+        // In such case we can send base helpful response and extend it with additional information how to reach the target if we know it.
+
+        let (mut base_chunks, their_new_state) =
+            self.base_response(&their_top_justification, &their_top_imported)?;
+
+        let rest = match self.chunks_to_target(
+            target,
+            their_new_state.top_justification,
+            their_new_state.top_imported,
+            their_last_known_header,
+        ) {
+            Ok(chunks) => chunks,
+            Err(e) => {
+                debug!(
+                    target: LOG_TARGET,
+                    "Could not compute rest of the chunks, {}.", e
+                );
+                vec![]
+            }
+        };
+
+        base_chunks.extend(rest);
+
+        Ok(base_chunks)
+    }
+
     /// Handle a request for potentially substantial amounts of data.
     ///
-    /// Currently ignores the requested id, it will only become important once we can request
-    /// blocks.
+    /// Oh deer.
     pub fn handle_request(
         &mut self,
         request: Request<J>,
     ) -> Result<Option<NetworkData<B, J>>, <Self as HandlerTypes>::Error> {
-        use FinalizationStatus::*;
-        let mut number = request.state().top_justification().id().number() + 1;
-        let mut justifications = vec![];
-        while justifications.len() < MAX_JUSTIFICATION_BATCH {
-            match self
-                .chain_status
-                .finalized_at(number)
-                .map_err(Error::ChainStatus)?
-            {
-                FinalizedWithJustification(justification) => {
-                    justifications.push(justification.into_unverified());
-                    number += 1;
-                }
-                _ => {
-                    number = self
-                        .session_info
-                        .last_block_of_session(self.session_info.session_id_from_block_num(number));
-                    match self
-                        .chain_status
-                        .finalized_at(number)
-                        .map_err(Error::ChainStatus)?
-                    {
-                        FinalizedWithJustification(justification) => {
-                            justifications.push(justification.into_unverified());
-                            number += 1;
-                        }
-                        _ => break,
-                    };
-                }
+        let their_top_justified = request.state().top_justification().id();
+        let target_id = request.target_id();
+        let branch_knowledge = request.branch_knowledge();
+
+        let (top_imported, last_known_header) = match branch_knowledge {
+            BranchKnowledge::LowestId(id) => (their_top_justified.clone(), id.clone()),
+            BranchKnowledge::TopImported(id) => (id.clone(), their_top_justified.clone()),
+        };
+
+        let chunks = self.most_helpful_response(
+            their_top_justified,
+            top_imported,
+            last_known_header,
+            target_id.clone(),
+        )?;
+
+        let maybe_response = match chunks.is_empty() {
+            true => None,
+            false => {
+                let (blocks, justifications, headers) = into_vecs(chunks);
+                Some(NetworkData::RequestResponse(
+                    justifications,
+                    headers,
+                    blocks,
+                ))
             }
-        }
-        Ok(Some(NetworkData::RequestResponse(
-            justifications,
-            Vec::new(),
-            Vec::new(),
-        )))
+        };
+
+        Ok(maybe_response)
     }
 
     /// Handle a single unverified justification.

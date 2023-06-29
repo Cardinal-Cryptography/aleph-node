@@ -299,6 +299,9 @@ where
             request,
             peer
         );
+
+        let target_id = request.target_id().clone();
+
         match self.handler.handle_request(request) {
             Ok(Some(data)) => self.send_to(data, peer),
             Ok(None) => (),
@@ -312,7 +315,9 @@ where
                     "Error handling request from {:?}: {}.", peer, e
                 ),
             },
-        }
+        };
+
+        self.handle_internal_request(target_id);
     }
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {

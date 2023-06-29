@@ -10,8 +10,8 @@ use parking_lot::Mutex;
 use crate::{
     sync::{
         mock::{MockBlock, MockHeader, MockIdentifier, MockJustification, MockNotification},
-        Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, FinalizationStatus,
-        Finalizer, Header, Justification as JustificationT,
+        Block, BlockIdFor, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier,
+        FinalizationStatus, Finalizer, Header, Justification as JustificationT,
     },
     BlockIdentifier,
 };
@@ -286,6 +286,10 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
 
     fn block(&self, id: MockIdentifier) -> Result<Option<MockBlock>, Self::Error> {
         Ok(self.inner.lock().blockchain.get(&id).cloned())
+    }
+
+    fn header(&self, id: BlockIdFor<MockJustification>) -> Result<Option<MockHeader>, Self::Error> {
+        self.block(id).map(|mb| mb.map(|b| b.header))
     }
 
     fn finalized_at(

@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Formatter},
     hash::Hash,
     marker::Send,
 };
@@ -158,6 +158,9 @@ where
     /// Export a copy of the block.
     fn block(&self, id: BlockIdFor<J>) -> Result<Option<B>, Self::Error>;
 
+    /// Export a copy of the header.
+    fn header(&self, id: BlockIdFor<J>) -> Result<Option<J::Header>, Self::Error>;
+
     /// The justification at this block number, if we have it otherwise just block id if
     /// the block is finalized without justification. Should return NotFinalized variant if
     /// the request is above the top finalized.
@@ -191,4 +194,145 @@ pub trait RequestBlocks<BI: BlockIdentifier>: Clone + Send + Sync + 'static {
 
     /// Request the given block.
     fn request_block(&self, block_id: BI) -> Result<(), Self::Error>;
+}
+
+#[derive(Clone, Debug)]
+pub enum ChainStatusExtError<T, J>
+where
+    T: Display,
+    J: Justification,
+{
+    Inner(T),
+    MissingBlockInPath(BlockIdFor<J>),
+    MissingBlockParent(BlockIdFor<J>),
+    NoStraightPathBetween(BlockIdFor<J>, BlockIdFor<J>),
+}
+
+impl<T, J> From<T> for ChainStatusExtError<T, J>
+where
+    T: Display,
+    J: Justification,
+{
+    fn from(value: T) -> Self {
+        ChainStatusExtError::Inner(value)
+    }
+}
+
+impl<T, J> Display for ChainStatusExtError<T, J>
+where
+    T: Display,
+    J: Justification,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChainStatusExtError::Inner(e) => write!(f, "{}", *e),
+            ChainStatusExtError::MissingBlockInPath(id) => write!(f, "Missing block {:?}", id),
+            ChainStatusExtError::MissingBlockParent(id) => {
+                write!(f, "Missing parent of the block {:?}", id)
+            }
+            ChainStatusExtError::NoStraightPathBetween(from, to) => {
+                write!(f, "{:?} is not an ancestor of {:?}", from, to)
+            }
+        }
+    }
+}
+
+/// Possible answers to the question is block `a` ancestor of the `b`.
+#[derive(PartialEq)]
+pub enum IsAncestor {
+    /// Yes, it is.
+    Yes,
+    /// No, it is.
+    No,
+    /// We don't know.
+    Unknown,
+}
+
+pub trait ChainStatusExt<B, J>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
+    type Error: Display;
+
+    /// Path of blocks between two blocks. Does not include `from` and `to` blocks.
+    ///
+    /// `to` is an ancestor of the `from`.
+    fn block_path(
+        &self,
+        from: &BlockIdFor<J>,
+        to: &BlockIdFor<J>,
+    ) -> Result<Vec<B>, ChainStatusExtError<Self::Error, J>>;
+
+    /// Path of headers between two blocks. Does not include `from` and `to` headers..
+    ///
+    /// `to` is an ancestor of the `from`.
+    fn headers_path(
+        &self,
+        from: &BlockIdFor<J>,
+        to: &BlockIdFor<J>,
+    ) -> Result<Vec<B::Header>, ChainStatusExtError<Self::Error, J>>;
+
+    fn is_ancestor_of(&self, ancestor: &BlockIdFor<J>, of: &BlockIdFor<J>) -> IsAncestor;
+}
+
+impl<T, B, J> ChainStatusExt<B, J> for T
+where
+    T: ChainStatus<B, J>,
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
+    type Error = T::Error;
+    fn block_path(
+        &self,
+        from: &BlockIdFor<J>,
+        to: &BlockIdFor<J>,
+    ) -> Result<Vec<B>, ChainStatusExtError<Self::Error, J>> {
+        let mut current = from.clone();
+        let mut path = vec![];
+
+        while current != *to && current.number() > to.number() {
+            let block = match self.block(current.clone())? {
+                Some(block) => block,
+                None => return Err(ChainStatusExtError::MissingBlockInPath(current)),
+            };
+
+            current = match block.header().parent_id() {
+                Some(id) => id,
+                None => return Err(ChainStatusExtError::MissingBlockParent(current)),
+            };
+
+            path.push(block);
+        }
+
+        if current != *to {
+            return Err(ChainStatusExtError::NoStraightPathBetween(
+                from.clone(),
+                to.clone(),
+            ));
+        }
+
+        Ok(path)
+    }
+
+    fn headers_path(
+        &self,
+        from: &BlockIdFor<J>,
+        to: &BlockIdFor<J>,
+    ) -> Result<Vec<B::Header>, ChainStatusExtError<Self::Error, J>> {
+        self.block_path(from, to).map(|blocks| {
+            blocks
+                .into_iter()
+                .map(|block| block.header().clone())
+                .collect()
+        })
+    }
+
+    fn is_ancestor_of(&self, ancestor: &BlockIdFor<J>, of: &BlockIdFor<J>) -> IsAncestor {
+        match self.block_path(of, ancestor) {
+            Ok(_) => IsAncestor::Yes,
+            Err(ChainStatusExtError::NoStraightPathBetween(..)) => IsAncestor::No,
+            _ => IsAncestor::Unknown,
+        }
+    }
 }
