@@ -16,7 +16,8 @@ class Node:
     `chainspec` should be a path to a file with chainspec,
     `path` should point to a folder where the node's base path is."""
 
-    def __init__(self, binary, chainspec, path, logdir=None):
+    def __init__(self, idx, binary, chainspec, path, logdir=None):
+        self.idx = idx
         self.chainspec = chainspec
         self.binary = binary
         self.path = path
@@ -40,6 +41,7 @@ class Node:
         if self.running:
             print('Node already running')
             return
+        name = f'{name}{self.idx}'
         cmd = [self.binary, '--name', name] + self._stdargs() + self._nodeargs(backup) + flags_from_dict(self.flags)
         self.logfile = op.join(self.logdir, name + '.log')
         with open(self.logfile, 'w', encoding='utf-8') as logfile:
