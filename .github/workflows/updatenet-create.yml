@@ -64,6 +64,7 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           env: updatenet-${{ github.run_id }}
           override: true
+          debug: true
 
       - name: Create updatenet from scratch, node binary from testnet or mainnet
         uses: ./.github/actions/create-featurenet
@@ -100,3 +101,4 @@ jobs:
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ github.run_id }}.dev.azero.dev#/explorer
+          debug: true
