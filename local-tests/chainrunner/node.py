@@ -5,6 +5,7 @@ import re
 import requests
 import subprocess
 
+from substrateinterface import SubstrateInterface, Keypair
 
 from .utils import flags_from_dict
 
@@ -152,3 +153,17 @@ class Node:
             else:
                 return None
         return f'localhost:{port}'
+
+    def update_runtime(self, runtime_path, sudo_phrase):
+        """Compose and submit `set_code` extrinsic containing runtime from supplied `runtime_path`.
+        `sudo_phrase` should be the seed phrase for chain's sudo account."""
+        with open(runtime_path, 'rb') as file:
+            runtime = file.read()
+        port = self.ws_port()
+        subint = SubstrateInterface(url=f'ws://localhost:{port}', ss58_format=42)
+        set_code_call = subint.compose_call(call_module='System', call_function='set_code', call_params={'code': runtime})
+        zero_weight = {"proof_size":0, "ref_time":0}
+        sudo_call = subint.compose_call(call_module='Sudo', call_function='sudo_unchecked_weight', call_params={'call': set_code_call, 'weight':zero_weight})
+        extrinsic = subint.create_signed_extrinsic(call=sudo_call, keypair=Keypair.create_from_uri(sudo_phrase))
+        receipt = subint.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        return receipt

@@ -174,14 +174,6 @@ class Chain:
         subprocess.run(cmd, check=True)
         self.set_chainspec(forked)
 
-    def update_runtime(self, cliain_path, sudo_phrase, runtime):
-        """Send set_code extrinsic with runtime update.
-        Requires a path to `cliain` binary, a path to new WASM runtime and the sudo phrase."""
-        port = self.nodes[0].ws_port()
-        cmd = [check_file(cliain_path), '--node', f'localhost:{port}', '--seed', sudo_phrase,
-                'update-runtime', '--runtime', check_file(runtime)]
-        subprocess.run(cmd, check=True)
-
     def wait_for_finalization(self, old_finalized, nodes=None, timeout=600, finalized_delta=3, catchup=True, catchup_delta=10):
         """Wait for finalization to catch up with the newest blocks. Requires providing the number
         of the last finalized block, which will be used as a reference against recently finalized blocks.
