@@ -18,6 +18,7 @@ on:
           All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
           will be updated. If not specified, all nodes will be updated.
         required: false
+        default: "0"
 
 jobs:
   check-vars-and-secrets:
