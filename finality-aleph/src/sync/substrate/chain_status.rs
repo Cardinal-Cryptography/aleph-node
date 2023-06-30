@@ -190,7 +190,7 @@ impl ChainStatus<SubstrateSyncBlock, Justification> for SubstrateChainStatus {
         // above this level then this block is finalized.
         let top_justified_number = self.top_finalized()?.id().number;
         if top_justified_number > header.id().number {
-            return Ok(FinalizedByChild);
+            return Ok(FinalizedByChild(header.id()));
         }
 
         Ok(NotFinalized)

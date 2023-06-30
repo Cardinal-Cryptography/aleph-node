@@ -268,7 +268,7 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
         }
 
         if id.number < self.top_finalized()?.header.id.number {
-            return Ok(FinalizedByChild);
+            return Ok(FinalizedByChild(id.clone()));
         }
 
         Ok(NotFinalized)

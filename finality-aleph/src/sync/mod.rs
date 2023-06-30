@@ -129,7 +129,7 @@ pub enum FinalizationStatus<J: Justification> {
     /// The block is finalized by justification.
     FinalizedWithJustification(J),
     /// The block is finalized because one of its children is finalized.
-    FinalizedByChild,
+    FinalizedByChild(BlockIdFor<J>),
     /// The block is not finalized
     NotFinalized,
 }
@@ -158,7 +158,8 @@ where
     /// Export a copy of the block.
     fn block(&self, id: BlockIdFor<J>) -> Result<Option<B>, Self::Error>;
 
-    /// The justification at this block number, if we have it. Should return NotFinalized variant if
+    /// The justification at this block number, if we have it otherwise just block header if
+    /// the block is finalized without justification. Should return NotFinalized variant if
     /// the request is above the top finalized.
     fn finalized_at(&self, number: u32) -> Result<FinalizationStatus<J>, Self::Error>;
 
