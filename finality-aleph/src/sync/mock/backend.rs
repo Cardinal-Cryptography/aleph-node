@@ -10,8 +10,8 @@ use parking_lot::Mutex;
 use crate::{
     sync::{
         mock::{MockBlock, MockHeader, MockIdentifier, MockJustification, MockNotification},
-        Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, Finalizer, Header,
-        Justification as JustificationT,
+        Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, FinalizationStatus,
+        Finalizer, Header, Justification as JustificationT,
     },
     BlockIdentifier,
 };
@@ -245,17 +245,33 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
         Ok(self.inner.lock().blockchain.get(&id).cloned())
     }
 
-    fn finalized_at(&self, number: u32) -> Result<Option<MockJustification>, Self::Error> {
+    fn finalized_at(
+        &self,
+        number: u32,
+    ) -> Result<FinalizationStatus<MockJustification>, Self::Error> {
+        use FinalizationStatus::*;
         let storage = self.inner.lock();
         let id = match storage.finalized.get(number as usize) {
             Some(id) => id,
-            None => return Ok(None),
+            None => return Ok(NotFinalized),
         };
-        storage
+
+        match storage
             .blockchain
             .get(id)
-            .ok_or(StatusError)
-            .map(|b| b.justification.clone())
+            .ok_or(StatusError)?
+            .justification
+            .clone()
+        {
+            Some(j) => return Ok(FinalizedWithJustification(j)),
+            _ => {}
+        }
+
+        if id.number < self.top_finalized()?.header.id.number {
+            return Ok(FinalizedByChild);
+        }
+
+        Ok(NotFinalized)
     }
 
     fn best_block(&self) -> Result<MockHeader, Self::Error> {

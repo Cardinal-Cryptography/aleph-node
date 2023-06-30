@@ -16,7 +16,7 @@ use crate::{
     justification::backwards_compatible_decode,
     sync::{
         substrate::{BlockId, Justification, SubstrateSyncBlock},
-        BlockIdFor, BlockStatus, ChainStatus, LOG_TARGET,
+        BlockIdFor, BlockStatus, ChainStatus, FinalizationStatus, Header, LOG_TARGET,
     },
 };
 
@@ -169,15 +169,31 @@ impl SubstrateChainStatus {
 impl ChainStatus<SubstrateSyncBlock, Justification> for SubstrateChainStatus {
     type Error = Error;
 
-    fn finalized_at(&self, number: BlockNumber) -> Result<Option<Justification>, Self::Error> {
+    fn finalized_at(
+        &self,
+        number: BlockNumber,
+    ) -> Result<FinalizationStatus<Justification>, Self::Error> {
+        use FinalizationStatus::*;
         let id = match self.hash_for_number(number)? {
             Some(hash) => BlockId { hash, number },
-            None => return Ok(None),
+            None => return Ok(NotFinalized),
         };
-        match self.status_of(id)? {
-            BlockStatus::Justified(justification) => Ok(Some(justification)),
-            _ => Ok(None),
+        let header = match self.status_of(id)? {
+            BlockStatus::Justified(justification) => {
+                return Ok(FinalizedWithJustification(justification))
+            }
+            BlockStatus::Present(id) => id,
+            _ => return Ok(NotFinalized),
+        };
+
+        // if we dont have justification for block at `number` level but there are finalized blocks
+        // above this level then this block is finalized.
+        let top_justified_number = self.top_finalized()?.id().number;
+        if top_justified_number > header.id().number {
+            return Ok(FinalizedByChild);
         }
+
+        Ok(NotFinalized)
     }
 
     fn block(
