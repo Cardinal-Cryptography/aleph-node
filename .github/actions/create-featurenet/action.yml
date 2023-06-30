@@ -130,6 +130,14 @@ runs:
         name_local=${{ env.APP_NAME }}
         echo "name=$name_local" >> $GITHUB_OUTPUT
 
+    - name: Get node commit SHA
+      if: ${{ inputs.featurenet-aleph-node-image == 'testnet' ||
+        inputs.featurenet-aleph-node-image == 'mainnet' }}
+      id: get-node-commit-sha
+      uses: ./.github/actions/get-node-system-version
+      with:
+        env: ${{ inputs.featurenet-aleph-node-image }}
+
     - name: Start featurenet from PR branch
       shell: bash
       env:
@@ -143,7 +151,7 @@ runs:
           fnet_bootstrap_chain_node_image="${{ steps.get-ref-properties.outputs.sha }}"
         elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
             "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
-          ecr_image_tag=$(echo "${{ steps.get-ref-properties-sha.outputs.sha }}")
+          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}")
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
           fnet_bootstrap_chain_node_image="${{ inputs.featurenet-aleph-node-image }}"
         else
