@@ -166,8 +166,8 @@ impl Finalizer<MockJustification> for Backend {
         }
 
         let header = justification.header().clone();
-        let mut id = header.id();
-        let block = match storage.blockchain.get_mut(&id) {
+        let finalizing_id = header.id();
+        let block = match storage.blockchain.get_mut(&finalizing_id) {
             Some(block) => block,
             None => panic!("finalizing a not imported block: {:?}", header),
         };
@@ -189,31 +189,23 @@ impl Finalizer<MockJustification> for Backend {
             ],
             None => [0, storage.session_period - 1],
         };
-        if !allowed_numbers.contains(&id.number) {
-            panic!("finalizing a block that is not a child of top finalized (round {:?}), nor the last of a session (round {:?}): round {:?}", allowed_numbers[0], allowed_numbers[1], id.number);
+
+        if !allowed_numbers.contains(&finalizing_id.number) {
+            panic!("finalizing a block that is not a child of top finalized (round {:?}), nor the last of a session (round {:?}): round {:?}", allowed_numbers[0], allowed_numbers[1], finalizing_id.number);
         }
 
-        let last_finalized_id = id.clone();
         let mut blocks_to_finalize = VecDeque::new();
-        while id.number != last_number {
-            blocks_to_finalize.push_front(id.clone());
-            id = storage
+        let mut block_to_finalize = finalizing_id.clone();
+        while block_to_finalize.number != last_number {
+            blocks_to_finalize.push_front(block_to_finalize.clone());
+            block_to_finalize = storage
                 .blockchain
-                .get(&id)
-                .clone()
+                .get(&block_to_finalize)
                 .expect("We already checked that")
                 .header
                 .parent
                 .clone()
                 .expect("We already checked parent exists");
-        }
-
-        // if block 0 was not present before include it now.
-        if id.number == 0 {
-            match storage.finalized.last() {
-                None => blocks_to_finalize.push_front(id),
-                _ => {}
-            }
         }
 
         storage.finalized.extend(blocks_to_finalize);
@@ -227,9 +219,9 @@ impl Finalizer<MockJustification> for Backend {
                 .unwrap()
                 .header()
                 .clone(),
-            last_finalized_id.clone(),
+            finalizing_id.clone(),
         ) {
-            storage.best_block = last_finalized_id.clone()
+            storage.best_block = finalizing_id
         }
         self.notify_finalized(header);
 
