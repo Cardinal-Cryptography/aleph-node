@@ -67,7 +67,7 @@ impl Display for Error {
         use Error::*;
         match self {
             HeaderMissingParentId => write!(f, "header did not contain a parent ID"),
-            HeaderNotRequired => write!(f, "header was not required"),
+            HeaderNotRequired => write!(f, "header was not required, but it should have been"),
             IncorrectParentState => write!(
                 f,
                 "parent was in a state incompatible with importing this block"

@@ -18,12 +18,6 @@ use crate::{
 /// How many justifications we will send at most in response to an explicit query.
 pub const MAX_JUSTIFICATION_BATCH: usize = 100;
 
-/// How many headers we will send at most in response to an explicit query.
-pub const MAX_HEADER_BATCH: usize = 500;
-
-/// How many blocks we will send at most in response to an explicit query.
-pub const MAX_BLOCK_BATCH: usize = 25;
-
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
@@ -85,32 +79,54 @@ where
 
 /// What actions can the handler recommend as a reaction to some data.
 #[derive(Clone, Debug)]
-pub enum SyncAction<B: Block, J: Justification> {
+pub enum SyncAction<B, J, I>
+where
+    B: Block,
+    J: Justification,
+    I: PeerId,
+{
     /// A response for the peer that sent us the data.
-    Response(NetworkData<B, J>),
+    Response(NetworkData<B, J>, I),
     /// A request for the highest justified block that should be performed periodically.
     HighestJustified(BlockIdFor<J>),
     /// Do nothing.
     Noop,
 }
 
-impl<B: Block, J: Justification> SyncAction<B, J> {
+impl<B, J, I> SyncAction<B, J, I>
+where
+    B: Block,
+    J: Justification,
+    I: PeerId,
+{
+    fn update_highest_justified(&mut self, other: Self) {
+        match (&self, other) {
+            (Self::HighestJustified(id), Self::HighestJustified(other_id))
+                if id.number() < other_id.number() =>
+            {
+                *self = Self::HighestJustified(other_id);
+            }
+            (_, Self::HighestJustified(other_id)) => *self = Self::HighestJustified(other_id),
+            _ => (),
+        }
+    }
+
     fn state_broadcast_response(
         justification: J::Unverified,
         other_justification: Option<J::Unverified>,
+        peer: I,
     ) -> Self {
-        SyncAction::Response(NetworkData::StateBroadcastResponse(
-            justification,
-            other_justification,
-        ))
+        SyncAction::Response(
+            NetworkData::StateBroadcastResponse(justification, other_justification),
+            peer,
+        )
     }
 
-    fn request_response(justifications: Vec<J::Unverified>) -> Self {
-        SyncAction::Response(NetworkData::RequestResponse(
-            justifications,
-            Vec::new(),
-            Vec::new(),
-        ))
+    fn request_response(justifications: Vec<J::Unverified>, peer: I) -> Self {
+        SyncAction::Response(
+            NetworkData::RequestResponse(justifications, Vec::new(), Vec::new()),
+            peer,
+        )
     }
 }
 
@@ -130,9 +146,7 @@ where
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
     MissingJustification,
-    BadRequestResponse,
     BlockNotImportable,
-    HeaderNotRequired,
 }
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
@@ -155,12 +169,8 @@ where
                 f,
                 "justification for the last block of a past session missing"
             ),
-            BadRequestResponse => write!(f, "incorrect request response"),
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
-            }
-            HeaderNotRequired => {
-                write!(f, "cannot import a header that we do not consider required")
             }
         }
     }
@@ -289,7 +299,8 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
+        peer: I,
+    ) -> Result<SyncAction<B, J, I>, <Self as HandlerTypes>::Error> {
         let mut number = request.state().top_justification().id().number() + 1;
         let mut justifications = vec![];
         while justifications.len() < MAX_JUSTIFICATION_BATCH {
@@ -320,57 +331,47 @@ where
                 }
             }
         }
-        Ok(SyncAction::request_response(justifications))
+        Ok(SyncAction::request_response(justifications, peer))
+    }
+
+    fn handle_justification(
+        &mut self,
+        justification: J::Unverified,
+        maybe_peer: Option<I>,
+    ) -> Result<SyncAction<B, J, I>, <Self as HandlerTypes>::Error> {
+        use SyncAction::{HighestJustified, Noop};
+        let verified = self
+            .verifier
+            .verify(justification)
+            .map_err(Error::Verifier)?;
+        Ok(
+            match self.handle_verified_justification(verified, maybe_peer)? {
+                Some(id) => HighestJustified(id),
+                None => Noop,
+            },
+        )
     }
 
     fn handle_justifications(
         &mut self,
         justifications: Vec<J::Unverified>,
         maybe_peer: Option<I>,
-    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
-        use SyncAction::{HighestJustified, Noop};
-        let mut sync_action = Noop;
+    ) -> (SyncAction<B, J, I>, Option<<Self as HandlerTypes>::Error>) {
+        let mut sync_action: SyncAction<B, J, I> = SyncAction::Noop;
         for justification in justifications {
-            let verified = match self.verifier.verify(justification) {
-                Ok(justification) => justification,
-                Err(e) => return (sync_action, Some(Error::Verifier(e))),
-            };
-            match (
-                sync_action,
-                self.handle_verified_justification(verified, maybe_peer.clone()),
-            ) {
-                (sync_action, Err(e)) => return (sync_action, Some(e)),
-                (HighestJustified(current_id), Ok(Some(id))) => {
-                    if current_id.number() < id.number() {
-                        sync_action = HighestJustified(id);
-                    }
-                }
-                (_, Ok(Some(id))) => sync_action = HighestJustified(id),
-                (_, Ok(None)) => (),
+            match self.handle_justification(justification, maybe_peer.clone()) {
+                Ok(other_action) => sync_action.update_highest_justified(other_action),
+                Err(e) => return (sync_action, Some(e)),
             }
         }
         (sync_action, None)
-    }
-
-    fn handle_justification(
-        &mut self,
-        justification: J::Unverified,
-        peer: Option<I>,
-    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
-        // Handling a single justification will always result in either a proper SyncAction with no
-        // error, or a Noop with error.
-        let (sync_action, maybe_error) = self.handle_justifications(vec![justification], peer);
-        match maybe_error {
-            Some(e) => Err(e),
-            None => Ok(sync_action),
-        }
     }
 
     /// Handle a justification from user returning the action we should take.
     pub fn handle_justification_from_user(
         &mut self,
         justification: J::Unverified,
-    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<SyncAction<B, J, I>, <Self as HandlerTypes>::Error> {
         self.handle_justification(justification, None)
     }
 
@@ -380,7 +381,7 @@ where
         justification: J::Unverified,
         maybe_justification: Option<J::Unverified>,
         peer: I,
-    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
+    ) -> (SyncAction<B, J, I>, Option<<Self as HandlerTypes>::Error>) {
         self.handle_justifications(
             iter::once(justification)
                 .chain(maybe_justification)
@@ -396,15 +397,7 @@ where
         headers: Vec<J::Header>,
         blocks: Vec<B>,
         peer: I,
-    ) -> (SyncAction<B, J>, Option<<Self as HandlerTypes>::Error>) {
-        // verify
-        if justifications.len() > MAX_JUSTIFICATION_BATCH
-            || headers.len() > MAX_HEADER_BATCH
-            || blocks.len() > MAX_BLOCK_BATCH
-        {
-            return (SyncAction::Noop, Some(Error::BadRequestResponse));
-        }
-
+    ) -> (SyncAction<B, J, I>, Option<<Self as HandlerTypes>::Error>) {
         // handle justifications
         let sync_action = match self.handle_justifications(justifications, Some(peer.clone())) {
             (sync_action, None) => sync_action,
@@ -450,7 +443,7 @@ where
         &mut self,
         state: State<J>,
         peer: I,
-    ) -> Result<SyncAction<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<SyncAction<B, J, I>, <Self as HandlerTypes>::Error> {
         use Error::*;
         let remote_top_number = state.top_justification().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
@@ -472,17 +465,20 @@ where
                 false => Ok(SyncAction::state_broadcast_response(
                     local_top.into_unverified(),
                     None,
+                    peer,
                 )),
             },
             // remote lags one session behind
             Some(1) => Ok(SyncAction::state_broadcast_response(
                 self.last_justification_unverified(remote_session)?,
                 Some(local_top.into_unverified()),
+                peer,
             )),
             // remote lags multiple sessions behind
             Some(2..) => Ok(SyncAction::state_broadcast_response(
                 self.last_justification_unverified(remote_session)?,
                 Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
+                peer,
             )),
         }
     }
@@ -567,12 +563,12 @@ mod tests {
             .expect("importing in order");
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
-        assert!(
+        assert!(matches!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification")
-                == Some(justification.id())
-        );
+                .expect("correct justification"),
+            SyncAction::HighestJustified(id) if id == justification.id()
+        ));
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
             justification
@@ -590,12 +586,12 @@ mod tests {
             .map(MockJustification::for_header)
             .skip(1)
         {
-            assert!(
+            assert!(matches!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification")
-                    == Some(justification.id())
-            );
+                    .expect("correct justification"),
+                SyncAction::HighestJustified(id) if id == justification.id()
+            ));
         }
     }
 
@@ -615,12 +611,12 @@ mod tests {
         // skip the first justification, now every next added justification
         // should spawn a new task
         for justification in justifications.into_iter().skip(1) {
-            assert!(
+            assert!(matches!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification")
-                    == Some(justification.id())
-            );
+                    .expect("correct justification"),
+                SyncAction::HighestJustified(id) if id == justification.id()
+            ));
         }
     }
 
@@ -639,12 +635,12 @@ mod tests {
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
         let peer: MockPeerId = rand::random();
-        assert!(
+        assert!(matches!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification")
-                == Some(justification.id())
-        );
+                .expect("correct justification"),
+            SyncAction::HighestJustified(id) if id == justification.id()
+        ));
         // should be auto-finalized, if Forest knows about imported body
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -662,8 +658,8 @@ mod tests {
             .handle_justification(justification.clone().into_unverified(), Some(peer))
             .expect("correct justification")
         {
-            Some(id) => assert_eq!(id, header.id()),
-            None => panic!("expected an id, got nothing"),
+            SyncAction::HighestJustified(id) => assert_eq!(id, header.id()),
+            _ => panic!("expected an id, got nothing"),
         }
         handler.block_imported(header).expect("importing in order");
         assert_eq!(
@@ -695,10 +691,11 @@ mod tests {
             .handle_state(initial_state, peer)
             .expect("correct justification")
         {
-            SyncAction::Response(NetworkData::StateBroadcastResponse(
-                justification,
-                maybe_justification,
-            )) => {
+            SyncAction::Response(
+                NetworkData::StateBroadcastResponse(justification, maybe_justification),
+                response_peer,
+            ) => {
+                assert_eq!(peer, response_peer);
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(last_from_second_session));
             }
@@ -732,10 +729,11 @@ mod tests {
             .handle_state(initial_state, peer)
             .expect("correct justification")
         {
-            SyncAction::Response(NetworkData::StateBroadcastResponse(
-                justification,
-                maybe_justification,
-            )) => {
+            SyncAction::Response(
+                NetworkData::StateBroadcastResponse(justification, maybe_justification),
+                response_peer,
+            ) => {
+                assert_eq!(peer, response_peer);
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(top));
             }
@@ -768,10 +766,11 @@ mod tests {
             .handle_state(initial_state, peer)
             .expect("correct justification")
         {
-            SyncAction::Response(NetworkData::StateBroadcastResponse(
-                justification,
-                maybe_justification,
-            )) => {
+            SyncAction::Response(
+                NetworkData::StateBroadcastResponse(justification, maybe_justification),
+                response_peer,
+            ) => {
+                assert_eq!(peer, response_peer);
                 assert_eq!(justification, top);
                 assert!(maybe_justification.is_none());
             }
@@ -786,7 +785,7 @@ mod tests {
     fn handles_request() {
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
-        let peer = rand::random();
+        let peer: MockPeerId = rand::random();
         let mut justifications: Vec<_> = import_branch(&backend, 500)
             .into_iter()
             .map(MockJustification::for_header)
@@ -812,8 +811,15 @@ mod tests {
             let number = j.header().id().number();
             number % 20 < 10 || number % 20 == 19
         });
-        match handler.handle_request(request).expect("correct request") {
-            SyncAction::Response(NetworkData::RequestResponse(sent_justifications, _, _)) => {
+        match handler
+            .handle_request(request, peer)
+            .expect("correct request")
+        {
+            SyncAction::Response(
+                NetworkData::RequestResponse(sent_justifications, _, _),
+                response_peer,
+            ) => {
+                assert_eq!(peer, response_peer);
                 assert_eq!(sent_justifications.len(), 100);
                 for (sent_justification, justification) in
                     sent_justifications.iter().zip(justifications)
