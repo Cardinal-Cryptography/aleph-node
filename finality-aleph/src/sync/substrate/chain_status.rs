@@ -174,26 +174,22 @@ impl ChainStatus<SubstrateSyncBlock, Justification> for SubstrateChainStatus {
         number: BlockNumber,
     ) -> Result<FinalizationStatus<Justification>, Self::Error> {
         use FinalizationStatus::*;
+        if number > self.top_finalized()?.id().number {
+            return Ok(NotFinalized);
+        }
+
         let id = match self.hash_for_number(number)? {
             Some(hash) => BlockId { hash, number },
             None => return Ok(NotFinalized),
         };
-        let header = match self.status_of(id)? {
-            BlockStatus::Justified(justification) => {
-                return Ok(FinalizedWithJustification(justification))
-            }
-            BlockStatus::Present(id) => id,
-            _ => return Ok(NotFinalized),
-        };
 
-        // if we dont have justification for block at `number` level but there are finalized blocks
-        // above this level then this block is finalized.
-        let top_justified_number = self.top_finalized()?.id().number;
-        if top_justified_number > header.id().number {
-            return Ok(FinalizedByChild(header.id()));
+        /// hash_for_number wont return a hash for a block in the fork, it means that if we get a
+        /// block here it will either be finalized by justification or by descendant
+        match self.status_of(id)? {
+            BlockStatus::Justified(justification) => Ok(FinalizedWithJustification(justification)),
+            BlockStatus::Present(header) => Ok(FinalizedByDescendant(header)),
+            _ => Ok(NotFinalized),
         }
-
-        Ok(NotFinalized)
     }
 
     fn block(

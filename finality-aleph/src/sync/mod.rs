@@ -129,7 +129,7 @@ pub enum FinalizationStatus<J: Justification> {
     /// The block is finalized by justification.
     FinalizedWithJustification(J),
     /// The block is finalized because one of its children is finalized.
-    FinalizedByChild(BlockIdFor<J>),
+    FinalizedByDescendant(J::Header),
     /// The block is not finalized
     NotFinalized,
 }

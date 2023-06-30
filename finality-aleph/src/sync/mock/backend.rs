@@ -293,27 +293,24 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
         number: u32,
     ) -> Result<FinalizationStatus<MockJustification>, Self::Error> {
         use FinalizationStatus::*;
+
+        if number > self.top_finalized()?.header.id.number {
+            return Ok(NotFinalized);
+        }
+
         let storage = self.inner.lock();
         let id = match storage.finalized.get(number as usize) {
             Some(id) => id,
             None => return Ok(NotFinalized),
         };
 
-        if let Some(j) = storage
-            .blockchain
-            .get(id)
-            .ok_or(StatusError)?
-            .justification
-            .clone()
-        {
+        let block = storage.blockchain.get(id).ok_or(StatusError)?;
+
+        if let Some(j) = block.justification.clone() {
             return Ok(FinalizedWithJustification(j));
         }
 
-        if id.number < self.top_finalized()?.header.id.number {
-            return Ok(FinalizedByChild(id.clone()));
-        }
-
-        Ok(NotFinalized)
+        Ok(FinalizedByDescendant(block.header.clone()))
     }
 
     fn best_block(&self) -> Result<MockHeader, Self::Error> {
