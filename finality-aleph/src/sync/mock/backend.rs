@@ -256,15 +256,14 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
             None => return Ok(NotFinalized),
         };
 
-        match storage
+        if let Some(j) = storage
             .blockchain
             .get(id)
             .ok_or(StatusError)?
             .justification
             .clone()
         {
-            Some(j) => return Ok(FinalizedWithJustification(j)),
-            _ => {}
+            return Ok(FinalizedWithJustification(j));
         }
 
         if id.number < self.top_finalized()?.header.id.number {

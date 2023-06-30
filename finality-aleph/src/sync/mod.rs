@@ -158,7 +158,7 @@ where
     /// Export a copy of the block.
     fn block(&self, id: BlockIdFor<J>) -> Result<Option<B>, Self::Error>;
 
-    /// The justification at this block number, if we have it otherwise just block header if
+    /// The justification at this block number, if we have it otherwise just block id if
     /// the block is finalized without justification. Should return NotFinalized variant if
     /// the request is above the top finalized.
     fn finalized_at(&self, number: u32) -> Result<FinalizationStatus<J>, Self::Error>;
