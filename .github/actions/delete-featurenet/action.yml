@@ -61,8 +61,7 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
-        # TODO change to main when apps PR is merged
-        ref: A0-2728
+        ref: main
 
     - name: Checkout featurenets repo
       uses: actions/checkout@v3
@@ -118,7 +117,6 @@ runs:
           "${{ inputs.argo-sync-user-token }}"
 
     - name: Clean S3 storage
-      # TODO set to v0.3.0 when docker-featurenet-helper PR is merged
       shell: bash
       run: |
         docker run --rm \
@@ -127,5 +125,5 @@ runs:
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ steps.get-argocd-featurnet-app-name.outputs.name }} \
-          ${{ inputs.ecr-public-registry }}featurenet-helper:A0-2728 \
+          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.3.0 \
           delete-featurenet-data-from-s3
