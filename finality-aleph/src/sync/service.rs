@@ -10,7 +10,7 @@ use crate::{
     session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, Handler, SyncAction},
+        handler::{Error as HandlerError, HandleStateAction, Handler},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -175,16 +175,8 @@ where
         }
     }
 
-    fn perform_sync_action(&mut self, action: SyncAction<B, J, N::PeerId>) {
-        use SyncAction::*;
-        match action {
-            Response(data, peer) => self.send_to(data, peer),
-            HighestJustified(block_id) => self.request_highest_justified(block_id),
-            Noop => (),
-        }
-    }
-
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
+        use HandleStateAction::*;
         trace!(
             target: LOG_TARGET,
             "Handling state {:?} received from {:?}.",
@@ -192,7 +184,11 @@ where
             peer
         );
         match self.handler.handle_state(state, peer.clone()) {
-            Ok(action) => self.perform_sync_action(action),
+            Ok(action) => match action {
+                Response(data) => self.send_to(data, peer),
+                HighestJustified(block_id) => self.request_highest_justified(block_id),
+                Noop => (),
+            },
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -219,7 +215,7 @@ where
             maybe_justification,
             peer
         );
-        let (action, maybe_error) =
+        let (maybe_id, maybe_error) =
             self.handler
                 .handle_state_response(justification, maybe_justification, peer.clone());
         if let Some(e) = maybe_error {
@@ -234,7 +230,9 @@ where
                 ),
             }
         }
-        self.perform_sync_action(action);
+        if let Some(id) = maybe_id {
+            self.request_highest_justified(id);
+        }
     }
 
     fn handle_justification_from_user(&mut self, justification: J::Unverified) {
@@ -244,7 +242,8 @@ where
             justification,
         );
         match self.handler.handle_justification_from_user(justification) {
-            Ok(action) => self.perform_sync_action(action),
+            Ok(Some(id)) => self.request_highest_justified(id),
+            Ok(None) => (),
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -273,7 +272,7 @@ where
             headers,
             blocks,
         );
-        let (action, maybe_error) =
+        let (maybe_id, maybe_error) =
             self.handler
                 .handle_request_response(justifications, headers, blocks, peer.clone());
         if let Some(e) = maybe_error {
@@ -282,7 +281,9 @@ where
                 "Failed to handle sync state response from {:?}: {}.", peer, e
             );
         }
-        self.perform_sync_action(action);
+        if let Some(id) = maybe_id {
+            self.request_highest_justified(id);
+        }
     }
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
@@ -292,8 +293,9 @@ where
             request,
             peer
         );
-        match self.handler.handle_request(request, peer.clone()) {
-            Ok(action) => self.perform_sync_action(action),
+        match self.handler.handle_request(request) {
+            Ok(Some(data)) => self.send_to(data, peer),
+            Ok(None) => (),
             Err(e) => {
                 warn!(
                     target: LOG_TARGET,
