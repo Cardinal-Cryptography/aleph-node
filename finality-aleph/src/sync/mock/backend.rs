@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::{Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -166,13 +166,18 @@ impl Finalizer<MockJustification> for Backend {
         }
 
         let header = justification.header().clone();
-        let id = header.id();
+        let mut id = header.id();
         let block = match storage.blockchain.get_mut(&id) {
             Some(block) => block,
             None => panic!("finalizing a not imported block: {:?}", header),
         };
 
         block.finalize(justification);
+
+        let last_number = match storage.finalized.last() {
+            Some(id) => id.number,
+            None => 0,
+        };
 
         // Check if the previous block was finalized, or this is the last block of the current
         // session
@@ -188,7 +193,30 @@ impl Finalizer<MockJustification> for Backend {
             panic!("finalizing a block that is not a child of top finalized (round {:?}), nor the last of a session (round {:?}): round {:?}", allowed_numbers[0], allowed_numbers[1], id.number);
         }
 
-        storage.finalized.push(id.clone());
+        let last_finalized_id = id.clone();
+        let mut blocks_to_finalize = VecDeque::new();
+        while id.number != last_number {
+            blocks_to_finalize.push_front(id.clone());
+            id = storage
+                .blockchain
+                .get(&id)
+                .clone()
+                .expect("We already checked that")
+                .header
+                .parent
+                .clone()
+                .expect("We already checked parent exists");
+        }
+
+        // if block 0 was not present before include it now.
+        if id.number == 0 {
+            match storage.finalized.last() {
+                None => blocks_to_finalize.push_front(id),
+                _ => {}
+            }
+        }
+
+        storage.finalized.extend(blocks_to_finalize);
         // In case finalization changes best block, we set best block, to top finalized.
         // Whenever a new import happens, best block will update anyway.
         if !is_predecessor(
@@ -199,9 +227,9 @@ impl Finalizer<MockJustification> for Backend {
                 .unwrap()
                 .header()
                 .clone(),
-            id.clone(),
+            last_finalized_id.clone(),
         ) {
-            storage.best_block = id.clone()
+            storage.best_block = last_finalized_id.clone()
         }
         self.notify_finalized(header);
 
