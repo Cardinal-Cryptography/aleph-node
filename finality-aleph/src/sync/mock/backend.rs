@@ -196,6 +196,8 @@ impl Finalizer<MockJustification> for Backend {
 
         let mut blocks_to_finalize = VecDeque::new();
         let mut block_to_finalize = finalizing_id.clone();
+
+        // Finalize also blocks that lead up to last finalized
         while block_to_finalize.number != last_number {
             blocks_to_finalize.push_front(block_to_finalize.clone());
             block_to_finalize = storage
@@ -206,6 +208,27 @@ impl Finalizer<MockJustification> for Backend {
                 .parent
                 .clone()
                 .expect("We already checked parent exists");
+        }
+
+        // Actually check if we are not finalizing fork
+        let first_to_finalize = blocks_to_finalize
+            .front()
+            .expect("At least one block is being finalized");
+
+        let parent_of_first_block_to_finalize = storage
+            .blockchain
+            .get(first_to_finalize)
+            .expect("We already checked that")
+            .header
+            .parent
+            .clone()
+            .expect("We already checked parent exists");
+        let last_finalized = storage
+            .finalized
+            .last()
+            .expect("At least one block is always finalized");
+        if parent_of_first_block_to_finalize != *last_finalized {
+            panic!("finalizing a block that is not a child of top finalized.");
         }
 
         storage.finalized.extend(blocks_to_finalize);
