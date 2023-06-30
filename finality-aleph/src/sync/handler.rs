@@ -9,8 +9,8 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
-        Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
-        Verifier,
+        Block, BlockIdFor, BlockImport, ChainStatus, FinalizationStatus, Finalizer, Header,
+        Justification, PeerId, Verifier,
     },
     BlockIdentifier,
 };
@@ -272,6 +272,7 @@ where
         &mut self,
         request: Request<J>,
     ) -> Result<Option<NetworkData<B, J>>, <Self as HandlerTypes>::Error> {
+        use FinalizationStatus::*;
         let mut number = request.state().top_justification().id().number() + 1;
         let mut justifications = vec![];
         while justifications.len() < MAX_JUSTIFICATION_BATCH {
@@ -280,11 +281,11 @@ where
                 .finalized_at(number)
                 .map_err(Error::ChainStatus)?
             {
-                Some(justification) => {
+                FinalizedWithJustification(justification) => {
                     justifications.push(justification.into_unverified());
                     number += 1;
                 }
-                None => {
+                _ => {
                     number = self
                         .session_info
                         .last_block_of_session(self.session_info.session_id_from_block_num(number));
@@ -293,11 +294,11 @@ where
                         .finalized_at(number)
                         .map_err(Error::ChainStatus)?
                     {
-                        Some(justification) => {
+                        FinalizedWithJustification(justification) => {
                             justifications.push(justification.into_unverified());
                             number += 1;
                         }
-                        None => break,
+                        _ => break,
                     };
                 }
             }
@@ -418,6 +419,7 @@ where
             .chain_status
             .finalized_at(self.session_info.last_block_of_session(session))
             .map_err(ChainStatus)?
+            .has_justification()
             .ok_or(MissingJustification)?
             .into_unverified())
     }
