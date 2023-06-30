@@ -357,22 +357,30 @@ where
         }
     }
 
+    fn handle_network_data(&mut self, data: NetworkData<B, J>, peer: N::PeerId) {
+        use NetworkData::*;
+        match data {
+            StateBroadcast(state) => self.handle_state(state, peer),
+            StateBroadcastResponse(justification, maybe_justification) => {
+                self.handle_state_response(justification, maybe_justification, peer)
+            }
+            Request(request) => {
+                let state = request.state().clone();
+                self.handle_request(request, peer.clone());
+                self.handle_state(state, peer);
+            }
+            RequestResponse(justifications, headers, blocks) => {
+                self.handle_request_response(justifications, headers, blocks, peer)
+            }
+        }
+    }
+
     /// Stay synchronized.
     pub async fn run(mut self) {
-        use NetworkData::*;
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => match maybe_data {
-                    Ok((data, peer)) => match data {
-                        StateBroadcast(state) => self.handle_state(state, peer),
-                        StateBroadcastResponse(justification, maybe_justification) => self.handle_state_response(justification, maybe_justification, peer),
-                        Request(request) => {
-                            let state = request.state().clone();
-                            self.handle_request(request, peer.clone());
-                            self.handle_state(state, peer);
-                        }
-                        RequestResponse(justifications, headers, blocks) => self.handle_request_response(justifications, headers, blocks, peer),
-                    },
+                    Ok((data, peer)) => self.handle_network_data(data, peer),
                     Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
                 },
                 Some(task) = self.tasks.pop() => self.handle_task(task),
