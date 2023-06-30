@@ -183,8 +183,8 @@ impl ChainStatus<SubstrateSyncBlock, Justification> for SubstrateChainStatus {
             None => return Ok(NotFinalized),
         };
 
-        /// hash_for_number wont return a hash for a block in the fork, it means that if we get a
-        /// block here it will either be finalized by justification or by descendant
+        // hash_for_number wont return a hash for a block in the fork, it means that if we get a
+        // block here it will either be finalized by justification or by descendant
         match self.status_of(id)? {
             BlockStatus::Justified(justification) => Ok(FinalizedWithJustification(justification)),
             BlockStatus::Present(header) => Ok(FinalizedByDescendant(header)),
