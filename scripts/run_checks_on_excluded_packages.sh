@@ -51,7 +51,7 @@ for p in ${packages[@]}; do
     cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
   fi
 
-  cargo fmt --all --check
+  cargo +nightly fmt --all --check
   popd
 
 done
