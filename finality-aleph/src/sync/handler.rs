@@ -550,12 +550,12 @@ mod tests {
             .expect("importing in order");
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
-        assert!(matches!(
+        assert!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification"),
-            Some(id) if id == justification.id()
-        ));
+                .expect("correct justification")
+                == Some(justification.id())
+        );
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
             justification
@@ -573,12 +573,12 @@ mod tests {
             .map(MockJustification::for_header)
             .skip(1)
         {
-            assert!(matches!(
+            assert!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification"),
-                Some(id) if id == justification.id()
-            ));
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
         }
     }
 
@@ -598,12 +598,12 @@ mod tests {
         // skip the first justification, now every next added justification
         // should spawn a new task
         for justification in justifications.into_iter().skip(1) {
-            assert!(matches!(
+            assert!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification"),
-                Some(id) if id == justification.id()
-            ));
+                    .expect("correct justification")
+                    == Some(justification.id())
+            );
         }
     }
 
@@ -622,12 +622,12 @@ mod tests {
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
         let peer: MockPeerId = rand::random();
-        assert!(matches!(
+        assert!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification"),
-            Some(id) if id == justification.id()
-        ));
+                .expect("correct justification")
+                == Some(justification.id())
+        );
         // should be auto-finalized, if Forest knows about imported body
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -646,7 +646,7 @@ mod tests {
             .expect("correct justification")
         {
             Some(id) => assert_eq!(id, header.id()),
-            _ => panic!("expected an id, got nothing"),
+            None => panic!("expected an id, got nothing"),
         }
         handler.block_imported(header).expect("importing in order");
         assert_eq!(
