@@ -276,10 +276,16 @@ where
             self.handler
                 .handle_request_response(justifications, headers, blocks, peer.clone());
         if let Some(e) = maybe_error {
-            warn!(
-                target: LOG_TARGET,
-                "Failed to handle sync state response from {:?}: {}.", peer, e
-            );
+            match e {
+                HandlerError::Verifier(e) => debug!(
+                    target: LOG_TARGET,
+                    "Could not verify justification from user: {}", e
+                ),
+                e => warn!(
+                    target: LOG_TARGET,
+                    "Failed to handle sync state response from {:?}: {}.", peer, e
+                ),
+            };
         }
         if let Some(id) = maybe_id {
             self.request_highest_justified(id);
@@ -296,12 +302,16 @@ where
         match self.handler.handle_request(request) {
             Ok(Some(data)) => self.send_to(data, peer),
             Ok(None) => (),
-            Err(e) => {
-                warn!(
+            Err(e) => match e {
+                HandlerError::Verifier(e) => debug!(
+                    target: LOG_TARGET,
+                    "Could not verify justification from user: {}", e
+                ),
+                e => warn!(
                     target: LOG_TARGET,
                     "Error handling request from {:?}: {}.", peer, e
-                );
-            }
+                ),
+            },
         }
     }
 
@@ -348,12 +358,16 @@ where
             Ok(_) => {
                 debug!(target: LOG_TARGET, "Already requested block {:?}.", id);
             }
-            Err(e) => {
-                warn!(
+            Err(e) => match e {
+                HandlerError::Verifier(e) => debug!(
+                    target: LOG_TARGET,
+                    "Could not verify justification from user: {}", e
+                ),
+                e => warn!(
                     target: LOG_TARGET,
                     "Error handling internal request for block {:?}: {}.", id, e
-                );
-            }
+                ),
+            },
         }
     }
 
