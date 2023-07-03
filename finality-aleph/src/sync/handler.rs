@@ -769,7 +769,7 @@ mod tests {
     fn handles_request() {
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
-        let peer: MockPeerId = rand::random();
+        let peer = rand::random();
         let mut justifications: Vec<_> = import_branch(&backend, 500)
             .into_iter()
             .map(MockJustification::for_header)
