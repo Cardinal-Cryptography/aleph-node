@@ -39,9 +39,9 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: exit with success
+      - name: test exit
         run: |
-          exit 0
+          exit 1
 
       #- name: Run e2e test
       #  uses: ./.github/actions/run-e2e-test
@@ -66,25 +66,45 @@ jobs:
     steps:
       - name: Remove deployment request label if exists
         # yamllint disable rule:line-length
-        if: >
-          github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'trigger:run-button-e2e-tests')
+        if: github.event_name == 'pull_request'
         # yamllint enable rule:line-length
         uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
           labels: 'trigger:run-button-e2e-tests'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
+      - name: Remove failed label if exists
+        if: >
+          github.event_name == 'pull_request' &&
+          needs.run-e2e-button-contracts-tests.result == 'success'
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: 'state:button-e2e-tests-failed'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
       - name: Add label to mark that tests succeeded
+        if: >
+          github.event_name == 'pull_request' &&
+          needs.run-e2e-button-contracts-tests.result == 'success'
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ needs.run-e2e-button-contracts-tests.result == 'success' }}
+        with:
+          labels: 'state:button-e2e-tests-succeeded'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Remove success label if exists
+        if: >
+          github.event_name == 'pull_request' &&
+          needs.run-e2e-button-contracts-tests.result == 'failure'
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
           labels: 'state:button-e2e-tests-succeeded'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that tests failed
+        if: >
+          github.event_name == 'pull_request' &&
+          needs.run-e2e-button-contracts-tests.result == 'failure'
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ needs.run-e2e-button-contracts-tests.result == 'failure' }}
         with:
           labels: 'state:button-e2e-tests-failed'
           github_token: ${{ secrets.CI_GH_TOKEN }}
