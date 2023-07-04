@@ -39,13 +39,17 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          deploy-button: true
-          clean-button: true
-          test-case: button
-        timeout-minutes: 20
+      - name: exit with error
+        run: |
+          exit 1
+
+      #- name: Run e2e test
+      #  uses: ./.github/actions/run-e2e-test
+      #  with:
+      #    deploy-button: true
+      #    clean-button: true
+      #    test-case: button
+      #  timeout-minutes: 20
 
   deploy-button:
     if: inputs.deploy == true
@@ -73,30 +77,30 @@ jobs:
 
       - name: Add label to mark that tests succeeded
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        if: ${{ jobs.run-e2e-button-contracts-tests.result == 'success' }}
         with:
           labels: 'state:button-e2e-tests-succeeded'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that tests failed
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        if: ${{ jobs.run-e2e-button-contracts-tests.result == 'failure' }}
         with:
           labels: 'state:button-e2e-tests-failed'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
-  send-slack-notification:
-    name: Send Slack notification about workflow status
-    runs-on: ubuntu-20.04
-    needs: [deploy-button]
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TRACK_APPLICATIONS }}
+#  send-slack-notification:
+#    name: Send Slack notification about workflow status
+#    runs-on: ubuntu-20.04
+#    needs: [deploy-button]
+#    if: always()
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v3
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TRACK_APPLICATIONS }}
