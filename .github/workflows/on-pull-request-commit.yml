@@ -25,15 +25,8 @@ jobs:
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
 
-  check-secrets:
-    name: Check vars and secrets
-    uses: ./.github/workflows/_check-vars-and-secrets.yml
-    with:
-      check-vars: false
-    secrets: inherit
-
   store-production-node-and-runtime:
-    needs: [build-production-node-and-runtime, check-secrets]
+    needs: [build-production-node-and-runtime]
     name: Store production node and runtime artifacts
     uses: ./.github/workflows/_store-production-node-and-runtime.yml
     secrets: inherit
@@ -47,7 +40,7 @@ jobs:
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
 
   store-test-node-and-runtime:
-    needs: [build-test-node-and-runtime, check-secrets]
+    needs: [build-test-node-and-runtime]
     name: Store test node and runtime
     uses: ./.github/workflows/_store-test-node-and-runtime.yml
     secrets: inherit
