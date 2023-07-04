@@ -77,14 +77,14 @@ jobs:
 
       - name: Add label to mark that tests succeeded
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ jobs.run-e2e-button-contracts-tests.result == 'success' }}
+        if: ${{ needs.run-e2e-button-contracts-tests.result == 'success' }}
         with:
           labels: 'state:button-e2e-tests-succeeded'
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that tests failed
         uses: actions-ecosystem/action-add-labels@v1.1.0
-        if: ${{ jobs.run-e2e-button-contracts-tests.result == 'failure' }}
+        if: ${{ needs.run-e2e-button-contracts-tests.result == 'failure' }}
         with:
           labels: 'state:button-e2e-tests-failed'
           github_token: ${{ secrets.CI_GH_TOKEN }}
