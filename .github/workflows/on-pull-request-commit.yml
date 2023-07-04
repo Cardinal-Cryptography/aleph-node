@@ -44,7 +44,6 @@ jobs:
 
   build-test-node-and-runtime:
     name: Build test node and runtime
-    needs: [check-vars-and-secrets]
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
 
   store-test-node-and-runtime:
