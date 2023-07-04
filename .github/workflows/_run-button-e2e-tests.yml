@@ -18,7 +18,7 @@ jobs:
       - name: Remove deployment request label if exists
         # yamllint disable rule:line-length
         if: >
-          github.event == 'pull_request' &&
+          github.event_name == 'pull_request' &&
           contains(github.event.pull_request.labels.*.name, 'trigger:run-button-e2e-tests')
         # yamllint enable rule:line-length
         uses: actions-ecosystem/action-remove-labels@v1.3.0
