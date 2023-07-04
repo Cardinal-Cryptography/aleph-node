@@ -41,7 +41,7 @@ jobs:
 
       - name: test exit
         run: |
-          exit 1
+          exit 0
 
       #- name: Run e2e test
       #  uses: ./.github/actions/run-e2e-test
