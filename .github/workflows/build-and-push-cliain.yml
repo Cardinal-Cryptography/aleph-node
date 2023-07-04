@@ -31,7 +31,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
-
+        with:
+          channel: nightly-2023-01-10
+          
       - name: Cargo | Build release binary
         run: |
           if [[ ${{ matrix.runtime }} = 'liminal' ]]; then

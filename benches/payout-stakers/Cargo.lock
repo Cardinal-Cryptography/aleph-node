@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "3.4.0"
+version = "3.4.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -443,9 +443,9 @@ dependencies = [
 
 [[package]]
 name = "contract-transcode"
-version = "2.2.1"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4e3806efabf4c29f2aeff708e076cac60609ee6c5897299f163355b1cec242c"
+checksum = "73db6f39c07b43a0fb49410a2a4d8dbf6eaf1d8a646cb7430003e56e5b3522ed"
 dependencies = [
  "anyhow",
  "base58",
@@ -1355,9 +1355,9 @@ dependencies = [
 
 [[package]]
 name = "ink_env"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5e1505c5deb7280743e4d7df72a91f52bbf4cb063f464c73f89dce00c70f92"
+checksum = "a41c6a3f4e740e27449f805ed47f536a35fb254ebcd03d2480014589331cda3e"
 dependencies = [
  "arrayref",
  "blake2",
@@ -1365,6 +1365,7 @@ dependencies = [
  "derive_more",
  "ink_allocator",
  "ink_engine",
+ "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage_traits",
@@ -1372,10 +1373,8 @@ dependencies = [
  "parity-scale-codec",
  "paste",
  "rlibc",
- "scale-decode 0.5.0",
- "scale-encode",
  "scale-info",
- "secp256k1 0.27.0",
+ "secp256k1 0.26.0",
  "sha2 0.10.6",
  "sha3",
  "static_assertions",
@@ -1383,9 +1382,9 @@ dependencies = [
 
 [[package]]
 name = "ink_metadata"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4af082b4c2eb246d27b358411ef950811f851c1099aa507ba4bcdd7214d40ccd"
+checksum = "5dfcfa666ada5729c7e4d3d986cd196365a2c469459fced4fa31dc6ad87c4d8f"
 dependencies = [
  "derive_more",
  "impl-serde",
@@ -1421,15 +1420,16 @@ dependencies = [
 
 [[package]]
 name = "ink_storage_traits"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ec58d70937c1e1490a00b84e2eb9a799f1a5331dd0e5cc68d550de1dbf6a8f4"
+checksum = "8c90e11b60233ae5ab877854739da2c380a337cb31b3900cb50328821c0381b6"
 dependencies = [
  "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "parity-scale-codec",
  "scale-info",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2654,6 +2654,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1629c9c557ef9b293568b338dddfc8208c98a18c59d722a9d53f859d9c9b62"
 dependencies = [
  "secp256k1-sys 0.6.1",
+]
+
+[[package]]
+name = "secp256k1"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4124a35fe33ae14259c490fd70fa199a32b9ce9502f2ee6bc4f81ec06fa65894"
+dependencies = [
+ "secp256k1-sys 0.8.1",
 ]
 
 [[package]]

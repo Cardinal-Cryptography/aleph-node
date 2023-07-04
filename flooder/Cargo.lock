@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "aleph_client"
-version = "3.4.0"
+version = "3.4.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -480,9 +480,9 @@ dependencies = [
 
 [[package]]
 name = "contract-transcode"
-version = "2.2.1"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4e3806efabf4c29f2aeff708e076cac60609ee6c5897299f163355b1cec242c"
+checksum = "73db6f39c07b43a0fb49410a2a4d8dbf6eaf1d8a646cb7430003e56e5b3522ed"
 dependencies = [
  "anyhow",
  "base58",
@@ -1488,9 +1488,9 @@ dependencies = [
 
 [[package]]
 name = "ink_env"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5e1505c5deb7280743e4d7df72a91f52bbf4cb063f464c73f89dce00c70f92"
+checksum = "a41c6a3f4e740e27449f805ed47f536a35fb254ebcd03d2480014589331cda3e"
 dependencies = [
  "arrayref",
  "blake2",
@@ -1498,6 +1498,7 @@ dependencies = [
  "derive_more",
  "ink_allocator",
  "ink_engine",
+ "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "ink_storage_traits",
@@ -1505,10 +1506,8 @@ dependencies = [
  "parity-scale-codec",
  "paste",
  "rlibc",
- "scale-decode 0.5.0",
- "scale-encode",
  "scale-info",
- "secp256k1 0.27.0",
+ "secp256k1 0.26.0",
  "sha2 0.10.6",
  "sha3",
  "static_assertions",
@@ -1516,9 +1515,9 @@ dependencies = [
 
 [[package]]
 name = "ink_metadata"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4af082b4c2eb246d27b358411ef950811f851c1099aa507ba4bcdd7214d40ccd"
+checksum = "5dfcfa666ada5729c7e4d3d986cd196365a2c469459fced4fa31dc6ad87c4d8f"
 dependencies = [
  "derive_more",
  "impl-serde",
@@ -1554,15 +1553,16 @@ dependencies = [
 
 [[package]]
 name = "ink_storage_traits"
-version = "4.2.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ec58d70937c1e1490a00b84e2eb9a799f1a5331dd0e5cc68d550de1dbf6a8f4"
+checksum = "8c90e11b60233ae5ab877854739da2c380a337cb31b3900cb50328821c0381b6"
 dependencies = [
  "ink_metadata",
  "ink_prelude",
  "ink_primitives",
  "parity-scale-codec",
  "scale-info",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2197,14 +2197,14 @@ checksum = "ceedf44fb00f2d1984b0bc98102627ce622e083e49a5bacdb3e514fa4238e267"
 [[package]]
 name = "pallet-contracts-primitives"
 version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "bitflags",
  "parity-scale-codec",
  "scale-info",
- "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-weights 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-weights 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
 ]
 
 [[package]]
@@ -2393,11 +2393,11 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-api",
- "sp-application-crypto 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "sp-application-crypto 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
  "sp-staking",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
 ]
 
 [[package]]
@@ -2903,6 +2903,15 @@ dependencies = [
 
 [[package]]
 name = "secp256k1"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4124a35fe33ae14259c490fd70fa199a32b9ce9502f2ee6bc4f81ec06fa65894"
+dependencies = [
+ "secp256k1-sys 0.8.1",
+]
+
+[[package]]
+name = "secp256k1"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25996b82292a7a57ed3508f052cfff8640d38d32018784acd714758b43da9c8f"
@@ -3138,17 +3147,19 @@ dependencies = [
 [[package]]
 name = "sp-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "hash-db 0.16.0",
  "log",
  "parity-scale-codec",
+ "scale-info",
  "sp-api-proc-macro",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-state-machine 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-trie 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-metadata-ir",
+ "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-state-machine 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-trie 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
  "sp-version",
  "thiserror",
 ]
@@ -3156,7 +3167,7 @@ dependencies = [
 [[package]]
 name = "sp-api-proc-macro"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "Inflector",
  "blake2",
@@ -3164,7 +3175,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.17",
 ]
 
 [[package]]
@@ -3179,19 +3190,6 @@ dependencies = [
  "sp-core 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-io 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-application-crypto"
-version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-io 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
 ]
 
 [[package]]
@@ -3220,20 +3218,6 @@ dependencies = [
  "serde",
  "sp-debug-derive 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "static_assertions",
-]
-
-[[package]]
-name = "sp-arithmetic"
-version = "6.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "integer-sqrt",
- "num-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
  "static_assertions",
 ]
 
@@ -3300,49 +3284,6 @@ dependencies = [
 [[package]]
 name = "sp-core"
 version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "array-bytes",
- "base58",
- "bitflags",
- "blake2",
- "bounded-collections",
- "dyn-clonable",
- "ed25519-zebra",
- "futures",
- "hash-db 0.16.0",
- "hash256-std-hasher",
- "impl-serde",
- "lazy_static",
- "libsecp256k1",
- "log",
- "merlin",
- "parity-scale-codec",
- "parking_lot",
- "primitive-types",
- "rand 0.8.5",
- "regex",
- "scale-info",
- "schnorrkel",
- "secp256k1 0.24.3",
- "secrecy",
- "serde",
- "sp-core-hashing 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-debug-derive 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-externalities 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime-interface 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-storage 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "ss58-registry",
- "substrate-bip39",
- "thiserror",
- "tiny-bip39 1.0.0",
- "zeroize",
-]
-
-[[package]]
-name = "sp-core"
-version = "7.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "array-bytes",
@@ -3402,20 +3343,6 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing"
 version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "blake2b_simd",
- "byteorder",
- "digest 0.10.7",
- "sha2 0.10.6",
- "sha3",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "twox-hash",
-]
-
-[[package]]
-name = "sp-core-hashing"
-version = "5.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "blake2b_simd",
@@ -3430,12 +3357,12 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing-proc-macro"
 version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "proc-macro2",
  "quote",
- "sp-core-hashing 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "syn 1.0.109",
+ "sp-core-hashing 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "syn 2.0.17",
 ]
 
 [[package]]
@@ -3443,16 +3370,6 @@ name = "sp-debug-derive"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9e9ba7352773b96a4aa57e903447f841c6bc26e8c798377db6e7eb332346454"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "sp-debug-derive"
-version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3479,17 +3396,6 @@ dependencies = [
  "parity-scale-codec",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-storage 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-externalities"
-version = "0.13.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "environmental",
- "parity-scale-codec",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-storage 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
 ]
 
 [[package]]
@@ -3526,31 +3432,6 @@ dependencies = [
  "sp-tracing 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-trie 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-wasm-interface 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tracing",
- "tracing-core",
-]
-
-[[package]]
-name = "sp-io"
-version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "bytes 1.4.0",
- "ed25519",
- "ed25519-dalek",
- "futures",
- "libsecp256k1",
- "log",
- "parity-scale-codec",
- "secp256k1 0.24.3",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-externalities 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-keystore 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime-interface 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-state-machine 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-tracing 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-trie 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
  "tracing",
  "tracing-core",
 ]
@@ -3601,22 +3482,6 @@ dependencies = [
 [[package]]
 name = "sp-keystore"
 version = "0.13.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "async-trait",
- "futures",
- "merlin",
- "parity-scale-codec",
- "parking_lot",
- "schnorrkel",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-externalities 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "thiserror",
-]
-
-[[package]]
-name = "sp-keystore"
-version = "0.13.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "futures",
@@ -3628,20 +3493,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-panic-handler"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97549ec99cb289db2a9f5c656b6880f7c90097135e1ca6c6ae4fe5694232e526"
+name = "sp-metadata-ir"
+version = "0.1.0"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
- "backtrace",
- "lazy_static",
- "regex",
+ "frame-metadata",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
 ]
 
 [[package]]
 name = "sp-panic-handler"
 version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97549ec99cb289db2a9f5c656b6880f7c90097135e1ca6c6ae4fe5694232e526"
 dependencies = [
  "backtrace",
  "lazy_static",
@@ -3680,28 +3546,6 @@ dependencies = [
  "sp-io 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-weights 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-runtime"
-version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "either",
- "hash256-std-hasher",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "paste",
- "rand 0.8.5",
- "scale-info",
- "serde",
- "sp-application-crypto 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-arithmetic 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-io 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-weights 4.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
 ]
 
 [[package]]
@@ -3748,24 +3592,6 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "bytes 1.4.0",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "primitive-types",
- "sp-externalities 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime-interface-proc-macro 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-storage 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-tracing 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-wasm-interface 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "static_assertions",
-]
-
-[[package]]
-name = "sp-runtime-interface"
-version = "7.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "bytes 1.4.0",
@@ -3797,18 +3623,6 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "6.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "Inflector",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "sp-runtime-interface-proc-macro"
-version = "6.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "Inflector",
@@ -3821,13 +3635,14 @@ dependencies = [
 [[package]]
 name = "sp-staking"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "serde",
+ "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
 ]
 
 [[package]]
@@ -3851,26 +3666,6 @@ dependencies = [
  "thiserror",
  "tracing",
  "trie-root 0.17.0",
-]
-
-[[package]]
-name = "sp-state-machine"
-version = "0.13.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "hash-db 0.16.0",
- "log",
- "parity-scale-codec",
- "parking_lot",
- "rand 0.8.5",
- "smallvec",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-externalities 0.13.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-panic-handler 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-trie 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -3902,11 +3697,6 @@ checksum = "cf3fd4c1d304be101e6ebbafd3d4be9a37b320c970ef4e8df188b16873981c93"
 [[package]]
 name = "sp-std"
 version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-
-[[package]]
-name = "sp-std"
-version = "5.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 
 [[package]]
@@ -3921,19 +3711,6 @@ dependencies = [
  "serde",
  "sp-debug-derive 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-storage"
-version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "impl-serde",
- "parity-scale-codec",
- "ref-cast",
- "serde",
- "sp-debug-derive 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
 ]
 
 [[package]]
@@ -3957,18 +3734,6 @@ checksum = "e761df87dc940d87720939de8f976d1fc0657e523886ae0d7bf3f7e2e2f0abb6"
 dependencies = [
  "parity-scale-codec",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tracing",
- "tracing-core",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "sp-tracing"
-version = "6.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "parity-scale-codec",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -4013,29 +3778,6 @@ dependencies = [
 [[package]]
 name = "sp-trie"
 version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "ahash 0.8.3",
- "hash-db 0.16.0",
- "hashbrown 0.12.3",
- "lazy_static",
- "memory-db 0.32.0",
- "nohash-hasher",
- "parity-scale-codec",
- "parking_lot",
- "scale-info",
- "schnellru",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "thiserror",
- "tracing",
- "trie-db 0.27.1",
- "trie-root 0.18.0",
-]
-
-[[package]]
-name = "sp-trie"
-version = "7.0.0"
 source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#6c64fd8988fa453946c204ef33c49048d323df60"
 dependencies = [
  "ahash 0.8.3",
@@ -4059,7 +3801,7 @@ dependencies = [
 [[package]]
 name = "sp-version"
 version = "5.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -4067,8 +3809,8 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core-hashing-proc-macro",
- "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
+ "sp-runtime 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
+ "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42)",
  "sp-version-proc-macro",
  "thiserror",
 ]
@@ -4076,12 +3818,12 @@ dependencies = [
 [[package]]
 name = "sp-version-proc-macro"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
+source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.42#1e002bc989d3a83f5bcb003d0bacd025b161c5b1"
 dependencies = [
  "parity-scale-codec",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.17",
 ]
 
 [[package]]
@@ -4095,20 +3837,6 @@ dependencies = [
  "parity-scale-codec",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmi",
-]
-
-[[package]]
-name = "sp-wasm-interface"
-version = "7.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "anyhow",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "wasmi",
- "wasmtime",
 ]
 
 [[package]]
@@ -4140,21 +3868,6 @@ dependencies = [
  "sp-core 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-debug-derive 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-weights"
-version = "4.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41#a949d032e6d7436426b73ae8fc5e112cebc6dfa2"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "smallvec",
- "sp-arithmetic 6.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-core 7.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-debug-derive 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
- "sp-std 5.0.0 (git+https://github.com/Cardinal-Cryptography/substrate.git?branch=aleph-v0.9.41)",
 ]
 
 [[package]]
