@@ -12,7 +12,7 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
       CARGO_CONTRACT_VERSION: 3.0.1
-      RUST_TOOLCHAIN: nightly-2022-10-30-x86_64-unknown-linux-gnu
+      RUST_TOOLCHAIN: nightly-2023-01-10-x86_64-unknown-linux-gnu
       RUST_CONTRACTS_TOOLCHAIN: nightly-2023-01-10-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout source code

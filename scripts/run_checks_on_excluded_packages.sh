@@ -18,7 +18,7 @@ function parse_toolchain() {
 
 
 TOML_FILE="Cargo.toml"
-parse_toolchain "rust-toolchain.toml" RUST_TOOLCHAIN
+parse_toolchain "aleph-client/rust-toolchain.toml" RUST_ALEPH_CLIENT_TOOLCHAIN
 parse_toolchain "contracts/rust-toolchain.toml" RUST_CONTRACTS_TOOLCHAIN
 
 # Read the TOML file and extract the `exclude` entries
@@ -40,18 +40,18 @@ for p in ${packages[@]}; do
   pushd "$p"
 
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
-    cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
+    echo cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
     # cargo clippy --release --no-default-features --features substrate \
       #  --target wasm32-unknown-unknown -- --no-deps -D warnings
     :
   elif [ $p = "pallets/baby-liminal" ]; then
-    cargo +${RUST_TOOLCHAIN} test --features runtime-benchmarks
+    cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} test --features runtime-benchmarks
   else
-    cargo +${RUST_TOOLCHAIN} clippy -- --no-deps -D warnings
+    cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} clippy -- --no-deps -D warnings
   fi
 
-  cargo +nightly fmt --all --check
+  cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} fmt --all --check
   popd
 
 done

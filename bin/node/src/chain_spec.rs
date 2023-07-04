@@ -215,7 +215,6 @@ pub fn config(
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
     let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
-        .into_iter()
         .enumerate()
         .map(|(index, _account)| {
             account_id_from_string(format!("//{}//Controller", index).as_str())
