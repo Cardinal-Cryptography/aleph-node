@@ -11,21 +11,6 @@ on:
         type: boolean
 
 jobs:
-  remove-pr-label:
-    name: Remove PR label
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Remove deployment request label if exists
-        # yamllint disable rule:line-length
-        if: >
-          github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'trigger:run-button-e2e-tests')
-        # yamllint enable rule:line-length
-        uses: actions-ecosystem/action-remove-labels@v1.3.0
-        with:
-          labels: 'trigger:run-button-e2e-tests'
-          github_token: ${{ secrets.CI_GH_TOKEN }}
-
   check-vars-and-secrets:
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
@@ -68,6 +53,37 @@ jobs:
     needs: [run-e2e-button-contracts-tests]
     uses: ./.github/workflows/contracts-deploy.yml
     secrets: inherit
+
+  change-pr-labels:
+    name: Change pull request labels
+    needs: [run-e2e-button-contracts-tests]
+    runs-on: ubuntu-20.04
+    if: always()
+    steps:
+      - name: Remove deployment request label if exists
+        # yamllint disable rule:line-length
+        if: >
+          github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'trigger:run-button-e2e-tests')
+        # yamllint enable rule:line-length
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: 'trigger:run-button-e2e-tests'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Add label to mark that tests succeeded
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        with:
+          labels: 'state:button-e2e-tests-succeeded'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Add label to mark that tests failed
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        with:
+          labels: 'state:button-e2e-tests-failed'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
 
   send-slack-notification:
     name: Send Slack notification about workflow status
