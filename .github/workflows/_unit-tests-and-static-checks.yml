@@ -1,5 +1,5 @@
 ---
-name: Builds unit test binary and run unit tests, runs static rust code analysis and code formatting
+name: Builds unit test binary and run unit tests, runs static rust code analysis
 
 on:
   workflow_call:
@@ -11,6 +11,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
+      RUST_TOOLCHAIN: stable-2023-03-28
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v3
@@ -18,15 +19,9 @@ jobs:
       - name: Install Rust Toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
         with:
-          channel: nightly-2023-01-10
+          channel: ${{ env.RUST_TOOLCHAIN }}
           targets: wasm32-unknown-unknown
           components: clippy rustfmt
-
-      - name: Run Format Checks
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all
 
       - name: Run Linter
         uses: actions-rs/cargo@v1

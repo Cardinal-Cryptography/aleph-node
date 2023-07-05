@@ -1,0 +1,30 @@
+---
+name: Checks code formatting
+
+on:
+  workflow_call:
+
+jobs:
+  main:
+    name: Run check, test and lints
+    runs-on: [self-hosted, Linux, X64, large]
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
+      RUST_TOOLCHAIN: nightly-2023-01-10
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v3
+
+      - name: Install Nightly Rust Toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
+        with:
+          channel: ${{ RUST_TOOLCHAIN }}
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+
+      - name: Run Format Checks
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all

@@ -38,8 +38,6 @@ for p in ${packages[@]}; do
   echo "Checking package $p ..."
   pushd "$p"
 
-  cargo clean
-
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
     cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then

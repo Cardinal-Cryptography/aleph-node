@@ -17,6 +17,10 @@ jobs:
     name: Check excluded packages
     uses: ./.github/workflows/_check-excluded-packages.yml
 
+  code-formatting:
+    name: Check code formatting
+    uses: ./.github/workflows/_check-code-formatting.yml
+
   unit-tests-and-static-checks:
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
