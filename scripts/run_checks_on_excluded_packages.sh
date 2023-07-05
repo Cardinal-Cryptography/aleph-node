@@ -40,7 +40,7 @@ for p in ${packages[@]}; do
   pushd "$p"
 
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
-    echo cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
+    cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
     # cargo clippy --release --no-default-features --features substrate \
       #  --target wasm32-unknown-unknown -- --no-deps -D warnings

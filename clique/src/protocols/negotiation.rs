@@ -144,7 +144,7 @@ mod tests {
     fn correct_negotiation<S>(result: Result<(S, Protocol), ProtocolNegotiationError>) {
         match result {
             Ok((_stream, protocol)) => assert_eq!(Protocol::V1, protocol),
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -154,7 +154,7 @@ mod tests {
     ) {
         match result {
             Ok((_stream, protocol)) => {
-                panic!("Unexpectedly managed to negotiate protocol {:?}", protocol)
+                panic!("Unexpectedly managed to negotiate protocol {protocol:?}")
             }
             Err(e) => assert_eq!(expected_error, e),
         }

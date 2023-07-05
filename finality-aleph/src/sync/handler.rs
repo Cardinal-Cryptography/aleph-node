@@ -685,10 +685,7 @@ mod tests {
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(last_from_second_session));
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -722,10 +719,7 @@ mod tests {
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(top));
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -758,10 +752,7 @@ mod tests {
                 assert_eq!(justification, top);
                 assert!(maybe_justification.is_none());
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -807,10 +798,7 @@ mod tests {
                     );
                 }
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 

@@ -130,7 +130,7 @@ impl TestHandler {
 
     async fn assert_no_message_out(&mut self, err_message: &'static str) {
         let res = timeout(TIMEOUT_FAIL, self.network.next()).await;
-        assert!(res.is_err(), "{} (message out: {:?})", err_message, res);
+        assert!(res.is_err(), "{err_message} (message out: {res:?})");
     }
 
     async fn assert_message_out(&mut self, err_message: &'static str) -> TestData {
