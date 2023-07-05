@@ -103,9 +103,9 @@ where
         match self {
             InitializationError::Error(e) => match e {
                 Error::TooNew => write!(f, "there are more imported non-finalized blocks in the database that can fit into the forest – purge the block database and restart the node"),
-                e => write!(f, "{}", e),
+                e => write!(f, "{e}"),
             },
-            InitializationError::ChainStatus(e) => write!(f, "chain status error: {}", e),
+            InitializationError::ChainStatus(e) => write!(f, "chain status error: {e}"),
         }
     }
 }

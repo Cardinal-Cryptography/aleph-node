@@ -30,13 +30,12 @@ impl<PK: PublicKey> Display for HandshakeError<PK> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use HandshakeError::*;
         match self {
-            SendError(e) => write!(f, "send error: {}", e),
-            ReceiveError(e) => write!(f, "receive error: {}", e),
+            SendError(e) => write!(f, "send error: {e}"),
+            ReceiveError(e) => write!(f, "receive error: {e}"),
             SignatureError => write!(f, "signature error"),
             ChallengeError(expected, got) => write!(
                 f,
-                "challenge error, expected peer {}, received from {}",
-                expected, got
+                "challenge error, expected peer {expected}, received from {got}"
             ),
             TimedOut => write!(f, "timed out"),
         }

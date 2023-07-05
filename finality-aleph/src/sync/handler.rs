@@ -148,11 +148,11 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            Verifier(e) => write!(f, "verifier error: {}", e),
-            ChainStatus(e) => write!(f, "chain status error: {}", e),
-            Finalizer(e) => write!(f, "finalized error: {}", e),
-            Forest(e) => write!(f, "forest error: {}", e),
-            ForestInitialization(e) => write!(f, "forest initialization error: {}", e),
+            Verifier(e) => write!(f, "verifier error: {e}"),
+            ChainStatus(e) => write!(f, "chain status error: {e}"),
+            Finalizer(e) => write!(f, "finalized error: {e}"),
+            Forest(e) => write!(f, "forest error: {e}"),
+            ForestInitialization(e) => write!(f, "forest initialization error: {e}"),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
