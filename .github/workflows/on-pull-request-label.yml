@@ -27,18 +27,3 @@ jobs:
     name: Delete featurenet
     uses: ./.github/workflows/_delete-featurenet.yml
     secrets: inherit
-
-  slack:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "always"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}
