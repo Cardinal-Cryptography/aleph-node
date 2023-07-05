@@ -26,5 +26,5 @@ jobs:
       - name: Run Format Checks
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
+          command: +${{ env.RUST_TOOLCHAIN }} fmt
           args: --all

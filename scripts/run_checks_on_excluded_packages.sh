@@ -31,6 +31,12 @@ packages=$(echo "$packages" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' 
 
 packages="${packages//'%0A'/$'\n'}"
 
+echo "Toolchain:" ${RUST_ALEPH_CLIENT_TOOLCHAIN}
+pushd aleph-client
+cargo clean
+cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} build --release
+popd
+
 # Remove the key
 packages=${packages:10}
 for p in ${packages[@]}; do
