@@ -415,6 +415,11 @@ where
                 Ok(())
             };
 
+        // Loop logic:
+        // 1. get next justification, either direct child of previous or justification for the last
+        //    block of the session.
+        // 2. get chunk of blocks between justifications. Append to the response.
+        // 3. get chunk of header (in reverse orderd) between justifications. Append to the response.
         while let Some(justification) = self.next_justification(last_justification_sent.number())? {
             let justification_number = justification.id().number();
 
