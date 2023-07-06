@@ -390,24 +390,40 @@ where
         let mut last_justification_sent = their_top_justification.clone();
         let mut last_block_sent = their_top_imported.clone();
 
+        // helper, push chunk of blocks to chunks if there is non empty path of finalized blocks
+        // between from and to. `From` is not included while `to` is included in the path - if from
+        // is equal to `to` this result in empty path which is not appended to chunks.
+        let blocks_chunk =
+            |from, to, chunks: &mut Vec<_>| -> Result<(), <Self as HandlerTypes>::Error> {
+                // append blocks up to justification in increasing order if they dont have them
+                let blocks = self.finalized_blocks_between(from, to)?;
+                if !blocks.is_empty() {
+                    chunks.push(Chunk::Blocks(blocks));
+                }
+                Ok(())
+            };
+
+        // helper, push chunk of headers to chunks if there is non empty path of them
+        // between from and to. Headers are added in reversed order
+        let headers_chunk =
+            |from, to, chunks: &mut Vec<_>| -> Result<(), <Self as HandlerTypes>::Error> {
+                // append headers in reverse order, without justification.
+                let path = self.chain_status.headers_path(&from, &to)?;
+                if !path.is_empty() {
+                    chunks.push(Chunk::Headers(path))
+                }
+                Ok(())
+            };
+
         while let Some(justification) = self.next_justification(last_justification_sent.number())? {
             let justification_number = justification.id().number();
 
-            // append blocks up to justification in increasing order if they dont have them
-            let mut blocks =
-                self.finalized_blocks_between(last_block_sent.number(), justification_number)?;
-            if !blocks.is_empty() {
-                blocks.reverse();
-                chunks.push(Chunk::Blocks(blocks));
-            }
-
-            // append headers in reverse order
-            let path = self
-                .chain_status
-                .headers_path(&justification.id(), &last_justification_sent)?;
-            if !path.is_empty() {
-                chunks.push(Chunk::Headers(path))
-            }
+            blocks_chunk(last_block_sent.number(), justification_number, &mut chunks)?;
+            headers_chunk(
+                justification.id().clone(),
+                last_justification_sent.clone(),
+                &mut chunks,
+            )?;
 
             if justification_number > last_block_sent.number() {
                 last_block_sent = justification.id();
@@ -436,40 +452,41 @@ where
             .header()
             .id();
 
-        let block = self.chain_status.block(id.clone()).map_err(ChainStatus)?;
+        let block = match self.chain_status.block(id.clone()).map_err(ChainStatus)? {
+            Some(block) => block,
+            // we dont have block but its below our top justified = fork
+            None if id.number() <= our_top_justified.number() => return Ok(true),
+            // we dont have block and its over our top justified = we cant say if it is a fork or not
+            _ => return Ok(false),
+        };
 
-        if let Some(block) = block {
-            // if the block is under the top finalized check if the finaled block at block.number is
-            // equal to block
-            return if block.header().id().number() < our_top_justified.number() {
-                match self
-                    .chain_status
-                    .finalized_at(block.header().id().number())
-                    .map_err(ChainStatus)?
-                {
-                    FinalizationStatus::FinalizedWithJustification(j) => {
-                        Ok(j.header().id() != block.header().id())
-                    }
-                    FinalizationStatus::FinalizedByDescendant(header) => {
-                        Ok(header.id() != block.header().id())
-                    }
-                    FinalizationStatus::NotFinalized => Ok(true),
+        // if the block is under the top finalized check if the finalized block at block.number is
+        // equal to block
+        if block.header().id().number() < our_top_justified.number() {
+            match self
+                .chain_status
+                .finalized_at(block.header().id().number())
+                .map_err(ChainStatus)?
+            {
+                FinalizationStatus::FinalizedWithJustification(j) => {
+                    Ok(j.header().id() != block.header().id())
                 }
-            } else {
-                // otherwise check if block our top finalized is ancestor of the block
-                match self
-                    .chain_status
-                    .is_ancestor_of(&our_top_justified, &block.header().id())
-                {
-                    // if ancestor is unknown then we are not sure if the block is on the fork
-                    IsAncestor::Yes | IsAncestor::Unknown => Ok(false),
-                    IsAncestor::No => Ok(true),
+                FinalizationStatus::FinalizedByDescendant(header) => {
+                    Ok(header.id() != block.header().id())
                 }
-            };
+                FinalizationStatus::NotFinalized => Ok(true),
+            }
+        } else {
+            // otherwise check if our top finalized block is ancestor of the block
+            match self
+                .chain_status
+                .is_ancestor_of(&our_top_justified, &block.header().id())
+            {
+                // if ancestor is unknown then we are not sure if the block is on the fork
+                IsAncestor::Yes | IsAncestor::Unknown => Ok(false),
+                IsAncestor::No => Ok(true),
+            }
         }
-
-        // not sure if on fork
-        Ok(false)
     }
 
     fn chunks_to_target(

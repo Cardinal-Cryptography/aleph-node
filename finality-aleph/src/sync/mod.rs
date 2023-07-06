@@ -255,7 +255,7 @@ where
 {
     type Error: Display;
 
-    /// Path of blocks between two blocks. Does not include `from` and `to` blocks.
+    /// Path of blocks between two blocks. Does not include `to` block.
     ///
     /// `to` is an ancestor of the `from`.
     fn block_path(
@@ -264,7 +264,7 @@ where
         to: &BlockIdFor<J>,
     ) -> Result<Vec<B>, ChainStatusExtError<Self::Error, J>>;
 
-    /// Path of headers between two blocks. Does not include `from` and `to` headers..
+    /// Path of headers between two blocks. Does not include `to` header..
     ///
     /// `to` is an ancestor of the `from`.
     fn headers_path(
@@ -288,21 +288,40 @@ where
         from: &BlockIdFor<J>,
         to: &BlockIdFor<J>,
     ) -> Result<Vec<B>, ChainStatusExtError<Self::Error, J>> {
+        let mut blocks = vec![];
+        let headers = self.headers_path(from, to)?;
+        for header in headers {
+            let block = match self.block(header.id())? {
+                Some(b) => b,
+                None => return Err(ChainStatusExtError::MissingBlockInPath(header.id())),
+            };
+
+            blocks.push(block);
+        }
+
+        Ok(blocks)
+    }
+
+    fn headers_path(
+        &self,
+        from: &BlockIdFor<J>,
+        to: &BlockIdFor<J>,
+    ) -> Result<Vec<B::Header>, ChainStatusExtError<Self::Error, J>> {
         let mut current = from.clone();
         let mut path = vec![];
 
         while current != *to && current.number() > to.number() {
-            let block = match self.block(current.clone())? {
-                Some(block) => block,
+            let header = match self.header(current.clone())? {
+                Some(header) => header,
                 None => return Err(ChainStatusExtError::MissingBlockInPath(current)),
             };
 
-            current = match block.header().parent_id() {
+            current = match header.parent_id() {
                 Some(id) => id,
                 None => return Err(ChainStatusExtError::MissingBlockParent(current)),
             };
 
-            path.push(block);
+            path.push(header);
         }
 
         if current != *to {
@@ -315,21 +334,8 @@ where
         Ok(path)
     }
 
-    fn headers_path(
-        &self,
-        from: &BlockIdFor<J>,
-        to: &BlockIdFor<J>,
-    ) -> Result<Vec<B::Header>, ChainStatusExtError<Self::Error, J>> {
-        self.block_path(from, to).map(|blocks| {
-            blocks
-                .into_iter()
-                .map(|block| block.header().clone())
-                .collect()
-        })
-    }
-
     fn is_ancestor_of(&self, ancestor: &BlockIdFor<J>, of: &BlockIdFor<J>) -> IsAncestor {
-        match self.block_path(of, ancestor) {
+        match self.headers_path(of, ancestor) {
             Ok(_) => IsAncestor::Yes,
             Err(ChainStatusExtError::NoStraightPathBetween(..)) => IsAncestor::No,
             _ => IsAncestor::Unknown,
