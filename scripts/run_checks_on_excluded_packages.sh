@@ -32,6 +32,7 @@ packages="${packages//'%0A'/$'\n'}"
 
 # Remove the key
 packages=${packages:10}
+
 for p in ${packages[@]}; do
 
   echo "Checking package $p ..."
@@ -50,7 +51,6 @@ for p in ${packages[@]}; do
   fi
 
   cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} fmt --all --check
-
   popd
 
 done

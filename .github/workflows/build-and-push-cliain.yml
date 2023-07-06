@@ -34,6 +34,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
         with:
           channel: ${{ env.RUST_TOOLCHAIN }}
+
       - name: Cargo | Build release binary
         run: |
           if [[ ${{ matrix.runtime }} = 'liminal' ]]; then
