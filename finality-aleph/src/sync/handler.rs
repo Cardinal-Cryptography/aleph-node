@@ -4,7 +4,7 @@ use std::{
     iter,
 };
 
-use log::debug;
+use log::{debug, warn};
 use primitives::BlockNumber;
 
 use crate::{
@@ -507,6 +507,8 @@ where
             return Ok(chunks);
         }
 
+        // 1. we send headers from their last known header to last_justification_sent
+        // 2. we feed them blocks from bottom if possible
         let header_path = self
             .chain_status
             .headers_path(&last_header_known, &last_justification_sent)?;
@@ -514,12 +516,19 @@ where
             chunks.push(Chunk::Headers(header_path));
         }
 
-        // 1. we send headers from their last known header to last_justification_sent
-        // 2. we feed them blocks from bottom if possible
-        if last_justification_sent == last_block_sent {
-            let mut blocks = self.chain_status.block_path(&target, &last_block_sent)?;
-            blocks.reverse();
-            chunks.push(Chunk::Blocks(blocks));
+        // we can send blocks as well if we have them
+        if last_justification_sent.number() <= last_block_sent.number() {
+            let mut blocks = match self.chain_status.block_path(&target, &last_block_sent) {
+                Ok(blocks) => blocks,
+                Err(e) => {
+                    warn!(target: LOG_TARGET, "{}.", e);
+                    vec![]
+                }
+            };
+            if !blocks.is_empty() {
+                blocks.reverse();
+                chunks.push(Chunk::Blocks(blocks));
+            }
         }
 
         Ok(chunks)
@@ -555,7 +564,7 @@ where
                 .map(|(chunks, _)| chunks);
         }
 
-        // their last known_header is fork, this means their target is also fork. send the base response
+        // their last known_header is on fork, this means their target is also on fork. send the base response
         if self.is_on_fork(&their_last_known_header)? {
             return self
                 .base_response(&their_top_justification, &their_top_justification)
