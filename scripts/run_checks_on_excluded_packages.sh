@@ -16,6 +16,7 @@ function parse_toolchain() {
   eval $__resultvar="'$channel'"
 }
 
+cargo clean
 
 TOML_FILE="Cargo.toml"
 parse_toolchain "aleph-client/rust-toolchain.toml" RUST_ALEPH_CLIENT_TOOLCHAIN
@@ -38,6 +39,9 @@ for p in ${packages[@]}; do
   echo "Checking package $p ..."
   pushd "$p"
 
+  cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} fmt --all --check
+
+  echo "clippy $p ..."
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
     cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
@@ -50,7 +54,6 @@ for p in ${packages[@]}; do
     cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} clippy -- --no-deps -D warnings
   fi
 
-  cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} fmt --all --check
   popd
 
 done
