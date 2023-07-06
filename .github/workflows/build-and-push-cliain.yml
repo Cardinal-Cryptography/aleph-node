@@ -39,7 +39,7 @@ jobs:
           if [[ ${{ matrix.runtime }} = 'liminal' ]]; then
             FEATURES="--features liminal"
           fi
-          cd ./bin/cliain && cargo build +${{ env.RUST_TOOLCHAIN }} --release ${FEATURES}
+          cd ./bin/cliain && cargo +${{ env.RUST_TOOLCHAIN }} build --release ${FEATURES}
 
       - name: Test SNARK relations
         if: ${{ matrix.runtime == 'liminal' }}
