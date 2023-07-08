@@ -157,7 +157,7 @@ runs:
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
           fnet_bootstrap_chain_node_image="none"
         fi
-        ./Ops.sh create-featurenet \
+        ./Ops.sh create-featurenet-using-kustomize \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
           "${fnet_aleph_node_image}" \
           "${fnet_bootstrap_chain_node_image}" \
