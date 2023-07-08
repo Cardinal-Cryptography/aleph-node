@@ -61,7 +61,7 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
-        ref: main
+        ref: A0-2735-featurenet-using-devnets-kustomize
 
     - name: Checkout featurenets repo
       uses: actions/checkout@v3
