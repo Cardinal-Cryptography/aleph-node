@@ -176,23 +176,41 @@ impl<H: Key> Metrics<H> {
                 .iter()
                 .map(|k| (*k, LruCache::new(MAX_BLOCKS_PER_CHECKPOINT)))
                 .collect(),
-            sync_broadcast_counter: Counter::new("aleph_sync_broadcast", "no help")?,
-            sync_send_request_for_counter: Counter::new("aleph_sync_send_request_for", "no help")?,
-            sync_send_to_counter: Counter::new("aleph_sync_send_to", "no help")?,
-            sync_handle_state_counter: Counter::new("aleph_sync_handle_state", "no help")?,
-            sync_handle_justifications_counter: Counter::new(
-                "aleph_sync_handle_justifications",
-                "no help",
+            sync_broadcast_counter: register(
+                Counter::new("aleph_sync_broadcast", "no help")?,
+                registry,
             )?,
-            sync_handle_request_counter: Counter::new("aleph_sync_handle_request", "no help")?,
-            sync_handle_task_counter: Counter::new("aleph_sync_handle_task", "no help")?,
-            sync_handle_block_imported_counter: Counter::new(
-                "aleph_sync_handle_block_imported",
-                "no help",
+            sync_send_request_for_counter: register(
+                Counter::new("aleph_sync_send_request_for", "no help")?,
+                registry,
             )?,
-            sync_handle_block_finalized_counter: Counter::new(
-                "aleph_sync_handle_block_finalized",
-                "no help",
+            sync_send_to_counter: register(
+                Counter::new("aleph_sync_send_to", "no help")?,
+                registry,
+            )?,
+            sync_handle_state_counter: register(
+                Counter::new("aleph_sync_handle_state", "no help")?,
+                registry,
+            )?,
+            sync_handle_justifications_counter: register(
+                Counter::new("aleph_sync_handle_justifications", "no help")?,
+                registry,
+            )?,
+            sync_handle_request_counter: register(
+                Counter::new("aleph_sync_handle_request", "no help")?,
+                registry,
+            )?,
+            sync_handle_task_counter: register(
+                Counter::new("aleph_sync_handle_task", "no help")?,
+                registry,
+            )?,
+            sync_handle_block_imported_counter: register(
+                Counter::new("aleph_sync_handle_block_imported", "no help")?,
+                registry,
+            )?,
+            sync_handle_block_finalized_counter: register(
+                Counter::new("aleph_sync_handle_block_finalized", "no help")?,
+                registry,
             )?,
             network_send_times,
         })));
