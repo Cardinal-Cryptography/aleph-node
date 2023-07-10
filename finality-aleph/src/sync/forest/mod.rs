@@ -60,6 +60,7 @@ pub enum Error {
     IncorrectVertexState,
     ParentNotImported,
     TooNew,
+    TooOld,
 }
 
 impl Display for Error {
@@ -77,6 +78,7 @@ impl Display for Error {
                 write!(f, "parent was not imported when attempting to import block")
             }
             TooNew => write!(f, "block too new to be considered"),
+            TooOld => write!(f, "block too old to be considered"),
         }
     }
 }
@@ -287,7 +289,10 @@ where
     fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) -> Result<(), Error> {
         if id.number() > self.root_id.number() + MAX_DEPTH {
             return Err(Error::TooNew);
+        } else if id.number() < self.root_id.number() {
+            return Err(Error::TooOld);
         }
+
         self.vertices
             .entry(id)
             .or_insert_with(VertexWithChildren::new)

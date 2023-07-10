@@ -300,24 +300,30 @@ where
             peer
         );
 
-        let target_id = request.target_id().clone();
-
-        match self.handler.handle_request(request) {
-            Ok(Some(data)) => self.send_to(data, peer),
-            Ok(None) => (),
-            Err(e) => match e {
-                HandlerError::Verifier(e) => debug!(
-                    target: LOG_TARGET,
-                    "Could not verify justification from user: {}", e
-                ),
-                e => warn!(
-                    target: LOG_TARGET,
-                    "Error handling request from {:?}: {}.", peer, e
-                ),
-            },
+        let maybe_id = match self.handler.handle_request(request) {
+            Ok((Some(data), maybe_id)) => {
+                self.send_to(data, peer);
+                maybe_id
+            }
+            Ok((None, maybe_id)) => maybe_id,
+            Err(e) => {
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification from user: {}", e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Error handling request from {:?}: {}.", peer, e
+                    ),
+                };
+                None
+            }
         };
 
-        self.handle_internal_request(target_id);
+        if let Some(id) = maybe_id {
+            self.request_block(id);
+        }
     }
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {

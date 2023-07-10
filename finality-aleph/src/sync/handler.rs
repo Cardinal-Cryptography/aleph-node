@@ -75,7 +75,10 @@ where
 }
 
 type Chunks<B, J> = Vec<Chunk<B, J>>;
+
+type ChunksAndMaybeId<B, J> = (Chunks<B, J>, Option<BlockIdFor<J>>);
 type ChunksAndState<B, J> = (Chunks<B, J>, NewState<J>);
+type MaybeResponseAndId<B, J> = (Option<NetworkData<B, J>>, Option<BlockIdFor<J>>);
 
 fn into_vecs<B, J>(chunks: Chunks<B, J>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
 where
@@ -647,25 +650,32 @@ where
 
     fn most_helpful_response(
         &mut self,
-        their_top_justification: BlockIdFor<J>,
-        their_top_imported: BlockIdFor<J>,
-        their_last_known_header: BlockIdFor<J>,
-        target: BlockIdFor<J>,
-    ) -> Result<Chunks<B, J>, <Self as HandlerTypes>::Error> {
+        request: Request<J>,
+    ) -> Result<ChunksAndMaybeId<B, J>, <Self as HandlerTypes>::Error> {
+        use Error::*;
+        let their_top_justification = request.state().top_justification().id();
+        let target = request.target_id();
+        let branch_knowledge = request.branch_knowledge();
+
+        let (their_top_imported, their_last_known_header) = match branch_knowledge {
+            BranchKnowledge::LowestId(id) => (their_top_justification.clone(), id.clone()),
+            BranchKnowledge::TopImported(id) => (id.clone(), their_top_justification.clone()),
+        };
+
         match self.is_request_sane(
             &their_top_justification,
             &their_top_imported,
             &their_last_known_header,
-            &target,
+            target,
         )? {
-            RequestSanity::Insane => return Ok(vec![]),
+            RequestSanity::Insane => return Ok((vec![], None)),
             RequestSanity::Maybe {
                 top_justification,
                 top_imported,
             } => {
                 return self
                     .base_response(&top_justification, &top_imported)
-                    .map(|(chunks, _)| chunks);
+                    .map(|(chunks, _)| (chunks, None));
             }
             RequestSanity::Sane => {}
         }
@@ -681,7 +691,7 @@ where
             self.base_response(&their_top_justification, &their_top_imported)?;
 
         let rest = match self.chunks_to_target(
-            target,
+            target.clone(),
             their_new_state.top_justification,
             their_new_state.top_imported,
             their_last_known_header,
@@ -696,9 +706,26 @@ where
             }
         };
 
+        let maybe_id = match target.number()
+            > self
+                .chain_status
+                .top_finalized()
+                .map_err(ChainStatus)?
+                .header()
+                .id()
+                .number()
+            && rest.is_empty()
+        {
+            // this means we do not have a path to block that is above our top-finalized
+            true if self.forest.update_block_identifier(target, None, true)? => {
+                Some(target.clone())
+            }
+            _ => None,
+        };
+
         base_chunks.extend(rest);
 
-        Ok(base_chunks)
+        Ok((base_chunks, maybe_id))
     }
 
     /// Handle a request for potentially substantial amounts of data.
@@ -707,22 +734,8 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<Option<NetworkData<B, J>>, <Self as HandlerTypes>::Error> {
-        let their_top_justified = request.state().top_justification().id();
-        let target_id = request.target_id();
-        let branch_knowledge = request.branch_knowledge();
-
-        let (top_imported, last_known_header) = match branch_knowledge {
-            BranchKnowledge::LowestId(id) => (their_top_justified.clone(), id.clone()),
-            BranchKnowledge::TopImported(id) => (id.clone(), their_top_justified.clone()),
-        };
-
-        let chunks = self.most_helpful_response(
-            their_top_justified,
-            top_imported,
-            last_known_header,
-            target_id.clone(),
-        )?;
+    ) -> Result<MaybeResponseAndId<B, J>, <Self as HandlerTypes>::Error> {
+        let (chunks, maybe_id) = self.most_helpful_response(request)?;
 
         let maybe_response = match chunks.is_empty() {
             true => None,
@@ -736,7 +749,7 @@ where
             }
         };
 
-        Ok(maybe_response)
+        Ok((maybe_response, maybe_id))
     }
 
     /// Handle a single unverified justification.
@@ -1209,8 +1222,9 @@ mod tests {
                 MockHeader::random_parentless(0),
             )),
         );
-        let response = handler.handle_request(request).expect("Should not panic");
+        let (response, id) = handler.handle_request(request).expect("Should not panic");
         assert!(response.is_none());
+        assert!(id.is_none());
 
         // top_justified higher than lowest_id
         let request = Request::new(
@@ -1220,8 +1234,9 @@ mod tests {
                 MockHeader::random_parentless(9),
             )),
         );
-        let response = handler.handle_request(request).expect("Should not panic");
+        let (response, id) = handler.handle_request(request).expect("Should not panic");
         assert!(response.is_none());
+        assert!(id.is_none());
 
         // top_justified higher than top imported
         let request = Request::new(
@@ -1231,8 +1246,9 @@ mod tests {
                 MockHeader::random_parentless(9),
             )),
         );
-        let response = handler.handle_request(request).expect("Should not panic");
+        let (response, id) = handler.handle_request(request).expect("Should not panic");
         assert!(response.is_none());
+        assert!(id.is_none());
 
         // target lower than top imported
         let request = Request::new(
@@ -1242,8 +1258,9 @@ mod tests {
                 MockHeader::random_parentless(9),
             )),
         );
-        let response = handler.handle_request(request).expect("Should not panic");
+        let (response, id) = handler.handle_request(request).expect("Should not panic");
         assert!(response.is_none());
+        assert!(id.is_none());
     }
 
     fn setup_request_tests(
@@ -1307,7 +1324,10 @@ mod tests {
         ];
 
         match handler.handle_request(request).expect("correct request") {
-            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+            (
+                Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)),
+                None,
+            ) => {
                 let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
                 let sent_headers: Vec<_> =
                     sent_headers.into_iter().map(|h| h.id().number()).collect();
@@ -1347,7 +1367,10 @@ mod tests {
         let expected_headers = vec![18, 17, 16, 15, 14, 13, 12, 11, 10];
 
         match handler.handle_request(request).expect("correct request") {
-            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+            (
+                Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)),
+                None,
+            ) => {
                 let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
                 let sent_headers: Vec<_> =
                     sent_headers.into_iter().map(|h| h.id().number()).collect();
@@ -1387,7 +1410,10 @@ mod tests {
         let expected_headers = vec![18, 17, 16, 15, 14, 13, 12, 11, 10];
 
         match handler.handle_request(request).expect("correct request") {
-            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+            (
+                Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)),
+                None,
+            ) => {
                 let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
                 let sent_headers: Vec<_> =
                     sent_headers.into_iter().map(|h| h.id().number()).collect();
