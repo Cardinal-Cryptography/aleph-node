@@ -35,7 +35,6 @@ struct Inner<H: Key> {
     sync_handle_task_counter: Counter<U64>,
     sync_handle_block_imported_counter: Counter<U64>,
     sync_handle_block_finalized_counter: Counter<U64>,
-    sync_handle_internal_request_counter: Counter<U64>,
 }
 
 impl<H: Key> Inner<H> {
@@ -152,10 +151,6 @@ impl<H: Key> Metrics<H> {
                 "aleph_sync_handle_block_finalized",
                 "no help",
             )?,
-            sync_handle_internal_request_counter: Counter::new(
-                "aleph_sync_handle_internal_request",
-                "no help",
-            )?,
         })));
 
         Ok(Metrics { inner })
@@ -225,12 +220,6 @@ impl<H: Key> Metrics<H> {
     pub fn report_sync_handle_block_finalized(&self) {
         if let Some(inner) = &self.inner {
             inner.lock().sync_handle_block_finalized_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_internal_request(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_internal_request_counter.inc();
         }
     }
 }
