@@ -195,15 +195,15 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
             Some(sender) => {
                 match sender.try_send(data) {
                     Err(e) => {
-                        // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
-                        // No need to remove the entry here
                         if e.is_full() {
                             warn!(
                                 target: "aleph-network",
-                                "Failed sending data in mpsc_notification_stream_authentication to peer because peer_sender receiver is full: {:?}",
+                                "Failed sending data through authentication notification channel to peer because peer_sender receiver is full: {:?}",
                                 peer
                             );
                         }
+                        // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
+                        // No need to remove the entry here
                         if e.is_disconnected() {
                             trace!(target: "aleph-network", "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
                         }
@@ -226,7 +226,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         if e.is_full() {
                             warn!(
                                 target: "aleph-network",
-                                "Failed sending data in mpsc_notification_stream_block_sync to peer because peer_sender receiver is full: {:?}",
+                                "Failed sending data in block sync notification channel to peer because peer_sender receiver is full: {:?}",
                                 peer
                             );
                         }
