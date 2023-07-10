@@ -1253,7 +1253,7 @@ mod tests {
         finalize_up_to: usize,
     ) -> (Vec<MockJustification>, Vec<MockBlock>) {
         let peer = rand::random();
-        let headers = import_branch(&backend, branch_length);
+        let headers = import_branch(backend, branch_length);
         let mut justifications: Vec<_> = headers
             .clone()
             .into_iter()
@@ -1295,17 +1295,12 @@ mod tests {
 
         let (justifications, blocks) = setup_request_tests(&mut handler, &backend, 100, 100);
 
-        let requested_id = justifications.last().clone().unwrap().header().id();
+        let requested_id = justifications.last().unwrap().header().id();
         let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
 
         let expected_justifications_in_request: Vec<_> =
             justifications.into_iter().take(32).collect();
-        let expected_blocks: Vec<_> = blocks
-            .clone()
-            .into_iter()
-            .take(59)
-            .map(|b| b.id())
-            .collect();
+        let expected_blocks: Vec<_> = blocks.into_iter().take(59).map(|b| b.id()).collect();
         let expected_headers = vec![
             18, 17, 16, 15, 14, 13, 12, 11, 10, 38, 37, 36, 35, 34, 33, 32, 31, 30, 58, 57, 56, 55,
             54, 53, 52, 51, 50,
@@ -1348,12 +1343,7 @@ mod tests {
 
         let expected_justifications_in_request: Vec<_> =
             justifications.into_iter().take(11).collect();
-        let expected_blocks: Vec<_> = blocks
-            .clone()
-            .into_iter()
-            .take(31)
-            .map(|b| b.id())
-            .collect();
+        let expected_blocks: Vec<_> = blocks.into_iter().take(31).map(|b| b.id()).collect();
         let expected_headers = vec![18, 17, 16, 15, 14, 13, 12, 11, 10];
 
         match handler.handle_request(request).expect("correct request") {
@@ -1389,7 +1379,6 @@ mod tests {
         let expected_justifications_in_request: Vec<_> =
             justifications.into_iter().take(11).collect();
         let expected_blocks: Vec<_> = blocks
-            .clone()
             .into_iter()
             .skip(26)
             .take(5)
