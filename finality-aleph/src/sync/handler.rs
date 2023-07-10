@@ -64,7 +64,7 @@ where
     }
 }
 
-fn into_vecs<B, J>(chunks: Vec<Chunk<B, J>>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
+fn into_vecs<B, J>(chunks: Chunks<B, J>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
 where
     J: Justification,
     B: Block<Header = J::Header>,
@@ -94,6 +94,7 @@ where
     Headers(Vec<J::Header>),
 }
 
+type Chunks<B, J> = Vec<Chunk<B, J>>;
 #[derive(Debug)]
 struct NewState<J: Justification> {
     top_justification: BlockIdFor<J>,
@@ -356,9 +357,8 @@ where
             return Ok(None);
         }
 
-        match self.get_unverified_justification(next_number)? {
-            Some(justification) => return Ok(Some(justification)),
-            _ => {}
+        if let Some(justification) = self.get_unverified_justification(next_number)? {
+            return Ok(Some(justification));
         }
 
         // either we have justification under `next_number`
@@ -402,7 +402,7 @@ where
         &mut self,
         their_top_justification: &BlockIdFor<J>,
         their_top_imported: &BlockIdFor<J>,
-    ) -> Result<(Vec<Chunk<B, J>>, NewState<J>), <Self as HandlerTypes>::Error> {
+    ) -> Result<(Chunks<B, J>, NewState<J>), <Self as HandlerTypes>::Error> {
         let their_session = self
             .session_info
             .session_id_from_block_num(their_top_justification.number());
@@ -429,7 +429,7 @@ where
                              to: BlockIdFor<J>,
                              chunks: &mut Vec<_>|
          -> Result<(), <Self as HandlerTypes>::Error> {
-            if !(from.number() > to.number() + 1) {
+            if !from.number() <= to.number() + 1 {
                 return Ok(());
             }
             // append headers in reverse order, without justification.
@@ -474,7 +474,7 @@ where
         Ok((
             chunks,
             NewState {
-                top_justification: last_justification_sent.clone(),
+                top_justification: last_justification_sent,
                 top_imported: last_block_sent,
             },
         ))
@@ -533,7 +533,7 @@ where
         last_justification_sent: BlockIdFor<J>,
         last_block_sent: BlockIdFor<J>,
         last_header_known: BlockIdFor<J>,
-    ) -> Result<Vec<Chunk<B, J>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<Chunks<B, J>, <Self as HandlerTypes>::Error> {
         let mut chunks = vec![];
 
         if target.number() < last_justification_sent.number() {
@@ -602,7 +602,7 @@ where
                     top_justification: their_top_justification.clone(),
                 }),
                 false => {
-                    if self.is_on_fork(&their_top_imported)? {
+                    if self.is_on_fork(their_top_imported)? {
                         Ok(RequestSanity::Maybe {
                             top_imported: their_top_justification.clone(),
                             top_justification: their_top_justification.clone(),
@@ -618,7 +618,7 @@ where
         }
 
         // their top imported is fork, just send the base response
-        if self.is_on_fork(&their_top_imported)? {
+        if self.is_on_fork(their_top_imported)? {
             return Ok(RequestSanity::Maybe {
                 top_imported: their_top_justification.clone(),
                 top_justification: their_top_justification.clone(),
@@ -626,7 +626,7 @@ where
         }
 
         // their target is fork, send the base response but don't repeat blocks that they have
-        if self.is_on_fork(&target)? {
+        if self.is_on_fork(target)? {
             return Ok(RequestSanity::Maybe {
                 top_imported: their_top_imported.clone(),
                 top_justification: their_top_justification.clone(),
@@ -634,7 +634,7 @@ where
         }
 
         // their last known_header is on fork, this means their target is also on fork. send the base response
-        if self.is_on_fork(&their_last_known_header)? {
+        if self.is_on_fork(their_last_known_header)? {
             return Ok(RequestSanity::Maybe {
                 top_imported: their_top_justification.clone(),
                 top_justification: their_top_justification.clone(),
@@ -650,7 +650,7 @@ where
         their_top_imported: BlockIdFor<J>,
         their_last_known_header: BlockIdFor<J>,
         target: BlockIdFor<J>,
-    ) -> Result<Vec<Chunk<B, J>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<Chunks<B, J>, <Self as HandlerTypes>::Error> {
         match self.is_request_sane(
             &their_top_justification,
             &their_top_imported,
