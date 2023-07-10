@@ -242,7 +242,7 @@ where
 pub enum IsAncestor {
     /// Yes, it is.
     Yes,
-    /// No, it is.
+    /// No, it isn't.
     No,
     /// We don't know.
     Unknown,

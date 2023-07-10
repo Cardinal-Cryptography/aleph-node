@@ -19,6 +19,18 @@ use crate::{
     BlockIdentifier,
 };
 
+/// Chunks can be from at most 2 sessions into the 'future'
+const CHUNK_SESSION_LIMIT: SessionId = SessionId(2);
+
+enum RequestSanity<J: Justification> {
+    Insane,
+    Maybe {
+        top_justification: BlockIdFor<J>,
+        top_imported: BlockIdFor<J>,
+    },
+    Sane,
+}
+
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
@@ -82,6 +94,7 @@ where
     Headers(Vec<J::Header>),
 }
 
+#[derive(Debug)]
 struct NewState<J: Justification> {
     top_justification: BlockIdFor<J>,
     top_imported: BlockIdFor<J>,
@@ -334,8 +347,14 @@ where
     fn next_justification(
         &self,
         last_justification_number: BlockNumber,
+        session_limit: SessionId,
     ) -> Result<Option<J::Unverified>, <Self as HandlerTypes>::Error> {
         let next_number = last_justification_number + 1;
+        let session = self.session_info.session_id_from_block_num(next_number);
+
+        if session > session_limit {
+            return Ok(None);
+        }
 
         match self.get_unverified_justification(next_number)? {
             Some(justification) => return Ok(Some(justification)),
@@ -344,9 +363,7 @@ where
 
         // either we have justification under `next_number`
         // or we have to check last block of the session for it.
-        let last_block_of_session_number = self
-            .session_info
-            .last_block_of_session(self.session_info.session_id_from_block_num(next_number));
+        let last_block_of_session_number = self.session_info.last_block_of_session(session);
 
         match self.get_unverified_justification(last_block_of_session_number)? {
             Some(justification) => Ok(Some(justification)),
@@ -386,10 +403,13 @@ where
         their_top_justification: &BlockIdFor<J>,
         their_top_imported: &BlockIdFor<J>,
     ) -> Result<(Vec<Chunk<B, J>>, NewState<J>), <Self as HandlerTypes>::Error> {
+        let their_session = self
+            .session_info
+            .session_id_from_block_num(their_top_justification.number());
+        let upper_session = SessionId(their_session.0 + CHUNK_SESSION_LIMIT.0);
         let mut chunks = vec![];
         let mut last_justification_sent = their_top_justification.clone();
         let mut last_block_sent = their_top_imported.clone();
-
         // helper, push chunk of blocks to chunks if there is non empty path of finalized blocks
         // between from and to. `From` is not included while `to` is included in the path - if from
         // is equal to `to` this result in empty path which is not appended to chunks.
@@ -405,25 +425,38 @@ where
 
         // helper, push chunk of headers to chunks if there is non empty path of them
         // between from and to. Headers are added in reversed order
-        let headers_chunk =
-            |from, to, chunks: &mut Vec<_>| -> Result<(), <Self as HandlerTypes>::Error> {
-                // append headers in reverse order, without justification.
-                let path = self.chain_status.headers_path(&from, &to)?;
-                if !path.is_empty() {
-                    chunks.push(Chunk::Headers(path))
-                }
-                Ok(())
-            };
+        let headers_chunk = |from: BlockIdFor<J>,
+                             to: BlockIdFor<J>,
+                             chunks: &mut Vec<_>|
+         -> Result<(), <Self as HandlerTypes>::Error> {
+            if !(from.number() > to.number() + 1) {
+                return Ok(());
+            }
+            // append headers in reverse order, without justification.
+            let path: Vec<_> = self
+                .chain_status
+                .headers_path(&from, &to)?
+                .into_iter()
+                .skip(1)
+                .collect();
+            if !path.is_empty() {
+                chunks.push(Chunk::Headers(path))
+            }
+            Ok(())
+        };
 
         // Loop logic:
         // 1. get next justification, either direct child of previous or justification for the last
         //    block of the session.
         // 2. get chunk of blocks between justifications. Append to the response.
         // 3. get chunk of header (in reverse orderd) between justifications. Append to the response.
-        while let Some(justification) = self.next_justification(last_justification_sent.number())? {
+        while let Some(justification) =
+            self.next_justification(last_justification_sent.number(), upper_session)?
+        {
             let justification_number = justification.id().number();
 
             blocks_chunk(last_block_sent.number(), justification_number, &mut chunks)?;
+
             headers_chunk(
                 justification.id().clone(),
                 last_justification_sent.clone(),
@@ -509,11 +542,13 @@ where
 
         // 1. we send headers from their last known header to last_justification_sent
         // 2. we feed them blocks from bottom if possible
-        let header_path = self
-            .chain_status
-            .headers_path(&last_header_known, &last_justification_sent)?;
-        if !header_path.is_empty() {
-            chunks.push(Chunk::Headers(header_path));
+        if last_header_known.number() > last_justification_sent.number() {
+            let header_path = self
+                .chain_status
+                .headers_path(&last_header_known, &last_justification_sent)?;
+            if !header_path.is_empty() {
+                chunks.push(Chunk::Headers(header_path));
+            }
         }
 
         // we can send blocks as well if we have them
@@ -534,6 +569,81 @@ where
         Ok(chunks)
     }
 
+    fn is_request_sane(
+        &self,
+        their_top_justification: &BlockIdFor<J>,
+        their_top_imported: &BlockIdFor<J>,
+        their_last_known_header: &BlockIdFor<J>,
+        target: &BlockIdFor<J>,
+    ) -> Result<RequestSanity<J>, <Self as HandlerTypes>::Error> {
+        // smth is inherently wrong with the request, just send the base response
+        if target.number() < their_top_imported.number()
+            || target.number() < their_last_known_header.number()
+            || their_top_justification.number() > target.number()
+            || their_top_imported.number() < their_top_justification.number()
+            || their_top_justification.number() > their_last_known_header.number()
+        {
+            return Ok(RequestSanity::Insane);
+        }
+
+        let their_session = self
+            .session_info
+            .session_id_from_block_num(their_top_justification.number());
+        let upper_session = SessionId(their_session.0 + CHUNK_SESSION_LIMIT.0);
+        let target_session = self.session_info.session_id_from_block_num(target.number());
+        let top_imported_session = self
+            .session_info
+            .session_id_from_block_num(their_top_imported.number());
+
+        if target_session > upper_session {
+            return match top_imported_session > upper_session {
+                true => Ok(RequestSanity::Maybe {
+                    top_imported: their_top_justification.clone(),
+                    top_justification: their_top_justification.clone(),
+                }),
+                false => {
+                    if self.is_on_fork(&their_top_imported)? {
+                        Ok(RequestSanity::Maybe {
+                            top_imported: their_top_justification.clone(),
+                            top_justification: their_top_justification.clone(),
+                        })
+                    } else {
+                        Ok(RequestSanity::Maybe {
+                            top_imported: their_top_imported.clone(),
+                            top_justification: their_top_justification.clone(),
+                        })
+                    }
+                }
+            };
+        }
+
+        // their top imported is fork, just send the base response
+        if self.is_on_fork(&their_top_imported)? {
+            return Ok(RequestSanity::Maybe {
+                top_imported: their_top_justification.clone(),
+                top_justification: their_top_justification.clone(),
+            });
+        }
+
+        // their target is fork, send the base response but don't repeat blocks that they have
+        if self.is_on_fork(&target)? {
+            return Ok(RequestSanity::Maybe {
+                top_imported: their_top_imported.clone(),
+                top_justification: their_top_justification.clone(),
+            });
+        }
+
+        // their last known_header is on fork, this means their target is also on fork. send the base response
+        if self.is_on_fork(&their_last_known_header)? {
+            return Ok(RequestSanity::Maybe {
+                top_imported: their_top_justification.clone(),
+                top_justification: their_top_justification.clone(),
+            });
+        }
+
+        Ok(RequestSanity::Sane)
+    }
+
     fn most_helpful_response(
         &mut self,
         their_top_justification: BlockIdFor<J>,
@@ -541,34 +651,22 @@ where
         their_last_known_header: BlockIdFor<J>,
         target: BlockIdFor<J>,
     ) -> Result<Vec<Chunk<B, J>>, <Self as HandlerTypes>::Error> {
-        // smth is wrong with the request, just send the base response
-        if target.number() < their_top_imported.number()
-            || target.number() < their_last_known_header.number()
-        {
-            return self
-                .base_response(&their_top_justification, &their_top_justification)
-                .map(|(chunks, _)| chunks);
-        }
-
-        // their top imported is fork, just send the base response
-        if self.is_on_fork(&their_top_imported)? {
-            return self
-                .base_response(&their_top_justification, &their_top_justification)
-                .map(|(chunks, _)| chunks);
-        }
-
-        // their target is fork, send the base response but don't repeat blocks that they have
-        if self.is_on_fork(&target)? {
-            return self
-                .base_response(&their_top_justification, &their_top_imported)
-                .map(|(chunks, _)| chunks);
-        }
-
-        // their last known_header is on fork, this means their target is also on fork. send the base response
-        if self.is_on_fork(&their_last_known_header)? {
-            return self
-                .base_response(&their_top_justification, &their_top_justification)
-                .map(|(chunks, _)| chunks);
+        match self.is_request_sane(
+            &their_top_justification,
+            &their_top_imported,
+            &their_last_known_header,
+            &target,
+        )? {
+            RequestSanity::Insane => return Ok(vec![]),
+            RequestSanity::Maybe {
+                top_justification,
+                top_imported,
+            } => {
+                return self
+                    .base_response(&top_justification, &top_imported)
+                    .map(|(chunks, _)| chunks);
+            }
+            RequestSanity::Sane => {}
         }
 
         // Now we know:
@@ -833,8 +931,11 @@ mod tests {
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
-            data::{BranchKnowledge::*, NetworkData, Request},
-            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId, MockVerifier},
+            data::{BranchKnowledge, BranchKnowledge::*, NetworkData, Request, State},
+            mock::{
+                Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
+                MockVerifier,
+            },
             ChainStatus, Header, Justification,
         },
         BlockIdentifier, SessionPeriod,
@@ -1096,12 +1197,66 @@ mod tests {
     }
 
     #[test]
-    fn handles_request() {
-        let (mut handler, backend, _keep) = setup();
-        let initial_state = handler.state().expect("state works");
+    fn handles_insane_requests() {
+        let (mut handler, _, _keep) = setup();
+
+        // lowest_id higher than target
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::LowestId(MockIdentifier::new_random(12)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(0),
+            )),
+        );
+        let response = handler.handle_request(request).expect("Should not panic");
+        assert!(response.is_none());
+
+        // top_justified higher than lowest_id
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::LowestId(MockIdentifier::new_random(8)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request).expect("Should not panic");
+        assert!(response.is_none());
+
+        // top_justified higher than top imported
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::TopImported(MockIdentifier::new_random(8)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request).expect("Should not panic");
+        assert!(response.is_none());
+
+        // target lower than top imported
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::TopImported(MockIdentifier::new_random(11)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request).expect("Should not panic");
+        assert!(response.is_none());
+    }
+
+    fn setup_request_tests(
+        handler: &mut MockHandler,
+        backend: &Backend,
+        branch_length: usize,
+        finalize_up_to: usize,
+    ) -> (Vec<MockJustification>, Vec<MockBlock>) {
         let peer = rand::random();
-        let mut justifications: Vec<_> = import_branch(&backend, 500)
+        let headers = import_branch(&backend, branch_length);
+        let mut justifications: Vec<_> = headers
+            .clone()
             .into_iter()
+            .take(finalize_up_to - 1) // 0 is already imported
             .map(MockJustification::for_header)
             .collect();
         for justification in &justifications {
@@ -1117,25 +1272,138 @@ mod tests {
                     .expect("correct justification");
             }
         }
-        // currently ignored, so picking a random one
-        let requested_id = justifications[43].header().id();
-        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
+
+        let blocks = headers
+            .into_iter()
+            .map(|h| backend.block(h.id()).unwrap().unwrap())
+            .collect();
+
         // filter justifications, these are supposed to be included in the response
         justifications.retain(|j| {
             let number = j.header().id().number();
             number % 20 < 10 || number % 20 == 19
         });
+
+        (justifications, blocks)
+    }
+
+    #[test]
+    fn handles_request_maybe_insane_request() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (justifications, blocks) = setup_request_tests(&mut handler, &backend, 100, 100);
+
+        let requested_id = justifications.last().clone().unwrap().header().id();
+        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
+
+        let expected_justifications_in_request: Vec<_> =
+            justifications.into_iter().take(32).collect();
+        let expected_blocks: Vec<_> = blocks
+            .clone()
+            .into_iter()
+            .take(59)
+            .map(|b| b.id())
+            .collect();
+        let expected_headers = vec![
+            18, 17, 16, 15, 14, 13, 12, 11, 10, 38, 37, 36, 35, 34, 33, 32, 31, 30, 58, 57, 56, 55,
+            54, 53, 52, 51, 50,
+        ];
+
         match handler.handle_request(request).expect("correct request") {
-            Some(NetworkData::RequestResponse(sent_justifications, _, _)) => {
-                assert_eq!(sent_justifications.len(), 100);
-                for (sent_justification, justification) in
-                    sent_justifications.iter().zip(justifications)
-                {
-                    assert_eq!(
-                        sent_justification.header().id(),
-                        justification.header().id()
-                    );
-                }
+            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+                let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
+            }
+            other_action => panic!(
+                "expected a response with justifications, got {:?}",
+                other_action
+            ),
+        }
+    }
+
+    #[test]
+    fn handles_request_sane_request_with_lowest_id() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (justifications, blocks) = setup_request_tests(&mut handler, &backend, 100, 20);
+
+        let requested_id = blocks[30].clone().id();
+        let lowest_id = justifications
+            .last()
+            .expect("at least 20 finalized blocks")
+            .clone()
+            .header()
+            .id();
+
+        // request block #31, with the last known header equal to last finalized block of the previous session
+        // so block #19
+        let request = Request::new(requested_id, LowestId(lowest_id), initial_state);
+
+        let expected_justifications_in_request: Vec<_> =
+            justifications.into_iter().take(11).collect();
+        let expected_blocks: Vec<_> = blocks
+            .clone()
+            .into_iter()
+            .take(31)
+            .map(|b| b.id())
+            .collect();
+        let expected_headers = vec![18, 17, 16, 15, 14, 13, 12, 11, 10];
+
+        match handler.handle_request(request).expect("correct request") {
+            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+                let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
+            }
+            other_action => panic!(
+                "expected a response with justifications, got {:?}",
+                other_action
+            ),
+        }
+    }
+
+    #[test]
+    fn handles_request_sane_request_with_top_imported() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (justifications, blocks) = setup_request_tests(&mut handler, &backend, 100, 20);
+
+        let requested_id = blocks[30].clone().id();
+        let top_imported = blocks[25].clone().id();
+
+        // request block #31, with the last known header equal to last finalized block of the previous session
+        // so block #19
+        let request = Request::new(requested_id, TopImported(top_imported), initial_state);
+
+        let expected_justifications_in_request: Vec<_> =
+            justifications.into_iter().take(11).collect();
+        let expected_blocks: Vec<_> = blocks
+            .clone()
+            .into_iter()
+            .skip(26)
+            .take(5)
+            .map(|b| b.id())
+            .collect();
+        let expected_headers = vec![18, 17, 16, 15, 14, 13, 12, 11, 10];
+
+        match handler.handle_request(request).expect("correct request") {
+            Some(NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks)) => {
+                let sent_blocks: Vec<_> = sent_blocks.into_iter().map(|b| b.id()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
             }
             other_action => panic!(
                 "expected a response with justifications, got {:?}",
