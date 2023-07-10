@@ -64,6 +64,19 @@ where
     }
 }
 
+enum Chunk<B, J>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+{
+    Blocks(Vec<B>),
+    Justification(J::Unverified),
+    Headers(Vec<J::Header>),
+}
+
+type Chunks<B, J> = Vec<Chunk<B, J>>;
+type ChunksAndState<B, J> = (Chunks<B, J>, NewState<J>);
+
 fn into_vecs<B, J>(chunks: Chunks<B, J>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
 where
     J: Justification,
@@ -83,18 +96,6 @@ where
 
     (blocks, justifications, headers)
 }
-
-enum Chunk<B, J>
-where
-    J: Justification,
-    B: Block<Header = J::Header>,
-{
-    Blocks(Vec<B>),
-    Justification(J::Unverified),
-    Headers(Vec<J::Header>),
-}
-
-type Chunks<B, J> = Vec<Chunk<B, J>>;
 #[derive(Debug)]
 struct NewState<J: Justification> {
     top_justification: BlockIdFor<J>,
@@ -402,7 +403,7 @@ where
         &mut self,
         their_top_justification: &BlockIdFor<J>,
         their_top_imported: &BlockIdFor<J>,
-    ) -> Result<(Chunks<B, J>, NewState<J>), <Self as HandlerTypes>::Error> {
+    ) -> Result<ChunksAndState<B, J>, <Self as HandlerTypes>::Error> {
         let their_session = self
             .session_info
             .session_id_from_block_num(their_top_justification.number());
