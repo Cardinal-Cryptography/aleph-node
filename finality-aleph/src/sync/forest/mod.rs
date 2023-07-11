@@ -116,7 +116,7 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
             InitializationError::Error(e) => match e {
-                Error::Special(SpecialState::BelowMinimal) => write!(f, "there are more imported non-finalized blocks in the database that can fit into the forest – purge the block database and restart the node"),
+                Error::Special(SpecialState::TooNew) => write!(f, "there are more imported non-finalized blocks in the database that can fit into the forest – purge the block database and restart the node"),
                 e => write!(f, "{}", e),
             },
             InitializationError::ChainStatus(e) => write!(f, "chain status error: {}", e),
