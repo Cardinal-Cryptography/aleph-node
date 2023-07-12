@@ -39,7 +39,11 @@ def flags_from_dict(d):
     for k, v in d.items():
         res.append(flag(k))
         if v is not True:
-            res.append(str(v))
+            val = str(v)
+            if ' ' in val:
+                res += val.split(' ')
+            else:
+                res.append(val)
     return res
 
 
