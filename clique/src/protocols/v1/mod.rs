@@ -59,7 +59,7 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
             send_data(sender, to_send),
         )
         .await
-        .map_err(|_| ProtocolError::Timeout)??;
+        .map_err(|_| ProtocolError::SendTimeout)??;
     }
 }
 
