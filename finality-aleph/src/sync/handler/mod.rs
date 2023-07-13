@@ -9,14 +9,14 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
-        Block, BlockIdFor, BlockImport, ChainStatus, FinalizationStatus, Finalizer, Header,
-        Justification, PeerId, Verifier,
+        handler::request_handler::{into_vecs, RequestHandler, RequestHandlerError},
+        Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
+        Verifier,
     },
     BlockIdentifier,
 };
 
-/// How many justifications we will send at most in response to an explicit query.
-pub const MAX_JUSTIFICATION_BATCH: usize = 100;
+mod request_handler;
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -133,6 +133,7 @@ where
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
+    RequestHandlerError(RequestHandlerError<CS::Error>),
     MissingJustification,
     BlockNotImportable,
 }
@@ -160,6 +161,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
+            RequestHandlerError(e) => write!(f, "request handler error: {}", e),
         }
     }
 }
@@ -174,6 +176,18 @@ where
 {
     fn from(e: ForestError) -> Self {
         Error::Forest(e)
+    }
+}
+impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
+    fn from(e: RequestHandlerError<CS::Error>) -> Self {
+        Error::RequestHandlerError(e)
     }
 }
 
@@ -271,43 +285,28 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<Option<NetworkData<B, J>>, <Self as HandlerTypes>::Error> {
-        use FinalizationStatus::*;
-        let mut number = request.state().top_justification().id().number() + 1;
-        let mut justifications = vec![];
-        while justifications.len() < MAX_JUSTIFICATION_BATCH {
-            match self
-                .chain_status
-                .finalized_at(number)
-                .map_err(Error::ChainStatus)?
-            {
-                FinalizedWithJustification(justification) => {
-                    justifications.push(justification.into_unverified());
-                    number += 1;
-                }
-                _ => {
-                    number = self
-                        .session_info
-                        .last_block_of_session(self.session_info.session_id_from_block_num(number));
-                    match self
-                        .chain_status
-                        .finalized_at(number)
-                        .map_err(Error::ChainStatus)?
-                    {
-                        FinalizedWithJustification(justification) => {
-                            justifications.push(justification.into_unverified());
-                            number += 1;
-                        }
-                        _ => break,
-                    };
-                }
-            }
-        }
-        Ok(Some(NetworkData::RequestResponse(
-            justifications,
-            Vec::new(),
-            Vec::new(),
-        )))
+    ) -> Result<(NetworkData<B, J>, Option<BlockIdFor<J>>), <Self as HandlerTypes>::Error> {
+        let target_id = request.target_id().clone();
+        let request_handler = RequestHandler::new(&self.chain_status, &self.session_info);
+
+        let (chunks, should_request) = request_handler.response(request)?;
+        let (blocks, justifications, headers) = into_vecs(chunks);
+
+        let should_request = should_request
+            && self
+                .forest
+                .update_block_identifier(&target_id, None, true)?;
+
+        let maybe_id = if should_request {
+            Some(target_id)
+        } else {
+            None
+        };
+
+        Ok((
+            NetworkData::RequestResponse(justifications, headers, blocks),
+            maybe_id,
+        ))
     }
 
     /// Handle a single unverified justification.
@@ -503,11 +502,15 @@ mod tests {
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
-            data::{BranchKnowledge::*, NetworkData, Request},
-            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId, MockVerifier},
+            data::{BranchKnowledge, BranchKnowledge::*, NetworkData, Request, State},
+            handler::{request_handler::RequestHandlerError, Error},
+            mock::{
+                Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
+                MockVerifier,
+            },
             ChainStatus, Header, Justification,
         },
-        BlockIdentifier, SessionPeriod,
+        BlockIdentifier, BlockNumber, SessionPeriod,
     };
 
     type MockHandler =
@@ -766,12 +769,78 @@ mod tests {
     }
 
     #[test]
-    fn handles_request() {
-        let (mut handler, backend, _keep) = setup();
-        let initial_state = handler.state().expect("state works");
+    fn handles_insane_requests() {
+        let (mut handler, _, _keep) = setup();
+
+        // lowest_id higher than target
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::LowestId(MockIdentifier::new_random(12)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(0),
+            )),
+        );
+        let response = handler.handle_request(request);
+        assert!(matches!(
+            response,
+            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
+        ));
+
+        // top_justified higher than lowest_id
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::LowestId(MockIdentifier::new_random(8)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request);
+        assert!(matches!(
+            response,
+            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
+        ));
+
+        // top_justified higher than top imported
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::TopImported(MockIdentifier::new_random(8)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request);
+        assert!(matches!(
+            response,
+            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
+        ));
+
+        // target lower than top imported
+        let request = Request::new(
+            MockIdentifier::new_random(10),
+            BranchKnowledge::TopImported(MockIdentifier::new_random(11)),
+            State::new(MockJustification::for_header(
+                MockHeader::random_parentless(9),
+            )),
+        );
+        let response = handler.handle_request(request);
+        assert!(matches!(
+            response,
+            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
+        ));
+    }
+
+    fn setup_request_tests(
+        handler: &mut MockHandler,
+        backend: &Backend,
+        branch_length: usize,
+        finalize_up_to: usize,
+    ) -> (Vec<MockJustification>, Vec<MockBlock>) {
         let peer = rand::random();
-        let mut justifications: Vec<_> = import_branch(&backend, 500)
+        let headers = import_branch(backend, branch_length);
+        let mut justifications: Vec<_> = headers
+            .clone()
             .into_iter()
+            .take(finalize_up_to - 1) // 0 is already imported
             .map(MockJustification::for_header)
             .collect();
         for justification in &justifications {
@@ -787,25 +856,145 @@ mod tests {
                     .expect("correct justification");
             }
         }
-        // currently ignored, so picking a random one
-        let requested_id = justifications[43].header().id();
-        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
+
+        let blocks = headers
+            .into_iter()
+            .map(|h| backend.block(h.id()).unwrap().unwrap())
+            .collect();
+
         // filter justifications, these are supposed to be included in the response
         justifications.retain(|j| {
             let number = j.header().id().number();
             number % 20 < 10 || number % 20 == 19
         });
+
+        (justifications, blocks)
+    }
+
+    #[test]
+    fn handles_request_too_far_into_future() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (justifications, _) = setup_request_tests(&mut handler, &backend, 100, 100);
+
+        let requested_id = justifications.last().unwrap().header().id();
+        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
+
+        let expected_justifications_in_request: Vec<u32> = vec![];
+        let expected_blocks: Vec<u32> = vec![];
+        let expected_headers: Vec<u32> = vec![];
+
         match handler.handle_request(request).expect("correct request") {
-            Some(NetworkData::RequestResponse(sent_justifications, _, _)) => {
-                assert_eq!(sent_justifications.len(), 100);
-                for (sent_justification, justification) in
-                    sent_justifications.iter().zip(justifications)
-                {
-                    assert_eq!(
-                        sent_justification.header().id(),
-                        justification.header().id()
-                    );
-                }
+            (
+                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                None,
+            ) => {
+                let sent_justifications: Vec<_> = sent_justifications
+                    .into_iter()
+                    .map(|h| h.id().number())
+                    .collect();
+                let sent_blocks: Vec<_> =
+                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
+            }
+            other_action => panic!(
+                "expected a response with justifications, got {:?}",
+                other_action
+            ),
+        }
+    }
+
+    #[test]
+    fn handles_request_sane_request_with_lowest_id() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (justifications, blocks) = setup_request_tests(&mut handler, &backend, 100, 20);
+
+        let requested_id = blocks[30].clone().id();
+        let lowest_id = justifications
+            .last()
+            .expect("at least 20 finalized blocks")
+            .clone()
+            .header()
+            .id();
+
+        // request block #31, with the last known header equal to last finalized block of the previous session
+        // so block #19
+        let request = Request::new(requested_id, LowestId(lowest_id), initial_state);
+
+        let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        let expected_blocks: Vec<_> = (1..=31).into_iter().collect();
+        let expected_headers: Vec<_> = (1..19).into_iter().rev().collect();
+
+        match handler.handle_request(request).expect("correct request") {
+            (
+                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                None,
+            ) => {
+                let sent_justifications: Vec<_> = sent_justifications
+                    .into_iter()
+                    .map(|h| h.id().number())
+                    .collect();
+                let sent_blocks: Vec<_> =
+                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
+            }
+            other_action => panic!(
+                "expected a response with justifications, got {:?}",
+                other_action
+            ),
+        }
+    }
+
+    #[test]
+    fn handles_request_sane_request_with_top_imported() {
+        let (mut handler, backend, _keep) = setup();
+        let initial_state = handler.state().expect("state works");
+
+        let (_, blocks) = setup_request_tests(&mut handler, &backend, 100, 20);
+
+        let requested_id = blocks[30].clone().id();
+        let top_imported = blocks[25].clone().id();
+
+        // request block #31, with the last known header equal to last finalized block of the previous session
+        // so block #19
+        let request = Request::new(requested_id, TopImported(top_imported), initial_state);
+
+        let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        let expected_blocks: Vec<_> = blocks
+            .into_iter()
+            .skip(26)
+            .take(5)
+            .map(|b| b.id().number())
+            .collect();
+        let expected_headers: Vec<BlockNumber> = vec![];
+
+        match handler.handle_request(request).expect("correct request") {
+            (
+                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                None,
+            ) => {
+                let sent_justifications: Vec<_> = sent_justifications
+                    .into_iter()
+                    .map(|h| h.id().number())
+                    .collect();
+                let sent_blocks: Vec<_> =
+                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
+                let sent_headers: Vec<_> =
+                    sent_headers.into_iter().map(|h| h.id().number()).collect();
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_blocks, expected_blocks);
+                assert_eq!(sent_headers, expected_headers)
             }
             other_action => panic!(
                 "expected a response with justifications, got {:?}",

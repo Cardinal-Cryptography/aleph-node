@@ -288,6 +288,11 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
         Ok(self.inner.lock().blockchain.get(&id).cloned())
     }
 
+    fn header(&self, id: MockIdentifier) -> Result<Option<MockHeader>, Self::Error> {
+        let storage = self.inner.lock();
+        Ok(storage.blockchain.get(&id).map(|b| b.header.clone()))
+    }
+
     fn finalized_at(
         &self,
         number: u32,

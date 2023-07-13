@@ -300,8 +300,12 @@ where
             peer
         );
         match self.handler.handle_request(request) {
-            Ok(Some(data)) => self.send_to(data, peer),
-            Ok(None) => (),
+            Ok((data, maybe_id)) => {
+                self.send_to(data, peer);
+                if let Some(id) = maybe_id {
+                    self.request_block(id);
+                }
+            }
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,

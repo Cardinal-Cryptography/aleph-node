@@ -257,4 +257,8 @@ impl ChainStatus<SubstrateSyncBlock, Justification> for SubstrateChainStatus {
             .flatten()
             .collect())
     }
+
+    fn header(&self, id: BlockIdFor<Justification>) -> Result<Option<AlephHeader>, Self::Error> {
+        self.header(&id)
+    }
 }
