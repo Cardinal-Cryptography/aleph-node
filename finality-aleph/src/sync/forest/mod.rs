@@ -292,16 +292,17 @@ where
 
     fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) -> Result<(), Error> {
         match self.special_state(&id) {
-            Some(SpecialState::TooNew) => return Err(Error::TooNew),
-            Some(_) => return Ok(()),
-            _ => {}
+            Some(SpecialState::TooNew) => Err(Error::TooNew),
+            Some(_) => Ok(()),
+            _ => {
+                self.vertices
+                    .entry(id)
+                    .or_insert_with(VertexWithChildren::new)
+                    .vertex
+                    .add_block_holder(holder);
+                Ok(())
+            }
         }
-        self.vertices
-            .entry(id)
-            .or_insert_with(VertexWithChildren::new)
-            .vertex
-            .add_block_holder(holder);
-        Ok(())
     }
 
     fn process_header(&mut self, header: &J::Header) -> Result<Edge<J>, Error> {
