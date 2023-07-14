@@ -71,7 +71,7 @@ impl<J: Justification> Request<J> {
             BranchKnowledge::TopImported(id) => id.number(),
         };
 
-        return target_number >= knowledge_number && knowledge_number >= top_number;
+        target_number >= knowledge_number && knowledge_number >= top_number
     }
 }
 

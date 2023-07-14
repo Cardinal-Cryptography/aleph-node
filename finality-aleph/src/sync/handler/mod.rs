@@ -9,7 +9,7 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
-        handler::request_handler::{into_vecs, RequestHandler, RequestHandlerError},
+        handler::request_handler::{into_vecs, RequestHandler, RequestHandlerError, Response},
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
@@ -17,6 +17,18 @@ use crate::{
 };
 
 mod request_handler;
+
+#[derive(Debug)]
+pub struct RequestResponse<B, J>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+{
+    /// response to send over to requester
+    pub response: NetworkData<B, J>,
+    /// id of block to request if we have interest in it
+    pub block_to_request: Option<BlockIdFor<J>>,
+}
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -285,28 +297,31 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<(NetworkData<B, J>, Option<BlockIdFor<J>>), <Self as HandlerTypes>::Error> {
+    ) -> Result<RequestResponse<B, J>, <Self as HandlerTypes>::Error> {
         let target_id = request.target_id().clone();
         let request_handler = RequestHandler::new(&self.chain_status, &self.session_info);
 
-        let (chunks, should_request) = request_handler.response(request)?;
+        let Response {
+            chunks,
+            block_to_request,
+        } = request_handler.response(request)?;
         let (blocks, justifications, headers) = into_vecs(chunks);
 
-        let should_request = should_request
-            && self
-                .forest
-                .update_block_identifier(&target_id, None, true)?;
-
-        let maybe_id = if should_request {
-            Some(target_id)
-        } else {
-            None
+        let block_to_request = match block_to_request {
+            Some(id)
+                if self
+                    .forest
+                    .update_block_identifier(&target_id, None, true)? =>
+            {
+                Some(id)
+            }
+            _ => None,
         };
 
-        Ok((
-            NetworkData::RequestResponse(justifications, headers, blocks),
-            maybe_id,
-        ))
+        Ok(RequestResponse {
+            response: NetworkData::RequestResponse(justifications, headers, blocks),
+            block_to_request,
+        })
     }
 
     /// Handle a single unverified justification.
@@ -503,7 +518,7 @@ mod tests {
         session::SessionBoundaryInfo,
         sync::{
             data::{BranchKnowledge, BranchKnowledge::*, NetworkData, Request, State},
-            handler::{request_handler::RequestHandlerError, Error},
+            handler::{request_handler::RequestHandlerError, Error, RequestResponse},
             mock::{
                 Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
                 MockVerifier,
@@ -886,10 +901,11 @@ mod tests {
         let expected_headers: Vec<u32> = vec![];
 
         match handler.handle_request(request).expect("correct request") {
-            (
-                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                None,
-            ) => {
+            RequestResponse {
+                response:
+                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                block_to_request: None,
+            } => {
                 let sent_justifications: Vec<_> = sent_justifications
                     .into_iter()
                     .map(|h| h.id().number())
@@ -933,10 +949,11 @@ mod tests {
         let expected_headers: Vec<_> = (1..19).into_iter().rev().collect();
 
         match handler.handle_request(request).expect("correct request") {
-            (
-                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                None,
-            ) => {
+            RequestResponse {
+                response:
+                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                block_to_request: None,
+            } => {
                 let sent_justifications: Vec<_> = sent_justifications
                     .into_iter()
                     .map(|h| h.id().number())
@@ -980,10 +997,11 @@ mod tests {
         let expected_headers: Vec<BlockNumber> = vec![];
 
         match handler.handle_request(request).expect("correct request") {
-            (
-                NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                None,
-            ) => {
+            RequestResponse {
+                response:
+                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
+                block_to_request: None,
+            } => {
                 let sent_justifications: Vec<_> = sent_justifications
                     .into_iter()
                     .map(|h| h.id().number())

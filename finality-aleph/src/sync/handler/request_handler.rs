@@ -45,6 +45,10 @@ impl<T: Display> Display for RequestHandlerError<T> {
 }
 
 type HandlerResult<T, Error> = Result<T, RequestHandlerError<Error>>;
+type JustificationBlockAndHeader<J, B> =
+    (Option<J>, Option<B>, Option<<J as Justification>::Header>);
+type JustificationAndBlock<J, B> = (Option<J>, Option<B>);
+type StepResult<B, J> = (State, HeadOfChunk<B, J>, Vec<Chunk<B, J>>);
 
 pub enum Chunk<B, J>
 where
@@ -54,6 +58,35 @@ where
     Justification(J::Unverified),
     Blocks(Vec<B>),
     Headers(Vec<J::Header>),
+}
+
+pub struct Response<B, J>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+{
+    pub chunks: Vec<Chunk<B, J>>,
+    pub block_to_request: Option<BlockIdFor<J>>,
+}
+
+impl<B, J> Response<B, J>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+{
+    fn request_block(id: BlockIdFor<J>) -> Self {
+        Self {
+            chunks: vec![],
+            block_to_request: Some(id),
+        }
+    }
+
+    fn from_chunks(chunks: Vec<Chunk<B, J>>) -> Self {
+        Self {
+            chunks,
+            block_to_request: None,
+        }
+    }
 }
 
 pub fn into_vecs<B, J>(chunks: Vec<Chunk<B, J>>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
@@ -113,7 +146,7 @@ where
         }
     }
 
-    fn to_chunks(self) -> Vec<Chunk<B, J>> {
+    fn into_chunks(self) -> Vec<Chunk<B, J>> {
         let mut chunks = vec![];
 
         if let Some(j) = self.just {
@@ -196,8 +229,8 @@ where
     fn get_justification_block_and_header(
         &self,
         id: BlockIdFor<J>,
-    ) -> HandlerResult<(Option<J>, Option<B>, Option<J::Header>), CS::Error> {
-        let (justification, block) = self.get_justification_and_block(id.clone())?;
+    ) -> HandlerResult<JustificationBlockAndHeader<J, B>, CS::Error> {
+        let (justification, block) = self.get_justification_and_block(id)?;
         let header = block.as_ref().map(|b| b.header().clone());
         Ok((justification, block, header))
     }
@@ -205,14 +238,14 @@ where
     fn get_justification_and_block(
         &self,
         id: BlockIdFor<J>,
-    ) -> HandlerResult<(Option<J>, Option<B>), CS::Error> {
+    ) -> HandlerResult<JustificationAndBlock<J, B>, CS::Error> {
         let justification = self.get_justification(id.clone())?;
-        let block = self.chain_status.block(id.clone())?;
+        let block = self.chain_status.block(id)?;
         Ok((justification, block))
     }
 
     fn get_justification(&self, id: BlockIdFor<J>) -> HandlerResult<Option<J>, CS::Error> {
-        match self.chain_status.status_of(id.clone())? {
+        match self.chain_status.status_of(id)? {
             BlockStatus::Justified(justification) => Ok(Some(justification)),
             BlockStatus::Present(_) => Ok(None),
             BlockStatus::Unknown => Err(RequestHandlerError::RootMismatch),
@@ -234,7 +267,7 @@ where
         from: HeadOfChunk<B, J>,
         to: &BlockIdFor<J>,
         branch_knowledge: &BranchKnowledge<J>,
-    ) -> HandlerResult<(State, HeadOfChunk<B, J>, Vec<Chunk<B, J>>), CS::Error> {
+    ) -> HandlerResult<StepResult<B, J>, CS::Error> {
         let mut pre_chunk = PreChunk::new();
         let mut head_chunk = from;
         let mut state = state;
@@ -301,13 +334,12 @@ where
                 _ => state,
             };
 
-            match &head_chunk {
-                HeadOfChunk::Justification(_, _, _) => break,
-                _ => {}
+            if let HeadOfChunk::Justification(_, _, _) = &head_chunk {
+                break;
             }
         }
 
-        Ok((state, head_chunk, pre_chunk.to_chunks()))
+        Ok((state, head_chunk, pre_chunk.into_chunks()))
     }
 
     fn chunks(
@@ -333,10 +365,7 @@ where
         Ok(chunks)
     }
 
-    pub fn response(
-        self,
-        request: Request<J>,
-    ) -> Result<(Vec<Chunk<B, J>>, bool), RequestHandlerError<CS::Error>> {
+    pub fn response(self, request: Request<J>) -> HandlerResult<Response<B, J>, CS::Error> {
         if !request.is_valid() {
             return Err(RequestHandlerError::BadRequest);
         }
@@ -349,11 +378,11 @@ where
 
         // request too far into future
         if target.number() > upper_limit {
-            return Ok((vec![], false));
+            return Ok(Response::from_chunks(vec![]));
         }
 
         let head = match self.chain_status.status_of(target.clone())? {
-            BlockStatus::Unknown => return Ok((vec![], true)),
+            BlockStatus::Unknown => return Ok(Response::request_block(target.clone())),
             BlockStatus::Justified(justification) => {
                 let b = self.get_block(justification.header().id())?;
                 HeadOfChunk::Justification(justification, b, None)
@@ -389,6 +418,6 @@ where
             top_justification.id(),
         )?;
 
-        Ok((chunks, false))
+        Ok(Response::from_chunks(chunks))
     }
 }
