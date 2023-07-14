@@ -78,7 +78,7 @@ impl Display for Error {
             ParentNotImported => {
                 write!(f, "parent was not imported when attempting to import block")
             }
-            TooNew => write!(f, "block is to new"),
+            TooNew => write!(f, "block is too new"),
         }
     }
 }
