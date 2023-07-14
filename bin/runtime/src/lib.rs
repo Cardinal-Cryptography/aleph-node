@@ -799,7 +799,7 @@ construct_runtime!(
         NominationPools: pallet_nomination_pools,
         Identity: pallet_identity,
         CommitteeManagement: pallet_committee_management,
-        WestendBridgeGrandpa: pallet_bridge_grandpa::{Pallet, Call, Storage, Event<T>, Config<T>},
+        BridgeWestendGrandpa: pallet_bridge_grandpa::{Pallet, Call, Storage, Event<T>, Config<T>},
         BridgeAlephParachain: pallet_bridge_parachains::{Pallet, Call, Storage, Event<T>},
     }
 );
@@ -930,7 +930,7 @@ impl_runtime_apis! {
 
     impl bp_westend::WestendFinalityApi<Block> for Runtime {
         fn best_finalized() -> Option<bp_runtime::HeaderId<bp_westend::Hash, bp_westend::BlockNumber>> {
-            WestendBridgeGrandpa::best_finalized()
+            BridgeWestendGrandpa::best_finalized()
         }
     }
 
