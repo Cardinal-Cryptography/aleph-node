@@ -298,7 +298,6 @@ where
         &mut self,
         request: Request<J>,
     ) -> Result<RequestResponse<B, J>, <Self as HandlerTypes>::Error> {
-        let target_id = request.target_id().clone();
         let request_handler = RequestHandler::new(&self.chain_status, &self.session_info);
 
         let Response {
@@ -311,7 +310,7 @@ where
             Some(id)
                 if self
                     .forest
-                    .update_block_identifier(&target_id, None, true)? =>
+                    .update_block_identifier(&id, None, true)? =>
             {
                 Some(id)
             }
