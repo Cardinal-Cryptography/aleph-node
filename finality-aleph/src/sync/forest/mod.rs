@@ -294,7 +294,7 @@ where
         match self.special_state(&id) {
             Some(SpecialState::TooNew) => return Err(Error::TooNew),
             Some(_) => return Ok(()),
-            _ => {},
+            _ => {}
         }
         self.vertices
             .entry(id)
