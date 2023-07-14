@@ -11,7 +11,7 @@ def generate_keys(binary, phrases):
     Returns an ordered dictionary with phrases as keys and corresponding public keys as values.
     The order follows the order in `phrases`.
     """
-    check_file(binary)
+    binary = check_file(binary)
     regexp = re.compile(r'SS58 Address:\s*(\w+)$', re.MULTILINE)
     res = OrderedDict()
     for p in phrases:
@@ -23,6 +23,7 @@ def generate_keys(binary, phrases):
 
 def check_file(path):
     """Ensure the provided path points to an existing file."""
+    path = op.expandvars(path)
     if not op.isfile(path):
         raise FileNotFoundError(f'file not found: {path}')
     return path

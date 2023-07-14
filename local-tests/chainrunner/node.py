@@ -162,7 +162,7 @@ class Node:
         Optionally `purge` node's database.
         Restart the node with new `name`.
         Returns the highest finalized block seen by node before shutdown."""
-        check_file(new_binary)
+        new_binary = check_file(new_binary)
         self.stop()
         time.sleep(5)
         highest_finalized = check_finalized([self])[0]

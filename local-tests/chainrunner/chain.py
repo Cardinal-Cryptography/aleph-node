@@ -36,8 +36,8 @@ class Chain:
         with public keys. Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
         nonvalidators = nonvalidators or []
-        cmd = [check_file(binary),
-               'bootstrap-chain',
+        binary = check_file(binary)
+        cmd = [binary, 'bootstrap-chain',
                '--base-path', self.path,
                '--account-ids', ','.join(validators)]
         if raw:
@@ -49,8 +49,7 @@ class Chain:
             subprocess.run(cmd, stdout=f, check=True)
 
         for nv in nonvalidators:
-            cmd = [check_file(binary),
-                   'bootstrap-node',
+            cmd = [binary, 'bootstrap-node',
                    '--base-path', join(self.path, nv),
                    '--account-id', nv]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
@@ -111,7 +110,7 @@ class Chain:
         """Replace nodes' binary with `binary`. Optional `nodes` argument can be used to specify
         which nodes are affected and should be a list of integer indices (0..N-1).
         Affects all nodes if omitted."""
-        check_file(binary)
+        binary = check_file(binary)
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].binary = binary
