@@ -9,7 +9,7 @@ use crate::{
     sync::{
         data::{NetworkData, Request, State},
         forest::{Error as ForestError, Forest, InitializationError as ForestInitializationError},
-        handler::request_handler::{into_vecs, RequestHandler, RequestHandlerError, Response},
+        handler::request_handler::{RequestHandler, RequestHandlerError},
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
@@ -17,18 +17,7 @@ use crate::{
 };
 
 mod request_handler;
-
-#[derive(Debug)]
-pub struct RequestResponse<B, J>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-{
-    /// response to send over to requester
-    pub response: NetworkData<B, J>,
-    /// id of block to request if we have interest in it
-    pub block_to_request: Option<BlockIdFor<J>>,
-}
+pub use request_handler::Action;
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -297,29 +286,16 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<RequestResponse<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<Action<B, J>, <Self as HandlerTypes>::Error> {
         let request_handler = RequestHandler::new(&self.chain_status, &self.session_info);
 
-        let Response {
-            chunks,
-            block_to_request,
-        } = request_handler.response(request)?;
-        let (blocks, justifications, headers) = into_vecs(chunks);
-
-        let block_to_request = match block_to_request {
-            Some(id)
-                if self
-                    .forest
-                    .update_block_identifier(&id, None, true)? =>
+        Ok(match request_handler.action(request)? {
+            Action::RequestBlock(id)
+                if !self.forest.update_block_identifier(&id, None, true)? =>
             {
-                Some(id)
+                Action::Noop
             }
-            _ => None,
-        };
-
-        Ok(RequestResponse {
-            response: NetworkData::RequestResponse(justifications, headers, blocks),
-            block_to_request,
+            action => action,
         })
     }
 
@@ -516,8 +492,8 @@ mod tests {
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
-            data::{BranchKnowledge, BranchKnowledge::*, NetworkData, Request, State},
-            handler::{request_handler::RequestHandlerError, Error, RequestResponse},
+            data::{BranchKnowledge::*, NetworkData, Request, State},
+            handler::Action,
             mock::{
                 Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
                 MockVerifier,
@@ -782,67 +758,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn handles_insane_requests() {
-        let (mut handler, _, _keep) = setup();
-
-        // lowest_id higher than target
-        let request = Request::new(
-            MockIdentifier::new_random(10),
-            BranchKnowledge::LowestId(MockIdentifier::new_random(12)),
-            State::new(MockJustification::for_header(
-                MockHeader::random_parentless(0),
-            )),
-        );
-        let response = handler.handle_request(request);
-        assert!(matches!(
-            response,
-            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
-        ));
-
-        // top_justified higher than lowest_id
-        let request = Request::new(
-            MockIdentifier::new_random(10),
-            BranchKnowledge::LowestId(MockIdentifier::new_random(8)),
-            State::new(MockJustification::for_header(
-                MockHeader::random_parentless(9),
-            )),
-        );
-        let response = handler.handle_request(request);
-        assert!(matches!(
-            response,
-            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
-        ));
-
-        // top_justified higher than top imported
-        let request = Request::new(
-            MockIdentifier::new_random(10),
-            BranchKnowledge::TopImported(MockIdentifier::new_random(8)),
-            State::new(MockJustification::for_header(
-                MockHeader::random_parentless(9),
-            )),
-        );
-        let response = handler.handle_request(request);
-        assert!(matches!(
-            response,
-            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
-        ));
-
-        // target lower than top imported
-        let request = Request::new(
-            MockIdentifier::new_random(10),
-            BranchKnowledge::TopImported(MockIdentifier::new_random(11)),
-            State::new(MockJustification::for_header(
-                MockHeader::random_parentless(9),
-            )),
-        );
-        let response = handler.handle_request(request);
-        assert!(matches!(
-            response,
-            Err(Error::RequestHandlerError(RequestHandlerError::BadRequest))
-        ));
-    }
-
     fn setup_request_tests(
         handler: &mut MockHandler,
         backend: &Backend,
@@ -895,28 +810,8 @@ mod tests {
         let requested_id = justifications.last().unwrap().header().id();
         let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
 
-        let expected_justifications_in_request: Vec<u32> = vec![];
-        let expected_blocks: Vec<u32> = vec![];
-        let expected_headers: Vec<u32> = vec![];
-
         match handler.handle_request(request).expect("correct request") {
-            RequestResponse {
-                response:
-                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                block_to_request: None,
-            } => {
-                let sent_justifications: Vec<_> = sent_justifications
-                    .into_iter()
-                    .map(|h| h.id().number())
-                    .collect();
-                let sent_blocks: Vec<_> =
-                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
-                let sent_headers: Vec<_> =
-                    sent_headers.into_iter().map(|h| h.id().number()).collect();
-                assert_eq!(sent_justifications, expected_justifications_in_request);
-                assert_eq!(sent_blocks, expected_blocks);
-                assert_eq!(sent_headers, expected_headers)
-            }
+            Action::Noop => {}
             other_action => panic!(
                 "expected a response with justifications, got {:?}",
                 other_action
@@ -925,7 +820,7 @@ mod tests {
     }
 
     #[test]
-    fn handles_request_sane_request_with_lowest_id() {
+    fn handles_request_with_lowest_id() {
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
 
@@ -948,11 +843,7 @@ mod tests {
         let expected_headers: Vec<_> = (1..19).into_iter().rev().collect();
 
         match handler.handle_request(request).expect("correct request") {
-            RequestResponse {
-                response:
-                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                block_to_request: None,
-            } => {
+            Action::Response(sent_justifications, sent_blocks, sent_headers) => {
                 let sent_justifications: Vec<_> = sent_justifications
                     .into_iter()
                     .map(|h| h.id().number())
@@ -961,10 +852,31 @@ mod tests {
                     sent_blocks.into_iter().map(|b| b.id().number()).collect();
                 let sent_headers: Vec<_> =
                     sent_headers.into_iter().map(|h| h.id().number()).collect();
-                assert_eq!(sent_justifications, expected_justifications_in_request);
                 assert_eq!(sent_blocks, expected_blocks);
-                assert_eq!(sent_headers, expected_headers)
+                assert_eq!(sent_headers, expected_headers);
+                assert_eq!(sent_justifications, expected_justifications_in_request);
             }
+            other_action => panic!(
+                "expected a response with justifications, got {:?}",
+                other_action
+            ),
+        }
+    }
+    #[test]
+    fn handles_request_with_unknown_id() {
+        let (mut handler, backend, _keep) = setup();
+        setup_request_tests(&mut handler, &backend, 100, 20);
+
+        let state = State::new(MockJustification::for_header(
+            MockHeader::random_parentless(105),
+        ));
+        let requested_id = MockIdentifier::new_random(120);
+        let lowest_id = MockIdentifier::new_random(110);
+
+        let request = Request::new(requested_id.clone(), LowestId(lowest_id), state);
+
+        match handler.handle_request(request).expect("correct request") {
+            Action::RequestBlock(id) => assert_eq!(id, requested_id),
             other_action => panic!(
                 "expected a response with justifications, got {:?}",
                 other_action
@@ -973,7 +885,7 @@ mod tests {
     }
 
     #[test]
-    fn handles_request_sane_request_with_top_imported() {
+    fn handles_request_with_top_imported() {
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
 
@@ -996,11 +908,7 @@ mod tests {
         let expected_headers: Vec<BlockNumber> = vec![];
 
         match handler.handle_request(request).expect("correct request") {
-            RequestResponse {
-                response:
-                    NetworkData::RequestResponse(sent_justifications, sent_headers, sent_blocks),
-                block_to_request: None,
-            } => {
+            Action::Response(sent_justifications, sent_blocks, sent_headers) => {
                 let sent_justifications: Vec<_> = sent_justifications
                     .into_iter()
                     .map(|h| h.id().number())
@@ -1009,9 +917,9 @@ mod tests {
                     sent_blocks.into_iter().map(|b| b.id().number()).collect();
                 let sent_headers: Vec<_> =
                     sent_headers.into_iter().map(|h| h.id().number()).collect();
-                assert_eq!(sent_justifications, expected_justifications_in_request);
                 assert_eq!(sent_blocks, expected_blocks);
-                assert_eq!(sent_headers, expected_headers)
+                assert_eq!(sent_justifications, expected_justifications_in_request);
+                assert_eq!(sent_headers, expected_headers);
             }
             other_action => panic!(
                 "expected a response with justifications, got {:?}",

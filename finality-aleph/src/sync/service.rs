@@ -10,7 +10,7 @@ use crate::{
     session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, HandleStateAction, Handler, RequestResponse},
+        handler::{Action, Error as HandlerError, HandleStateAction, Handler},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -300,15 +300,10 @@ where
             peer
         );
         match self.handler.handle_request(request) {
-            Ok(RequestResponse {
-                response,
-                block_to_request,
-            }) => {
-                self.send_to(response, peer);
-                if let Some(id) = block_to_request {
-                    self.request_block(id);
-                }
+            Ok(Action::Response(js, bs, hs)) => {
+                self.send_to(NetworkData::RequestResponse(js, hs, bs), peer);
             }
+            Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -319,6 +314,7 @@ where
                     "Error handling request from {:?}: {}.", peer, e
                 ),
             },
+            _ => {}
         }
     }
 

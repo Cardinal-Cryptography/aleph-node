@@ -6,8 +6,8 @@ use parity_scale_codec::{Decode, Encode, Error as CodecError, Input as CodecInpu
 use crate::{
     aleph_primitives::MAX_BLOCK_SIZE,
     network::GossipNetwork,
-    sync::{Block, BlockIdFor, Header, Justification, LOG_TARGET},
-    BlockIdentifier, Version,
+    sync::{Block, BlockIdFor, Justification, LOG_TARGET},
+    Version,
 };
 
 /// The representation of the database state to be sent to other nodes.
@@ -60,18 +60,6 @@ impl<J: Justification> Request<J> {
             branch_knowledge,
             state,
         }
-    }
-
-    pub fn is_valid(&self) -> bool {
-        let target_number = self.target_id.number();
-        let top_number = self.state.top_justification.id().number();
-
-        let knowledge_number = match &self.branch_knowledge {
-            BranchKnowledge::LowestId(id) => id.number(),
-            BranchKnowledge::TopImported(id) => id.number(),
-        };
-
-        target_number >= knowledge_number && knowledge_number >= top_number
     }
 }
 
