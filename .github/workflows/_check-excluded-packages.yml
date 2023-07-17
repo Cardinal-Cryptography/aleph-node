@@ -60,6 +60,9 @@ jobs:
             install aleph-zero-cargo-nono --locked
 
       - name: Check excluded packages
+        env:
+          RUSTC_WRAPPER: ""
+          RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
           ./scripts/run_checks_on_excluded_packages.sh
 
