@@ -5,7 +5,7 @@ set -euo pipefail
 # --- FUNCTIONS
 
 function stop_ink_builder() {
-  docker stop ink_builder
+  docker stop ink_builder && docker rm ink_builder
 }
 
 function run_ink_builder() {
