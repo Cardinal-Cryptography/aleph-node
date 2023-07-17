@@ -17,7 +17,6 @@ jobs:
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
-      RUST_TOOLCHAIN: nightly-2023-01-10
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v3
@@ -45,14 +44,12 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
-        with:
-          channel: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Build binary and docker image
         run: |
           cd e2e-tests/
           rm -f target/release/deps/aleph_e2e_client*
-          cp $(cargo +${{ env.RUST_TOOLCHAIN }} test --no-run --release --message-format=json \
+          cp $(cargo test --no-run --release --message-format=json \
             | jq -r .executable | grep aleph_e2e_client) target/release/aleph-e2e-client
           docker build --tag aleph-e2e-client:latest -f Dockerfile .
           docker save -o aleph-e2e-client.tar aleph-e2e-client:latest

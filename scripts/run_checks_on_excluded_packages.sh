@@ -37,22 +37,22 @@ for p in ${packages[@]}; do
 
   echo "Checking package $p ..."
   pushd "$p"
-
-  cargo clean
+  pwd
+  cargo --version
 
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
-    cargo +${RUST_CONTRACTS_TOOLCHAIN} contract check
+    cargo contract check
   elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
     # cargo clippy --release --no-default-features --features substrate \
       #  --target wasm32-unknown-unknown -- --no-deps -D warnings
     :
   elif [ $p = "pallets/baby-liminal" ]; then
-    cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} test --features runtime-benchmarks
+    cargo test --features runtime-benchmarks
   else
-    cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} clippy --release -- --no-deps -D warnings
+    cargo clippy --release -- --no-deps -D warnings
   fi
 
-  cargo +${RUST_ALEPH_CLIENT_TOOLCHAIN} fmt --all --check
+  cargo +$RUST_ALEPH_CLIENT_TOOLCHAIN fmt --all --check
   popd
 
 done

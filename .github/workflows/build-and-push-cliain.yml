@@ -25,22 +25,20 @@ jobs:
       ECR_PUBLIC_REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
       AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
       AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-      RUST_TOOLCHAIN: nightly-2023-01-10
     steps:
       - name: GIT | Checkout source code
         uses: actions/checkout@v3
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
-        with:
-          channel: ${{ env.RUST_TOOLCHAIN }}
+        # toolchain doesn't matter, it will be overridden by bin/cliain/rust-toolchain.toml
 
       - name: Cargo | Build release binary
         run: |
           if [[ ${{ matrix.runtime }} = 'liminal' ]]; then
             FEATURES="--features liminal"
           fi
-          cd ./bin/cliain && cargo +${{ env.RUST_TOOLCHAIN }} build --release ${FEATURES}
+          cd ./bin/cliain && cargo build --release ${FEATURES}
 
       - name: Test SNARK relations
         if: ${{ matrix.runtime == 'liminal' }}
