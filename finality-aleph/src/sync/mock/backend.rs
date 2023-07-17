@@ -147,9 +147,7 @@ impl Finalizer<MockJustification> for Backend {
 
     fn finalize(&self, justification: MockJustification) -> Result<(), Self::Error> {
         if !justification.is_correct {
-            panic!(
-                "finalizing block with an incorrect justification: {justification:?}"
-            );
+            panic!("finalizing block with an incorrect justification: {justification:?}");
         }
 
         let mut storage = self.inner.lock();

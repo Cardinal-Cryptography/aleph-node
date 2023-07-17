@@ -32,7 +32,7 @@ packages="${packages//'%0A'/$'\n'}"
 # Remove the key
 packages=${packages:10}
 
-for p in "${packages[@]}"; do
+for p in ${packages[@]}; do
 
   echo "Checking package $p ..."
   pushd "$p"

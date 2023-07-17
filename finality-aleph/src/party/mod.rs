@@ -107,9 +107,7 @@ where
             .await
             .await
         {
-            Err(e) => panic!(
-                "Error while receiving the notification about current session {e:?}"
-            ),
+            Err(e) => panic!("Error while receiving the notification about current session {e:?}"),
             Ok(authority_data) => authority_data,
         };
         let authorities = authority_data.authorities();

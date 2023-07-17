@@ -25,10 +25,7 @@ impl<PK: PublicKey, A: Data, ND: Dialer<A>> Display for OutgoingError<PK, A, ND>
                 f,
                 "communication with {addr} failed, protocol negotiation error: {e}"
             ),
-            Protocol(addr, e) => write!(
-                f,
-                "communication with {addr} failed, protocol error: {e}"
-            ),
+            Protocol(addr, e) => write!(f, "communication with {addr} failed, protocol error: {e}"),
             TimedOut => write!(f, "dial timeout",),
         }
     }

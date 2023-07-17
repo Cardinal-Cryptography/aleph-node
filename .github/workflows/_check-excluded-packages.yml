@@ -68,5 +68,3 @@ jobs:
           cd ../relations/ark/
           ${CHECK}
           ${CHECK} --features circuit
-          
-        

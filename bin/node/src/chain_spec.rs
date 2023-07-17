@@ -216,9 +216,7 @@ pub fn config(
 ) -> Result<ChainSpec, String> {
     let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
         .enumerate()
-        .map(|(index, _account)| {
-            account_id_from_string(format!("//{index}//Controller").as_str())
-        })
+        .map(|(index, _account)| account_id_from_string(format!("//{index}//Controller").as_str()))
         .collect();
     generate_chain_spec_config(chain_params, authorities, controller_accounts)
 }

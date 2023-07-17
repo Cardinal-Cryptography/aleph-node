@@ -124,9 +124,7 @@ fn bootstrap_backup(base_path_with_account_id: &Path, backup_dir: &str) {
 
     if backup_path.exists() {
         if !backup_path.is_dir() {
-            panic!(
-                "Could not create backup directory at {backup_path:?}. Path is already a file."
-            );
+            panic!("Could not create backup directory at {backup_path:?}. Path is already a file.");
         }
     } else {
         fs::create_dir_all(backup_path).expect("Could not create backup directory.");

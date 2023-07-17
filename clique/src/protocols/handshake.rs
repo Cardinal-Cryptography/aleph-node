@@ -196,18 +196,14 @@ mod tests {
     fn assert_send_error<T: std::fmt::Debug>(result: Result<T, HandshakeError<MockPublicKey>>) {
         match result {
             Err(HandshakeError::SendError(_)) => (),
-            x => panic!(
-                "should end with HandshakeError::SendError, but we got {x:?}"
-            ),
+            x => panic!("should end with HandshakeError::SendError, but we got {x:?}"),
         };
     }
 
     fn assert_receive_error<T: std::fmt::Debug>(result: Result<T, HandshakeError<MockPublicKey>>) {
         match result {
             Err(HandshakeError::ReceiveError(_)) => (),
-            x => panic!(
-                "should end with HandshakeError::ReceiveError, but we got {x:?}"
-            ),
+            x => panic!("should end with HandshakeError::ReceiveError, but we got {x:?}"),
         };
     }
 
@@ -216,9 +212,7 @@ mod tests {
     ) {
         match result {
             Err(HandshakeError::SignatureError) => (),
-            x => panic!(
-                "should end with HandshakeError::SignatureError, but we got {x:?}"
-            ),
+            x => panic!("should end with HandshakeError::SignatureError, but we got {x:?}"),
         };
     }
 
@@ -227,9 +221,7 @@ mod tests {
     ) {
         match result {
             Err(HandshakeError::ChallengeError(_, _)) => (),
-            x => panic!(
-                "should end with HandshakeError::ChallengeError, but we got {x:?}"
-            ),
+            x => panic!("should end with HandshakeError::ChallengeError, but we got {x:?}"),
         };
     }
 
