@@ -4,6 +4,10 @@ set -euo pipefail
 
 # --- FUNCTIONS
 
+function stop_ink_builder() {
+  docker stop ink_builder
+}
+
 function run_ink_builder() {
   docker start ink_builder || docker run \
     --network host \
@@ -12,7 +16,7 @@ function run_ink_builder() {
     --name ink_builder \
     --platform linux/amd64 \
     --detach \
-    --rm public.ecr.aws/p6e8q1z1/ink-dev:1.5.0 sleep 1d
+    --rm public.ecr.aws/p6e8q1z1/ink-dev:1.0.0 sleep 1d
 }
 
 function ink_build() {
@@ -111,5 +115,7 @@ echo "succesfully terminated and removed wrapped_azero"
 terminate_contract access_control access_control
 remove_contract_code access_control_code_hash
 echo "succesfully terminated and removed AccessControl"
+
+stop_ink_builder
 
 exit $?
