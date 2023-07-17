@@ -13,26 +13,29 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum RequestHandlerError<T: Display> {
-    MissingBlock,
-    MissingParent,
+pub enum RequestHandlerError<J: Justification, T: Display> {
+    MissingBlock(BlockIdFor<J>),
+    MissingParent(BlockIdFor<J>),
     RootMismatch,
     LastBlockOfSessionNotJustified,
     ChainStatusError(T),
 }
 
-impl<T: Display> From<T> for RequestHandlerError<T> {
+impl<J: Justification, T: Display> From<T> for RequestHandlerError<J, T> {
     fn from(value: T) -> Self {
         RequestHandlerError::ChainStatusError(value)
     }
 }
 
-impl<T: Display> Display for RequestHandlerError<T> {
+impl<J: Justification, T: Display> Display for RequestHandlerError<J, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequestHandlerError::RootMismatch => write!(f, "root mismatch"),
-            RequestHandlerError::MissingParent => write!(f, "missing parent"),
-            RequestHandlerError::MissingBlock => write!(f, "missing block"),
+            RequestHandlerError::RootMismatch => write!(
+                f,
+                "invalid request, top_justification is not an ancestor of target"
+            ),
+            RequestHandlerError::MissingParent(id) => write!(f, "missing parent of block {:?}", id),
+            RequestHandlerError::MissingBlock(id) => write!(f, "missing block {:?}", id),
             RequestHandlerError::ChainStatusError(e) => write!(f, "{}", e),
             RequestHandlerError::LastBlockOfSessionNotJustified => {
                 write!(f, "last block of finalized session not justified")
@@ -41,7 +44,17 @@ impl<T: Display> Display for RequestHandlerError<T> {
     }
 }
 
-type HandlerResult<T, Error> = Result<T, RequestHandlerError<Error>>;
+pub trait HandlerTypes {
+    type Justification: Justification;
+    type ChainStatusError: Display;
+}
+type HandlerResult<T, HT> = Result<
+    T,
+    RequestHandlerError<
+        <HT as HandlerTypes>::Justification,
+        <HT as HandlerTypes>::ChainStatusError,
+    >,
+>;
 
 #[derive(Debug)]
 enum HeadOfChunk<J: Justification> {
@@ -106,22 +119,13 @@ where
     pub fn update<CS: ChainStatus<B, J>>(
         &mut self,
         chain_status: &CS,
-    ) -> Result<bool, RequestHandlerError<CS::Error>> {
+    ) -> Result<bool, RequestHandlerError<J, CS::Error>> {
         match self.state {
-            State::EverythingButHeader => {
-                let id = self.head.id();
-                let block = chain_status
-                    .block(id)?
-                    .ok_or(RequestHandlerError::MissingBlock)?;
-                self.pre_chunk.add_block(block);
+            State::EverythingButHeader => self.add_block(self.head.id(), chain_status)?,
+            State::Everything if self.head.is_justification() => {
+                self.add_block(self.head.id(), chain_status)?
             }
-            State::Everything => {
-                let id = self.head.id();
-                let block = chain_status
-                    .block(id)?
-                    .ok_or(RequestHandlerError::MissingBlock)?;
-                self.pre_chunk.add_block_and_header(block);
-            }
+            State::Everything => self.add_block_and_header(self.head.id(), chain_status)?,
             _ => {}
         }
 
@@ -130,19 +134,44 @@ where
         Ok(self.head.is_justification())
     }
 
+    fn add_block<CS: ChainStatus<B, J>>(
+        &mut self,
+        id: BlockIdFor<J>,
+        chain_status: &CS,
+    ) -> Result<(), RequestHandlerError<J, CS::Error>> {
+        let block = chain_status
+            .block(id.clone())?
+            .ok_or(RequestHandlerError::MissingBlock(id))?;
+        self.pre_chunk.add_block(block);
+
+        Ok(())
+    }
+
+    fn add_block_and_header<CS: ChainStatus<B, J>>(
+        &mut self,
+        id: BlockIdFor<J>,
+        chain_status: &CS,
+    ) -> Result<(), RequestHandlerError<J, CS::Error>> {
+        let block = chain_status
+            .block(id.clone())?
+            .ok_or(RequestHandlerError::MissingBlock(id))?;
+        self.pre_chunk.add_block_and_header(block);
+        Ok(())
+    }
+
     fn next_head<CS: ChainStatus<B, J>>(
         &self,
         chain_status: &CS,
-    ) -> Result<HeadOfChunk<J>, RequestHandlerError<CS::Error>> {
+    ) -> Result<HeadOfChunk<J>, RequestHandlerError<J, CS::Error>> {
         let parent_id = self
             .head
             .parent_id()
-            .ok_or(RequestHandlerError::MissingParent)?;
+            .ok_or(RequestHandlerError::MissingParent(self.head.id()))?;
 
-        let head = match chain_status.status_of(parent_id)? {
+        let head = match chain_status.status_of(parent_id.clone())? {
             BlockStatus::Justified(j) => HeadOfChunk::Justification(j),
             BlockStatus::Present(h) => HeadOfChunk::Header(h),
-            BlockStatus::Unknown => return Err(RequestHandlerError::MissingBlock),
+            BlockStatus::Unknown => return Err(RequestHandlerError::MissingBlock(parent_id)),
         };
 
         Ok(head)
@@ -300,6 +329,16 @@ where
     _phantom: PhantomData<(B, J)>,
 }
 
+impl<'a, B, J, CS> HandlerTypes for RequestHandler<'a, B, J, CS>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+{
+    type Justification = J;
+    type ChainStatusError = CS::Error;
+}
+
 impl<'a, B, J, CS> RequestHandler<'a, B, J, CS>
 where
     B: Block,
@@ -325,7 +364,7 @@ where
         result: &mut StepResult<B, J>,
         branch_knowledge: &BranchKnowledge<J>,
         to: &BlockIdFor<J>,
-    ) -> HandlerResult<bool, CS::Error> {
+    ) -> HandlerResult<bool, Self> {
         Ok(match branch_knowledge {
             _ if result.current_id() == *to => true,
             _ if result.current_id().number() <= to.number() => {
@@ -350,7 +389,7 @@ where
         from: HeadOfChunk<J>,
         to: &BlockIdFor<J>,
         branch_knowledge: &BranchKnowledge<J>,
-    ) -> HandlerResult<Option<StepResult<B, J>>, CS::Error> {
+    ) -> HandlerResult<Option<StepResult<B, J>>, Self> {
         if from.id() == *to {
             return Ok(None);
         }
@@ -366,7 +405,7 @@ where
         mut head: HeadOfChunk<J>,
         branch_knowledge: BranchKnowledge<J>,
         to: BlockIdFor<J>,
-    ) -> HandlerResult<Vec<Item<B, J>>, CS::Error> {
+    ) -> HandlerResult<Vec<Item<B, J>>, Self> {
         let mut items = vec![];
         let mut state = State::EverythingButHeader;
 
@@ -386,7 +425,7 @@ where
         head: HeadOfChunk<J>,
         our_top_justification: J,
         upper_limit: BlockNumber,
-    ) -> HandlerResult<HeadOfChunk<J>, CS::Error> {
+    ) -> HandlerResult<HeadOfChunk<J>, Self> {
         let target = head.id();
         let our_top_justification_number = our_top_justification.header().id().number();
 
@@ -402,7 +441,7 @@ where
         })
     }
 
-    pub fn action(self, request: Request<J>) -> HandlerResult<Action<B, J>, CS::Error> {
+    pub fn action(self, request: Request<J>) -> HandlerResult<Action<B, J>, Self> {
         let our_top_justification = self.chain_status.top_finalized()?;
         let top_justification = request.state().top_justification();
         let target = request.target_id();

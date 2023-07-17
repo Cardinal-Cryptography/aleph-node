@@ -134,7 +134,7 @@ where
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
-    RequestHandlerError(RequestHandlerError<CS::Error>),
+    RequestHandlerError(RequestHandlerError<J, CS::Error>),
     MissingJustification,
     BlockNotImportable,
 }
@@ -179,7 +179,7 @@ where
         Error::Forest(e)
     }
 }
-impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
+impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
     B: Block<Header = J::Header>,
@@ -187,7 +187,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    fn from(e: RequestHandlerError<CS::Error>) -> Self {
+    fn from(e: RequestHandlerError<J, CS::Error>) -> Self {
         Error::RequestHandlerError(e)
     }
 }
@@ -840,7 +840,7 @@ mod tests {
 
         let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
         let expected_blocks: Vec<_> = (1..=31).into_iter().collect();
-        let expected_headers: Vec<_> = (1..19).into_iter().rev().collect();
+        let expected_headers: Vec<_> = (10..19).into_iter().rev().collect();
 
         match handler.handle_request(request).expect("correct request") {
             Action::Response(sent_justifications, sent_blocks, sent_headers) => {
