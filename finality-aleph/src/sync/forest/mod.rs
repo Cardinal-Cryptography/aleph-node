@@ -15,10 +15,12 @@ mod vertex;
 
 use vertex::Vertex;
 
-enum SpecialState {
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum SpecialState {
     HopelessFork,
     BelowMinimal,
     HighestFinalized,
+    TooNew,
 }
 
 enum VertexHandleMut<'a, I: PeerId, J: Justification> {
@@ -76,7 +78,7 @@ impl Display for Error {
             ParentNotImported => {
                 write!(f, "parent was not imported when attempting to import block")
             }
-            TooNew => write!(f, "block too new to be considered"),
+            TooNew => write!(f, "block is too new"),
         }
     }
 }
@@ -194,6 +196,8 @@ where
             Some(HighestFinalized)
         } else if id.number() <= self.root_id.number() {
             Some(BelowMinimal)
+        } else if id.number() > self.root_id.number() + MAX_DEPTH {
+            Some(TooNew)
         } else if self.compost_bin.contains(id) {
             Some(HopelessFork)
         } else {
@@ -251,6 +255,8 @@ where
                         }
                     }
                     Special(HopelessFork) | Special(BelowMinimal) => self.prune(id),
+                    // should not happen
+                    Special(TooNew) => (),
                 };
             };
         };
@@ -285,15 +291,18 @@ where
     }
 
     fn insert_id(&mut self, id: BlockIdFor<J>, holder: Option<I>) -> Result<(), Error> {
-        if id.number() > self.root_id.number() + MAX_DEPTH {
-            return Err(Error::TooNew);
+        match self.special_state(&id) {
+            Some(SpecialState::TooNew) => Err(Error::TooNew),
+            Some(_) => Ok(()),
+            _ => {
+                self.vertices
+                    .entry(id)
+                    .or_insert_with(VertexWithChildren::new)
+                    .vertex
+                    .add_block_holder(holder);
+                Ok(())
+            }
         }
-        self.vertices
-            .entry(id)
-            .or_insert_with(VertexWithChildren::new)
-            .vertex
-            .add_block_holder(holder);
-        Ok(())
     }
 
     fn process_header(&mut self, header: &J::Header) -> Result<Edge<J>, Error> {
@@ -363,7 +372,7 @@ where
                 }
             }
             Special(HighestFinalized) => (),
-            Unknown(_) | Special(HopelessFork) | Special(BelowMinimal) => {
+            Unknown(_) | Special(HopelessFork) | Special(BelowMinimal) | Special(TooNew) => {
                 return Err(Error::IncorrectParentState)
             }
         }
@@ -489,7 +498,9 @@ where
                 }
                 // either we don't know the requested id, or it will never connect to the root,
                 // return None
-                Special(HopelessFork) | Special(BelowMinimal) | Unknown => return None,
+                Special(HopelessFork) | Special(BelowMinimal) | Special(TooNew) | Unknown => {
+                    return None
+                }
             };
         }
     }
@@ -836,9 +847,10 @@ mod tests {
         assert_eq!(forest.try_finalize(&1).expect("the block is ready"), child);
         assert_eq!(forest.request_interest(&fork_child.id()), Uninterested);
         assert!(!forest.importable(&fork_child.id()));
-        assert!(!forest
-            .update_header(&fork_child, Some(fork_peer_id), true)
-            .expect("header was correct"));
+        assert_eq!(
+            forest.update_header(&fork_child, Some(fork_peer_id), true),
+            Ok(false)
+        );
     }
 
     #[test]
