@@ -31,7 +31,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
-        # toolchain doesn't matter, it will be overridden by bin/cliain/rust-toolchain.toml
 
       - name: Cargo | Build release binary
         run: |
