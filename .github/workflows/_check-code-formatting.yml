@@ -24,4 +24,4 @@ jobs:
           components: rustfmt
 
       - name: Run Format Checks
-        run: cargo +${{ env.NIGHTLY_TOOLCHAIN }} fmt --all
+        run: cargo +${{ env.RUST_TOOLCHAIN }} fmt --all

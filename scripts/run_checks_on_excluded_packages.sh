@@ -3,21 +3,7 @@
 # set -x
 set -eo pipefail
 
-function parse_toolchain() {
-  local toml_file=$1
-  local  __resultvar=$2
-
-  channel=$(cat $toml_file | grep channel)
-  channel=${channel:10}
-  # Remove leading and trailing whitespace, and quotes from the parsed value
-  channel=$(echo "$channel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
-  channel=${channel}-x86_64-unknown-linux-gnu
-
-  eval $__resultvar="'$channel'"
-}
-
 TOML_FILE="Cargo.toml"
-parse_toolchain "aleph-client/rust-toolchain.toml" RUST_NIGHTLY_TOOLCHAIN
 
 # Read the TOML file and extract the `exclude` entries
 packages=$(awk -F ' *= *' '/^exclude *= *\[/ {found=1} found && /^\]$/ {found=0} found' "$TOML_FILE")
@@ -46,10 +32,10 @@ for p in ${packages[@]}; do
   elif [ "$p" = "pallets/baby-liminal" ]; then
     cargo test --features runtime-benchmarks
   else
-    cargo clippy --release -- --no-deps -D warnings
+    cargo clippy -- --no-deps -D warnings
   fi
 
-  cargo "+$RUST_NIGHTLY_TOOLCHAIN" fmt --all --check
+  cargo +nightly-2023-01-10 fmt --all --check
   popd
 
 done
