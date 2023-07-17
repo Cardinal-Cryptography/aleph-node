@@ -281,8 +281,11 @@ where
 
     /// Handle a request for potentially substantial amounts of data.
     ///
-    /// Currently ignores the requested id, it will only become important once we can request
-    /// blocks.
+    /// Returns what action we should take in response to the request.
+    /// We either do nothing, request new interesting block to us or send a response containing
+    /// path of justifications, blocks and headers. We try to be as helpful as we can, sometimes
+    /// including more information from what was requested, sometimes ignoring their requested id
+    /// if we know it makes sense.
     pub fn handle_request(
         &mut self,
         request: Request<J>,
