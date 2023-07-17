@@ -11,7 +11,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
-      NIGHTLY_TOOLCHAIN: nightly-2023-01-10
+      RUST_TOOLCHAIN: nightly-2023-01-10
     steps:
       - name: Checkout Source code
         uses: actions/checkout@v3
