@@ -26,7 +26,9 @@ where
 {
     assert!(
         header.number() >= &num,
-        "Cannot reduce {header:?} to number {num:?}"
+        "Cannot reduce {:?} to number {:?}",
+        header,
+        num
     );
     let mut curr_header = header;
     while curr_header.number() > &num {

@@ -22,10 +22,11 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            ConnectionClosed(e) => write!(f, "connection unexpectedly closed: {e}"),
+            ConnectionClosed(e) => write!(f, "connection unexpectedly closed: {}", e),
             DataTooLong(length) => write!(
                 f,
-                "encoded data too long - {length} bytes, the limit is {MAX_DATA_SIZE}"
+                "encoded data too long - {} bytes, the limit is {}",
+                length, MAX_DATA_SIZE
             ),
         }
     }
@@ -58,7 +59,7 @@ impl Display for ReceiveError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use ReceiveError::*;
         match self {
-            Error(e) => write!(f, "{e}"),
+            Error(e) => write!(f, "{}", e),
             DataCorrupted => write!(f, "received corrupted data"),
         }
     }
@@ -138,7 +139,7 @@ mod tests {
         match receive_data::<_, i32>(receiver).await {
             Err(e) => match e {
                 ReceiveError::Error(Error::ConnectionClosed(_)) => (),
-                e => panic!("unexpected error: {e}"),
+                e => panic!("unexpected error: {}", e),
             },
             _ => panic!("received data from a dropped stream!"),
         }
@@ -151,7 +152,7 @@ mod tests {
         match send_data(sender, data.clone()).await {
             Err(e) => match e {
                 SendError(Error::ConnectionClosed(_)) => (),
-                e => panic!("unexpected error: {e}"),
+                e => panic!("unexpected error: {}", e),
             },
             _ => panic!("send data to a dropped stream!"),
         }
@@ -169,7 +170,7 @@ mod tests {
         match send_data(sender, data.clone()).await {
             Err(e) => match e {
                 SendError(Error::DataTooLong(_)) => (),
-                e => panic!("unexpected error: {e}"),
+                e => panic!("unexpected error: {}", e),
             },
             _ => panic!("send data to a dropped stream!"),
         }
@@ -187,7 +188,7 @@ mod tests {
         match receive_data::<_, i32>(receiver).await {
             Err(e) => match e {
                 ReceiveError::Error(Error::DataTooLong(long)) => assert_eq!(long, too_long),
-                e => panic!("unexpected error: {e}"),
+                e => panic!("unexpected error: {}", e),
             },
             _ => panic!("received too long data!"),
         }
@@ -204,7 +205,7 @@ mod tests {
         match receive_data::<_, i32>(receiver).await {
             Err(e) => match e {
                 ReceiveError::DataCorrupted => (),
-                e => panic!("unexpected error: {e}"),
+                e => panic!("unexpected error: {}", e),
             },
             _ => panic!("decoded no data into something?!"),
         }

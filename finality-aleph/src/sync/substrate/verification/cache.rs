@@ -30,16 +30,19 @@ impl Display for CacheError {
         match self {
             SessionTooOld(session, lower_bound) => write!(
                 f,
-                "session {session:?} is too old. Should be at least {lower_bound:?}"
+                "session {:?} is too old. Should be at least {:?}",
+                session, lower_bound
             ),
             SessionInFuture(session, upper_bound) => write!(
                 f,
-                "session {session:?} without known authorities. Should be at most {upper_bound:?}"
+                "session {:?} without known authorities. Should be at most {:?}",
+                session, upper_bound
             ),
             UnknownAuthorities(session) => {
                 write!(
                     f,
-                    "authorities for session {session:?} not known even though they should be"
+                    "authorities for session {:?} not known even though they should be",
+                    session
                 )
             }
             BadGenesisHeader => {

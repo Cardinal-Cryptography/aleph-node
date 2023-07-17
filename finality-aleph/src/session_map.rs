@@ -590,14 +590,16 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {i:?} should be pruned"
+                "Session {:?} should be pruned",
+                i
             );
         }
         for i in FIRST_THRESHOLD..SECOND_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {i:?} should not be pruned"
+                "Session {:?} should not be pruned",
+                i
             );
         }
     }
@@ -623,7 +625,8 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {i:?} should not be available"
+                "Session {:?} should not be available",
+                i
             );
         }
 
@@ -663,7 +666,8 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {i:?} should be available"
+                "Session {:?} should be available",
+                i
             );
         }
 
@@ -671,7 +675,8 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {i:?} should not be avalable yet"
+                "Session {:?} should not be avalable yet",
+                i
             );
         }
 
@@ -685,7 +690,8 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {i:?} should be pruned",
+                "Session {:?} should be pruned",
+                i
             );
         }
 
@@ -693,7 +699,8 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {i:?} should be avalable"
+                "Session {:?} should be avalable",
+                i
             );
         }
     }

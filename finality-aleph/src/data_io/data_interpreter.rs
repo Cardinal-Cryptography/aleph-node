@@ -124,7 +124,8 @@ where
             }
             Pending(pending_status) => {
                 panic!(
-                    "Pending proposal {proposal:?} with status {pending_status:?} encountered in Data."
+                    "Pending proposal {:?} with status {:?} encountered in Data.",
+                    proposal, pending_status
                 );
             }
         }

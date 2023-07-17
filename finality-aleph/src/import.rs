@@ -207,11 +207,13 @@ where
                 )),
                 Consensus(e) => *e,
                 Decode(e) => ConsensusError::ClientImport(format!(
-                    "Justification for block {number:?} decoded incorrectly: {e}"
+                    "Justification for block {:?} decoded incorrectly: {}",
+                    number, e
                 )),
-                Translate(e) => {
-                    ConsensusError::ClientImport(format!("Could not translate justification: {e}"))
-                }
+                Translate(e) => ConsensusError::ClientImport(format!(
+                    "Could not translate justification: {}",
+                    e
+                )),
             })
     }
 }

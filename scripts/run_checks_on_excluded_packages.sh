@@ -37,8 +37,6 @@ for p in ${packages[@]}; do
 
   echo "Checking package $p ..."
   pushd "$p"
-  pwd
-  cargo --version
 
   if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
     cargo contract check
