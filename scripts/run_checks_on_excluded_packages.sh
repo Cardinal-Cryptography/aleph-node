@@ -17,8 +17,7 @@ function parse_toolchain() {
 }
 
 TOML_FILE="Cargo.toml"
-parse_toolchain "aleph-client/rust-toolchain.toml" RUST_ALEPH_CLIENT_TOOLCHAIN
-parse_toolchain "contracts/rust-toolchain.toml" RUST_CONTRACTS_TOOLCHAIN
+parse_toolchain "aleph-client/rust-toolchain.toml" RUST_NIGHTLY_TOOLCHAIN
 
 # Read the TOML file and extract the `exclude` entries
 packages=$(awk -F ' *= *' '/^exclude *= *\[/ {found=1} found && /^\]$/ {found=0} found' "$TOML_FILE")
@@ -33,24 +32,24 @@ packages="${packages//'%0A'/$'\n'}"
 # Remove the key
 packages=${packages:10}
 
-for p in ${packages[@]}; do
+for p in "${packages[@]}"; do
 
   echo "Checking package $p ..."
   pushd "$p"
 
-  if [[ $p =~ .*contracts.* ]] && [[ $p != "contracts/poseidon_host_bench" ]]; then
+  if [[ "$p" =~ .*contracts.* ]] && [[ "$p" != "contracts/poseidon_host_bench" ]]; then
     cargo contract check
-  elif [ $p = "baby-liminal-extension" ] || [ $p = "contracts/poseidon_host_bench" ]; then
+  elif [ "$p" = "baby-liminal-extension" ] || [ "$p" = "contracts/poseidon_host_bench" ]; then
     # cargo clippy --release --no-default-features --features substrate \
       #  --target wasm32-unknown-unknown -- --no-deps -D warnings
     :
-  elif [ $p = "pallets/baby-liminal" ]; then
+  elif [ "$p" = "pallets/baby-liminal" ]; then
     cargo test --features runtime-benchmarks
   else
     cargo clippy --release -- --no-deps -D warnings
   fi
 
-  cargo +$RUST_ALEPH_CLIENT_TOOLCHAIN fmt --all --check
+  cargo "+$RUST_NIGHTLY_TOOLCHAIN" fmt --all --check
   popd
 
 done

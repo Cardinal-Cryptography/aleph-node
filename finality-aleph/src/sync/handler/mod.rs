@@ -150,11 +150,11 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            Verifier(e) => write!(f, "verifier error: {}", e),
-            ChainStatus(e) => write!(f, "chain status error: {}", e),
-            Finalizer(e) => write!(f, "finalized error: {}", e),
-            Forest(e) => write!(f, "forest error: {}", e),
-            ForestInitialization(e) => write!(f, "forest initialization error: {}", e),
+            Verifier(e) => write!(f, "verifier error: {e}"),
+            ChainStatus(e) => write!(f, "chain status error: {e}"),
+            Finalizer(e) => write!(f, "finalized error: {e}"),
+            Forest(e) => write!(f, "forest error: {e}"),
+            ForestInitialization(e) => write!(f, "forest initialization error: {e}"),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -162,7 +162,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
-            RequestHandlerError(e) => write!(f, "request handler error: {}", e),
+            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
         }
     }
 }
@@ -682,8 +682,7 @@ mod tests {
                 assert_eq!(maybe_justification, Some(last_from_second_session));
             }
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -719,8 +718,7 @@ mod tests {
                 assert_eq!(maybe_justification, Some(top));
             }
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -755,8 +753,7 @@ mod tests {
                 assert!(maybe_justification.is_none());
             }
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -816,8 +813,7 @@ mod tests {
         match handler.handle_request(request).expect("correct request") {
             Action::Noop => {}
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -842,8 +838,8 @@ mod tests {
         let request = Request::new(requested_id, LowestId(lowest_id), initial_state);
 
         let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        let expected_blocks: Vec<_> = (1..=31).into_iter().collect();
-        let expected_headers: Vec<_> = (10..19).into_iter().rev().collect();
+        let expected_blocks: Vec<_> = (1..=31).collect();
+        let expected_headers: Vec<_> = (10..19).rev().collect();
 
         match handler.handle_request(request).expect("correct request") {
             Action::Response(sent_justifications, sent_blocks, sent_headers) => {
@@ -860,8 +856,7 @@ mod tests {
                 assert_eq!(sent_justifications, expected_justifications_in_request);
             }
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -881,8 +876,7 @@ mod tests {
         match handler.handle_request(request).expect("correct request") {
             Action::RequestBlock(id) => assert_eq!(id, requested_id),
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
@@ -925,8 +919,7 @@ mod tests {
                 assert_eq!(sent_headers, expected_headers);
             }
             other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
+                "expected a response with justifications, got {other_action:?}"
             ),
         }
     }
