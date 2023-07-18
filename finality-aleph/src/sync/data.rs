@@ -47,7 +47,7 @@ where
     pub fn items_from_justifications(justifications: Vec<J::Unverified>) -> Items<B, J> {
         justifications
             .into_iter()
-            .map(|j| Self::Justification(j))
+            .map(Self::Justification)
             .collect()
     }
 
