@@ -366,7 +366,8 @@ where
         (maybe_id, None)
     }
 
-    /// Handle a justification from user returning the action we should take.
+    /// Handle a state response returning the id of the new highest justified block
+    /// if there is some.
     pub fn handle_justification_from_user(
         &mut self,
         justification: J::Unverified,
@@ -376,6 +377,10 @@ where
 
     /// Handle a state response returning the id of the new highest justified block
     /// if there is some, and possibly an error.
+    ///
+    /// If no error is returned, it means that the whole state response was processed
+    /// correctly. Otherwise, the response might have been processed partially, or
+    /// dropped. In any case, the Handler finishes in a sane state.
     pub fn handle_state_response(
         &mut self,
         justification: J::Unverified,
@@ -392,6 +397,10 @@ where
 
     /// Handle a request response returning the id of the new highest justified block
     /// if there is some, and possibly an error.
+    ///
+    /// If no error is returned, it means that the whole request response was processed
+    /// correctly. Otherwise, the response might have been processed partially, or
+    /// dropped. In any case, the Handler finishes in a sane state.
     pub fn handle_request_response(
         &mut self,
         justifications: Vec<J::Unverified>,
