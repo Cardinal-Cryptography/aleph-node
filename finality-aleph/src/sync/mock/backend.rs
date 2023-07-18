@@ -241,19 +241,14 @@ impl BlockImport<MockBlock> for Backend {
 
         let parent_id = match block.parent_id() {
             Some(id) => id,
-            None => panic!("importing block without a parent: {:?}", block),
+            None => return,
         };
 
-        if storage.blockchain.contains_key(&block.id()) {
-            panic!("importing an already imported block: {:?}", block)
-        }
-
-        if !storage.blockchain.contains_key(&parent_id) {
-            panic!("importing block without an imported parent: {:?}", block)
-        }
-
-        if block.id().number() != parent_id.number() + 1 {
-            panic!("importing block without a correct parent: {:?}", block)
+        if storage.blockchain.contains_key(&block.id())
+            || !storage.blockchain.contains_key(&parent_id)
+            || block.id().number() != parent_id.number() + 1
+        {
+            return;
         }
 
         if block.id().number() > storage.best_block.number()

@@ -10,7 +10,6 @@ use crate::{
 
 mod backend;
 mod status_notifier;
-mod verifier;
 
 type MockNumber = u32;
 type MockHash = H256;
