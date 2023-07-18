@@ -320,7 +320,8 @@ where
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
         trace!(target: LOG_TARGET, "Handling task {}.", task);
-        if let TaskAction::Request(pre_request, (task, delay)) = task.process(self.handler.forest())
+        if let TaskAction::Request(pre_request, (task, delay)) =
+            task.process(self.handler.interest_provider())
         {
             self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);

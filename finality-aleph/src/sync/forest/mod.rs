@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+    aleph_primitives::DEFAULT_SESSION_PERIOD,
     sync::{data::BranchKnowledge, Block, BlockIdFor, ChainStatus, Header, Justification, PeerId},
     BlockIdentifier,
 };
@@ -133,6 +134,16 @@ impl<I: PeerId, J: Justification> VertexWithChildren<I, J> {
 // How deep can the forest be, vaguely based on two sessions ahead, which is the most we expect to
 // ever need worst case scenario.
 const MAX_DEPTH: u32 = 1800;
+#[allow(clippy::assertions_on_constants)]
+const _: () = assert!(
+    DEFAULT_SESSION_PERIOD <= MAX_DEPTH,
+    "at least one session must fit into Forest"
+);
+#[allow(clippy::assertions_on_constants)]
+const _: () = assert!(
+    2 * DEFAULT_SESSION_PERIOD >= MAX_DEPTH,
+    "we can't verify items that far in the future"
+);
 
 pub struct Forest<I, J>
 where

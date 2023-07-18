@@ -16,7 +16,6 @@ type MockNumber = u32;
 type MockHash = H256;
 
 pub use backend::Backend;
-pub use verifier::MockVerifier;
 
 pub type MockPeerId = u32;
 
@@ -97,18 +96,24 @@ impl Header for MockHeader {
 pub struct MockBlock {
     header: MockHeader,
     justification: Option<MockJustification>,
+    is_correct: bool,
 }
 
 impl MockBlock {
-    fn new(header: MockHeader) -> Self {
+    pub fn new(header: MockHeader, is_correct: bool) -> Self {
         Self {
             header,
             justification: None,
+            is_correct,
         }
     }
 
     fn finalize(&mut self, justification: MockJustification) {
         self.justification = Some(justification);
+    }
+
+    pub fn verify(&self) -> bool {
+        self.is_correct
     }
 }
 
