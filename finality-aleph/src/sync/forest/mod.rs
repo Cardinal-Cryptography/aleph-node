@@ -139,11 +139,6 @@ const _: () = assert!(
     DEFAULT_SESSION_PERIOD <= MAX_DEPTH,
     "at least one session must fit into Forest"
 );
-#[allow(clippy::assertions_on_constants)]
-const _: () = assert!(
-    2 * DEFAULT_SESSION_PERIOD >= MAX_DEPTH,
-    "we can't verify items that far in the future"
-);
 
 pub struct Forest<I, J>
 where
