@@ -339,13 +339,10 @@ where
         maybe_justification: Option<J::Unverified>,
         peer: I,
     ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        let mut maybe_id = match self.handle_justification(justification, Some(peer.clone())) {
-            Ok(id) => id,
-            Err(e) => return (None, Some(e)),
-        };
+        let mut maybe_id = None;
 
-        if let Some(just) = maybe_justification {
-            maybe_id = match self.handle_justification(just, Some(peer)) {
+        for justification in vec![justification].into_iter().chain(maybe_justification) {
+            maybe_id = match self.handle_justification(justification, Some(peer.clone())) {
                 Ok(id) => id,
                 Err(e) => return (maybe_id, Some(e)),
             };
