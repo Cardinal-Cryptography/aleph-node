@@ -1,8 +1,5 @@
 use core::marker::PhantomData;
-use std::{
-    fmt::{Debug, Display, Error as FmtError, Formatter},
-    iter,
-};
+use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
@@ -327,25 +324,6 @@ where
         Ok(maybe_id)
     }
 
-    fn handle_justifications(
-        &mut self,
-        justifications: Vec<J::Unverified>,
-        maybe_peer: Option<I>,
-    ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        let mut maybe_id = None;
-        for justification in justifications {
-            maybe_id = match self.handle_justification(justification, maybe_peer.clone()) {
-                Ok(maybe_other_id) => match (&maybe_id, &maybe_other_id) {
-                    (None, _) => maybe_other_id,
-                    (Some(id), Some(other_id)) if other_id.number() > id.number() => maybe_other_id,
-                    _ => maybe_id,
-                },
-                Err(e) => return (maybe_id, Some(e)),
-            };
-        }
-        (maybe_id, None)
-    }
-
     /// Handle a justification from user returning the action we should take.
     pub fn handle_justification_from_user(
         &mut self,
@@ -361,12 +339,19 @@ where
         maybe_justification: Option<J::Unverified>,
         peer: I,
     ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        self.handle_justifications(
-            iter::once(justification)
-                .chain(maybe_justification)
-                .collect(),
-            Some(peer),
-        )
+        let mut maybe_id = match self.handle_justification(justification, Some(peer.clone())) {
+            Ok(id) => id,
+            Err(e) => return (None, Some(e)),
+        };
+
+        if let Some(just) = maybe_justification {
+            maybe_id = match self.handle_justification(just, Some(peer)) {
+                Ok(id) => id,
+                Err(e) => return (maybe_id, Some(e)),
+            };
+        }
+
+        (maybe_id, None)
     }
 
     /// Handle a request response returning the id of the new highest justified block
