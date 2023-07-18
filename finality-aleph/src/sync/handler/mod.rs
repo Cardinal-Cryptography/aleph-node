@@ -19,6 +19,8 @@ use crate::{
 mod request_handler;
 pub use request_handler::Action;
 
+use crate::sync::data::{Item, Items};
+
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
@@ -83,7 +85,7 @@ where
 pub enum HandleStateAction<B, J>
 where
     B: Block,
-    J: Justification,
+    J: Justification<Header = B::Header>,
 {
     /// A response for the peer that sent us the data.
     Response(NetworkData<B, J>),
@@ -96,7 +98,7 @@ where
 impl<B, J> HandleStateAction<B, J>
 where
     B: Block,
-    J: Justification,
+    J: Justification<Header = B::Header>,
 {
     fn response(justification: J::Unverified, other_justification: Option<J::Unverified>) -> Self {
         Self::Response(NetworkData::StateBroadcastResponse(
@@ -109,7 +111,7 @@ where
 impl<B, J> From<Option<BlockIdFor<J>>> for HandleStateAction<B, J>
 where
     B: Block,
-    J: Justification,
+    J: Justification<Header = B::Header>,
 {
     fn from(value: Option<BlockIdFor<J>>) -> Self {
         match value {
@@ -367,39 +369,36 @@ where
         )
     }
 
-    /// Handle a request response returning the action we should take, and possibly an error.
+    /// Handle a request response returning the id of the new highest justified block
+    /// if there is some, and possibly an error.
     pub fn handle_request_response(
         &mut self,
-        justifications: Vec<J::Unverified>,
-        headers: Vec<J::Header>,
-        blocks: Vec<B>,
+        items: Items<B, J>,
         peer: I,
     ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        // handle justifications
-        let sync_action = match self.handle_justifications(justifications, Some(peer.clone())) {
-            (sync_action, None) => sync_action,
-            (sync_action, Some(e)) => return (sync_action, Some(e)),
-        };
-
-        // handle headers
-        for header in headers {
-            if let Err(e) = self
-                .forest
-                .update_required_header(&header, Some(peer.clone()))
-            {
-                return (sync_action, Some(Error::Forest(e)));
+        let mut highest_justified = None;
+        for item in items {
+            match item {
+                Item::Justification(j) => match self.handle_justification(j, Some(peer.clone())) {
+                    Ok(Some(id)) => highest_justified = Some(id),
+                    Err(e) => return (highest_justified, Some(e)),
+                    _ => {}
+                },
+                Item::Header(h) => {
+                    if let Err(e) = self.forest.update_required_header(&h, Some(peer.clone())) {
+                        return (highest_justified, Some(Error::Forest(e)));
+                    }
+                }
+                Item::Block(b) => {
+                    match self.forest.importable(&b.header().id()) {
+                        true => self.block_importer.import_block(b),
+                        false => return (highest_justified, Some(Error::BlockNotImportable)),
+                    };
+                }
             }
         }
 
-        // handle blocks
-        for block in blocks {
-            match self.forest.importable(&block.header().id()) {
-                true => self.block_importer.import_block(block),
-                false => return (sync_action, Some(Error::BlockNotImportable)),
-            }
-        }
-
-        (sync_action, None)
+        (highest_justified, None)
     }
 
     fn last_justification_unverified(
@@ -495,7 +494,7 @@ mod tests {
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
-            data::{BranchKnowledge::*, NetworkData, Request, State},
+            data::{BranchKnowledge::*, Item, Items, NetworkData, Request, State},
             handler::Action,
             mock::{
                 Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
@@ -822,8 +821,29 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Eq, PartialEq)]
+    enum SimplifiedItem {
+        J(BlockNumber),
+        B(BlockNumber),
+        H(BlockNumber),
+    }
+
+    impl SimplifiedItem {
+        pub fn from_items(items: Items<MockBlock, MockJustification>) -> Vec<SimplifiedItem> {
+            items
+                .into_iter()
+                .map(|it| match it {
+                    Item::Justification(j) => Self::J(j.id().number()),
+                    Item::Header(h) => Self::H(h.id().number()),
+                    Item::Block(b) => Self::B(b.id().number()),
+                })
+                .collect()
+        }
+    }
+
     #[test]
     fn handles_request_with_lowest_id() {
+        use SimplifiedItem::*;
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
 
@@ -841,23 +861,61 @@ mod tests {
         // so block #19
         let request = Request::new(requested_id, LowestId(lowest_id), initial_state);
 
-        let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        let expected_blocks: Vec<_> = (1..=31).into_iter().collect();
-        let expected_headers: Vec<_> = (10..19).into_iter().rev().collect();
-
+        let expected_items = vec![
+            J(1),
+            B(1),
+            J(2),
+            B(2),
+            J(3),
+            B(3),
+            J(4),
+            B(4),
+            J(5),
+            B(5),
+            J(6),
+            B(6),
+            J(7),
+            B(7),
+            J(8),
+            B(8),
+            J(9),
+            B(9),
+            J(19),
+            H(18),
+            H(17),
+            H(16),
+            H(15),
+            H(14),
+            H(13),
+            H(12),
+            H(11),
+            H(10),
+            B(10),
+            B(11),
+            B(12),
+            B(13),
+            B(14),
+            B(15),
+            B(16),
+            B(17),
+            B(18),
+            B(19),
+            B(20),
+            B(21),
+            B(22),
+            B(23),
+            B(24),
+            B(25),
+            B(26),
+            B(27),
+            B(28),
+            B(29),
+            B(30),
+            B(31),
+        ];
         match handler.handle_request(request).expect("correct request") {
-            Action::Response(sent_justifications, sent_blocks, sent_headers) => {
-                let sent_justifications: Vec<_> = sent_justifications
-                    .into_iter()
-                    .map(|h| h.id().number())
-                    .collect();
-                let sent_blocks: Vec<_> =
-                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
-                let sent_headers: Vec<_> =
-                    sent_headers.into_iter().map(|h| h.id().number()).collect();
-                assert_eq!(sent_blocks, expected_blocks);
-                assert_eq!(sent_headers, expected_headers);
-                assert_eq!(sent_justifications, expected_justifications_in_request);
+            Action::Response(items) => {
+                assert_eq!(SimplifiedItem::from_items(items), expected_items)
             }
             other_action => panic!(
                 "expected a response with justifications, got {:?}",
@@ -889,6 +947,7 @@ mod tests {
 
     #[test]
     fn handles_request_with_top_imported() {
+        use SimplifiedItem::*;
         let (mut handler, backend, _keep) = setup();
         let initial_state = handler.state().expect("state works");
 
@@ -897,32 +956,30 @@ mod tests {
         let requested_id = blocks[30].clone().id();
         let top_imported = blocks[25].clone().id();
 
-        // request block #31, with the last known header equal to last finalized block of the previous session
-        // so block #19
+        // request block #31, with the top imported block equal to block #26
         let request = Request::new(requested_id, TopImported(top_imported), initial_state);
 
-        let expected_justifications_in_request: Vec<_> = vec![19, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        let expected_blocks: Vec<_> = blocks
-            .into_iter()
-            .skip(26)
-            .take(5)
-            .map(|b| b.id().number())
-            .collect();
-        let expected_headers: Vec<BlockNumber> = vec![];
+        let expected_items = vec![
+            J(1),
+            J(2),
+            J(3),
+            J(4),
+            J(5),
+            J(6),
+            J(7),
+            J(8),
+            J(9),
+            J(19),
+            B(27),
+            B(28),
+            B(29),
+            B(30),
+            B(31),
+        ];
 
         match handler.handle_request(request).expect("correct request") {
-            Action::Response(sent_justifications, sent_blocks, sent_headers) => {
-                let sent_justifications: Vec<_> = sent_justifications
-                    .into_iter()
-                    .map(|h| h.id().number())
-                    .collect();
-                let sent_blocks: Vec<_> =
-                    sent_blocks.into_iter().map(|b| b.id().number()).collect();
-                let sent_headers: Vec<_> =
-                    sent_headers.into_iter().map(|h| h.id().number()).collect();
-                assert_eq!(sent_blocks, expected_blocks);
-                assert_eq!(sent_justifications, expected_justifications_in_request);
-                assert_eq!(sent_headers, expected_headers);
+            Action::Response(items) => {
+                assert_eq!(SimplifiedItem::from_items(items), expected_items)
             }
             other_action => panic!(
                 "expected a response with justifications, got {:?}",

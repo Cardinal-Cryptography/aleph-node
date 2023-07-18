@@ -6,8 +6,9 @@ use primitives::BlockNumber;
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
-        data::BranchKnowledge, handler::Request, Block, BlockIdFor, BlockStatus, ChainStatus,
-        FinalizationStatus, Header, Justification,
+        data::{BranchKnowledge, Item},
+        handler::Request,
+        Block, BlockIdFor, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
     },
     BlockIdentifier,
 };
@@ -44,10 +45,13 @@ impl<J: Justification, T: Display> Display for RequestHandlerError<J, T> {
     }
 }
 
+type Chunk<B, J> = Vec<Item<B, J>>;
+
 pub trait HandlerTypes {
     type Justification: Justification;
     type ChainStatusError: Display;
 }
+
 type HandlerResult<T, HT> = Result<
     T,
     RequestHandlerError<
@@ -192,17 +196,6 @@ where
     }
 }
 
-pub type Chunk<B, J> = Vec<Item<B, J>>;
-pub enum Item<B, J>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-{
-    Justification(J::Unverified),
-    Header(J::Header),
-    Block(B),
-}
-
 #[derive(Debug)]
 pub enum Action<B, J>
 where
@@ -210,7 +203,7 @@ where
     J: Justification<Header = B::Header>,
 {
     RequestBlock(BlockIdFor<J>),
-    Response(Vec<J::Unverified>, Vec<B>, Vec<J::Header>),
+    Response(Vec<Item<B, J>>),
     Noop,
 }
 
@@ -223,13 +216,10 @@ where
         Action::RequestBlock(id)
     }
 
-    fn from_items(items: Vec<Item<B, J>>) -> Self {
+    fn new(items: Vec<Item<B, J>>) -> Self {
         match items.is_empty() {
             true => Action::Noop,
-            false => {
-                let (bs, js, hs) = into_vecs(items);
-                Action::Response(js, bs, hs)
-            }
+            false => Action::Response(items),
         }
     }
 }
@@ -273,7 +263,7 @@ where
         }
     }
 
-    fn into_chunk(self) -> Chunk<B, J> {
+    fn into_chunk(mut self) -> Chunk<B, J> {
         let mut chunks = vec![];
 
         if let Some(j) = self.just {
@@ -281,6 +271,8 @@ where
         }
 
         chunks.extend(self.headers.into_iter().map(Item::Header));
+
+        self.blocks.reverse();
         chunks.extend(self.blocks.into_iter().map(Item::Block));
 
         chunks
@@ -294,28 +286,6 @@ where
         self.headers.push(b.header().clone());
         self.blocks.push(b);
     }
-}
-
-pub fn into_vecs<B, J>(chunk: Chunk<B, J>) -> (Vec<B>, Vec<J::Unverified>, Vec<J::Header>)
-where
-    J: Justification,
-    B: Block<Header = J::Header>,
-{
-    let mut blocks = vec![];
-    let mut headers = vec![];
-    let mut justifications = vec![];
-
-    for item in chunk {
-        match item {
-            Item::Block(b) => blocks.push(b),
-            Item::Justification(j) => justifications.push(j),
-            Item::Header(h) => headers.push(h),
-        }
-    }
-
-    blocks.reverse();
-
-    (blocks, justifications, headers)
 }
 
 pub struct RequestHandler<'a, B, J, CS>
@@ -414,10 +384,12 @@ where
 
             state = new_state;
             head = new_head;
-            items.extend(chunk);
+            items.push(chunk);
         }
 
-        Ok(items)
+        items.reverse();
+
+        Ok(items.into_iter().flatten().collect())
     }
 
     fn adjust_head(
@@ -467,6 +439,6 @@ where
             top_justification.id(),
         )?;
 
-        Ok(Action::from_items(items))
+        Ok(Action::new(items))
     }
 }
