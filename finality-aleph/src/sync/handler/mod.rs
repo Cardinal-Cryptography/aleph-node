@@ -1,5 +1,8 @@
 use core::marker::PhantomData;
-use std::fmt::{Debug, Display, Error as FmtError, Formatter};
+use std::{
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    iter,
+};
 
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
@@ -341,7 +344,7 @@ where
     ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
         let mut maybe_id = None;
 
-        for justification in vec![justification].into_iter().chain(maybe_justification) {
+        for justification in iter::once(justification).chain(maybe_justification) {
             maybe_id = match self.handle_justification(justification, Some(peer.clone())) {
                 Ok(id) => id,
                 Err(e) => return (maybe_id, Some(e)),
