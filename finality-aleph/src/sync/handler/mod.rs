@@ -401,6 +401,10 @@ where
     /// If no error is returned, it means that the whole request response was processed
     /// correctly. Otherwise, the response might have been processed partially, or
     /// dropped. In any case, the Handler finishes in a sane state.
+    ///
+    /// Note that this method does not verify nor import blocks. The received blocks
+    /// are stored in a buffer, and might be silently discarded in the future
+    /// if the import fails.
     pub fn handle_request_response(
         &mut self,
         justifications: Vec<J::Unverified>,
