@@ -10,7 +10,7 @@ use crate::{
     session::SessionBoundaryInfo,
     sync::{
         data::{NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
-        handler::{Error as HandlerError, HandleStateAction, Handler},
+        handler::{Action, Error as HandlerError, HandleStateAction, Handler},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -20,8 +20,8 @@ use crate::{
     },
 };
 
-const BROADCAST_COOLDOWN: Duration = Duration::from_millis(200);
-const BROADCAST_PERIOD: Duration = Duration::from_secs(1);
+const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
+const BROADCAST_PERIOD: Duration = Duration::from_secs(5);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<B, J, N, CE, CS, V, F, BI>
@@ -300,8 +300,10 @@ where
             peer
         );
         match self.handler.handle_request(request) {
-            Ok(Some(data)) => self.send_to(data, peer),
-            Ok(None) => (),
+            Ok(Action::Response(js, bs, hs)) => {
+                self.send_to(NetworkData::RequestResponse(js, hs, bs), peer);
+            }
+            Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -312,6 +314,7 @@ where
                     "Error handling request from {:?}: {}.", peer, e
                 ),
             },
+            _ => {}
         }
     }
 
