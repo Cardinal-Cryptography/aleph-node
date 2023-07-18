@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/_check-excluded-packages.yml
 
   code-formatting:
-    needs: [check_vars_and_secrets]
+    needs: [check-vars-and-secrets]
     name: Check code formatting
     uses: ./.github/workflows/_check-code-formatting.yml
 
