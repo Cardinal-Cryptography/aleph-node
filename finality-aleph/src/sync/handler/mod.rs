@@ -364,11 +364,13 @@ where
         let mut highest_justified = None;
         for item in response_items {
             match item {
-                ResponseItem::Justification(j) => match self.handle_justification(j, Some(peer.clone())) {
-                    Ok(Some(id)) => highest_justified = Some(id),
-                    Err(e) => return (highest_justified, Some(e)),
-                    _ => {}
-                },
+                ResponseItem::Justification(j) => {
+                    match self.handle_justification(j, Some(peer.clone())) {
+                        Ok(Some(id)) => highest_justified = Some(id),
+                        Err(e) => return (highest_justified, Some(e)),
+                        _ => {}
+                    }
+                }
                 ResponseItem::Header(h) => {
                     if let Err(e) = self.forest.update_required_header(&h, Some(peer.clone())) {
                         return (highest_justified, Some(Error::Forest(e)));
@@ -479,7 +481,7 @@ mod tests {
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
-            data::{BranchKnowledge::*, ResponseItem, ResponseItems, NetworkData, Request, State},
+            data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             handler::Action,
             mock::{
                 Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId,
@@ -802,7 +804,9 @@ mod tests {
     }
 
     impl SimplifiedItem {
-        pub fn from_response_items(response_items: ResponseItems<MockBlock, MockJustification>) -> Vec<SimplifiedItem> {
+        pub fn from_response_items(
+            response_items: ResponseItems<MockBlock, MockJustification>,
+        ) -> Vec<SimplifiedItem> {
             response_items
                 .into_iter()
                 .map(|it| match it {
@@ -888,7 +892,10 @@ mod tests {
         ];
         match handler.handle_request(request).expect("correct request") {
             Action::Response(response_items) => {
-                assert_eq!(SimplifiedItem::from_response_items(response_items), expected_response_items)
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
             }
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
@@ -946,7 +953,10 @@ mod tests {
 
         match handler.handle_request(request).expect("correct request") {
             Action::Response(response_items) => {
-                assert_eq!(SimplifiedItem::from_response_items(response_items), expected_response_items)
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
             }
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }

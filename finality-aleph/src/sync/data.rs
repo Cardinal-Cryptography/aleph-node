@@ -47,14 +47,18 @@ where
     B: Block,
     J: Justification<Header = B::Header>,
 {
-    pub fn response_items_from_justifications(justifications: Vec<J::Unverified>) -> ResponseItems<B, J> {
+    pub fn response_items_from_justifications(
+        justifications: Vec<J::Unverified>,
+    ) -> ResponseItems<B, J> {
         justifications
             .into_iter()
             .map(Self::Justification)
             .collect()
     }
 
-    pub fn justifications_from_response_items(response_items: ResponseItems<B, J>) -> Vec<J::Unverified> {
+    pub fn justifications_from_response_items(
+        response_items: ResponseItems<B, J>,
+    ) -> Vec<J::Unverified> {
         response_items
             .into_iter()
             .filter_map(|item| match item {
@@ -161,9 +165,9 @@ where
                 NetworkData::StateBroadcastResponse(justification, maybe_justification)
             }
             NetworkDataV1::Request(request) => NetworkData::Request(request),
-            NetworkDataV1::RequestResponse(justifications) => {
-                NetworkData::RequestResponse(ResponseItem::response_items_from_justifications(justifications))
-            }
+            NetworkDataV1::RequestResponse(justifications) => NetworkData::RequestResponse(
+                ResponseItem::response_items_from_justifications(justifications),
+            ),
         }
     }
 }
@@ -180,9 +184,9 @@ where
                 NetworkDataV1::StateBroadcastResponse(justification, maybe_justification)
             }
             NetworkData::Request(request) => NetworkDataV1::Request(request),
-            NetworkData::RequestResponse(response_items) => {
-                NetworkDataV1::RequestResponse(ResponseItem::justifications_from_response_items(response_items))
-            }
+            NetworkData::RequestResponse(response_items) => NetworkDataV1::RequestResponse(
+                ResponseItem::justifications_from_response_items(response_items),
+            ),
         }
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     network::GossipNetwork,
     session::SessionBoundaryInfo,
     sync::{
-        data::{ResponseItems, NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
+        data::{NetworkData, Request, ResponseItems, State, VersionWrapper, VersionedNetworkData},
         handler::{Action, Error as HandlerError, HandleStateAction, Handler},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
@@ -264,7 +264,9 @@ where
             peer,
             response_items,
         );
-        let (maybe_id, maybe_error) = self.handler.handle_request_response(response_items, peer.clone());
+        let (maybe_id, maybe_error) = self
+            .handler
+            .handle_request_response(response_items, peer.clone());
         if let Some(e) = maybe_error {
             match e {
                 HandlerError::Verifier(e) => debug!(
