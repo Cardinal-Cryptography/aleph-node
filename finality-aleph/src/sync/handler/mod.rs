@@ -152,11 +152,11 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            Verifier(e) => write!(f, "verifier error: {}", e),
-            ChainStatus(e) => write!(f, "chain status error: {}", e),
-            Finalizer(e) => write!(f, "finalized error: {}", e),
-            Forest(e) => write!(f, "forest error: {}", e),
-            ForestInitialization(e) => write!(f, "forest initialization error: {}", e),
+            Verifier(e) => write!(f, "verifier error: {e}"),
+            ChainStatus(e) => write!(f, "chain status error: {e}"),
+            Finalizer(e) => write!(f, "finalized error: {e}"),
+            Forest(e) => write!(f, "forest error: {e}"),
+            ForestInitialization(e) => write!(f, "forest initialization error: {e}"),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -164,7 +164,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
-            RequestHandlerError(e) => write!(f, "request handler error: {}", e),
+            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
         }
     }
 }
@@ -665,10 +665,7 @@ mod tests {
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(last_from_second_session));
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -702,10 +699,7 @@ mod tests {
                 assert_eq!(justification, last_from_first_session);
                 assert_eq!(maybe_justification, Some(top));
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -738,10 +732,7 @@ mod tests {
                 assert_eq!(justification, top);
                 assert!(maybe_justification.is_none());
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -799,10 +790,7 @@ mod tests {
 
         match handler.handle_request(request).expect("correct request") {
             Action::Noop => {}
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -902,10 +890,7 @@ mod tests {
             Action::Response(items) => {
                 assert_eq!(SimplifiedItem::from_items(items), expected_items)
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
     #[test]
@@ -923,10 +908,7 @@ mod tests {
 
         match handler.handle_request(request).expect("correct request") {
             Action::RequestBlock(id) => assert_eq!(id, requested_id),
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 
@@ -966,10 +948,7 @@ mod tests {
             Action::Response(items) => {
                 assert_eq!(SimplifiedItem::from_items(items), expected_items)
             }
-            other_action => panic!(
-                "expected a response with justifications, got {:?}",
-                other_action
-            ),
+            other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
 

@@ -356,7 +356,9 @@ where
     async fn next(&mut self) -> Result<(NetworkData<B, J>, Self::PeerId), Self::Error> {
         loop {
             match self.inner.next().await? {
-                (VersionedNetworkData::Other(version, _), _) => warn!(target: LOG_TARGET, "Received sync data of unsupported version {:?}, this node might be running outdated software.", version),
+                (VersionedNetworkData::Other(version, _), _) => {
+                    warn!(target: LOG_TARGET, "Received sync data of unsupported version {:?}, this node might be running outdated software.", version)
+                }
                 (VersionedNetworkData::V1(data), peer_id) => return Ok((data.into(), peer_id)),
                 (VersionedNetworkData::V2(data), peer_id) => return Ok((data, peer_id)),
             }
