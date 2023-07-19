@@ -6,7 +6,7 @@ use primitives::BlockNumber;
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
-        data::{BranchKnowledge, Item},
+        data::{BranchKnowledge, ResponseItem},
         handler::Request,
         Block, BlockIdFor, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
     },
@@ -45,7 +45,7 @@ impl<J: Justification, T: Display> Display for RequestHandlerError<J, T> {
     }
 }
 
-type Chunk<B, J> = Vec<Item<B, J>>;
+type Chunk<B, J> = Vec<ResponseItem<B, J>>;
 
 pub trait HandlerTypes {
     type Justification: Justification;
@@ -203,7 +203,7 @@ where
     J: Justification<Header = B::Header>,
 {
     RequestBlock(BlockIdFor<J>),
-    Response(Vec<Item<B, J>>),
+    Response(Vec<ResponseItem<B, J>>),
     Noop,
 }
 
@@ -216,10 +216,10 @@ where
         Action::RequestBlock(id)
     }
 
-    fn new(items: Vec<Item<B, J>>) -> Self {
-        match items.is_empty() {
+    fn new(response_items: Vec<ResponseItem<B, J>>) -> Self {
+        match response_items.is_empty() {
             true => Action::Noop,
-            false => Action::Response(items),
+            false => Action::Response(response_items),
         }
     }
 }
@@ -267,13 +267,13 @@ where
         let mut chunks = vec![];
 
         if let Some(j) = self.just {
-            chunks.push(Item::Justification(j.into_unverified()));
+            chunks.push(ResponseItem::Justification(j.into_unverified()));
         }
 
-        chunks.extend(self.headers.into_iter().map(Item::Header));
+        chunks.extend(self.headers.into_iter().map(ResponseItem::Header));
 
         self.blocks.reverse();
-        chunks.extend(self.blocks.into_iter().map(Item::Block));
+        chunks.extend(self.blocks.into_iter().map(ResponseItem::Block));
 
         chunks
     }
@@ -370,13 +370,13 @@ where
         Ok(Some(result))
     }
 
-    fn items(
+    fn response_items(
         self,
         mut head: HeadOfChunk<J>,
         branch_knowledge: BranchKnowledge<J>,
         to: BlockIdFor<J>,
-    ) -> HandlerResult<Vec<Item<B, J>>, Self> {
-        let mut items = vec![];
+    ) -> HandlerResult<Vec<ResponseItem<B, J>>, Self> {
+        let mut response_items = vec![];
         let mut state = State::EverythingButHeader;
 
         while let Some(result) = self.step(state, head, &to, &branch_knowledge)? {
@@ -384,12 +384,12 @@ where
 
             state = new_state;
             head = new_head;
-            items.push(chunk);
+            response_items.push(chunk);
         }
 
-        items.reverse();
+        response_items.reverse();
 
-        Ok(items.into_iter().flatten().collect())
+        Ok(response_items.into_iter().flatten().collect())
     }
 
     fn adjust_head(
@@ -433,12 +433,12 @@ where
 
         let head = self.adjust_head(head, our_top_justification, upper_limit)?;
 
-        let items = self.items(
+        let response_items = self.response_items(
             head,
             request.branch_knowledge().clone(),
             top_justification.id(),
         )?;
 
-        Ok(Action::new(items))
+        Ok(Action::new(response_items))
     }
 }

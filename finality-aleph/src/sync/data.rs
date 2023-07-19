@@ -27,9 +27,9 @@ impl<J: Justification> State<J> {
     }
 }
 
-/// Represents one of the possible items we are sending over the network.
+/// Represents one of the possible response_items we are sending over the network.
 #[derive(Clone, Debug, Encode, Decode)]
-pub enum Item<B, J>
+pub enum ResponseItem<B, J>
 where
     B: Block,
     J: Justification<Header = B::Header>,
@@ -39,20 +39,23 @@ where
     Block(B),
 }
 
-impl<B, J> Item<B, J>
+/// Things we send over the network as a response to the request.
+pub type ResponseItems<B, J> = Vec<ResponseItem<B, J>>;
+
+impl<B, J> ResponseItem<B, J>
 where
     B: Block,
     J: Justification<Header = B::Header>,
 {
-    pub fn items_from_justifications(justifications: Vec<J::Unverified>) -> Items<B, J> {
+    pub fn response_items_from_justifications(justifications: Vec<J::Unverified>) -> ResponseItems<B, J> {
         justifications
             .into_iter()
             .map(Self::Justification)
             .collect()
     }
 
-    pub fn justifications_from_items(items: Items<B, J>) -> Vec<J::Unverified> {
-        items
+    pub fn justifications_from_response_items(response_items: ResponseItems<B, J>) -> Vec<J::Unverified> {
+        response_items
             .into_iter()
             .filter_map(|item| match item {
                 Self::Justification(j) => Some(j),
@@ -61,9 +64,6 @@ where
             .collect()
     }
 }
-
-/// Things we send over the network as a response to the request.
-pub type Items<B, J> = Vec<Item<B, J>>;
 
 /// Additional information about the branch connecting the top finalized block
 /// with a given one. All the variants are exhaustive and exclusive due to the
@@ -146,7 +146,7 @@ where
     /// An explicit request for data, potentially a lot of it.
     Request(Request<J>),
     /// Response to the request for data.
-    RequestResponse(Items<B, J>),
+    RequestResponse(ResponseItems<B, J>),
 }
 
 impl<B: Block, J: Justification> From<NetworkDataV1<J>> for NetworkData<B, J>
@@ -162,7 +162,7 @@ where
             }
             NetworkDataV1::Request(request) => NetworkData::Request(request),
             NetworkDataV1::RequestResponse(justifications) => {
-                NetworkData::RequestResponse(Item::items_from_justifications(justifications))
+                NetworkData::RequestResponse(ResponseItem::response_items_from_justifications(justifications))
             }
         }
     }
@@ -180,8 +180,8 @@ where
                 NetworkDataV1::StateBroadcastResponse(justification, maybe_justification)
             }
             NetworkData::Request(request) => NetworkDataV1::Request(request),
-            NetworkData::RequestResponse(items) => {
-                NetworkDataV1::RequestResponse(Item::justifications_from_items(items))
+            NetworkData::RequestResponse(response_items) => {
+                NetworkDataV1::RequestResponse(ResponseItem::justifications_from_response_items(response_items))
             }
         }
     }

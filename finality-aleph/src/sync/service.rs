@@ -9,7 +9,7 @@ use crate::{
     network::GossipNetwork,
     session::SessionBoundaryInfo,
     sync::{
-        data::{Items, NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
+        data::{ResponseItems, NetworkData, Request, State, VersionWrapper, VersionedNetworkData},
         handler::{Action, Error as HandlerError, HandleStateAction, Handler},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
@@ -257,14 +257,14 @@ where
         }
     }
 
-    fn handle_request_response(&mut self, items: Items<B, J>, peer: N::PeerId) {
+    fn handle_request_response(&mut self, response_items: ResponseItems<B, J>, peer: N::PeerId) {
         trace!(
             target: LOG_TARGET,
             "Handling request response from peer {:?}. Items: {:?}.",
             peer,
-            items,
+            response_items,
         );
-        let (maybe_id, maybe_error) = self.handler.handle_request_response(items, peer.clone());
+        let (maybe_id, maybe_error) = self.handler.handle_request_response(response_items, peer.clone());
         if let Some(e) = maybe_error {
             match e {
                 HandlerError::Verifier(e) => debug!(
@@ -290,8 +290,8 @@ where
             peer
         );
         match self.handler.handle_request(request) {
-            Ok(Action::Response(items)) => {
-                self.send_to(NetworkData::RequestResponse(items), peer);
+            Ok(Action::Response(response_items)) => {
+                self.send_to(NetworkData::RequestResponse(response_items), peer);
             }
             Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => match e {
@@ -376,7 +376,7 @@ where
                 self.handle_request(request, peer.clone());
                 self.handle_state(state, peer);
             }
-            RequestResponse(items) => self.handle_request_response(items, peer),
+            RequestResponse(response_items) => self.handle_request_response(response_items, peer),
         }
     }
 
