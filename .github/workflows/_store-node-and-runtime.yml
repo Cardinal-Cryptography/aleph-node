@@ -1,20 +1,32 @@
 ---
-#  This workflow stores test version of aleph-node and aleph-runtime in our CI
-#  S3 bucket.
-name: Store test node and runtime
+#  This workflow stores test or release version of aleph-node and aleph-runtime in S3
+name: Store node and runtime
 on:
   workflow_call:
-
+    inputs:
+      profile:
+        required: true
+        type: string
+        description: test or production
 jobs:
   main:
-    name: Store test node and runtime
+    name: Store node and runtime
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
       SECRETS_DEVNET_ACCESS_KEY_ID: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
       SECRETS_DEVNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+      CARGO_PROFILE_DIRECTORY: ${{ inputs.profile == 'test' && 'release' || 'production' }}
     steps:
+      - name: Validate workflow inputs
+        shell: bash
+        run: |
+          if [[ ${{ inputs.profile }} != 'test' && ${{ inputs.profile }} != 'production' ]]; then
+            echo "Error: inputs.profile should be either test or production!"
+            exit 1
+          fi
+
       - name: Checkout aleph-node source code
         uses: actions/checkout@v3
 
@@ -23,19 +35,19 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
-      - name: Download release binary from GH artifacts
+      - name: Download binary from GH artifacts
         uses: actions/download-artifact@v3
         with:
-          name: aleph-test-node
-          path: target/release
+          name: aleph-${{ inputs.profile }}-node
+          path: target/${{ env.CARGO_PROFILE_DIRECTORY }}
 
-      - name: Download release runtime from GH artifacts
+      - name: Download runtime from GH artifacts
         uses: actions/download-artifact@v3
         with:
-          name: aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime
+          name: aleph-${{ inputs.profile }}-runtime
+          path: target/${{ env.CARGO_PROFILE_DIRECTORY }}/wbuild/aleph-runtime
 
-      - name: Configure AWS credentials for S3 Devnet AWS
+      - name: Configure AWS credentials for S3 AWS
         if: >
           env.SECRETS_DEVNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_DEVNET_SECRET_ACCESS_KEY != ''
@@ -51,28 +63,32 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Copy test binary to S3 Devnet AWS bucket
+      - name: Copy binary to S3 AWS bucket
         if: >
           env.SECRETS_DEVNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@v1
         with:
-          source-path: target/release
+          source-path: target/${{ env.CARGO_PROFILE_DIRECTORY }}
           source-filename: aleph-node
           s3-bucket-path:
-            builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-node
-          s3-bucket-filename: aleph-test-node-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+            # yamllint disable-line rule:line-length
+            builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-${{ inputs.profile }}-node
+          s3-bucket-filename:
+            aleph-${{ inputs.profile }}-node-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
           s3-bucket-name: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
 
-      - name: Copy test runtime to S3 Devnet AWS bucket
+      - name: Copy runtime to S3 AWS bucket
         if: >
           env.SECRETS_DEVNET_ACCESS_KEY_ID != '' &&
           env.SECRETS_DEVNET_SECRET_ACCESS_KEY != ''
         uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@v1
         with:
-          source-path: target/release/wbuild/aleph-runtime
+          source-path: target/${{ env.CARGO_PROFILE_DIRECTORY }}/wbuild/aleph-runtime
           source-filename: aleph_runtime.compact.wasm
           s3-bucket-path:
-            builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-test-runtime
-          s3-bucket-filename: aleph-test-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
+            # yamllint disable-line rule:line-length
+            builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/aleph-${{ inputs.profile }}-runtime
+          s3-bucket-filename:
+            aleph-${{ inputs.profile }}-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
           s3-bucket-name: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}

@@ -24,7 +24,9 @@ jobs:
   store-test-node-and-runtime:
     needs: [build-test-node-and-runtime]
     name: Store test node and runtime
-    uses: ./.github/workflows/_store-test-node-and-runtime.yml
+    uses: ./.github/workflows/_store-node-and-runtime.yml
+    with:
+      profile: test
     secrets: inherit
 
   build-test-node-image-and-e2e-client-image:

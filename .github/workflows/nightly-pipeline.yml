@@ -24,7 +24,9 @@ jobs:
   store-production-node:
     needs: [build-production-node]
     name: Store production node and runtime artifacts (PR version)
-    uses: ./.github/workflows/_store-production-node-and-runtime.yml
+    uses: ./.github/workflows/_store-node-and-runtime.yml
+    with:
+      profile: production
     secrets: inherit
 
   build-production-node-and-e2e-client-image:
