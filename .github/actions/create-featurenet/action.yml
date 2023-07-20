@@ -148,21 +148,24 @@ runs:
           pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
           fnet_bootstrap_chain_node_image="${{ steps.get-ref-properties.outputs.sha }}"
+          fnet_create_hook="false"
         elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
             "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
           ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}")
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
           fnet_bootstrap_chain_node_image="${{ inputs.featurenet-aleph-node-image }}"
+          fnet_create_hook="false"
         else
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
           fnet_bootstrap_chain_node_image="none"
+          fnet_create_hook="true"
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
           "${fnet_aleph_node_image}" \
           "${fnet_bootstrap_chain_node_image}" \
           "${{ inputs.rolling-update-partition }}" \
-          false
+          "${fnet_create_hook}"
       # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
