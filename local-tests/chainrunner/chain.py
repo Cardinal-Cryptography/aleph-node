@@ -169,13 +169,25 @@ class Chain:
         chainspec = join(self.path, 'chainspec.json')
         snapshot = snapshot_file if snapshot_file else join(self.path, 'snapshot.json')
         cmd = [check_file(forkoff_path), '--ws-rpc-endpoint', ws_endpoint,
-                '--initial-spec-path', chainspec,
-                '--snapshot-path', snapshot,
-                '--combined-spec-path', forked]
+               '--initial-spec-path', chainspec,
+               '--snapshot-path', snapshot,
+               '--combined-spec-path', forked]
         if snapshot_file:
             cmd.append('--use-snapshot-file')
         subprocess.run(cmd, check=True)
         self.set_chainspec(forked)
+
+    def get_highest_imported(self, nodes=None):
+        """Return the highest block id imported by all the selected nodes"""
+        nodes = nodes or range(len(self.nodes))
+        nodes = [self.nodes[i] for i in nodes]
+        return min([n.highest_block()[0] for n in nodes], default=-1)
+
+    def get_highest_finalized(self, nodes=None):
+        """Return the highest block id finalized by all the selected nodes"""
+        nodes = nodes or range(len(self.nodes))
+        nodes = [self.nodes[i] for i in nodes]
+        return min([n.highest_block()[1] for n in nodes], default=-1)
 
     def wait_for_finalization(self, old_finalized, nodes=None, timeout=600, finalized_delta=3, catchup=True, catchup_delta=10):
         """Wait for finalization to catch up with the newest blocks. Requires providing the number
@@ -185,12 +197,13 @@ class Chain:
         If `catchup` is True, wait until finalization catches up with the newly produced blocks
         (within `catchup_delta` blocks). 'timeout' (in seconds) is a global timeout for the whole method
         to execute. Raise TimeoutError if finalization fails to recover within the given timeout."""
-        nodes = [self.nodes[i] for i in nodes] if nodes else self.nodes
+        nodes = nodes or range(len(self.nodes))
         deadline = time.time() + timeout
-        while any((n.highest_block()[1] <= old_finalized + finalized_delta) for n in nodes):
+        while self.get_highest_finalized(nodes) <= old_finalized + finalized_delta:
             time.sleep(5)
             if time.time() > deadline:
                 raise TimeoutError(f'Block finalization stalled after {timeout} seconds')
+        nodes = [self.nodes[i] for i in nodes]
         if catchup:
             def lags(node):
                 r, f = node.highest_block()
@@ -200,6 +213,15 @@ class Chain:
                 if time.time() > deadline:
                     print(f'Finalization restored, but failed to catch up with recent blocks within {timeout} seconds')
                     break
+
+    def wait_for_block_id_imported(self, block_id, nodes=None, timeout=600):
+        """Wait until all the selected nodes imported a block of id `block_id`"""
+        nodes = nodes or range(len(self.nodes))
+        deadline = time.time() + timeout
+        while self.get_highest_imported(nodes) < block_id:
+            time.sleep(1)
+            if time.time() > deadline:
+                raise TimeoutError(f'Block production stalled after {timeout} seconds')
 
     def wait_for_authorities(self, nodes=None, timeout=600):
         """Wait for the selected `nodes` (all validator nodes if None) to connect to all known authorities.
