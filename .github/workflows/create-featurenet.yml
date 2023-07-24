@@ -34,6 +34,9 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-test-node-and-runtime]
     steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
       - name: Store test node and runtime
         uses: ./.github/actions/store-node-and-runtime
         with:

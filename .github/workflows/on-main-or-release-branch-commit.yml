@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-production-node-and-runtime]
     steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
       - name: Store production node and runtime
         uses: ./.github/actions/store-node-and-runtime
         with:
@@ -36,6 +39,9 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-production-node-and-runtime]
     steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
       - name: Store production node and runtime
         uses: ./.github/actions/store-node-and-runtime
         with:
