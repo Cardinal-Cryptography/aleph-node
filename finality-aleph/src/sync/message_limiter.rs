@@ -17,7 +17,7 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         Self {
             msg,
             start_index: 0,
-            indexes: (0..=msg.len()).into_iter().collect(),
+            indexes: (0..=msg.len()).collect(),
         }
     }
 
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn iterates_correctly_2() {
+    fn iterates_correctly_with_oversized_element() {
         let v = vec![
             sized(5),
             sized(3),
