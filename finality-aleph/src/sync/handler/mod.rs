@@ -562,8 +562,9 @@ mod tests {
 
     fn import_branch(backend: &mut Backend, branch_length: usize) -> Vec<MockHeader> {
         let result: Vec<_> = backend
-            .best_block()
+            .top_finalized()
             .expect("mock backend works")
+            .header()
             .random_branch()
             .take(branch_length)
             .collect();

@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::{Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -8,6 +8,7 @@ use futures::channel::mpsc::{self, UnboundedSender};
 use parking_lot::Mutex;
 
 use crate::{
+    nodes::VERIFIER_CACHE_SIZE,
     session::{SessionBoundaryInfo, SessionId, SessionPeriod},
     sync::{
         mock::{MockBlock, MockHeader, MockIdentifier, MockJustification, MockNotification},
@@ -22,34 +23,12 @@ struct BackendStorage {
     session_boundary_info: SessionBoundaryInfo,
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
-    best_block: MockIdentifier,
 }
 
 #[derive(Clone, Debug)]
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
-}
-
-fn is_predecessor(
-    storage: &HashMap<MockIdentifier, MockBlock>,
-    mut header: MockHeader,
-    maybe_predecessor: MockIdentifier,
-) -> bool {
-    while let Some(parent) = header.parent_id() {
-        if header.id().number() != parent.number() + 1 {
-            break;
-        }
-        if parent == maybe_predecessor {
-            return true;
-        }
-
-        header = match storage.get(&parent) {
-            Some(block) => block.header().clone(),
-            None => return false,
-        }
-    }
-    false
 }
 
 impl Backend {
@@ -81,8 +60,7 @@ impl Backend {
         let storage = Arc::new(Mutex::new(BackendStorage {
             session_boundary_info,
             blockchain: HashMap::from([(id.clone(), block)]),
-            finalized: vec![id.clone()],
-            best_block: id,
+            finalized: vec![id],
         }));
 
         Self {
@@ -101,6 +79,42 @@ impl Backend {
         self.notification_sender
             .unbounded_send(MockNotification::BlockFinalized(header))
             .expect("notification receiver is open");
+    }
+
+    fn prune(&self) {
+        let mut storage = self.inner.lock();
+        let mut mark_prune = storage.finalized.clone();
+        let mut mark_keep = HashSet::new();
+        mark_keep.insert(mark_prune.pop().expect("should contain at least genesis"));
+        let mut mark_prune = HashSet::<_>::from_iter(mark_prune.into_iter());
+        let mut prune = HashSet::new();
+        let ids = storage.blockchain.keys().clone();
+        let mut chunk = HashSet::new();
+        for id in ids {
+            let mut id = id.clone();
+            loop {
+                if mark_prune.contains(&id) {
+                    prune.extend(chunk.clone().drain());
+                    mark_prune.extend(chunk.drain());
+                    break;
+                }
+                if mark_keep.contains(&id) {
+                    mark_keep.extend(chunk.drain());
+                    break;
+                }
+                chunk.insert(id.clone());
+                id = storage
+                    .blockchain
+                    .get(&id)
+                    .expect("should be there")
+                    .header()
+                    .parent_id()
+                    .expect("genesis should be marked");
+            }
+        }
+        for id in prune {
+            storage.blockchain.remove(&id);
+        }
     }
 }
 
@@ -211,20 +225,8 @@ impl Finalizer<MockJustification> for Backend {
         }
 
         storage.finalized.extend(blocks_to_finalize);
-        // In case finalization changes best block, we set best block, to top finalized.
-        // Whenever a new import happens, best block will update anyway.
-        if !is_predecessor(
-            &storage.blockchain,
-            storage
-                .blockchain
-                .get(&storage.best_block)
-                .unwrap()
-                .header()
-                .clone(),
-            finalizing_id.clone(),
-        ) {
-            storage.best_block = finalizing_id
-        }
+        std::mem::drop(storage);
+        self.prune();
         self.notify_finalized(header);
 
         Ok(())
@@ -237,6 +239,12 @@ impl BlockImport<MockBlock> for Backend {
             return;
         }
 
+        let top_finalized_number = self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header()
+            .id()
+            .number();
         let mut storage = self.inner.lock();
 
         let parent_id = match block.parent_id() {
@@ -247,18 +255,9 @@ impl BlockImport<MockBlock> for Backend {
         if storage.blockchain.contains_key(&block.id())
             || !storage.blockchain.contains_key(&parent_id)
             || block.id().number() != parent_id.number() + 1
+            || block.id().number() <= top_finalized_number
         {
             return;
-        }
-
-        if block.id().number() > storage.best_block.number()
-            && is_predecessor(
-                &storage.blockchain,
-                block.header.clone(),
-                storage.best_block.clone(),
-            )
-        {
-            storage.best_block = block.id();
         }
 
         storage.blockchain.insert(block.id(), block.clone());
@@ -323,13 +322,7 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
     }
 
     fn best_block(&self) -> Result<MockHeader, Self::Error> {
-        let storage = self.inner.lock();
-        let id = storage.best_block.clone();
-        storage
-            .blockchain
-            .get(&id)
-            .map(|b| b.header().clone())
-            .ok_or(StatusError)
+        Err(Self::Error {})
     }
 
     fn top_finalized(&self) -> Result<MockJustification, Self::Error> {
@@ -381,7 +374,12 @@ impl Verifier<MockJustification> for Backend {
         &mut self,
         justification: MockJustification,
     ) -> Result<MockJustification, Self::Error> {
-        let top_number = self.top_finalized().unwrap().header.id.number;
+        let top_number = self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header
+            .id
+            .number;
         let storage = self.inner.lock();
         let current_session = storage
             .session_boundary_info
@@ -389,8 +387,8 @@ impl Verifier<MockJustification> for Backend {
         let justification_session = storage
             .session_boundary_info
             .session_id_from_block_num(justification.id().number);
-        if !(justification_session == current_session
-            || justification_session == current_session.next())
+        if justification_session.0 > current_session.0 + 1
+            || current_session.0 + 1 - justification_session.0 >= VERIFIER_CACHE_SIZE as u32
         {
             return Err(Self::Error::IncorrectSession);
         }
