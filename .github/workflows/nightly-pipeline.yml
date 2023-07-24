@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  build-production-node:
+  build-production-node-and-runtime:
     needs: [check-vars-and-secrets]
     name: Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
@@ -35,7 +35,7 @@ jobs:
           aws-bucket: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
 
   build-production-node-and-e2e-client-image:
-    needs: [build-production-node]
+    needs: [build-production-node-and-runtime]
     name: Build production node and e2e client docker image
     uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
     secrets: inherit
