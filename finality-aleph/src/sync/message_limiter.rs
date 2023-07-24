@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn xxx() {
+    fn takes_one_that_fit() {
         let v = vec![sized(5), sized(6), sized(7)];
 
         let mut lim = TestLimiter::new(&v);
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(Some(&v[..1]), lim.next_largest_msg())
     }
     #[test]
-    fn xxx1() {
+    fn takes_all() {
         let v = vec![sized(1), sized(2), sized(3)];
 
         let mut lim = TestLimiter::new(&v);
@@ -100,7 +100,7 @@ mod tests {
         assert_eq!(Some(&v[..]), lim.next_largest_msg())
     }
     #[test]
-    fn xxx2() {
+    fn takes_all_that_fits_into_limit() {
         let v = vec![sized(1), sized(2), sized(7)];
 
         let mut lim = TestLimiter::new(&v);
@@ -108,7 +108,7 @@ mod tests {
         assert_eq!(Some(&v[..2]), lim.next_largest_msg())
     }
     #[test]
-    fn xxx3() {
+    fn works_with_empty_input() {
         let v = vec![];
 
         let mut lim = TestLimiter::<EncodeToSize>::new(&v);
@@ -116,7 +116,7 @@ mod tests {
         assert_eq!(None, lim.next_largest_msg())
     }
     #[test]
-    fn xxx4() {
+    fn respects_the_limit() {
         let v = vec![sized(10)];
 
         let mut lim = TestLimiter::new(&v);
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn xxx5() {
+    fn iterates_correctly() {
         let v = vec![sized(5), sized(6), sized(7)];
 
         let mut lim = TestLimiter::new(&v);
@@ -137,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn xxx6() {
+    fn iterates_correctly_2() {
         let v = vec![
             sized(5),
             sized(3),
@@ -155,6 +155,27 @@ mod tests {
         assert_eq!(Some(&v[4..5]), lim.next());
         assert_eq!(Some(&v[5..6]), lim.next());
         assert_eq!(Some(&v[6..7]), lim.next());
+        assert_eq!(None, lim.next());
+    }
+
+    #[test]
+    fn iterates_correctly_2() {
+        let v = vec![
+            sized(5),
+            sized(3),
+            sized(2),
+            sized(5),
+            sized(5),
+            sized(6),
+            sized(10), // should not be included
+        ];
+
+        let mut lim = TestLimiter::new(&v);
+
+        assert_eq!(Some(&v[..2]), lim.next());
+        assert_eq!(Some(&v[2..4]), lim.next());
+        assert_eq!(Some(&v[4..5]), lim.next());
+        assert_eq!(Some(&v[5..6]), lim.next());
         assert_eq!(None, lim.next());
     }
 }
