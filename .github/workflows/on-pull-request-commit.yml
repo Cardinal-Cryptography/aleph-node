@@ -42,7 +42,7 @@ jobs:
     needs: [build-production-node-and-runtime]
     steps:
       - name: Store production node and runtime
-        uses:  ./.github/actions/store-node-and-runtime
+        uses: ./.github/actions/store-node-and-runtime
         with:
           profile: production
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -63,7 +63,7 @@ jobs:
     needs: [build-test-node-and-runtime]
     steps:
       - name: Store test node and runtime
-        uses:  ./.github/actions/store-node-and-runtime
+        uses: ./.github/actions/store-node-and-runtime
         with:
           profile: test
           aws-access-key-id: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY_ID }}
