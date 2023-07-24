@@ -207,13 +207,12 @@ impl pallet_bridge_grandpa::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type BridgedChain = bp_westend::Westend;
     type MaxFreeMandatoryHeadersPerBlock = ConstU32<4>;
-    type HeadersToKeep = ConstU32<{ bp_westend::DAYS as u32 }>;
+    type HeadersToKeep = ConstU32<{ bp_westend::DAYS }>;
     type WeightInfo = pallet_bridge_grandpa::weights::BridgeWeight<Runtime>;
 }
 
 parameter_types! {
     pub const WestendParasPalletName: &'static str = bp_westend::PARAS_PALLET_NAME;
-    pub const MaxWestendParaHeadDataSize: u32 = bp_westend::MAX_NESTED_PARACHAIN_HEAD_DATA_SIZE;
 }
 
 impl pallet_bridge_parachains::Config for Runtime {
@@ -223,12 +222,7 @@ impl pallet_bridge_parachains::Config for Runtime {
     type ParasPalletName = WestendParasPalletName;
     type ParaStoredHeaderDataBuilder = SingleParaStoredHeaderDataBuilder<AlephZeroParachain>;
     type HeadsToKeep = ConstU32<1024>;
-    type MaxParaHeadDataSize = MaxWestendParaHeadDataSize;
-}
-
-parameter_types! {
-    pub const ParasPalletName: &'static str = "paras";
-    pub const MaxHeadDataSize: u32 = 1024;
+    type MaxParaHeadDataSize = ConstU32<{ bp_westend::MAX_NESTED_PARACHAIN_HEAD_DATA_SIZE }>;
 }
 
 parameter_types! {
