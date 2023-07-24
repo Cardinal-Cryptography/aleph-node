@@ -144,17 +144,20 @@ runs:
       # yamllint disable rule:line-length
       run: |
         cd "${{ inputs.repo-apps-name }}"
+        # feature net creation from commit from PR
         if [[ "${{ inputs.featurenet-aleph-node-image }}" == "" ]]; then
           pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
           fnet_bootstrap_chain_node_image="${{ steps.get-ref-properties.outputs.sha }}"
           fnet_create_hook="false"
+        # update net creation from Testnet or Mainnet image
         elif [[ "${{ inputs.featurenet-aleph-node-image }}" == "testnet" || \
             "${{ inputs.featurenet-aleph-node-image }}" == "mainnet" ]]; then
-          ecr_image_tag=$(echo "${{ steps.get-node-commit-sha.outputs.sha }}")
+          ecr_image_tag="${{ steps.get-node-commit-sha.outputs.sha }}"
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${ecr_image_tag}"
           fnet_bootstrap_chain_node_image="${{ inputs.featurenet-aleph-node-image }}"
           fnet_create_hook="false"
+        # update net update, ie updating binary to given version and runtime update
         else
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
           fnet_bootstrap_chain_node_image="none"
