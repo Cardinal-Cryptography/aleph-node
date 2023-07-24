@@ -209,7 +209,7 @@ type ByteCount = u32;
 
 // We want to be able to safely send at least 10 blocks at once, so this gives uss a bit of wiggle
 // room.
-const MAX_SYNC_MESSAGE_SIZE: u32 = MAX_BLOCK_SIZE * 11;
+pub const MAX_SYNC_MESSAGE_SIZE: u32 = MAX_BLOCK_SIZE * 11;
 
 fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     let size = payload.len().try_into().unwrap_or(ByteCount::MAX);

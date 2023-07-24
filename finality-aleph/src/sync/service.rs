@@ -11,6 +11,7 @@ use crate::{
     sync::{
         data::{NetworkData, Request, ResponseItems, State, VersionWrapper, VersionedNetworkData},
         handler::{Action, Error as HandlerError, HandleStateAction, Handler},
+        message_limiter::MsgLimiter,
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -293,7 +294,9 @@ where
         );
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
-                self.send_to(NetworkData::RequestResponse(response_items), peer);
+                for chunk in MsgLimiter::new(&response_items) {
+                    self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone());
+                }
             }
             Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => match e {
