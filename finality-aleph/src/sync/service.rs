@@ -275,7 +275,7 @@ where
                 ),
                 e => warn!(
                     target: LOG_TARGET,
-                    "Failed to handle sync state response from {:?}: {}.", peer, e
+                    "Failed to handle sync request response from {:?}: {}.", peer, e
                 ),
             };
         }
