@@ -34,7 +34,7 @@ runs:
         CARGO_PROFILE_DIRECTORY: ${{ inputs.profile == 'test' && 'release' || 'production' }}
       run: |
         cargo_profile_local=${{ env.CARGO_PROFILE_DIRECTORY }}
-        echo "cargo_profile=cargo_profile_local" >> $GITHUB_OUTPUT
+        echo "cargo_profile=$cargo_profile_local" >> $GITHUB_OUTPUT
 
     - name: Checkout aleph-node source code
       uses: actions/checkout@v3
