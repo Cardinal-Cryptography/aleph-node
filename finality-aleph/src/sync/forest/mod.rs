@@ -106,9 +106,9 @@ where
         match self {
             InitializationError::Error(e) => match e {
                 Error::TooNew => write!(f, "there are more imported non-finalized blocks in the database that can fit into the forest – purge the block database and restart the node"),
-                e => write!(f, "{}", e),
+                e => write!(f, "{e}"),
             },
-            InitializationError::ChainStatus(e) => write!(f, "chain status error: {}", e),
+            InitializationError::ChainStatus(e) => write!(f, "chain status error: {e}"),
         }
     }
 }
@@ -612,7 +612,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&child.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected top required, got {:?}.", other_state),
+            other_state => panic!("Expected top required, got {other_state:?}."),
         }
         assert!(forest.importable(&child.id()));
         assert!(!forest
@@ -658,7 +658,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&child.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected top required, got {:?}.", other_state),
+            other_state => panic!("Expected top required, got {other_state:?}."),
         }
         assert!(forest.importable(&child.id()));
         assert!(!forest
@@ -688,7 +688,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&child.header().id()) {
             HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected highest justified, got {:?}.", other_state),
+            other_state => panic!("Expected highest justified, got {other_state:?}."),
         }
         assert!(forest.importable(&child.id()));
     }
@@ -755,7 +755,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&child.header().id()) {
             HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected highest justified, got {:?}.", other_state),
+            other_state => panic!("Expected highest justified, got {other_state:?}."),
         }
         assert!(forest.importable(&child.header().id()));
         forest
@@ -841,7 +841,7 @@ mod tests {
             .expect("header was correct"));
         match forest.request_interest(&fork_child.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&fork_peer_id)),
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&fork_child.id()));
         assert!(forest
@@ -870,7 +870,7 @@ mod tests {
                 .expect("header was correct"));
             match forest.request_interest(&header.id()) {
                 Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-                other_state => panic!("Expected required, got {:?}.", other_state),
+                other_state => panic!("Expected required, got {other_state:?}."),
             }
             assert!(forest.importable(&header.id()));
         }
@@ -900,7 +900,7 @@ mod tests {
             .expect("header was correct"));
         match forest.request_interest(&header.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&header.id()));
         let header = &branch[1];
@@ -917,7 +917,7 @@ mod tests {
             .expect("header was correct"));
         match forest.request_interest(&header.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&header.id()));
         let header = &branch[2];
@@ -967,7 +967,7 @@ mod tests {
                 // we only know parent from branch[2], namely branch[1]
                 assert_eq!(branch_knowledge, LowestId(branch[1].id()));
             }
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&header.id()));
         // fill the gap
@@ -990,7 +990,7 @@ mod tests {
                 // now we know all ancestors
                 assert_eq!(branch_knowledge, TopImported(initial_header.id()));
             }
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&branch[3].id()));
         forest.update_body(&branch[0]).expect("should import");
@@ -1002,7 +1002,7 @@ mod tests {
                 // we know all ancestors, three blocks were imported
                 assert_eq!(branch_knowledge, TopImported(branch[1].id()));
             }
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&branch[3].id()));
     }
@@ -1024,7 +1024,7 @@ mod tests {
                 .expect("header was correct"));
             match forest.request_interest(&justification.header().id()) {
                 HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
-                other_state => panic!("Expected highest justified, got {:?}.", other_state),
+                other_state => panic!("Expected highest justified, got {other_state:?}."),
             }
             assert!(forest.importable(&justification.header().id()));
             forest
@@ -1058,7 +1058,7 @@ mod tests {
                     .expect("header was correct"));
                 match forest.request_interest(&justification.header().id()) {
                     HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
-                    other_state => panic!("Expected highest justified, got {:?}.", other_state),
+                    other_state => panic!("Expected highest justified, got {other_state:?}."),
                 }
                 assert!(forest.importable(&justification.header().id()));
             }
@@ -1095,7 +1095,7 @@ mod tests {
             assert!(forest.try_finalize(&1).is_none());
             match forest.request_interest(&header.id()) {
                 Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-                other_state => panic!("Expected required, got {:?}.", other_state),
+                other_state => panic!("Expected required, got {other_state:?}."),
             }
             assert!(forest.importable(&header.id()));
         }
@@ -1107,7 +1107,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&child.header().id()) {
             HighestJustified { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected highest justified, got {:?}.", other_state),
+            other_state => panic!("Expected highest justified, got {other_state:?}."),
         }
         assert!(forest.importable(&child.header().id()));
         forest
@@ -1142,7 +1142,7 @@ mod tests {
             .expect("header was correct"));
         match forest.request_interest(&header.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&peer_id)),
-            other_state => panic!("Expected required, got {:?}.", other_state),
+            other_state => panic!("Expected required, got {other_state:?}."),
         }
         assert!(forest.importable(&header.id()));
         for header in branch.iter().take(HUGE_BRANCH_LENGTH - 1) {
