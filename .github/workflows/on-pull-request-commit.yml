@@ -38,7 +38,7 @@ jobs:
     secrets: inherit
 
   build-production-node-and-runtime:
-    needs: [ check-vars-and-secrets ]
+    needs: [check-vars-and-secrets]
     name: Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
 
@@ -48,7 +48,7 @@ jobs:
     needs: build-production-node-and-runtime
     strategy:
       matrix:
-        pruning: [ '' ]
+        pruning: ['']
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
