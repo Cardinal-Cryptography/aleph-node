@@ -97,7 +97,7 @@ jobs:
   test-force-reorg:
     name: Test behavior in presence of forks
     runs-on: ubuntu-20.04
-    needs: build-new-node
+    needs: build-production-node-and-runtime
     strategy:
       matrix:
         pruning: ['']
