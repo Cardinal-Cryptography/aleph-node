@@ -32,9 +32,43 @@ jobs:
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
   build-production-node-and-runtime:
-    name: Build production node and runtime
+    needs: [ check-vars-and-secrets ]
+    name: Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
+
+  test-force-reorg:
+    name: Test behavior in presence of forks
+    runs-on: ubuntu-20.04
+    needs: build-production-node-and-runtime
+    strategy:
+      matrix:
+        pruning: [ '' ]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Run test
+        timeout-minutes: 10
+        env:
+          # Relative to local-tests/ directory
+          ALEPH_NODE_BINARY: aleph-release-node/aleph-node
+        run: ./.github/scripts/test_force_reorg.sh ${{ matrix.pruning }}
 
   check-runtime-determinism:
     needs: [build-production-node-and-runtime]
