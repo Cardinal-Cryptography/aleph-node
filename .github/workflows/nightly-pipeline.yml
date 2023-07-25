@@ -84,6 +84,34 @@ jobs:
           # jobs fail, this check will be skipped, we need to check status manually
           jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'
 
+  test-force-reorg:
+    name: Test behavior in presence of forks
+    runs-on: ubuntu-20.04
+    needs: build-new-node
+    strategy:
+      matrix:
+        pruning: ['']
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: local-tests/
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Run test
+        timeout-minutes: 10
+        env:
+          # Relative to local-tests/ directory
+          ALEPH_NODE_BINARY: aleph-release-node/aleph-node
+        run: ./.github/scripts/test_force_reorg.sh ${{ matrix.pruning }}
+
   slack:
     name: Slack notification
     runs-on: ubuntu-20.04
