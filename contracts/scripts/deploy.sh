@@ -1,36 +1,63 @@
 #!/bin/bash
 
-set -euox pipefail
+set -e # exit immediatley if any command has a non-zero exit status
+# set -x # print all executed commands to the terminal
+set -o pipefail #  prevents errors in a pipeline from being masked
 
 # --- GLOBAL CONSTANTS
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:latest
+INK_DEV_IMAGE=public.ecr.aws/p6e8q1z1/ink-dev:1.0.0
 
 CONTRACTS_PATH=$(pwd)/contracts
 
 # --- FUNCTIONS
 
-function run_ink_builder() {
-  docker start ink_builder || docker run \
-    --network host \
-    -v "${PWD}:/code" \
-    -u "$(id -u):$(id -g)" \
-    --name ink_builder \
-    --platform linux/amd64 \
-    --detach \
-    --rm public.ecr.aws/p6e8q1z1/ink-dev:1.0.0 sleep 1d
-}
+# function run_ink_builder() {
+#   docker start ink_builder || docker run \
+#     --network host \
+#     -v "${PWD}:/code" \
+#     -v ~/.cargo/git:/usr/local/cargo/git \
+#     -v ~/.cargo/registry:/usr/local/cargo/registry \
+#     -u "$(id -u):$(id -g)" \
+#     --name ink_builder \
+#     --platform linux/amd64 \
+#     --detach \
+#     --rm $INK_DEV_IMAGE sleep 1d
+# }
 
-function ink_build() {
-  contract_dir=$(basename "${PWD}")
+# function ink_build() {
+#   contract_dir=$(basename "${PWD}")
 
-  docker exec \
-    -u "$(id -u):$(id -g)" \
-    -w "/code/contracts/$contract_dir" \
-    ink_builder "$@"
+#   docker exec \
+#     -u "$(id -u):$(id -g)" \
+#     -w "/code/contracts/$contract_dir" \
+#     ink_builder "$@"
+# }
+
+# function cargo_contract() {
+#   ink_build cargo contract "$@"
+# }
+
+function run_ink_dev() {
+  docker start ink_dev || docker run \
+                                 --network host \
+                                 -v "${CONTRACTS_PATH}:/code" \
+                                 -v ~/.cargo/git:/usr/local/cargo/git \
+                                 -v ~/.cargo/registry:/usr/local/cargo/registry \
+                                 -u "$(id -u):$(id -g)" \
+                                 --name ink_dev \
+                                 --platform linux/amd64 \
+                                 --detach \
+                                 --rm $INK_DEV_IMAGE sleep 1d
 }
 
 function cargo_contract() {
-  ink_build cargo contract "$@"
+  contract_dir=$(basename "${PWD}")
+  docker exec \
+         -u "$(id -u):$(id -g)" \
+         -w "/code/$contract_dir" \
+         -e RUST_LOG=info \
+         ink_dev cargo contract "$@"
 }
 
 function upload_contract {
@@ -52,7 +79,8 @@ function upload_contract {
 
   # --- UPLOAD CONTRACT CODE
 
-  code_hash=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -r '.code_hash')
+  # code_hash=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -r '.code_hash')
+  code_hash=$(cargo_contract upload --url "$NODE" --suri "$AUTHORITY_SEED" --output-json | jq -s . | jq -r '.[1].code_hash')
 
   echo "$contract_name code hash: $code_hash"
 
@@ -243,11 +271,9 @@ function link_bytecode() {
 
 # --- COMPILE CONTRACTS
 
-run_ink_builder
+run_ink_dev
 
 cd "$CONTRACTS_PATH"/access_control
-ink_build rustup target add wasm32-unknown-unknown
-ink_build rustup component add rust-src
 cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/ticket_token
@@ -266,15 +292,11 @@ cd "$CONTRACTS_PATH"/simple_dex
 cargo_contract build --release
 
 cd "$CONTRACTS_PATH"/wrapped_azero
-if [ "${ENV_NAME}" = "devnet" ] || [ "${ENV_NAME}" = "dev" ]; then
-  echo "Compiling wrapped_azero for devnet environments. This will include an unguarded terminate flag!"
-  cargo_contract build --release --features devnet
-else
-  echo "Compiling wrapped_azero for production environments."
-  cargo_contract build --release
-fi
+cargo_contract build --release
 
-# # --- DEPLOY ACCESS CONTROL CONTRACT
+echo "Done: compilation"
+
+# --- DEPLOY ACCESS CONTROL CONTRACT
 
 cd "$CONTRACTS_PATH"/access_control
 
@@ -282,6 +304,7 @@ ACCESS_CONTROL_CODE_HASH=$(cargo_contract upload --url "$NODE" --suri "$AUTHORIT
 ACCESS_CONTROL=$(cargo_contract instantiate --url "$NODE" --constructor new --suri "$AUTHORITY_SEED" --skip-confirm --output-json | jq -r '.contract')
 ACCESS_CONTROL_PUBKEY=$(docker run --rm --entrypoint "/bin/sh" "${NODE_IMAGE}" -c "aleph-node key inspect $ACCESS_CONTROL" | grep hex | cut -c 23- | cut -c 3-)
 
+echo "Finished deploying access control contract"
 echo "access control contract address: $ACCESS_CONTROL"
 echo "access control contract public key \(hex\): $ACCESS_CONTROL_PUBKEY"
 
@@ -293,6 +316,8 @@ upload_contract BUTTON_CODE_HASH button
 upload_contract MARKETPLACE_CODE_HASH marketplace
 upload_contract SIMPLE_DEX_CODE_HASH simple_dex
 upload_contract WRAPPED_AZERO_CODE_HASH wrapped_azero
+
+echo "Done: upload contracts code"
 
 start=$(date +%s.%N)
 
