@@ -216,11 +216,11 @@ class Chain:
                     print(f'Finalization restored, but failed to catch up with recent blocks within {timeout} seconds')
                     break
 
-    def wait_for_block_id_imported(self, block_id, nodes=None, timeout=600):
-        """Wait until all the selected nodes imported a block of id `block_id`"""
+    def wait_for_imported_at_height(self, height, nodes=None, timeout=600):
+        """Wait until all the selected `nodes` (all nodes if None) imported a block at height `height`"""
         nodes = range(len(self.nodes)) if nodes is None else nodes
         deadline = time.time() + timeout
-        while self.get_highest_imported(nodes) < block_id:
+        while self.get_highest_imported(nodes) < height:
             time.sleep(1)
             if time.time() > deadline:
                 raise TimeoutError(f'Block production stalled after {timeout} seconds')
