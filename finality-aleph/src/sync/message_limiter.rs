@@ -9,7 +9,6 @@ const MSG_BYTES_LIMIT: usize = MAX_SYNC_MESSAGE_SIZE as usize;
 pub struct Limiter<'a, D: Encode, const LIMIT: usize> {
     msg: &'a [D],
     start_index: usize,
-    indexes: Vec<usize>,
 }
 
 pub type MsgLimiter<'a, D> = Limiter<'a, D, MSG_BYTES_LIMIT>;
@@ -32,7 +31,6 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         Self {
             msg,
             start_index: 0,
-            indexes: (0..=msg.len()).collect(),
         }
     }
 
@@ -40,7 +38,7 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         if self.start_index == self.msg.len() {
             return Ok(None);
         }
-        let end_idx = self.bs_by_encode()?;
+        let end_idx = self.find_idx()?;
 
         let start_index = self.start_index;
         self.start_index = end_idx;
@@ -48,15 +46,17 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         Ok(Some(&self.msg[start_index..end_idx]))
     }
 
-    fn bs_by_encode(&self) -> Result<usize, Error> {
-        let indexes = &self.indexes[self.start_index..];
+    fn find_idx(&self) -> Result<usize, Error> {
+        let mut idx = self.start_index;
+        let mut encoded_sum = 0;
+        while idx < self.msg.len() && encoded_sum <= LIMIT {
+            encoded_sum += self.msg[idx].encoded_size();
+            idx += 1;
+        }
 
-        let idx = indexes.partition_point(|&idx| {
-            let encoded_size = self.msg[self.start_index..idx].encoded_size();
-            encoded_size <= LIMIT
-        }) - 1; // minus 1 since this is the first index where encoded size is larger than LIMIT
-
-        let idx = idx + self.start_index;
+        while idx > self.start_index && self.msg[self.start_index..idx].encoded_size() > LIMIT {
+            idx -= 1;
+        }
 
         if idx == self.start_index {
             Err(Error::ItemTooBig)
