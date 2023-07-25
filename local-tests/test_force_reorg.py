@@ -56,11 +56,11 @@ chain.stop(nodes=part1)
 
 f2 = chain.get_highest_finalized(nodes=part2)  # highest finalized before stop
 printt('Starting nodes: ' + ' '.join([str(n) for n in part2]))
-chain.start('aleph', nodes=part2)
+chain.start('aleph-recovered', nodes=part2)
 chain.wait_for_imported_at_height(f2 + BLOCKS_PER_STAGE, nodes=part2)
 
 printt('Starting nodes: ' + ' '.join([str(n) for n in part1]))
-chain.start('aleph', nodes=part1)
+chain.start('aleph-recovered', nodes=part1)
 chain.wait_for_finalization(0, catchup=True, catchup_delta=5)  # wait for finalization catchup
 
 print('Ok')
