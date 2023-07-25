@@ -1,0 +1,34 @@
+# TODO: use mainnet RPC endpoint
+export NODE=ws://127.0.0.1:9944
+
+# authority is a joint name for the account that is an INITIALIZER, OWNER and ADMIN of the game contracts for the purposes of the deployment
+export AUTHORITY=5Cck6AprxZGWGYDAqMLLj83AA2vmaDaUf3LJHnL2NXcwqpUv
+export AUTHORITY_SEED=$MAINNET_THE_BUTTON_AUTHORITY_SEED
+
+# how long do the games live for (in blocks)
+export LIFETIME=90000 # 25 hours
+
+# scores are mapped to these values and then rewards are minted
+export BUTTON_MIN_REWARD=1000000000000 # 1 token
+export BUTTON_MAX_REWARD=100000000000000 # 100 tokens
+
+# mint this many ticket tokens per each game
+# 8k stakers, each player get 3 tickets, 1K on the marketplace and 10% on top of that ~27.5K
+# (3 * 8000 + 1000) * 1.1
+export TICKET_BALANCE=30000
+
+# initial price of ticket on the marketplace
+export INITIAL_PRICE_EBS=50000000000000 # 50 tokens
+export INITIAL_PRICE_BTF=10000000000000 # 10 tokens
+export INITIAL_PRICE_TPC=1000000000000  # 1 token
+
+# the price of ticket on the marketplace does not go below this value
+export MINIMAL_PRICE_EBS=10000000000000 # 10 tokens
+export MINIMAL_PRICE_BTF=1000000000000  # 1 token
+export MINIMAL_PRICE_TPC=100000000000  # 0.1
+
+# how many blocks will elapse between INITAL and MINIMAL price
+export AUCTION_LENGTH=18000 # 5 hours
+
+# serious environment
+export ENV_NAME=mainnet
