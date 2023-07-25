@@ -43,8 +43,8 @@ printt('Starting the chain')
 chain.start('aleph')
 part1 = [0, 2, 4, 6]  # Node ids partitioned into two halves
 part2 = [1, 3, 5, 7]
-chain.wait_for_finalization(0)
-chain.wait_for_block_id_imported(BLOCKS_PER_STAGE)
+
+chain.wait_for_finalization(BLOCKS_PER_STAGE, catchup=True)  # run normally for some time
 
 printt('Stopping nodes: ' + ' '.join([str(n) for n in part2]))
 chain.stop(nodes=part2)
@@ -56,13 +56,12 @@ chain.stop(nodes=part1)
 
 printt('Starting nodes: ' + ' '.join([str(n) for n in part2]))
 chain.start('aleph', nodes=part2)
-chain.wait_for_finalization(0, nodes=part2)
+chain.wait_for_finalization(BLOCKS_PER_STAGE, nodes=part2, catchup=False)
 f2 = chain.get_highest_finalized(nodes=part2)
 chain.wait_for_block_id_imported(f2 + BLOCKS_PER_STAGE, nodes=part2)
 
 printt('Starting nodes: ' + ' '.join([str(n) for n in part1]))
 chain.start('aleph', nodes=part1)
-f = chain.get_highest_finalized()
-chain.wait_for_finalization(0)  # wait for finalization catchup
+chain.wait_for_finalization(0, catchup=True)  # wait for finalization catchup
 
 print('Ok')
