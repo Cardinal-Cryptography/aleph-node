@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     fmt::{Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -29,6 +29,27 @@ struct BackendStorage {
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
+}
+
+fn is_predecessor(
+    blockchain: &HashMap<MockIdentifier, MockBlock>,
+    id: &MockIdentifier,
+    maybe_predecessor: &MockIdentifier,
+) -> bool {
+    let mut header = blockchain.get(id).expect("should exist").header();
+    while let Some(parent) = header.parent_id() {
+        if header.id().number() != parent.number() + 1 {
+            break;
+        }
+        if &parent == maybe_predecessor {
+            return true;
+        }
+        header = match blockchain.get(&parent) {
+            Some(block) => block.header(),
+            None => return false,
+        }
+    }
+    false
 }
 
 impl Backend {
@@ -82,37 +103,20 @@ impl Backend {
     }
 
     fn prune(&self) {
+        let last_finalized = self.top_finalized().expect("should be at least genesis");
         let mut storage = self.inner.lock();
-        let mut mark_prune = storage.finalized.clone();
-        let mut mark_keep = HashSet::new();
-        mark_keep.insert(mark_prune.pop().expect("should contain at least genesis"));
-        let mut mark_prune = HashSet::<_>::from_iter(mark_prune.into_iter());
-        let mut prune = HashSet::new();
-        let ids = storage.blockchain.keys().clone();
-        let mut chunk = HashSet::new();
-        for id in ids {
-            let mut id = id.clone();
-            loop {
-                if mark_prune.contains(&id) {
-                    prune.extend(chunk.clone().drain());
-                    mark_prune.extend(chunk.drain());
-                    break;
-                }
-                if mark_keep.contains(&id) {
-                    mark_keep.extend(chunk.drain());
-                    break;
-                }
-                chunk.insert(id.clone());
-                id = storage
-                    .blockchain
-                    .get(&id)
-                    .expect("should be there")
-                    .header()
-                    .parent_id()
-                    .expect("genesis should be marked");
+        let finalized = &storage.finalized;
+        let mut to_prune = vec![];
+        for id in storage.blockchain.keys() {
+            if id.number() <= last_finalized.header().id().number() && !finalized.contains(id) {
+                to_prune.push(id.clone());
+            } else if id.number() > last_finalized.header().id().number()
+                && !is_predecessor(&storage.blockchain, id, &last_finalized.header().id())
+            {
+                to_prune.push(id.clone())
             }
         }
-        for id in prune {
+        for id in to_prune {
             storage.blockchain.remove(&id);
         }
     }
