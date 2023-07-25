@@ -1,8 +1,10 @@
+use std::fmt::{Display, Formatter};
+
 use parity_scale_codec::Encode;
 
 use crate::sync::data::MAX_SYNC_MESSAGE_SIZE;
 
-pub const MSG_BYTES_LIMIT: usize = MAX_SYNC_MESSAGE_SIZE as usize;
+const MSG_BYTES_LIMIT: usize = MAX_SYNC_MESSAGE_SIZE as usize;
 
 pub struct Limiter<'a, D: Encode, const LIMIT: usize> {
     msg: &'a [D],
@@ -11,6 +13,19 @@ pub struct Limiter<'a, D: Encode, const LIMIT: usize> {
 }
 
 pub type MsgLimiter<'a, D> = Limiter<'a, D, MSG_BYTES_LIMIT>;
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Error {
+    ItemTooBig,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::ItemTooBig => write!(f, "Single item takes more than the limit"),
+        }
+    }
+}
 
 impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
     pub fn new(msg: &'a [D]) -> Self {
@@ -21,19 +36,19 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         }
     }
 
-    fn next_largest_msg(&mut self) -> Option<&'a [D]> {
+    pub fn next_largest_msg(&mut self) -> Result<Option<&'a [D]>, Error> {
         if self.start_index == self.msg.len() {
-            return None;
+            return Ok(None);
         }
         let end_idx = self.bs_by_encode()?;
 
         let start_index = self.start_index;
         self.start_index = end_idx;
 
-        Some(&self.msg[start_index..end_idx])
+        Ok(Some(&self.msg[start_index..end_idx]))
     }
 
-    fn bs_by_encode(&self) -> Option<usize> {
+    fn bs_by_encode(&self) -> Result<usize, Error> {
         let indexes = &self.indexes[self.start_index..];
 
         let idx = indexes.partition_point(|&idx| {
@@ -44,18 +59,10 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         let idx = idx + self.start_index;
 
         if idx == self.start_index {
-            None
+            Err(Error::ItemTooBig)
         } else {
-            Some(idx)
+            Ok(idx)
         }
-    }
-}
-
-impl<'a, D: Encode, const LIMIT: usize> Iterator for Limiter<'a, D, LIMIT> {
-    type Item = &'a [D];
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_largest_msg()
     }
 }
 
@@ -63,7 +70,7 @@ impl<'a, D: Encode, const LIMIT: usize> Iterator for Limiter<'a, D, LIMIT> {
 mod tests {
     use parity_scale_codec::Encode;
 
-    use crate::sync::message_limiter::Limiter;
+    use crate::sync::message_limiter::{Error, Limiter};
 
     type TestLimiter<'a, D> = Limiter<'a, D, 10>;
 
@@ -89,7 +96,7 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..1]), lim.next_largest_msg())
+        assert_eq!(Ok(Some(&v[..1])), lim.next_largest_msg())
     }
     #[test]
     fn takes_all() {
@@ -97,7 +104,7 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..]), lim.next_largest_msg())
+        assert_eq!(Ok(Some(&v[..])), lim.next_largest_msg())
     }
     #[test]
     fn takes_all_that_fits_into_limit() {
@@ -105,7 +112,7 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..2]), lim.next_largest_msg())
+        assert_eq!(Ok(Some(&v[..2])), lim.next_largest_msg())
     }
     #[test]
     fn works_with_empty_input() {
@@ -113,7 +120,7 @@ mod tests {
 
         let mut lim = TestLimiter::<EncodeToSize>::new(&v);
 
-        assert_eq!(None, lim.next_largest_msg())
+        assert_eq!(Ok(None), lim.next_largest_msg())
     }
     #[test]
     fn respects_the_limit() {
@@ -121,7 +128,7 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(None, lim.next_largest_msg())
+        assert_eq!(Err(Error::ItemTooBig), lim.next_largest_msg())
     }
 
     #[test]
@@ -130,10 +137,10 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..1]), lim.next());
-        assert_eq!(Some(&v[1..2]), lim.next());
-        assert_eq!(Some(&v[2..3]), lim.next());
-        assert_eq!(None, lim.next());
+        assert_eq!(Ok(Some(&v[..1])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[1..2])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[2..3])), lim.next_largest_msg());
+        assert_eq!(Ok(None), lim.next_largest_msg());
     }
 
     #[test]
@@ -150,12 +157,12 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..2]), lim.next());
-        assert_eq!(Some(&v[2..4]), lim.next());
-        assert_eq!(Some(&v[4..5]), lim.next());
-        assert_eq!(Some(&v[5..6]), lim.next());
-        assert_eq!(Some(&v[6..7]), lim.next());
-        assert_eq!(None, lim.next());
+        assert_eq!(Ok(Some(&v[..2])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[2..4])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[4..5])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[5..6])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[6..7])), lim.next_largest_msg());
+        assert_eq!(Ok(None), lim.next_largest_msg());
     }
 
     #[test]
@@ -172,10 +179,10 @@ mod tests {
 
         let mut lim = TestLimiter::new(&v);
 
-        assert_eq!(Some(&v[..2]), lim.next());
-        assert_eq!(Some(&v[2..4]), lim.next());
-        assert_eq!(Some(&v[4..5]), lim.next());
-        assert_eq!(Some(&v[5..6]), lim.next());
-        assert_eq!(None, lim.next());
+        assert_eq!(Ok(Some(&v[..2])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[2..4])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[4..5])), lim.next_largest_msg());
+        assert_eq!(Ok(Some(&v[5..6])), lim.next_largest_msg());
+        assert_eq!(Err(Error::ItemTooBig), lim.next_largest_msg());
     }
 }

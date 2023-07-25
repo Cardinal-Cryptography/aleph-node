@@ -294,8 +294,21 @@ where
         );
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
-                for chunk in MsgLimiter::new(&response_items) {
-                    self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone());
+                let mut limiter = MsgLimiter::new(&response_items);
+                loop {
+                    match limiter.next_largest_msg() {
+                        Ok(None) => break,
+                        Ok(Some(chunk)) => {
+                            self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone())
+                        }
+                        Err(e) => {
+                            error!(
+                                target: LOG_TARGET,
+                                "Error while sending request response: {}.", e
+                            );
+                            break;
+                        }
+                    }
                 }
             }
             Ok(Action::RequestBlock(id)) => self.request_block(id),

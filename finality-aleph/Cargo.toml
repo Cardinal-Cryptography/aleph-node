@@ -38,6 +38,7 @@ rand = { workspace = true }
 serde = { workspace = true }
 tiny-bip39 = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros", "time", "rt-multi-thread"] }
+static_assertions = { workspace = true }
 
 substrate-prometheus-endpoint = { workspace = true }
 
