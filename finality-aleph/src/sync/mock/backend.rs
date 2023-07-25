@@ -103,19 +103,21 @@ impl Backend {
     }
 
     fn prune(&self) {
-        let last_finalized = self.top_finalized().expect("should be at least genesis");
+        let top_finalized_id = &self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header()
+            .id();
         let mut storage = self.inner.lock();
-        let finalized = &storage.finalized;
-        let mut to_prune = vec![];
-        for id in storage.blockchain.keys() {
-            if id.number() <= last_finalized.header().id().number() && !finalized.contains(id) {
-                to_prune.push(id.clone());
-            } else if id.number() > last_finalized.header().id().number()
-                && !is_predecessor(&storage.blockchain, id, &last_finalized.header().id())
-            {
-                to_prune.push(id.clone())
-            }
-        }
+        let to_prune: Vec<_> = storage
+            .blockchain
+            .keys()
+            .filter(|id| {
+                !&storage.finalized.contains(id)
+                    && !is_predecessor(&storage.blockchain, id, top_finalized_id)
+            })
+            .cloned()
+            .collect();
         for id in to_prune {
             storage.blockchain.remove(&id);
         }
