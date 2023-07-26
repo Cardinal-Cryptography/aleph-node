@@ -38,7 +38,7 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         if self.start_index == self.msg.len() {
             return Ok(None);
         }
-        let end_idx = self.find_idx()?;
+        let end_idx = self.find_idx_of_largest_prefix()?;
 
         let start_index = self.start_index;
         self.start_index = end_idx;
@@ -46,7 +46,7 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
         Ok(Some(&self.msg[start_index..end_idx]))
     }
 
-    fn find_idx(&self) -> Result<usize, Error> {
+    fn find_idx_of_largest_prefix(&self) -> Result<usize, Error> {
         let mut idx = self.start_index;
         let mut encoded_sum = 0;
         while idx < self.msg.len() && encoded_sum <= LIMIT {
