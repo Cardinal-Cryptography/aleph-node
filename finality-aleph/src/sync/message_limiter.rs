@@ -49,11 +49,14 @@ impl<'a, D: Encode, const LIMIT: usize> Limiter<'a, D, LIMIT> {
     fn find_idx_of_largest_prefix(&self) -> Result<usize, Error> {
         let mut idx = self.start_index;
         let mut encoded_sum = 0;
+
         while idx < self.msg.len() && encoded_sum <= LIMIT {
             encoded_sum += self.msg[idx].encoded_size();
             idx += 1;
         }
 
+        // encoded size of the msg[start_index..idx] may be larger than the limit. Trim last items
+        // until the encoded size fits into the limit.
         while idx > self.start_index && self.msg[self.start_index..idx].encoded_size() > LIMIT {
             idx -= 1;
         }
