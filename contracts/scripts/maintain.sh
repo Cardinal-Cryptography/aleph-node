@@ -30,10 +30,18 @@ function is_dead() {
   cargo_contract call --url "$NODE" --contract "$game" --message is_dead --suri "$AUTHORITY_SEED" --dry-run --output-json | jq  -r '.data.Tuple.values' | jq '.[].Bool'
 }
 
+# this tx will reward ThePressiah and start a new round
 function reset_game() {
   local game=$(get_address $1)
   cd "$CONTRACTS_PATH"/button
   cargo_contract call --url "$NODE" --contract "$game" --message reset --suri "$AUTHORITY_SEED" --skip-confirm
+}
+
+# this tx will only ThePressiah without starting the new round
+function reward_pressiah() {
+  local game=$(get_address $1)
+  cd "$CONTRACTS_PATH"/button
+  cargo_contract call --url "$NODE" --contract "$game" --message reward_pressiah --suri "$AUTHORITY_SEED" --skip-confirm
 }
 
 # returns wA0 balance of an address (denominated as 1e12)
@@ -64,6 +72,10 @@ run_ink_dev
 # reset_game early_bird_special
 # reset_game back_to_the_future
 # reset_game the_pressiah_cometh
+
+# reward_pressiah early_bird_special
+# reward_pressiah back_to_the_future
+# reward_pressiah the_pressiah_cometh
 
 # add_liquidity
 
