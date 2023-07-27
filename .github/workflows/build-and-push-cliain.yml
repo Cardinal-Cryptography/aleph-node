@@ -86,17 +86,17 @@ jobs:
           fi
 
       - name: Configure AWS credentials for S3 AWS
-          uses: aws-actions/configure-aws-credentials@v2
-          env:
-            AWS_ACCESS_KEY_ID: ""
-            AWS_SECRET_ACCESS_KEY: ""
-            AWS_SESSION_TOKEN: ""
-            AWS_DEFAULT_REGION: ""
-            AWS_REGION: us-east-1
-          with:
-            aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY }}
-            aws-region: ${{ env.AWS_REGION }}
+        uses: aws-actions/configure-aws-credentials@v2
+        env:
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          AWS_SESSION_TOKEN: ""
+          AWS_DEFAULT_REGION: ""
+          AWS_REGION: us-east-1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Copy binary to S3 AWS bucket (non-liminal)
         if: ${{ matrix.runtime != 'liminal' }}
