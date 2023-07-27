@@ -6,10 +6,11 @@
 
 source $(dirname "$0")/common.sh
 
-
-set -e # exit immediatley if any command has a non-zero exit status
+set -e # exit immediately if any command has a non-zero exit status
 set -x # print all executed commands to the terminal
 set -o pipefail #  prevents errors in a pipeline from being masked
+
+# --- GLOBAL CONSTANTS
 
 # TODO : addresses.mainnet.json
 ADDRESSES_FILE=$(pwd)/contracts/addresses.json
@@ -25,8 +26,8 @@ function get_address {
 # --- RUN
 
 if [ -z "$AUTHORITY_SEED" ]; then
-      echo "\$AUTHORITY_SEED is empty"
-      exit -1
+  echo "\$AUTHORITY_SEED is empty"
+  exit -1
 fi
 
 run_ink_dev
@@ -68,12 +69,8 @@ for T in "${GAMES[@]}"; do
 done
 
 # --- provide DEX with wA0 liquidity
-value=1000000000000000 # 1k A0
 
-cd "$CONTRACTS_PATH"/wrapped_azero
-# --- wrap some AZERO
-cargo_contract call --url "$NODE" --contract "$WRAPPED_AZERO" --message wrap --value $value --suri "$AUTHORITY_SEED" --skip-confirm
-# --- send it to the DEX
-cargo_contract call --url "$NODE" --contract "$WRAPPED_AZERO" --message PSP22::transfer --args $DEX $value "[0]" --suri "$AUTHORITY_SEED" --skip-confirm
+echo "Transfering wA0 to the DEX"
+add_liquidity
 
-echo "Games: Done"
+echo "Done"

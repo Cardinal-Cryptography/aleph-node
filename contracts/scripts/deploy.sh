@@ -6,11 +6,12 @@ source $(dirname "$0")/common.sh
 ## should be used after sourcing env vars e.g.
 ## source ./contracts/env/dev && ./contracts/scripts/deploy.sh
 
-set -e # exit immediatley if any command has a non-zero exit status
+set -e # exit immediately if any command has a non-zero exit status
 # set -x # print all executed commands to the terminal
 set -o pipefail #  prevents errors in a pipeline from being masked
 
 # --- GLOBAL CONSTANTS
+
 NODE_IMAGE=public.ecr.aws/p6e8q1z1/aleph-node:r-11.3
 INK_DEV_IMAGE=public.ecr.aws/p6e8q1z1/ink-dev:1.0.0
 

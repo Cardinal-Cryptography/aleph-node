@@ -22,3 +22,19 @@ function cargo_contract() {
          ink_dev cargo contract "$@"
 }
 
+function get_address {
+  local contract_name=$1
+  cat $ADDRESSES_FILE | jq --raw-output ".$contract_name"
+}
+
+# defaults to wrapping and transferring 1K wA0 to the DEX
+# value can be overriden with a first argument to the function
+function add_liquidity() {
+  local value="${1:-1000000000000000}"
+  local wrapped_azero=$(get_address wrapped_azero)
+  local dex=$(get_address simple_dex)
+
+  cd "$CONTRACTS_PATH"/wrapped_azero
+  cargo_contract call --url "$NODE" --contract "$wrapped_azero" --message wrap --value $value --suri "$AUTHORITY_SEED" --skip-confirm
+  cargo_contract call --url "$NODE" --contract "$wrapped_azero" --message PSP22::transfer --args $dex $value "[0]" --suri "$AUTHORITY_SEED" --skip-confirm
+}
