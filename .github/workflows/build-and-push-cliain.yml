@@ -102,7 +102,7 @@ jobs:
         if: ${{ matrix.runtime != 'liminal' }}
         uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@v1
         with:
-          source-path: target/release
+          source-path: bin/cliain/target/release
           source-filename: cliain
           s3-bucket-path:
             # yamllint disable-line rule:line-length
