@@ -408,7 +408,10 @@ where
                     }
                 }
                 ResponseItem::Header(h) => {
-                    if let Err(e) = self.forest.update_required_header(&h, Some(peer.clone())) {
+                    if let Err(e) = self
+                        .forest
+                        .update_non_auxiliary_header(&h, Some(peer.clone()))
+                    {
                         return (highest_justified, Some(Error::Forest(e)));
                     }
                 }
@@ -515,14 +518,17 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::{DatabaseIO, HandleStateAction, Handler};
     use crate::{
         session::SessionBoundaryInfo,
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
+            forest::Interest,
             handler::Action,
             mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
-            BlockImport, ChainStatus, Header, Justification,
+            BlockImport, ChainStatus, ChainStatusNotifier, Header, Justification,
         },
         BlockIdentifier, BlockNumber, SessionPeriod,
     };
@@ -530,19 +536,21 @@ mod tests {
     type MockHandler =
         Handler<MockBlock, MockPeerId, MockJustification, Backend, Backend, Backend, Backend>;
 
-    const SESSION_PERIOD: usize = 20;
+    const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));
 
-    fn setup() -> (MockHandler, Backend, impl Send) {
-        let (backend, _keep) = Backend::setup(SESSION_PERIOD);
+    fn setup() -> (
+        MockHandler,
+        Backend,
+        impl ChainStatusNotifier<MockHeader>,
+        MockIdentifier,
+    ) {
+        let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
-        let handler = Handler::new(
-            database_io,
-            verifier,
-            SessionBoundaryInfo::new(SessionPeriod(20)),
-        )
-        .expect("mock backend works");
-        (handler, backend, _keep)
+        let handler =
+            Handler::new(database_io, verifier, SESSION_BOUNDARY_INFO).expect("mock backend works");
+        let genesis = backend.top_finalized().expect("genesis").header().id();
+        (handler, backend, notifier, genesis)
     }
 
     fn import_branch(backend: &mut Backend, branch_length: usize) -> Vec<MockHeader> {
@@ -560,8 +568,54 @@ mod tests {
     }
 
     #[test]
+    fn creates_dangling_branch() {
+        let (mut handler, _backend, _notifier, _genesis) = setup();
+
+        let height = 25;
+        let length = 10;
+        let peer_id = 0;
+
+        let branch_start = MockIdentifier::new_random(height);
+        let branch: Vec<_> = branch_start.random_branch().take(length).collect();
+        let top = branch.last().expect("branch should not be empty").id();
+
+        assert!(
+            handler.handle_internal_request(&top).expect("should work"),
+            "should be newly required"
+        );
+        assert!(
+            handler.interest_provider().get(&top)
+                == Interest::Required {
+                    know_most: HashSet::new(),
+                    branch_knowledge: LowestId(top.clone()),
+                },
+            "should be interested"
+        );
+
+        let (maybe_id, maybe_error) = handler.handle_request_response(
+            branch.into_iter().rev().map(ResponseItem::Header).collect(),
+            peer_id,
+        );
+
+        assert!(
+            maybe_id.is_none(),
+            "should not create new highest justified"
+        );
+        assert!(maybe_error.is_none(), "should work");
+        assert!(handler.interest_provider().get(&branch_start) == Interest::Uninterested);
+        assert!(
+            handler.interest_provider().get(&top)
+                == Interest::Required {
+                    know_most: HashSet::from_iter(vec![peer_id]),
+                    branch_knowledge: LowestId(branch_start),
+                },
+            "should still be interested in the top"
+        );
+    }
+
+    #[test]
     fn finalizes_imported_and_justified() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let header = import_branch(&mut backend, 1)[0].clone();
         handler
             .block_imported(header.clone())
@@ -582,7 +636,7 @@ mod tests {
 
     #[test]
     fn requests_missing_justifications_without_blocks() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let peer = rand::random();
         // skip the first justification, now every next added justification
         // should spawn a new task
@@ -602,7 +656,7 @@ mod tests {
 
     #[test]
     fn requests_missing_justifications_with_blocks() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 5)
             .into_iter()
@@ -627,7 +681,7 @@ mod tests {
 
     #[test]
     fn initializes_forest_properly() {
-        let (mut backend, _keep) = Backend::setup(SESSION_PERIOD);
+        let (mut backend, _keep) = Backend::setup(SESSION_BOUNDARY_INFO);
         let header = import_branch(&mut backend, 1)[0].clone();
         // header already imported, Handler should initialize Forest properly
         let verifier = backend.clone();
@@ -655,7 +709,7 @@ mod tests {
 
     #[test]
     fn finalizes_justified_and_imported() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let header = import_branch(&mut backend, 1)[0].clone();
         let justification = MockJustification::for_header(header.clone());
         let peer = rand::random();
@@ -675,7 +729,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_large_difference() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 43)
@@ -709,7 +763,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_medium_difference() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 23)
@@ -743,7 +797,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_small_difference() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 13)
@@ -818,7 +872,7 @@ mod tests {
 
     #[test]
     fn handles_request_too_far_into_future() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (justifications, _) = setup_request_tests(&mut handler, &mut backend, 100, 100);
@@ -857,7 +911,7 @@ mod tests {
     #[test]
     fn handles_request_with_lowest_id() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
@@ -939,7 +993,7 @@ mod tests {
     }
     #[test]
     fn handles_request_with_unknown_id() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         setup_request_tests(&mut handler, &mut backend, 100, 20);
 
         let state = State::new(MockJustification::for_header(
@@ -959,7 +1013,7 @@ mod tests {
     #[test]
     fn handles_request_with_top_imported() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
@@ -1001,7 +1055,7 @@ mod tests {
 
     #[test]
     fn handles_new_internal_request() {
-        let (mut handler, mut backend, _keep) = setup();
+        let (mut handler, mut backend, _keep, _genesis) = setup();
         let _ = handler.state().expect("state works");
         let headers = import_branch(&mut backend, 2);
 
