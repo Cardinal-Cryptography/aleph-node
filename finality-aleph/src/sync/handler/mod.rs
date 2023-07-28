@@ -528,7 +528,9 @@ mod tests {
             forest::Interest,
             handler::Action,
             mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
-            BlockImport, ChainStatus, ChainStatusNotifier, Header, Justification,
+            BlockImport, ChainStatus,
+            ChainStatusNotification::*,
+            ChainStatusNotifier, Header, Justification,
         },
         BlockIdentifier, BlockNumber, SessionPeriod,
     };
@@ -595,7 +597,7 @@ mod tests {
         );
     }
 
-    fn grow_branch(
+    fn grow_light_branch(
         handler: &mut Handler<
             MockBlock,
             MockPeerId,
@@ -608,7 +610,7 @@ mod tests {
         bottom: &MockIdentifier,
         length: usize,
         peer_id: MockPeerId,
-    ) -> MockIdentifier {
+    ) -> Vec<MockHeader> {
         let branch: Vec<_> = bottom.random_branch().take(length).collect();
         let top = branch.last().expect("branch should not be empty").id();
 
@@ -626,7 +628,12 @@ mod tests {
         );
 
         let (maybe_id, maybe_error) = handler.handle_request_response(
-            branch.into_iter().rev().map(ResponseItem::Header).collect(),
+            branch
+                .iter()
+                .cloned()
+                .rev()
+                .map(ResponseItem::Header)
+                .collect(),
             peer_id,
         );
 
@@ -636,7 +643,7 @@ mod tests {
         );
         assert!(maybe_error.is_none(), "should work");
 
-        top
+        branch
     }
 
     fn create_dangling_branch(
@@ -654,15 +661,78 @@ mod tests {
         peer_id: MockPeerId,
     ) -> (MockIdentifier, MockIdentifier) {
         let bottom = MockIdentifier::new_random(height);
-        let top = grow_branch(handler, &bottom, length, peer_id);
+        let top = grow_light_branch(handler, &bottom, length, peer_id)
+            .last()
+            .expect("branch should not be empty")
+            .id();
         assert_dangling_branch_required(handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
         (bottom, top)
+    }
+
+    fn finalize_light_branch(
+        handler: &mut Handler<
+            MockBlock,
+            MockPeerId,
+            MockJustification,
+            Backend,
+            Backend,
+            Backend,
+            Backend,
+        >,
+        branch: Vec<MockHeader>,
+        peer_id: MockPeerId,
+    ) {
+        let blocks: Vec<MockBlock> = branch
+            .iter()
+            .cloned()
+            .map(|header| MockBlock::new(header, true))
+            .collect();
+        let (maybe_id, maybe_error) = handler.handle_request_response(
+            blocks
+                .iter()
+                .cloned()
+                .map(ResponseItem::Block)
+                .chain(
+                    branch
+                        .iter()
+                        .cloned()
+                        .map(MockJustification::for_header)
+                        .map(ResponseItem::Justification),
+                )
+                .collect(),
+            peer_id,
+        );
+        let new_top = branch.last().expect("branch should not be empty").id();
+        assert!(
+            maybe_id == Some(new_top),
+            "should create new highest justified"
+        );
+        assert!(maybe_error.is_none(), "should work");
     }
 
     #[test]
     fn creates_dangling_branch() {
         let (mut handler, _backend, _notifier, _genesis) = setup();
         create_dangling_branch(&mut handler, 25, 10, 0);
+    }
+
+    #[tokio::test]
+    async fn prunes_dangling_branch() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        let (_bottom, top) = create_dangling_branch(&mut handler, 10, 20, 3);
+        finalize_light_branch(&mut handler, branch, 7);
+        assert!(
+            handler.interest_provider().get(&top) != Interest::Uninterested,
+            "branch should not be pruned"
+        );
+        while let Ok(BlockImported(header)) = notifier.next().await {
+            handler.block_imported(header).expect("should work");
+        }
+        assert!(
+            handler.interest_provider().get(&top) == Interest::Uninterested,
+            "branch should be pruned"
+        );
     }
 
     #[test]
