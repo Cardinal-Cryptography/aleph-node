@@ -109,7 +109,7 @@ runs:
         repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
         token: ${{ inputs.gh-ci-token }}
         path: "${{ inputs.repo-apps-name }}"
-        ref: A0-2798
+        ref: main
 
     - name: Checkout featurenets repo
       uses: actions/checkout@v3
@@ -161,7 +161,8 @@ runs:
         else
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}aleph-node:${{ inputs.featurenet-aleph-node-image }}"
           fnet_bootstrap_chain_node_image="none"
-          fnet_create_hook="true"
+          # Disabling hook here as work in progress
+          fnet_create_hook="false"
         fi
         ./Ops.sh create-featurenet \
           "${{ steps.get-argocd-featurnet-app-name.outputs.name }}" \
