@@ -60,7 +60,7 @@ pub enum Interest<I: PeerId, J: Justification> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Error {
     HeaderMissingParentId,
-    HeaderNotRequired,
+    HeaderIsAuxiliary,
     IncorrectParentState,
     IncorrectVertexState,
     ParentNotImported,
@@ -72,7 +72,7 @@ impl Display for Error {
         use Error::*;
         match self {
             HeaderMissingParentId => write!(f, "header did not contain a parent ID"),
-            HeaderNotRequired => write!(f, "header was not required, but it should have been"),
+            HeaderIsAuxiliary => write!(f, "header should not be auxiliary"),
             IncorrectParentState => write!(
                 f,
                 "parent was in a state incompatible with importing this block"
@@ -359,7 +359,7 @@ where
     ) -> Result<(), Error> {
         if !matches!(self.get(&header.id()), VertexHandle::Candidate(vertex) if !vertex.vertex.auxiliary())
         {
-            return Err(Error::HeaderNotRequired);
+            return Err(Error::HeaderIsAuxiliary);
         }
         self.update_header(header, holder, true)?;
         Ok(())
