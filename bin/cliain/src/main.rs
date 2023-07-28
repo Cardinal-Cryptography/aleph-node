@@ -220,7 +220,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        Command::BatchContractCallTxs(command) => {
+        Command::ContractsBatchCall(command) => {
             match batch_contract_txs(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{result:?}"),
                 Err(why) => error!("Batched contract call failed {:?}", why),

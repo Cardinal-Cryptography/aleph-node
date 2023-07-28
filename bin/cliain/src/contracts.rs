@@ -23,8 +23,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     commands::{
-        BatchContractCallTxs, ContractCall, ContractInstantiate, ContractInstantiateWithCode,
-        ContractOptions, ContractOwnerInfo, ContractRemoveCode, ContractUploadCode,
+        ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
+        ContractOwnerInfo, ContractRemoveCode, ContractUploadCode, ContractsBatchCall,
     },
     contracts::contract_transcode::ContractMessageTranscoder,
 };
@@ -250,7 +250,7 @@ pub async fn call(
 
 pub async fn batch_contract_txs(
     signed_connection: SignedConnection,
-    command: BatchContractCallTxs,
+    command: ContractsBatchCall,
 ) -> anyhow::Result<()> {
     let calls: Vec<RuntimeCall> = command
         .txs

@@ -17,7 +17,7 @@ use {
     aleph_client::pallets::baby_liminal::VerificationKeyIdentifier,
 };
 
-#[derive(Debug, Clone, Args)]
+#[derive(Serialize, Deserialize, Debug, Clone, Args)]
 pub struct ContractOptions {
     /// balance to transfer from the call origin to the contract
     #[clap(long, default_value = "0")]
@@ -78,7 +78,7 @@ pub struct ContractInstantiate {
     pub options: ContractOptions,
 }
 
-#[derive(Debug, Clone, Args)]
+#[derive(Serialize, Deserialize, Debug, Clone, Args)]
 pub struct ContractCall {
     /// Address of the contract to call
     #[clap(long, parse(try_from_str))]
@@ -97,24 +97,17 @@ pub struct ContractCall {
     pub options: ContractOptions,
 }
 
+// TODO
 impl std::str::FromStr for ContractCall {
     type Err = serde_json::Error;
 
     fn from_str(args: &str) -> Result<Self, Self::Err> {
-        // let path = Path::new(change_validator_args);
-        // if path.exists() {
-        //     let file = File::open(path).expect("Failed to open metadata file");
-        //     return serde_json::from_reader(file);
-        // }
-        // serde_json::from_str(change_validator_args)
-
-        todo!()
+        serde_json::from_str(args)
     }
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct BatchContractCallTxs {
-    // TODO
+pub struct ContractsBatchCall {
     /// The ContractCall txs, encoded as JSON strings, space separated
     #[clap(long, multiple_values = true)]
     pub txs: Vec<ContractCall>,
@@ -502,7 +495,7 @@ pub enum Command {
     ContractInstantiate(ContractInstantiate),
 
     /// Creates and executes a catch of calls to a contract.
-    BatchContractCallTxs(BatchContractCallTxs),
+    ContractsBatchCall(ContractsBatchCall),
 
     /// Calls a contract.
     ///
