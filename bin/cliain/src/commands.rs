@@ -97,6 +97,29 @@ pub struct ContractCall {
     pub options: ContractOptions,
 }
 
+impl std::str::FromStr for ContractCall {
+    type Err = serde_json::Error;
+
+    fn from_str(args: &str) -> Result<Self, Self::Err> {
+        // let path = Path::new(change_validator_args);
+        // if path.exists() {
+        //     let file = File::open(path).expect("Failed to open metadata file");
+        //     return serde_json::from_reader(file);
+        // }
+        // serde_json::from_str(change_validator_args)
+
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct BatchContractCallTxs {
+    // TODO
+    /// The ContractCall txs, encoded as JSON strings, space separated
+    #[clap(long, multiple_values = true)]
+    pub txs: Vec<ContractCall>,
+}
+
 #[derive(Debug, Clone, Args)]
 pub struct ContractOwnerInfo {
     /// Code hash of the contract code
@@ -477,6 +500,9 @@ pub enum Command {
     ///
     /// API signature: https://polkadot.js.org/docs/substrate/extrinsics/#instantiatevalue-compactu128-gas_limit-compactu64-storage_deposit_limit-optioncompactu128-code_hash-h256-data-bytes-salt-bytes
     ContractInstantiate(ContractInstantiate),
+
+    /// Creates and executes a catch of calls to a contract.
+    BatchContractCallTxs(BatchContractCallTxs),
 
     /// Calls a contract.
     ///

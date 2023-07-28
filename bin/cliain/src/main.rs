@@ -218,6 +218,11 @@ async fn main() -> anyhow::Result<()> {
                 Err(why) => error!("Contract call failed {:?}", why),
             }
         }
+
+        Command::BatchContractCallTxs(command) => {
+            todo!()
+        }
+
         Command::ContractInstantiate(command) => {
             match instantiate(cfg.get_signed_connection().await, command).await {
                 Ok(result) => println!("{result:?}"),

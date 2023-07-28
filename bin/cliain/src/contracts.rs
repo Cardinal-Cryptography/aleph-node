@@ -4,10 +4,20 @@ use std::{
 };
 
 use aleph_client::{
-    api::contracts::events::{CodeRemoved, CodeStored, Instantiated},
+    aleph_runtime::RuntimeCall,
+    api::{
+        self,
+        contracts::{
+            calls::{self, Call},
+            events::{CodeRemoved, CodeStored, Instantiated},
+        },
+    },
     contract_transcode,
     pallet_contracts::wasm::OwnerInfo,
-    pallets::contract::{ContractsApi, ContractsUserApi},
+    pallets::{
+        contract::{ContractsApi, ContractsUserApi},
+        utility::UtilityApi,
+    },
     sp_weights::weight_v2::Weight,
     waiting::{AlephWaiting, BlockStatus},
     AccountId, Balance, CodeHash, Connection, SignedConnection, SignedConnectionApi, TxStatus,
@@ -239,6 +249,51 @@ pub async fn call(
             data,
             TxStatus::InBlock,
         )
+        .await?;
+
+    Ok(())
+}
+
+// TODO
+pub async fn batch_contract_txs(
+    signed_connection: SignedConnection,
+    txs: Vec<ContractCall>,
+) -> anyhow::Result<()> {
+    let calls: Vec<RuntimeCall> = txs
+        .into_iter()
+        .map(|call| {
+            let ContractCall {
+                destination,
+                message,
+                args,
+                metadata_path,
+                options,
+            } = call;
+
+            let ContractOptions {
+                balance,
+                gas_limit,
+                storage_deposit_limit,
+            } = options;
+
+            let metadata = load_metadata(&metadata_path).unwrap();
+            let transcoder = ContractMessageTranscoder::new(metadata);
+            let data = transcoder
+                .encode(&message, args.unwrap_or_default())
+                .unwrap();
+
+            RuntimeCall::Contracts(aleph_client::pallet_contracts::pallet::Call::call {
+                dest: destination.into(),
+                value: balance,
+                gas_limit: Weight::new(gas_limit, u64::MAX),
+                storage_deposit_limit: storage_deposit(storage_deposit_limit),
+                data,
+            })
+        })
+        .collect();
+
+    signed_connection
+        .batch_all(calls, TxStatus::Finalized)
         .await?;
 
     Ok(())
