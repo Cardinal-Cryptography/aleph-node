@@ -5,15 +5,9 @@ use std::{
 
 use aleph_client::{
     aleph_runtime::RuntimeCall,
-    api::{
-        self,
-        contracts::{
-            calls::{self, Call},
-            events::{CodeRemoved, CodeStored, Instantiated},
-        },
-    },
+    api::contracts::events::{CodeRemoved, CodeStored, Instantiated},
     contract_transcode,
-    pallet_contracts::wasm::OwnerInfo,
+    pallet_contracts::{pallet::Call, wasm::OwnerInfo},
     pallets::{
         contract::{ContractsApi, ContractsUserApi},
         utility::UtilityApi,
@@ -29,8 +23,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     commands::{
-        ContractCall, ContractInstantiate, ContractInstantiateWithCode, ContractOptions,
-        ContractOwnerInfo, ContractRemoveCode, ContractUploadCode,
+        BatchContractCallTxs, ContractCall, ContractInstantiate, ContractInstantiateWithCode,
+        ContractOptions, ContractOwnerInfo, ContractRemoveCode, ContractUploadCode,
     },
     contracts::contract_transcode::ContractMessageTranscoder,
 };
@@ -254,12 +248,12 @@ pub async fn call(
     Ok(())
 }
 
-// TODO
 pub async fn batch_contract_txs(
     signed_connection: SignedConnection,
-    txs: Vec<ContractCall>,
+    command: BatchContractCallTxs,
 ) -> anyhow::Result<()> {
-    let calls: Vec<RuntimeCall> = txs
+    let calls: Vec<RuntimeCall> = command
+        .txs
         .into_iter()
         .map(|call| {
             let ContractCall {
@@ -282,7 +276,7 @@ pub async fn batch_contract_txs(
                 .encode(&message, args.unwrap_or_default())
                 .unwrap();
 
-            RuntimeCall::Contracts(aleph_client::pallet_contracts::pallet::Call::call {
+            RuntimeCall::Contracts(Call::call {
                 dest: destination.into(),
                 value: balance,
                 gas_limit: Weight::new(gas_limit, u64::MAX),
