@@ -567,16 +567,49 @@ mod tests {
         result
     }
 
-    #[test]
-    fn creates_dangling_branch() {
-        let (mut handler, _backend, _notifier, _genesis) = setup();
+    fn assert_dangling_branch_required(
+        handler: &Handler<
+            MockBlock,
+            MockPeerId,
+            MockJustification,
+            Backend,
+            Backend,
+            Backend,
+            Backend,
+        >,
+        top: &MockIdentifier,
+        bottom: &MockIdentifier,
+        know_most: HashSet<MockPeerId>,
+    ) {
+        assert!(
+            handler.interest_provider().get(bottom) == Interest::Uninterested,
+            "should not be interested in the bottom"
+        );
+        assert!(
+            handler.interest_provider().get(top)
+                == Interest::Required {
+                    know_most,
+                    branch_knowledge: LowestId(bottom.clone()),
+                },
+            "should require the top"
+        );
+    }
 
-        let height = 25;
-        let length = 10;
-        let peer_id = 0;
-
-        let branch_start = MockIdentifier::new_random(height);
-        let branch: Vec<_> = branch_start.random_branch().take(length).collect();
+    fn grow_branch(
+        handler: &mut Handler<
+            MockBlock,
+            MockPeerId,
+            MockJustification,
+            Backend,
+            Backend,
+            Backend,
+            Backend,
+        >,
+        bottom: &MockIdentifier,
+        length: usize,
+        peer_id: MockPeerId,
+    ) -> MockIdentifier {
+        let branch: Vec<_> = bottom.random_branch().take(length).collect();
         let top = branch.last().expect("branch should not be empty").id();
 
         assert!(
@@ -589,7 +622,7 @@ mod tests {
                     know_most: HashSet::new(),
                     branch_knowledge: LowestId(top.clone()),
                 },
-            "should be interested"
+            "should be required"
         );
 
         let (maybe_id, maybe_error) = handler.handle_request_response(
@@ -602,15 +635,34 @@ mod tests {
             "should not create new highest justified"
         );
         assert!(maybe_error.is_none(), "should work");
-        assert!(handler.interest_provider().get(&branch_start) == Interest::Uninterested);
-        assert!(
-            handler.interest_provider().get(&top)
-                == Interest::Required {
-                    know_most: HashSet::from_iter(vec![peer_id]),
-                    branch_knowledge: LowestId(branch_start),
-                },
-            "should still be interested in the top"
-        );
+
+        top
+    }
+
+    fn create_dangling_branch(
+        handler: &mut Handler<
+            MockBlock,
+            MockPeerId,
+            MockJustification,
+            Backend,
+            Backend,
+            Backend,
+            Backend,
+        >,
+        height: BlockNumber,
+        length: usize,
+        peer_id: MockPeerId,
+    ) -> (MockIdentifier, MockIdentifier) {
+        let bottom = MockIdentifier::new_random(height);
+        let top = grow_branch(handler, &bottom, length, peer_id);
+        assert_dangling_branch_required(handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
+        (bottom, top)
+    }
+
+    #[test]
+    fn creates_dangling_branch() {
+        let (mut handler, _backend, _notifier, _genesis) = setup();
+        create_dangling_branch(&mut handler, 25, 10, 0);
     }
 
     #[test]
