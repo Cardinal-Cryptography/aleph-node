@@ -334,10 +334,11 @@ pub mod button_game {
         /// Resets the game
         ///
         /// Erases the storage and pays the award to the Pressiah
-        /// Can be called by any account on behalf of a player
+        /// Can only be called by the Admin
         /// Can only be called after button's deadline
         #[ink(message)]
         pub fn reset(&mut self) -> ButtonResult<()> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
             self.ensure_dead()?;
 
             self.do_reward_pressiah()?;

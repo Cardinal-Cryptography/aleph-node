@@ -65,18 +65,18 @@ run_ink_dev
 
 # --- MAINTAN
 
-# is_dead early_bird_special
-# is_dead back_to_the_future
-# is_dead the_pressiah_cometh
+is_dead early_bird_special
+is_dead back_to_the_future
+is_dead the_pressiah_cometh
 
-# reset_game early_bird_special
-# reset_game back_to_the_future
-# reset_game the_pressiah_cometh
+reward_pressiah early_bird_special
+reward_pressiah back_to_the_future
+reward_pressiah the_pressiah_cometh
 
-# reward_pressiah early_bird_special
-# reward_pressiah back_to_the_future
-# reward_pressiah the_pressiah_cometh
+reset_game early_bird_special
+reset_game back_to_the_future
+reset_game the_pressiah_cometh
 
 # add_liquidity
 
-# wazero_balance_of $(get_address simple_dex)
+wazero_balance_of $(get_address simple_dex)
