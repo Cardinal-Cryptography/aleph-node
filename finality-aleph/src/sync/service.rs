@@ -6,6 +6,7 @@ use log::{debug, error, trace, warn};
 
 pub use crate::sync::handler::DatabaseIO;
 use crate::{
+    metrics::Key,
     network::GossipNetwork,
     session::SessionBoundaryInfo,
     sync::{
@@ -19,13 +20,14 @@ use crate::{
         ChainStatusNotifier, Finalizer, Justification, JustificationSubmissions, RequestBlocks,
         Verifier, LOG_TARGET,
     },
+    Metrics,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
 const BROADCAST_PERIOD: Duration = Duration::from_secs(5);
 
 /// A service synchronizing the knowledge about the chain between the nodes.
-pub struct Service<B, J, N, CE, CS, V, F, BI>
+pub struct Service<B, J, N, CE, CS, V, F, BI, H>
 where
     B: Block,
     J: Justification<Header = B::Header>,
@@ -35,6 +37,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
+    H: Key,
 {
     network: VersionWrapper<B, J, N>,
     handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
@@ -45,6 +48,7 @@ where
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
     _phantom: PhantomData<B>,
+    metrics: Metrics<H>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -63,7 +67,7 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
     }
 }
 
-impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
+impl<B, J, N, CE, CS, V, F, BI, H> Service<B, J, N, CE, CS, V, F, BI, H>
 where
     B: Block,
     J: Justification<Header = B::Header>,
@@ -73,6 +77,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
+    H: Key,
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
@@ -84,6 +89,7 @@ where
         database_io: DatabaseIO<B, J, CS, F, BI>,
         session_info: SessionBoundaryInfo,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+        metrics: Metrics<H>,
     ) -> Result<
         (
             Self,
@@ -108,6 +114,7 @@ where
                 justifications_from_user,
                 additional_justifications_from_user,
                 block_requests_from_user,
+                metrics,
                 _phantom: PhantomData,
             },
             justifications_for_sync,
@@ -145,6 +152,7 @@ where
             }
         };
         trace!(target: LOG_TARGET, "Broadcasting state: {:?}", state);
+        self.metrics.report_sync_broadcast();
         let data = NetworkData::StateBroadcast(state);
         if let Err(e) = self.network.broadcast(data) {
             warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e);
@@ -164,6 +172,7 @@ where
         };
         let (request, peers) = pre_request.with_state(state);
         trace!(target: LOG_TARGET, "Sending a request: {:?}", request);
+        self.metrics.report_sync_send_request();
         let data = NetworkData::Request(request);
         if let Err(e) = self.network.send_to_random(data, peers) {
             warn!(target: LOG_TARGET, "Error sending request: {}.", e);
@@ -171,6 +180,13 @@ where
     }
 
     fn send_to(&mut self, data: NetworkData<B, J>, peer: N::PeerId) {
+        trace!(
+            target: LOG_TARGET,
+            "Sending data {:?} to peer {:?}",
+            data,
+            peer
+        );
+        self.metrics.report_sync_send_to();
         if let Err(e) = self.network.send_to(data, peer) {
             warn!(target: LOG_TARGET, "Error sending response: {}.", e);
         }
@@ -184,6 +200,7 @@ where
             state,
             peer
         );
+        self.metrics.report_sync_handle_state();
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => match action {
                 Response(data) => self.send_to(data, peer),
@@ -265,6 +282,7 @@ where
             peer,
             response_items,
         );
+        self.metrics.report_sync_handle_request_response();
         let (maybe_id, maybe_error) = self
             .handler
             .handle_request_response(response_items, peer.clone());
@@ -292,6 +310,8 @@ where
             request,
             peer
         );
+        self.metrics.report_sync_handle_request();
+
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
                 let mut limiter = MsgLimiter::new(&response_items);
@@ -328,6 +348,7 @@ where
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
         trace!(target: LOG_TARGET, "Handling task {}.", task);
+        self.metrics.report_sync_handle_task();
         if let TaskAction::Request(pre_request, (task, delay)) =
             task.process(self.handler.interest_provider())
         {
@@ -341,6 +362,7 @@ where
         match event {
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
+                self.metrics.report_sync_handle_block_imported();
                 if let Err(e) = self.handler.block_imported(header) {
                     error!(
                         target: LOG_TARGET,
@@ -350,6 +372,7 @@ where
             }
             BlockFinalized(_) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");
+                self.metrics.report_sync_handle_block_finalized();
                 if self.broadcast_ticker.try_tick() {
                     self.broadcast();
                 }
