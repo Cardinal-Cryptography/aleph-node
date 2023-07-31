@@ -535,13 +535,13 @@ mod tests {
         BlockIdentifier, BlockNumber, SessionPeriod,
     };
 
-    type MockHandler =
+    type TestHandler =
         Handler<MockBlock, MockPeerId, MockJustification, Backend, Backend, Backend, Backend>;
 
     const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));
 
     fn setup() -> (
-        MockHandler,
+        TestHandler,
         Backend,
         impl ChainStatusNotifier<MockHeader>,
         MockIdentifier,
@@ -570,15 +570,7 @@ mod tests {
     }
 
     fn assert_dangling_branch_required(
-        handler: &Handler<
-            MockBlock,
-            MockPeerId,
-            MockJustification,
-            Backend,
-            Backend,
-            Backend,
-            Backend,
-        >,
+        handler: &TestHandler,
         top: &MockIdentifier,
         bottom: &MockIdentifier,
         know_most: HashSet<MockPeerId>,
@@ -598,15 +590,7 @@ mod tests {
     }
 
     fn grow_light_branch(
-        handler: &mut Handler<
-            MockBlock,
-            MockPeerId,
-            MockJustification,
-            Backend,
-            Backend,
-            Backend,
-            Backend,
-        >,
+        handler: &mut TestHandler,
         bottom: &MockIdentifier,
         length: usize,
         peer_id: MockPeerId,
@@ -647,15 +631,7 @@ mod tests {
     }
 
     fn create_dangling_branch(
-        handler: &mut Handler<
-            MockBlock,
-            MockPeerId,
-            MockJustification,
-            Backend,
-            Backend,
-            Backend,
-            Backend,
-        >,
+        handler: &mut TestHandler,
         height: BlockNumber,
         length: usize,
         peer_id: MockPeerId,
@@ -665,20 +641,11 @@ mod tests {
             .last()
             .expect("branch should not be empty")
             .id();
-        assert_dangling_branch_required(handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
         (bottom, top)
     }
 
     fn finalize_light_branch(
-        handler: &mut Handler<
-            MockBlock,
-            MockPeerId,
-            MockJustification,
-            Backend,
-            Backend,
-            Backend,
-            Backend,
-        >,
+        handler: &mut TestHandler,
         branch: Vec<MockHeader>,
         peer_id: MockPeerId,
     ) {
@@ -713,14 +680,18 @@ mod tests {
     #[test]
     fn creates_dangling_branch() {
         let (mut handler, _backend, _notifier, _genesis) = setup();
-        create_dangling_branch(&mut handler, 25, 10, 0);
+        let peer_id = 0;
+        let (bottom, top) = create_dangling_branch(&mut handler, 25, 10, peer_id);
+        assert_dangling_branch_required(&handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
     }
 
     #[tokio::test]
     async fn prunes_dangling_branch() {
         let (mut handler, _backend, mut notifier, genesis) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
-        let (_bottom, top) = create_dangling_branch(&mut handler, 10, 20, 3);
+        let peer_id = 3;
+        let (bottom, top) = create_dangling_branch(&mut handler, 10, 20, peer_id);
+        assert_dangling_branch_required(&handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
         finalize_light_branch(&mut handler, branch, 7);
         assert!(
             handler.interest_provider().get(&top) != Interest::Uninterested,
@@ -951,7 +922,7 @@ mod tests {
     }
 
     fn setup_request_tests(
-        handler: &mut MockHandler,
+        handler: &mut TestHandler,
         backend: &mut Backend,
         branch_length: usize,
         finalize_up_to: usize,
