@@ -233,6 +233,7 @@ where
             maybe_justification,
             peer
         );
+        self.metrics.report_sync_handle_state_response();
         let (maybe_id, maybe_error) =
             self.handler
                 .handle_state_response(justification, maybe_justification, peer.clone());
@@ -259,6 +260,7 @@ where
             "Handling a justification {:?} from user.",
             justification,
         );
+        self.metrics.report_sync_handle_justification_from_user();
         match self.handler.handle_justification_from_user(justification) {
             Ok(Some(id)) => self.request_highest_justified(id),
             Ok(None) => (),
@@ -386,6 +388,7 @@ where
             "Handling an internal request for block {:?}.",
             id,
         );
+        self.metrics.report_sync_handle_internal_request();
         match self.handler.handle_internal_request(&id) {
             Ok(true) => {
                 self.request_block(id);
