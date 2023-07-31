@@ -12,8 +12,7 @@ set -o pipefail #  prevents errors in a pipeline from being masked
 
 # --- GLOBAL CONSTANTS
 
-# TODO : addresses.mainnet.json
-ADDRESSES_FILE=$(pwd)/contracts/addresses.json
+ADDRESSES_FILE=$(pwd)/contracts/addresses.mainnet.json
 CONTRACTS_PATH=$(pwd)/contracts
 
 # --- FUNCTIONS
