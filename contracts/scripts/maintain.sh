@@ -53,6 +53,12 @@ function wazero_balance_of() {
   echo $(bc -l <<< $balance/$TOKEN_DECIMALS)
 }
 
+function round_number() {
+  local game=$(get_address $1)
+  cd "$CONTRACTS_PATH"/button
+  cargo_contract call --url "$NODE" --contract "$game" --message round --suri "$AUTHORITY_SEED" --dry-run --output-json | jq  -r '.data.Tuple.values' | jq '.[].UInt'
+}
+
 # --- RUN
 
 if [ -z "$AUTHORITY_SEED" ]; then
@@ -68,6 +74,12 @@ is_dead early_bird_special
 is_dead back_to_the_future
 is_dead the_pressiah_cometh
 
+round_number early_bird_special
+round_number back_to_the_future
+round_number the_pressiah_cometh
+
+wazero_balance_of $(get_address simple_dex)
+
 # reward_pressiah early_bird_special
 # reward_pressiah back_to_the_future
 # reward_pressiah the_pressiah_cometh
@@ -77,5 +89,3 @@ is_dead the_pressiah_cometh
 # reset_game the_pressiah_cometh
 
 # add_liquidity
-
-wazero_balance_of $(get_address simple_dex)
