@@ -575,16 +575,17 @@ mod tests {
         bottom: &MockIdentifier,
         know_most: HashSet<MockPeerId>,
     ) {
-        assert!(
-            handler.interest_provider().get(bottom) == Interest::Uninterested,
+        assert_eq!(
+            handler.interest_provider().get(bottom),
+            Interest::Uninterested,
             "should not be interested in the bottom"
         );
-        assert!(
-            handler.interest_provider().get(top)
-                == Interest::Required {
-                    know_most,
-                    branch_knowledge: LowestId(bottom.clone()),
-                },
+        assert_eq!(
+            handler.interest_provider().get(top),
+            Interest::Required {
+                know_most,
+                branch_knowledge: LowestId(bottom.clone()),
+            },
             "should require the top"
         );
     }
@@ -602,12 +603,12 @@ mod tests {
             handler.handle_internal_request(&top).expect("should work"),
             "should be newly required"
         );
-        assert!(
-            handler.interest_provider().get(&top)
-                == Interest::Required {
-                    know_most: HashSet::new(),
-                    branch_knowledge: LowestId(top.clone()),
-                },
+        assert_eq!(
+            handler.interest_provider().get(&top),
+            Interest::Required {
+                know_most: HashSet::new(),
+                branch_knowledge: LowestId(top.clone()),
+            },
             "should be required"
         );
 
@@ -670,8 +671,9 @@ mod tests {
             peer_id,
         );
         let new_top = branch.last().expect("branch should not be empty").id();
-        assert!(
-            maybe_id == Some(new_top),
+        assert_eq!(
+            maybe_id,
+            Some(new_top),
             "should create new highest justified"
         );
         assert!(maybe_error.is_none(), "should work");
@@ -700,8 +702,9 @@ mod tests {
         while let Ok(BlockImported(header)) = notifier.next().await {
             handler.block_imported(header).expect("should work");
         }
-        assert!(
-            handler.interest_provider().get(&top) == Interest::Uninterested,
+        assert_eq!(
+            handler.interest_provider().get(&top),
+            Interest::Uninterested,
             "branch should be pruned"
         );
     }
@@ -715,11 +718,11 @@ mod tests {
             .expect("importing in order");
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
-        assert!(
+        assert_eq!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification")
-                == Some(justification.id())
+                .expect("correct justification"),
+            Some(justification.id())
         );
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -738,11 +741,11 @@ mod tests {
             .map(MockJustification::for_header)
             .skip(1)
         {
-            assert!(
+            assert_eq!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification")
-                    == Some(justification.id())
+                    .expect("correct justification"),
+                Some(justification.id())
             );
         }
     }
@@ -763,11 +766,11 @@ mod tests {
         // skip the first justification, now every next added justification
         // should spawn a new task
         for justification in justifications.into_iter().skip(1) {
-            assert!(
+            assert_eq!(
                 handler
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification")
-                    == Some(justification.id())
+                    .expect("correct justification"),
+                Some(justification.id())
             );
         }
     }
@@ -787,11 +790,11 @@ mod tests {
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
         let peer: MockPeerId = rand::random();
-        assert!(
+        assert_eq!(
             handler
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification")
-                == Some(justification.id())
+                .expect("correct justification"),
+            Some(justification.id())
         );
         // should be auto-finalized, if Forest knows about imported body
         assert_eq!(
