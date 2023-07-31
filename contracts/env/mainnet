@@ -1,5 +1,4 @@
-# TODO: use mainnet RPC endpoint
-export NODE=ws://127.0.0.1:9944
+export NODE=wss://ws.azero.dev
 
 # authority is a joint name for the account that is an INITIALIZER, OWNER and ADMIN of the game contracts for the purposes of the deployment
 export AUTHORITY=5Cck6AprxZGWGYDAqMLLj83AA2vmaDaUf3LJHnL2NXcwqpUv
