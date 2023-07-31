@@ -16,8 +16,7 @@ set -o pipefail #  prevents errors in a pipeline from being masked
 # --- GLOBAL CONSTANTS
 
 INK_DEV_IMAGE=public.ecr.aws/p6e8q1z1/ink-dev:1.0.0
-# TODO : addresses.mainnet.json
-ADDRESSES_FILE=$(pwd)/contracts/addresses.json
+ADDRESSES_FILE=$(pwd)/contracts/addresses.mainnet.json
 CONTRACTS_PATH=$(pwd)/contracts
 #1e12
 TOKEN_DECIMALS=1000000000000
@@ -69,13 +68,13 @@ is_dead early_bird_special
 is_dead back_to_the_future
 is_dead the_pressiah_cometh
 
-reward_pressiah early_bird_special
-reward_pressiah back_to_the_future
-reward_pressiah the_pressiah_cometh
+# reward_pressiah early_bird_special
+# reward_pressiah back_to_the_future
+# reward_pressiah the_pressiah_cometh
 
-reset_game early_bird_special
-reset_game back_to_the_future
-reset_game the_pressiah_cometh
+# reset_game early_bird_special
+# reset_game back_to_the_future
+# reset_game the_pressiah_cometh
 
 # add_liquidity
 
