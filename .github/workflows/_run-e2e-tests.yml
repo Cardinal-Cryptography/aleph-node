@@ -1,6 +1,6 @@
 ---
 #  This workflow run e2e tests as jobs (ie, in paraller)
-name: Run e2e tests
+name: _Run e2e tests
 on:
   workflow_call:
 

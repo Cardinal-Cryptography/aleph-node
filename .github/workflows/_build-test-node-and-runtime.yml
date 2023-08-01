@@ -1,7 +1,7 @@
 ---
 #  This workflow builds test version of aleph-node and aleph-runtime, ie with some
 #  features enabled. Those binaries MUST NOT be used in the production.
-name: Build test node and runtime
+name: _Build test node and runtime
 on:
   workflow_call:
 

@@ -2,7 +2,7 @@
 #  This workflow builds aleph-node docker image from pull request commit
 #  and pushes it to featurenet registry. Test binary is used, and it is wrapped in registry
 #  separated from production builds
-name: Build and push PR image to featurenets
+name: _Build and push PR image to featurenets
 on:
   workflow_call:
 

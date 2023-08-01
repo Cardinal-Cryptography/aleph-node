@@ -1,5 +1,5 @@
 ---
-name: Delete featurenet
+name: _Delete featurenet
 
 on:
   workflow_call:

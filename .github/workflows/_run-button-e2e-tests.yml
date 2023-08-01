@@ -1,5 +1,5 @@
 ---
-name: Runs button e2e test on push to main branch
+name: _Run button e2e test on push to main branch
 
 on:
   workflow_call:
