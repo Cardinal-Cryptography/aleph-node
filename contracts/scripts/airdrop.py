@@ -6,13 +6,18 @@ from tqdm import tqdm
 import argparse
 import os
 
-# Example usage:
+# Will send 3 units of a PSP22 token to each user in the list
+#
+# Example:
+#
 # python3 contracts/scripts/airdrop.py -p $(pwd)/contracts/scripts/stakers_mainnet.list -s 'bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice' -c 5Dxt8scUb5qzhhEAAyYVjq1HG4zgNKJsWxhYFChxmPhgm648 -m $PWD/contracts/ticket_token/target/ink/ticket_token.json
 #
+# Adapted from:
+# https://github.com/polkascan/py-substrate-interface/blob/3826ebe325b12a5c942f8cb3954480bee5ae7ca5/substrateinterface/contracts.py#L816-L834
 
 def prepare_tx(metadata, address, to, gas_limit, storage_limit):
     # encode contract call data
-
+    # we send 3 tickets to each player
     call = metadata.generate_message_data('PSP22::transfer', {"to": to, "value" : int(3), "data" : []})
 
     return interface.compose_call(
@@ -39,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--players', help = 'path to file with list of player addresses', required = True)
     parser.add_argument('-n', '--node', help = 'node ws endpoint', default = 'ws://127.0.0.1:9944')
     parser.add_argument('-s', '--seed_phrase', help='secret seed of the private key to sign txs with', required = True)
-    parser.add_argument('-b', '--batch_size', help = 'batch size', default = 100, type = int)
+    parser.add_argument('-b', '--batch_size', help = 'batch size', default = 50, type = int)
     parser.add_argument('-c', '--contract', help = 'on-chain contract address', required = True)
     parser.add_argument('-m', '--metadata', help = 'contract metadata (path)', required = True)
     args = parser.parse_args()
@@ -76,17 +81,31 @@ if __name__ == '__main__':
     # storage_limit = dry_run_result['storage_deposit'][1]
     # print('storage_limit', storage_limit)
 
-    # methods = [method_name for method_name in dir(contract)
-    #               if callable(getattr(contract, method_name))]
-    # print("@ contract", methods)
-
     metadata = ContractMetadata.create_from_file(args.metadata, interface)
 
-    # we send 3 tickets
-    amount = 3
+    processed_recipients = []
     for batch in tqdm(players):
         recipients = list(zip(*batch))[0]
 
         calls = [prepare_tx(metadata, args.contract, to[0], gas_limit, 1920000000) for to in batch]
+
+        call = interface.compose_call(
+            call_module = 'Utility',
+            call_function = 'batch',
+            call_params = {'calls': calls}
+        )
+
+        xt = interface.create_signed_extrinsic(call = call, keypair = keypair)
+        try:
+            receipt = interface.submit_extrinsic(xt, wait_for_inclusion = True)
+            if not receipt.is_success:
+                print(f'Failed to submit xt with current batch {receipt.error_message}')
+                with open('processed_recipients', 'w') as f:
+                    f.write(str(processed_recipients))
+                exit(1)
+            processed_recipients.extend(recipients)
+
+        except SubstrateRequestException as e:
+            print("Failed to send: {}".format(e))
 
     print('Done.')
