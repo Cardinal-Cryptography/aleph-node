@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     players = read_array(args.players, args.batch_size)
     players = list(players)
-    print('Loaded players list:', players)
+    print('Loaded players list')
 
     node = args.node
     interface = SubstrateInterface(url = node, ss58_format = 42)

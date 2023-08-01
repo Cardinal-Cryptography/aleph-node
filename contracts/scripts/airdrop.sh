@@ -12,8 +12,7 @@ set -o pipefail #  prevents errors in a pipeline from being masked
 
 # --- GLOBAL CONSTANTS
 
-# TODO : addresses.mainnet.json
-ADDRESSES_FILE=$(pwd)/contracts/addresses.json
+ADDRESSES_FILE=$(pwd)/contracts/addresses.mainnet.json
 CONTRACTS_PATH=$(pwd)/contracts
 PLAYERS_FILE=$(pwd)/contracts/scripts/stakers_mainnet.list
 GAMES=(early_bird_special back_to_the_future the_pressiah_cometh)
@@ -27,28 +26,15 @@ if [ -z "$AUTHORITY_SEED" ]; then
   exit -1
 fi
 
-run_ink_dev
-
-# --- PERFORM AN AIRDROP
-
-readarray -t PLAYERS < "$PLAYERS_FILE"
+# --- PERFORM THE AIRDROP
 
 start=$(date +%s.%N)
 
-for P in "${PLAYERS[@]}"; do
+for T in "${GAMES[@]}"; do
 
-  echo "Sending tickets to ${P}"
-
-  # --- send player ticket tokens for each game
-  value=3
-  cd "$CONTRACTS_PATH"/ticket_token
-  for T in "${GAMES[@]}"; do
-
-    echo -e "\tSending tickets foo ${T} ..."
-
-    ticket_token_address=$(get_address ${T}_ticket)
-    cargo_contract call --url "$NODE" --contract "$ticket_token_address" --message PSP22::transfer --args $P $value "[0]" --suri "$AUTHORITY_SEED" --skip-confirm
-  done
+  echo -e "\tSending tickets for ${T} ..."
+  ticket_token_address=$(get_address ${T}_ticket)
+  python3 $PWD/contracts/scripts/airdrop.py -p $PLAYERS_FILE -s "$AUTHORITY_SEED" --node $NODE -c $ticket_token_address -m $CONTRACTS_PATH/ticket_token/target/ink/ticket_token.json
 
 done
 
