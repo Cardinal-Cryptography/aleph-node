@@ -11,15 +11,16 @@ import os
 #
 
 def prepare_tx(contract, to, gas_limit, storage_limit):
-
+    # TODO : encode contract call data
     return interface.compose_call(
         call_module='Contracts',
         call_function='call',
         call_params={
             'dest': contract,
             'value': 0,
-            'gas_limit': gas_limit, #{'ref_time': gas_limit, 'proof_size': 16689},
-            'storage_deposit_limit': storage_limit
+            'gas_limit': gas_limit,
+            'storage_deposit_limit': storage_limit,
+            'data': None
         }
     )
 
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     gas_limit = dry_run_result.gas_required
     # storage_limit = dry_run_result['storage_deposit'][1]
     # print('storage_limit', storage_limit)
-    
+
     methods = [method_name for method_name in dir(contract)
                   if callable(getattr(contract, method_name))]
     print("@ contract", methods)
