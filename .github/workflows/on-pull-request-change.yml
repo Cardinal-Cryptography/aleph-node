@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   main:
-    name: Check PR title
+    name: _Check PR title
     runs-on: ubuntu-20.04
     steps:
       - name: GIT | Checkout

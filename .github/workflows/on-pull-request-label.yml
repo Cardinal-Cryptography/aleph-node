@@ -30,7 +30,7 @@ jobs:
 
   run-e2e-button-contracts-tests:
     if: github.event.label.name == 'trigger:run-button-e2e-tests'
-    name: Run e2e button game contract tests
+    name: _Run e2e button game contract tests
     uses: ./.github/workflows/_run-button-e2e-tests.yml
     with:
       deploy: false

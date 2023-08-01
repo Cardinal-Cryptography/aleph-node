@@ -15,6 +15,6 @@ jobs:
       github.event.action == 'closed' &&
       !contains(github.event.pull_request.labels.*.name, 'state:deleted-featurenet') &&
       contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
-    name: Delete featurenet
+    name: _Delete featurenet
     uses: ./.github/workflows/_delete-featurenet.yml
     secrets: inherit

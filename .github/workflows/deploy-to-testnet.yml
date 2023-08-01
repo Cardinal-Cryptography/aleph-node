@@ -11,13 +11,13 @@ concurrency:
 
 jobs:
   check-vars-and-secrets:
-    name: Check vars and secrets
+    name: _Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   deploy-to-testnet:
     needs: [check-vars-and-secrets]
-    name: Deploy new aleph-node image to Testnet EKS
+    name: _Deploy new aleph-node image to Testnet EKS
     uses: ./.github/workflows/_update-node-image-infra.yml
     with:
       env: testnet

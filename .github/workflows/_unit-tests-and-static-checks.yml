@@ -1,5 +1,5 @@
 ---
-name: _Build unit test binary, run unit tests and run static rust code analysis
+name: Build unit test binary, run unit tests and run static rust code analysis
 
 on:
   workflow_call:

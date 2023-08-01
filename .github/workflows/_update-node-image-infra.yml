@@ -1,5 +1,5 @@
 ---
-name: _Update aleph-node image in infra
+name: Update aleph-node image in infra
 on:
   workflow_call:
     inputs:

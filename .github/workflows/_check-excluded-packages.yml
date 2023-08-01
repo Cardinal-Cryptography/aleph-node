@@ -1,5 +1,5 @@
 ---
-name: _Check excluded packages
+name: Check excluded packages
 
 on:
   workflow_call:

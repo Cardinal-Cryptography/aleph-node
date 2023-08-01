@@ -12,13 +12,13 @@ concurrency:
 
 jobs:
   check-vars-and-secrets:
-    name: Check vars and secrets
+    name: _Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   build-liminal-node:
     needs: [check-vars-and-secrets]
-    name: Build liminal node
+    name: _Build liminal node
     uses: ./.github/workflows/_build-liminal-node.yml
 
   push-liminal-node-image-to-ecr:

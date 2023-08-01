@@ -1,6 +1,6 @@
 ---
 #  This workflow builds docker from aleph-node production binary and docker from e2e client binary
-name: _Build production node image and e2e client image
+name: Build production node image and e2e client image
 on:
   workflow_call:
     inputs:

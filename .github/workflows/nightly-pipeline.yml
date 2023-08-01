@@ -12,13 +12,13 @@ concurrency:
 
 jobs:
   check-vars-and-secrets:
-    name: Check vars and secrets
+    name: _Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   build-production-node-and-runtime:
     needs: [check-vars-and-secrets]
-    name: Build production node and runtime artifacts (PR version)
+    name: _Build production node and runtime artifacts (PR version)
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
 
   store-production-node-and-runtime:
@@ -39,7 +39,7 @@ jobs:
 
   build-production-node-and-e2e-client-image:
     needs: [build-production-node-and-runtime]
-    name: Build production node and e2e client docker image
+    name: _Build production node and e2e client docker image
     uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
     secrets: inherit
     with:

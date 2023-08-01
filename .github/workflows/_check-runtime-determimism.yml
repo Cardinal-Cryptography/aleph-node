@@ -1,7 +1,7 @@
 ---
 # This workflow checks runtime determinism, ie it downloads production runtime from artifacts
 # and compiles again production runtime from sources, and compares both files checksums
-name: _Build test node image and e2e client image
+name: Check runtime determinism
 on:
   workflow_call:
 

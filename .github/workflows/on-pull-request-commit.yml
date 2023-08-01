@@ -14,42 +14,44 @@ concurrency:
 
 jobs:
   check-vars:
-    name: Check vars
+    name: _Check vars
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     with:
       check-secrets: false
 
   check-excluded-packages:
-    name: Check excluded packages
+    name: _Check excluded packages
     uses: ./.github/workflows/_check-excluded-packages.yml
 
   code-formatting:
     needs: [check-vars]
-    name: Check code formatting
+    name: _Check code formatting
     uses: ./.github/workflows/_check-code-formatting.yml
 
   unit-tests-and-static-checks:
-    name: Unit tests and clippy
+    name: _Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 
   build-production-node-and-runtime:
-    name: Build production node and runtime
+    name: _Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
 
   check-runtime-determinism:
     needs: [build-production-node-and-runtime]
+    name: _Check runtime determinism
     uses: ./.github/workflows/_check-runtime-determimism.yml
 
   build-test-node-and-runtime:
-    name: Build test node and runtime
+    name: _Build test node and runtime
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
 
   build-test-node-image-and-e2e-client-image:
     needs: [build-test-node-and-runtime]
+    name: _Build test node image and e2e client image
     uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml
 
   run-e2e-tests:
-    name: Run e2e tests
+    name: _Run e2e tests
     needs: [build-test-node-image-and-e2e-client-image]
     uses: ./.github/workflows/_run-e2e-tests.yml
 

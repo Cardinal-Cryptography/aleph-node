@@ -1,5 +1,5 @@
 ---
-name: _Check code formatting
+name: Check code formatting
 
 on:
   workflow_call:
