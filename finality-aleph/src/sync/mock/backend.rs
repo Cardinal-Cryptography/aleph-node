@@ -42,6 +42,9 @@ fn is_predecessor(
         if header.id().number() != parent.number() + 1 {
             break;
         }
+        if parent.number() < maybe_predecessor.number() {
+            break;
+        }
         if &parent == maybe_predecessor {
             return true;
         }
