@@ -18,7 +18,7 @@ concurrency:
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
-    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    uses: ./.github/workflows/reusable/_check-vars-and-secrets.yml
     secrets: inherit
 
   check-if-image-deployed-to-testnet:
@@ -55,7 +55,7 @@ jobs:
   deploy-to-mainnet:
     needs: [check-if-image-deployed-to-testnet]
     name: Deploy new aleph-node image to Mainnet EKS
-    uses: ./.github/workflows/_update-node-image-infra.yml
+    uses: ./.github/workflows/reusable/_update-node-image-infra.yml
     with:
       env: mainnet
     secrets: inherit

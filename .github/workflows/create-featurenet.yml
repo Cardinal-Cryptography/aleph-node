@@ -20,13 +20,13 @@ on:
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
-    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    uses: ./.github/workflows/reusable/_check-vars-and-secrets.yml
     secrets: inherit
 
   build-test-node-and-runtime:
     name: Build test node and runtime
     needs: [check-vars-and-secrets]
-    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    uses: ./.github/workflows/reusable/_build-test-node-and-runtime.yml
     secrets: inherit
 
   store-test-node-and-runtime:
@@ -48,7 +48,7 @@ jobs:
   push-featurnet-node-image-to-ecr:
     needs: [store-test-node-and-runtime]
     name: Build and push PR tesdocker image to ECR
-    uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
+    uses: ./.github/workflows/reusable/_build-and-push-pull-request-image-to-featurenets.yml
     secrets: inherit
 
   create-featurenet:

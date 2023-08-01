@@ -14,7 +14,7 @@ concurrency:
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
-    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    uses: ./.github/workflows/reusable/_check-vars-and-secrets.yml
     secrets: inherit
 
   add-runtime-and-binary-to-release:
