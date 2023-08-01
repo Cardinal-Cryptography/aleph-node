@@ -97,12 +97,11 @@ pub struct ContractCall {
     pub options: ContractOptions,
 }
 
-// TODO
 impl std::str::FromStr for ContractCall {
-    type Err = serde_json::Error;
+    type Err = ron::error::SpannedError;
 
     fn from_str(args: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(args)
+        ron::from_str(args)
     }
 }
 

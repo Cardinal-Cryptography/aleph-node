@@ -26,11 +26,9 @@ sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", bran
 
 aleph_client = { path = "../../aleph-client" }
 primitives = { path = "../../primitives" }
+ron = { version = "0.8.0", features = ["integer128"] }
 
 [features]
 default = ["std"]
 std = []
-liminal = [
-    "aleph_client/liminal",
-    "liminal-ark-relations",
-]
+liminal = ["aleph_client/liminal", "liminal-ark-relations"]
