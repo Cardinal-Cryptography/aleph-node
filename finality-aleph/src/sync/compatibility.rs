@@ -43,7 +43,7 @@ where
     type Error = NBR::Error;
 
     fn request_block(&self, block_id: BI) -> Result<(), Self::Error> {
-        self.old.request_stale_block(block_id.clone());
+        // self.old.request_stale_block(block_id.clone());
 
         self.new.request_block(block_id)
     }
