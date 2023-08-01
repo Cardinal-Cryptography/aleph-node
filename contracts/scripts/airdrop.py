@@ -1,7 +1,7 @@
 from csv import reader
 from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.base import SubstrateRequestException
-from substrateinterface.contracts import ContractCode, ContractInstance
+from substrateinterface.contracts import ContractCode, ContractInstance, ContractMetadata
 from tqdm import tqdm
 import argparse
 import os
@@ -10,17 +10,20 @@ import os
 # python3 contracts/scripts/airdrop.py -p $(pwd)/contracts/scripts/stakers_mainnet.list -s 'bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice' -c 5Dxt8scUb5qzhhEAAyYVjq1HG4zgNKJsWxhYFChxmPhgm648 -m $PWD/contracts/ticket_token/target/ink/ticket_token.json
 #
 
-def prepare_tx(contract, to, gas_limit, storage_limit):
-    # TODO : encode contract call data
+def prepare_tx(metadata, address, to, gas_limit, storage_limit):
+    # encode contract call data
+
+    call = metadata.generate_message_data('PSP22::transfer', {"to": to, "value" : int(3), "data" : []})
+
     return interface.compose_call(
         call_module='Contracts',
         call_function='call',
         call_params={
-            'dest': contract,
+            'dest': address,
             'value': 0,
             'gas_limit': gas_limit,
             'storage_deposit_limit': storage_limit,
-            'data': None
+            'data': call.to_hex()
         }
     )
 
@@ -73,15 +76,17 @@ if __name__ == '__main__':
     # storage_limit = dry_run_result['storage_deposit'][1]
     # print('storage_limit', storage_limit)
 
-    methods = [method_name for method_name in dir(contract)
-                  if callable(getattr(contract, method_name))]
-    print("@ contract", methods)
+    # methods = [method_name for method_name in dir(contract)
+    #               if callable(getattr(contract, method_name))]
+    # print("@ contract", methods)
+
+    metadata = ContractMetadata.create_from_file(args.metadata, interface)
 
     # we send 3 tickets
     amount = 3
     for batch in tqdm(players):
         recipients = list(zip(*batch))[0]
 
-        calls = [prepare_tx(args.contract, to[0], gas_limit, 1920000000) for to in batch]
+        calls = [prepare_tx(metadata, args.contract, to[0], gas_limit, 1920000000) for to in batch]
 
     print('Done.')
