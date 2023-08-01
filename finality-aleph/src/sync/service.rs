@@ -152,10 +152,11 @@ where
             }
         };
         trace!(target: LOG_TARGET, "Broadcasting state: {:?}", state);
-        self.metrics.report_sync_broadcast();
+
         let data = NetworkData::StateBroadcast(state);
-        if let Err(e) = self.network.broadcast(data) {
-            warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e);
+        match self.network.broadcast(data) {
+            Ok(()) => self.metrics.report_sync_broadcast(),
+            Err(e) => warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e),
         }
     }
 
@@ -172,10 +173,11 @@ where
         };
         let (request, peers) = pre_request.with_state(state);
         trace!(target: LOG_TARGET, "Sending a request: {:?}", request);
-        self.metrics.report_sync_send_request();
         let data = NetworkData::Request(request);
-        if let Err(e) = self.network.send_to_random(data, peers) {
-            warn!(target: LOG_TARGET, "Error sending request: {}.", e);
+
+        match self.network.send_to_random(data, peers) {
+            Ok(()) => self.metrics.report_sync_send_request(),
+            Err(e) => warn!(target: LOG_TARGET, "Error sending request: {}.", e),
         }
     }
 
@@ -186,9 +188,9 @@ where
             data,
             peer
         );
-        self.metrics.report_sync_send_to();
-        if let Err(e) = self.network.send_to(data, peer) {
-            warn!(target: LOG_TARGET, "Error sending response: {}.", e);
+        match self.network.send_to(data, peer) {
+            Ok(()) => self.metrics.report_sync_send_to(),
+            Err(e) => warn!(target: LOG_TARGET, "Error sending response: {}.", e),
         }
     }
 
@@ -200,13 +202,15 @@ where
             state,
             peer
         );
-        self.metrics.report_sync_handle_state();
         match self.handler.handle_state(state, peer.clone()) {
-            Ok(action) => match action {
-                Response(data) => self.send_to(data, peer),
-                HighestJustified(block_id) => self.request_highest_justified(block_id),
-                Noop => (),
-            },
+            Ok(action) => {
+                self.metrics.report_sync_handle_state();
+                match action {
+                    Response(data) => self.send_to(data, peer),
+                    HighestJustified(block_id) => self.request_highest_justified(block_id),
+                    Noop => (),
+                }
+            }
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -260,10 +264,13 @@ where
             "Handling a justification {:?} from user.",
             justification,
         );
-        self.metrics.report_sync_handle_justification_from_user();
         match self.handler.handle_justification_from_user(justification) {
-            Ok(Some(id)) => self.request_highest_justified(id),
-            Ok(None) => (),
+            Ok(maybe_id) => {
+                self.metrics.report_sync_handle_justification_from_user();
+                if let Some(id) = maybe_id {
+                    self.request_highest_justified(id)
+                }
+            }
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -319,7 +326,9 @@ where
                 let mut limiter = MsgLimiter::new(&response_items);
                 loop {
                     match limiter.next_largest_msg() {
-                        Ok(None) => break,
+                        Ok(None) => {
+                            break self.metrics.report_sync_handle_request();
+                        }
                         Ok(Some(chunk)) => {
                             self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone())
                         }
@@ -333,7 +342,10 @@ where
                     }
                 }
             }
-            Ok(Action::RequestBlock(id)) => self.request_block(id),
+            Ok(Action::RequestBlock(id)) => {
+                self.metrics.report_sync_handle_request();
+                self.request_block(id)
+            }
             Err(e) => match e {
                 HandlerError::Verifier(e) => debug!(
                     target: LOG_TARGET,
@@ -350,13 +362,13 @@ where
 
     fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
         trace!(target: LOG_TARGET, "Handling task {}.", task);
-        self.metrics.report_sync_handle_task();
         if let TaskAction::Request(pre_request, (task, delay)) =
             task.process(self.handler.interest_provider())
         {
             self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);
         }
+        self.metrics.report_sync_handle_task();
     }
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
@@ -364,12 +376,12 @@ where
         match event {
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
-                self.metrics.report_sync_handle_block_imported();
-                if let Err(e) = self.handler.block_imported(header) {
-                    error!(
+                match self.handler.block_imported(header) {
+                    Ok(()) => self.metrics.report_sync_handle_block_imported(),
+                    Err(e) => error!(
                         target: LOG_TARGET,
                         "Error marking block as imported: {}.", e
-                    );
+                    ),
                 }
             }
             BlockFinalized(_) => {
@@ -388,12 +400,13 @@ where
             "Handling an internal request for block {:?}.",
             id,
         );
-        self.metrics.report_sync_handle_internal_request();
         match self.handler.handle_internal_request(&id) {
             Ok(true) => {
+                self.metrics.report_sync_handle_internal_request();
                 self.request_block(id);
             }
             Ok(_) => {
+                self.metrics.report_sync_handle_internal_request();
                 debug!(target: LOG_TARGET, "Already requested block {:?}.", id);
             }
             Err(e) => match e {
