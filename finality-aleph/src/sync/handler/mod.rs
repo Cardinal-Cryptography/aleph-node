@@ -896,12 +896,8 @@ mod tests {
     #[tokio::test]
     async fn syncs_to_a_long_trunk() {
         let (mut handler, mut backend, mut notifier, _genesis) = setup();
-        let (mut syncing_handler, mut syncing_backend, mut syncing_notifier, genesis) = setup();
-        // pruning not required, we only grow the trunk
-        backend.disable_pruning();
-        syncing_backend.disable_pruning();
-        let _top_main =
-            grow_trunk(&mut handler, &mut backend, &mut notifier, &genesis, 12345).await;
+        let (mut syncing_handler, _syncing_backend, mut syncing_notifier, genesis) = setup();
+        let _top_main = grow_trunk(&mut handler, &mut backend, &mut notifier, &genesis, 2345).await;
         let peer_id = 0;
         let syncing_peer_id = 1;
         loop {
