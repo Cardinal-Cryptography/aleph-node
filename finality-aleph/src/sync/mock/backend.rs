@@ -29,6 +29,7 @@ struct BackendStorage {
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
+    pruning_enabled: bool,
 }
 
 fn is_predecessor(
@@ -68,7 +69,8 @@ impl Backend {
         notification_sender: UnboundedSender<MockNotification>,
         session_boundary_info: SessionBoundaryInfo,
     ) -> Self {
-        let header = MockHeader::random_parentless(0);
+        // genesis has fixed hash to allow creating multiple compatible Backends
+        let header = MockHeader::genesis();
         let id = header.id();
 
         let block = MockBlock {
@@ -83,9 +85,11 @@ impl Backend {
             finalized: vec![id],
         }));
 
+        println!("creating backend");
         Self {
             inner: storage,
             notification_sender,
+            pruning_enabled: true,
         }
     }
 
@@ -101,7 +105,25 @@ impl Backend {
             .expect("notification receiver is open");
     }
 
+    pub fn disable_pruning(&mut self) {
+        println!("disabling pruning");
+        if !self.pruning_enabled {
+            println!("should be enabled");
+            return;
+        }
+        self.pruning_enabled = false;
+        if !self.pruning_enabled {
+            println!("pruning disabled successfully");
+            return;
+        }
+    }
+
     fn prune(&self) {
+        if !self.pruning_enabled {
+            println!("pruning is disabled");
+            return;
+        }
+        panic!("why not disabled???");
         let top_finalized_id = &self
             .top_finalized()
             .expect("should be at least genesis")
@@ -229,6 +251,7 @@ impl Finalizer<MockJustification> for Backend {
         storage.finalized.extend(blocks_to_finalize);
         std::mem::drop(storage);
         self.prune();
+
         self.notify_finalized(header);
 
         Ok(())
