@@ -675,6 +675,39 @@ mod tests {
         response
     }
 
+    async fn grow_trunk(
+        handler: &mut TestHandler,
+        backend: &mut Backend,
+        notifier: &mut impl ChainStatusNotifier<MockHeader>,
+        bottom: &MockIdentifier,
+        length: usize,
+    ) -> MockIdentifier {
+        let branch: Vec<_> = bottom.random_branch().take(length).collect();
+        let top = branch.last().expect("should not be empty").id();
+        for header in branch.iter() {
+            let block = MockBlock::new(header.clone(), true);
+            let justification = MockJustification::for_header(header.clone());
+            handler
+                .handle_justification_from_user(justification)
+                .expect("should work");
+            backend.import_block(block);
+            match notifier.next().await {
+                Ok(BlockImported(header)) => {
+                    handler.block_imported(header).expect("should work");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+            match notifier.next().await {
+                Ok(BlockFinalized(finalized_header)) => assert_eq!(
+                    header, &finalized_header,
+                    "should finalize the current header"
+                ),
+                _ => panic!("shoould notify about finalized block"),
+            }
+        }
+        top
+    }
+
     #[test]
     fn creates_dangling_branch() {
         let (mut handler, _backend, _notifier, _genesis) = setup();
@@ -858,39 +891,6 @@ mod tests {
             Interest::Uninterested,
             "should be pruned"
         );
-    }
-
-    async fn grow_trunk(
-        handler: &mut TestHandler,
-        backend: &mut Backend,
-        notifier: &mut impl ChainStatusNotifier<MockHeader>,
-        bottom: &MockIdentifier,
-        length: usize,
-    ) -> MockIdentifier {
-        let branch: Vec<_> = bottom.random_branch().take(length).collect();
-        let top = branch.last().expect("should not be empty").id();
-        for header in branch.iter() {
-            let block = MockBlock::new(header.clone(), true);
-            let justification = MockJustification::for_header(header.clone());
-            handler
-                .handle_justification_from_user(justification)
-                .expect("should work");
-            backend.import_block(block);
-            match notifier.next().await {
-                Ok(BlockImported(header)) => {
-                    handler.block_imported(header).expect("should work");
-                }
-                _ => panic!("should notify about imported block"),
-            }
-            match notifier.next().await {
-                Ok(BlockFinalized(finalized_header)) => assert_eq!(
-                    header, &finalized_header,
-                    "should finalize the current header"
-                ),
-                _ => panic!("shoould notify about finalized block"),
-            }
-        }
-        top
     }
 
     #[tokio::test]
