@@ -23,13 +23,13 @@ struct BackendStorage {
     session_boundary_info: SessionBoundaryInfo,
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
+    pruning_enabled: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
-    pruning_enabled: bool,
 }
 
 fn is_predecessor(
@@ -83,13 +83,12 @@ impl Backend {
             session_boundary_info,
             blockchain: HashMap::from([(id.clone(), block)]),
             finalized: vec![id],
+            pruning_enabled: true,
         }));
 
-        println!("creating backend");
         Self {
             inner: storage,
             notification_sender,
-            pruning_enabled: true,
         }
     }
 
@@ -106,24 +105,13 @@ impl Backend {
     }
 
     pub fn disable_pruning(&mut self) {
-        println!("disabling pruning");
-        if !self.pruning_enabled {
-            println!("should be enabled");
-            return;
-        }
-        self.pruning_enabled = false;
-        if !self.pruning_enabled {
-            println!("pruning disabled successfully");
-            return;
-        }
+        self.inner.lock().pruning_enabled = false;
     }
 
     fn prune(&self) {
-        if !self.pruning_enabled {
-            println!("pruning is disabled");
+        if !self.inner.lock().pruning_enabled {
             return;
         }
-        panic!("why not disabled???");
         let top_finalized_id = &self
             .top_finalized()
             .expect("should be at least genesis")
