@@ -33,3 +33,23 @@ As a rule of thumb send 1K tokens with every round.
 
 Secondly after game's end to reward ThePressiah's and begin next round of the games use `reset_game` function.
 If after some round should we decide not to reset it further ThePressiah of the last round should still be rewarded and we have the `reward_pressiah` function for that.
+
+### Periodic maintainance with CRON
+
+For periodic maintainance add the script to the crontab:
+
+```bash
+sudo crontab -e
+```
+
+Add add the job:
+
+```
+@daily source ./contracts/env/mainnet && ./contracts/scripts/maintain.sh
+```
+
+To check the cron logs:
+
+```bash
+sudo journalctl --since yesterday -u cron.service
+```

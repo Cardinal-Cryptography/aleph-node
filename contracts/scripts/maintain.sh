@@ -5,7 +5,7 @@
 ## as well as some some useful queries
 ##
 ## should be used after sourcing env vars e.g.
-## source ./contracts/env/dev && ./contracts/scripts/seed.sh
+## source ./contracts/env/mainnet && ./contracts/scripts/maintain.sh
 
 source $(dirname "$0")/common.sh
 
