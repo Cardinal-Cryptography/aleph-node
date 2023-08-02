@@ -80,7 +80,6 @@ if [ $(is_dead back_to_the_future) == "true" ]; then
   # reset_game back_to_the_future
 fi
 
-
 if [ $(is_dead the_pressiah_cometh) == "true" ]; then
   echo "resetting ThePressiahCometh ..."
   # reset_game the_pressiah_cometh
