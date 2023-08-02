@@ -70,22 +70,34 @@ run_ink_dev
 
 # --- MAINTAN
 
-is_dead early_bird_special
-is_dead back_to_the_future
-is_dead the_pressiah_cometh
+if [ $(is_dead early_bird_special) == "true" ]; then
+  echo "resetting EarlyBirdSpecial ..."
+  # reset_game early_bird_special
+fi
 
-round_number early_bird_special
-round_number back_to_the_future
-round_number the_pressiah_cometh
+if [ $(is_dead back_to_the_future) == "true" ]; then
+  echo "resetting BackToTheFuture ..."
+  # reset_game back_to_the_future
+fi
 
-wazero_balance_of $(get_address simple_dex)
+
+if [ $(is_dead the_pressiah_cometh) == "true" ]; then
+  echo "resetting ThePressiahCometh ..."
+  # reset_game the_pressiah_cometh
+fi
+
+current_balance=$(wazero_balance_of $(get_address simple_dex))
+if (( $(echo "$current_balance < 1000" | bc -l) )); then
+  echo "Adding liquidity to DEX ..."
+  # add_liquidity
+fi
+
+# past some round, or when we distribute all A0 as rewards we likely want to reward the last pressiah and not reset the games anymore
+
+# round_number early_bird_special
+# round_number back_to_the_future
+# round_number the_pressiah_cometh
 
 # reward_pressiah early_bird_special
 # reward_pressiah back_to_the_future
-# reward_pressiah the_pressiah_cometh
-
-# reset_game early_bird_special
-# reset_game back_to_the_future
-# reset_game the_pressiah_cometh
-
-# add_liquidity
+# reward_pressiah the_pressiah_comethx
