@@ -42,10 +42,10 @@ For periodic maintainance add the script to the crontab:
 sudo crontab -e
 ```
 
-Add add the job:
+Add the job:
 
 ```
-@daily source ./contracts/env/mainnet && ./contracts/scripts/maintain.sh
+@hourly source ./contracts/env/mainnet && ./contracts/scripts/maintain.sh
 ```
 
 To check the cron logs:
