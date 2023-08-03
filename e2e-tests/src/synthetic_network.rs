@@ -12,7 +12,7 @@ use crate::config::Config;
 
 pub type Milliseconds = u64;
 
-pub const OUT_LATENCY: Milliseconds = 200;
+pub const OUT_LATENCY: Milliseconds = 350;
 
 pub async fn set_out_latency(milliseconds: Milliseconds, synthetic_url: String) {
     info!(
