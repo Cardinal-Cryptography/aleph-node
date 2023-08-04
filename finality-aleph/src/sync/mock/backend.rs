@@ -115,8 +115,6 @@ impl Backend {
             .id();
         let mut storage = self.inner.lock();
         let to_prune: Vec<_> = storage
-            // .blockchain
-            // .keys()
             .prune_candidates
             .iter()
             .filter(|id| {

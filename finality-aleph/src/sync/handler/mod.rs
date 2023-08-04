@@ -774,7 +774,7 @@ mod tests {
         let fork_top = fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = finalizing_response(branch, false, true, true);
+        let response = finalizing_response(branch.clone(), false, true, true);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -782,8 +782,11 @@ mod tests {
             "should create new highest justified"
         );
         assert!(maybe_error.is_none(), "should work");
+        let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
+            assert_eq!(header, branch[idx], "should be importing the main branch in order");
             handler.block_imported(header).expect("should work");
+            idx += 1;
         }
 
         // check that the fork is still interesting
@@ -834,7 +837,7 @@ mod tests {
         let fork_top = further_fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = finalizing_response(branch, false, true, true);
+        let response = finalizing_response(branch.clone(), false, true, true);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -842,8 +845,11 @@ mod tests {
             "should create new highest justified"
         );
         assert!(maybe_error.is_none(), "should work");
+        let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
+            assert_eq!(header, branch[idx], "should be importing the main branch in order");
             handler.block_imported(header).expect("should work");
+            idx += 1;
         }
 
         // check if the bottom part of the fork was pruned
