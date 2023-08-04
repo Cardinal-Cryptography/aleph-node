@@ -120,7 +120,7 @@ impl Backend {
             .prune_candidates
             .iter()
             .filter(|id| {
-                !&storage.finalized.contains(id)
+                storage.finalized.get(id.number() as usize) != Some(id)
                     && !is_predecessor(&storage.blockchain, id, top_finalized_id)
             })
             .cloned()
