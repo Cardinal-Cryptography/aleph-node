@@ -528,7 +528,7 @@ mod tests {
             forest::Interest,
             handler::Action,
             mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
-            BlockImport, ChainStatus,
+            Block, BlockImport, ChainStatus,
             ChainStatusNotification::*,
             ChainStatusNotifier, Header, Justification,
         },
@@ -717,7 +717,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prunes_dangling_branch() {
+    async fn uninterested_in_dangling_branch() {
         let (mut handler, _backend, mut notifier, genesis) = setup();
 
         // grow the branch that will be finalized
@@ -742,7 +742,7 @@ mod tests {
         // check that still not finalized
         assert!(
             handler.interest_provider().get(&top) != Interest::Uninterested,
-            "branch should not be pruned"
+            "should still be interested"
         );
 
         // finalize
@@ -754,12 +754,12 @@ mod tests {
         assert_eq!(
             handler.interest_provider().get(&top),
             Interest::Uninterested,
-            "branch should be pruned"
+            "should be uninterested"
         );
     }
 
     #[tokio::test]
-    async fn prunes_dangling_branch_when_connected_below_finalized() {
+    async fn uninterested_in_dangling_branch_when_connected_below_finalized() {
         let (mut handler, _backend, mut notifier, genesis) = setup();
 
         // grow the branch that will be finalized
@@ -784,7 +784,10 @@ mod tests {
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
-            assert_eq!(header, branch[idx], "should be importing the main branch in order");
+            assert_eq!(
+                header, branch[idx],
+                "should be importing the main branch in order"
+            );
             handler.block_imported(header).expect("should work");
             idx += 1;
         }
@@ -818,7 +821,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prunes_dangling_branch_when_connected_to_composted_header() {
+    async fn uninterested_in_dangling_branch_when_connected_to_composted_header() {
         let (mut handler, _backend, mut notifier, genesis) = setup();
 
         // grow the branch that will be finalized
@@ -847,7 +850,10 @@ mod tests {
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
-            assert_eq!(header, branch[idx], "should be importing the main branch in order");
+            assert_eq!(
+                header, branch[idx],
+                "should be importing the main branch in order"
+            );
             handler.block_imported(header).expect("should work");
             idx += 1;
         }
@@ -856,7 +862,7 @@ mod tests {
         assert_eq!(
             handler.interest_provider().get(&further_fork_bottom),
             Interest::Uninterested,
-            "branch should be pruned"
+            "should be uninterested"
         );
 
         // check that the fork is still interesting
@@ -959,15 +965,28 @@ mod tests {
 
             // syncing peer processes the response
             let (maybe_id, maybe_error) =
-                syncing_handler.handle_request_response(response_items, peer_id);
+                syncing_handler.handle_request_response(response_items.clone(), peer_id);
             assert!(maybe_error.is_none(), "should work");
             assert!(maybe_id.is_none(), "should already know about target_id");
 
             // syncing peer finalizes received blocks
+            let response_headers: Vec<_> = response_items
+                .into_iter()
+                .filter_map(|item| {
+                    if let ResponseItem::Block(block) = item {
+                        Some(block.header().clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            let mut idx = 0;
             while let Ok(notification) = syncing_notifier.next().await {
                 match notification {
                     BlockImported(header) => {
-                        syncing_handler.block_imported(header).expect("should work")
+                        assert_eq!(header, response_headers[idx], "should import in order");
+                        syncing_handler.block_imported(header).expect("should work");
+                        idx += 1;
                     }
                     BlockFinalized(header) if header.id() == target_id => break,
                     _ => (),
