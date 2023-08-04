@@ -1,8 +1,6 @@
-use crate::{
-    api,
-    sp_runtime::{traits::One, FixedU128},
-    BlockHash, ConnectionApi,
-};
+use substrate_sp_runtime::{traits::One, FixedU128};
+
+use crate::{api, BlockHash, ConnectionApi};
 
 /// Transaction payment pallet API.
 #[async_trait::async_trait]

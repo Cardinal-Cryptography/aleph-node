@@ -4,9 +4,9 @@ use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use serde::{Deserialize, Serialize};
+use substrate_sp_core::Bytes;
 use subxt::{
     blocks::ExtrinsicEvents,
-    ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
     storage::{address::Yes, StaticStorageAddress, StorageAddress},
@@ -14,8 +14,8 @@ use subxt::{
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call, KeyPair,
-    ParamsBuilder, SubxtClient, TxHash, TxStatus,
+    api, runtime_types::sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call,
+    KeyPair, ParamsBuilder, SubxtClient, TxHash, TxStatus,
 };
 
 /// Capable of communicating with a live Aleph chain.
@@ -256,7 +256,10 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
         self.as_connection()
             .as_client()
             .storage()
-            .fetch(addrs, at)
+            .at(at)
+            .await
+            .expect("Should access storage")
+            .fetch(addrs)
             .await
             .expect("Should access storage")
     }
@@ -285,7 +288,6 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
         Ok(())
     }
 }
-
 #[async_trait::async_trait]
 impl<S: AsSigned + Sync> SignedConnectionApi for S {
     async fn send_tx<Call: TxPayload + Send + Sync>(
@@ -419,26 +421,20 @@ impl RootConnection {
     ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
-        let root = match connection
-            .as_client()
-            .storage()
-            .fetch(&root_address, None)
-            .await
-        {
-            Ok(Some(account)) => account,
-            _ => return Err(anyhow!("Could not read sudo key from chain")),
-        };
-
-        if root != *signer.account_id() {
-            return Err(anyhow!(
-                "Provided account is not a sudo on chain. sudo key - {}, provided: {}",
-                root,
-                signer.account_id()
-            ));
+        if let Ok(storage) = connection.as_client().storage().at(None).await {
+            if let Ok(Some(account)) = storage.fetch(&root_address).await {
+                if account != *signer.account_id() {
+                    return Err(anyhow!(
+                        "Provided account is not a sudo on chain. sudo key - {}, provided: {}",
+                        account,
+                        signer.account_id()
+                    ));
+                }
+                return Ok(Self {
+                    connection: SignedConnection { connection, signer },
+                });
+            }
         }
-
-        Ok(Self {
-            connection: SignedConnection { connection, signer },
-        })
+        return Err(anyhow!("Could not read sudo key from chain"));
     }
 }

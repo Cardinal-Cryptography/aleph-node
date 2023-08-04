@@ -1,4 +1,4 @@
-use subxt::ext::sp_runtime::MultiAddress;
+use subxt::utils::MultiAddress;
 
 use crate::{
     aleph_zero::{self, api},
@@ -9,7 +9,6 @@ use crate::{
     Call::Balances,
     ConnectionApi, ParamsBuilder, SignedConnectionApi, TxStatus,
 };
-
 /// Pallet balances read-only API.
 #[async_trait::async_trait]
 pub trait BalanceApi {

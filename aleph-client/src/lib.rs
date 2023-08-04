@@ -13,11 +13,10 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 pub use contract_transcode;
-pub use subxt::ext::{codec, sp_core, sp_core::Pair, sp_runtime};
-use subxt::{
-    ext::sp_core::{ed25519, sr25519, H256},
-    OnlineClient, PolkadotConfig, SubstrateConfig,
-};
+pub use substrate_sp_core::{self, Pair};
+use substrate_sp_core::{ed25519, sr25519, H256};
+pub use subxt::ext::codec;
+use subxt::{OnlineClient, PolkadotConfig, SubstrateConfig};
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
 
@@ -52,7 +51,7 @@ pub type AlephKeyPair = ed25519::Pair;
 /// An alias for a type of a key pair that signs chain transactions.
 pub type RawKeyPair = sr25519::Pair;
 /// An alias for an account id type.
-pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
+pub type AccountId = subxt::utils::AccountId32;
 /// An alias for a hash type.
 pub type CodeHash = H256;
 /// An alias for a block hash type.
@@ -69,7 +68,7 @@ pub use connections::{
 
 /// An alias for a configuration of live chain, e.g. block index type, hash type.
 type AlephConfig = PolkadotConfig;
-type ParamsBuilder = subxt::tx::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
+type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 /// Used for signing extrinsic payload
@@ -107,7 +106,7 @@ impl KeyPair {
 
     /// Returns corresponding AccountId
     pub fn account_id(&self) -> &AccountId {
-        self.inner.account_id()
+        PairSigner::account_id(&self.inner)
     }
 }
 
@@ -132,7 +131,8 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
 /// Converts given seed phrase to a sr25519 [`RawKeyPair`] object.
 /// * `seed` - a 12 or 24 word seed phrase
 pub fn raw_keypair_from_string(seed: &str) -> RawKeyPair {
-    sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
+    substrate_sp_core::sr25519::Pair::from_string(seed, None)
+        .expect("Can't create pair from seed value")
 }
 
 /// Converts given seed phrase to a ed25519 [`AlephKeyPair`] object.

@@ -1,4 +1,4 @@
-use subxt::ext::sp_runtime::MultiAddress;
+use subxt::utils::MultiAddress;
 
 use crate::{
     api, connections::TxInfo, pallet_vesting::vesting_info::VestingInfo, AccountId, Balance,

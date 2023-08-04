@@ -1,9 +1,10 @@
+use substrate_sp_runtime::Perbill as SPerbill;
 use subxt::{
-    ext::{
-        sp_core::storage::StorageKey,
-        sp_runtime::{MultiAddress, Perbill as SPerbill},
+    storage::{
+        address::{StorageHasher, StorageMapKey},
+        StorageKey,
     },
-    storage::address::{StorageHasher, StorageMapKey},
+    utils::MultiAddress,
 };
 
 use crate::{
@@ -428,7 +429,9 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
         self.as_connection()
             .as_client()
             .storage()
-            .fetch_keys(&key, 10, None, at)
+            .at(at)
+            .await?
+            .fetch_keys(&key, 10, None)
             .await
             .map_err(|e| e.into())
     }

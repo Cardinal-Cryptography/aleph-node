@@ -14,7 +14,8 @@ use std::{collections::HashMap, error::Error};
 use anyhow::{anyhow, bail, Result};
 use contract_transcode::Value;
 use futures::{channel::mpsc::UnboundedSender, StreamExt};
-use subxt::{events::EventDetails, ext::sp_core::H256};
+use substrate_sp_core::H256;
+use subxt::events::EventDetails;
 
 use crate::{
     api::contracts::events::ContractEmitted, connections::TxInfo, contract::ContractInstance,
