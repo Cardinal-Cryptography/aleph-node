@@ -121,8 +121,6 @@ impl<C: AsConnection + Sync> BlocksApi for C {
 
         let extrinsic_events = block_body
             .extrinsics()
-            .iter()
-            .flatten()
             .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hasher::hash_of(&tx.bytes()))
             .ok_or_else(|| anyhow!("Couldn't find the transaction in the block."))?
             .events()

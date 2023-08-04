@@ -16,7 +16,7 @@ pub use contract_transcode;
 pub use subxt::ext::sp_runtime::{self, codec};
 use subxt::{
     ext::sp_core::{ed25519, sr25519, Pair, H256},
-    OnlineClient, PolkadotConfig,
+    OnlineClient, PolkadotConfig, SubstrateConfig,
 };
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
@@ -69,7 +69,7 @@ pub use connections::{
 
 /// An alias for a configuration of live chain, e.g. block index type, hash type.
 type AlephConfig = PolkadotConfig;
-type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<AlephConfig>;
+type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 /// Used for signing extrinsic payload
