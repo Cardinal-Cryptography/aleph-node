@@ -68,7 +68,7 @@ pub use connections::{
 
 /// An alias for a configuration of live chain, e.g. block index type, hash type.
 type AlephConfig = PolkadotConfig;
-type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
+type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 /// Used for signing extrinsic payload

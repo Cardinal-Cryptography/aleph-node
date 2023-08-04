@@ -114,7 +114,7 @@ impl<C: AsConnection + Sync> BlocksApi for C {
             .as_connection()
             .as_client()
             .blocks()
-            .at(Some(tx_info.block_hash))
+            .at(tx_info.block_hash)
             .await?
             .body()
             .await?;

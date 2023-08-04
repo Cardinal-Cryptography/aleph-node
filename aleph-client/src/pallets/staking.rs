@@ -1,11 +1,6 @@
+use codec::Encode;
 use substrate_sp_runtime::Perbill as SPerbill;
-use subxt::{
-    storage::{
-        address::{StorageHasher, StorageMapKey},
-        StorageKey,
-    },
-    utils::MultiAddress,
-};
+use subxt::{storage::StorageKey, utils::MultiAddress};
 
 use crate::{
     api,
@@ -425,15 +420,14 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
     ) -> anyhow::Result<Vec<StorageKey>> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
-        StorageMapKey::new(era, StorageHasher::Twox64Concat).to_bytes(&mut key);
-        self.as_connection()
-            .as_client()
-            .storage()
-            .at(at)
-            .await?
-            .fetch_keys(&key, 10, None)
-            .await
-            .map_err(|e| e.into())
+        key.extend(subxt::ext::sp_core::twox_64(&era.encode()));
+        key.extend(&era.encode());
+        let storage = self.as_connection().as_client().storage();
+        let block = match at {
+            Some(block_hash) => storage.at(block_hash),
+            None => storage.at_latest().await?,
+        };
+        block.fetch_keys(&key, 10, None).await.map_err(|e| e.into())
     }
 
     async fn get_stakers_storage_keys_from_accounts(
@@ -444,12 +438,14 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
     ) -> Vec<StorageKey> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
-        StorageMapKey::new(era, StorageHasher::Twox64Concat).to_bytes(&mut key);
+        key.extend(subxt::ext::sp_core::twox_64(&era.encode()));
+        key.extend(&era.encode());
         accounts
             .iter()
             .map(|account| {
                 let mut key = key.clone();
-                StorageMapKey::new(account, StorageHasher::Twox64Concat).to_bytes(&mut key);
+                key.extend(subxt::ext::sp_core::twox_64(&account.encode()));
+                key.extend(&account.encode());
 
                 StorageKey(key)
             })

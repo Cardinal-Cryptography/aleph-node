@@ -9,7 +9,10 @@ use subxt::{
     blocks::ExtrinsicEvents,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
-    storage::{address::Yes, StaticStorageAddress, StorageAddress},
+    storage::{
+        address::{Address, StaticStorageMapKey, Yes},
+        StorageAddress,
+    },
     tx::TxPayload,
 };
 
@@ -61,9 +64,9 @@ pub trait ConnectionApi: Sync {
     /// * `at` - optional block hash to query state from
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> T::Target;
+    ) -> T;
 
     /// Retrieves a decoded storage value stored under given key.
     ///
@@ -84,9 +87,9 @@ pub trait ConnectionApi: Sync {
         Iterable: Sync,
     >(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> Option<T::Target>;
+    ) -> Option<T>;
 
     /// Submit a RPC call.
     ///
@@ -235,9 +238,9 @@ impl AsSigned for RootConnection {
 impl<C: AsConnection + Sync> ConnectionApi for C {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> T::Target {
+    ) -> T {
         self.get_storage_entry_maybe(addrs, at)
             .await
             .expect("There should be a value")
@@ -249,19 +252,18 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
         Iterable: Sync,
     >(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> Option<T::Target> {
+    ) -> Option<T> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.as_connection()
-            .as_client()
-            .storage()
-            .at(at)
-            .await
-            .expect("Should access storage")
-            .fetch(addrs)
-            .await
-            .expect("Should access storage")
+
+        let storage = self.as_connection().as_client().storage();
+        let block = match at {
+            Some(block_hash) => storage.at(block_hash),
+            None => storage.at_latest().await.expect("Should access storage"),
+        };
+
+        block.fetch(addrs).await.expect("Should access storage")
     }
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
@@ -421,7 +423,7 @@ impl RootConnection {
     ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
-        if let Ok(storage) = connection.as_client().storage().at(None).await {
+        if let Ok(storage) = connection.as_client().storage().at_latest().await {
             if let Ok(Some(account)) = storage.fetch(&root_address).await {
                 if account != *signer.account_id() {
                     return Err(anyhow!(
