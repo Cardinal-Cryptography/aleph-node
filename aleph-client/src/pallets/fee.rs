@@ -1,4 +1,4 @@
-use substrate_sp_runtime::{traits::One, FixedU128};
+use subxt::ext::sp_runtime::{traits::One, FixedU128};
 
 use crate::{api, BlockHash, ConnectionApi};
 

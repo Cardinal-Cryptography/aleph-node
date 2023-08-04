@@ -2,13 +2,18 @@ use std::{collections::HashSet, marker::PhantomData};
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
-use substrate_sp_runtime::{traits::TrailingZeroInput, AccountId32 as SpAccountId};
-use subxt::utils::AccountId32 as AccountId;
+use subxt::{
+    ext::{
+        sp_core::blake2_256,
+        sp_runtime::{traits::TrailingZeroInput, AccountId32 as SpAccountId},
+    },
+    utils::AccountId32 as AccountId,
+};
 
 use crate::{
     account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
-    sp_weights::weight_v2::Weight, substrate_sp_core::blake2_256, Balance, BlockHash, BlockNumber,
-    ConnectionApi, SignedConnectionApi, TxStatus,
+    sp_weights::weight_v2::Weight, Balance, BlockHash, BlockNumber, ConnectionApi,
+    SignedConnectionApi, TxStatus,
 };
 
 /// An alias for a call hash.

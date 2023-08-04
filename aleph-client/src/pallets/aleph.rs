@@ -1,6 +1,8 @@
 use codec::Encode;
-use substrate_sp_runtime::AccountId32 as AccountId;
-use subxt::rpc_params;
+use subxt::{
+    ext::{sp_core::Bytes, sp_runtime::AccountId32 as AccountId},
+    rpc_params,
+};
 
 use crate::{
     api,
@@ -10,7 +12,6 @@ use crate::{
     },
     connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
-    substrate_sp_core::Bytes,
     AlephKeyPair, BlockHash, BlockNumber,
     Call::Aleph,
     ConnectionApi, Pair, RootConnection, SessionIndex, SudoCall, TxStatus, Version,

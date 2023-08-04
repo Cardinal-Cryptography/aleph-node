@@ -4,9 +4,9 @@ use anyhow::anyhow;
 use codec::Decode;
 use log::info;
 use serde::{Deserialize, Serialize};
-use substrate_sp_core::Bytes;
 use subxt::{
     blocks::ExtrinsicEvents,
+    ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
     storage::{

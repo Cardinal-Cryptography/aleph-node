@@ -13,10 +13,11 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 pub use contract_transcode;
-pub use substrate_sp_core::{self, Pair};
-use substrate_sp_core::{ed25519, sr25519, H256};
-pub use subxt::ext::codec;
-use subxt::{OnlineClient, PolkadotConfig, SubstrateConfig};
+pub use subxt::ext::sp_runtime::{self, codec};
+use subxt::{
+    ext::sp_core::{ed25519, sr25519, Pair, H256},
+    OnlineClient, PolkadotConfig,
+};
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
 
@@ -131,7 +132,7 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
 /// Converts given seed phrase to a sr25519 [`RawKeyPair`] object.
 /// * `seed` - a 12 or 24 word seed phrase
 pub fn raw_keypair_from_string(seed: &str) -> RawKeyPair {
-    substrate_sp_core::sr25519::Pair::from_string(seed, None)
+    subxt::ext::sp_core::sr25519::Pair::from_string(seed, None)
         .expect("Can't create pair from seed value")
 }
 

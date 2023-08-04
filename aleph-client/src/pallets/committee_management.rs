@@ -1,8 +1,9 @@
 use codec::{DecodeAll, Encode};
 use primitives::{SessionCommittee, SessionValidatorError};
-use substrate_sp_core::Bytes;
-use substrate_sp_runtime::Perquintill;
-use subxt::rpc_params;
+use subxt::{
+    ext::{sp_core::Bytes, sp_runtime::Perquintill},
+    rpc_params,
+};
 
 use crate::{
     aleph_runtime::RuntimeCall::CommitteeManagement,

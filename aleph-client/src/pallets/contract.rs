@@ -1,7 +1,6 @@
 use codec::{Compact, Encode};
 use pallet_contracts_primitives::ContractExecResult;
-use substrate_sp_core::Bytes;
-use subxt::rpc_params;
+use subxt::{ext::sp_core::Bytes, rpc_params};
 
 use crate::{
     api,

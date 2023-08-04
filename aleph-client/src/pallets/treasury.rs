@@ -1,6 +1,8 @@
 use primitives::{staking::era_payout, MILLISECS_PER_BLOCK};
-use substrate_sp_runtime::traits::AccountIdConversion;
-use subxt::utils::MultiAddress;
+use subxt::{
+    ext::{sp_core::TypeId, sp_runtime::traits::AccountIdConversion},
+    utils::MultiAddress,
+};
 
 use crate::{
     api,
@@ -8,7 +10,6 @@ use crate::{
     frame_support::PalletId,
     pallet_treasury::pallet::Call::{approve_proposal, reject_proposal},
     pallets::{committee_management::CommitteeManagementApi, staking::StakingApi},
-    substrate_sp_core::TypeId,
     AccountId, Balance, BlockHash,
     Call::Treasury,
     ConnectionApi, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
