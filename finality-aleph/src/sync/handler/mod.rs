@@ -646,7 +646,7 @@ mod tests {
         (bottom, top)
     }
 
-    fn finalizing_response(
+    fn branch_response(
         branch: Vec<MockHeader>,
         include_headers: bool,
         include_blocks: bool,
@@ -730,7 +730,7 @@ mod tests {
         assert_dangling_branch_required(&handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
 
         // begin finalizing the main branch
-        let response = finalizing_response(branch, false, true, true);
+        let response = branch_response(branch, false, true, true);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -774,7 +774,7 @@ mod tests {
         let fork_top = fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = finalizing_response(branch.clone(), false, true, true);
+        let response = branch_response(branch.clone(), false, true, true);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -804,7 +804,7 @@ mod tests {
 
         // import fork_child that connects the fork to fork_bottom,
         // which is at the same height as an already finalized block
-        let response = finalizing_response(vec![fork_child], true, false, false);
+        let response = branch_response(vec![fork_child], true, false, false);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
         assert!(
             maybe_id.is_none(),
@@ -840,7 +840,7 @@ mod tests {
         let fork_top = further_fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = finalizing_response(branch.clone(), false, true, true);
+        let response = branch_response(branch.clone(), false, true, true);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -889,7 +889,7 @@ mod tests {
 
         // import further_fork_child that connects the fork to further_fork_bottom,
         // which is composted
-        let response = finalizing_response(vec![further_fork_child], true, false, false);
+        let response = branch_response(vec![further_fork_child], true, false, false);
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
         assert!(
             maybe_id.is_none(),
