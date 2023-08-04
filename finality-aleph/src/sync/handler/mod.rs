@@ -889,7 +889,7 @@ mod tests {
         assert_eq!(
             handler.interest_provider().get(&fork_top),
             Interest::Uninterested,
-            "should be pruned"
+            "should be uninterested"
         );
     }
 
