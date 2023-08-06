@@ -2,10 +2,9 @@
 name: tmp workflow
 
 on:
-  merge_group:
   pull_request:
     branches:
-      - 'A0-2967-bump-kustomize-version'
+      - main
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
