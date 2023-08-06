@@ -34,5 +34,5 @@ jobs:
 
       - name: Test kustomize
         run: |
-          cd traffic-maker/frontend/overlays/devnet/eu-central-1/
+          cd ${{ secrets.REPO_ARGOCD_APPS_NAME }}/traffic-maker/frontend/overlays/devnet/eu-central-1/
           kustomize build .
