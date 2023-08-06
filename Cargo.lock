@@ -2628,7 +2628,7 @@ dependencies = [
  "aggregator 0.4.0",
  "aleph-bft 0.19.3",
  "aleph-bft 0.20.5",
- "aleph-bft-crypto 0.5.2",
+ "aleph-bft-crypto 0.6.0",
  "aleph-bft-rmc 0.5.2",
  "aleph-bft-rmc 0.6.1",
  "aleph-runtime",
