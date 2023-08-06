@@ -11,11 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-kustomize:
+  main:
     name: Test kustomize
     runs-on: ubuntu-20.04
-    env:
-      CARGO_INCREMENTAL: 0
     steps:
       - name: GIT | Checkout
         uses: actions/checkout@v3
@@ -23,9 +21,9 @@ jobs:
       - name: GIT | Checkout argocd apps repo
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.env }}
+          ref: main
           # yamllint disable-line rule:line-length
-          repository: ${{ steps.get-repo-owner.outputs.repo-owner }}/${{ secrets.REPO_ARGOCD_APPS_NAME }}
+          repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
           token: ${{ secrets.CI_GH_TOKEN }}
           path: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
 
@@ -35,6 +33,6 @@ jobs:
           kustomize-version: "4.4.1"
 
       - name: Test kustomize
-        runs: |
+        run: |
           cd traffic-maker/frontend/overlays/devnet/eu-central-1/
           kustomize build .
