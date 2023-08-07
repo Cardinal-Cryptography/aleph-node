@@ -138,7 +138,7 @@ runs:
       # yamllint disable rule:line-length
       run: |
         cd "${{ inputs.repo-apps-name }}"
-        # feature net creation from commit from PR
+        # featurenet creation from commit from PR
         if [[ "${{ inputs.featurenet-aleph-node-image }}" == "" ]]; then
           pr_image_tag="fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
           fnet_aleph_node_image="${{ inputs.ecr-public-registry }}feature-env-aleph-node:${pr_image_tag}"
