@@ -720,16 +720,12 @@ mod tests {
 
     #[tokio::test]
     async fn finalizes_with_justification_gaps() {
-        let (mut handler, backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis) = setup();
         let mut bottom = genesis;
         let peer_id = 0;
         for session in 0.. {
-            let branch = grow_light_branch_till(
-                &mut handler,
-                &bottom,
-                &SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(session)),
-                peer_id,
-            );
+            let top = SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(session));
+            let branch = grow_light_branch_till(&mut handler, &bottom, &top, peer_id);
             bottom = branch.last().expect("should not be empty").id();
             // import blocks
             let response_items = branch_response(branch.clone(), true, true, false);
@@ -751,36 +747,49 @@ mod tests {
             }
             let response_items = branch_response(partial.clone(), false, false, true);
             let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-            let id = match maybe_id {
-                Some(id) => id,
-                None => panic!("should not import justification"),
-            };
+            assert!(maybe_id.is_some(), "should import justification");
             assert!(maybe_error.is_none(), "should work");
             // get notification about finalized end-of-session block
-            // TODO - ASSERT ID == NOTIFICATION ID
-            panic!();
-            notifier.next().await;
+            match notifier.next().await.expect("should not be closed") {
+                BlockFinalized(header) => {
+                    assert_eq!(header.id().number(), top, "should finalize the top block")
+                }
+                _ => panic!("should notify about finalized block"),
+            };
         }
     }
 
     #[tokio::test]
-    async fn finalizes_with_justification_gap() {
-        // TODO
-        panic!();
-        let (mut handler, backend, mut notifier, genesis) = setup();
+    async fn skips_justification_gap_with_last_of_current_session_only() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
         let last_block_of_first_session = SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(0));
         let last_block_of_second_session =
             SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(1));
-        println!("{:?}", last_block_of_first_session);
-        println!("{:?}", last_block_of_second_session);
         let peer_id = 0;
-        let branch = grow_light_branch(
+        let branch_low = grow_light_branch_till(
             &mut handler,
             &genesis,
-            last_block_of_second_session as usize,
+            &last_block_of_first_session,
             peer_id,
         );
-        let response_items = branch_response(branch.clone(), true, true, false);
+        let finalizing_justification =
+            MockJustification::for_header(branch_low.last().expect("should not be empty").clone());
+        let branch_high = grow_light_branch_till(
+            &mut handler,
+            &finalizing_justification.id(),
+            &last_block_of_second_session,
+            peer_id,
+        );
+        let response_items = branch_response(
+            branch_low
+                .iter()
+                .cloned()
+                .chain(branch_high.iter().cloned())
+                .collect(),
+            true,
+            true,
+            false,
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
         assert!(maybe_id.is_none(), "should not import justification");
         assert!(maybe_error.is_none(), "should work");
@@ -788,19 +797,56 @@ mod tests {
         while let Ok(BlockImported(header)) = notifier.next().await {
             handler.block_imported(header).expect("should work");
             counter += 1;
-            if counter == branch.len() {
+            if counter == branch_low.len() + branch_high.len() {
                 break;
             }
         }
-        let first_part = branch.clone()[1..].to_vec();
-        println!("{:?}", backend.top_finalized().unwrap().header());
-        let response_items = branch_response(first_part, false, false, true);
-        let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-        println!("{:?}", backend.top_finalized().unwrap().header());
-        // println!("{:?}", backend.top_finalized().unwrap().header());
-        // let response_items = branch_response(second_part, false, false, true);
-        // let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-        // println!("{:?}", backend.top_finalized().unwrap().header());
+        let all_but_two = branch_response(
+            branch_low
+                .iter()
+                .rev()
+                .skip(1)
+                .rev()
+                .skip(1)
+                .cloned()
+                .chain(branch_high.iter().cloned())
+                .collect(),
+            false,
+            false,
+            true,
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
+        let highest = branch_high.last().expect("should not be empty").id();
+        assert_eq!(
+            Some(highest.clone()),
+            maybe_id,
+            "should import justifications"
+        );
+        assert!(maybe_error.is_none(), "should work");
+
+        assert_eq!(
+            handler
+                .state()
+                .expect("should work")
+                .top_justification()
+                .header()
+                .id(),
+            genesis,
+            "should not finalize anything yet"
+        );
+        handler
+            .handle_justification_from_user(finalizing_justification)
+            .expect("should work");
+        assert_eq!(
+            handler
+                .state()
+                .expect("should work")
+                .top_justification()
+                .header()
+                .id(),
+            highest,
+            "should finalize everything"
+        );
     }
 
     #[test]
