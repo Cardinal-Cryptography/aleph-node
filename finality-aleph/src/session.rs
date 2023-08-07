@@ -18,14 +18,14 @@ impl SessionBoundaries {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SessionBoundaryInfo {
     session_period: SessionPeriod,
 }
 
 /// Struct for getting the session boundaries.
 impl SessionBoundaryInfo {
-    pub fn new(session_period: SessionPeriod) -> Self {
+    pub const fn new(session_period: SessionPeriod) -> Self {
         Self { session_period }
     }
 

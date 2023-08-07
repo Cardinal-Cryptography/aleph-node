@@ -33,7 +33,7 @@ use crate::{
 };
 
 // How many sessions we remember.
-const VERIFIER_CACHE_SIZE: usize = 2;
+pub const VERIFIER_CACHE_SIZE: usize = 2;
 
 pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
@@ -109,6 +109,7 @@ where
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
         SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming),
         spawn_handle.clone(),
+        metrics.clone(),
     );
     let gossip_network_task = async move { gossip_network_service.run().await };
 
@@ -153,6 +154,7 @@ where
         database_io,
         session_info.clone(),
         justification_rx,
+        metrics.clone(),
     ) {
         Ok(x) => x,
         Err(e) => panic!("Failed to initialize Sync service: {e}"),

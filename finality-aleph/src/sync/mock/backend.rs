@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::{Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -8,20 +8,22 @@ use futures::channel::mpsc::{self, UnboundedSender};
 use parking_lot::Mutex;
 
 use crate::{
+    nodes::VERIFIER_CACHE_SIZE,
+    session::{SessionBoundaryInfo, SessionId},
     sync::{
         mock::{MockBlock, MockHeader, MockIdentifier, MockJustification, MockNotification},
         Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, FinalizationStatus,
-        Finalizer, Header, Justification as JustificationT,
+        Finalizer, Header, Justification as JustificationT, Verifier,
     },
     BlockIdentifier,
 };
 
 #[derive(Clone, Debug)]
 struct BackendStorage {
-    session_period: u32,
+    session_boundary_info: SessionBoundaryInfo,
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
-    best_block: MockIdentifier,
+    prune_candidates: HashSet<MockIdentifier>,
 }
 
 #[derive(Clone, Debug)]
@@ -31,20 +33,23 @@ pub struct Backend {
 }
 
 fn is_predecessor(
-    storage: &HashMap<MockIdentifier, MockBlock>,
-    mut header: MockHeader,
-    maybe_predecessor: MockIdentifier,
+    blockchain: &HashMap<MockIdentifier, MockBlock>,
+    id: &MockIdentifier,
+    maybe_predecessor: &MockIdentifier,
 ) -> bool {
+    let mut header = blockchain.get(id).expect("should exist").header();
     while let Some(parent) = header.parent_id() {
         if header.id().number() != parent.number() + 1 {
             break;
         }
-        if parent == maybe_predecessor {
+        if parent.number() < maybe_predecessor.number() {
+            break;
+        }
+        if &parent == maybe_predecessor {
             return true;
         }
-
-        header = match storage.get(&parent) {
-            Some(block) => block.header().clone(),
+        header = match blockchain.get(&parent) {
+            Some(block) => block.header(),
             None => return false,
         }
     }
@@ -52,29 +57,36 @@ fn is_predecessor(
 }
 
 impl Backend {
-    pub fn setup(session_period: usize) -> (Self, impl ChainStatusNotifier<MockHeader>) {
+    pub fn setup(
+        session_boundary_info: SessionBoundaryInfo,
+    ) -> (Self, impl ChainStatusNotifier<MockHeader>) {
         let (notification_sender, notification_receiver) = mpsc::unbounded();
 
         (
-            Backend::new(notification_sender, session_period as u32),
+            Backend::new(notification_sender, session_boundary_info),
             notification_receiver,
         )
     }
 
-    fn new(notification_sender: UnboundedSender<MockNotification>, session_period: u32) -> Self {
-        let header = MockHeader::random_parentless(0);
+    fn new(
+        notification_sender: UnboundedSender<MockNotification>,
+        session_boundary_info: SessionBoundaryInfo,
+    ) -> Self {
+        // genesis has fixed hash to allow creating multiple compatible Backends
+        let header = MockHeader::genesis();
         let id = header.id();
 
         let block = MockBlock {
             header: header.clone(),
             justification: Some(MockJustification::for_header(header)),
+            is_correct: true,
         };
 
         let storage = Arc::new(Mutex::new(BackendStorage {
-            session_period,
+            session_boundary_info,
             blockchain: HashMap::from([(id.clone(), block)]),
-            finalized: vec![id.clone()],
-            best_block: id,
+            finalized: vec![id],
+            prune_candidates: HashSet::new(),
         }));
 
         Self {
@@ -95,41 +107,26 @@ impl Backend {
             .expect("notification receiver is open");
     }
 
-    pub fn import(&self, header: MockHeader) {
+    fn prune(&self) {
+        let top_finalized_id = &self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header()
+            .id();
         let mut storage = self.inner.lock();
-
-        let parent_id = match header.parent_id() {
-            Some(id) => id,
-            None => panic!("importing block without a parent: {header:?}"),
-        };
-
-        if storage.blockchain.contains_key(&header.id()) {
-            panic!("importing an already imported block: {header:?}")
+        let to_prune: Vec<_> = storage
+            .prune_candidates
+            .iter()
+            .filter(|id| {
+                storage.finalized.get(id.number() as usize) != Some(id)
+                    && !is_predecessor(&storage.blockchain, id, top_finalized_id)
+            })
+            .cloned()
+            .collect();
+        for id in to_prune {
+            storage.blockchain.remove(&id);
+            storage.prune_candidates.remove(&id);
         }
-
-        if !storage.blockchain.contains_key(&parent_id) {
-            panic!("importing block without an imported parent: {header:?}")
-        }
-
-        if header.id().number() != parent_id.number() + 1 {
-            panic!("importing block without a correct parent: {header:?}")
-        }
-
-        if header.id().number() > storage.best_block.number()
-            && is_predecessor(
-                &storage.blockchain,
-                header.clone(),
-                storage.best_block.clone(),
-            )
-        {
-            storage.best_block = header.id();
-        }
-
-        storage
-            .blockchain
-            .insert(header.id(), MockBlock::new(header.clone()));
-
-        self.notify_imported(header);
     }
 }
 
@@ -181,10 +178,18 @@ impl Finalizer<MockJustification> for Backend {
         let allowed_numbers = match storage.finalized.last() {
             Some(id) => [
                 id.number + 1,
-                id.number + storage.session_period
-                    - (id.number + 1).rem_euclid(storage.session_period),
+                storage.session_boundary_info.last_block_of_session(
+                    storage
+                        .session_boundary_info
+                        .session_id_from_block_num(id.number),
+                ),
             ],
-            None => [0, storage.session_period - 1],
+            None => [
+                0,
+                storage
+                    .session_boundary_info
+                    .last_block_of_session(SessionId(0)),
+            ],
         };
 
         if !allowed_numbers.contains(&finalizing_id.number) {
@@ -228,21 +233,13 @@ impl Finalizer<MockJustification> for Backend {
             panic!("finalizing a block that is not a child of top finalized.");
         }
 
-        storage.finalized.extend(blocks_to_finalize);
-        // In case finalization changes best block, we set best block, to top finalized.
-        // Whenever a new import happens, best block will update anyway.
-        if !is_predecessor(
-            &storage.blockchain,
-            storage
-                .blockchain
-                .get(&storage.best_block)
-                .unwrap()
-                .header()
-                .clone(),
-            finalizing_id.clone(),
-        ) {
-            storage.best_block = finalizing_id
+        for id in &blocks_to_finalize {
+            storage.prune_candidates.remove(id);
         }
+        storage.finalized.extend(blocks_to_finalize);
+        std::mem::drop(storage);
+        self.prune();
+
         self.notify_finalized(header);
 
         Ok(())
@@ -251,7 +248,35 @@ impl Finalizer<MockJustification> for Backend {
 
 impl BlockImport<MockBlock> for Backend {
     fn import_block(&mut self, block: MockBlock) {
-        self.import(block.header);
+        if !block.verify() {
+            return;
+        }
+
+        let top_finalized_number = self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header()
+            .id()
+            .number();
+        let mut storage = self.inner.lock();
+
+        let parent_id = match block.parent_id() {
+            Some(id) => id,
+            None => return,
+        };
+
+        if storage.blockchain.contains_key(&block.id())
+            || !storage.blockchain.contains_key(&parent_id)
+            || block.id().number() != parent_id.number() + 1
+            || block.id().number() <= top_finalized_number
+        {
+            return;
+        }
+
+        storage.prune_candidates.insert(block.id());
+        storage.blockchain.insert(block.id(), block.clone());
+
+        self.notify_imported(block.header);
     }
 }
 
@@ -311,13 +336,7 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
     }
 
     fn best_block(&self) -> Result<MockHeader, Self::Error> {
-        let storage = self.inner.lock();
-        let id = storage.best_block.clone();
-        storage
-            .blockchain
-            .get(&id)
-            .map(|b| b.header().clone())
-            .ok_or(StatusError)
+        Err(Self::Error {})
     }
 
     fn top_finalized(&self) -> Result<MockJustification, Self::Error> {
@@ -346,6 +365,50 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
                 }
                 Ok(Vec::new())
             }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum VerifierError {
+    IncorrectJustification,
+    IncorrectSession,
+}
+
+impl Display for VerifierError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Verifier<MockJustification> for Backend {
+    type Error = VerifierError;
+
+    fn verify(
+        &mut self,
+        justification: MockJustification,
+    ) -> Result<MockJustification, Self::Error> {
+        let top_number = self
+            .top_finalized()
+            .expect("should be at least genesis")
+            .header
+            .id
+            .number;
+        let storage = self.inner.lock();
+        let current_session = storage
+            .session_boundary_info
+            .session_id_from_block_num(top_number);
+        let justification_session = storage
+            .session_boundary_info
+            .session_id_from_block_num(justification.id().number);
+        if justification_session.0 > current_session.0 + 1
+            || current_session.0 + 1 - justification_session.0 >= VERIFIER_CACHE_SIZE as u32
+        {
+            return Err(Self::Error::IncorrectSession);
+        }
+        match justification.is_correct {
+            true => Ok(justification),
+            false => Err(Self::Error::IncorrectJustification),
         }
     }
 }
