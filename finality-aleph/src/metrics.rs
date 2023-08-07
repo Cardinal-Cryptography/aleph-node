@@ -1,8 +1,8 @@
-use std::num::NonZeroUsize;
 use std::{
     collections::HashMap,
     fmt::Debug,
     hash::Hash,
+    num::NonZeroUsize,
     time::{Duration, Instant},
 };
 

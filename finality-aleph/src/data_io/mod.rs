@@ -1,7 +1,7 @@
-use std::num::NonZeroUsize;
 use std::{
     fmt::Debug,
     hash::{Hash, Hasher},
+    num::NonZeroUsize,
 };
 
 use parity_scale_codec::{Decode, Encode};

@@ -1,8 +1,8 @@
-use std::num::NonZeroUsize;
 use std::{
     collections::{hash_map::Entry::Occupied, BTreeMap, HashMap, HashSet},
     default::Default,
     hash::{Hash, Hasher},
+    num::NonZeroUsize,
     sync::Arc,
     time::{self, Duration},
 };
