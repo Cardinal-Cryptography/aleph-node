@@ -13,9 +13,9 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 pub use contract_transcode;
-pub use subxt::ext::sp_runtime::{self, codec};
+pub use subxt::ext::{codec, sp_core, sp_core::Pair, sp_runtime};
 use subxt::{
-    ext::sp_core::{ed25519, sr25519, Pair, H256},
+    ext::sp_core::{ed25519, sr25519, H256},
     OnlineClient, PolkadotConfig, SubstrateConfig,
 };
 

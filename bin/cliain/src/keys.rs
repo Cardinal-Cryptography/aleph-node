@@ -12,6 +12,7 @@ use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
 use serde_json::json;
 use subxt::ext::sp_core::crypto::Ss58Codec;
+use subxt::ext::sp_runtime::AccountId32 as SpAccountId;
 
 pub async fn prepare_keys(
     connection: RootConnection,
@@ -49,8 +50,11 @@ pub async fn rotate_keys(connection: Connection) {
 }
 
 pub async fn next_session_keys(connection: Connection, account_id: String) {
-    let account_id = AccountId::from_ss58check(&account_id).expect("Address is valid");
-    match connection.get_next_session_keys(account_id, None).await {
+    let account_id = SpAccountId::from_ss58check(&account_id).expect("Address is valid");
+    match connection
+        .get_next_session_keys(account_id.into(), None)
+        .await
+    {
         Some(keys) => {
             let keys_json = json!({
                 "aura": "0x".to_owned() + keys.aura.0.0.encode_hex::<String>().as_str(),

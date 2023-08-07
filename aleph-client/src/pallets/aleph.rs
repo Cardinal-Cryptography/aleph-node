@@ -1,8 +1,5 @@
 use codec::Encode;
-use subxt::{
-    ext::{sp_core::Bytes, sp_runtime::AccountId32 as AccountId},
-    rpc_params,
-};
+use subxt::{ext::sp_core::Bytes, rpc_params};
 
 use crate::{
     api,
@@ -12,7 +9,7 @@ use crate::{
     },
     connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
-    AlephKeyPair, BlockHash, BlockNumber,
+    AccountId, AlephKeyPair, BlockHash, BlockNumber,
     Call::Aleph,
     ConnectionApi, Pair, RootConnection, SessionIndex, SudoCall, TxStatus, Version,
 };
@@ -104,7 +101,7 @@ impl AlephSudoApi for RootConnection {
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
         let call = Aleph(set_emergency_finalizer {
-            emergency_finalizer: Public(EdPublic(finalizer.into())),
+            emergency_finalizer: Public(EdPublic(finalizer.0)),
         });
         self.sudo_unchecked(call, status).await
     }
