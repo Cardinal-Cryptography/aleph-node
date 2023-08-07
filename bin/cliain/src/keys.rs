@@ -11,8 +11,7 @@ use hex::ToHex;
 use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
 use serde_json::json;
-use subxt::ext::sp_core::crypto::Ss58Codec;
-use subxt::ext::sp_runtime::AccountId32 as SpAccountId;
+use subxt::ext::{sp_core::crypto::Ss58Codec, sp_runtime::AccountId32 as SpAccountId};
 
 pub async fn prepare_keys(
     connection: RootConnection,

@@ -3,8 +3,7 @@ use aleph_client::{
     Balance, RootConnection, SignedConnection, TxStatus,
 };
 use primitives::TOKEN;
-use subxt::ext::sp_core::crypto::Ss58Codec;
-use subxt::ext::sp_runtime::AccountId32 as SpAccountId;
+use subxt::ext::{sp_core::crypto::Ss58Codec, sp_runtime::AccountId32 as SpAccountId};
 
 pub async fn bond(
     stash_connection: SignedConnection,
