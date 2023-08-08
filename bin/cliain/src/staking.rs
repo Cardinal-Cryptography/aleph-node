@@ -29,7 +29,7 @@ pub async fn validate(connection: SignedConnection, commission_percentage: u8) {
 pub async fn nominate(connection: SignedConnection, nominee: String) {
     let nominee_account = account_from_ss58check(&nominee).expect("Address is valid");
     connection
-        .nominate(nominee_account.into(), TxStatus::InBlock)
+        .nominate(nominee_account, TxStatus::InBlock)
         .await
         .unwrap();
 }
