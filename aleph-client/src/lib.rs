@@ -13,7 +13,14 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 pub use contract_transcode;
-pub use subxt::ext::{codec, sp_core, sp_core::Pair, sp_runtime};
+pub use subxt::ext::{
+    codec, sp_core,
+    sp_core::{
+        crypto::{PublicError, Ss58Codec},
+        Pair,
+    },
+    sp_runtime,
+};
 use subxt::{
     ext::sp_core::{ed25519, sr25519, H256},
     OnlineClient, PolkadotConfig, SubstrateConfig,
@@ -107,7 +114,7 @@ impl KeyPair {
 
     /// Returns corresponding AccountId
     pub fn account_id(&self) -> &AccountId {
-        PairSigner::account_id(&self.inner)
+        self.inner.account_id()
     }
 }
 
@@ -132,8 +139,7 @@ pub fn keypair_from_string(seed: &str) -> KeyPair {
 /// Converts given seed phrase to a sr25519 [`RawKeyPair`] object.
 /// * `seed` - a 12 or 24 word seed phrase
 pub fn raw_keypair_from_string(seed: &str) -> RawKeyPair {
-    subxt::ext::sp_core::sr25519::Pair::from_string(seed, None)
-        .expect("Can't create pair from seed value")
+    sr25519::Pair::from_string(seed, None).expect("Can't create pair from seed value")
 }
 
 /// Converts given seed phrase to a ed25519 [`AlephKeyPair`] object.
@@ -150,4 +156,10 @@ where
     AccountId: From<<P as Pair>::Public>,
 {
     AccountId::from(keypair.public())
+}
+
+/// Converts an SS58Check address string to `AccountId`.
+/// * `ss58check` - &str with SS58Check address
+pub fn account_from_ss58check(ss58check: &str) -> Result<AccountId, PublicError> {
+    sp_runtime::AccountId32::from_ss58check(ss58check).map(|address| address.into())
 }

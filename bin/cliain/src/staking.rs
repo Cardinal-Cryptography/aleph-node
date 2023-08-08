@@ -1,18 +1,16 @@
 use aleph_client::{
+    account_from_ss58check,
     pallets::staking::{StakingSudoApi, StakingUserApi},
     Balance, RootConnection, SignedConnection, TxStatus,
 };
 use primitives::TOKEN;
-use subxt::ext::{sp_core::crypto::Ss58Codec, sp_runtime::AccountId32 as SpAccountId};
 
 pub async fn bond(
     stash_connection: SignedConnection,
     initial_stake_in_tokens: u32,
     controller_account: String,
 ) {
-    let controller_account = SpAccountId::from_ss58check(&controller_account)
-        .expect("Address is valid")
-        .into();
+    let controller_account = account_from_ss58check(&controller_account).expect("Address is valid");
 
     let initial_stake = initial_stake_in_tokens as Balance * TOKEN;
     stash_connection
@@ -29,7 +27,7 @@ pub async fn validate(connection: SignedConnection, commission_percentage: u8) {
 }
 
 pub async fn nominate(connection: SignedConnection, nominee: String) {
-    let nominee_account = SpAccountId::from_ss58check(&nominee).expect("Address is valid");
+    let nominee_account = account_from_ss58check(&nominee).expect("Address is valid");
     connection
         .nominate(nominee_account.into(), TxStatus::InBlock)
         .await

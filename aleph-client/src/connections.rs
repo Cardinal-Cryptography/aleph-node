@@ -290,6 +290,7 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
         Ok(())
     }
 }
+
 #[async_trait::async_trait]
 impl<S: AsSigned + Sync> SignedConnectionApi for S {
     async fn send_tx<Call: TxPayload + Send + Sync>(
@@ -369,7 +370,6 @@ impl Connection {
     /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
     /// * `retries` - number of connection attempts
     async fn new_with_retries(address: &str, mut retries: u32) -> Connection {
-        println!("Connection: {:?}", address);
         loop {
             let client = SubxtClient::from_url(&address).await;
             match (retries, client) {
@@ -424,20 +424,28 @@ impl RootConnection {
     ) -> anyhow::Result<Self> {
         let root_address = api::storage().sudo().key();
 
-        if let Ok(storage) = connection.as_client().storage().at_latest().await {
-            if let Ok(Some(account)) = storage.fetch(&root_address).await {
-                if account != *signer.account_id() {
-                    return Err(anyhow!(
-                        "Provided account is not a sudo on chain. sudo key - {}, provided: {}",
-                        account,
-                        signer.account_id()
-                    ));
-                }
-                return Ok(Self {
-                    connection: SignedConnection { connection, signer },
-                });
-            }
+        let root = match connection
+            .as_client()
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&root_address)
+            .await
+        {
+            Ok(Some(account)) => account,
+            _ => return Err(anyhow!("Could not read sudo key from chain")),
+        };
+
+        if root != *signer.account_id() {
+            return Err(anyhow!(
+                "Provided account is not a sudo on chain. sudo key - {}, provided: {}",
+                root,
+                signer.account_id()
+            ));
         }
-        return Err(anyhow!("Could not read sudo key from chain"));
+
+        Ok(Self {
+            connection: SignedConnection { connection, signer },
+        })
     }
 }

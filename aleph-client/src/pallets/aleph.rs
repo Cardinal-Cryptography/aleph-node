@@ -1,5 +1,5 @@
 use codec::Encode;
-use subxt::{ext::sp_core::Bytes, rpc_params};
+use subxt::rpc_params;
 
 use crate::{
     api,
@@ -9,6 +9,7 @@ use crate::{
     },
     connections::TxInfo,
     pallet_aleph::pallet::Call::schedule_finality_version_change,
+    sp_core::Bytes,
     AccountId, AlephKeyPair, BlockHash, BlockNumber,
     Call::Aleph,
     ConnectionApi, Pair, RootConnection, SessionIndex, SudoCall, TxStatus, Version,

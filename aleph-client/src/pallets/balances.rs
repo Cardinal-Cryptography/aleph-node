@@ -9,6 +9,7 @@ use crate::{
     Call::Balances,
     ConnectionApi, ParamsBuilder, SignedConnectionApi, TxStatus,
 };
+
 /// Pallet balances read-only API.
 #[async_trait::async_trait]
 pub trait BalanceApi {

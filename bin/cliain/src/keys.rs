@@ -1,4 +1,5 @@
 use aleph_client::{
+    account_from_ss58check,
     aleph_runtime::SessionKeys,
     pallets::{
         author::AuthorRpc,
@@ -11,7 +12,6 @@ use hex::ToHex;
 use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
 use serde_json::json;
-use subxt::ext::{sp_core::crypto::Ss58Codec, sp_runtime::AccountId32 as SpAccountId};
 
 pub async fn prepare_keys(
     connection: RootConnection,
@@ -49,7 +49,7 @@ pub async fn rotate_keys(connection: Connection) {
 }
 
 pub async fn next_session_keys(connection: Connection, account_id: String) {
-    let account_id = SpAccountId::from_ss58check(&account_id).expect("Address is valid");
+    let account_id = account_from_ss58check(&account_id).expect("Address is valid");
     match connection
         .get_next_session_keys(account_id.into(), None)
         .await

@@ -1,6 +1,8 @@
-use subxt::ext::sp_runtime::{traits::One, FixedU128};
-
-use crate::{api, BlockHash, ConnectionApi};
+use crate::{
+    api,
+    sp_runtime::{traits::One, FixedU128},
+    BlockHash, ConnectionApi,
+};
 
 /// Transaction payment pallet API.
 #[async_trait::async_trait]

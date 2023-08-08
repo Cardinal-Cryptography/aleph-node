@@ -1,9 +1,10 @@
 use aleph_client::{
     pallets::treasury::{TreasurySudoApi, TreasuryUserApi},
+    sp_runtime::AccountId32 as SpAccountId,
     RootConnection, SignedConnection, TxStatus,
 };
 use primitives::{Balance, TOKEN};
-use subxt::ext::{sp_core::crypto::Ss58Codec, sp_runtime::AccountId32 as SpAccountId};
+use subxt::ext::sp_core::crypto::Ss58Codec;
 
 /// Delegates to `aleph_client::make_treasury_proposal`.
 pub async fn propose(connection: SignedConnection, amount_in_tokens: u64, beneficiary: String) {

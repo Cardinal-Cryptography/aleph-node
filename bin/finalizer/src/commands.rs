@@ -12,7 +12,6 @@ use aleph_client::{
 use anyhow::Result;
 use dialoguer::Confirm;
 use futures::{stream::FuturesUnordered, StreamExt};
-use subxt::config::Header;
 
 fn pretty_print_h256(h: &H256) -> String {
     let prefix =

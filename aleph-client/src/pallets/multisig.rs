@@ -6,15 +6,11 @@ use std::{
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
-use subxt::{
-    ext::{sp_core::blake2_256, sp_runtime::traits::TrailingZeroInput},
-    utils::AccountId32 as AccountId,
-};
 
 use crate::{
     account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
-    sp_weights::weight_v2::Weight, Balance, BlockHash, BlockNumber, ConnectionApi,
-    SignedConnectionApi, TxStatus,
+    sp_core::blake2_256, sp_runtime::traits::TrailingZeroInput, sp_weights::weight_v2::Weight,
+    AccountId, Balance, BlockHash, BlockNumber, ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
 /// An alias for a call hash.
