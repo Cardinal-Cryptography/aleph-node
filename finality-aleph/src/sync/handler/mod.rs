@@ -792,6 +792,38 @@ mod tests {
         let (mut handler, _backend, mut notifier, genesis) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
 
+        let short_response = branch_response(
+            branch[..15].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
+
+        let mid_response = branch_response(
+            branch.to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[15..].to_vec()).await;
+    }
+
+    #[tokio::test]
+    async fn handles_multiple_overlapping_responses() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
+
         // 15 blocks and justifications -> top is 15, new highest justification
         let short_response = branch_response(
             branch[..15].to_vec(),
