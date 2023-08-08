@@ -60,7 +60,6 @@ pub enum Interest<I: PeerId, J: Justification> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Error {
     HeaderMissingParentId,
-    HeaderIsAuxiliary,
     IncorrectParentState,
     IncorrectVertexState,
     ParentNotImported,
@@ -72,7 +71,6 @@ impl Display for Error {
         use Error::*;
         match self {
             HeaderMissingParentId => write!(f, "header did not contain a parent ID"),
-            HeaderIsAuxiliary => write!(f, "header should not be auxiliary"),
             IncorrectParentState => write!(
                 f,
                 "parent was in a state incompatible with importing this block"
@@ -349,20 +347,6 @@ where
             true => Ok(self.set_explicitly_required(&id)),
             false => Ok(false),
         }
-    }
-
-    /// Updates the provided header only if the identifier was not auxiliary.
-    pub fn update_non_auxiliary_header(
-        &mut self,
-        header: &J::Header,
-        holder: Option<I>,
-    ) -> Result<(), Error> {
-        if !matches!(self.get(&header.id()), VertexHandle::Candidate(vertex) if !vertex.vertex.auxiliary())
-        {
-            return Err(Error::HeaderIsAuxiliary);
-        }
-        self.update_header(header, holder, true)?;
-        Ok(())
     }
 
     /// Updates the vertex related to the provided header marking it as imported.

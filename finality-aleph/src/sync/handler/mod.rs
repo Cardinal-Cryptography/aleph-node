@@ -161,6 +161,7 @@ where
     RequestHandlerError(RequestHandlerError<J, CS::Error>),
     MissingJustification,
     BlockNotImportable,
+    HeaderNotRequired,
 }
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
@@ -179,6 +180,7 @@ where
             Finalizer(e) => write!(f, "finalized error: {e}"),
             Forest(e) => write!(f, "forest error: {e}"),
             ForestInitialization(e) => write!(f, "forest initialization error: {e}"),
+            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -186,7 +188,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
-            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
+            HeaderNotRequired => write!(f, "header was not required, but it should have been"),
         }
     }
 }
@@ -411,10 +413,10 @@ where
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    if let Err(e) = self
-                        .forest
-                        .update_non_auxiliary_header(&h, Some(peer.clone()))
-                    {
+                    if !self.forest.importable(&h.id()) {
+                        return (highest_justified, Some(Error::HeaderNotRequired));
+                    }
+                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), true) {
                         return (highest_justified, Some(Error::Forest(e)));
                     }
                 }
