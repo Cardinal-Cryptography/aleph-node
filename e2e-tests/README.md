@@ -40,7 +40,7 @@ Run a feature net by adding an appropriate label to a pull request, ie `trigger:
 , then after its started run
 
 ```bash
-e2e-tests$ NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test finalization
+e2e-tests$ RUST_LOG=info NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test --release finalization -- --nocapture 
 ```
 
 where you can find your feature env address in https://github.com/Cardinal-Cryptography/aleph-node/deployments
