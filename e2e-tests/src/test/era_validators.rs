@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use aleph_client::{
     pallets::elections::{ElectionsApi, ElectionsSudoApi},
@@ -44,26 +44,26 @@ fn get_new_non_reserved_validators(config: &Config) -> Vec<KeyPair> {
 
 async fn get_current_and_next_era_reserved_validators<C: ElectionsApi>(
     connection: &C,
-) -> (HashSet<AccountId>, HashSet<AccountId>) {
+) -> (BTreeSet<AccountId>, BTreeSet<AccountId>) {
     let stored_reserved = connection.get_next_era_reserved_validators(None).await;
     let current_reserved = connection.get_current_era_validators(None).await.reserved;
     (
-        HashSet::from_iter(current_reserved),
-        HashSet::from_iter(stored_reserved),
+        BTreeSet::from_iter(current_reserved),
+        BTreeSet::from_iter(stored_reserved),
     )
 }
 
 async fn get_current_and_next_era_non_reserved_validators<C: ElectionsApi>(
     connection: &C,
-) -> (HashSet<AccountId>, HashSet<AccountId>) {
+) -> (BTreeSet<AccountId>, BTreeSet<AccountId>) {
     let stored_non_reserved = connection.get_next_era_non_reserved_validators(None).await;
     let current_non_reserved = connection
         .get_current_era_validators(None)
         .await
         .non_reserved;
     (
-        HashSet::from_iter(current_non_reserved),
-        HashSet::from_iter(stored_non_reserved),
+        BTreeSet::from_iter(current_non_reserved),
+        BTreeSet::from_iter(stored_non_reserved),
     )
 }
 
@@ -115,10 +115,10 @@ pub async fn era_validators() -> anyhow::Result<()> {
         )
         .await?;
 
-    let new_non_reserved_validators = HashSet::from_iter(new_non_reserved_validators);
-    let new_reserved_validators = HashSet::from_iter(new_reserved_validators);
-    let initial_reserved_validators = HashSet::from_iter(initial_reserved_validators);
-    let initial_non_reserved_validators = HashSet::from_iter(initial_non_reserved_validators);
+    let new_non_reserved_validators = BTreeSet::from_iter(new_non_reserved_validators);
+    let new_reserved_validators = BTreeSet::from_iter(new_reserved_validators);
+    let initial_reserved_validators = BTreeSet::from_iter(initial_reserved_validators);
+    let initial_non_reserved_validators = BTreeSet::from_iter(initial_non_reserved_validators);
 
     root_connection
         .wait_for_session(1, BlockStatus::Finalized)

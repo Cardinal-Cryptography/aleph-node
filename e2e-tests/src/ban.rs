@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use aleph_client::{
     api::committee_management::events::BanValidators,
@@ -66,12 +66,12 @@ pub fn check_validators(
     era_validators: EraValidators<AccountId>,
 ) -> EraValidators<AccountId> {
     assert_eq!(
-        HashSet::<_>::from_iter(&era_validators.reserved),
-        HashSet::<_>::from_iter(expected_reserved)
+        BTreeSet::<_>::from_iter(&era_validators.reserved),
+        BTreeSet::<_>::from_iter(expected_reserved)
     );
     assert_eq!(
-        HashSet::<_>::from_iter(&era_validators.non_reserved),
-        HashSet::<_>::from_iter(expected_non_reserved)
+        BTreeSet::<_>::from_iter(&era_validators.non_reserved),
+        BTreeSet::<_>::from_iter(expected_non_reserved)
     );
 
     era_validators

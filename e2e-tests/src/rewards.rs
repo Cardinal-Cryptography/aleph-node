@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use aleph_client::{
     account_from_keypair,
@@ -100,8 +100,8 @@ pub async fn download_exposure<S: StakingApi>(
 }
 
 fn check_rewards(
-    validator_reward_points: HashMap<AccountId, f64>,
-    retrieved_reward_points: HashMap<AccountId, u32>,
+    validator_reward_points: BTreeMap<AccountId, f64>,
+    retrieved_reward_points: BTreeMap<AccountId, u32>,
     max_relative_difference: f64,
 ) -> anyhow::Result<()> {
     let our_sum: f64 = validator_reward_points.values().sum();
@@ -206,7 +206,7 @@ pub async fn check_points<S: AsConnection + Sync>(
         .unwrap_or_default()
         .individual;
 
-    let validator_reward_points_previous_session = HashMap::<AccountId, u32>::from_iter(
+    let validator_reward_points_previous_session = BTreeMap::<AccountId, u32>::from_iter(
         connection
             .get_era_reward_points(era, beginning_of_session_block_hash)
             .await
@@ -214,7 +214,7 @@ pub async fn check_points<S: AsConnection + Sync>(
             .individual,
     );
 
-    let validator_reward_points_current_session: HashMap<AccountId, RewardPoint> =
+    let validator_reward_points_current_session: BTreeMap<AccountId, RewardPoint> =
         validator_reward_points_current_era
             .into_iter()
             .map(|(account_id, reward_points)| {
@@ -249,7 +249,7 @@ pub async fn check_points<S: AsConnection + Sync>(
         .into_iter()
         .map(|account_id| (account_id, 1.0));
 
-    let mut reward_points: HashMap<_, _> = members_uptime
+    let mut reward_points: BTreeMap<_, _> = members_uptime
         .into_iter()
         .chain(members_bench_uptime)
         .collect();
@@ -335,10 +335,10 @@ pub async fn setup_validators(
     let network_validators = root_connection
         .get_current_era_validators(first_block_in_session)
         .await;
-    let reserved: HashSet<_> = era_validators.reserved.iter().cloned().collect();
-    let network_reserved: HashSet<_> = network_validators.reserved.into_iter().collect();
-    let non_reserved: HashSet<_> = era_validators.non_reserved.iter().cloned().collect();
-    let network_non_reserved: HashSet<_> = network_validators.non_reserved.into_iter().collect();
+    let reserved: BTreeSet<_> = era_validators.reserved.iter().cloned().collect();
+    let network_reserved: BTreeSet<_> = network_validators.reserved.into_iter().collect();
+    let non_reserved: BTreeSet<_> = era_validators.non_reserved.iter().cloned().collect();
+    let network_non_reserved: BTreeSet<_> = network_validators.non_reserved.into_iter().collect();
     let network_seats = root_connection
         .get_committee_seats(first_block_in_session)
         .await;

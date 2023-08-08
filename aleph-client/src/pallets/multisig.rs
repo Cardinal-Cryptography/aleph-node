@@ -1,12 +1,13 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::{
+    collections::HashSet,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+};
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
 use subxt::{
-    ext::{
-        sp_core::blake2_256,
-        sp_runtime::{traits::TrailingZeroInput, AccountId32 as SpAccountId},
-    },
+    ext::{sp_core::blake2_256, sp_runtime::traits::TrailingZeroInput},
     utils::AccountId32 as AccountId,
 };
 
@@ -250,13 +251,37 @@ impl ContextState for Ongoing {}
 pub enum Closed {}
 impl ContextState for Closed {}
 
+// Wrapper for AccountId that implements Hash.
+#[derive(Clone, Eq, PartialEq, Debug)]
+struct AccountIdWrapper {
+    account_id: AccountId,
+}
+
+impl From<AccountId> for AccountIdWrapper {
+    fn from(account_id: AccountId) -> Self {
+        Self { account_id }
+    }
+}
+
+impl Hash for AccountIdWrapper {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.account_id.0.hash(state);
+    }
+}
+
+impl Into<AccountId> for AccountIdWrapper {
+    fn into(self) -> AccountId {
+        self.account_id
+    }
+}
+
 /// A context in which ongoing signature aggregation is performed.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Context<S: ContextState> {
     /// The entity for which aggregation is being made.
     party: MultisigParty,
     /// Derived multisig account (the source of the target call).
-    author: SpAccountId,
+    author: AccountId,
 
     /// Pallet's coordinate for this aggregation.
     timepoint: Timepoint,
@@ -272,7 +297,7 @@ pub struct Context<S: ContextState> {
     /// author.
     ///
     /// `approvers.len() < party.threshold` always holds.
-    approvers: HashSet<SpAccountId>,
+    approvers: HashSet<AccountIdWrapper>,
 
     _phantom: PhantomData<S>,
 }
@@ -290,7 +315,7 @@ pub enum ContextAfterUse {
 impl Context<Ongoing> {
     fn new(
         party: MultisigParty,
-        author: SpAccountId,
+        author: AccountId,
         timepoint: Timepoint,
         max_weight: Weight,
         call: Option<Call>,
@@ -303,7 +328,7 @@ impl Context<Ongoing> {
             max_weight,
             call,
             call_hash,
-            approvers: HashSet::from([author]),
+            approvers: HashSet::from([author.into()]),
             _phantom: PhantomData,
         }
     }
@@ -328,8 +353,8 @@ impl Context<Ongoing> {
 
     /// Register another approval. Depending on the threshold meeting and `call` content, we treat
     /// signature aggregation process as either still ongoing or closed.
-    fn add_approval(mut self, approver: SpAccountId) -> ContextAfterUse {
-        self.approvers.insert(approver);
+    fn add_approval(mut self, approver: AccountId) -> ContextAfterUse {
+        self.approvers.insert(approver.into());
         if self.call.is_some() && self.approvers.len() >= (self.party.threshold as usize) {
             ContextAfterUse::Closed(self.close())
         } else {
@@ -359,7 +384,7 @@ impl Context<Closed> {
         &self.party
     }
     /// Read author.
-    pub fn author(&self) -> &SpAccountId {
+    pub fn author(&self) -> &AccountId {
         &self.author
     }
     /// Read timepoint.
@@ -379,7 +404,7 @@ impl Context<Closed> {
         self.call_hash
     }
     /// Read approvers set.
-    pub fn approvers(&self) -> &HashSet<SpAccountId> {
+    pub fn approvers(&self) -> &HashSet<impl Into<AccountId> + From<AccountId>> {
         &self.approvers
     }
 }
@@ -436,10 +461,6 @@ pub trait MultisigContextualApi {
     ) -> anyhow::Result<(TxInfo, Context<Closed>)>;
 }
 
-fn to_sp_account_id(account: &AccountId) -> SpAccountId {
-    SpAccountId::from(account.0)
-}
-
 #[async_trait::async_trait]
 impl<S: SignedConnectionApi> MultisigContextualApi for S {
     async fn initiate(
@@ -476,7 +497,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             tx_info,
             Context::new(
                 party.clone(),
-                to_sp_account_id(self.account_id()),
+                self.account_id().clone(),
                 timepoint,
                 max_weight.clone(),
                 None,
@@ -514,7 +535,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             tx_info,
             Context::new(
                 party.clone(),
-                to_sp_account_id(self.account_id()),
+                self.account_id().clone(),
                 timepoint,
                 max_weight.clone(),
                 Some(call.clone()),
@@ -539,12 +560,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|tx_info| {
-            (
-                tx_info,
-                context.add_approval(to_sp_account_id(self.account_id())),
-            )
-        })
+        .map(|tx_info| (tx_info, context.add_approval(self.account_id().clone())))
     }
 
     async fn approve_with_call(
@@ -582,12 +598,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
             status,
         )
         .await
-        .map(|tx_info| {
-            (
-                tx_info,
-                context.add_approval(to_sp_account_id(self.account_id())),
-            )
-        })
+        .map(|tx_info| (tx_info, context.add_approval(self.account_id().clone())))
     }
 
     async fn cancel(
@@ -598,7 +609,7 @@ impl<S: SignedConnectionApi> MultisigContextualApi for S {
         let other_signatories = ensure_signer_in_party(self, &context.party)?;
 
         ensure!(
-            to_sp_account_id(self.account_id()) == context.author,
+            *self.account_id() == context.author,
             "Only the author can cancel multisig aggregation"
         );
 

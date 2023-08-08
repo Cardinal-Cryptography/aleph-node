@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use aleph_client::{
     pallets::{elections::ElectionsSudoApi, session::SessionApi},
@@ -49,7 +49,7 @@ pub async fn validators_rotate() -> anyhow::Result<()> {
         .wait_for_n_sessions(TEST_LENGTH, BlockStatus::Finalized)
         .await;
 
-    let mut non_reserved_count = HashMap::new();
+    let mut non_reserved_count = BTreeMap::new();
 
     for session in current_session..current_session + TEST_LENGTH {
         let elected = connection

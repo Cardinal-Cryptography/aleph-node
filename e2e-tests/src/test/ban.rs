@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use aleph_client::{
     bounded_collections::bounded_vec::BoundedVec,
@@ -294,8 +294,8 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
         .wait_for_n_eras(2, BlockStatus::Finalized)
         .await;
 
-    let without_banned = HashSet::<_>::from_iter(non_reserved_without_banned);
-    let non_reserved = HashSet::<_>::from_iter(
+    let without_banned = BTreeSet::<_>::from_iter(non_reserved_without_banned);
+    let non_reserved = BTreeSet::<_>::from_iter(
         root_connection
             .get_current_era_validators(None)
             .await
@@ -309,8 +309,8 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     root_connection
         .wait_for_n_eras(2, BlockStatus::Finalized)
         .await;
-    let expected_non_reserved = HashSet::<_>::from_iter(non_reserved_validators);
-    let non_reserved = HashSet::<_>::from_iter(
+    let expected_non_reserved = BTreeSet::<_>::from_iter(non_reserved_validators);
+    let non_reserved = BTreeSet::<_>::from_iter(
         root_connection
             .get_current_era_validators(None)
             .await

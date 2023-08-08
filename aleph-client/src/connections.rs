@@ -369,6 +369,7 @@ impl Connection {
     /// * `address` - address in websocket format, e.g. `ws://127.0.0.1:9943`
     /// * `retries` - number of connection attempts
     async fn new_with_retries(address: &str, mut retries: u32) -> Connection {
+        println!("Connection: {:?}", address);
         loop {
             let client = SubxtClient::from_url(&address).await;
             match (retries, client) {
