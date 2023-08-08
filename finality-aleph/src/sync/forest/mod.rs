@@ -557,6 +557,18 @@ where
             _ => false,
         }
     }
+
+    /// Whether this block should be skipped during importing.
+    /// It either needs to be already imported, or too old to be checked.
+    pub fn skippable(&self, id: &BlockIdFor<J>) -> bool {
+        use SpecialState::{BelowMinimal, HighestFinalized};
+        use VertexHandle::{Candidate, Special};
+        match self.get(id) {
+            Special(BelowMinimal | HighestFinalized) => true,
+            Candidate(vertex) => vertex.vertex.imported(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

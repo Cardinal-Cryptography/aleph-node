@@ -416,6 +416,9 @@ where
                     }
                 }
                 ResponseItem::Block(b) => {
+                    if self.forest.skippable(&b.header().id()) {
+                        continue;
+                    }
                     match self.forest.importable(&b.header().id()) {
                         true => self.block_importer.import_block(b),
                         false => return (highest_justified, Some(Error::BlockNotImportable)),
