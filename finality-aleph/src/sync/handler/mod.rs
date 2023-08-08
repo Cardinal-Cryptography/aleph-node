@@ -656,17 +656,21 @@ mod tests {
         (bottom, top)
     }
 
+    struct BranchResponseContent {
+        headers: bool,
+        blocks: bool,
+        justifications: bool,
+    }
+
     fn branch_response(
         branch: Vec<MockHeader>,
-        include_headers: bool,
-        include_blocks: bool,
-        include_justifications: bool,
+        content: BranchResponseContent,
     ) -> MockResponseItems {
         let mut response = vec![];
-        if include_headers {
+        if content.headers {
             response.extend(branch.iter().cloned().rev().map(ResponseItem::Header));
         }
-        if include_blocks {
+        if content.blocks {
             response.extend(
                 branch
                     .iter()
@@ -674,7 +678,7 @@ mod tests {
                     .map(|header| ResponseItem::Block(MockBlock::new(header, true))),
             );
         }
-        if include_justifications {
+        if content.justifications {
             response.extend(
                 branch
                     .into_iter()
@@ -718,6 +722,25 @@ mod tests {
         top
     }
 
+    async fn mark_branch_imported(
+        handler: &mut TestHandler,
+        notifier: &mut impl ChainStatusNotifier<MockHeader>,
+        branch: &Vec<MockHeader>,
+    ) {
+        for expected_header in branch {
+            match notifier.next().await {
+                Ok(BlockImported(header)) => {
+                    assert_eq!(
+                        &header, expected_header,
+                        "should import header from the provided branch"
+                    );
+                    handler.block_imported(header).expect("should work");
+                }
+                _ => panic!("should import header from the provided branch"),
+            }
+        }
+    }
+
     #[tokio::test]
     async fn finalizes_with_justification_gaps() {
         let (mut handler, _backend, mut notifier, genesis) = setup();
@@ -728,35 +751,37 @@ mod tests {
             let branch = grow_light_branch_till(&mut handler, &bottom, &top, peer_id);
             bottom = branch.last().expect("should not be empty").id();
             // import blocks
-            let response_items = branch_response(branch.clone(), true, true, false);
+            let response_items = branch_response(
+                branch.clone(),
+                BranchResponseContent {
+                    headers: true,
+                    blocks: true,
+                    justifications: false,
+                },
+            );
             let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
             assert!(maybe_id.is_none(), "should not import justification");
             assert!(maybe_error.is_none(), "should work");
-            let mut counter = 0;
-            while let Ok(BlockImported(header)) = notifier.next().await {
-                handler.block_imported(header).expect("should work");
-                counter += 1;
-                if counter == branch.len() {
-                    break;
-                }
-            }
+            mark_branch_imported(&mut handler, &mut notifier, &branch).await;
             // increasingly larger gaps
             let partial = branch.clone()[session as usize + 1..].to_vec();
             if partial.is_empty() {
                 break;
             }
-            let response_items = branch_response(partial.clone(), false, false, true);
+            let response_items = branch_response(
+                partial.clone(),
+                BranchResponseContent {
+                    headers: false,
+                    blocks: false,
+                    justifications: true,
+                },
+            );
             let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
             assert!(maybe_id.is_some(), "should import justification");
             assert!(maybe_error.is_none(), "should work");
             // get notification about finalized end-of-session block
-            match notifier
-                .next()
-                .await
-                .map_err(|_| ())
-                .expect("should not be closed")
-            {
-                BlockFinalized(header) => {
+            match notifier.next().await {
+                Ok(BlockFinalized(header)) => {
                     assert_eq!(header.id().number(), top, "should finalize the top block")
                 }
                 _ => panic!("should notify about finalized block"),
@@ -791,21 +816,19 @@ mod tests {
                 .cloned()
                 .chain(branch_high.iter().cloned())
                 .collect(),
-            true,
-            true,
-            false,
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: false,
+            },
         );
         let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
         assert!(maybe_id.is_none(), "should not import justification");
         assert!(maybe_error.is_none(), "should work");
-        let mut counter = 0;
-        while let Ok(BlockImported(header)) = notifier.next().await {
-            handler.block_imported(header).expect("should work");
-            counter += 1;
-            if counter == branch_low.len() + branch_high.len() {
-                break;
-            }
-        }
+
+        mark_branch_imported(&mut handler, &mut notifier, &branch_low).await;
+        mark_branch_imported(&mut handler, &mut notifier, &branch_high).await;
+
         let all_but_two = branch_response(
             branch_low
                 .iter()
@@ -816,9 +839,11 @@ mod tests {
                 .cloned()
                 .chain(branch_high.iter().cloned())
                 .collect(),
-            false,
-            false,
-            true,
+            BranchResponseContent {
+                headers: false,
+                blocks: false,
+                justifications: true,
+            },
         );
         let (maybe_id, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
         let highest = branch_high.last().expect("should not be empty").id();
@@ -876,7 +901,14 @@ mod tests {
         assert_dangling_branch_required(&handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
 
         // begin finalizing the main branch
-        let response = branch_response(branch, false, true, true);
+        let response = branch_response(
+            branch,
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -920,7 +952,14 @@ mod tests {
         let fork_top = fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = branch_response(branch.clone(), false, true, true);
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -950,7 +989,14 @@ mod tests {
 
         // import fork_child that connects the fork to fork_bottom,
         // which is at the same height as an already finalized block
-        let response = branch_response(vec![fork_child], true, false, false);
+        let response = branch_response(
+            vec![fork_child],
+            BranchResponseContent {
+                headers: true,
+                blocks: false,
+                justifications: false,
+            },
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
         assert!(
             maybe_id.is_none(),
@@ -986,7 +1032,14 @@ mod tests {
         let fork_top = further_fork.last().expect("fork not empty").id();
 
         // finalize the main branch
-        let response = branch_response(branch.clone(), false, true, true);
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
         assert_eq!(
             maybe_id,
@@ -1035,7 +1088,14 @@ mod tests {
 
         // import further_fork_child that connects the fork to further_fork_bottom,
         // which is composted
-        let response = branch_response(vec![further_fork_child], true, false, false);
+        let response = branch_response(
+            vec![further_fork_child],
+            BranchResponseContent {
+                headers: true,
+                blocks: false,
+                justifications: false,
+            },
+        );
         let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
         assert!(
             maybe_id.is_none(),
