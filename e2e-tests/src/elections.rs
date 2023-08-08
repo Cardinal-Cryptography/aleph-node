@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::{collections::HashSet, iter::empty};
+use std::{iter::empty};
 
 use aleph_client::{
     pallets::{
