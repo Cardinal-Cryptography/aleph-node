@@ -408,6 +408,9 @@ where
                     }
                 }
                 ResponseItem::Header(h) => {
+                    if self.forest.skippable(&h.id()) {
+                        continue;
+                    }
                     if let Err(e) = self
                         .forest
                         .update_non_auxiliary_header(&h, Some(peer.clone()))
@@ -742,6 +745,108 @@ mod tests {
                 _ => panic!("should import header from the provided branch"),
             }
         }
+    }
+
+    async fn consume_branch_finalized_notifications(
+        notifier: &mut impl ChainStatusNotifier<MockHeader>,
+        branch: &Vec<MockHeader>,
+    ) {
+        for expected_header in branch {
+            match notifier.next().await {
+                Ok(BlockFinalized(header)) => {
+                    assert_eq!(
+                        &header, expected_header,
+                        "should finalize header from the provided branch"
+                    );
+                }
+                _ => panic!("should finalize header from the provided branch"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn accepts_response_twice() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch).await;
+        let (maybe_id, maybe_error) = handler.handle_request_response(response, 8);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn accepts_long_response_after_handling_short_one() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
+
+        // 15 blocks and justifications -> top is 15, new highest justification
+        let short_response = branch_response(
+            branch[..15].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
+        consume_branch_finalized_notifications(&mut notifier, &branch[..15].to_vec()).await;
+
+        // 25 blocks -> top is 15, highest block is 25
+        let mid_response = branch_response(
+            branch[..25].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[15..25].to_vec()).await;
+
+        // 35 blocks -> top is 15, highest block is 35
+        let long_response_blocks_only = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(long_response_blocks_only, 2);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[25..].to_vec()).await;
+
+        // 35 blocks, justifications, and headers (just for fun) ->
+        // top is 35, new highest justification
+        let full_response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        consume_branch_finalized_notifications(&mut notifier, &branch[15..].to_vec()).await;
     }
 
     #[tokio::test]
