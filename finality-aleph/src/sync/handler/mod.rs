@@ -750,7 +750,12 @@ mod tests {
             assert!(maybe_id.is_some(), "should import justification");
             assert!(maybe_error.is_none(), "should work");
             // get notification about finalized end-of-session block
-            match notifier.next().await.expect("should not be closed") {
+            match notifier
+                .next()
+                .await
+                .map_err(|_| ())
+                .expect("should not be closed")
+            {
                 BlockFinalized(header) => {
                     assert_eq!(header.id().number(), top, "should finalize the top block")
                 }

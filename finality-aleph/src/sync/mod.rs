@@ -78,7 +78,7 @@ pub trait Justification: Clone + Send + Sync + Debug + 'static {
 
 /// A verifier of justifications.
 pub trait Verifier<J: Justification> {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// Verifies the raw justification and returns a full justification if successful, otherwise an
     /// error.
@@ -87,7 +87,7 @@ pub trait Verifier<J: Justification> {
 
 /// A facility for finalizing blocks using justifications.
 pub trait Finalizer<J: Justification> {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// Finalize a block using this justification. Since the justification contains the header, we
     /// don't need to additionally specify the block.
@@ -107,7 +107,7 @@ pub enum ChainStatusNotification<H: Header> {
 /// We assume that this will return all the events, otherwise we will end up with a broken state.
 #[async_trait::async_trait]
 pub trait ChainStatusNotifier<H: Header> {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// Returns a chain status notification when it is available.
     /// This method's implementation must be cancellation safe.
@@ -150,7 +150,7 @@ where
     J: Justification,
     B: Block<Header = J::Header>,
 {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// The status of the block.
     fn status_of(&self, id: BlockIdFor<J>) -> Result<BlockStatus<J>, Self::Error>;
@@ -178,7 +178,7 @@ where
 /// The block corresponding to the submitted `Justification` MUST be obtained and
 /// imported into the Substrate database by the user, as soon as possible.
 pub trait JustificationSubmissions<J: Justification>: Clone + Send + 'static {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// Submit a justification to the underlying justification sync.
     fn submit(&mut self, justification: J::Unverified) -> Result<(), Self::Error>;
@@ -187,7 +187,7 @@ pub trait JustificationSubmissions<J: Justification>: Clone + Send + 'static {
 /// An interface for requesting specific blocks from the block sync.
 /// Required by the data availability mechanism in ABFT.
 pub trait RequestBlocks<BI: BlockIdentifier>: Clone + Send + Sync + 'static {
-    type Error: Debug + Display;
+    type Error: Display;
 
     /// Request the given block.
     fn request_block(&self, block_id: BI) -> Result<(), Self::Error>;
