@@ -248,7 +248,7 @@ pub enum Closed {}
 impl ContextState for Closed {}
 
 // Wrapper for AccountId that implements Hash.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 struct AccountIdWrapper {
     account_id: AccountId,
 }
@@ -259,15 +259,23 @@ impl From<AccountId> for AccountIdWrapper {
     }
 }
 
-impl Hash for AccountIdWrapper {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.account_id.0.hash(state);
+impl From<AccountIdWrapper> for AccountId {
+    fn from(val: AccountIdWrapper) -> Self {
+        val.account_id
     }
 }
 
-impl Into<AccountId> for AccountIdWrapper {
-    fn into(self) -> AccountId {
-        self.account_id
+impl PartialEq for AccountIdWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.account_id.0 == other.account_id.0
+    }
+}
+
+impl Eq for AccountIdWrapper {}
+
+impl Hash for AccountIdWrapper {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.account_id.0.hash(state);
     }
 }
 
