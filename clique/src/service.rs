@@ -7,7 +7,7 @@ use futures::{
 use log::{info, trace, warn};
 use tokio::time;
 
-use crate::metrics::Metrics;
+use crate::NetworkCliqueMetrics;
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
@@ -85,8 +85,15 @@ pub trait SpawnHandleT {
 }
 
 /// A service that has to be run for the clique network to work.
-pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
-where
+pub struct Service<
+    SK: SecretKey,
+    D: Data,
+    A: Data,
+    ND: Dialer<A>,
+    NL: Listener,
+    SH: SpawnHandleT,
+    M: NetworkCliqueMetrics,
+> where
     SK::PublicKey: PeerId,
 {
     commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<SK::PublicKey, D, A>>,
@@ -96,11 +103,18 @@ where
     listener: NL,
     spawn_handle: SH,
     secret_key: SK,
-    metrics: Metrics,
+    metrics: Option<M>,
 }
 
-impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
-    Service<SK, D, A, ND, NL, SH>
+impl<
+        SK: SecretKey,
+        D: Data,
+        A: Data + Debug,
+        ND: Dialer<A>,
+        NL: Listener,
+        SH: SpawnHandleT,
+        M: NetworkCliqueMetrics,
+    > Service<SK, D, A, ND, NL, SH, M>
 where
     SK::PublicKey: PeerId,
 {
@@ -110,7 +124,7 @@ where
         listener: NL,
         secret_key: SK,
         spawn_handle: SH,
-        metrics: Metrics,
+        metrics: Option<M>,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
@@ -250,7 +264,9 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    self.manager.update_metrics(&mut self.metrics);
+                    if let Some(ref metrics) = &self.metrics {
+                        self.manager.update_metrics(metrics);
+                    }
                     info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
                 }
                 // received exit signal, stop the network

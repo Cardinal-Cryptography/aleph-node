@@ -8,7 +8,7 @@ use futures::channel::mpsc;
 use crate::{Data, PeerId, PublicKey};
 
 mod direction;
-use crate::metrics::Metrics;
+use crate::NetworkCliqueMetrics;
 use direction::DirectedPeers;
 
 /// Error during sending data through the Manager
@@ -226,7 +226,7 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
             .map_err(|_| SendError::ConnectionClosed)
     }
 
-    pub fn update_metrics(&self, metrics: &mut Metrics) {
+    pub fn update_metrics<M: NetworkCliqueMetrics>(&self, metrics: &M) {
         let status = ManagerStatus::new(self);
         metrics.set_present_incoming_connections(status.incoming_peers.len() as u64);
         metrics.set_missing_incoming_connections(status.missing_incoming.len() as u64);

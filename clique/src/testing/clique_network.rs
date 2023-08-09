@@ -15,11 +15,11 @@ use tokio::time::{error::Elapsed, interval, timeout, Duration};
 
 use crate::{
     mock::{
-        random_keys, Addresses, MockData, MockDialer, MockListener, MockPublicKey, MockSecretKey,
-        UnreliableConnectionMaker,
+        random_keys, Addresses, MockData, MockDialer, MockListener, MockMetrics, MockPublicKey,
+        MockSecretKey, UnreliableConnectionMaker,
     },
     service::SpawnHandleT,
-    Metrics, Network, SecretKey, Service,
+    Network, SecretKey, Service,
 };
 
 impl SpawnHandleT for Spawner {
@@ -53,8 +53,13 @@ fn spawn_peer(
     spawn_handle: Spawner,
 ) {
     let our_id = secret_key.public_key();
-    let (service, mut interface) =
-        Service::new(dialer, listener, secret_key, spawn_handle, Metrics::noop());
+    let (service, mut interface) = Service::new(
+        dialer,
+        listener,
+        secret_key,
+        spawn_handle,
+        Some(MockMetrics {}),
+    );
     // run the service
     tokio::spawn(async {
         let (_exit, rx) = oneshot::channel();

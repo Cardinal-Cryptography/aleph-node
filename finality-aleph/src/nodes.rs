@@ -99,7 +99,7 @@ where
         listener,
         network_authority_pen,
         spawn_handle.clone(),
-        metrics.get_validator_network_metrics().clone(),
+        metrics.validator_network_metrics_cloned(),
     );
     let (_validator_network_exit, exit) = oneshot::channel();
     spawn_handle.spawn("aleph/validator_network", async move {

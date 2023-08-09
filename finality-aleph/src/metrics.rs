@@ -1,4 +1,4 @@
-use network_clique::Metrics as NetworkCliqueMetrics;
+use network_clique::NetworkCliqueMetrics;
 use std::{
     collections::HashMap,
     fmt::Debug,
@@ -46,6 +46,33 @@ struct Inner<H: Key> {
     sync_handle_justification_from_user_counter: Counter<U64>,
     sync_handle_internal_request_counter: Counter<U64>,
     network_send_times: HashMap<Protocol, Histogram>,
+    validator_network_metrics: ValidatorNetworkMetrics,
+}
+
+#[derive(Clone)]
+struct ValidatorNetworkMetrics {
+    incoming_connections: Gauge<U64>,
+    missing_incoming_connections: Gauge<U64>,
+    outgoing_connections: Gauge<U64>,
+    missing_outgoing_connections: Gauge<U64>,
+}
+
+impl NetworkCliqueMetrics for ValidatorNetworkMetrics {
+    fn set_present_incoming_connections(&self, present: u64) {
+        self.incoming_connections.set(present);
+    }
+
+    fn set_missing_incoming_connections(&self, missing: u64) {
+        self.missing_incoming_connections.set(missing);
+    }
+
+    fn set_present_outgoing_connections(&self, present: u64) {
+        self.outgoing_connections.set(present);
+    }
+
+    fn set_missing_outgoing_connections(&self, missing: u64) {
+        self.missing_outgoing_connections.set(missing);
+    }
 }
 
 impl<H: Key> Inner<H> {
@@ -119,15 +146,11 @@ pub enum Checkpoint {
 #[derive(Clone)]
 pub struct Metrics<H: Key> {
     inner: Option<Arc<Mutex<Inner<H>>>>,
-    validator_network_metrics: NetworkCliqueMetrics,
 }
 
 impl<H: Key> Metrics<H> {
     pub fn noop() -> Metrics<H> {
-        Metrics {
-            inner: None,
-            validator_network_metrics: NetworkCliqueMetrics::noop(),
-        }
+        Metrics { inner: None }
     }
 
     pub fn new(registry: &Registry) -> Result<Metrics<H>, PrometheusError> {
@@ -153,6 +176,37 @@ impl<H: Key> Metrics<H> {
                 register(Gauge::new(format!("aleph_{key:?}"), "no help")?, registry)?,
             );
         }
+
+        let validator_network_metrics = ValidatorNetworkMetrics {
+            incoming_connections: register(
+                Gauge::new(
+                    "clique_network_incoming_connections",
+                    "present incoming connections",
+                )?,
+                registry,
+            )?,
+            missing_incoming_connections: register(
+                Gauge::new(
+                    "clique_network_missing_incoming_connections",
+                    "difference between expected and present incoming connections",
+                )?,
+                registry,
+            )?,
+            outgoing_connections: register(
+                Gauge::new(
+                    "clique_network_outgoing_connections",
+                    "present outgoing connections",
+                )?,
+                registry,
+            )?,
+            missing_outgoing_connections: register(
+                Gauge::new(
+                    "clique_network_missing_outgoing_connections",
+                    "difference between expected and present outgoing connections",
+                )?,
+                registry,
+            )?,
+        };
 
         use Protocol::*;
         let mut network_send_times = HashMap::new();
@@ -238,14 +292,18 @@ impl<H: Key> Metrics<H> {
                 registry,
             )?,
             network_send_times,
+            validator_network_metrics,
         })));
 
-        let validator_network_metrics = NetworkCliqueMetrics::new(registry)?;
+        Ok(Metrics { inner })
+    }
 
-        Ok(Metrics {
-            inner,
-            validator_network_metrics,
-        })
+    pub fn validator_network_metrics_cloned(&self) -> Option<impl NetworkCliqueMetrics> {
+        if let Some(inner) = &self.inner {
+            Some(inner.lock().validator_network_metrics.clone())
+        } else {
+            None
+        }
     }
 
     pub fn report_block(&self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
@@ -335,10 +393,6 @@ impl<H: Key> Metrics<H> {
         self.inner
             .as_ref()
             .map(|inner| inner.lock().start_sending_in(protocol))
-    }
-
-    pub fn get_validator_network_metrics(&self) -> &NetworkCliqueMetrics {
-        &self.validator_network_metrics
     }
 }
 
