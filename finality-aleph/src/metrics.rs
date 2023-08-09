@@ -31,26 +31,26 @@ struct Inner<H: Key> {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
     starts: HashMap<Checkpoint, LruCache<H, Instant>>,
-    sync_broadcast_successes_counter: Counter<U64>,
+    sync_broadcast_calls_counter: Counter<U64>,
     sync_broadcast_errors_counter: Counter<U64>,
-    sync_send_request_successes_counter: Counter<U64>,
+    sync_send_request_calls_counter: Counter<U64>,
     sync_send_request_errors_counter: Counter<U64>,
-    sync_send_to_successes_counter: Counter<U64>,
+    sync_send_to_calls_counter: Counter<U64>,
     sync_send_to_errors_counter: Counter<U64>,
-    sync_handle_state_successes_counter: Counter<U64>,
+    sync_handle_state_calls_counter: Counter<U64>,
     sync_handle_state_errors_counter: Counter<U64>,
-    sync_handle_request_response_counter: Counter<U64>,
-    sync_handle_request_successes_counter: Counter<U64>,
+    sync_handle_request_response_calls_counter: Counter<U64>,
+    sync_handle_request_calls_counter: Counter<U64>,
     sync_handle_request_errors_counter: Counter<U64>,
-    sync_handle_task_successes_counter: Counter<U64>,
+    sync_handle_task_calls_counter: Counter<U64>,
     sync_handle_task_errors_counter: Counter<U64>,
-    sync_handle_block_imported_successes_counter: Counter<U64>,
+    sync_handle_block_imported_calls_counter: Counter<U64>,
     sync_handle_block_imported_errors_counter: Counter<U64>,
-    sync_handle_block_finalized_success_counter: Counter<U64>,
-    sync_handle_state_response_counter: Counter<U64>,
-    sync_handle_justification_from_user_successes_counter: Counter<U64>,
+    sync_handle_block_finalized_calls_counter: Counter<U64>,
+    sync_handle_state_response_calls_counter: Counter<U64>,
+    sync_handle_justification_from_user_calls_counter: Counter<U64>,
     sync_handle_justification_from_user_errors_counter: Counter<U64>,
-    sync_handle_internal_request_successes_counter: Counter<U64>,
+    sync_handle_internal_request_calls_counter: Counter<U64>,
     sync_handle_internal_request_errors_counter: Counter<U64>,
     network_send_times: HashMap<Protocol, Histogram>,
 }
@@ -187,87 +187,84 @@ impl<H: Key> Metrics<H> {
                 .iter()
                 .map(|k| (*k, LruCache::new(MAX_BLOCKS_PER_CHECKPOINT)))
                 .collect(),
-            sync_broadcast_successes_counter: register(
-                Counter::new("aleph_sync_broadcast_success", "no help")?,
+            sync_broadcast_calls_counter: register(
+                Counter::new("aleph_sync_broadcast_calls", "no help")?,
                 registry,
             )?,
             sync_broadcast_errors_counter: register(
                 Counter::new("aleph_sync_broadcast_error", "no help")?,
                 registry,
             )?,
-            sync_send_request_successes_counter: register(
-                Counter::new("aleph_sync_send_request_success", "no help")?,
+            sync_send_request_calls_counter: register(
+                Counter::new("aleph_sync_send_request_calls", "no help")?,
                 registry,
             )?,
             sync_send_request_errors_counter: register(
                 Counter::new("aleph_sync_send_request_error", "no help")?,
                 registry,
             )?,
-            sync_send_to_successes_counter: register(
-                Counter::new("aleph_sync_send_to_success", "no help")?,
+            sync_send_to_calls_counter: register(
+                Counter::new("aleph_sync_send_to_calls", "no help")?,
                 registry,
             )?,
             sync_send_to_errors_counter: register(
                 Counter::new("aleph_sync_send_to_errors", "no help")?,
                 registry,
             )?,
-            sync_handle_state_successes_counter: register(
-                Counter::new("aleph_sync_handle_state_success", "no help")?,
+            sync_handle_state_calls_counter: register(
+                Counter::new("aleph_sync_handle_state_calls", "no help")?,
                 registry,
             )?,
             sync_handle_state_errors_counter: register(
                 Counter::new("aleph_sync_handle_state_error", "no help")?,
                 registry,
             )?,
-            sync_handle_request_response_counter: register(
-                Counter::new("aleph_sync_handle_request_response", "no help")?,
+            sync_handle_request_response_calls_counter: register(
+                Counter::new("aleph_sync_handle_request_response_calls", "no help")?,
                 registry,
             )?,
-            sync_handle_request_successes_counter: register(
-                Counter::new("aleph_sync_handle_request_success", "no help")?,
+            sync_handle_request_calls_counter: register(
+                Counter::new("aleph_sync_handle_request_calls", "no help")?,
                 registry,
             )?,
             sync_handle_request_errors_counter: register(
                 Counter::new("aleph_sync_handle_request_error", "no help")?,
                 registry,
             )?,
-            sync_handle_task_successes_counter: register(
-                Counter::new("aleph_sync_handle_task_success", "no help")?,
+            sync_handle_task_calls_counter: register(
+                Counter::new("aleph_sync_handle_task_calls", "no help")?,
                 registry,
             )?,
             sync_handle_task_errors_counter: register(
                 Counter::new("aleph_sync_handle_task_error", "no help")?,
                 registry,
             )?,
-            sync_handle_block_imported_successes_counter: register(
-                Counter::new("aleph_sync_handle_block_imported_success", "no help")?,
+            sync_handle_block_imported_calls_counter: register(
+                Counter::new("aleph_sync_handle_block_imported_calls", "no help")?,
                 registry,
             )?,
             sync_handle_block_imported_errors_counter: register(
                 Counter::new("aleph_sync_handle_block_imported_error", "no help")?,
                 registry,
             )?,
-            sync_handle_block_finalized_success_counter: register(
-                Counter::new("aleph_sync_handle_block_finalized_success", "no help")?,
+            sync_handle_block_finalized_calls_counter: register(
+                Counter::new("aleph_sync_handle_block_finalized_calls", "no help")?,
                 registry,
             )?,
-            sync_handle_justification_from_user_successes_counter: register(
-                Counter::new(
-                    "aleph_sync_handle_justification_from_user_success",
-                    "no help",
-                )?,
+            sync_handle_justification_from_user_calls_counter: register(
+                Counter::new("aleph_sync_handle_justification_from_user_calls", "no help")?,
                 registry,
             )?,
             sync_handle_justification_from_user_errors_counter: register(
                 Counter::new("aleph_sync_handle_justification_from_user_error", "no help")?,
                 registry,
             )?,
-            sync_handle_state_response_counter: register(
-                Counter::new("aleph_sync_handle_state_response", "no help")?,
+            sync_handle_state_response_calls_counter: register(
+                Counter::new("aleph_sync_handle_state_response_calls", "no help")?,
                 registry,
             )?,
-            sync_handle_internal_request_successes_counter: register(
-                Counter::new("aleph_sync_handle_internal_request_success", "no help")?,
+            sync_handle_internal_request_calls_counter: register(
+                Counter::new("aleph_sync_handle_internal_request_calls", "no help")?,
                 registry,
             )?,
             sync_handle_internal_request_errors_counter: register(
@@ -288,9 +285,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_broadcast_success(&self) {
+    pub fn report_sync_broadcast_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_broadcast_successes_counter.inc();
+            inner.lock().sync_broadcast_calls_counter.inc();
         }
     }
 
@@ -300,9 +297,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_send_request_success(&self) {
+    pub fn report_sync_send_request_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_send_request_successes_counter.inc();
+            inner.lock().sync_send_request_calls_counter.inc();
         }
     }
 
@@ -312,9 +309,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_send_to_success(&self) {
+    pub fn report_sync_send_to_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_send_to_successes_counter.inc();
+            inner.lock().sync_send_to_calls_counter.inc();
         }
     }
 
@@ -324,9 +321,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_state_success(&self) {
+    pub fn report_sync_handle_state_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_state_successes_counter.inc();
+            inner.lock().sync_handle_state_calls_counter.inc();
         }
     }
 
@@ -336,15 +333,18 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_request_response(&self) {
+    pub fn report_sync_handle_request_response_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_request_response_counter.inc();
+            inner
+                .lock()
+                .sync_handle_request_response_calls_counter
+                .inc();
         }
     }
 
-    pub fn report_sync_handle_request_success(&self) {
+    pub fn report_sync_handle_request_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_request_successes_counter.inc();
+            inner.lock().sync_handle_request_calls_counter.inc();
         }
     }
 
@@ -354,9 +354,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_task_success(&self) {
+    pub fn report_sync_handle_task_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_task_successes_counter.inc();
+            inner.lock().sync_handle_task_calls_counter.inc();
         }
     }
 
@@ -366,12 +366,9 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_block_imported_success(&self) {
+    pub fn report_sync_handle_block_imported_call(&self) {
         if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_block_imported_successes_counter
-                .inc();
+            inner.lock().sync_handle_block_imported_calls_counter.inc();
         }
     }
 
@@ -381,20 +378,17 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_block_finalized_success(&self) {
+    pub fn report_sync_handle_block_finalized_call(&self) {
         if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_block_finalized_success_counter
-                .inc();
+            inner.lock().sync_handle_block_finalized_calls_counter.inc();
         }
     }
 
-    pub fn report_sync_handle_justification_from_user_success(&self) {
+    pub fn report_sync_handle_justification_from_user_call(&self) {
         if let Some(inner) = &self.inner {
             inner
                 .lock()
-                .sync_handle_justification_from_user_successes_counter
+                .sync_handle_justification_from_user_calls_counter
                 .inc();
         }
     }
@@ -408,17 +402,17 @@ impl<H: Key> Metrics<H> {
         }
     }
 
-    pub fn report_sync_handle_state_response(&self) {
+    pub fn report_sync_handle_state_response_call(&self) {
         if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_state_response_counter.inc();
+            inner.lock().sync_handle_state_response_calls_counter.inc();
         }
     }
 
-    pub fn report_sync_handle_internal_request_success(&self) {
+    pub fn report_sync_handle_internal_request_call(&self) {
         if let Some(inner) = &self.inner {
             inner
                 .lock()
-                .sync_handle_internal_request_successes_counter
+                .sync_handle_internal_request_calls_counter
                 .inc();
         }
     }
