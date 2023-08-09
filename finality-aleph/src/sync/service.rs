@@ -144,6 +144,7 @@ where
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
+                self.metrics.report_sync_broadcast_error();
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -155,8 +156,11 @@ where
 
         let data = NetworkData::StateBroadcast(state);
         match self.network.broadcast(data) {
-            Ok(()) => self.metrics.report_sync_broadcast(),
-            Err(e) => warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e),
+            Ok(()) => self.metrics.report_sync_broadcast_success(),
+            Err(e) => {
+                self.metrics.report_sync_broadcast_error();
+                warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e)
+            }
         }
     }
 
@@ -164,6 +168,7 @@ where
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
+                self.metrics.report_sync_send_request_error();
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -176,8 +181,11 @@ where
         let data = NetworkData::Request(request);
 
         match self.network.send_to_random(data, peers) {
-            Ok(()) => self.metrics.report_sync_send_request(),
-            Err(e) => warn!(target: LOG_TARGET, "Error sending request: {}.", e),
+            Ok(()) => self.metrics.report_sync_send_request_success(),
+            Err(e) => {
+                self.metrics.report_sync_send_request_error();
+                warn!(target: LOG_TARGET, "Error sending request: {}.", e);
+            }
         }
     }
 
@@ -189,8 +197,11 @@ where
             peer
         );
         match self.network.send_to(data, peer) {
-            Ok(()) => self.metrics.report_sync_send_to(),
-            Err(e) => warn!(target: LOG_TARGET, "Error sending response: {}.", e),
+            Ok(()) => self.metrics.report_sync_send_to_success(),
+            Err(e) => {
+                self.metrics.report_sync_send_to_error();
+                warn!(target: LOG_TARGET, "Error sending response: {}.", e);
+            }
         }
     }
 
@@ -204,23 +215,26 @@ where
         );
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => {
-                self.metrics.report_sync_handle_state();
+                self.metrics.report_sync_handle_state_success();
                 match action {
                     Response(data) => self.send_to(data, peer),
                     HighestJustified(block_id) => self.request_highest_justified(block_id),
                     Noop => (),
                 }
             }
-            Err(e) => match e {
-                HandlerError::Verifier(e) => debug!(
-                    target: LOG_TARGET,
-                    "Could not verify justification in sync state from {:?}: {}.", peer, e
-                ),
-                e => warn!(
-                    target: LOG_TARGET,
-                    "Failed to handle sync state from {:?}: {}.", peer, e
-                ),
-            },
+            Err(e) => {
+                self.metrics.report_sync_handle_state_error();
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification in sync state from {:?}: {}.", peer, e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Failed to handle sync state from {:?}: {}.", peer, e
+                    ),
+                }
+            }
         }
     }
 
@@ -266,21 +280,26 @@ where
         );
         match self.handler.handle_justification_from_user(justification) {
             Ok(maybe_id) => {
-                self.metrics.report_sync_handle_justification_from_user();
+                self.metrics
+                    .report_sync_handle_justification_from_user_success();
                 if let Some(id) = maybe_id {
                     self.request_highest_justified(id)
                 }
             }
-            Err(e) => match e {
-                HandlerError::Verifier(e) => debug!(
-                    target: LOG_TARGET,
-                    "Could not verify justification from user: {}", e
-                ),
-                e => warn!(
-                    target: LOG_TARGET,
-                    "Failed to handle justification from user: {}", e
-                ),
-            },
+            Err(e) => {
+                self.metrics
+                    .report_sync_handle_justification_from_user_error();
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification from user: {}", e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Failed to handle justification from user: {}", e
+                    ),
+                }
+            }
         }
     }
 
@@ -319,7 +338,6 @@ where
             request,
             peer
         );
-        self.metrics.report_sync_handle_request();
 
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
@@ -327,7 +345,7 @@ where
                 loop {
                     match limiter.next_largest_msg() {
                         Ok(None) => {
-                            break self.metrics.report_sync_handle_request();
+                            break self.metrics.report_sync_handle_request_success();
                         }
                         Ok(Some(chunk)) => {
                             self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone())
@@ -337,25 +355,28 @@ where
                                 target: LOG_TARGET,
                                 "Error while sending request response: {}.", e
                             );
-                            break;
+                            break self.metrics.report_sync_handle_request_error();
                         }
                     }
                 }
             }
             Ok(Action::RequestBlock(id)) => {
-                self.metrics.report_sync_handle_request();
+                self.metrics.report_sync_handle_request_success();
                 self.request_block(id)
             }
-            Err(e) => match e {
-                HandlerError::Verifier(e) => debug!(
-                    target: LOG_TARGET,
-                    "Could not verify justification from user: {}", e
-                ),
-                e => warn!(
-                    target: LOG_TARGET,
-                    "Error handling request from {:?}: {}.", peer, e
-                ),
-            },
+            Err(e) => {
+                self.metrics.report_sync_handle_request_error();
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification from user: {}", e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Error handling request from {:?}: {}.", peer, e
+                    ),
+                }
+            }
             _ => {}
         }
     }
@@ -368,7 +389,7 @@ where
             self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);
         }
-        self.metrics.report_sync_handle_task();
+        self.metrics.report_sync_handle_task_success();
     }
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
@@ -377,16 +398,19 @@ where
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
                 match self.handler.block_imported(header) {
-                    Ok(()) => self.metrics.report_sync_handle_block_imported(),
-                    Err(e) => error!(
-                        target: LOG_TARGET,
-                        "Error marking block as imported: {}.", e
-                    ),
+                    Ok(()) => self.metrics.report_sync_handle_block_imported_success(),
+                    Err(e) => {
+                        self.metrics.report_sync_handle_block_imported_error();
+                        error!(
+                            target: LOG_TARGET,
+                            "Error marking block as imported: {}.", e
+                        )
+                    }
                 }
             }
             BlockFinalized(_) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");
-                self.metrics.report_sync_handle_block_finalized();
+                self.metrics.report_sync_handle_block_finalized_success();
                 if self.broadcast_ticker.try_tick() {
                     self.broadcast();
                 }
@@ -402,23 +426,26 @@ where
         );
         match self.handler.handle_internal_request(&id) {
             Ok(true) => {
-                self.metrics.report_sync_handle_internal_request();
+                self.metrics.report_sync_handle_internal_request_success();
                 self.request_block(id);
             }
             Ok(_) => {
-                self.metrics.report_sync_handle_internal_request();
+                self.metrics.report_sync_handle_internal_request_success();
                 debug!(target: LOG_TARGET, "Already requested block {:?}.", id);
             }
-            Err(e) => match e {
-                HandlerError::Verifier(e) => debug!(
-                    target: LOG_TARGET,
-                    "Could not verify justification from user: {}", e
-                ),
-                e => warn!(
-                    target: LOG_TARGET,
-                    "Error handling internal request for block {:?}: {}.", id, e
-                ),
-            },
+            Err(e) => {
+                self.metrics.report_sync_handle_internal_request_error();
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification from user: {}", e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Error handling internal request for block {:?}: {}.", id, e
+                    ),
+                }
+            }
         }
     }
 
