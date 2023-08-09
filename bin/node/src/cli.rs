@@ -6,7 +6,7 @@ use sc_cli::{
 use crate::{
     aleph_cli::AlephCli,
     chain_spec,
-    commands::{BootstrapChainCmd, BootstrapNodeCmd, ConvertChainspecToRawCmd, PurgeBackupCmd},
+    commands::{BootstrapChainCmd, BootstrapNodeCmd, ConvertChainspecToRawCmd},
 };
 
 #[derive(Debug, Parser)]
@@ -96,9 +96,6 @@ pub enum Subcommand {
 
     /// Remove the whole chain.
     PurgeChain(PurgeChainCmd),
-
-    /// Remove AlephBFT backup.
-    PurgeBackup(PurgeBackupCmd),
 
     /// Revert the chain to a previous state.
     Revert(sc_cli::RevertCmd),

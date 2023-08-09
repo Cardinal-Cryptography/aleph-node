@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -8,7 +8,7 @@ use aleph_runtime::AccountId;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{
     clap::{self, Args, Parser},
-    CliConfiguration, Error, KeystoreParams, SharedParams,
+    Error, KeystoreParams,
 };
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
@@ -282,77 +282,5 @@ impl ConvertChainspecToRawCmd {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Debug, Parser)]
-pub struct PurgeBackupCmd {
-    #[allow(missing_docs)]
-    #[clap(flatten)]
-    pub shared_params: SharedParams,
-
-    /// Directory under which AlephBFT backup is stored
-    #[arg(long, default_value = DEFAULT_BACKUP_FOLDER)]
-    pub backup_dir: String,
-
-    /// Skip interactive prompt for purging AlephBFT backup by answering `yes` automatically.
-    ///
-    /// WARNING: removing AlephBFT backup will most likely make the node unable to continue in the last session it participated in.
-    /// It will join AlephBFT consensus in the next session.
-    #[arg(short = 'y')]
-    pub yes: bool,
-}
-
-impl PurgeBackupCmd {
-    pub fn run(&self) -> Result<(), Error> {
-        let base_path = self
-            .shared_params()
-            .base_path()?
-            .ok_or_else(|| Error::Input("need base-path to be provided".to_string()))?;
-
-        let backup_path = backup_path(base_path.path(), &self.backup_dir);
-
-        if !self.yes {
-            print!(
-                r#"WARNING: removing AlephBFT backup will most likely make the node unable to continue in the last session it participated in.
-It will join AlephBFT consensus in the next session.
-
-Are you sure you want to remove {:?}? [y/N]: "#,
-                &backup_path
-            );
-            io::stdout().flush().expect("failed to flush stdout");
-
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
-
-            match input.chars().next() {
-                Some('y') | Some('Y') => {}
-                _ => {
-                    println!("Aborted");
-                    return Ok(());
-                }
-            }
-        }
-
-        for entry in fs::read_dir(&backup_path)? {
-            let path = entry?.path();
-            match fs::remove_dir_all(&path) {
-                Ok(_) => {
-                    println!("{:?} removed.", &path);
-                }
-                Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
-                    eprintln!("{:?} did not exist.", &path);
-                }
-                Err(err) => return Err(err.into()),
-            }
-        }
-        Ok(())
-    }
-}
-
-impl CliConfiguration for PurgeBackupCmd {
-    fn shared_params(&self) -> &SharedParams {
-        &self.shared_params
     }
 }
