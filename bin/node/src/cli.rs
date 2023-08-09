@@ -1,12 +1,12 @@
 use sc_cli::{
     clap::{self, Parser, Subcommand as ClapSubcommand},
-    ChainSpec, RunCmd, RuntimeVersion, SubstrateCli,
+    ChainSpec, PurgeChainCmd, RunCmd, RuntimeVersion, SubstrateCli,
 };
 
 use crate::{
     aleph_cli::AlephCli,
     chain_spec,
-    commands::{BootstrapChainCmd, BootstrapNodeCmd, ConvertChainspecToRawCmd, PurgeChainCmd},
+    commands::{BootstrapChainCmd, BootstrapNodeCmd, ConvertChainspecToRawCmd, PurgeBackupCmd},
 };
 
 #[derive(Debug, Parser)]
@@ -96,6 +96,9 @@ pub enum Subcommand {
 
     /// Remove the whole chain.
     PurgeChain(PurgeChainCmd),
+
+    /// Remove AlephBFT backup.
+    PurgeBackup(PurgeBackupCmd),
 
     /// Revert the chain to a previous state.
     Revert(sc_cli::RevertCmd),

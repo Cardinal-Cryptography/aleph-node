@@ -97,6 +97,10 @@ fn main() -> sc_cli::Result<()> {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
         }
+        Some(Subcommand::PurgeBackup(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|_| cmd.run())
+        }
         Some(Subcommand::Revert(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.async_run(|config| {

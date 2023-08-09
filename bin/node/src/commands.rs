@@ -8,13 +8,10 @@ use aleph_runtime::AccountId;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{
     clap::{self, Args, Parser},
-    CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams,
+    CliConfiguration, Error, KeystoreParams, SharedParams,
 };
 use sc_keystore::LocalKeystore;
-use sc_service::{
-    config::{BasePath, KeystoreConfig},
-    DatabaseSource,
-};
+use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_keystore::Keystore;
@@ -288,54 +285,39 @@ impl ConvertChainspecToRawCmd {
     }
 }
 
-/// The `purge-chain` command used to remove the whole chain and backup made by AlephBFT.
-/// First runs substrate PurgeChainCmd and after that removes AlephBFT backup.
-#[derive(Debug, Parser)]
-pub struct PurgeChainCmd {
-    #[clap(flatten)]
-    pub purge_backup: PurgeBackupCmd,
-
-    #[clap(flatten)]
-    pub purge_chain: sc_cli::PurgeChainCmd,
-}
-
-impl PurgeChainCmd {
-    pub fn run(&self, database_config: DatabaseSource) -> Result<(), Error> {
-        self.purge_backup.run(
-            self.purge_chain.yes,
-            self.purge_chain
-                .shared_params
-                .base_path()?
-                .ok_or_else(|| Error::Input("need base-path to be provided".to_string()))?,
-        )?;
-        self.purge_chain.run(database_config)
-    }
-}
-
-impl CliConfiguration for PurgeChainCmd {
-    fn shared_params(&self) -> &SharedParams {
-        self.purge_chain.shared_params()
-    }
-
-    fn database_params(&self) -> Option<&DatabaseParams> {
-        self.purge_chain.database_params()
-    }
-}
-
 #[derive(Debug, Parser)]
 pub struct PurgeBackupCmd {
+    #[allow(missing_docs)]
+    #[clap(flatten)]
+    pub shared_params: SharedParams,
+
     /// Directory under which AlephBFT backup is stored
     #[arg(long, default_value = DEFAULT_BACKUP_FOLDER)]
     pub backup_dir: String,
+
+    /// Skip interactive prompt for purging AlephBFT backup by answering `yes` automatically.
+    ///
+    /// WARNING: removing AlephBFT backup will most likely make the node unable to continue in the last session it participated in.
+    /// It will join AlephBFT consensus in the next session.
+    #[arg(short = 'y')]
+    pub yes: bool,
 }
 
 impl PurgeBackupCmd {
-    pub fn run(&self, skip_prompt: bool, base_path: BasePath) -> Result<(), Error> {
+    pub fn run(&self) -> Result<(), Error> {
+        let base_path = self
+            .shared_params()
+            .base_path()?
+            .ok_or_else(|| Error::Input("need base-path to be provided".to_string()))?;
+
         let backup_path = backup_path(base_path.path(), &self.backup_dir);
 
-        if !skip_prompt {
+        if !self.yes {
             print!(
-                "Are you sure you want to remove {:?}? [y/N]: ",
+                r#"WARNING: removing AlephBFT backup will most likely make the node unable to continue in the last session it participated in.
+It will join AlephBFT consensus in the next session.
+
+Are you sure you want to remove {:?}? [y/N]: "#,
                 &backup_path
             );
             io::stdout().flush().expect("failed to flush stdout");
@@ -366,5 +348,11 @@ impl PurgeBackupCmd {
             }
         }
         Ok(())
+    }
+}
+
+impl CliConfiguration for PurgeBackupCmd {
+    fn shared_params(&self) -> &SharedParams {
+        &self.shared_params
     }
 }
