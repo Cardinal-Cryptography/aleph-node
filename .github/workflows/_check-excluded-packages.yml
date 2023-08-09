@@ -48,7 +48,7 @@ jobs:
           export CARGO_TARGET_DIR=/tmp/contracts_toolchain/$RUST_CONTRACTS_TOOLCHAIN/target/
 
           cargo +${RUST_CONTRACTS_TOOLCHAIN} \
-            install --locked cargo-dylint dylint-link
+            install --version 2.1.11 cargo-dylint dylint-link
 
           cargo +${RUST_CONTRACTS_TOOLCHAIN} \
             install --version $CARGO_CONTRACT_VERSION \
