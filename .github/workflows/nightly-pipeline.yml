@@ -43,7 +43,9 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
     secrets: inherit
     with:
+      build-production-node: true
       build-synthetic-network-docker: true
+
 
   run-e2e-high-out-latency:
     needs: [build-production-node-and-e2e-client-image]

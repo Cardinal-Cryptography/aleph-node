@@ -1,5 +1,5 @@
 ---
-name: Short session integration tests
+name: Short session integration tests (Nightly)
 
 on:
   workflow_call:
@@ -11,6 +11,14 @@ jobs:
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
+
+  build-e2e-client-image:
+    needs: [check-vars-and-secrets]
+    name: Build production node and e2e client docker image
+    uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
+    secrets: inherit
+    with:
+      build-synthetic-network-docker: true
 
   check-if-featurenet-ecr-image-exists:
     name: Check if featurenet image exists
@@ -71,7 +79,7 @@ jobs:
     secrets: inherit
 
   runs-e2e-test-on-fe:
-    needs: [push-featurnet-node-image-to-ecr]
+    needs: [push-featurnet-node-image-to-ecr, build-e2e-client-image]
     # to prevent this job skipping if build already exists on ECR
     if: always()
     name: Run e2e test on FE
@@ -117,3 +125,21 @@ jobs:
           # yamllint disable-line rule:line-length
           json-rpc-endpoint: https://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}.dev.azero.dev
 
+      - name: Download artifact with the test suite image
+        if: inputs.test-case != ''
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-e2e-client
+
+      - name: Load test suite docker image
+        if: inputs.test-case != ''
+        shell: bash
+        run: docker load -i aleph-e2e-client.tar
+
+# TODO goal is to run only below
+# e2e-tests$ RUST_LOG=info NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test --release finalization::finalization -- --nocapture
+#      - name: Run e2e test
+#        uses: ./.github/actions/run-e2e-test
+#        with:
+#          test-case: finalization::finalization
+#        timeout-minutes: 2
