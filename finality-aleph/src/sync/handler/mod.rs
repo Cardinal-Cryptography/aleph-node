@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 use std::{
+    collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
     iter,
 };
@@ -16,7 +17,7 @@ use crate::{
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
-    BlockIdentifier,
+    BlockIdentifier, BlockNumber,
 };
 
 mod request_handler;
@@ -82,6 +83,90 @@ pub trait HandlerTypes {
     type Error;
 }
 
+// This is only required because we don't control block imports and thus we can get notifications about blocks being imported that don't fit in the forest. This struct lets us work around this by manually syncing the forest after such an event.
+//TODO(A0-2984): remove this after legacy sync is excised
+enum MissedImportData {
+    AllGood,
+    MissedImports {
+        highest_missed: BlockNumber,
+        last_sync: BlockNumber,
+    },
+}
+
+impl MissedImportData {
+    pub fn new() -> Self {
+        Self::AllGood
+    }
+
+    pub fn update<B, J, CS>(
+        &mut self,
+        missed: BlockNumber,
+        chain_status: &CS,
+    ) -> Result<(), CS::Error>
+    where
+        B: Block,
+        J: Justification<Header = B::Header>,
+        CS: ChainStatus<B, J>,
+    {
+        use MissedImportData::*;
+        match self {
+            AllGood => {
+                *self = MissedImports {
+                    highest_missed: missed,
+                    last_sync: chain_status.top_finalized()?.header().id().number(),
+                }
+            }
+            MissedImports { highest_missed, .. } => {
+                if *highest_missed < missed {
+                    *highest_missed = missed;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn try_sync<B, I, J, CS>(
+        &mut self,
+        chain_status: &CS,
+        forest: &mut Forest<I, J>,
+    ) -> Result<(), CS::Error>
+    where
+        B: Block,
+        I: PeerId,
+        J: Justification<Header = B::Header>,
+        CS: ChainStatus<B, J>,
+    {
+        use MissedImportData::*;
+        if let MissedImports {
+            highest_missed,
+            last_sync,
+        } = self
+        {
+            let top_finalized = chain_status.top_finalized()?.header().id();
+            // we don't want this to happen too often, but it also cannot be too close to the max forest size, thus semi-random weird looking threshold
+            if *last_sync + 1312 >= top_finalized.number() {
+                return Ok(());
+            }
+            let mut to_import = VecDeque::from(chain_status.children(top_finalized.clone())?);
+            while let Some(header) = to_import.pop_front() {
+                if header.id().number() > *highest_missed {
+                    break;
+                }
+                // we suppress all errors except `TooNew` since we are likely trying to mark things that are already marked and they would be throwing a lot of stuff
+                if let Err(ForestError::TooNew) = forest.update_body(&header) {
+                    *last_sync = top_finalized.number();
+                    return Ok(());
+                }
+                for child in chain_status.children(header.id())? {
+                    to_import.push_back(child);
+                }
+            }
+            *self = AllGood;
+        }
+        Ok(())
+    }
+}
+
 /// Handler for data incoming from the network.
 pub struct Handler<B, I, J, CS, V, F, BI>
 where
@@ -99,6 +184,7 @@ where
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
     block_importer: BI,
+    missed_import_data: MissedImportData,
     phantom: PhantomData<B>,
 }
 
@@ -261,6 +347,7 @@ where
             forest,
             session_info,
             block_importer,
+            missed_import_data: MissedImportData::new(),
             phantom: PhantomData,
         })
     }
@@ -291,7 +378,12 @@ where
                         .map_err(Error::Finalizer)?;
                     number += 1;
                 }
-                None => return Ok(()),
+                None => {
+                    self.missed_import_data
+                        .try_sync(&self.chain_status, &mut self.forest)
+                        .map_err(Error::ChainStatus)?;
+                    return Ok(());
+                }
             };
         }
     }
@@ -301,7 +393,14 @@ where
         &mut self,
         header: J::Header,
     ) -> Result<(), <Self as HandlerTypes>::Error> {
-        self.forest.update_body(&header)?;
+        if let Err(e) = self.forest.update_body(&header) {
+            if matches!(e, ForestError::TooNew) {
+                self.missed_import_data
+                    .update(header.id().number(), &self.chain_status)
+                    .map_err(Error::ChainStatus)?;
+            }
+            return Err(e.into());
+        }
         self.try_finalize()
     }
 
@@ -1719,6 +1818,7 @@ mod tests {
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
+
     #[test]
     fn handles_request_with_unknown_id() {
         let (mut handler, mut backend, _keep, _genesis) = setup();
@@ -1789,5 +1889,36 @@ mod tests {
 
         assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
         assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
+    }
+
+    //TODO(A0-2984): remove this after legacy sync is excised
+    #[tokio::test]
+    async fn works_with_overzealous_imports() {
+        let (mut handler, mut backend, mut notifier, genesis) = setup();
+        let branch: Vec<_> = genesis.random_branch().take(2137).collect();
+        for header in branch.iter() {
+            let block = MockBlock::new(header.clone(), true);
+            backend.import_block(block);
+            match notifier.next().await {
+                Ok(BlockImported(header)) => {
+                    // we ignore failures, as we expect some
+                    let _ = handler.block_imported(header);
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+        for header in branch.iter() {
+            let justification = MockJustification::for_header(header.clone());
+            handler
+                .handle_justification_from_user(justification)
+                .expect("should work");
+            match notifier.next().await {
+                Ok(BlockFinalized(finalized_header)) => assert_eq!(
+                    header, &finalized_header,
+                    "should finalize the current header"
+                ),
+                _ => panic!("shoould notify about finalized block"),
+            }
+        }
     }
 }
