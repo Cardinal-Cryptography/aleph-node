@@ -20,11 +20,10 @@ use tokio::{
     time::timeout,
 };
 
-use crate::NetworkCliqueMetrics;
 use crate::{
     protocols::{ProtocolError, ResultForService},
-    AddressingInformation, ConnectionInfo, Data, Dialer, Listener, Network, NetworkIdentity,
-    PeerAddressInfo, PeerId, PublicKey, SecretKey, Splittable, LOG_TARGET,
+    AddressingInformation, ConnectionInfo, Data, Dialer, Listener, Network, NetworkCliqueMetrics,
+    NetworkIdentity, PeerAddressInfo, PeerId, PublicKey, SecretKey, Splittable, LOG_TARGET,
 };
 
 #[derive(Hash, Debug, Clone, PartialEq, Eq)]

@@ -8,8 +8,9 @@ use futures::channel::mpsc;
 use crate::{Data, PeerId, PublicKey};
 
 mod direction;
-use crate::NetworkCliqueMetrics;
 use direction::DirectedPeers;
+
+use crate::NetworkCliqueMetrics;
 
 /// Error during sending data through the Manager
 #[derive(Debug, PartialEq, Eq)]

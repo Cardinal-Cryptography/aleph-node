@@ -1,4 +1,3 @@
-use network_clique::NetworkCliqueMetrics;
 use std::{
     collections::HashMap,
     fmt::Debug,
@@ -9,6 +8,7 @@ use std::{
 
 use log::{trace, warn};
 use lru::LruCache;
+use network_clique::NetworkCliqueMetrics;
 use parking_lot::Mutex;
 use sc_service::Arc;
 use substrate_prometheus_endpoint::{

@@ -7,13 +7,13 @@ use futures::{
 use log::{info, trace, warn};
 use tokio::time;
 
-use crate::NetworkCliqueMetrics;
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
     outgoing::outgoing,
     protocols::ResultForService,
-    Data, Dialer, Listener, Network, PeerId, PublicKey, SecretKey, LOG_TARGET,
+    Data, Dialer, Listener, Network, NetworkCliqueMetrics, PeerId, PublicKey, SecretKey,
+    LOG_TARGET,
 };
 
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
