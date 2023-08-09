@@ -299,11 +299,9 @@ impl<H: Key> Metrics<H> {
     }
 
     pub fn validator_network_metrics_cloned(&self) -> Option<impl NetworkCliqueMetrics> {
-        if let Some(inner) = &self.inner {
-            Some(inner.lock().validator_network_metrics.clone())
-        } else {
-            None
-        }
+        self.inner
+            .as_ref()
+            .map(|inner| inner.lock().validator_network_metrics.clone())
     }
 
     pub fn report_block(&self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
