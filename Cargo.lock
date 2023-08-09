@@ -5328,7 +5328,9 @@ dependencies = [
  "parking_lot 0.12.1",
  "rand 0.8.5",
  "rate-limiter",
+ "sc-service",
  "serde",
+ "substrate-prometheus-endpoint",
  "tiny-bip39",
  "tokio",
 ]

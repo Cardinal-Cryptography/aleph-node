@@ -8,6 +8,7 @@ use futures::channel::mpsc;
 use crate::{Data, PeerId, PublicKey};
 
 mod direction;
+use crate::metrics::Metrics;
 use direction::DirectedPeers;
 
 /// Error during sending data through the Manager
@@ -223,6 +224,14 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
             .ok_or(SendError::PeerNotFound)?
             .unbounded_send(data)
             .map_err(|_| SendError::ConnectionClosed)
+    }
+
+    pub fn update_metrics(&self, metrics: &mut Metrics) {
+        let status = ManagerStatus::new(self);
+        metrics.set_present_incoming_connections(status.incoming_peers.len() as u64);
+        metrics.set_missing_incoming_connections(status.missing_incoming.len() as u64);
+        metrics.set_present_outgoing_connections(status.outgoing_peers.len() as u64);
+        metrics.set_missing_outgoing_connections(status.missing_outgoing.len() as u64);
     }
 
     /// A status of the manager, to be displayed somewhere.

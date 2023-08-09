@@ -13,6 +13,7 @@ mod crypto;
 mod incoming;
 mod io;
 mod manager;
+mod metrics;
 pub mod mock;
 mod outgoing;
 mod protocols;
@@ -22,6 +23,7 @@ mod service;
 mod testing;
 
 pub use crypto::{PublicKey, SecretKey};
+pub use metrics::Metrics;
 pub use rate_limiting::{RateLimitingDialer, RateLimitingListener};
 pub use service::{Service, SpawnHandleT};
 

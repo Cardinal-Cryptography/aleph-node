@@ -23,6 +23,8 @@ log = { workspace = true }
 lru = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
+sc-service = { workspace = true }
+substrate-prometheus-endpoint = { workspace = true }
 serde = { workspace = true }
 tiny-bip39 = { workspace = true }
 tokio = { workspace = true, features = [

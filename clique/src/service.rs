@@ -7,6 +7,7 @@ use futures::{
 use log::{info, trace, warn};
 use tokio::time;
 
+use crate::metrics::Metrics;
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
@@ -95,6 +96,7 @@ where
     listener: NL,
     spawn_handle: SH,
     secret_key: SK,
+    metrics: Metrics,
 }
 
 impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
@@ -108,6 +110,7 @@ where
         listener: NL,
         secret_key: SK,
         spawn_handle: SH,
+        metrics: Metrics,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
@@ -122,6 +125,7 @@ where
                 listener,
                 spawn_handle,
                 secret_key,
+                metrics,
             },
             ServiceInterface {
                 commands_for_service,
@@ -246,6 +250,7 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
+                    self.manager.update_metrics(&mut self.metrics);
                     info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
                 }
                 // received exit signal, stop the network

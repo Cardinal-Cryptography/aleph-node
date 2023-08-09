@@ -19,7 +19,7 @@ use crate::{
         UnreliableConnectionMaker,
     },
     service::SpawnHandleT,
-    Network, SecretKey, Service,
+    Metrics, Network, SecretKey, Service,
 };
 
 impl SpawnHandleT for Spawner {
@@ -53,7 +53,8 @@ fn spawn_peer(
     spawn_handle: Spawner,
 ) {
     let our_id = secret_key.public_key();
-    let (service, mut interface) = Service::new(dialer, listener, secret_key, spawn_handle);
+    let (service, mut interface) =
+        Service::new(dialer, listener, secret_key, spawn_handle, Metrics::noop());
     // run the service
     tokio::spawn(async {
         let (_exit, rx) = oneshot::channel();

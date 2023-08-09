@@ -1,3 +1,4 @@
+use network_clique::Metrics as NetworkCliqueMetrics;
 use std::{
     collections::HashMap,
     fmt::Debug,
@@ -118,11 +119,15 @@ pub enum Checkpoint {
 #[derive(Clone)]
 pub struct Metrics<H: Key> {
     inner: Option<Arc<Mutex<Inner<H>>>>,
+    validator_network_metrics: NetworkCliqueMetrics,
 }
 
 impl<H: Key> Metrics<H> {
     pub fn noop() -> Metrics<H> {
-        Metrics { inner: None }
+        Metrics {
+            inner: None,
+            validator_network_metrics: NetworkCliqueMetrics::noop(),
+        }
     }
 
     pub fn new(registry: &Registry) -> Result<Metrics<H>, PrometheusError> {
@@ -235,7 +240,12 @@ impl<H: Key> Metrics<H> {
             network_send_times,
         })));
 
-        Ok(Metrics { inner })
+        let validator_network_metrics = NetworkCliqueMetrics::new(registry)?;
+
+        Ok(Metrics {
+            inner,
+            validator_network_metrics,
+        })
     }
 
     pub fn report_block(&self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
@@ -325,6 +335,10 @@ impl<H: Key> Metrics<H> {
         self.inner
             .as_ref()
             .map(|inner| inner.lock().start_sending_in(protocol))
+    }
+
+    pub fn get_validator_network_metrics(&self) -> &NetworkCliqueMetrics {
+        &self.validator_network_metrics
     }
 }
 
