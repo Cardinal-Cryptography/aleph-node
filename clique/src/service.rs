@@ -10,10 +10,10 @@ use tokio::time;
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
+    metrics::NetworkCliqueMetrics,
     outgoing::outgoing,
     protocols::ResultForService,
-    Data, Dialer, Listener, Network, NetworkCliqueMetrics, PeerId, PublicKey, SecretKey,
-    LOG_TARGET,
+    Data, Dialer, Listener, Network, PeerId, PublicKey, SecretKey, LOG_TARGET,
 };
 
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
@@ -103,7 +103,7 @@ pub struct Service<
     listener: NL,
     spawn_handle: SH,
     secret_key: SK,
-    metrics: Option<M>,
+    metrics: M,
 }
 
 impl<
@@ -124,7 +124,7 @@ where
         listener: NL,
         secret_key: SK,
         spawn_handle: SH,
-        metrics: Option<M>,
+        metrics: M,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
@@ -264,9 +264,7 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    if let Some(ref metrics) = &self.metrics {
-                        self.manager.update_metrics(metrics);
-                    }
+                    self.manager.update_metrics(&self.metrics);
                     info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
                 }
                 // received exit signal, stop the network

@@ -13,6 +13,7 @@ mod crypto;
 mod incoming;
 mod io;
 mod manager;
+pub mod metrics;
 pub mod mock;
 mod outgoing;
 mod protocols;
@@ -117,13 +118,6 @@ pub trait Dialer<A: Data>: Clone + Send + 'static {
 
     /// Attempt to connect to a peer using the provided addressing information.
     async fn connect(&mut self, address: A) -> Result<Self::Connection, Self::Error>;
-}
-
-pub trait NetworkCliqueMetrics {
-    fn set_present_incoming_connections(&self, present: u64);
-    fn set_missing_incoming_connections(&self, missing: u64);
-    fn set_present_outgoing_connections(&self, present: u64);
-    fn set_missing_outgoing_connections(&self, missing: u64);
 }
 
 use log::info;

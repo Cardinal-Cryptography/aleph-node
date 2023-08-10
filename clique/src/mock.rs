@@ -22,8 +22,8 @@ use tokio::{
 
 use crate::{
     protocols::{ProtocolError, ResultForService},
-    AddressingInformation, ConnectionInfo, Data, Dialer, Listener, Network, NetworkCliqueMetrics,
-    NetworkIdentity, PeerAddressInfo, PeerId, PublicKey, SecretKey, Splittable, LOG_TARGET,
+    AddressingInformation, ConnectionInfo, Data, Dialer, Listener, Network, NetworkIdentity,
+    PeerAddressInfo, PeerId, PublicKey, SecretKey, Splittable, LOG_TARGET,
 };
 
 #[derive(Hash, Debug, Clone, PartialEq, Eq)]
@@ -666,13 +666,4 @@ pub struct MockPrelims<D> {
     pub result_from_incoming: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
     pub result_from_outgoing: UnboundedReceiver<ResultForService<MockPublicKey, D>>,
     pub authorization_requests: mpsc::UnboundedReceiver<(MockPublicKey, oneshot::Sender<bool>)>,
-}
-
-pub struct MockMetrics {}
-
-impl NetworkCliqueMetrics for MockMetrics {
-    fn set_present_incoming_connections(&self, _: u64) {}
-    fn set_missing_incoming_connections(&self, _: u64) {}
-    fn set_present_outgoing_connections(&self, _: u64) {}
-    fn set_missing_outgoing_connections(&self, _: u64) {}
 }

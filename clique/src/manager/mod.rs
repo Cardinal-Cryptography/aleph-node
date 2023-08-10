@@ -10,7 +10,7 @@ use crate::{Data, PeerId, PublicKey};
 mod direction;
 use direction::DirectedPeers;
 
-use crate::NetworkCliqueMetrics;
+use crate::metrics::NetworkCliqueMetrics;
 
 /// Error during sending data through the Manager
 #[derive(Debug, PartialEq, Eq)]
@@ -229,9 +229,9 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
 
     pub fn update_metrics<M: NetworkCliqueMetrics>(&self, metrics: &M) {
         let status = ManagerStatus::new(self);
-        metrics.set_present_incoming_connections(status.incoming_peers.len() as u64);
+        metrics.set_incoming_connections(status.incoming_peers.len() as u64);
         metrics.set_missing_incoming_connections(status.missing_incoming.len() as u64);
-        metrics.set_present_outgoing_connections(status.outgoing_peers.len() as u64);
+        metrics.set_outgoing_connections(status.outgoing_peers.len() as u64);
         metrics.set_missing_outgoing_connections(status.missing_outgoing.len() as u64);
     }
 

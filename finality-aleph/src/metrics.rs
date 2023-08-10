@@ -8,7 +8,7 @@ use std::{
 
 use log::{trace, warn};
 use lru::LruCache;
-use network_clique::NetworkCliqueMetrics;
+use network_clique::metrics::NetworkCliqueMetrics;
 use parking_lot::Mutex;
 use sc_service::Arc;
 use substrate_prometheus_endpoint::{
@@ -58,7 +58,7 @@ struct ValidatorNetworkMetrics {
 }
 
 impl NetworkCliqueMetrics for ValidatorNetworkMetrics {
-    fn set_present_incoming_connections(&self, present: u64) {
+    fn set_incoming_connections(&self, present: u64) {
         self.incoming_connections.set(present);
     }
 
@@ -66,7 +66,7 @@ impl NetworkCliqueMetrics for ValidatorNetworkMetrics {
         self.missing_incoming_connections.set(missing);
     }
 
-    fn set_present_outgoing_connections(&self, present: u64) {
+    fn set_outgoing_connections(&self, present: u64) {
         self.outgoing_connections.set(present);
     }
 
