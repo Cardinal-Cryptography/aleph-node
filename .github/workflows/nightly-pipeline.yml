@@ -97,6 +97,7 @@ jobs:
     needs: [
       run-e2e-high-out-latency,
       run-e2e-no-quorum-without-high-out-latency,
+      run-major-sync-test,
     ]
     name: Check nightly test suite completion
     if: ${{ !cancelled() }}
