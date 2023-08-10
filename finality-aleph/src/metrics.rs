@@ -298,7 +298,7 @@ impl<H: Key> Metrics<H> {
         Ok(Metrics { inner })
     }
 
-    pub fn validator_network_metrics_cloned(&self) -> Option<impl NetworkCliqueMetrics> {
+    pub fn validator_network_metrics(&self) -> impl NetworkCliqueMetrics {
         self.inner
             .as_ref()
             .map(|inner| inner.lock().validator_network_metrics.clone())

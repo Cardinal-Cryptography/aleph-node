@@ -264,8 +264,9 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    self.manager.update_metrics(&self.metrics);
-                    info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
+                    let status_report = self.manager.status_report();
+                    status_report.update_metrics(&self.metrics);
+                    info!(target: LOG_TARGET, "Clique Network status: {}", status_report);
                 }
                 // received exit signal, stop the network
                 // all workers will be killed automatically after the manager gets dropped
