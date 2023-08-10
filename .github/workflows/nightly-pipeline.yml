@@ -70,7 +70,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
       - name: Run test
-        timeout-minutes: 130 # runs ~2h
+        timeout-minutes: 130
         env:
           ALEPH_NODE_BINARY: aleph-test-node/aleph-node
         run: ./.github/scripts/test_major_sync.sh
