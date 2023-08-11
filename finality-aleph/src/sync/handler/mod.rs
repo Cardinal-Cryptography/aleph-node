@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 use std::{
+    cmp::max,
     collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
     iter,
@@ -83,7 +84,10 @@ pub trait HandlerTypes {
     type Error;
 }
 
-// This is only required because we don't control block imports and thus we can get notifications about blocks being imported that don't fit in the forest. This struct lets us work around this by manually syncing the forest after such an event.
+// This is only required because we don't control block imports
+// and thus we can get notifications about blocks being imported that
+// don't fit in the forest. This struct lets us work around this by
+// manually syncing the forest after such an event.
 //TODO(A0-2984): remove this after legacy sync is excised
 enum MissedImportData {
     AllGood,
@@ -91,6 +95,16 @@ enum MissedImportData {
         highest_missed: BlockNumber,
         last_sync: BlockNumber,
     },
+}
+
+enum TrySyncError<B, J, CS>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+{
+    ChainStatus(CS::Error),
+    Forest(ForestError),
 }
 
 impl MissedImportData {
@@ -116,11 +130,7 @@ impl MissedImportData {
                     last_sync: chain_status.top_finalized()?.header().id().number(),
                 }
             }
-            MissedImports { highest_missed, .. } => {
-                if *highest_missed < missed {
-                    *highest_missed = missed;
-                }
-            }
+            MissedImports { highest_missed, .. } => *highest_missed = max(*highest_missed, missed),
         }
         Ok(())
     }
@@ -129,7 +139,7 @@ impl MissedImportData {
         &mut self,
         chain_status: &CS,
         forest: &mut Forest<I, J>,
-    ) -> Result<(), CS::Error>
+    ) -> Result<(), TrySyncError<B, J, CS>>
     where
         B: Block,
         I: PeerId,
@@ -142,24 +152,38 @@ impl MissedImportData {
             last_sync,
         } = self
         {
-            let top_finalized = chain_status.top_finalized()?.header().id();
+            let top_finalized = chain_status
+                .top_finalized()
+                .map_err(TrySyncError::ChainStatus)?
+                .header()
+                .id();
             // we don't want this to happen too often, but it also cannot be too close to the max forest size, thus semi-random weird looking threshold
-            if *last_sync + 1312 >= top_finalized.number() {
+            if top_finalized.number() - *last_sync <= 1312 {
                 return Ok(());
             }
-            let mut to_import = VecDeque::from(chain_status.children(top_finalized.clone())?);
+            let mut to_import = VecDeque::from(
+                chain_status
+                    .children(top_finalized.clone())
+                    .map_err(TrySyncError::ChainStatus)?,
+            );
             while let Some(header) = to_import.pop_front() {
                 if header.id().number() > *highest_missed {
                     break;
                 }
                 // we suppress all errors except `TooNew` since we are likely trying to mark things that are already marked and they would be throwing a lot of stuff
-                if let Err(ForestError::TooNew) = forest.update_body(&header) {
-                    *last_sync = top_finalized.number();
-                    return Ok(());
+                match forest.update_body(&header) {
+                    Ok(()) => (),
+                    Err(ForestError::TooNew) => {
+                        *last_sync = top_finalized.number();
+                        return Ok(());
+                    }
+                    Err(e) => return Err(TrySyncError::Forest(e)),
                 }
-                for child in chain_status.children(header.id())? {
-                    to_import.push_back(child);
-                }
+                to_import.extend(
+                    chain_status
+                        .children(header.id())
+                        .map_err(TrySyncError::ChainStatus)?,
+                );
             }
             *self = AllGood;
         }
@@ -291,6 +315,24 @@ where
         Error::Forest(e)
     }
 }
+
+impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
+    fn from(e: TrySyncError<B, J, CS>) -> Self {
+        use TrySyncError::*;
+        match e {
+            ChainStatus(e) => Error::ChainStatus(e),
+            Forest(e) => Error::Forest(e),
+        }
+    }
+}
+
 impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
@@ -380,8 +422,7 @@ where
                 }
                 None => {
                     self.missed_import_data
-                        .try_sync(&self.chain_status, &mut self.forest)
-                        .map_err(Error::ChainStatus)?;
+                        .try_sync(&self.chain_status, &mut self.forest)?;
                     return Ok(());
                 }
             };
@@ -823,7 +864,7 @@ mod tests {
                     header, &finalized_header,
                     "should finalize the current header"
                 ),
-                _ => panic!("shoould notify about finalized block"),
+                _ => panic!("should notify about finalized block"),
             }
         }
         top
@@ -1917,7 +1958,7 @@ mod tests {
                     header, &finalized_header,
                     "should finalize the current header"
                 ),
-                _ => panic!("shoould notify about finalized block"),
+                _ => panic!("should notify about finalized block"),
             }
         }
     }

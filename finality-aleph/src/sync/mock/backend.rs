@@ -135,7 +135,6 @@ impl Backend {
                 )
             {
                 definitely_correct.insert(id.clone());
-                continue;
             } else {
                 to_prune.insert(id.clone());
             }
