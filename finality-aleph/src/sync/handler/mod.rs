@@ -1,5 +1,7 @@
 use core::marker::PhantomData;
 use std::{
+    cmp::max,
+    collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
     iter,
 };
@@ -16,7 +18,7 @@ use crate::{
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
-    BlockIdentifier,
+    BlockIdentifier, BlockNumber,
 };
 
 mod request_handler;
@@ -82,6 +84,113 @@ pub trait HandlerTypes {
     type Error;
 }
 
+// This is only required because we don't control block imports
+// and thus we can get notifications about blocks being imported that
+// don't fit in the forest. This struct lets us work around this by
+// manually syncing the forest after such an event.
+//TODO(A0-2984): remove this after legacy sync is excised
+enum MissedImportData {
+    AllGood,
+    MissedImports {
+        highest_missed: BlockNumber,
+        last_sync: BlockNumber,
+    },
+}
+
+enum TrySyncError<B, J, CS>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    CS: ChainStatus<B, J>,
+{
+    ChainStatus(CS::Error),
+    Forest(ForestError),
+}
+
+impl MissedImportData {
+    pub fn new() -> Self {
+        Self::AllGood
+    }
+
+    pub fn update<B, J, CS>(
+        &mut self,
+        missed: BlockNumber,
+        chain_status: &CS,
+    ) -> Result<(), CS::Error>
+    where
+        B: Block,
+        J: Justification<Header = B::Header>,
+        CS: ChainStatus<B, J>,
+    {
+        use MissedImportData::*;
+        match self {
+            AllGood => {
+                *self = MissedImports {
+                    highest_missed: missed,
+                    last_sync: chain_status.top_finalized()?.header().id().number(),
+                }
+            }
+            MissedImports { highest_missed, .. } => *highest_missed = max(*highest_missed, missed),
+        }
+        Ok(())
+    }
+
+    pub fn try_sync<B, I, J, CS>(
+        &mut self,
+        chain_status: &CS,
+        forest: &mut Forest<I, J>,
+    ) -> Result<(), TrySyncError<B, J, CS>>
+    where
+        B: Block,
+        I: PeerId,
+        J: Justification<Header = B::Header>,
+        CS: ChainStatus<B, J>,
+    {
+        use MissedImportData::*;
+        if let MissedImports {
+            highest_missed,
+            last_sync,
+        } = self
+        {
+            let top_finalized = chain_status
+                .top_finalized()
+                .map_err(TrySyncError::ChainStatus)?
+                .header()
+                .id();
+            // we don't want this to happen too often, but it also cannot be too close to the max forest size, thus semi-random weird looking threshold
+            if top_finalized.number() - *last_sync <= 1312 {
+                return Ok(());
+            }
+            let mut to_import = VecDeque::from(
+                chain_status
+                    .children(top_finalized.clone())
+                    .map_err(TrySyncError::ChainStatus)?,
+            );
+            while let Some(header) = to_import.pop_front() {
+                if header.id().number() > *highest_missed {
+                    break;
+                }
+                // we suppress all errors except `TooNew` since we are likely trying to mark things that are already marked and they would be throwing a lot of stuff
+                match forest.update_body(&header) {
+                    Ok(()) => (),
+                    Err(ForestError::TooNew) => {
+                        *last_sync = top_finalized.number();
+                        return Ok(());
+                    }
+                    Err(e) => return Err(TrySyncError::Forest(e)),
+                }
+                to_import.extend(
+                    chain_status
+                        .children(header.id())
+                        .map_err(TrySyncError::ChainStatus)?,
+                );
+            }
+            *self = AllGood;
+        }
+        Ok(())
+    }
+}
+
 /// Handler for data incoming from the network.
 pub struct Handler<B, I, J, CS, V, F, BI>
 where
@@ -99,6 +208,7 @@ where
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
     block_importer: BI,
+    missed_import_data: MissedImportData,
     phantom: PhantomData<B>,
 }
 
@@ -161,6 +271,7 @@ where
     RequestHandlerError(RequestHandlerError<J, CS::Error>),
     MissingJustification,
     BlockNotImportable,
+    HeaderNotRequired,
 }
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
@@ -179,6 +290,7 @@ where
             Finalizer(e) => write!(f, "finalized error: {e}"),
             Forest(e) => write!(f, "forest error: {e}"),
             ForestInitialization(e) => write!(f, "forest initialization error: {e}"),
+            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
             MissingJustification => write!(
                 f,
                 "justification for the last block of a past session missing"
@@ -186,7 +298,7 @@ where
             BlockNotImportable => {
                 write!(f, "cannot import a block that we do not consider required")
             }
-            RequestHandlerError(e) => write!(f, "request handler error: {e}"),
+            HeaderNotRequired => write!(f, "header was not required, but it should have been"),
         }
     }
 }
@@ -203,6 +315,24 @@ where
         Error::Forest(e)
     }
 }
+
+impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
+where
+    J: Justification,
+    B: Block<Header = J::Header>,
+    CS: ChainStatus<B, J>,
+    V: Verifier<J>,
+    F: Finalizer<J>,
+{
+    fn from(e: TrySyncError<B, J, CS>) -> Self {
+        use TrySyncError::*;
+        match e {
+            ChainStatus(e) => Error::ChainStatus(e),
+            Forest(e) => Error::Forest(e),
+        }
+    }
+}
+
 impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
@@ -259,6 +389,7 @@ where
             forest,
             session_info,
             block_importer,
+            missed_import_data: MissedImportData::new(),
             phantom: PhantomData,
         })
     }
@@ -289,7 +420,11 @@ where
                         .map_err(Error::Finalizer)?;
                     number += 1;
                 }
-                None => return Ok(()),
+                None => {
+                    self.missed_import_data
+                        .try_sync(&self.chain_status, &mut self.forest)?;
+                    return Ok(());
+                }
             };
         }
     }
@@ -299,7 +434,14 @@ where
         &mut self,
         header: J::Header,
     ) -> Result<(), <Self as HandlerTypes>::Error> {
-        self.forest.update_body(&header)?;
+        if let Err(e) = self.forest.update_body(&header) {
+            if matches!(e, ForestError::TooNew) {
+                self.missed_import_data
+                    .update(header.id().number(), &self.chain_status)
+                    .map_err(Error::ChainStatus)?;
+            }
+            return Err(e.into());
+        }
         self.try_finalize()
     }
 
@@ -408,14 +550,20 @@ where
                     }
                 }
                 ResponseItem::Header(h) => {
-                    if let Err(e) = self
-                        .forest
-                        .update_non_auxiliary_header(&h, Some(peer.clone()))
-                    {
+                    if self.forest.skippable(&h.id()) {
+                        continue;
+                    }
+                    if !self.forest.importable(&h.id()) {
+                        return (highest_justified, Some(Error::HeaderNotRequired));
+                    }
+                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), true) {
                         return (highest_justified, Some(Error::Forest(e)));
                     }
                 }
                 ResponseItem::Block(b) => {
+                    if self.forest.skippable(&b.header().id()) {
+                        continue;
+                    }
                     match self.forest.importable(&b.header().id()) {
                         true => self.block_importer.import_block(b),
                         false => return (highest_justified, Some(Error::BlockNotImportable)),
@@ -716,7 +864,7 @@ mod tests {
                     header, &finalized_header,
                     "should finalize the current header"
                 ),
-                _ => panic!("shoould notify about finalized block"),
+                _ => panic!("should notify about finalized block"),
             }
         }
         top
@@ -739,6 +887,140 @@ mod tests {
                 _ => panic!("should import header from the provided branch"),
             }
         }
+    }
+
+    async fn consume_branch_finalized_notifications(
+        notifier: &mut impl ChainStatusNotifier<MockHeader>,
+        branch: &Vec<MockHeader>,
+    ) {
+        for expected_header in branch {
+            match notifier.next().await {
+                Ok(BlockFinalized(header)) => {
+                    assert_eq!(
+                        &header, expected_header,
+                        "should finalize header from the provided branch"
+                    );
+                }
+                _ => panic!("should finalize header from the provided branch"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn accepts_response_twice() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch).await;
+        let (maybe_id, maybe_error) = handler.handle_request_response(response, 8);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn accepts_long_response_after_handling_short_one() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
+
+        let short_response = branch_response(
+            branch[..15].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
+
+        let mid_response = branch_response(
+            branch.to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[15..].to_vec()).await;
+    }
+
+    #[tokio::test]
+    async fn handles_multiple_overlapping_responses() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
+
+        // 15 blocks and justifications -> top is 15, new highest justification
+        let short_response = branch_response(
+            branch[..15].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
+        consume_branch_finalized_notifications(&mut notifier, &branch[..15].to_vec()).await;
+
+        // 25 blocks -> top is 15, highest block is 25
+        let mid_response = branch_response(
+            branch[..25].to_vec(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[15..25].to_vec()).await;
+
+        // 35 blocks -> top is 15, highest block is 35
+        let long_response_blocks_only = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(long_response_blocks_only, 2);
+        assert!(maybe_id.is_none());
+        assert!(maybe_error.is_none());
+        mark_branch_imported(&mut handler, &mut notifier, &branch[25..].to_vec()).await;
+
+        // 35 blocks, justifications, and headers (just for fun) ->
+        // top is 35, new highest justification
+        let full_response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (maybe_id, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
+        assert!(maybe_id.is_some());
+        assert!(maybe_error.is_none());
+        consume_branch_finalized_notifications(&mut notifier, &branch[15..].to_vec()).await;
     }
 
     #[tokio::test]
@@ -1577,6 +1859,7 @@ mod tests {
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
+
     #[test]
     fn handles_request_with_unknown_id() {
         let (mut handler, mut backend, _keep, _genesis) = setup();
@@ -1647,5 +1930,36 @@ mod tests {
 
         assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
         assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
+    }
+
+    //TODO(A0-2984): remove this after legacy sync is excised
+    #[tokio::test]
+    async fn works_with_overzealous_imports() {
+        let (mut handler, mut backend, mut notifier, genesis) = setup();
+        let branch: Vec<_> = genesis.random_branch().take(2137).collect();
+        for header in branch.iter() {
+            let block = MockBlock::new(header.clone(), true);
+            backend.import_block(block);
+            match notifier.next().await {
+                Ok(BlockImported(header)) => {
+                    // we ignore failures, as we expect some
+                    let _ = handler.block_imported(header);
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+        for header in branch.iter() {
+            let justification = MockJustification::for_header(header.clone());
+            handler
+                .handle_justification_from_user(justification)
+                .expect("should work");
+            match notifier.next().await {
+                Ok(BlockFinalized(finalized_header)) => assert_eq!(
+                    header, &finalized_header,
+                    "should finalize the current header"
+                ),
+                _ => panic!("should notify about finalized block"),
+            }
+        }
     }
 }
