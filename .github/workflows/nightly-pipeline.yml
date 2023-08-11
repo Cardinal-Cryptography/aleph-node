@@ -72,7 +72,7 @@ jobs:
       - name: Run test
         timeout-minutes: 130
         env:
-          ALEPH_NODE_BINARY: aleph-test-node/aleph-node
+          ALEPH_NODE_BINARY: ./target/release/aleph-node
         run: ./.github/scripts/test_major_sync.sh
 
 
