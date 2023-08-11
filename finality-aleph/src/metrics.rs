@@ -57,84 +57,7 @@ struct Inner<H: Key> {
 }
 
 impl<H: Key> Inner<H> {
-    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
-        trace!(
-            target: LOG_TARGET,
-            "Reporting block stage: {:?} (hash: {:?}, at: {:?}",
-            checkpoint_type,
-            hash,
-            checkpoint_time
-        );
-
-        self.starts.entry(checkpoint_type).and_modify(|starts| {
-            starts.put(hash, checkpoint_time);
-        });
-
-        if let Some(prev_checkpoint_type) = self.prev.get(&checkpoint_type) {
-            if let Some(start) = self
-                .starts
-                .get_mut(prev_checkpoint_type)
-                .expect("All checkpoint types were initialized")
-                .get(&hash)
-            {
-                let duration = match checkpoint_time.checked_duration_since(*start) {
-                    Some(duration) => duration,
-                    None => {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Earlier metrics time {:?} is later that current one \
-                        {:?}. Checkpoint type {:?}, block: {:?}",
-                            *start,
-                            checkpoint_time,
-                            checkpoint_type,
-                            hash
-                        );
-                        Duration::new(0, 0)
-                    }
-                };
-                self.gauges
-                    .get(&checkpoint_type)
-                    .expect("All checkpoint types were initialized")
-                    .set(duration.as_millis() as u64);
-            }
-        }
-    }
-
-    fn start_sending_in(&self, protocol: Protocol) -> HistogramTimer {
-        self.network_send_times[&protocol].start_timer()
-    }
-}
-
-fn protocol_name(protocol: Protocol) -> String {
-    use Protocol::*;
-    match protocol {
-        Authentication => "authentication",
-        BlockSync => "block_sync",
-    }
-    .to_string()
-}
-
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Checkpoint {
-    Importing,
-    Imported,
-    Ordering,
-    Ordered,
-    Aggregating,
-    Finalized,
-}
-
-#[derive(Clone)]
-pub struct Metrics<H: Key> {
-    inner: Option<Arc<Mutex<Inner<H>>>>,
-}
-
-impl<H: Key> Metrics<H> {
-    pub fn noop() -> Metrics<H> {
-        Metrics { inner: None }
-    }
-
-    pub fn new(registry: &Registry) -> Result<Metrics<H>, PrometheusError> {
+    fn new(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
             Importing,
@@ -181,7 +104,7 @@ impl<H: Key> Metrics<H> {
             );
         }
 
-        let inner = Some(Arc::new(Mutex::new(Inner {
+        Ok(Self {
             prev,
             gauges,
             starts: keys
@@ -278,9 +201,159 @@ impl<H: Key> Metrics<H> {
                 registry,
             )?,
             network_send_times,
-        })));
+        })
+    }
 
-        Ok(Metrics { inner })
+    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
+        trace!(
+            target: LOG_TARGET,
+            "Reporting block stage: {:?} (hash: {:?}, at: {:?}",
+            checkpoint_type,
+            hash,
+            checkpoint_time
+        );
+
+        self.starts.entry(checkpoint_type).and_modify(|starts| {
+            starts.put(hash, checkpoint_time);
+        });
+
+        if let Some(prev_checkpoint_type) = self.prev.get(&checkpoint_type) {
+            if let Some(start) = self
+                .starts
+                .get_mut(prev_checkpoint_type)
+                .expect("All checkpoint types were initialized")
+                .get(&hash)
+            {
+                let duration = match checkpoint_time.checked_duration_since(*start) {
+                    Some(duration) => duration,
+                    None => {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Earlier metrics time {:?} is later that current one \
+                        {:?}. Checkpoint type {:?}, block: {:?}",
+                            *start,
+                            checkpoint_time,
+                            checkpoint_type,
+                            hash
+                        );
+                        Duration::new(0, 0)
+                    }
+                };
+                self.gauges
+                    .get(&checkpoint_type)
+                    .expect("All checkpoint types were initialized")
+                    .set(duration.as_millis() as u64);
+            }
+        }
+    }
+
+    fn start_sending_in(&self, protocol: Protocol) -> HistogramTimer {
+        self.network_send_times[&protocol].start_timer()
+    }
+}
+
+fn protocol_name(protocol: Protocol) -> String {
+    use Protocol::*;
+    match protocol {
+        Authentication => "authentication",
+        BlockSync => "block_sync",
+    }
+    .to_string()
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum Checkpoint {
+    Importing,
+    Imported,
+    Ordering,
+    Ordered,
+    Aggregating,
+    Finalized,
+}
+
+pub enum SyncEvent {
+    Broadcast,
+    SendRequest,
+    SendTo,
+    HandleState,
+    HandleRequestResponse,
+    HandleRequest,
+    HandleTask,
+    HandleBlockImported,
+    HandleBlockFinalized,
+    HandleStateResponse,
+    HandleJustificationFromUserCalls,
+    HandleInternalRequest,
+}
+
+#[derive(Clone)]
+pub struct Metrics<H: Key> {
+    inner: Option<Arc<Mutex<Inner<H>>>>,
+}
+
+impl<H: Key> Metrics<H> {
+    pub fn noop() -> Self {
+        Self { inner: None }
+    }
+
+    pub fn new(registry: &Registry) -> Result<Self, PrometheusError> {
+        let inner = Some(Arc::new(Mutex::new(Inner::new(registry)?)));
+
+        Ok(Self { inner })
+    }
+
+    pub fn report_event(&self, event: SyncEvent) {
+        let inner = match &self.inner {
+            Some(inner) => inner.lock(),
+            None => return,
+        };
+
+        match event {
+            SyncEvent::Broadcast => inner.sync_broadcast_calls_counter.inc(),
+            SyncEvent::SendRequest => inner.sync_send_request_calls_counter.inc(),
+            SyncEvent::SendTo => inner.sync_send_to_calls_counter.inc(),
+            SyncEvent::HandleState => inner.sync_handle_state_calls_counter.inc(),
+            SyncEvent::HandleRequestResponse => {
+                inner.sync_handle_request_response_calls_counter.inc()
+            }
+            SyncEvent::HandleRequest => inner.sync_handle_request_calls_counter.inc(),
+            SyncEvent::HandleTask => inner.sync_handle_task_calls_counter.inc(),
+            SyncEvent::HandleBlockImported => inner.sync_handle_block_imported_calls_counter.inc(),
+            SyncEvent::HandleBlockFinalized => {
+                inner.sync_handle_block_finalized_calls_counter.inc()
+            }
+            SyncEvent::HandleStateResponse => inner.sync_handle_state_response_calls_counter.inc(),
+            SyncEvent::HandleJustificationFromUserCalls => inner
+                .sync_handle_justification_from_user_calls_counter
+                .inc(),
+            SyncEvent::HandleInternalRequest => {
+                inner.sync_handle_internal_request_calls_counter.inc()
+            }
+        }
+    }
+
+    pub fn report_event_error(&self, event: SyncEvent) {
+        let inner = match &self.inner {
+            Some(inner) => inner.lock(),
+            None => return,
+        };
+
+        match event {
+            SyncEvent::Broadcast => inner.sync_broadcast_errors_counter.inc(),
+            SyncEvent::SendRequest => inner.sync_send_request_errors_counter.inc(),
+            SyncEvent::SendTo => inner.sync_send_to_errors_counter.inc(),
+            SyncEvent::HandleState => inner.sync_handle_state_errors_counter.inc(),
+            SyncEvent::HandleRequest => inner.sync_handle_request_errors_counter.inc(),
+            SyncEvent::HandleTask => inner.sync_handle_task_errors_counter.inc(),
+            SyncEvent::HandleBlockImported => inner.sync_handle_block_imported_errors_counter.inc(),
+            SyncEvent::HandleJustificationFromUserCalls => inner
+                .sync_handle_justification_from_user_errors_counter
+                .inc(),
+            SyncEvent::HandleInternalRequest => {
+                inner.sync_handle_internal_request_errors_counter.inc()
+            }
+            _ => {} // events that have not defined error events
+        }
     }
 
     pub fn report_block(&self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
@@ -288,147 +361,6 @@ impl<H: Key> Metrics<H> {
             inner
                 .lock()
                 .report_block(hash, checkpoint_time, checkpoint_type);
-        }
-    }
-
-    pub fn report_sync_broadcast_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_broadcast_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_broadcast_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_broadcast_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_send_request_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_send_request_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_send_request_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_send_request_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_send_to_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_send_to_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_send_to_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_send_to_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_state_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_state_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_state_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_state_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_request_response_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_request_response_calls_counter
-                .inc();
-        }
-    }
-
-    pub fn report_sync_handle_request_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_request_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_request_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_request_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_task_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_task_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_task_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_task_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_block_imported_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_block_imported_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_block_imported_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_block_imported_errors_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_block_finalized_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_block_finalized_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_justification_from_user_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_justification_from_user_calls_counter
-                .inc();
-        }
-    }
-
-    pub fn report_sync_handle_justification_from_user_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_justification_from_user_errors_counter
-                .inc();
-        }
-    }
-
-    pub fn report_sync_handle_state_response_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner.lock().sync_handle_state_response_calls_counter.inc();
-        }
-    }
-
-    pub fn report_sync_handle_internal_request_call(&self) {
-        if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_internal_request_calls_counter
-                .inc();
-        }
-    }
-
-    pub fn report_sync_handle_internal_request_error(&self) {
-        if let Some(inner) = &self.inner {
-            inner
-                .lock()
-                .sync_handle_internal_request_errors_counter
-                .inc();
         }
     }
 
