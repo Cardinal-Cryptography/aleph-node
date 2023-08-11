@@ -53,8 +53,8 @@ sleep(3 * 60)
 
 finalized = check_finalized(chain)
 
-catching_up_validator_finalized = finalized[5]
-normal_validator_finalized = finalized[4]
+catching_up_validator_finalized = finalized[4]
+normal_validator_finalized = finalized[3]
 
 if normal_validator_finalized < 3 * 1800:
     printt(f'Not enough finalized blocks in the test time {normal_validator_finalized}')
