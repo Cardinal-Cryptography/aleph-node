@@ -16,6 +16,7 @@ jobs:
   check-vars:
     name: Check vars
     uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
     with:
       check-secrets: false
 
