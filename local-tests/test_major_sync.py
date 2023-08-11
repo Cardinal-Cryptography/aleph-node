@@ -42,10 +42,9 @@ chain.set_flags_validator('validator')
 printt('Starting the chain')
 chain.start('aleph', nodes=[0, 1, 2, 3])
 
-# sleep 2h to produce around 4/5 * 7200 blocks > 3 * 1800 (max forest depth).
+# sleep 2h to produce around 5/6 * 7200 blocks > 3 * 1800 (max forest depth).
 printt('Waiting around 2 hours')
-sleep(6 * 100) # 10 mins for test purpose
-
+sleep(2 * 3600)
 
 chain.start('aleph', nodes=[4])
 
@@ -54,10 +53,10 @@ sleep(3 * 60)
 
 finalized = check_finalized(chain)
 
-catching_up_validator_finalized = finalized[4]
-normal_validator_finalized = finalized[3]
+catching_up_validator_finalized = finalized[5]
+normal_validator_finalized = finalized[4]
 
-if normal_validator_finalized < 0:
+if normal_validator_finalized < 3 * 1800:
     printt(f'Not enough finalized blocks in the test time {normal_validator_finalized}')
     sys.exit(1)
 
