@@ -19,6 +19,7 @@ jobs:
     secrets: inherit
     with:
       check-secrets: false
+      check-vars: false
 
   check-excluded-packages:
     name: Check excluded packages
