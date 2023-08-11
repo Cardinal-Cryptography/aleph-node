@@ -70,6 +70,12 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
 
+      - name: Download release artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: aleph-production-node
+          path: target/release/
+
       - name: Debug
         run: ls .. -R
 
