@@ -76,9 +76,6 @@ jobs:
           name: aleph-production-node
           path: target/release/
 
-      - name: Debug
-        run: ls .. -R
-
       - name: Run test
         timeout-minutes: 130
         env:

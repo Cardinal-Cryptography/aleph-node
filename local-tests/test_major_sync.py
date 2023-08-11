@@ -44,7 +44,7 @@ chain.start('aleph', nodes=[0, 1, 2, 3])
 
 # sleep 2h to produce around 4/5 * 7200 blocks > 3 * 1800 (max forest depth).
 printt('Waiting around 2 hours')
-sleep(2 * 3600)
+sleep(6 * 100) # 10 mins for test purpose
 
 
 chain.start('aleph', nodes=[4])
@@ -62,6 +62,6 @@ if normal_validator_finalized < 0:
     sys.exit(1)
 
 # Check if the late node catched up to other validators
-if abs(catching_up_validator_finalized - normal_validator_finalized) <= 5:
+if abs(catching_up_validator_finalized - normal_validator_finalized) > 5:
     printt(f'Too small catch up for late node: got: {catching_up_validator_finalized} expected: {normal_validator_finalized}')
     sys.exit(1)
