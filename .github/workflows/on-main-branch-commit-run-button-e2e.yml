@@ -12,8 +12,8 @@ concurrency:
 
 jobs:
   main:
-    name: Check vars and secrets
-    uses: ./.github/workflows/_run-button-e2e-tests.yml
+    name: Deploy button
+    uses: ./.github/workflows/_deploy_button.yml
     with:
       deploy: true
     secrets: inherit

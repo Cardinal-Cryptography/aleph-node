@@ -1,0 +1,40 @@
+---
+name: Deploys button to testnet on push to main branch
+
+on:
+  workflow_call:
+    inputs:
+      deploy:
+        description: Deploy the button contracts to devnet and trigger services update
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  deploy-button:
+    if: inputs.deploy == true
+    name: Deploy the button contracts to devnet and trigger services update
+    needs: [check-vars-and-secrets]
+    uses: ./.github/workflows/contracts-deploy.yml
+    secrets: inherit
+
+  send-slack-notification:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    needs: [deploy-button]
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TRACK_APPLICATIONS }}
