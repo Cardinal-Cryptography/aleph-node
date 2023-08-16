@@ -62,7 +62,7 @@ pub type AlephKeyPair = ed25519::Pair;
 /// An alias for a type of a key pair that signs chain transactions.
 pub type RawKeyPair = sr25519::Pair;
 /// An alias for an account id type.
-pub type AccountId = sp_runtime::AccountId32;
+pub type AccountId = subxt::ext::sp_core::crypto::AccountId32;
 /// An alias for a hash type.
 pub type CodeHash = H256;
 /// An alias for a block hash type.

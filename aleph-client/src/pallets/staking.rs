@@ -440,6 +440,11 @@ impl StakingSudoApi for RootConnection {
     }
 }
 
+fn extend_with_twox64_concat_hash<T: Encode>(key: &mut Vec<u8>, value_to_hash: T) {
+    key.extend(subxt::ext::sp_core::twox_64(&value_to_hash.encode()));
+    key.extend(&value_to_hash.encode());
+}
+
 #[async_trait::async_trait]
 impl<C: AsConnection + Sync> StakingRawApi for C {
     async fn get_stakers_storage_keys(
@@ -449,8 +454,8 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
     ) -> anyhow::Result<Vec<StorageKey>> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
-        key.extend(subxt::ext::sp_core::twox_64(&era.encode()));
-        key.extend(&era.encode());
+        extend_with_twox64_concat_hash(&mut key, era);
+
         let storage = self.as_connection().as_client().storage();
         let block = match at {
             Some(block_hash) => storage.at(block_hash),
@@ -467,14 +472,12 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
     ) -> Vec<StorageKey> {
         let key_addrs = api::storage().staking().eras_stakers_root();
         let mut key = key_addrs.to_root_bytes();
-        key.extend(subxt::ext::sp_core::twox_64(&era.encode()));
-        key.extend(&era.encode());
+        extend_with_twox64_concat_hash(&mut key, era);
         accounts
             .iter()
             .map(|account| {
                 let mut key = key.clone();
-                key.extend(subxt::ext::sp_core::twox_64(&account.encode()));
-                key.extend(&account.encode());
+                extend_with_twox64_concat_hash(&mut key, account);
 
                 StorageKey(key)
             })

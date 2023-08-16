@@ -372,7 +372,7 @@ impl Context<Closed> {
         self.call_hash
     }
     /// Read approvers set.
-    pub fn approvers(&self) -> &HashSet<impl Into<AccountId> + From<AccountId>> {
+    pub fn approvers(&self) -> &HashSet<AccountId> {
         &self.approvers
     }
 }
