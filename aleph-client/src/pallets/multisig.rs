@@ -1,11 +1,8 @@
-use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
-};
+use std::{collections::HashSet, marker::PhantomData};
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
+use subxt::utils::Static;
 
 use crate::{
     account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
@@ -85,7 +82,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .multisig()
-            .as_multi_threshold_1(other_signatories, call);
+            .as_multi_threshold_1(wrap_vec_elements_with_static(other_signatories), call);
 
         self.send_tx(tx, status).await
     }
@@ -101,7 +98,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call,
             max_weight,
@@ -121,7 +118,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().approve_as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call_hash,
             max_weight,
@@ -140,7 +137,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().cancel_as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call_hash,
         );
@@ -227,9 +224,8 @@ impl<C: ConnectionApi> MultisigApiExt for C {
     ) -> Timepoint {
         let multisigs = api::storage()
             .multisig()
-            .multisigs(party_account, call_hash);
-        let Multisig { when, .. } = self.get_storage_entry(&multisigs, block_hash).await;
-        when
+            .multisigs(&Static(party_account.clone()), call_hash);
+        self.get_storage_entry(&multisigs, block_hash).await.when
     }
 }
 
@@ -246,38 +242,6 @@ impl ContextState for Ongoing {}
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Closed {}
 impl ContextState for Closed {}
-
-// Wrapper for AccountId that implements Hash.
-#[derive(Clone, Debug)]
-struct AccountIdWrapper {
-    account_id: AccountId,
-}
-
-impl From<AccountId> for AccountIdWrapper {
-    fn from(account_id: AccountId) -> Self {
-        Self { account_id }
-    }
-}
-
-impl From<AccountIdWrapper> for AccountId {
-    fn from(val: AccountIdWrapper) -> Self {
-        val.account_id
-    }
-}
-
-impl PartialEq for AccountIdWrapper {
-    fn eq(&self, other: &Self) -> bool {
-        self.account_id.0 == other.account_id.0
-    }
-}
-
-impl Eq for AccountIdWrapper {}
-
-impl Hash for AccountIdWrapper {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.account_id.0.hash(state);
-    }
-}
 
 /// A context in which ongoing signature aggregation is performed.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -301,7 +265,7 @@ pub struct Context<S: ContextState> {
     /// author.
     ///
     /// `approvers.len() < party.threshold` always holds.
-    approvers: HashSet<AccountIdWrapper>,
+    approvers: HashSet<AccountId>,
 
     _phantom: PhantomData<S>,
 }
@@ -332,7 +296,7 @@ impl Context<Ongoing> {
             max_weight,
             call,
             call_hash,
-            approvers: HashSet::from([author.into()]),
+            approvers: HashSet::from([author]),
             _phantom: PhantomData,
         }
     }
@@ -358,7 +322,7 @@ impl Context<Ongoing> {
     /// Register another approval. Depending on the threshold meeting and `call` content, we treat
     /// signature aggregation process as either still ongoing or closed.
     fn add_approval(mut self, approver: AccountId) -> ContextAfterUse {
-        self.approvers.insert(approver.into());
+        self.approvers.insert(approver);
         if self.call.is_some() && self.approvers.len() >= (self.party.threshold as usize) {
             ContextAfterUse::Closed(self.close())
         } else {
@@ -650,4 +614,8 @@ fn ensure_signer_in_party<S: SignedConnectionApi>(
     } else {
         Err(anyhow!("Connection should be signed by a party member"))
     }
+}
+
+fn wrap_vec_elements_with_static<T>(vec: Vec<T>) -> Vec<Static<T>> {
+    vec.into_iter().map(Static).collect()
 }

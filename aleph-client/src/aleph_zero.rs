@@ -405,9 +405,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                216u8, 236u8, 216u8, 237u8, 72u8, 33u8, 26u8, 105u8, 180u8, 123u8, 179u8, 3u8,
-                165u8, 243u8, 14u8, 103u8, 249u8, 164u8, 81u8, 31u8, 231u8, 3u8, 42u8, 102u8,
-                149u8, 113u8, 206u8, 176u8, 62u8, 47u8, 237u8, 103u8,
+                114u8, 171u8, 247u8, 192u8, 118u8, 16u8, 133u8, 248u8, 177u8, 198u8, 174u8, 231u8,
+                29u8, 211u8, 171u8, 172u8, 206u8, 2u8, 175u8, 142u8, 203u8, 1u8, 93u8, 76u8, 247u8,
+                249u8, 127u8, 173u8, 49u8, 42u8, 102u8, 119u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
@@ -775,7 +775,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A new account was created."]
             pub struct NewAccount {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for NewAccount {
                 const PALLET: &'static str = "System";
@@ -795,7 +795,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An account was reaped."]
             pub struct KilledAccount {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for KilledAccount {
                 const PALLET: &'static str = "System";
@@ -815,7 +815,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "On on-chain remark happened."]
             pub struct Remarked {
-                pub sender: ::subxt::utils::AccountId32,
+                pub sender: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub hash: ::subxt::utils::H256,
             }
             impl ::subxt::events::StaticEvent for Remarked {
@@ -830,7 +830,9 @@ pub mod api {
                 #[doc = " The full account information for a particular account ID."]
                 pub fn account(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::frame_system::AccountInfo<
@@ -1883,7 +1885,7 @@ pub mod api {
                                 >,
                                 ::core::primitive::u32,
                                 runtime_types::aleph_runtime::OriginCaller,
-                                ::subxt::utils::AccountId32,
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             >,
                         >,
                     >,
@@ -1918,7 +1920,7 @@ pub mod api {
                                 >,
                                 ::core::primitive::u32,
                                 runtime_types::aleph_runtime::OriginCaller,
-                                ::subxt::utils::AccountId32,
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             >,
                         >,
                     >,
@@ -2236,7 +2238,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct TransferAllowDeath {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
             }
@@ -2253,7 +2258,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetBalanceDeprecated {
-                pub who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub who: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub new_free: ::core::primitive::u128,
                 #[codec(compact)]
@@ -2272,8 +2280,14 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceTransfer {
-                pub source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub source: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
             }
@@ -2290,7 +2304,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct TransferKeepAlive {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
             }
@@ -2307,7 +2324,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct TransferAll {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub keep_alive: ::core::primitive::bool,
             }
             #[derive(
@@ -2323,7 +2343,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceUnreserve {
-                pub who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub who: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub amount: ::core::primitive::u128,
             }
             #[derive(
@@ -2339,7 +2362,9 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct UpgradeAccounts {
-                pub who: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub who: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -2354,7 +2379,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Transfer {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
             }
@@ -2371,7 +2399,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceSetBalance {
-                pub who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub who: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub new_free: ::core::primitive::u128,
             }
@@ -2386,7 +2417,10 @@ pub mod api {
                 #[doc = "The dispatch origin for this call must be `Signed` by the transactor."]
                 pub fn transfer_allow_death(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<TransferAllowDeath> {
                     ::subxt::tx::Payload::new_static(
@@ -2408,7 +2442,10 @@ pub mod api {
                 #[doc = "WARNING: This call is DEPRECATED! Use `force_set_balance` instead."]
                 pub fn set_balance_deprecated(
                     &self,
-                    who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    who: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     new_free: ::core::primitive::u128,
                     old_reserved: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<SetBalanceDeprecated> {
@@ -2432,8 +2469,14 @@ pub mod api {
                 #[doc = "may be specified."]
                 pub fn force_transfer(
                     &self,
-                    source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    source: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<ForceTransfer> {
                     ::subxt::tx::Payload::new_static(
@@ -2460,7 +2503,10 @@ pub mod api {
                 #[doc = "[`transfer_allow_death`]: struct.Pallet.html#method.transfer"]
                 pub fn transfer_keep_alive(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<TransferKeepAlive> {
                     ::subxt::tx::Payload::new_static(
@@ -2492,7 +2538,10 @@ pub mod api {
                 #[doc = "  keep the sender account alive (true)."]
                 pub fn transfer_all(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     keep_alive: ::core::primitive::bool,
                 ) -> ::subxt::tx::Payload<TransferAll> {
                     ::subxt::tx::Payload::new_static(
@@ -2512,7 +2561,10 @@ pub mod api {
                 #[doc = "Can only be called by ROOT."]
                 pub fn force_unreserve(
                     &self,
-                    who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    who: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     amount: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<ForceUnreserve> {
                     ::subxt::tx::Payload::new_static(
@@ -2537,7 +2589,9 @@ pub mod api {
                 #[doc = "possibililty of churn)."]
                 pub fn upgrade_accounts(
                     &self,
-                    who: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    who: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::tx::Payload<UpgradeAccounts> {
                     ::subxt::tx::Payload::new_static(
                         "Balances",
@@ -2555,7 +2609,10 @@ pub mod api {
                 #[doc = "WARNING: DEPRECATED! Will be released in approximately 3 months."]
                 pub fn transfer(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<Transfer> {
                     ::subxt::tx::Payload::new_static(
@@ -2575,7 +2632,10 @@ pub mod api {
                 #[doc = "The dispatch origin for this call is `root`."]
                 pub fn force_set_balance(
                     &self,
-                    who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    who: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     new_free: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<ForceSetBalance> {
                     ::subxt::tx::Payload::new_static(
@@ -2609,7 +2669,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An account was created with some free balance."]
             pub struct Endowed {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub free_balance: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Endowed {
@@ -2631,7 +2691,7 @@ pub mod api {
             #[doc = "An account was removed whose balance was non-zero but below ExistentialDeposit,"]
             #[doc = "resulting in an outright loss."]
             pub struct DustLost {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for DustLost {
@@ -2652,8 +2712,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Transfer succeeded."]
             pub struct Transfer {
-                pub from: ::subxt::utils::AccountId32,
-                pub to: ::subxt::utils::AccountId32,
+                pub from: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub to: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Transfer {
@@ -2674,7 +2734,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A balance was set by root."]
             pub struct BalanceSet {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub free: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for BalanceSet {
@@ -2695,7 +2755,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was reserved (moved from free to reserved)."]
             pub struct Reserved {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Reserved {
@@ -2716,7 +2776,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was unreserved (moved from reserved to free)."]
             pub struct Unreserved {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Unreserved {
@@ -2738,8 +2798,8 @@ pub mod api {
             #[doc = "Some balance was moved from the reserve of the first account to the second account."]
             #[doc = "Final argument indicates the destination balance type."]
             pub struct ReserveRepatriated {
-                pub from: ::subxt::utils::AccountId32,
-                pub to: ::subxt::utils::AccountId32,
+                pub from: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub to: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
                 pub destination_status:
                     runtime_types::frame_support::traits::tokens::misc::BalanceStatus,
@@ -2762,7 +2822,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was deposited (e.g. for transaction fees)."]
             pub struct Deposit {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Deposit {
@@ -2783,7 +2843,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was withdrawn from the account (e.g. for transaction fees)."]
             pub struct Withdraw {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Withdraw {
@@ -2804,7 +2864,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was removed from the account (e.g. for misbehavior)."]
             pub struct Slashed {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Slashed {
@@ -2825,7 +2885,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was minted into an account."]
             pub struct Minted {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Minted {
@@ -2846,7 +2906,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was burned from an account."]
             pub struct Burned {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Burned {
@@ -2867,7 +2927,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was suspended from an account (it can be restored later)."]
             pub struct Suspended {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Suspended {
@@ -2888,7 +2948,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some amount was restored into an account."]
             pub struct Restored {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Restored {
@@ -2909,7 +2969,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An account was upgraded."]
             pub struct Upgraded {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Upgraded {
                 const PALLET: &'static str = "Balances";
@@ -2971,7 +3031,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was locked."]
             pub struct Locked {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Locked {
@@ -2992,7 +3052,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was unlocked."]
             pub struct Unlocked {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Unlocked {
@@ -3013,7 +3073,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was frozen."]
             pub struct Frozen {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Frozen {
@@ -3034,7 +3094,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Some balance was thawed."]
             pub struct Thawed {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Thawed {
@@ -3115,7 +3175,9 @@ pub mod api {
                 #[doc = " NOTE: This is only used in the case that this pallet is used to store balances."]
                 pub fn account(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_balances::types::AccountData<::core::primitive::u128>,
@@ -3186,7 +3248,9 @@ pub mod api {
                 #[doc = " NOTE: Should only be accessed when setting, changing and freeing a lock."]
                 pub fn locks(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::bounded_collections::weak_bounded_vec::WeakBoundedVec<
@@ -3236,7 +3300,9 @@ pub mod api {
                 #[doc = " Named reserves on some account balances."]
                 pub fn reserves(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::bounded_collections::bounded_vec::BoundedVec<
@@ -3291,7 +3357,9 @@ pub mod api {
                 #[doc = " Holds on account balances."]
                 pub fn holds(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::bounded_collections::bounded_vec::BoundedVec<
@@ -3346,7 +3414,9 @@ pub mod api {
                 #[doc = " Freeze locks on account balances."]
                 pub fn freezes(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::bounded_collections::bounded_vec::BoundedVec<
@@ -3502,7 +3572,7 @@ pub mod api {
             #[doc = "A transaction fee `actual_fee`, of which `tip` was added to the minimum inclusion fee,"]
             #[doc = "has been paid by `who`."]
             pub struct TransactionFeePaid {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub actual_fee: ::core::primitive::u128,
                 pub tip: ::core::primitive::u128,
             }
@@ -3611,7 +3681,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     ::subxt::storage::address::Yes,
                     (),
                     (),
@@ -3650,11 +3720,15 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Bond {
-                pub controller: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub controller: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
-                pub payee:
-                    runtime_types::pallet_staking::RewardDestination<::subxt::utils::AccountId32>,
+                pub payee: runtime_types::pallet_staking::RewardDestination<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3732,8 +3806,12 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Nominate {
-                pub targets:
-                    ::std::vec::Vec<::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>>,
+                pub targets: ::std::vec::Vec<
+                    ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3761,8 +3839,9 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetPayee {
-                pub payee:
-                    runtime_types::pallet_staking::RewardDestination<::subxt::utils::AccountId32>,
+                pub payee: runtime_types::pallet_staking::RewardDestination<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3777,7 +3856,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetController {
-                pub controller: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub controller: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3865,7 +3947,9 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetInvulnerables {
-                pub invulnerables: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub invulnerables: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3880,7 +3964,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceUnstake {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub num_slashing_spans: ::core::primitive::u32,
             }
             #[derive(
@@ -3925,7 +4009,8 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct PayoutStakers {
-                pub validator_stash: ::subxt::utils::AccountId32,
+                pub validator_stash:
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub era: ::core::primitive::u32,
             }
             #[derive(
@@ -3957,7 +4042,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ReapStash {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub num_slashing_spans: ::core::primitive::u32,
             }
             #[derive(
@@ -3973,8 +4058,12 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Kick {
-                pub who:
-                    ::std::vec::Vec<::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>>,
+                pub who: ::std::vec::Vec<
+                    ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -4019,7 +4108,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ChillOther {
-                pub controller: ::subxt::utils::AccountId32,
+                pub controller: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -4034,7 +4123,8 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceApplyMinCommission {
-                pub validator_stash: ::subxt::utils::AccountId32,
+                pub validator_stash:
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -4070,10 +4160,13 @@ pub mod api {
                 #[doc = "unless the `origin` falls below _existential deposit_ and gets removed as dust."]
                 pub fn bond(
                     &self,
-                    controller: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    controller: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                     payee: runtime_types::pallet_staking::RewardDestination<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                 ) -> ::subxt::tx::Payload<Bond> {
                     ::subxt::tx::Payload::new_static(
@@ -4220,7 +4313,10 @@ pub mod api {
                 pub fn nominate(
                     &self,
                     targets: ::std::vec::Vec<
-                        ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     >,
                 ) -> ::subxt::tx::Payload<Nominate> {
                     ::subxt::tx::Payload::new_static(
@@ -4273,7 +4369,7 @@ pub mod api {
                 pub fn set_payee(
                     &self,
                     payee: runtime_types::pallet_staking::RewardDestination<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                 ) -> ::subxt::tx::Payload<SetPayee> {
                     ::subxt::tx::Payload::new_static(
@@ -4300,7 +4396,10 @@ pub mod api {
                 #[doc = "- Writes are limited to the `origin` account key."]
                 pub fn set_controller(
                     &self,
-                    controller: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    controller: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<SetController> {
                     ::subxt::tx::Payload::new_static(
                         "Staking",
@@ -4435,7 +4534,9 @@ pub mod api {
                 #[doc = "The dispatch origin must be Root."]
                 pub fn set_invulnerables(
                     &self,
-                    invulnerables: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    invulnerables: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::tx::Payload<SetInvulnerables> {
                     ::subxt::tx::Payload::new_static(
                         "Staking",
@@ -4453,7 +4554,7 @@ pub mod api {
                 #[doc = "The dispatch origin must be Root."]
                 pub fn force_unstake(
                     &self,
-                    stash: ::subxt::utils::AccountId32,
+                    stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     num_slashing_spans: ::core::primitive::u32,
                 ) -> ::subxt::tx::Payload<ForceUnstake> {
                     ::subxt::tx::Payload::new_static(
@@ -4528,7 +4629,9 @@ pub mod api {
                 #[doc = "- At most O(MaxNominatorRewardedPerValidator)."]
                 pub fn payout_stakers(
                     &self,
-                    validator_stash: ::subxt::utils::AccountId32,
+                    validator_stash: ::subxt::utils::Static<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                    >,
                     era: ::core::primitive::u32,
                 ) -> ::subxt::tx::Payload<PayoutStakers> {
                     ::subxt::tx::Payload::new_static(
@@ -4582,7 +4685,7 @@ pub mod api {
                 #[doc = "Refunds the transaction fees upon successful execution."]
                 pub fn reap_stash(
                     &self,
-                    stash: ::subxt::utils::AccountId32,
+                    stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     num_slashing_spans: ::core::primitive::u32,
                 ) -> ::subxt::tx::Payload<ReapStash> {
                     ::subxt::tx::Payload::new_static(
@@ -4614,7 +4717,10 @@ pub mod api {
                 pub fn kick(
                     &self,
                     who: ::std::vec::Vec<
-                        ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     >,
                 ) -> ::subxt::tx::Payload<Kick> {
                     ::subxt::tx::Payload::new_static(
@@ -4712,7 +4818,7 @@ pub mod api {
                 #[doc = "who do not satisfy these requirements."]
                 pub fn chill_other(
                     &self,
-                    controller: ::subxt::utils::AccountId32,
+                    controller: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 ) -> ::subxt::tx::Payload<ChillOther> {
                     ::subxt::tx::Payload::new_static(
                         "Staking",
@@ -4730,7 +4836,9 @@ pub mod api {
                 #[doc = "can call this."]
                 pub fn force_apply_min_commission(
                     &self,
-                    validator_stash: ::subxt::utils::AccountId32,
+                    validator_stash: ::subxt::utils::Static<
+                        ::subxt::ext::sp_core::crypto::AccountId32,
+                    >,
                 ) -> ::subxt::tx::Payload<ForceApplyMinCommission> {
                     ::subxt::tx::Payload::new_static(
                         "Staking",
@@ -4807,7 +4915,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "The nominator has been rewarded by this amount."]
             pub struct Rewarded {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Rewarded {
@@ -4828,7 +4936,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A staker (validator or nominator) has been slashed by the given amount."]
             pub struct Slashed {
-                pub staker: ::subxt::utils::AccountId32,
+                pub staker: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Slashed {
@@ -4850,7 +4958,7 @@ pub mod api {
             #[doc = "A slash for the given validator, for the given percentage of their stake, at the given"]
             #[doc = "era as been reported."]
             pub struct SlashReported {
-                pub validator: ::subxt::utils::AccountId32,
+                pub validator: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub fraction: runtime_types::sp_arithmetic::per_things::Perbill,
                 pub slash_era: ::core::primitive::u32,
             }
@@ -4915,7 +5023,7 @@ pub mod api {
             #[doc = "NOTE: This event is only emitted when funds are bonded via a dispatchable. Notably,"]
             #[doc = "it will not be emitted for staking rewards when they are added to stake."]
             pub struct Bonded {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Bonded {
@@ -4936,7 +5044,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An account has unbonded this amount."]
             pub struct Unbonded {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Unbonded {
@@ -4958,7 +5066,7 @@ pub mod api {
             #[doc = "An account has called `withdraw_unbonded` and removed unbonding chunks worth `Balance`"]
             #[doc = "from the unlocking queue."]
             pub struct Withdrawn {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub amount: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for Withdrawn {
@@ -4979,8 +5087,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A nominator has been kicked from a validator."]
             pub struct Kicked {
-                pub nominator: ::subxt::utils::AccountId32,
-                pub stash: ::subxt::utils::AccountId32,
+                pub nominator: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Kicked {
                 const PALLET: &'static str = "Staking";
@@ -5018,7 +5126,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An account has stopped participating as either a validator or nominator."]
             pub struct Chilled {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Chilled {
                 const PALLET: &'static str = "Staking";
@@ -5039,7 +5147,8 @@ pub mod api {
             #[doc = "The stakers' rewards are getting paid."]
             pub struct PayoutStarted {
                 pub era_index: ::core::primitive::u32,
-                pub validator_stash: ::subxt::utils::AccountId32,
+                pub validator_stash:
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for PayoutStarted {
                 const PALLET: &'static str = "Staking";
@@ -5059,7 +5168,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A validator has set their preferences."]
             pub struct ValidatorPrefsSet {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub prefs: runtime_types::pallet_staking::ValidatorPrefs,
             }
             impl ::subxt::events::StaticEvent for ValidatorPrefsSet {
@@ -5140,7 +5249,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -5161,10 +5272,12 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn bonded(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     ::subxt::storage::address::Yes,
                     (),
                     ::subxt::storage::address::Yes,
@@ -5189,7 +5302,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     (),
                     (),
                     ::subxt::storage::address::Yes,
@@ -5294,7 +5407,9 @@ pub mod api {
                 #[doc = " Map from all (unlocked) \"controller\" accounts to the info regarding the staking."]
                 pub fn ledger(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::StakingLedger,
@@ -5343,10 +5458,14 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn payee(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::pallet_staking::RewardDestination<::subxt::utils::AccountId32>,
+                    runtime_types::pallet_staking::RewardDestination<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -5372,7 +5491,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::pallet_staking::RewardDestination<::subxt::utils::AccountId32>,
+                    runtime_types::pallet_staking::RewardDestination<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     (),
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -5394,7 +5515,9 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn validators(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::ValidatorPrefs,
@@ -5504,7 +5627,9 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn nominators(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::Nominations,
@@ -5720,11 +5845,13 @@ pub mod api {
                 pub fn eras_stakers(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
-                    _1: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _1: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::Exposure<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     ::subxt::storage::address::Yes,
@@ -5756,7 +5883,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::Exposure<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     (),
@@ -5788,11 +5915,13 @@ pub mod api {
                 pub fn eras_stakers_clipped(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
-                    _1: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _1: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::Exposure<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     ::subxt::storage::address::Yes,
@@ -5830,7 +5959,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::Exposure<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     (),
@@ -5857,7 +5986,9 @@ pub mod api {
                 pub fn eras_validator_prefs(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
-                    _1: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _1: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::ValidatorPrefs,
@@ -5962,7 +6093,9 @@ pub mod api {
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::pallet_staking::EraRewardPoints<::subxt::utils::AccountId32>,
+                    runtime_types::pallet_staking::EraRewardPoints<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -5986,7 +6119,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::pallet_staking::EraRewardPoints<::subxt::utils::AccountId32>,
+                    runtime_types::pallet_staking::EraRewardPoints<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     (),
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -6124,7 +6259,7 @@ pub mod api {
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::std::vec::Vec<
                         runtime_types::pallet_staking::UnappliedSlash<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             ::core::primitive::u128,
                         >,
                     >,
@@ -6152,7 +6287,7 @@ pub mod api {
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::std::vec::Vec<
                         runtime_types::pallet_staking::UnappliedSlash<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             ::core::primitive::u128,
                         >,
                     >,
@@ -6201,7 +6336,9 @@ pub mod api {
                 pub fn validator_slash_in_era(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
-                    _1: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _1: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     (
@@ -6257,7 +6394,9 @@ pub mod api {
                 pub fn nominator_slash_in_era(
                     &self,
                     _0: impl ::std::borrow::Borrow<::core::primitive::u32>,
-                    _1: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _1: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::core::primitive::u128,
@@ -6303,7 +6442,9 @@ pub mod api {
                 #[doc = " Slashing spans for stash accounts."]
                 pub fn slashing_spans(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_staking::slashing::SlashingSpans,
@@ -6349,7 +6490,9 @@ pub mod api {
                 #[doc = " as well as how much reward has been paid out."]
                 pub fn span_slash(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     _1: impl ::std::borrow::Borrow<::core::primitive::u32>,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
@@ -6817,7 +6960,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -6885,7 +7030,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::std::vec::Vec<(
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         runtime_types::aleph_runtime::SessionKeys,
                     )>,
                     ::subxt::storage::address::Yes,
@@ -6933,7 +7078,9 @@ pub mod api {
                 #[doc = " The next session keys for a validator."]
                 pub fn next_keys(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::aleph_runtime::SessionKeys,
@@ -6982,7 +7129,7 @@ pub mod api {
                     _1: impl ::std::borrow::Borrow<[::core::primitive::u8]>,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     ::subxt::storage::address::Yes,
                     (),
                     ::subxt::storage::address::Yes,
@@ -7006,7 +7153,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     (),
                     (),
                     ::subxt::storage::address::Yes,
@@ -7205,10 +7352,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            110u8, 114u8, 124u8, 171u8, 83u8, 143u8, 21u8, 153u8, 23u8, 80u8,
-                            132u8, 240u8, 72u8, 123u8, 236u8, 103u8, 24u8, 50u8, 131u8, 41u8,
-                            185u8, 34u8, 131u8, 146u8, 192u8, 9u8, 56u8, 231u8, 210u8, 255u8, 38u8,
-                            229u8,
+                            0u8, 109u8, 108u8, 5u8, 224u8, 107u8, 19u8, 242u8, 104u8, 156u8, 112u8,
+                            167u8, 134u8, 77u8, 233u8, 116u8, 107u8, 92u8, 55u8, 121u8, 115u8,
+                            48u8, 110u8, 84u8, 57u8, 174u8, 6u8, 83u8, 218u8, 20u8, 61u8, 223u8,
                         ],
                     )
                 }
@@ -7217,7 +7363,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -7359,10 +7507,16 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ChangeValidators {
-                pub reserved_validators:
-                    ::core::option::Option<::std::vec::Vec<::subxt::utils::AccountId32>>,
-                pub non_reserved_validators:
-                    ::core::option::Option<::std::vec::Vec<::subxt::utils::AccountId32>>,
+                pub reserved_validators: ::core::option::Option<
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
+                >,
+                pub non_reserved_validators: ::core::option::Option<
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
+                >,
                 pub committee_size:
                     ::core::option::Option<runtime_types::primitives::CommitteeSeats>,
             }
@@ -7386,10 +7540,14 @@ pub mod api {
                 pub fn change_validators(
                     &self,
                     reserved_validators: ::core::option::Option<
-                        ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     >,
                     non_reserved_validators: ::core::option::Option<
-                        ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     >,
                     committee_size: ::core::option::Option<
                         runtime_types::primitives::CommitteeSeats,
@@ -7447,8 +7605,12 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Committee for the next era has changed"]
             pub struct ChangeValidators(
-                pub ::std::vec::Vec<::subxt::utils::AccountId32>,
-                pub ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub  ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
+                pub  ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub runtime_types::primitives::CommitteeSeats,
             );
             impl ::subxt::events::StaticEvent for ChangeValidators {
@@ -7508,7 +7670,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -7529,7 +7693,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::primitives::EraValidators<::subxt::utils::AccountId32>,
+                    runtime_types::primitives::EraValidators<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -7551,7 +7717,9 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
                     (),
@@ -7636,7 +7804,10 @@ pub mod api {
             pub struct ProposeSpend {
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
-                pub beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub beneficiary: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -7685,7 +7856,10 @@ pub mod api {
             pub struct Spend {
                 #[codec(compact)]
                 pub amount: ::core::primitive::u128,
-                pub beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub beneficiary: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -7714,7 +7888,10 @@ pub mod api {
                 pub fn propose_spend(
                     &self,
                     value: ::core::primitive::u128,
-                    beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    beneficiary: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<ProposeSpend> {
                     ::subxt::tx::Payload::new_static(
                         "Treasury",
@@ -7782,7 +7959,10 @@ pub mod api {
                 pub fn spend(
                     &self,
                     amount: ::core::primitive::u128,
-                    beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    beneficiary: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<Spend> {
                     ::subxt::tx::Payload::new_static(
                         "Treasury",
@@ -7890,7 +8070,7 @@ pub mod api {
             pub struct Awarded {
                 pub proposal_index: ::core::primitive::u32,
                 pub award: ::core::primitive::u128,
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Awarded {
                 const PALLET: &'static str = "Treasury";
@@ -7996,7 +8176,7 @@ pub mod api {
             pub struct SpendApproved {
                 pub proposal_index: ::core::primitive::u32,
                 pub amount: ::core::primitive::u128,
-                pub beneficiary: ::subxt::utils::AccountId32,
+                pub beneficiary: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for SpendApproved {
                 const PALLET: &'static str = "Treasury";
@@ -8057,7 +8237,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_treasury::Proposal<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     ::subxt::storage::address::Yes,
@@ -8083,7 +8263,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_treasury::Proposal<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ::core::primitive::u128,
                     >,
                     (),
@@ -8291,7 +8471,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct VestOther {
-                pub target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub target: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -8306,7 +8489,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct VestedTransfer {
-                pub target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub target: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                     ::core::primitive::u128,
                     ::core::primitive::u32,
@@ -8325,8 +8511,14 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ForceVestedTransfer {
-                pub source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub source: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub target: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                     ::core::primitive::u128,
                     ::core::primitive::u32,
@@ -8384,7 +8576,10 @@ pub mod api {
                 #[doc = "- `O(1)`."]
                 pub fn vest_other(
                     &self,
-                    target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    target: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<VestOther> {
                     ::subxt::tx::Payload::new_static(
                         "Vesting",
@@ -8413,7 +8608,10 @@ pub mod api {
                 #[doc = "- `O(1)`."]
                 pub fn vested_transfer(
                     &self,
-                    target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    target: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                         ::core::primitive::u128,
                         ::core::primitive::u32,
@@ -8447,8 +8645,14 @@ pub mod api {
                 #[doc = "- `O(1)`."]
                 pub fn force_vested_transfer(
                     &self,
-                    source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    source: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    target: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                         ::core::primitive::u128,
                         ::core::primitive::u32,
@@ -8530,7 +8734,7 @@ pub mod api {
             #[doc = "The amount vested has been updated. This could indicate a change in funds available."]
             #[doc = "The balance given is the amount which is left unvested (and thus locked)."]
             pub struct VestingUpdated {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub unvested: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for VestingUpdated {
@@ -8551,7 +8755,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "An \\[account\\] has become fully vested."]
             pub struct VestingCompleted {
-                pub account: ::subxt::utils::AccountId32,
+                pub account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for VestingCompleted {
                 const PALLET: &'static str = "Vesting";
@@ -8565,7 +8769,9 @@ pub mod api {
                 #[doc = " Information regarding the vesting of a given account."]
                 pub fn vesting(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::bounded_collections::bounded_vec::BoundedVec<
@@ -9114,7 +9320,9 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct AsMultiThreshold1 {
-                pub other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub other_signatories: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub call: ::std::boxed::Box<runtime_types::aleph_runtime::RuntimeCall>,
             }
             #[derive(
@@ -9131,7 +9339,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct AsMulti {
                 pub threshold: ::core::primitive::u16,
-                pub other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub other_signatories: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub maybe_timepoint: ::core::option::Option<
                     runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                 >,
@@ -9152,7 +9362,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ApproveAsMulti {
                 pub threshold: ::core::primitive::u16,
-                pub other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub other_signatories: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub maybe_timepoint: ::core::option::Option<
                     runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                 >,
@@ -9173,7 +9385,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct CancelAsMulti {
                 pub threshold: ::core::primitive::u16,
-                pub other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub other_signatories: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub timepoint: runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                 pub call_hash: [::core::primitive::u8; 32usize],
             }
@@ -9193,7 +9407,9 @@ pub mod api {
                 #[doc = "O(Z + C) where Z is the length of the call and C its execution weight."]
                 pub fn as_multi_threshold_1(
                     &self,
-                    other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    other_signatories: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     call: runtime_types::aleph_runtime::RuntimeCall,
                 ) -> ::subxt::tx::Payload<AsMultiThreshold1> {
                     ::subxt::tx::Payload::new_static(
@@ -9253,7 +9469,9 @@ pub mod api {
                 pub fn as_multi(
                     &self,
                     threshold: ::core::primitive::u16,
-                    other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    other_signatories: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     maybe_timepoint: ::core::option::Option<
                         runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                     >,
@@ -9310,7 +9528,9 @@ pub mod api {
                 pub fn approve_as_multi(
                     &self,
                     threshold: ::core::primitive::u16,
-                    other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    other_signatories: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     maybe_timepoint: ::core::option::Option<
                         runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                     >,
@@ -9359,7 +9579,9 @@ pub mod api {
                 pub fn cancel_as_multi(
                     &self,
                     threshold: ::core::primitive::u16,
-                    other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    other_signatories: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     timepoint: runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                     call_hash: [::core::primitive::u8; 32usize],
                 ) -> ::subxt::tx::Payload<CancelAsMulti> {
@@ -9399,8 +9621,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A new multisig operation has begun."]
             pub struct NewMultisig {
-                pub approving: ::subxt::utils::AccountId32,
-                pub multisig: ::subxt::utils::AccountId32,
+                pub approving: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub multisig: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub call_hash: [::core::primitive::u8; 32usize],
             }
             impl ::subxt::events::StaticEvent for NewMultisig {
@@ -9421,9 +9643,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A multisig operation has been approved by someone."]
             pub struct MultisigApproval {
-                pub approving: ::subxt::utils::AccountId32,
+                pub approving: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub timepoint: runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                pub multisig: ::subxt::utils::AccountId32,
+                pub multisig: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub call_hash: [::core::primitive::u8; 32usize],
             }
             impl ::subxt::events::StaticEvent for MultisigApproval {
@@ -9444,9 +9666,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A multisig operation has been executed."]
             pub struct MultisigExecuted {
-                pub approving: ::subxt::utils::AccountId32,
+                pub approving: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub timepoint: runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                pub multisig: ::subxt::utils::AccountId32,
+                pub multisig: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub call_hash: [::core::primitive::u8; 32usize],
                 pub result: ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
             }
@@ -9468,9 +9690,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A multisig operation has been cancelled."]
             pub struct MultisigCancelled {
-                pub cancelling: ::subxt::utils::AccountId32,
+                pub cancelling: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub timepoint: runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                pub multisig: ::subxt::utils::AccountId32,
+                pub multisig: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub call_hash: [::core::primitive::u8; 32usize],
             }
             impl ::subxt::events::StaticEvent for MultisigCancelled {
@@ -9485,14 +9707,16 @@ pub mod api {
                 #[doc = " The set of open multisig operations."]
                 pub fn multisigs(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                     _1: impl ::std::borrow::Borrow<[::core::primitive::u8; 32usize]>,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_multisig::Multisig<
                         ::core::primitive::u32,
                         ::core::primitive::u128,
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     ::subxt::storage::address::Yes,
                     (),
@@ -9520,7 +9744,7 @@ pub mod api {
                     runtime_types::pallet_multisig::Multisig<
                         ::core::primitive::u32,
                         ::core::primitive::u128,
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     (),
                     (),
@@ -9644,7 +9868,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetKey {
-                pub new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub new: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -9659,7 +9886,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SudoAs {
-                pub who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub who: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub call: ::std::boxed::Box<runtime_types::aleph_runtime::RuntimeCall>,
             }
             pub struct TransactionApi;
@@ -9723,7 +9953,10 @@ pub mod api {
                 #[doc = "- O(1)."]
                 pub fn set_key(
                     &self,
-                    new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    new: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<SetKey> {
                     ::subxt::tx::Payload::new_static(
                         "Sudo",
@@ -9745,7 +9978,10 @@ pub mod api {
                 #[doc = "- O(1)."]
                 pub fn sudo_as(
                     &self,
-                    who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    who: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     call: runtime_types::aleph_runtime::RuntimeCall,
                 ) -> ::subxt::tx::Payload<SudoAs> {
                     ::subxt::tx::Payload::new_static(
@@ -9803,7 +10039,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "The \\[sudoer\\] just switched identity; the old key is supplied if one existed."]
             pub struct KeyChanged {
-                pub old_sudoer: ::core::option::Option<::subxt::utils::AccountId32>,
+                pub old_sudoer: ::core::option::Option<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             impl ::subxt::events::StaticEvent for KeyChanged {
                 const PALLET: &'static str = "Sudo";
@@ -9840,7 +10078,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     ::subxt::storage::address::Yes,
                     (),
                     (),
@@ -9878,7 +10116,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct CallOldWeight {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
                 #[codec(compact)]
@@ -9979,7 +10220,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetCode {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub code_hash: ::subxt::utils::H256,
             }
             #[derive(
@@ -9995,7 +10239,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Call {
-                pub dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub dest: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub value: ::core::primitive::u128,
                 pub gas_limit: runtime_types::sp_weights::weight_v2::Weight,
@@ -10052,7 +10299,10 @@ pub mod api {
                 #[doc = "Deprecated version if [`Self::call`] for use in an in-storage `Call`."]
                 pub fn call_old_weight(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                     gas_limit: ::core::primitive::u64,
                     storage_deposit_limit: ::core::option::Option<
@@ -10212,7 +10462,10 @@ pub mod api {
                 #[doc = "this dispatchable."]
                 pub fn set_code(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     code_hash: ::subxt::utils::H256,
                 ) -> ::subxt::tx::Payload<SetCode> {
                     ::subxt::tx::Payload::new_static(
@@ -10245,7 +10498,10 @@ pub mod api {
                 #[doc = "a regular account will be created and any value will be transferred."]
                 pub fn call(
                     &self,
-                    dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    dest: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     value: ::core::primitive::u128,
                     gas_limit: runtime_types::sp_weights::weight_v2::Weight,
                     storage_deposit_limit: ::core::option::Option<
@@ -10380,8 +10636,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "Contract deployed by address at the specified address."]
             pub struct Instantiated {
-                pub deployer: ::subxt::utils::AccountId32,
-                pub contract: ::subxt::utils::AccountId32,
+                pub deployer: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Instantiated {
                 const PALLET: &'static str = "Contracts";
@@ -10406,8 +10662,8 @@ pub mod api {
             #[doc = "The only way for a contract to be removed and emitting this event is by calling"]
             #[doc = "`seal_terminate`."]
             pub struct Terminated {
-                pub contract: ::subxt::utils::AccountId32,
-                pub beneficiary: ::subxt::utils::AccountId32,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub beneficiary: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Terminated {
                 const PALLET: &'static str = "Contracts";
@@ -10447,7 +10703,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A custom event emitted by the contract."]
             pub struct ContractEmitted {
-                pub contract: ::subxt::utils::AccountId32,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub data: ::std::vec::Vec<::core::primitive::u8>,
             }
             impl ::subxt::events::StaticEvent for ContractEmitted {
@@ -10488,7 +10744,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A contract's code was updated."]
             pub struct ContractCodeUpdated {
-                pub contract: ::subxt::utils::AccountId32,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub new_code_hash: ::subxt::utils::H256,
                 pub old_code_hash: ::subxt::utils::H256,
             }
@@ -10516,8 +10772,8 @@ pub mod api {
             #[doc = "calls. This is because on failure all storage changes including events are"]
             #[doc = "rolled back."]
             pub struct Called {
-                pub caller: ::subxt::utils::AccountId32,
-                pub contract: ::subxt::utils::AccountId32,
+                pub caller: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for Called {
                 const PALLET: &'static str = "Contracts";
@@ -10543,7 +10799,7 @@ pub mod api {
             #[doc = "calls. This is because on failure all storage changes including events are"]
             #[doc = "rolled back."]
             pub struct DelegateCalled {
-                pub contract: ::subxt::utils::AccountId32,
+                pub contract: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub code_hash: ::subxt::utils::H256,
             }
             impl ::subxt::events::StaticEvent for DelegateCalled {
@@ -10748,7 +11004,9 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn contract_info_of(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_contracts::storage::ContractInfo,
@@ -11079,7 +11337,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Unbond {
-                pub member_account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub member_account: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 #[codec(compact)]
                 pub unbonding_points: ::core::primitive::u128,
             }
@@ -11112,7 +11373,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct WithdrawUnbonded {
-                pub member_account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub member_account: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub num_slashing_spans: ::core::primitive::u32,
             }
             #[derive(
@@ -11130,9 +11394,18 @@ pub mod api {
             pub struct Create {
                 #[codec(compact)]
                 pub amount: ::core::primitive::u128,
-                pub root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub root: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub nominator: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub bouncer: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -11149,9 +11422,18 @@ pub mod api {
             pub struct CreateWithPoolId {
                 #[codec(compact)]
                 pub amount: ::core::primitive::u128,
-                pub root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                pub bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub root: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub nominator: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
+                pub bouncer: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub pool_id: ::core::primitive::u32,
             }
             #[derive(
@@ -11168,7 +11450,9 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Nominate {
                 pub pool_id: ::core::primitive::u32,
-                pub validators: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                pub validators: ::std::vec::Vec<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -11243,12 +11527,15 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct UpdateRoles {
                 pub pool_id: ::core::primitive::u32,
-                pub new_root:
-                    runtime_types::pallet_nomination_pools::ConfigOp<::subxt::utils::AccountId32>,
-                pub new_nominator:
-                    runtime_types::pallet_nomination_pools::ConfigOp<::subxt::utils::AccountId32>,
-                pub new_bouncer:
-                    runtime_types::pallet_nomination_pools::ConfigOp<::subxt::utils::AccountId32>,
+                pub new_root: runtime_types::pallet_nomination_pools::ConfigOp<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
+                pub new_nominator: runtime_types::pallet_nomination_pools::ConfigOp<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
+                pub new_bouncer: runtime_types::pallet_nomination_pools::ConfigOp<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: CompactAs,
@@ -11279,7 +11566,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct BondExtraOther {
-                pub member: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub member: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub extra:
                     runtime_types::pallet_nomination_pools::BondExtra<::core::primitive::u128>,
             }
@@ -11311,7 +11601,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct ClaimPayoutOther {
-                pub other: ::subxt::utils::AccountId32,
+                pub other: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -11329,7 +11619,7 @@ pub mod api {
                 pub pool_id: ::core::primitive::u32,
                 pub new_commission: ::core::option::Option<(
                     runtime_types::sp_arithmetic::per_things::Perbill,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 )>,
             }
             #[derive(
@@ -11489,7 +11779,10 @@ pub mod api {
                 #[doc = "staking system."]
                 pub fn unbond(
                     &self,
-                    member_account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    member_account: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     unbonding_points: ::core::primitive::u128,
                 ) -> ::subxt::tx::Payload<Unbond> {
                     ::subxt::tx::Payload::new_static(
@@ -11553,7 +11846,10 @@ pub mod api {
                 #[doc = "If the target is the depositor, the pool will be destroyed."]
                 pub fn withdraw_unbonded(
                     &self,
-                    member_account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    member_account: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     num_slashing_spans: ::core::primitive::u32,
                 ) -> ::subxt::tx::Payload<WithdrawUnbonded> {
                     ::subxt::tx::Payload::new_static(
@@ -11591,9 +11887,18 @@ pub mod api {
                 pub fn create(
                     &self,
                     amount: ::core::primitive::u128,
-                    root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    root: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    nominator: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    bouncer: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<Create> {
                     ::subxt::tx::Payload::new_static(
                         "NominationPools",
@@ -11621,9 +11926,18 @@ pub mod api {
                 pub fn create_with_pool_id(
                     &self,
                     amount: ::core::primitive::u128,
-                    root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                    bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    root: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    nominator: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
+                    bouncer: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     pool_id: ::core::primitive::u32,
                 ) -> ::subxt::tx::Payload<CreateWithPoolId> {
                     ::subxt::tx::Payload::new_static(
@@ -11653,7 +11967,9 @@ pub mod api {
                 pub fn nominate(
                     &self,
                     pool_id: ::core::primitive::u32,
-                    validators: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                    validators: ::std::vec::Vec<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::tx::Payload<Nominate> {
                     ::subxt::tx::Payload::new_static(
                         "NominationPools",
@@ -11778,13 +12094,13 @@ pub mod api {
                     &self,
                     pool_id: ::core::primitive::u32,
                     new_root: runtime_types::pallet_nomination_pools::ConfigOp<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     new_nominator: runtime_types::pallet_nomination_pools::ConfigOp<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     new_bouncer: runtime_types::pallet_nomination_pools::ConfigOp<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                 ) -> ::subxt::tx::Payload<UpdateRoles> {
                     ::subxt::tx::Payload::new_static(
@@ -11837,7 +12153,10 @@ pub mod api {
                 #[doc = "`PermissionlessAll` or `PermissionlessCompound`."]
                 pub fn bond_extra_other(
                     &self,
-                    member: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    member: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     extra: runtime_types::pallet_nomination_pools::BondExtra<
                         ::core::primitive::u128,
                     >,
@@ -11886,7 +12205,7 @@ pub mod api {
                 #[doc = "for this call to be successful."]
                 pub fn claim_payout_other(
                     &self,
-                    other: ::subxt::utils::AccountId32,
+                    other: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 ) -> ::subxt::tx::Payload<ClaimPayoutOther> {
                     ::subxt::tx::Payload::new_static(
                         "NominationPools",
@@ -11909,7 +12228,7 @@ pub mod api {
                     pool_id: ::core::primitive::u32,
                     new_commission: ::core::option::Option<(
                         runtime_types::sp_arithmetic::per_things::Perbill,
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     )>,
                 ) -> ::subxt::tx::Payload<SetCommission> {
                     ::subxt::tx::Payload::new_static(
@@ -12017,7 +12336,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A pool has been created."]
             pub struct Created {
-                pub depositor: ::subxt::utils::AccountId32,
+                pub depositor: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub pool_id: ::core::primitive::u32,
             }
             impl ::subxt::events::StaticEvent for Created {
@@ -12038,7 +12357,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A member has became bonded in a pool."]
             pub struct Bonded {
-                pub member: ::subxt::utils::AccountId32,
+                pub member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub pool_id: ::core::primitive::u32,
                 pub bonded: ::core::primitive::u128,
                 pub joined: ::core::primitive::bool,
@@ -12061,7 +12380,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A payout has been made to a member."]
             pub struct PaidOut {
-                pub member: ::subxt::utils::AccountId32,
+                pub member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub pool_id: ::core::primitive::u32,
                 pub payout: ::core::primitive::u128,
             }
@@ -12093,7 +12412,7 @@ pub mod api {
             #[doc = "number of points that are issued in the unbonding pool will be less than the amount"]
             #[doc = "requested to be unbonded."]
             pub struct Unbonded {
-                pub member: ::subxt::utils::AccountId32,
+                pub member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub pool_id: ::core::primitive::u32,
                 pub balance: ::core::primitive::u128,
                 pub points: ::core::primitive::u128,
@@ -12122,7 +12441,7 @@ pub mod api {
             #[doc = "Similar to `Unbonded` event, in the absence of slashing, the ratio of point to balance"]
             #[doc = "will be 1."]
             pub struct Withdrawn {
-                pub member: ::subxt::utils::AccountId32,
+                pub member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub pool_id: ::core::primitive::u32,
                 pub balance: ::core::primitive::u128,
                 pub points: ::core::primitive::u128,
@@ -12190,7 +12509,7 @@ pub mod api {
             #[doc = "The removal can be voluntary (withdrawn all unbonded funds) or involuntary (kicked)."]
             pub struct MemberRemoved {
                 pub pool_id: ::core::primitive::u32,
-                pub member: ::subxt::utils::AccountId32,
+                pub member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for MemberRemoved {
                 const PALLET: &'static str = "NominationPools";
@@ -12211,9 +12530,15 @@ pub mod api {
             #[doc = "The roles of a pool have been updated to the given new roles. Note that the depositor"]
             #[doc = "can never change."]
             pub struct RolesUpdated {
-                pub root: ::core::option::Option<::subxt::utils::AccountId32>,
-                pub bouncer: ::core::option::Option<::subxt::utils::AccountId32>,
-                pub nominator: ::core::option::Option<::subxt::utils::AccountId32>,
+                pub root: ::core::option::Option<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
+                pub bouncer: ::core::option::Option<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
+                pub nominator: ::core::option::Option<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
             }
             impl ::subxt::events::StaticEvent for RolesUpdated {
                 const PALLET: &'static str = "NominationPools";
@@ -12279,7 +12604,7 @@ pub mod api {
                 pub pool_id: ::core::primitive::u32,
                 pub current: ::core::option::Option<(
                     runtime_types::sp_arithmetic::per_things::Perbill,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 )>,
             }
             impl ::subxt::events::StaticEvent for PoolCommissionUpdated {
@@ -12501,7 +12826,9 @@ pub mod api {
                 #[doc = " TWOX-NOTE: SAFE since `AccountId` is a secure hash."]
                 pub fn pool_members(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_nomination_pools::PoolMember,
@@ -12879,7 +13206,9 @@ pub mod api {
                 #[doc = " accounts are deterministically derived from it."]
                 pub fn reverse_pool_id_lookup(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::core::primitive::u32,
@@ -12949,7 +13278,9 @@ pub mod api {
                 #[doc = " Map from a pool member account to their opted claim permission."]
                 pub fn claim_permissions(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_nomination_pools::ClaimPermission,
@@ -13062,7 +13393,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct AddRegistrar {
-                pub account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub account: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13093,7 +13427,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SetSubs {
                 pub subs: ::std::vec::Vec<(
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     runtime_types::pallet_identity::types::Data,
                 )>,
             }
@@ -13177,7 +13511,10 @@ pub mod api {
             pub struct SetAccountId {
                 #[codec(compact)]
                 pub index: ::core::primitive::u32,
-                pub new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub new: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13213,7 +13550,10 @@ pub mod api {
             pub struct ProvideJudgement {
                 #[codec(compact)]
                 pub reg_index: ::core::primitive::u32,
-                pub target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub target: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub judgement:
                     runtime_types::pallet_identity::types::Judgement<::core::primitive::u128>,
                 pub identity: ::subxt::utils::H256,
@@ -13231,7 +13571,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct KillIdentity {
-                pub target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub target: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13246,7 +13589,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct AddSub {
-                pub sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub sub: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub data: runtime_types::pallet_identity::types::Data,
             }
             #[derive(
@@ -13262,7 +13608,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct RenameSub {
-                pub sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub sub: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
                 pub data: runtime_types::pallet_identity::types::Data,
             }
             #[derive(
@@ -13278,7 +13627,10 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct RemoveSub {
-                pub sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                pub sub: ::subxt::utils::MultiAddress<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                >,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13307,7 +13659,10 @@ pub mod api {
                 #[doc = "- `O(R)` where `R` registrar-count (governance-bounded and code-bounded)."]
                 pub fn add_registrar(
                     &self,
-                    account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    account: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<AddRegistrar> {
                     ::subxt::tx::Payload::new_static(
                         "Identity",
@@ -13370,7 +13725,7 @@ pub mod api {
                 pub fn set_subs(
                     &self,
                     subs: ::std::vec::Vec<(
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         runtime_types::pallet_identity::types::Data,
                     )>,
                 ) -> ::subxt::tx::Payload<SetSubs> {
@@ -13520,7 +13875,10 @@ pub mod api {
                 pub fn set_account_id(
                     &self,
                     index: ::core::primitive::u32,
-                    new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    new: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<SetAccountId> {
                     ::subxt::tx::Payload::new_static(
                         "Identity",
@@ -13582,7 +13940,10 @@ pub mod api {
                 pub fn provide_judgement(
                     &self,
                     reg_index: ::core::primitive::u32,
-                    target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    target: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     judgement: runtime_types::pallet_identity::types::Judgement<
                         ::core::primitive::u128,
                     >,
@@ -13624,7 +13985,10 @@ pub mod api {
                 #[doc = "  - where `X` additional-field-count (deposit-bounded and code-bounded)."]
                 pub fn kill_identity(
                     &self,
-                    target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    target: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<KillIdentity> {
                     ::subxt::tx::Payload::new_static(
                         "Identity",
@@ -13647,7 +14011,10 @@ pub mod api {
                 #[doc = "sub identity of `sub`."]
                 pub fn add_sub(
                     &self,
-                    sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    sub: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     data: runtime_types::pallet_identity::types::Data,
                 ) -> ::subxt::tx::Payload<AddSub> {
                     ::subxt::tx::Payload::new_static(
@@ -13668,7 +14035,10 @@ pub mod api {
                 #[doc = "sub identity of `sub`."]
                 pub fn rename_sub(
                     &self,
-                    sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    sub: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                     data: runtime_types::pallet_identity::types::Data,
                 ) -> ::subxt::tx::Payload<RenameSub> {
                     ::subxt::tx::Payload::new_static(
@@ -13692,7 +14062,10 @@ pub mod api {
                 #[doc = "sub identity of `sub`."]
                 pub fn remove_sub(
                     &self,
-                    sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                    sub: ::subxt::utils::MultiAddress<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        (),
+                    >,
                 ) -> ::subxt::tx::Payload<RemoveSub> {
                     ::subxt::tx::Payload::new_static(
                         "Identity",
@@ -13748,7 +14121,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A name was set or reset (which will remove all judgements)."]
             pub struct IdentitySet {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             impl ::subxt::events::StaticEvent for IdentitySet {
                 const PALLET: &'static str = "Identity";
@@ -13768,7 +14141,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A name was cleared, and the given balance returned."]
             pub struct IdentityCleared {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub deposit: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for IdentityCleared {
@@ -13789,7 +14162,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A name was removed and the given balance slashed."]
             pub struct IdentityKilled {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub deposit: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for IdentityKilled {
@@ -13810,7 +14183,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A judgement was asked from a registrar."]
             pub struct JudgementRequested {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub registrar_index: ::core::primitive::u32,
             }
             impl ::subxt::events::StaticEvent for JudgementRequested {
@@ -13831,7 +14204,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A judgement request was retracted."]
             pub struct JudgementUnrequested {
-                pub who: ::subxt::utils::AccountId32,
+                pub who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub registrar_index: ::core::primitive::u32,
             }
             impl ::subxt::events::StaticEvent for JudgementUnrequested {
@@ -13852,7 +14225,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A judgement was given by a registrar."]
             pub struct JudgementGiven {
-                pub target: ::subxt::utils::AccountId32,
+                pub target: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub registrar_index: ::core::primitive::u32,
             }
             impl ::subxt::events::StaticEvent for JudgementGiven {
@@ -13894,8 +14267,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A sub-identity was added to an identity and the deposit paid."]
             pub struct SubIdentityAdded {
-                pub sub: ::subxt::utils::AccountId32,
-                pub main: ::subxt::utils::AccountId32,
+                pub sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub deposit: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for SubIdentityAdded {
@@ -13916,8 +14289,8 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             #[doc = "A sub-identity was removed from an identity and the deposit freed."]
             pub struct SubIdentityRemoved {
-                pub sub: ::subxt::utils::AccountId32,
-                pub main: ::subxt::utils::AccountId32,
+                pub sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub deposit: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for SubIdentityRemoved {
@@ -13939,8 +14312,8 @@ pub mod api {
             #[doc = "A sub-identity was cleared, and the given deposit repatriated from the"]
             #[doc = "main identity account to the sub-identity account."]
             pub struct SubIdentityRevoked {
-                pub sub: ::subxt::utils::AccountId32,
-                pub main: ::subxt::utils::AccountId32,
+                pub sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub deposit: ::core::primitive::u128,
             }
             impl ::subxt::events::StaticEvent for SubIdentityRevoked {
@@ -13957,7 +14330,9 @@ pub mod api {
                 #[doc = " TWOX-NOTE: OK ― `AccountId` is a secure hash."]
                 pub fn identity_of(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_identity::types::Registration<::core::primitive::u128>,
@@ -14007,11 +14382,13 @@ pub mod api {
                 #[doc = " context. If the account is not some other account's sub-identity, then just `None`."]
                 pub fn super_of(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     (
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         runtime_types::pallet_identity::types::Data,
                     ),
                     ::subxt::storage::address::Yes,
@@ -14039,7 +14416,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     (
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         runtime_types::pallet_identity::types::Data,
                     ),
                     (),
@@ -14065,13 +14442,15 @@ pub mod api {
                 #[doc = " TWOX-NOTE: OK ― `AccountId` is a secure hash."]
                 pub fn subs_of(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     (
                         ::core::primitive::u128,
                         runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         >,
                     ),
                     ::subxt::storage::address::Yes,
@@ -14103,7 +14482,7 @@ pub mod api {
                     (
                         ::core::primitive::u128,
                         runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         >,
                     ),
                     (),
@@ -14133,7 +14512,7 @@ pub mod api {
                         ::core::option::Option<
                             runtime_types::pallet_identity::types::RegistrarInfo<
                                 ::core::primitive::u128,
-                                ::subxt::utils::AccountId32,
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             >,
                         >,
                     >,
@@ -14290,7 +14669,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct BanFromCommittee {
-                pub banned: ::subxt::utils::AccountId32,
+                pub banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 pub ban_reason: ::std::vec::Vec<::core::primitive::u8>,
             }
             #[derive(
@@ -14306,7 +14685,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct CancelBan {
-                pub banned: ::subxt::utils::AccountId32,
+                pub banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: CompactAs,
@@ -14356,7 +14735,7 @@ pub mod api {
                 #[doc = "Schedule a non-reserved node to be banned out from the committee at the end of the era"]
                 pub fn ban_from_committee(
                     &self,
-                    banned: ::subxt::utils::AccountId32,
+                    banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     ban_reason: ::std::vec::Vec<::core::primitive::u8>,
                 ) -> ::subxt::tx::Payload<BanFromCommittee> {
                     ::subxt::tx::Payload::new_static(
@@ -14373,7 +14752,7 @@ pub mod api {
                 #[doc = "Cancel the ban of the node"]
                 pub fn cancel_ban(
                     &self,
-                    banned: ::subxt::utils::AccountId32,
+                    banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 ) -> ::subxt::tx::Payload<CancelBan> {
                     ::subxt::tx::Payload::new_static(
                         "CommitteeManagement",
@@ -14442,7 +14821,7 @@ pub mod api {
             #[doc = "Validators have been banned from the committee"]
             pub struct BanValidators(
                 pub  ::std::vec::Vec<(
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     runtime_types::primitives::BanInfo,
                 )>,
             );
@@ -14479,7 +14858,9 @@ pub mod api {
                 #[doc = " A lookup how many blocks a validator produced."]
                 pub fn session_validator_block_count(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::core::primitive::u32,
@@ -14529,7 +14910,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_committee_management::ValidatorTotalRewards<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     ::subxt::storage::address::Yes,
                     (),
@@ -14570,7 +14951,9 @@ pub mod api {
                 #[doc = " A lookup for a number of underperformance sessions for a given validator"]
                 pub fn underperformed_validator_session_count(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::core::primitive::u32,
@@ -14617,7 +15000,9 @@ pub mod api {
                 #[doc = " Validators to be removed from non reserved list in the next era"]
                 pub fn banned(
                     &self,
-                    _0: impl ::std::borrow::Borrow<::subxt::utils::AccountId32>,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::primitives::BanInfo,
@@ -14665,7 +15050,7 @@ pub mod api {
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
                     runtime_types::pallet_committee_management::CurrentAndNextSessionValidators<
-                        ::subxt::utils::AccountId32,
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     >,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -14725,7 +15110,9 @@ pub mod api {
             pub enum OriginCaller {
                 #[codec(index = 0)]
                 system(
-                    runtime_types::frame_support::dispatch::RawOrigin<::subxt::utils::AccountId32>,
+                    runtime_types::frame_support::dispatch::RawOrigin<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
                 ),
                 #[codec(index = 1)]
                 Void(runtime_types::sp_core::Void),
@@ -15394,17 +15781,17 @@ pub mod api {
                     #[codec(index = 3)]
                     #[doc = "A new account was created."]
                     NewAccount {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 4)]
                     #[doc = "An account was reaped."]
                     KilledAccount {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 5)]
                     #[doc = "On on-chain remark happened."]
                     Remarked {
-                        sender: ::subxt::utils::AccountId32,
+                        sender: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         hash: ::subxt::utils::H256,
                     },
                 }
@@ -15569,7 +15956,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "The dispatch origin for this call must be `Signed` by the transactor."]
                     transfer_allow_death {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                     },
@@ -15581,7 +15971,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "WARNING: This call is DEPRECATED! Use `force_set_balance` instead."]
                     set_balance_deprecated {
-                        who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        who: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         new_free: ::core::primitive::u128,
                         #[codec(compact)]
@@ -15591,8 +15984,14 @@ pub mod api {
                     #[doc = "Exactly as `transfer_allow_death`, except the origin must be root and the source account"]
                     #[doc = "may be specified."]
                     force_transfer {
-                        source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        source: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                     },
@@ -15604,7 +16003,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "[`transfer_allow_death`]: struct.Pallet.html#method.transfer"]
                     transfer_keep_alive {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                     },
@@ -15625,7 +16027,10 @@ pub mod api {
                     #[doc = "  transfer everything except at least the existential deposit, which will guarantee to"]
                     #[doc = "  keep the sender account alive (true)."]
                     transfer_all {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         keep_alive: ::core::primitive::bool,
                     },
                     #[codec(index = 5)]
@@ -15633,7 +16038,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "Can only be called by ROOT."]
                     force_unreserve {
-                        who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        who: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 6)]
@@ -15646,14 +16054,19 @@ pub mod api {
                     #[doc = "be upgraded. (We let some not have to be upgraded just in order to allow for the"]
                     #[doc = "possibililty of churn)."]
                     upgrade_accounts {
-                        who: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        who: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     },
                     #[codec(index = 7)]
                     #[doc = "Alias for `transfer_allow_death`, provided only for name-wise compatibility."]
                     #[doc = ""]
                     #[doc = "WARNING: DEPRECATED! Will be released in approximately 3 months."]
                     transfer {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                     },
@@ -15662,7 +16075,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "The dispatch origin for this call is `root`."]
                     force_set_balance {
-                        who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        who: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         new_free: ::core::primitive::u128,
                     },
@@ -15729,47 +16145,47 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "An account was created with some free balance."]
                     Endowed {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         free_balance: ::core::primitive::u128,
                     },
                     #[codec(index = 1)]
                     #[doc = "An account was removed whose balance was non-zero but below ExistentialDeposit,"]
                     #[doc = "resulting in an outright loss."]
                     DustLost {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 2)]
                     #[doc = "Transfer succeeded."]
                     Transfer {
-                        from: ::subxt::utils::AccountId32,
-                        to: ::subxt::utils::AccountId32,
+                        from: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        to: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 3)]
                     #[doc = "A balance was set by root."]
                     BalanceSet {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         free: ::core::primitive::u128,
                     },
                     #[codec(index = 4)]
                     #[doc = "Some balance was reserved (moved from free to reserved)."]
                     Reserved {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 5)]
                     #[doc = "Some balance was unreserved (moved from reserved to free)."]
                     Unreserved {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 6)]
                     #[doc = "Some balance was moved from the reserve of the first account to the second account."]
                     #[doc = "Final argument indicates the destination balance type."]
                     ReserveRepatriated {
-                        from: ::subxt::utils::AccountId32,
-                        to: ::subxt::utils::AccountId32,
+                        from: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        to: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                         destination_status:
                             runtime_types::frame_support::traits::tokens::misc::BalanceStatus,
@@ -15777,48 +16193,50 @@ pub mod api {
                     #[codec(index = 7)]
                     #[doc = "Some amount was deposited (e.g. for transaction fees)."]
                     Deposit {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 8)]
                     #[doc = "Some amount was withdrawn from the account (e.g. for transaction fees)."]
                     Withdraw {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 9)]
                     #[doc = "Some amount was removed from the account (e.g. for misbehavior)."]
                     Slashed {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 10)]
                     #[doc = "Some amount was minted into an account."]
                     Minted {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 11)]
                     #[doc = "Some amount was burned from an account."]
                     Burned {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 12)]
                     #[doc = "Some amount was suspended from an account (it can be restored later)."]
                     Suspended {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 13)]
                     #[doc = "Some amount was restored into an account."]
                     Restored {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 14)]
                     #[doc = "An account was upgraded."]
-                    Upgraded { who: ::subxt::utils::AccountId32 },
+                    Upgraded {
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    },
                     #[codec(index = 15)]
                     #[doc = "Total issuance was increased by `amount`, creating a credit to be balanced."]
                     Issued { amount: ::core::primitive::u128 },
@@ -15828,25 +16246,25 @@ pub mod api {
                     #[codec(index = 17)]
                     #[doc = "Some balance was locked."]
                     Locked {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 18)]
                     #[doc = "Some balance was unlocked."]
                     Unlocked {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 19)]
                     #[doc = "Some balance was frozen."]
                     Frozen {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                     #[codec(index = 20)]
                     #[doc = "Some balance was thawed."]
                     Thawed {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         amount: ::core::primitive::u128,
                     },
                 }
@@ -15986,12 +16404,14 @@ pub mod api {
                     #[codec(index = 2)]
                     #[doc = "Schedule a non-reserved node to be banned out from the committee at the end of the era"]
                     ban_from_committee {
-                        banned: ::subxt::utils::AccountId32,
+                        banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         ban_reason: ::std::vec::Vec<::core::primitive::u8>,
                     },
                     #[codec(index = 3)]
                     #[doc = "Cancel the ban of the node"]
-                    cancel_ban { banned: ::subxt::utils::AccountId32 },
+                    cancel_ban {
+                        banned: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    },
                     #[codec(index = 4)]
                     #[doc = "Set lenient threshold"]
                     set_lenient_threshold {
@@ -16047,7 +16467,7 @@ pub mod api {
                     #[doc = "Validators have been banned from the committee"]
                     BanValidators(
                         ::std::vec::Vec<(
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             runtime_types::primitives::BanInfo,
                         )>,
                     ),
@@ -16106,7 +16526,10 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "Deprecated version if [`Self::call`] for use in an in-storage `Call`."]
                     call_old_weight {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                         #[codec(compact)]
@@ -16190,7 +16613,10 @@ pub mod api {
                     #[doc = "that the contract address is no longer derived from its code hash after calling"]
                     #[doc = "this dispatchable."]
                     set_code {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         code_hash: ::subxt::utils::H256,
                     },
                     #[codec(index = 6)]
@@ -16211,7 +16637,10 @@ pub mod api {
                     #[doc = "* If no account exists and the call value is not less than `existential_deposit`,"]
                     #[doc = "a regular account will be created and any value will be transferred."]
                     call {
-                        dest: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        dest: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         value: ::core::primitive::u128,
                         gas_limit: runtime_types::sp_weights::weight_v2::Weight,
@@ -16410,8 +16839,10 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "Contract deployed by address at the specified address."]
                     Instantiated {
-                        deployer: ::subxt::utils::AccountId32,
-                        contract: ::subxt::utils::AccountId32,
+                        deployer:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 1)]
                     #[doc = "Contract has been removed."]
@@ -16421,8 +16852,10 @@ pub mod api {
                     #[doc = "The only way for a contract to be removed and emitting this event is by calling"]
                     #[doc = "`seal_terminate`."]
                     Terminated {
-                        contract: ::subxt::utils::AccountId32,
-                        beneficiary: ::subxt::utils::AccountId32,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        beneficiary:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 2)]
                     #[doc = "Code with the specified hash has been stored."]
@@ -16430,7 +16863,8 @@ pub mod api {
                     #[codec(index = 3)]
                     #[doc = "A custom event emitted by the contract."]
                     ContractEmitted {
-                        contract: ::subxt::utils::AccountId32,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         data: ::std::vec::Vec<::core::primitive::u8>,
                     },
                     #[codec(index = 4)]
@@ -16439,7 +16873,8 @@ pub mod api {
                     #[codec(index = 5)]
                     #[doc = "A contract's code was updated."]
                     ContractCodeUpdated {
-                        contract: ::subxt::utils::AccountId32,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         new_code_hash: ::subxt::utils::H256,
                         old_code_hash: ::subxt::utils::H256,
                     },
@@ -16452,8 +16887,9 @@ pub mod api {
                     #[doc = "calls. This is because on failure all storage changes including events are"]
                     #[doc = "rolled back."]
                     Called {
-                        caller: ::subxt::utils::AccountId32,
-                        contract: ::subxt::utils::AccountId32,
+                        caller: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 7)]
                     #[doc = "A contract delegate called a code hash."]
@@ -16464,7 +16900,8 @@ pub mod api {
                     #[doc = "calls. This is because on failure all storage changes including events are"]
                     #[doc = "rolled back."]
                     DelegateCalled {
-                        contract: ::subxt::utils::AccountId32,
+                        contract:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         code_hash: ::subxt::utils::H256,
                     },
                 }
@@ -16711,7 +17148,9 @@ pub mod api {
                 )]
                 #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
                 #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
-                pub struct DepositAccount(pub ::subxt::utils::AccountId32);
+                pub struct DepositAccount(
+                    pub ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                );
             }
             pub mod wasm {
                 use super::runtime_types;
@@ -16746,7 +17185,7 @@ pub mod api {
                 #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
                 #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
                 pub struct OwnerInfo {
-                    pub owner: ::subxt::utils::AccountId32,
+                    pub owner: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     #[codec(compact)]
                     pub deposit: ::core::primitive::u128,
                     #[codec(compact)]
@@ -16798,10 +17237,16 @@ pub mod api {
                 pub enum Call {
                     #[codec(index = 0)]
                     change_validators {
-                        reserved_validators:
-                            ::core::option::Option<::std::vec::Vec<::subxt::utils::AccountId32>>,
-                        non_reserved_validators:
-                            ::core::option::Option<::std::vec::Vec<::subxt::utils::AccountId32>>,
+                        reserved_validators: ::core::option::Option<
+                            ::std::vec::Vec<
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            >,
+                        >,
+                        non_reserved_validators: ::core::option::Option<
+                            ::std::vec::Vec<
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            >,
+                        >,
                         committee_size:
                             ::core::option::Option<runtime_types::primitives::CommitteeSeats>,
                     },
@@ -16853,8 +17298,12 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "Committee for the next era has changed"]
                     ChangeValidators(
-                        ::std::vec::Vec<::subxt::utils::AccountId32>,
-                        ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
+                        ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                         runtime_types::primitives::CommitteeSeats,
                     ),
                 }
@@ -16890,7 +17339,10 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- `O(R)` where `R` registrar-count (governance-bounded and code-bounded)."]
                     add_registrar {
-                        account: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        account: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 1)]
                     #[doc = "Set an account's identity information and reserve the appropriate deposit."]
@@ -16929,7 +17381,7 @@ pub mod api {
                     #[doc = "  - where `S` subs-count (hard- and deposit-bounded)."]
                     set_subs {
                         subs: ::std::vec::Vec<(
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             runtime_types::pallet_identity::types::Data,
                         )>,
                     },
@@ -17027,7 +17479,10 @@ pub mod api {
                     set_account_id {
                         #[codec(compact)]
                         index: ::core::primitive::u32,
-                        new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        new: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 8)]
                     #[doc = "Set the field information for a registrar."]
@@ -17069,7 +17524,10 @@ pub mod api {
                     provide_judgement {
                         #[codec(compact)]
                         reg_index: ::core::primitive::u32,
-                        target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        target: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         judgement: runtime_types::pallet_identity::types::Judgement<
                             ::core::primitive::u128,
                         >,
@@ -17095,7 +17553,10 @@ pub mod api {
                     #[doc = "  - where `S` subs-count (hard- and deposit-bounded)."]
                     #[doc = "  - where `X` additional-field-count (deposit-bounded and code-bounded)."]
                     kill_identity {
-                        target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        target: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 11)]
                     #[doc = "Add the given account to the sender's subs."]
@@ -17106,7 +17567,10 @@ pub mod api {
                     #[doc = "The dispatch origin for this call must be _Signed_ and the sender must have a registered"]
                     #[doc = "sub identity of `sub`."]
                     add_sub {
-                        sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        sub: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         data: runtime_types::pallet_identity::types::Data,
                     },
                     #[codec(index = 12)]
@@ -17115,7 +17579,10 @@ pub mod api {
                     #[doc = "The dispatch origin for this call must be _Signed_ and the sender must have a registered"]
                     #[doc = "sub identity of `sub`."]
                     rename_sub {
-                        sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        sub: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         data: runtime_types::pallet_identity::types::Data,
                     },
                     #[codec(index = 13)]
@@ -17127,7 +17594,10 @@ pub mod api {
                     #[doc = "The dispatch origin for this call must be _Signed_ and the sender must have a registered"]
                     #[doc = "sub identity of `sub`."]
                     remove_sub {
-                        sub: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        sub: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 14)]
                     #[doc = "Remove the sender as a sub-account."]
@@ -17227,35 +17697,37 @@ pub mod api {
                 pub enum Event {
                     #[codec(index = 0)]
                     #[doc = "A name was set or reset (which will remove all judgements)."]
-                    IdentitySet { who: ::subxt::utils::AccountId32 },
+                    IdentitySet {
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    },
                     #[codec(index = 1)]
                     #[doc = "A name was cleared, and the given balance returned."]
                     IdentityCleared {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         deposit: ::core::primitive::u128,
                     },
                     #[codec(index = 2)]
                     #[doc = "A name was removed and the given balance slashed."]
                     IdentityKilled {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         deposit: ::core::primitive::u128,
                     },
                     #[codec(index = 3)]
                     #[doc = "A judgement was asked from a registrar."]
                     JudgementRequested {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         registrar_index: ::core::primitive::u32,
                     },
                     #[codec(index = 4)]
                     #[doc = "A judgement request was retracted."]
                     JudgementUnrequested {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         registrar_index: ::core::primitive::u32,
                     },
                     #[codec(index = 5)]
                     #[doc = "A judgement was given by a registrar."]
                     JudgementGiven {
-                        target: ::subxt::utils::AccountId32,
+                        target: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         registrar_index: ::core::primitive::u32,
                     },
                     #[codec(index = 6)]
@@ -17266,23 +17738,23 @@ pub mod api {
                     #[codec(index = 7)]
                     #[doc = "A sub-identity was added to an identity and the deposit paid."]
                     SubIdentityAdded {
-                        sub: ::subxt::utils::AccountId32,
-                        main: ::subxt::utils::AccountId32,
+                        sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         deposit: ::core::primitive::u128,
                     },
                     #[codec(index = 8)]
                     #[doc = "A sub-identity was removed from an identity and the deposit freed."]
                     SubIdentityRemoved {
-                        sub: ::subxt::utils::AccountId32,
-                        main: ::subxt::utils::AccountId32,
+                        sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         deposit: ::core::primitive::u128,
                     },
                     #[codec(index = 9)]
                     #[doc = "A sub-identity was cleared, and the given deposit repatriated from the"]
                     #[doc = "main identity account to the sub-identity account."]
                     SubIdentityRevoked {
-                        sub: ::subxt::utils::AccountId32,
-                        main: ::subxt::utils::AccountId32,
+                        sub: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        main: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         deposit: ::core::primitive::u128,
                     },
                 }
@@ -17553,7 +18025,9 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "O(Z + C) where Z is the length of the call and C its execution weight."]
                     as_multi_threshold_1 {
-                        other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        other_signatories: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                         call: ::std::boxed::Box<runtime_types::aleph_runtime::RuntimeCall>,
                     },
                     #[codec(index = 1)]
@@ -17598,7 +18072,9 @@ pub mod api {
                     #[doc = "  taken for its lifetime of `DepositBase + threshold * DepositFactor`."]
                     as_multi {
                         threshold: ::core::primitive::u16,
-                        other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        other_signatories: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                         maybe_timepoint: ::core::option::Option<
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                         >,
@@ -17638,7 +18114,9 @@ pub mod api {
                     #[doc = "  taken for its lifetime of `DepositBase + threshold * DepositFactor`."]
                     approve_as_multi {
                         threshold: ::core::primitive::u16,
-                        other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        other_signatories: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                         maybe_timepoint: ::core::option::Option<
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                         >,
@@ -17669,7 +18147,9 @@ pub mod api {
                     #[doc = "- Storage: removes one item."]
                     cancel_as_multi {
                         threshold: ::core::primitive::u16,
-                        other_signatories: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        other_signatories: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                         timepoint:
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
                         call_hash: [::core::primitive::u8; 32usize],
@@ -17749,26 +18229,32 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "A new multisig operation has begun."]
                     NewMultisig {
-                        approving: ::subxt::utils::AccountId32,
-                        multisig: ::subxt::utils::AccountId32,
+                        approving:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        multisig:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         call_hash: [::core::primitive::u8; 32usize],
                     },
                     #[codec(index = 1)]
                     #[doc = "A multisig operation has been approved by someone."]
                     MultisigApproval {
-                        approving: ::subxt::utils::AccountId32,
+                        approving:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         timepoint:
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                        multisig: ::subxt::utils::AccountId32,
+                        multisig:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         call_hash: [::core::primitive::u8; 32usize],
                     },
                     #[codec(index = 2)]
                     #[doc = "A multisig operation has been executed."]
                     MultisigExecuted {
-                        approving: ::subxt::utils::AccountId32,
+                        approving:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         timepoint:
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                        multisig: ::subxt::utils::AccountId32,
+                        multisig:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         call_hash: [::core::primitive::u8; 32usize],
                         result:
                             ::core::result::Result<(), runtime_types::sp_runtime::DispatchError>,
@@ -17776,10 +18262,12 @@ pub mod api {
                     #[codec(index = 3)]
                     #[doc = "A multisig operation has been cancelled."]
                     MultisigCancelled {
-                        cancelling: ::subxt::utils::AccountId32,
+                        cancelling:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         timepoint:
                             runtime_types::pallet_multisig::Timepoint<::core::primitive::u32>,
-                        multisig: ::subxt::utils::AccountId32,
+                        multisig:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         call_hash: [::core::primitive::u8; 32usize],
                     },
                 }
@@ -17909,8 +18397,10 @@ pub mod api {
                     #[doc = "in which case, the result of this call will likely be the `NoMoreChunks` error from the"]
                     #[doc = "staking system."]
                     unbond {
-                        member_account:
-                            ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        member_account: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         #[codec(compact)]
                         unbonding_points: ::core::primitive::u128,
                     },
@@ -17946,8 +18436,10 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "If the target is the depositor, the pool will be destroyed."]
                     withdraw_unbonded {
-                        member_account:
-                            ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        member_account: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         num_slashing_spans: ::core::primitive::u32,
                     },
                     #[codec(index = 6)]
@@ -17971,9 +18463,18 @@ pub mod api {
                     create {
                         #[codec(compact)]
                         amount: ::core::primitive::u128,
-                        root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        root: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        nominator: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        bouncer: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 7)]
                     #[doc = "Create a new delegation pool with a previously used pool id"]
@@ -17985,9 +18486,18 @@ pub mod api {
                     create_with_pool_id {
                         #[codec(compact)]
                         amount: ::core::primitive::u128,
-                        root: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        nominator: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        bouncer: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        root: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        nominator: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        bouncer: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         pool_id: ::core::primitive::u32,
                     },
                     #[codec(index = 8)]
@@ -18000,7 +18510,9 @@ pub mod api {
                     #[doc = "account."]
                     nominate {
                         pool_id: ::core::primitive::u32,
-                        validators: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                        validators: ::std::vec::Vec<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     },
                     #[codec(index = 9)]
                     #[doc = "Set a new state for the pool."]
@@ -18069,13 +18581,13 @@ pub mod api {
                     update_roles {
                         pool_id: ::core::primitive::u32,
                         new_root: runtime_types::pallet_nomination_pools::ConfigOp<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         >,
                         new_nominator: runtime_types::pallet_nomination_pools::ConfigOp<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         >,
                         new_bouncer: runtime_types::pallet_nomination_pools::ConfigOp<
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         >,
                     },
                     #[codec(index = 13)]
@@ -18098,7 +18610,10 @@ pub mod api {
                     #[doc = "`other` members assuming set_claim_permission for the given member is"]
                     #[doc = "`PermissionlessAll` or `PermissionlessCompound`."]
                     bond_extra_other {
-                        member: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        member: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         extra: runtime_types::pallet_nomination_pools::BondExtra<
                             ::core::primitive::u128,
                         >,
@@ -18124,7 +18639,9 @@ pub mod api {
                     #[doc = ""]
                     #[doc = "Pool member `other` must have a `PermissionlessAll` or `PermissionlessWithdraw` in order"]
                     #[doc = "for this call to be successful."]
-                    claim_payout_other { other: ::subxt::utils::AccountId32 },
+                    claim_payout_other {
+                        other: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    },
                     #[codec(index = 17)]
                     #[doc = "Set the commission of a pool."]
                     #[doc = "Both a commission percentage and a commission payee must be provided in the `current`"]
@@ -18135,7 +18652,7 @@ pub mod api {
                         pool_id: ::core::primitive::u32,
                         new_commission: ::core::option::Option<(
                             runtime_types::sp_arithmetic::per_things::Perbill,
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         )>,
                     },
                     #[codec(index = 18)]
@@ -18321,13 +18838,14 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "A pool has been created."]
                     Created {
-                        depositor: ::subxt::utils::AccountId32,
+                        depositor:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         pool_id: ::core::primitive::u32,
                     },
                     #[codec(index = 1)]
                     #[doc = "A member has became bonded in a pool."]
                     Bonded {
-                        member: ::subxt::utils::AccountId32,
+                        member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         pool_id: ::core::primitive::u32,
                         bonded: ::core::primitive::u128,
                         joined: ::core::primitive::bool,
@@ -18335,7 +18853,7 @@ pub mod api {
                     #[codec(index = 2)]
                     #[doc = "A payout has been made to a member."]
                     PaidOut {
-                        member: ::subxt::utils::AccountId32,
+                        member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         pool_id: ::core::primitive::u32,
                         payout: ::core::primitive::u128,
                     },
@@ -18352,7 +18870,7 @@ pub mod api {
                     #[doc = "number of points that are issued in the unbonding pool will be less than the amount"]
                     #[doc = "requested to be unbonded."]
                     Unbonded {
-                        member: ::subxt::utils::AccountId32,
+                        member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         pool_id: ::core::primitive::u32,
                         balance: ::core::primitive::u128,
                         points: ::core::primitive::u128,
@@ -18366,7 +18884,7 @@ pub mod api {
                     #[doc = "Similar to `Unbonded` event, in the absence of slashing, the ratio of point to balance"]
                     #[doc = "will be 1."]
                     Withdrawn {
-                        member: ::subxt::utils::AccountId32,
+                        member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         pool_id: ::core::primitive::u32,
                         balance: ::core::primitive::u128,
                         points: ::core::primitive::u128,
@@ -18386,15 +18904,21 @@ pub mod api {
                     #[doc = "The removal can be voluntary (withdrawn all unbonded funds) or involuntary (kicked)."]
                     MemberRemoved {
                         pool_id: ::core::primitive::u32,
-                        member: ::subxt::utils::AccountId32,
+                        member: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 8)]
                     #[doc = "The roles of a pool have been updated to the given new roles. Note that the depositor"]
                     #[doc = "can never change."]
                     RolesUpdated {
-                        root: ::core::option::Option<::subxt::utils::AccountId32>,
-                        bouncer: ::core::option::Option<::subxt::utils::AccountId32>,
-                        nominator: ::core::option::Option<::subxt::utils::AccountId32>,
+                        root: ::core::option::Option<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
+                        bouncer: ::core::option::Option<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
+                        nominator: ::core::option::Option<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     },
                     #[codec(index = 9)]
                     #[doc = "The active balance of pool `pool_id` has been slashed to `balance`."]
@@ -18415,7 +18939,7 @@ pub mod api {
                         pool_id: ::core::primitive::u32,
                         current: ::core::option::Option<(
                             runtime_types::sp_arithmetic::per_things::Perbill,
-                            ::subxt::utils::AccountId32,
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         )>,
                     },
                     #[codec(index = 12)]
@@ -18474,8 +18998,9 @@ pub mod api {
                 pub commission: runtime_types::pallet_nomination_pools::Commission,
                 pub member_counter: ::core::primitive::u32,
                 pub points: ::core::primitive::u128,
-                pub roles:
-                    runtime_types::pallet_nomination_pools::PoolRoles<::subxt::utils::AccountId32>,
+                pub roles: runtime_types::pallet_nomination_pools::PoolRoles<
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                >,
                 pub state: runtime_types::pallet_nomination_pools::PoolState,
             }
             #[derive(
@@ -18515,7 +19040,7 @@ pub mod api {
             pub struct Commission {
                 pub current: ::core::option::Option<(
                     runtime_types::sp_arithmetic::per_things::Perbill,
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 )>,
                 pub max: ::core::option::Option<runtime_types::sp_arithmetic::per_things::Perbill>,
                 pub change_rate: ::core::option::Option<
@@ -18998,12 +19523,14 @@ pub mod api {
                         #[doc = "NOTE: Two of the storage writes (`Self::bonded`, `Self::payee`) are _never_ cleaned"]
                         #[doc = "unless the `origin` falls below _existential deposit_ and gets removed as dust."]
                         bond {
-                            controller:
-                                ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                            controller: ::subxt::utils::MultiAddress<
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                                (),
+                            >,
                             #[codec(compact)]
                             value: ::core::primitive::u128,
                             payee: runtime_types::pallet_staking::RewardDestination<
-                                ::subxt::utils::AccountId32,
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             >,
                         },
                         #[codec(index = 1)]
@@ -19089,7 +19616,12 @@ pub mod api {
                         #[doc = "- Both the reads and writes follow a similar pattern."]
                         nominate {
                             targets: ::std::vec::Vec<
-                                ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                                ::subxt::utils::MultiAddress<
+                                    ::subxt::utils::Static<
+                                        ::subxt::ext::sp_core::crypto::AccountId32,
+                                    >,
+                                    (),
+                                >,
                             >,
                         },
                         #[codec(index = 6)]
@@ -19119,7 +19651,7 @@ pub mod api {
                         #[doc = "---------"]
                         set_payee {
                             payee: runtime_types::pallet_staking::RewardDestination<
-                                ::subxt::utils::AccountId32,
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             >,
                         },
                         #[codec(index = 8)]
@@ -19135,8 +19667,10 @@ pub mod api {
                         #[doc = "- Contains a limited number of reads."]
                         #[doc = "- Writes are limited to the `origin` account key."]
                         set_controller {
-                            controller:
-                                ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                            controller: ::subxt::utils::MultiAddress<
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                                (),
+                            >,
                         },
                         #[codec(index = 9)]
                         #[doc = "Sets the ideal number of validators."]
@@ -19208,14 +19742,17 @@ pub mod api {
                         #[doc = ""]
                         #[doc = "The dispatch origin must be Root."]
                         set_invulnerables {
-                            invulnerables: ::std::vec::Vec<::subxt::utils::AccountId32>,
+                            invulnerables: ::std::vec::Vec<
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            >,
                         },
                         #[codec(index = 15)]
                         #[doc = "Force a current staker to become completely unstaked, immediately."]
                         #[doc = ""]
                         #[doc = "The dispatch origin must be Root."]
                         force_unstake {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             num_slashing_spans: ::core::primitive::u32,
                         },
                         #[codec(index = 16)]
@@ -19252,7 +19789,8 @@ pub mod api {
                         #[doc = "## Complexity"]
                         #[doc = "- At most O(MaxNominatorRewardedPerValidator)."]
                         payout_stakers {
-                            validator_stash: ::subxt::utils::AccountId32,
+                            validator_stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             era: ::core::primitive::u32,
                         },
                         #[codec(index = 19)]
@@ -19281,7 +19819,8 @@ pub mod api {
                         #[doc = ""]
                         #[doc = "Refunds the transaction fees upon successful execution."]
                         reap_stash {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             num_slashing_spans: ::core::primitive::u32,
                         },
                         #[codec(index = 21)]
@@ -19298,7 +19837,12 @@ pub mod api {
                         #[doc = "block any further nominations."]
                         kick {
                             who: ::std::vec::Vec<
-                                ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                                ::subxt::utils::MultiAddress<
+                                    ::subxt::utils::Static<
+                                        ::subxt::ext::sp_core::crypto::AccountId32,
+                                    >,
+                                    (),
+                                >,
                             >,
                         },
                         #[codec(index = 22)]
@@ -19372,14 +19916,16 @@ pub mod api {
                         #[doc = "This can be helpful if bond requirements are updated, and we need to remove old users"]
                         #[doc = "who do not satisfy these requirements."]
                         chill_other {
-                            controller: ::subxt::utils::AccountId32,
+                            controller:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         },
                         #[codec(index = 24)]
                         #[doc = "Force a validator to have at least the minimum commission. This will not affect a"]
                         #[doc = "validator who already has a commission greater than or equal to the minimum. Any account"]
                         #[doc = "can call this."]
                         force_apply_min_commission {
-                            validator_stash: ::subxt::utils::AccountId32,
+                            validator_stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         },
                         #[codec(index = 25)]
                         #[doc = "Sets the minimum amount of commission that each validators must maintain."]
@@ -19529,20 +20075,23 @@ pub mod api {
                         #[codec(index = 1)]
                         #[doc = "The nominator has been rewarded by this amount."]
                         Rewarded {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             amount: ::core::primitive::u128,
                         },
                         #[codec(index = 2)]
                         #[doc = "A staker (validator or nominator) has been slashed by the given amount."]
                         Slashed {
-                            staker: ::subxt::utils::AccountId32,
+                            staker:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             amount: ::core::primitive::u128,
                         },
                         #[codec(index = 3)]
                         #[doc = "A slash for the given validator, for the given percentage of their stake, at the given"]
                         #[doc = "era as been reported."]
                         SlashReported {
-                            validator: ::subxt::utils::AccountId32,
+                            validator:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             fraction: runtime_types::sp_arithmetic::per_things::Perbill,
                             slash_era: ::core::primitive::u32,
                         },
@@ -19561,44 +20110,54 @@ pub mod api {
                         #[doc = "NOTE: This event is only emitted when funds are bonded via a dispatchable. Notably,"]
                         #[doc = "it will not be emitted for staking rewards when they are added to stake."]
                         Bonded {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             amount: ::core::primitive::u128,
                         },
                         #[codec(index = 7)]
                         #[doc = "An account has unbonded this amount."]
                         Unbonded {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             amount: ::core::primitive::u128,
                         },
                         #[codec(index = 8)]
                         #[doc = "An account has called `withdraw_unbonded` and removed unbonding chunks worth `Balance`"]
                         #[doc = "from the unlocking queue."]
                         Withdrawn {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             amount: ::core::primitive::u128,
                         },
                         #[codec(index = 9)]
                         #[doc = "A nominator has been kicked from a validator."]
                         Kicked {
-                            nominator: ::subxt::utils::AccountId32,
-                            stash: ::subxt::utils::AccountId32,
+                            nominator:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         },
                         #[codec(index = 10)]
                         #[doc = "The election failed. No new era is planned."]
                         StakingElectionFailed,
                         #[codec(index = 11)]
                         #[doc = "An account has stopped participating as either a validator or nominator."]
-                        Chilled { stash: ::subxt::utils::AccountId32 },
+                        Chilled {
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        },
                         #[codec(index = 12)]
                         #[doc = "The stakers' rewards are getting paid."]
                         PayoutStarted {
                             era_index: ::core::primitive::u32,
-                            validator_stash: ::subxt::utils::AccountId32,
+                            validator_stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         },
                         #[codec(index = 13)]
                         #[doc = "A validator has set their preferences."]
                         ValidatorPrefsSet {
-                            stash: ::subxt::utils::AccountId32,
+                            stash:
+                                ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                             prefs: runtime_types::pallet_staking::ValidatorPrefs,
                         },
                         #[codec(index = 14)]
@@ -19751,7 +20310,7 @@ pub mod api {
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct Nominations {
                 pub targets: runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                    ::subxt::utils::AccountId32,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 >,
                 pub submitted_in: ::core::primitive::u32,
                 pub suppressed: ::core::primitive::bool,
@@ -19793,7 +20352,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct StakingLedger {
-                pub stash: ::subxt::utils::AccountId32,
+                pub stash: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                 #[codec(compact)]
                 pub total: ::core::primitive::u128,
                 #[codec(compact)]
@@ -19910,7 +20469,10 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- O(1)."]
                     set_key {
-                        new: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        new: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 3)]
                     #[doc = "Authenticates the sudo key and dispatches a function call with `Signed` origin from"]
@@ -19921,7 +20483,10 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- O(1)."]
                     sudo_as {
-                        who: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        who: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         call: ::std::boxed::Box<runtime_types::aleph_runtime::RuntimeCall>,
                     },
                 }
@@ -19966,7 +20531,9 @@ pub mod api {
                     #[codec(index = 1)]
                     #[doc = "The \\[sudoer\\] just switched identity; the old key is supplied if one existed."]
                     KeyChanged {
-                        old_sudoer: ::core::option::Option<::subxt::utils::AccountId32>,
+                        old_sudoer: ::core::option::Option<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        >,
                     },
                     #[codec(index = 2)]
                     #[doc = "A sudo just took place. \\[result\\]"]
@@ -20040,7 +20607,7 @@ pub mod api {
                     #[doc = "A transaction fee `actual_fee`, of which `tip` was added to the minimum inclusion fee,"]
                     #[doc = "has been paid by `who`."]
                     TransactionFeePaid {
-                        who: ::subxt::utils::AccountId32,
+                        who: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         actual_fee: ::core::primitive::u128,
                         tip: ::core::primitive::u128,
                     },
@@ -20106,7 +20673,10 @@ pub mod api {
                     propose_spend {
                         #[codec(compact)]
                         value: ::core::primitive::u128,
-                        beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        beneficiary: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 1)]
                     #[doc = "Reject a proposed spend. The original deposit will be slashed."]
@@ -20143,7 +20713,10 @@ pub mod api {
                     spend {
                         #[codec(compact)]
                         amount: ::core::primitive::u128,
-                        beneficiary: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        beneficiary: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 4)]
                     #[doc = "Force a previously approved proposal to be removed from the approval queue."]
@@ -20224,7 +20797,7 @@ pub mod api {
                     Awarded {
                         proposal_index: ::core::primitive::u32,
                         award: ::core::primitive::u128,
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 3)]
                     #[doc = "A proposal was rejected; funds were slashed."]
@@ -20250,7 +20823,8 @@ pub mod api {
                     SpendApproved {
                         proposal_index: ::core::primitive::u32,
                         amount: ::core::primitive::u128,
-                        beneficiary: ::subxt::utils::AccountId32,
+                        beneficiary:
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                     #[codec(index = 8)]
                     #[doc = "The inactive funds of the pallet have been updated."]
@@ -20498,7 +21072,10 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- `O(1)`."]
                     vest_other {
-                        target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        target: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                     },
                     #[codec(index = 2)]
                     #[doc = "Create a vested transfer."]
@@ -20515,7 +21092,10 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- `O(1)`."]
                     vested_transfer {
-                        target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        target: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                             ::core::primitive::u128,
                             ::core::primitive::u32,
@@ -20537,8 +21117,14 @@ pub mod api {
                     #[doc = "## Complexity"]
                     #[doc = "- `O(1)`."]
                     force_vested_transfer {
-                        source: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
-                        target: ::subxt::utils::MultiAddress<::subxt::utils::AccountId32, ()>,
+                        source: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
+                        target: ::subxt::utils::MultiAddress<
+                            ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                            (),
+                        >,
                         schedule: runtime_types::pallet_vesting::vesting_info::VestingInfo<
                             ::core::primitive::u128,
                             ::core::primitive::u32,
@@ -20620,13 +21206,13 @@ pub mod api {
                     #[doc = "The amount vested has been updated. This could indicate a change in funds available."]
                     #[doc = "The balance given is the amount which is left unvested (and thus locked)."]
                     VestingUpdated {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                         unvested: ::core::primitive::u128,
                     },
                     #[codec(index = 1)]
                     #[doc = "An \\[account\\] has become fully vested."]
                     VestingCompleted {
-                        account: ::subxt::utils::AccountId32,
+                        account: ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
                     },
                 }
             }

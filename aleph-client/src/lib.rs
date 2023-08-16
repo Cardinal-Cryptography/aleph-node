@@ -22,8 +22,12 @@ pub use subxt::ext::{
     sp_runtime,
 };
 use subxt::{
-    ext::sp_core::{ed25519, sr25519, H256},
-    OnlineClient, PolkadotConfig, SubstrateConfig,
+    config::{polkadot::PolkadotExtrinsicParams, substrate::SubstrateHeader},
+    ext::{
+        sp_core::{ed25519, sr25519, H256},
+        sp_runtime::{MultiAddress, MultiSignature},
+    },
+    Config, OnlineClient,
 };
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
@@ -59,7 +63,7 @@ pub type AlephKeyPair = ed25519::Pair;
 /// An alias for a type of a key pair that signs chain transactions.
 pub type RawKeyPair = sr25519::Pair;
 /// An alias for an account id type.
-pub type AccountId = subxt::utils::AccountId32;
+pub type AccountId = sp_runtime::AccountId32;
 /// An alias for a hash type.
 pub type CodeHash = H256;
 /// An alias for a block hash type.
@@ -75,8 +79,20 @@ pub use connections::{
 };
 
 /// An alias for a configuration of live chain, e.g. block index type, hash type.
-type AlephConfig = PolkadotConfig;
-type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<SubstrateConfig>;
+pub enum AlephConfig {}
+
+impl Config for AlephConfig {
+    type Index = u32;
+    type Hash = H256;
+    type AccountId = AccountId;
+    type Address = MultiAddress<Self::AccountId, u32>;
+    type Signature = MultiSignature;
+    type Hasher = subxt::config::substrate::BlakeTwo256;
+    type Header = SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;
+    type ExtrinsicParams = PolkadotExtrinsicParams<Self>;
+}
+
+type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 /// Used for signing extrinsic payload
@@ -156,10 +172,4 @@ where
     AccountId: From<<P as Pair>::Public>,
 {
     AccountId::from(keypair.public())
-}
-
-/// Converts an SS58Check address string to `AccountId`.
-/// * `ss58check` - &str with SS58Check address
-pub fn account_from_ss58check(ss58check: &str) -> Result<AccountId, PublicError> {
-    sp_runtime::AccountId32::from_ss58check(ss58check).map(|address| address.into())
 }

@@ -434,7 +434,8 @@ impl RootConnection {
         {
             Ok(Some(account)) => account,
             _ => return Err(anyhow!("Could not read sudo key from chain")),
-        };
+        }
+        .0;
 
         if root != *signer.account_id() {
             return Err(anyhow!(

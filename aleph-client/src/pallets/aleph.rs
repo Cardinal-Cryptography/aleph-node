@@ -102,7 +102,7 @@ impl AlephSudoApi for RootConnection {
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
         let call = Aleph(set_emergency_finalizer {
-            emergency_finalizer: Public(EdPublic(finalizer.0)),
+            emergency_finalizer: Public(EdPublic(finalizer.into())),
         });
         self.sudo_unchecked(call, status).await
     }

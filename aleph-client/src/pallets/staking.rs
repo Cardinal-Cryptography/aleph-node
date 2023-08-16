@@ -1,5 +1,9 @@
 use codec::Encode;
-use subxt::{ext::sp_runtime::Perbill as SPerbill, storage::StorageKey, utils::MultiAddress};
+use subxt::{
+    ext::sp_runtime::Perbill as SPerbill,
+    storage::StorageKey,
+    utils::{KeyedVec, MultiAddress, Static},
+};
 
 use crate::{
     api,
@@ -10,7 +14,8 @@ use crate::{
             ConfigOp,
             ConfigOp::{Noop, Set},
         },
-        EraRewardPoints, Exposure, RewardDestination, StakingLedger, ValidatorPrefs,
+        EraRewardPoints, Exposure, IndividualExposure, RewardDestination, StakingLedger,
+        ValidatorPrefs,
     },
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
@@ -250,13 +255,13 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
     }
 
     async fn get_bonded(&self, stash: AccountId, at: Option<BlockHash>) -> Option<AccountId> {
-        let addrs = api::storage().staking().bonded(stash);
+        let addrs = api::storage().staking().bonded(Static(stash));
 
-        self.get_storage_entry_maybe(&addrs, at).await
+        self.get_storage_entry_maybe(&addrs, at).await.map(|x| x.0)
     }
 
     async fn get_ledger(&self, controller: AccountId, at: Option<BlockHash>) -> StakingLedger {
-        let addrs = api::storage().staking().ledger(controller);
+        let addrs = api::storage().staking().ledger(Static(controller));
 
         self.get_storage_entry(&addrs, at).await
     }
@@ -273,9 +278,23 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
         account_id: &AccountId,
         at: Option<BlockHash>,
     ) -> Exposure<AccountId, Balance> {
-        let addrs = api::storage().staking().eras_stakers(era, account_id);
+        let addrs = api::storage()
+            .staking()
+            .eras_stakers(era, &Static(account_id.clone()));
 
-        self.get_storage_entry(&addrs, at).await
+        let exposure = self.get_storage_entry(&addrs, at).await;
+        Exposure {
+            total: exposure.total,
+            own: exposure.own,
+            others: exposure
+                .others
+                .into_iter()
+                .map(|x| IndividualExposure {
+                    who: x.who.0,
+                    value: x.value,
+                })
+                .collect(),
+        }
     }
 
     async fn get_era_reward_points(
@@ -285,7 +304,16 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
     ) -> Option<EraRewardPoints<AccountId>> {
         let addrs = api::storage().staking().eras_reward_points(era);
 
-        self.get_storage_entry_maybe(&addrs, at).await
+        self.get_storage_entry_maybe(&addrs, at)
+            .await
+            .map(|x| EraRewardPoints {
+                total: x.total,
+                individual: x
+                    .individual
+                    .into_iter()
+                    .map(|(k, v)| (k.0, v))
+                    .collect::<KeyedVec<AccountId, u32>>(),
+            })
     }
 
     async fn get_minimum_validator_count(&self, at: Option<BlockHash>) -> u32 {
@@ -313,7 +341,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().staking().bond(
-            MultiAddress::<AccountId, ()>::Id(controller_id),
+            MultiAddress::<Static<AccountId>, ()>::Id(Static(controller_id)),
             initial_stake,
             RewardDestination::Staked,
         );
@@ -342,7 +370,9 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
         era: EraIndex,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        let tx = api::tx().staking().payout_stakers(stash_account, era);
+        let tx = api::tx()
+            .staking()
+            .payout_stakers(Static(stash_account), era);
 
         self.send_tx(tx, status).await
     }
@@ -354,7 +384,7 @@ impl<S: SignedConnectionApi> StakingUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .staking()
-            .nominate(vec![MultiAddress::Id(nominee_account_id)]);
+            .nominate(vec![MultiAddress::Id(Static(nominee_account_id))]);
 
         self.send_tx(tx, status).await
     }
@@ -464,13 +494,13 @@ impl StakingApiExt for RootConnection {
             .iter()
             .map(|(s, c)| {
                 let b = Staking(bond {
-                    controller: MultiAddress::Id(c.clone()),
+                    controller: MultiAddress::Id(Static(c.clone())),
                     value: stake,
                     payee: RewardDestination::Staked,
                 });
 
                 Sudo(sudo_as {
-                    who: MultiAddress::Id(s.clone()),
+                    who: MultiAddress::Id(Static(s.clone())),
                     call: Box::new(b),
                 })
             })
@@ -488,10 +518,10 @@ impl StakingApiExt for RootConnection {
             .iter()
             .map(|(nominator, nominee)| {
                 let call = Staking(nominate {
-                    targets: vec![MultiAddress::Id(nominee.clone())],
+                    targets: vec![MultiAddress::Id(Static(nominee.clone()))],
                 });
                 Sudo(sudo_as {
-                    who: MultiAddress::Id(nominator.clone()),
+                    who: MultiAddress::Id(Static(nominator.clone())),
                     call: Box::new(call),
                 })
             })
