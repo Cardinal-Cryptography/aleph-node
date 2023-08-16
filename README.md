@@ -40,4 +40,3 @@ The code in this repository is licensed as follows:
 [aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
 [substrate-homepage]: https://substrate.io
 [build]: ./BUILD.md
-
