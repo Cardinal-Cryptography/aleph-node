@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, iter::empty};
+use std::{collections::HashSet, iter::empty};
 
 use aleph_client::{
     pallets::{
@@ -60,9 +60,9 @@ pub async fn get_and_test_members_for_session<C: AsConnection + Sync>(
         .chain(non_reserved_members_for_session)
         .collect();
 
-    let members_active_set: BTreeSet<_> = members_active.iter().cloned().collect();
+    let members_active_set: HashSet<_> = members_active.iter().cloned().collect();
     let block = connection.first_block_of_session(session).await?;
-    let network_members: BTreeSet<_> = connection.get_validators(block).await.into_iter().collect();
+    let network_members: HashSet<_> = connection.get_validators(block).await.into_iter().collect();
 
     debug!(
         "expected era validators for session {}: reserved - {:?}, non-reserved - {:?}",
