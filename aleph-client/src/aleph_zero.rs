@@ -405,9 +405,9 @@ pub mod api {
         let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
         if runtime_metadata_hash
             != [
-                114u8, 171u8, 247u8, 192u8, 118u8, 16u8, 133u8, 248u8, 177u8, 198u8, 174u8, 231u8,
-                29u8, 211u8, 171u8, 172u8, 206u8, 2u8, 175u8, 142u8, 203u8, 1u8, 93u8, 76u8, 247u8,
-                249u8, 127u8, 173u8, 49u8, 42u8, 102u8, 119u8,
+                157u8, 33u8, 139u8, 254u8, 212u8, 51u8, 42u8, 243u8, 224u8, 69u8, 168u8, 19u8,
+                50u8, 209u8, 89u8, 208u8, 205u8, 31u8, 46u8, 122u8, 39u8, 67u8, 204u8, 219u8,
+                138u8, 23u8, 66u8, 110u8, 67u8, 240u8, 129u8, 209u8,
             ]
         {
             Err(::subxt::error::MetadataError::IncompatibleMetadata)
@@ -416,10 +416,12 @@ pub mod api {
         }
     }
     pub mod system {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -1414,7 +1416,8 @@ pub mod api {
         }
     }
     pub mod randomness_collective_flip {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         pub mod storage {
             use super::runtime_types;
             pub struct StorageApi;
@@ -1449,10 +1452,12 @@ pub mod api {
         }
     }
     pub mod scheduler {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -2037,7 +2042,8 @@ pub mod api {
         }
     }
     pub mod aura {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         pub mod storage {
             use super::runtime_types;
             pub struct StorageApi;
@@ -2094,10 +2100,12 @@ pub mod api {
         }
     }
     pub mod timestamp {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -2220,10 +2228,12 @@ pub mod api {
         }
     }
     pub mod balances {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -3552,7 +3562,8 @@ pub mod api {
         }
     }
     pub mod transaction_payment {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "\n\t\t\tThe [event](https://docs.substrate.io/main-docs/build/events-errors/) emitted\n\t\t\tby this pallet.\n\t\t\t"]
         pub type Event = runtime_types::pallet_transaction_payment::pallet::Event;
         pub mod events {
@@ -3671,7 +3682,8 @@ pub mod api {
         }
     }
     pub mod authorship {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         pub mod storage {
             use super::runtime_types;
             pub struct StorageApi;
@@ -3702,10 +3714,12 @@ pub mod api {
         }
     }
     pub mod staking {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -6761,7 +6775,8 @@ pub mod api {
         }
     }
     pub mod history {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         pub mod storage {
             use super::runtime_types;
             pub struct StorageApi;
@@ -6836,10 +6851,12 @@ pub mod api {
         }
     }
     pub mod session {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -7173,10 +7190,12 @@ pub mod api {
         }
     }
     pub mod aleph {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -7352,9 +7371,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            0u8, 109u8, 108u8, 5u8, 224u8, 107u8, 19u8, 242u8, 104u8, 156u8, 112u8,
-                            167u8, 134u8, 77u8, 233u8, 116u8, 107u8, 92u8, 55u8, 121u8, 115u8,
-                            48u8, 110u8, 84u8, 57u8, 174u8, 6u8, 83u8, 218u8, 20u8, 61u8, 223u8,
+                            166u8, 158u8, 208u8, 112u8, 115u8, 241u8, 143u8, 106u8, 107u8, 9u8,
+                            132u8, 252u8, 121u8, 34u8, 201u8, 124u8, 129u8, 10u8, 146u8, 205u8,
+                            1u8, 250u8, 197u8, 94u8, 86u8, 47u8, 208u8, 3u8, 189u8, 135u8, 33u8,
+                            96u8,
                         ],
                     )
                 }
@@ -7489,10 +7509,12 @@ pub mod api {
         }
     }
     pub mod elections {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -7784,10 +7806,12 @@ pub mod api {
         }
     }
     pub mod treasury {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -8440,10 +8464,12 @@ pub mod api {
         }
     }
     pub mod vesting {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -8884,10 +8910,12 @@ pub mod api {
         }
     }
     pub mod utility {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -9302,10 +9330,12 @@ pub mod api {
         }
     }
     pub mod multisig {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -9819,10 +9849,12 @@ pub mod api {
         }
     }
     pub mod sudo {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -10098,10 +10130,12 @@ pub mod api {
         }
     }
     pub mod contracts {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -11273,10 +11307,12 @@ pub mod api {
         }
     }
     pub mod nomination_pools {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -13375,10 +13411,12 @@ pub mod api {
         }
     }
     pub mod identity {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Identity pallet declaration."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -14632,10 +14670,12 @@ pub mod api {
         }
     }
     pub mod committee_management {
-        use super::{root_mod, runtime_types};
+        use super::root_mod;
+        use super::runtime_types;
         #[doc = "Contains one variant per dispatchable that can be called by an extrinsic."]
         pub mod calls {
-            use super::{root_mod, runtime_types};
+            use super::root_mod;
+            use super::runtime_types;
             type DispatchError = runtime_types::sp_runtime::DispatchError;
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
