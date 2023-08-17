@@ -1,12 +1,13 @@
 ---
 name: E2E logic tests (Nightly pipeline)
 on:
-  schedule:
-    - cron: '00 23 * * *'
   # testing, remove
   push:
     branches:
-      - A0-2902
+      - 'A0-2902'
+  schedule:
+    - cron: '00 23 * * *'
+
 
 jobs:
   check-vars-and-secrets:
