@@ -22,7 +22,7 @@ pub use subxt::ext::{
     sp_runtime,
 };
 use subxt::{
-    config::substrate::{SubstrateExtrinsicParams, SubstrateHeader},
+    config::{polkadot::PolkadotExtrinsicParams, substrate::SubstrateHeader},
     ext::{
         sp_core::{ed25519, sr25519, H256},
         sp_runtime::{MultiAddress, MultiSignature},
@@ -88,10 +88,10 @@ impl Config for AlephConfig {
     type Signature = MultiSignature;
     type Hasher = subxt::config::substrate::BlakeTwo256;
     type Header = SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;
-    type ExtrinsicParams = SubstrateExtrinsicParams<Self>;
+    type ExtrinsicParams = PolkadotExtrinsicParams<Self>;
 }
 
-type ParamsBuilder = subxt::config::substrate::SubstrateExtrinsicParamsBuilder<AlephConfig>;
+type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
 /// Used for signing extrinsic payload
