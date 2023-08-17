@@ -84,7 +84,7 @@ jobs:
   build-synthetic-network-docker:
     if: inputs.build-synthetic-network-docker != false
     needs: [build-production-node-image]
-    name: Build docker image with the production node artifact and support for synthetic-network
+    name: Build synthetic-network image
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code

@@ -22,59 +22,14 @@ jobs:
     with:
       build-e2e-client: true
 
-  check-if-featurenet-ecr-image-exists:
-    name: Check if featurenet image exists
-    runs-on: ubuntu-20.04
-    needs: [check-vars-and-secrets]
-    outputs:
-      image-exists: ${{ steps.check-fe-ecr-image-exists.outputs.image-exists }}
-    steps:
-      - name: Checkout aleph-node
-        uses: actions/checkout@v3
-
-      - name: Call action get-ref-properties
-        id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
-
-      - name: Check if FE ECR image exists
-        id: check-fe-ecr-image-exists
-        env:
-          IMAGE_TAG: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}
-        run: |
-          ecr_image="${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${{ env.IMAGE_TAG }}"
-          image_not_exist=$(docker manifest inspect $ecr_image &> /dev/null ; echo $?)
-          if [[ $image_not_exist -eq 1 ]]; then
-            echo "image-exists=false" >> $GITHUB_OUTPUT
-          fi
-          echo "image-exists=true" >> $GITHUB_OUTPUT
-
   build-test-node-and-runtime:
     name: Build test node and runtime
-    needs: [check-if-featurenet-ecr-image-exists]
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == false
+    needs: [check-vars-and-secrets]
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
-  store-test-node-and-runtime:
-    name: Store test node and runtime in Devnet bucket
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false'
-    runs-on: ubuntu-20.04
-    needs: [build-test-node-and-runtime]
-    steps:
-      - name: Checkout aleph-node source code
-        uses: actions/checkout@v3
-
-      - name: Store test node and runtime
-        uses: ./.github/actions/store-node-and-runtime
-        with:
-          profile: test
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
-
   push-featurnet-node-image-to-ecr:
-    needs: [store-test-node-and-runtime]
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false'
+    needs: [build-test-node-and-runtime]
     name: Build and push PR test docker image to ECR
     uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
     secrets: inherit
