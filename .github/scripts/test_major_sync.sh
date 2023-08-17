@@ -12,6 +12,8 @@ fi
 echo 'Preparing environment'
 chmod +x "$ALEPH_NODE_BINARY"
 
+unzip res/workdir.zip -d /tmp
+
 pip install -r requirements.txt
 
 echo 'Running test'

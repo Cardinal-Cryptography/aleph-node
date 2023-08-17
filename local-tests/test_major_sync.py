@@ -17,12 +17,8 @@ phrases = [f'//{i}' for i in range(5)]
 keys = generate_keys(binary, phrases)
 all_accounts = list(keys.values())
 chain = Chain(workdir)
-printt('Bootstraping the chain with binary')
-chain.bootstrap(binary,
-                all_accounts,
-                nonvalidators=None,
-                sudo_account_id=keys[phrases[0]],
-                chain_type='local')
+
+chain.new(binary, all_accounts)
 
 chain.set_flags('no-mdns',
                 port=Seq(30334),
@@ -42,10 +38,8 @@ chain.set_flags_validator('validator')
 printt('Starting the chain')
 chain.start('aleph', nodes=[0, 1, 2, 3])
 
-# sleep 2h to produce around 5/6 * 7200 blocks > 3 * 1800 (max forest depth).
-printt('Waiting around 2 hours')
-sleep(2 * 3600)
-
+# sleep 1 min so the nodes 0-3 have some time to start up
+sleep(60)
 chain.start('aleph', nodes=[4])
 
 printt('Waiting around 3 mins')
