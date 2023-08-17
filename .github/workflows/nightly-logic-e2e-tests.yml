@@ -23,7 +23,7 @@ jobs:
 
   check-if-featurenet-ecr-image-exists:
     name: Check if featurenet image exists
-    runs-on: ubuntu:latest
+    runs-on: ubuntu-20.04
     needs: [check-vars-and-secrets]
     outputs:
       image-exists: ${{ steps.check-fe-ecr-image-exists.outputs.image-exists }}
