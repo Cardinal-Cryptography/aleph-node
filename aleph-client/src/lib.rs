@@ -22,12 +22,12 @@ pub use subxt::ext::{
     sp_runtime,
 };
 use subxt::{
-    config::{polkadot::PolkadotExtrinsicParams, substrate::SubstrateHeader},
+    config::polkadot::PolkadotExtrinsicParams,
     ext::{
         sp_core::{ed25519, sr25519, H256},
         sp_runtime::{MultiAddress, MultiSignature},
     },
-    Config, OnlineClient,
+    Config, OnlineClient, PolkadotConfig,
 };
 
 use crate::api::runtime_types::aleph_runtime::RuntimeCall as Call;
@@ -81,16 +81,15 @@ pub use connections::{
 pub enum AlephConfig {}
 
 impl Config for AlephConfig {
-    type Index = u32;
-    type Hash = H256;
+    type Index = <PolkadotConfig as Config>::Index;
+    type Hash = <PolkadotConfig as Config>::Hash;
     type AccountId = AccountId;
     type Address = MultiAddress<Self::AccountId, u32>;
     type Signature = MultiSignature;
-    type Hasher = subxt::config::substrate::BlakeTwo256;
-    type Header = SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;
+    type Hasher = <PolkadotConfig as Config>::Hasher;
+    type Header = <PolkadotConfig as Config>::Header;
     type ExtrinsicParams = PolkadotExtrinsicParams<Self>;
 }
-
 type ParamsBuilder = subxt::config::polkadot::PolkadotExtrinsicParamsBuilder<AlephConfig>;
 type PairSigner = subxt::tx::PairSigner<AlephConfig, RawKeyPair>;
 
