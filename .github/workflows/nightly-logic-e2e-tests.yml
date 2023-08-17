@@ -50,8 +50,8 @@ jobs:
 
   build-test-node-and-runtime:
     name: Build test node and runtime
-    if: ${{ needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false' }}
     needs: [check-if-featurenet-ecr-image-exists]
+    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == false
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
