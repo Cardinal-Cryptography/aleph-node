@@ -23,7 +23,7 @@ jobs:
 
   check-if-featurenet-ecr-image-exists:
     name: Check if featurenet image exists
-    runs-on: ubuntu-latest
+    runs-on: ubuntu:latest
     needs: [check-vars-and-secrets]
     outputs:
       image-exists: ${{ steps.check-fe-ecr-image-exists.outputs.image-exists }}
@@ -124,8 +124,14 @@ jobs:
 
       - name: Run finalization e2e test
         shell: bash
+        # yamllint disable rule:line-length
         run: |
-          docker run --network host -e NODE_URL="wss://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}.dev.azero.dev:443" -e TEST_CASES="finalization::finalization" -e RUST_LOG=info  aleph-e2e-client:latest
+          docker run --network host \
+            -e NODE_URL="wss://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}.dev.azero.dev:443" \
+            -e TEST_CASES="finalization::finalization" \
+            -e RUST_LOG=info \
+            aleph-e2e-client:latest
+        # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
         uses: ./.github/actions/delete-featurenet

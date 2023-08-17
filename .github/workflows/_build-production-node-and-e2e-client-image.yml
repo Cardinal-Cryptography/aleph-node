@@ -53,7 +53,7 @@ jobs:
   build-e2e-client-image:
     if: inputs.build-e2e-client != false
     name: Build e2e client image
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -83,7 +83,7 @@ jobs:
 
   build-synthetic-network-docker:
     if: inputs.build-synthetic-network-docker != false
-    needs: [build-production-node-image-and-e2e-client-image]
+    needs: [build-production-node-image]
     name: Build docker image with the production node artifact and support for synthetic-network
     runs-on: ubuntu-20.04
     steps:
