@@ -1,10 +1,7 @@
 ---
 name: E2E logic tests (Nightly pipeline)
 on:
-  # testing, remove
-  push:
-    branches:
-      - 'A0-2902'
+  workflow_dispatch:
   schedule:
     - cron: '00 23 * * *'
 
