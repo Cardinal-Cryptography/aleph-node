@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 subxt codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
-  | sed 's/::[ ]*subxt[ ]*::[ ]*utils[ ]*::[ ]*AccountId32/::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>/g' \
+  --substitute-type 'sp_core::crypto::AccountId32=::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>' \
   | rustfmt --edition=2021 --config-path aleph-node/rustfmt.toml > aleph_zero.rs;
 
 diff -y -W 200 --suppress-common-lines aleph_zero.rs aleph-node/aleph-client/src/aleph_zero.rs
