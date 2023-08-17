@@ -24,12 +24,26 @@ env:
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
+    if: >
+      (needs.changes.outputs.button == 'true' &&
+      github.event_name == 'push' &&
+      github.ref_name == 'main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   detect-contracts-changes:
     needs: [check-vars-and-secrets]
     name: Detect changes
+    if: >
+      (needs.changes.outputs.button == 'true' &&
+      github.event_name == 'push' &&
+      github.ref_name == 'main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == '[AZERO] DEPLOY-CONTRACTS')
     runs-on: ubuntu-20.04
     permissions:
       pull-requests: read
@@ -169,9 +183,9 @@ jobs:
           ref: main
 
       - name: KUSTOMIZE | Init kustomize
-        uses: imranismail/setup-kustomize@v1
+        uses: imranismail/setup-kustomize@v2
         with:
-          kustomize-version: '3.8.6'
+          kustomize-version: '4.4.1'
 
       - name: KUBECTL | Setup kubectl
         uses: azure/setup-kubectl@v3.2

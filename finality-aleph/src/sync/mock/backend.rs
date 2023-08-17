@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::{Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::{
     nodes::VERIFIER_CACHE_SIZE,
-    session::{SessionBoundaryInfo, SessionId, SessionPeriod},
+    session::{SessionBoundaryInfo, SessionId},
     sync::{
         mock::{MockBlock, MockHeader, MockIdentifier, MockJustification, MockNotification},
         Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, FinalizationStatus,
@@ -23,6 +23,7 @@ struct BackendStorage {
     session_boundary_info: SessionBoundaryInfo,
     blockchain: HashMap<MockIdentifier, MockBlock>,
     finalized: Vec<MockIdentifier>,
+    prune_candidates: HashSet<MockIdentifier>,
 }
 
 #[derive(Clone, Debug)]
@@ -35,14 +36,25 @@ fn is_predecessor(
     blockchain: &HashMap<MockIdentifier, MockBlock>,
     id: &MockIdentifier,
     maybe_predecessor: &MockIdentifier,
+    definitely_not: &HashSet<MockIdentifier>,
+    definitely: &HashSet<MockIdentifier>,
 ) -> bool {
     let mut header = blockchain.get(id).expect("should exist").header();
     while let Some(parent) = header.parent_id() {
         if header.id().number() != parent.number() + 1 {
             break;
         }
+        if parent.number() < maybe_predecessor.number() {
+            break;
+        }
         if &parent == maybe_predecessor {
             return true;
+        }
+        if definitely.contains(&parent) {
+            return true;
+        }
+        if definitely_not.contains(&parent) {
+            return false;
         }
         header = match blockchain.get(&parent) {
             Some(block) => block.header(),
@@ -53,14 +65,13 @@ fn is_predecessor(
 }
 
 impl Backend {
-    pub fn setup(session_period: usize) -> (Self, impl ChainStatusNotifier<MockHeader>) {
+    pub fn setup(
+        session_boundary_info: SessionBoundaryInfo,
+    ) -> (Self, impl ChainStatusNotifier<MockHeader>) {
         let (notification_sender, notification_receiver) = mpsc::unbounded();
 
         (
-            Backend::new(
-                notification_sender,
-                SessionBoundaryInfo::new(SessionPeriod(session_period as u32)),
-            ),
+            Backend::new(notification_sender, session_boundary_info),
             notification_receiver,
         )
     }
@@ -69,7 +80,8 @@ impl Backend {
         notification_sender: UnboundedSender<MockNotification>,
         session_boundary_info: SessionBoundaryInfo,
     ) -> Self {
-        let header = MockHeader::random_parentless(0);
+        // genesis has fixed hash to allow creating multiple compatible Backends
+        let header = MockHeader::genesis();
         let id = header.id();
 
         let block = MockBlock {
@@ -82,6 +94,7 @@ impl Backend {
             session_boundary_info,
             blockchain: HashMap::from([(id.clone(), block)]),
             finalized: vec![id],
+            prune_candidates: HashSet::new(),
         }));
 
         Self {
@@ -109,17 +122,26 @@ impl Backend {
             .header()
             .id();
         let mut storage = self.inner.lock();
-        let to_prune: Vec<_> = storage
-            .blockchain
-            .keys()
-            .filter(|id| {
-                !&storage.finalized.contains(id)
-                    && !is_predecessor(&storage.blockchain, id, top_finalized_id)
-            })
-            .cloned()
-            .collect();
+        let mut to_prune = HashSet::new();
+        let mut definitely_correct = HashSet::new();
+        for id in &storage.prune_candidates {
+            if storage.finalized.get(id.number() as usize) == Some(id)
+                || is_predecessor(
+                    &storage.blockchain,
+                    id,
+                    top_finalized_id,
+                    &to_prune,
+                    &definitely_correct,
+                )
+            {
+                definitely_correct.insert(id.clone());
+            } else {
+                to_prune.insert(id.clone());
+            }
+        }
         for id in to_prune {
             storage.blockchain.remove(&id);
+            storage.prune_candidates.remove(&id);
         }
     }
 }
@@ -175,7 +197,7 @@ impl Finalizer<MockJustification> for Backend {
                 storage.session_boundary_info.last_block_of_session(
                     storage
                         .session_boundary_info
-                        .session_id_from_block_num(id.number),
+                        .session_id_from_block_num(id.number + 1),
                 ),
             ],
             None => [
@@ -227,9 +249,13 @@ impl Finalizer<MockJustification> for Backend {
             panic!("finalizing a block that is not a child of top finalized.");
         }
 
+        for id in &blocks_to_finalize {
+            storage.prune_candidates.remove(id);
+        }
         storage.finalized.extend(blocks_to_finalize);
         std::mem::drop(storage);
         self.prune();
+
         self.notify_finalized(header);
 
         Ok(())
@@ -263,6 +289,7 @@ impl BlockImport<MockBlock> for Backend {
             return;
         }
 
+        storage.prune_candidates.insert(block.id());
         storage.blockchain.insert(block.id(), block.clone());
 
         self.notify_imported(block.header);

@@ -60,7 +60,6 @@ pub enum Interest<I: PeerId, J: Justification> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Error {
     HeaderMissingParentId,
-    HeaderNotRequired,
     IncorrectParentState,
     IncorrectVertexState,
     ParentNotImported,
@@ -72,7 +71,6 @@ impl Display for Error {
         use Error::*;
         match self {
             HeaderMissingParentId => write!(f, "header did not contain a parent ID"),
-            HeaderNotRequired => write!(f, "header was not required, but it should have been"),
             IncorrectParentState => write!(
                 f,
                 "parent was in a state incompatible with importing this block"
@@ -351,19 +349,6 @@ where
         }
     }
 
-    /// Updates the provided header only if the identifier was already required.
-    pub fn update_required_header(
-        &mut self,
-        header: &J::Header,
-        holder: Option<I>,
-    ) -> Result<(), Error> {
-        if matches!(self.request_interest(&header.id()), Interest::Uninterested) {
-            return Err(Error::HeaderNotRequired);
-        }
-        self.update_header(header, holder, true)?;
-        Ok(())
-    }
-
     /// Updates the vertex related to the provided header marking it as imported.
     /// Returns errors when it's impossible to do consistently.
     pub fn update_body(&mut self, header: &J::Header) -> Result<(), Error> {
@@ -556,21 +541,39 @@ where
             _ => false,
         }
     }
+
+    /// Whether this block should be skipped during importing.
+    /// It either needs to be already imported, or too old to be checked.
+    pub fn skippable(&self, id: &BlockIdFor<J>) -> bool {
+        use SpecialState::{BelowMinimal, HighestFinalized};
+        use VertexHandle::{Candidate, Special};
+        match self.get(id) {
+            Special(BelowMinimal | HighestFinalized) => true,
+            Candidate(vertex) => vertex.vertex.imported(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Error, Forest, Interest::*, MAX_DEPTH};
-    use crate::sync::{
-        data::BranchKnowledge::*,
-        mock::{Backend, MockHeader, MockJustification, MockPeerId},
-        ChainStatus, Header, Justification,
+    use crate::{
+        session::SessionBoundaryInfo,
+        sync::{
+            data::BranchKnowledge::*,
+            mock::{Backend, MockHeader, MockJustification, MockPeerId},
+            ChainStatus, Header, Justification,
+        },
+        SessionPeriod,
     };
 
     type MockForest = Forest<MockPeerId, MockJustification>;
 
+    const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));
+
     fn setup() -> (MockHeader, MockForest) {
-        let (backend, _) = Backend::setup(20);
+        let (backend, _) = Backend::setup(SESSION_BOUNDARY_INFO);
         let header = backend
             .top_finalized()
             .expect("should return genesis")
