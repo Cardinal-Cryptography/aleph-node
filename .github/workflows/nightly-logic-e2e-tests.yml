@@ -118,6 +118,7 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
 
+
   slack-notification:
     name: Slack notification
     runs-on: ubuntu-20.04
