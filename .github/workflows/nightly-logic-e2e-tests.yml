@@ -50,14 +50,14 @@ jobs:
 
   build-test-node-and-runtime:
     name: Build test node and runtime
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image_exists == 'false'
+    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false'
     needs: [check-if-featurenet-ecr-image-exists]
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     secrets: inherit
 
   store-test-node-and-runtime:
     name: Store test node and runtime in Devnet bucket
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image_exists == 'false'
+    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false'
     runs-on: ubuntu-20.04
     needs: [build-test-node-and-runtime]
     steps:
@@ -74,7 +74,7 @@ jobs:
 
   push-featurnet-node-image-to-ecr:
     needs: [store-test-node-and-runtime]
-    if: needs.check-if-featurenet-ecr-image-exists.outputs.image_exists == 'false'
+    if: needs.check-if-featurenet-ecr-image-exists.outputs.image-exists == 'false'
     name: Build and push PR test docker image to ECR
     uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
     secrets: inherit
