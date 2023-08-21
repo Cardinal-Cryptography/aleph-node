@@ -5,12 +5,10 @@ use std::{
 
 use futures::channel::mpsc;
 
-use crate::{Data, PeerId, PublicKey};
+use crate::{metrics::Metrics, Data, PeerId, PublicKey};
 
 mod direction;
 use direction::DirectedPeers;
-
-use crate::metrics::NetworkCliqueMetrics;
 
 /// Error during sending data through the Manager
 #[derive(Debug, PartialEq, Eq)]
@@ -76,7 +74,7 @@ impl<PK: PublicKey + PeerId> ManagerStatus<PK> {
         }
     }
 
-    pub fn update_metrics<M: NetworkCliqueMetrics>(&self, metrics: &M) {
+    pub fn update_metrics(&self, metrics: &Metrics) {
         metrics.set_incoming_connections(self.incoming_peers.len() as u64);
         metrics.set_missing_incoming_connections(self.missing_incoming.len() as u64);
         metrics.set_outgoing_connections(self.outgoing_peers.len() as u64);

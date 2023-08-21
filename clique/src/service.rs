@@ -5,12 +5,13 @@ use futures::{
     Future, StreamExt,
 };
 use log::{info, trace, warn};
+use substrate_prometheus_endpoint::Registry;
 use tokio::time;
 
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
-    metrics::NetworkCliqueMetrics,
+    metrics::Metrics,
     outgoing::outgoing,
     protocols::ResultForService,
     Data, Dialer, Listener, Network, PeerId, PublicKey, SecretKey, LOG_TARGET,
@@ -85,15 +86,8 @@ pub trait SpawnHandleT {
 }
 
 /// A service that has to be run for the clique network to work.
-pub struct Service<
-    SK: SecretKey,
-    D: Data,
-    A: Data,
-    ND: Dialer<A>,
-    NL: Listener,
-    SH: SpawnHandleT,
-    M: NetworkCliqueMetrics,
-> where
+pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
+where
     SK::PublicKey: PeerId,
 {
     commands_from_interface: mpsc::UnboundedReceiver<ServiceCommand<SK::PublicKey, D, A>>,
@@ -103,18 +97,11 @@ pub struct Service<
     listener: NL,
     spawn_handle: SH,
     secret_key: SK,
-    metrics: M,
+    metrics: Metrics,
 }
 
-impl<
-        SK: SecretKey,
-        D: Data,
-        A: Data + Debug,
-        ND: Dialer<A>,
-        NL: Listener,
-        SH: SpawnHandleT,
-        M: NetworkCliqueMetrics,
-    > Service<SK, D, A, ND, NL, SH, M>
+impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
+    Service<SK, D, A, ND, NL, SH>
 where
     SK::PublicKey: PeerId,
 {
@@ -124,12 +111,19 @@ where
         listener: NL,
         secret_key: SK,
         spawn_handle: SH,
-        metrics: M,
+        metrics_registry: Option<Registry>,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
         let (next_to_interface, next_from_service) = mpsc::unbounded();
+        let metrics = match Metrics::new(metrics_registry) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!(target: LOG_TARGET, "Failed to create metrics: {}", e);
+                Metrics::noop()
+            }
+        };
         (
             Self {
                 commands_from_interface,
