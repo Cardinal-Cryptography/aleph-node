@@ -53,8 +53,7 @@ fn spawn_peer(
     spawn_handle: Spawner,
 ) {
     let our_id = secret_key.public_key();
-    let (service, mut interface) =
-        Service::new(dialer, listener, secret_key, spawn_handle, None);
+    let (service, mut interface) = Service::new(dialer, listener, secret_key, spawn_handle, None);
     // run the service
     tokio::spawn(async {
         let (_exit, rx) = oneshot::channel();
