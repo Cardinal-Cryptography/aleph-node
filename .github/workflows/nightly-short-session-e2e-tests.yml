@@ -58,9 +58,9 @@ jobs:
             # add "" quotes
             sed -e 's/:$/"/g' -e 's/^/"/g' | \
             # swap newlines with command and a space
-            tr '\n' ', ' \
+            tr '\n' ', ' | \
             # but remove last trailing comma so it is valid JSON array
-            | sed 's/.$//')
+            sed 's/.$//')
           echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
 
   test-job-matrix:
