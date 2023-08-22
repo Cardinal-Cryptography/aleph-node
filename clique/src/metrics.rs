@@ -11,6 +11,17 @@ pub enum Metrics {
     Noop,
 }
 
+pub enum Event {
+    NewOutgoing,
+    NewIncoming,
+    DelOutgoing,
+    DelIncoming,
+    ConnectedOutgoing,
+    ConnectedIncoming,
+    DisconnectedOutgoing,
+    DisconnectedIncoming,
+}
+
 impl Metrics {
     pub fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
         match registry {
@@ -52,43 +63,37 @@ impl Metrics {
         Metrics::Noop
     }
 
-    pub fn set_incoming_connections(&self, present: u64) {
+    pub fn report_event(&self, event: Event) {
+        use Event::*;
         if let Metrics::Prometheus {
             incoming_connections,
-            ..
-        } = self
-        {
-            incoming_connections.set(present);
-        }
-    }
-
-    pub fn set_missing_incoming_connections(&self, missing: u64) {
-        if let Metrics::Prometheus {
-            missing_incoming_connections,
-            ..
-        } = self
-        {
-            missing_incoming_connections.set(missing);
-        }
-    }
-
-    pub fn set_outgoing_connections(&self, present: u64) {
-        if let Metrics::Prometheus {
             outgoing_connections,
-            ..
-        } = self
-        {
-            outgoing_connections.set(present);
-        }
-    }
-
-    pub fn set_missing_outgoing_connections(&self, missing: u64) {
-        if let Metrics::Prometheus {
+            missing_incoming_connections,
             missing_outgoing_connections,
-            ..
         } = self
         {
-            missing_outgoing_connections.set(missing);
+            match event {
+                NewIncoming => missing_incoming_connections.inc(),
+                NewOutgoing => missing_outgoing_connections.inc(),
+                DelIncoming => missing_incoming_connections.dec(),
+                DelOutgoing => missing_outgoing_connections.dec(),
+                ConnectedIncoming => {
+                    incoming_connections.inc();
+                    missing_incoming_connections.dec();
+                }
+                ConnectedOutgoing => {
+                    outgoing_connections.inc();
+                    missing_outgoing_connections.dec();
+                }
+                DisconnectedIncoming => {
+                    incoming_connections.dec();
+                    missing_incoming_connections.inc();
+                }
+                DisconnectedOutgoing => {
+                    outgoing_connections.dec();
+                    missing_outgoing_connections.inc();
+                }
+            }
         }
     }
 }

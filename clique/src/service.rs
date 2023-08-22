@@ -128,7 +128,7 @@ where
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(secret_key.public_key()),
+                manager: Manager::new(secret_key.public_key(), metrics.clone()),
                 dialer,
                 listener,
                 spawn_handle,
@@ -151,6 +151,7 @@ where
         let secret_key = self.secret_key.clone();
         let dialer = self.dialer.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
             .spawn("aleph/clique_network_outgoing", async move {
                 outgoing(
@@ -160,6 +161,7 @@ where
                     address,
                     result_for_parent,
                     next_to_interface,
+                    metrics,
                 )
                 .await;
             });
@@ -176,6 +178,7 @@ where
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
             .spawn("aleph/clique_network_incoming", async move {
                 incoming(
@@ -184,6 +187,7 @@ where
                     result_for_parent,
                     next_to_interface,
                     authorization_requests_sender,
+                    metrics,
                 )
                 .await;
             });
@@ -258,9 +262,7 @@ where
                 },
                 // periodically reporting what we are trying to do
                 _ = status_ticker.tick() => {
-                    let status_report = self.manager.status_report();
-                    status_report.update_metrics(&self.metrics);
-                    info!(target: LOG_TARGET, "Clique Network status: {}", status_report);
+                    info!(target: LOG_TARGET, "Clique Network status: {}", self.manager.status_report());
                 }
                 // received exit signal, stop the network
                 // all workers will be killed automatically after the manager gets dropped
