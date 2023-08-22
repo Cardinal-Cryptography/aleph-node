@@ -1,7 +1,11 @@
 ---
-name: E2E synthetic network tests (Nightly pipeline)
+name: Nightly pipeline normal session e2e tests
 
 on:
+  # temp, remove before merge
+  push:
+    branches:
+      - A0-2902-fix
   workflow_dispatch:
   schedule:
     - cron: '00 22 * * *'
@@ -45,6 +49,7 @@ jobs:
     with:
       build-production-node: true
       build-synthetic-network-docker: true
+      build-e2e-client-image: true
 
   run-e2e-high-out-latency:
     needs: [build-production-node-and-e2e-client-image]
@@ -78,7 +83,7 @@ jobs:
           path: target/release/
 
       - name: Run test
-        timeout-minutes: 130
+        timeout-minutes: 15
         env:
           ALEPH_NODE_BINARY: ../target/release/aleph-node
         run: ./.github/scripts/test_major_sync.sh
