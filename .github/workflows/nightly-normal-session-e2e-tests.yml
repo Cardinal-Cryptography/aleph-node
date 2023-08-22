@@ -2,10 +2,6 @@
 name: Nightly pipeline normal session e2e tests
 
 on:
-  # temp, remove before merge
-  push:
-    branches:
-      - A0-2902-fix
   workflow_dispatch:
   schedule:
     - cron: '00 22 * * *'
