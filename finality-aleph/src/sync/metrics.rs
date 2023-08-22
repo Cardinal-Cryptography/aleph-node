@@ -76,38 +76,37 @@ pub enum Metrics {
 
 impl Metrics {
     pub fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
-        match registry {
-            Some(registry) => {
-                let mut calls = HashMap::new();
-                let mut errors = HashMap::new();
-                for event in ALL_EVENTS {
-                    calls.insert(
-                        event,
-                        register(
-                            Counter::new(
-                                format!("aleph_sync_{}", event.name()),
-                                format!("number of times {} has been called", event.name()),
-                            )?,
-                            &registry,
-                        )?,
-                    );
-                }
-                for event in ERRORING_EVENTS {
-                    errors.insert(
-                        event,
-                        register(
-                            Counter::new(
-                                format!("aleph_sync_{}_error", event.name()),
-                                format!("number of times {} has returned an error", event.name()),
-                            )?,
-                            &registry,
-                        )?,
-                    );
-                }
-                Ok(Metrics::Prometheus { calls, errors })
-            }
-            None => Ok(Metrics::Noop),
+        let registry = match registry {
+            Some(registry) => registry,
+            None => return Ok(Metrics::Noop),
+        };
+        let mut calls = HashMap::new();
+        let mut errors = HashMap::new();
+        for event in ALL_EVENTS {
+            calls.insert(
+                event,
+                register(
+                    Counter::new(
+                        format!("aleph_sync_{}", event.name()),
+                        format!("number of times {} has been called", event.name()),
+                    )?,
+                    &registry,
+                )?,
+            );
         }
+        for event in ERRORING_EVENTS {
+            errors.insert(
+                event,
+                register(
+                    Counter::new(
+                        format!("aleph_sync_{}_error", event.name()),
+                        format!("number of times {} has returned an error", event.name()),
+                    )?,
+                    &registry,
+                )?,
+            );
+        }
+        Ok(Metrics::Prometheus { calls, errors })
     }
 
     pub fn noop() -> Self {
