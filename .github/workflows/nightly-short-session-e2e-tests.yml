@@ -71,10 +71,10 @@ jobs:
       matrix:
         testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
     steps:
-      name: echo
-      shell: bash
-      run: |
-        echo ${{ matrix.testcase }}
+      - name: echo
+        shell: bash
+        run: |
+          echo ${{ matrix.testcase }}
 
 
   build-test-node-and-runtime:
