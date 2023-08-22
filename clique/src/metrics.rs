@@ -2,19 +2,19 @@ use substrate_prometheus_endpoint::{register, Gauge, PrometheusError, Registry, 
 
 #[derive(Clone)]
 pub enum Metrics {
-    Noop,
-    Metrics {
+    Prometheus {
         incoming_connections: Gauge<U64>,
         missing_incoming_connections: Gauge<U64>,
         outgoing_connections: Gauge<U64>,
         missing_outgoing_connections: Gauge<U64>,
     },
+    Noop,
 }
 
 impl Metrics {
     pub fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
         match registry {
-            Some(registry) => Ok(Metrics::Metrics {
+            Some(registry) => Ok(Metrics::Prometheus {
                 incoming_connections: register(
                     Gauge::new(
                         "clique_network_incoming_connections",
@@ -53,7 +53,7 @@ impl Metrics {
     }
 
     pub fn set_incoming_connections(&self, present: u64) {
-        if let Metrics::Metrics {
+        if let Metrics::Prometheus {
             incoming_connections,
             ..
         } = self
@@ -63,7 +63,7 @@ impl Metrics {
     }
 
     pub fn set_missing_incoming_connections(&self, missing: u64) {
-        if let Metrics::Metrics {
+        if let Metrics::Prometheus {
             missing_incoming_connections,
             ..
         } = self
@@ -73,7 +73,7 @@ impl Metrics {
     }
 
     pub fn set_outgoing_connections(&self, present: u64) {
-        if let Metrics::Metrics {
+        if let Metrics::Prometheus {
             outgoing_connections,
             ..
         } = self
@@ -83,7 +83,7 @@ impl Metrics {
     }
 
     pub fn set_missing_outgoing_connections(&self, missing: u64) {
-        if let Metrics::Metrics {
+        if let Metrics::Prometheus {
             missing_outgoing_connections,
             ..
         } = self
