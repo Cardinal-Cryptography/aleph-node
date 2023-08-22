@@ -5,6 +5,7 @@ import re
 import requests
 import subprocess
 import time
+from jsonrpcclient import Error, Ok
 
 from substrateinterface import SubstrateInterface, Keypair
 
@@ -84,14 +85,37 @@ class Node:
             log = f.read()
         return re.findall(regexp, log)
 
+    def highest_hash(self):
+        highest_block = self.rpc('chain_getBlockHash', None)
+        match highest_block:
+            case Ok(result, id):
+                return result
+            case Error(code, message, data, id):
+                raise Exception(message)
+
+    def highest_finalized_hash(self):
+        highest_finalized = self.rpc('chain_getFinalizedHead', None)
+        match highest_finalized:
+            case Ok(result, id):
+                return result
+            case Error(code, message, data, id):
+                raise Exception(message)
+
+    def block_number(self, hash):
+        block = self.rpc('chain_getBlock', [hash])
+        match block:
+            case Ok(result, id):
+                return int(result['block']['header']['number'], 16)
+            case Error(code, message, data, id):
+                raise Exception(message)
+
     def highest_block(self):
-        """Find in the logs the height of the most recent block.
+        """Find the height of the most recent block.
         Return two ints: highest block and highest finalized block."""
-        results = self.greplog(r'best: #(\d+) .+ finalized #(\d+)')
-        if results:
-            a, b = results[-1]
-            return int(a), int(b)
-        return -1, -1
+        highest_block_hash = self.highest_hash()
+        highest_finalized_hash = self.highest_finalized_hash()
+        return self.block_number(highest_block_hash), self.block_number(highest_finalized_hash)
+
 
     def check_authorities(self):
         """Find in the logs the number of authorities this node is connected to.
