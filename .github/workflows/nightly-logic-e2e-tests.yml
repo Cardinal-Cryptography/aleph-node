@@ -1,6 +1,10 @@
 ---
 name: E2E logic tests (Nightly pipeline)
 on:
+  # tmp remove
+  push:
+    branches:
+      - A0-2902-run-all-e2e-in-matrix
   workflow_dispatch:
   schedule:
     - cron: '00 23 * * *'
@@ -21,6 +25,57 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
     with:
       build-e2e-client: true
+
+  get-e2e-test-case-names:
+    name: Get e2e test case names
+    runs-on: ubuntu-20.04
+    needs: [build-e2e-client-image]
+    outputs:
+      testcases: ${{ steps.get-testcases.outputs.testcases }}
+    steps:
+      - name: Download artifact with the test suite image
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-e2e-client
+
+      - name: Load test suite docker image
+        shell: bash
+        run: docker load -i aleph-e2e-client.tar
+
+      - name: Get testcases
+        shell: bash
+        id: get-testcases
+        run: |
+          testcases=$(docker run -it --entrypoint aleph-e2e-client aleph-e2e-client:latest \
+            # basically cargo test --list under the hood
+            --list | \
+            # filter by testcases (not benches)
+            grep "test::" | \
+            # remote test:: prefix
+            sed -e 's/test:://g' | \
+            # first column is testcase name
+            awk '{print $1;}' | \
+            # add "" quotes
+            sed -e 's/:$/"/g' -e 's/^/"/g' | \
+            # swap newlines with command and a space
+            tr '\n' ', ' \
+            # but remove last trailing comma so it is valid JSON array
+            | sed 's/.$//')
+          echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
+
+  test-job-matrix:
+    name: Tmp test output as json list
+    needs: [get-e2e-test-case-names]
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
+    steps:
+      name: echo
+      shell: bash
+      run: |
+        echo ${{ matrix.testcase }}
+
 
   build-test-node-and-runtime:
     name: Build test node and runtime
@@ -54,6 +109,13 @@ jobs:
     needs: [push-featurnet-node-image-to-ecr, build-e2e-client-image, store-test-node-and-runtime]
     name: Run e2e test on FE
     runs-on: [self-hosted, Linux, X64, large]
+#    strategy:
+#      fail-fast: false
+#      max-parallel: 10
+#      matrix:
+#        testcase:
+#          - finalization::finalization
+#          -
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
