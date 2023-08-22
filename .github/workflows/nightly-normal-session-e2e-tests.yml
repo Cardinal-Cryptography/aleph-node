@@ -49,7 +49,7 @@ jobs:
     with:
       build-production-node: true
       build-synthetic-network-docker: true
-      build-e2e-client-image: true
+      build-e2e-client: true
 
   run-e2e-high-out-latency:
     needs: [build-production-node-and-e2e-client-image]
