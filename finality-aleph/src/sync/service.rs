@@ -142,6 +142,7 @@ where
 
     fn broadcast(&mut self) {
         self.metrics.report_event(SyncEvent::Broadcast);
+        self.broadcast_ticker.reset();
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
@@ -455,7 +456,7 @@ where
                     Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
                 },
                 Some(task) = self.tasks.pop() => self.handle_task(task),
-                _ = self.broadcast_ticker.wait_and_tick() => self.broadcast(),
+                _ = self.broadcast_ticker.wait() => self.broadcast(),
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
