@@ -87,27 +87,24 @@ class Node:
 
     def highest_hash(self):
         highest_block = self.rpc('chain_getBlockHash', None)
-        match highest_block:
-            case Ok(result, id):
-                return result
-            case Error(code, message, data, id):
-                raise Exception(message)
+        if isinstance(highest_block, Ok):
+            return highest_block.result
+        else:
+            None
 
     def highest_finalized_hash(self):
         highest_finalized = self.rpc('chain_getFinalizedHead', None)
-        match highest_finalized:
-            case Ok(result, id):
-                return result
-            case Error(code, message, data, id):
-                raise Exception(message)
+        if isinstance(highest_finalized, Ok):
+            return highest_finalized.result
+        else:
+            None
 
     def block_number(self, hash):
         block = self.rpc('chain_getBlock', [hash])
-        match block:
-            case Ok(result, id):
-                return int(result['block']['header']['number'], 16)
-            case Error(code, message, data, id):
-                raise Exception(message)
+        if isinstance(block, Ok):
+            return int(block.result['block']['header']['number'], 16)
+        else:
+            None
 
     def highest_block(self):
         """Find the height of the most recent block.
