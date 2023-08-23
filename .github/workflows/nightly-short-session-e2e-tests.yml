@@ -47,19 +47,19 @@ jobs:
         id: get-testcases
         run: |
           testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:latest \
-            # basically cargo test --list under the hood
+            `# basically cargo test --list under the hood` \
             --list | \
-            # filter by testcases (not benches)
+            `# filter by testcases (not benches)` \
             grep "test::" | \
-            # remote test:: prefix
+            `# remote test:: prefix` \
             sed -e 's/test:://g' | \
-            # first column is testcase name
+            `# first column is testcase name` \
             awk '{print $1;}' | \
-            # add "" quotes
+            `# add "" quotes` \
             sed -e 's/:$/"/g' -e 's/^/"/g' | \
-            # swap newlines with command and a space
+            `# swap newlines with command and a space` \
             tr '\n' ', ' | \
-            # but remove last trailing comma so it is valid JSON array
+            `# but remove last trailing comma so it is valid JSON array` \
             sed 's/.$//')
           echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
 
