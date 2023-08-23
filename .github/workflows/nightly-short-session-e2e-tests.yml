@@ -63,19 +63,6 @@ jobs:
             sed 's/.$//')
           echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
 
-  test-job-matrix:
-    name: Tmp test output as json list
-    needs: [get-e2e-test-case-names]
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
-    steps:
-      - name: echo
-        shell: bash
-        run: |
-          echo ${{ matrix.testcase }}
-
   build-test-node-and-runtime:
     name: Build test node and runtime
     needs: [check-vars-and-secrets]
