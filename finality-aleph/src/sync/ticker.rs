@@ -1,5 +1,10 @@
 use tokio::time::{sleep, Duration, Instant};
 
+enum State {
+    Normal,
+    Rushed,
+}
+
 /// This struct is used for rate limiting as an on-demand ticker. It can be used for ticking
 /// at most after `max_timeout` but no sooner than after `min_timeout`.
 /// Example usage would be to use the `wait` method in main select loop and
@@ -7,7 +12,7 @@ use tokio::time::{sleep, Duration, Instant};
 /// resetting whenever the rate limited action actually occurs.
 pub struct Ticker {
     last_reset: Instant,
-    current_timeout: Duration,
+    state: State,
     max_timeout: Duration,
     min_timeout: Duration,
 }
@@ -20,47 +25,64 @@ impl Ticker {
         };
         Self {
             last_reset: Instant::now(),
-            current_timeout: max_timeout,
+            state: State::Normal,
             max_timeout,
             min_timeout,
         }
     }
 
     /// Returns whether at least `min_timeout` time elapsed since the last reset.
-    /// If it has not, the next call to `wait` will return when `min_timeout` elapses.
+    /// If it has not, the next call to `wait_and_tick` will return when `min_timeout` elapses.
     pub fn try_tick(&mut self) -> bool {
         let now = Instant::now();
         if now.saturating_duration_since(self.last_reset) >= self.min_timeout {
-            self.current_timeout = self.max_timeout;
+            self.state = State::Normal;
             true
         } else {
-            self.current_timeout = self.min_timeout;
+            self.state = State::Rushed;
             false
         }
     }
 
     /// Sleeps until next tick should happen.
     /// Returns when enough time elapsed.
-    /// Note that after `max_timeout` elapsed since the last reset this will return immediately.
+    /// Returns whether `max_timeout` elapsed since the last reset, and if so also resets.
     ///
     /// # Cancel safety
     ///
     /// This method is cancellation safe.
-    pub async fn wait(&mut self) {
+    pub async fn wait_and_tick(&mut self) -> bool {
         self.wait_current_timeout().await;
-        self.current_timeout = self.max_timeout;
+        match self.since_reset() > self.max_timeout {
+            true => {
+                self.reset();
+                true
+            }
+            false => {
+                self.state = State::Normal;
+                false
+            }
+        }
     }
 
     /// Reset the ticker, making it time from the moment of this call.
     /// Behaves as if it was just created with the same parametres.
     pub fn reset(&mut self) {
         self.last_reset = Instant::now();
-        self.current_timeout = self.max_timeout;
+        self.state = State::Normal;
+    }
+
+    fn since_reset(&self) -> Duration {
+        Instant::now().saturating_duration_since(self.last_reset)
     }
 
     async fn wait_current_timeout(&self) {
-        let since_last = Instant::now().saturating_duration_since(self.last_reset);
-        sleep(self.current_timeout.saturating_sub(since_last)).await;
+        let sleep_time = match self.state {
+            State::Normal => self.max_timeout,
+            State::Rushed => self.min_timeout,
+        }
+        .saturating_sub(self.since_reset());
+        sleep(sleep_time).await;
     }
 }
 
@@ -91,12 +113,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn wait() {
+    async fn plain_wait() {
         let mut ticker = setup_ticker();
 
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MIN_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(true));
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
     }
 
     #[tokio::test]
@@ -107,8 +135,11 @@ mod tests {
         sleep(MIN_TIMEOUT).await;
         assert!(ticker.try_tick());
 
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(true));
     }
 
     #[tokio::test]
@@ -117,36 +148,75 @@ mod tests {
 
         assert!(!ticker.try_tick());
 
-        assert_eq!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(false)
+        );
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
+        assert_eq!(timeout(MAX_TIMEOUT, ticker.wait_and_tick()).await, Ok(true));
     }
 
     #[tokio::test]
     async fn try_tick_after_wait() {
         let mut ticker = setup_ticker();
 
-        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(true)
+        );
 
-        assert!(ticker.try_tick());
+        assert!(!ticker.try_tick());
     }
 
     #[tokio::test]
-    async fn wait_after_reset() {
+    async fn wait_after_late_reset() {
         let mut ticker = setup_ticker();
 
-        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(true)
+        );
 
         ticker.reset();
-        assert_ne!(timeout(MIN_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
-        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn wait_after_early_reset() {
+        let mut ticker = setup_ticker();
+
+        sleep(MIN_TIMEOUT).await;
+        assert!(ticker.try_tick());
+
+        ticker.reset();
+        assert!(matches!(
+            timeout(MIN_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Err(_)
+        ));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(true)
+        );
     }
 
     #[tokio::test]
     async fn try_tick_after_reset() {
         let mut ticker = setup_ticker();
 
-        assert_eq!(timeout(MAX_TIMEOUT_PLUS, ticker.wait()).await, Ok(()));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_PLUS, ticker.wait_and_tick()).await,
+            Ok(true)
+        );
 
         ticker.reset();
         assert!(!ticker.try_tick());
