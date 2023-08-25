@@ -1,6 +1,6 @@
 use tokio::time::{sleep, Duration, Instant};
 
-enum State {
+enum Mode {
     Normal,
     Rushed,
 }
@@ -12,7 +12,7 @@ enum State {
 /// resetting whenever the rate limited action actually occurs.
 pub struct Ticker {
     last_reset: Instant,
-    state: State,
+    mode: Mode,
     max_timeout: Duration,
     min_timeout: Duration,
 }
@@ -25,7 +25,7 @@ impl Ticker {
         };
         Self {
             last_reset: Instant::now(),
-            state: State::Normal,
+            mode: Mode::Normal,
             max_timeout,
             min_timeout,
         }
@@ -36,10 +36,10 @@ impl Ticker {
     pub fn try_tick(&mut self) -> bool {
         let now = Instant::now();
         if now.saturating_duration_since(self.last_reset) >= self.min_timeout {
-            self.state = State::Normal;
+            self.mode = Mode::Normal;
             true
         } else {
-            self.state = State::Rushed;
+            self.mode = Mode::Rushed;
             false
         }
     }
@@ -59,7 +59,7 @@ impl Ticker {
                 true
             }
             false => {
-                self.state = State::Normal;
+                self.mode = Mode::Normal;
                 false
             }
         }
@@ -69,7 +69,7 @@ impl Ticker {
     /// Behaves as if it was just created with the same parametres.
     pub fn reset(&mut self) {
         self.last_reset = Instant::now();
-        self.state = State::Normal;
+        self.mode = Mode::Normal;
     }
 
     fn since_reset(&self) -> Duration {
@@ -77,9 +77,9 @@ impl Ticker {
     }
 
     async fn wait_current_timeout(&self) {
-        let sleep_time = match self.state {
-            State::Normal => self.max_timeout,
-            State::Rushed => self.min_timeout,
+        let sleep_time = match self.mode {
+            Mode::Normal => self.max_timeout,
+            Mode::Rushed => self.min_timeout,
         }
         .saturating_sub(self.since_reset());
         sleep(sleep_time).await;
