@@ -2,7 +2,6 @@ use tokio::time::{sleep, Duration, Instant};
 
 /// This struct is used for rate limiting as an on-demand ticker. It can be used for ticking
 /// at most after `max_timeout` but no sooner than after `min_timeout`.
-/// It will always tick after `max_timeout` and never after that unless reset earlier.
 /// Example usage would be to use the `wait` method in main select loop and
 /// `try_tick` whenever you would like to tick sooner in another branch of select,
 /// resetting whenever the rate limited action actually occurs.
