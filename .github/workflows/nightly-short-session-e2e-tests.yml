@@ -117,7 +117,7 @@ jobs:
         shell: bash
         env:
           # yamllint disable-line rule:line-length
-          APP_NAME: ${{ format('{0}{1}-{2}-{3}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo, github.run_id, matrix.testcase) }}
+          APP_NAME: ${{ format('fe-{0}-{1}', github.run_id, matrix.testcase) }}
         run: |
           name_local=${{ env.APP_NAME }}
           echo "name=$(printf $name_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
