@@ -53,8 +53,8 @@ ARGS=(
   --validator-port "${VALIDATOR_PORT}"
   --rpc-cors all
   --no-mdns
-  --ws-max-connections "${WS_MAX_CONNECTIONS}"
-  --unsafe-ws-external --unsafe-rpc-external
+  --rpc-max-connections "${WS_MAX_CONNECTIONS}"
+   --unsafe-rpc-external
   --enable-log-reloading
   --db-cache "${DB_CACHE}"
   --runtime-cache-size "${RUNTIME_CACHE_SIZE}"
