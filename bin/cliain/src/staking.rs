@@ -1,14 +1,10 @@
 use aleph_client::{
     pallets::staking::{StakingSudoApi, StakingUserApi},
-    AccountId, Balance, RootConnection, SignedConnection, TxStatus,
+    AccountId, Balance, RootConnection, SignedConnection, Ss58Codec, TxStatus,
 };
-use primitives::TOKEN;use aleph_client::Ss58Codec;
+use primitives::TOKEN;
 
-
-pub async fn bond(
-    stash_connection: SignedConnection,
-    initial_stake_in_tokens: u32,
-) {
+pub async fn bond(stash_connection: SignedConnection, initial_stake_in_tokens: u32) {
     let initial_stake = initial_stake_in_tokens as Balance * TOKEN;
     stash_connection
         .bond(initial_stake, TxStatus::Finalized)

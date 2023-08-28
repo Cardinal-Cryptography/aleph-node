@@ -5,9 +5,8 @@ use std::{
 
 use aleph_client::{AccountId, Balance, TxStatus};
 use clap::{clap_derive::ValueEnum, Args, Subcommand};
-use primitives::{BlockNumber, CommitteeSeats, SessionIndex, BlockHash};
+use primitives::{BlockHash, BlockNumber, CommitteeSeats, SessionIndex};
 use serde::{Deserialize, Serialize};
-
 #[cfg(feature = "liminal")]
 use {
     crate::snark_relations::{

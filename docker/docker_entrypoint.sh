@@ -18,7 +18,6 @@ CHAIN=${CHAIN:?'Chain should be specified'}
 NAME=${NAME:?'Name should be specified'}
 BASE_PATH=${BASE_PATH:?'Base path should be specified'}
 RPC_PORT=${RPC_PORT:-9933}
-WS_PORT=${WS_PORT:-9943}
 PORT=${PORT:-30333}
 VALIDATOR_PORT=${VALIDATOR_PORT:-30343}
 EXTERNAL_PORT=${EXTERNAL_PORT:-${PORT}}
@@ -50,7 +49,6 @@ ARGS=(
   --node-key-file "${NODE_KEY_PATH}"
   --backup-path "${BACKUP_PATH}"
   --rpc-port "${RPC_PORT}"
-  --ws-port "${WS_PORT}"
   --port "${PORT}"
   --validator-port "${VALIDATOR_PORT}"
   --rpc-cors all

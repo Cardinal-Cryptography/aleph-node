@@ -80,18 +80,10 @@ async fn main() -> anyhow::Result<()> {
         Command::ChangeValidators {
             change_validators_args,
         } => change_validators(cfg.get_root_connection().await, change_validators_args).await,
-        Command::PrepareKeys => {
-            prepare_keys(cfg.get_root_connection().await).await?
-        }
+        Command::PrepareKeys => prepare_keys(cfg.get_root_connection().await).await?,
         Command::Bond {
             initial_stake_tokens,
-        } => {
-            bond(
-                cfg.get_signed_connection().await,
-                initial_stake_tokens,
-            )
-            .await
-        }
+        } => bond(cfg.get_signed_connection().await, initial_stake_tokens).await,
         Command::Finalize {
             block,
             hash,

@@ -5,22 +5,16 @@ use aleph_client::{
         session::{SessionApi, SessionUserApi},
         staking::StakingUserApi,
     },
-    AccountId, Connection, RootConnection, SignedConnection, TxStatus,
+    AccountId, Connection, RootConnection, SignedConnection, Ss58Codec, TxStatus,
 };
 use hex::ToHex;
 use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
-use serde_json::json;use aleph_client::Ss58Codec;
+use serde_json::json;
 
-
-pub async fn prepare_keys(
-    connection: RootConnection,
-) -> anyhow::Result<()> {
+pub async fn prepare_keys(connection: RootConnection) -> anyhow::Result<()> {
     connection
-        .bond(
-            MIN_VALIDATOR_BOND,
-            TxStatus::Finalized,
-        )
+        .bond(MIN_VALIDATOR_BOND, TxStatus::Finalized)
         .await
         .unwrap();
     let new_keys = connection.author_rotate_keys().await?;
