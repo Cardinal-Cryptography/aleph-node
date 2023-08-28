@@ -120,7 +120,7 @@ jobs:
           APP_NAME: ${{ format('{0}{1}-{2}-{3}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo, github.run_id, matrix.testcase) }}
         run: |
           name_local=${{ env.APP_NAME }}
-          echo name=$(printf ${name_local} | sed 's|::|-|g') >> $GITHUB_OUTPUT
+          echo name=$(printf $name_local | sed 's|::|-|g' | sed 's|_|-|g) >> $GITHUB_OUTPUT
 
       - name: Create featurenet from scratch
         uses: ./.github/actions/create-featurenet
