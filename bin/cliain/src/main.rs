@@ -81,18 +81,14 @@ async fn main() -> anyhow::Result<()> {
             change_validators_args,
         } => change_validators(cfg.get_root_connection().await, change_validators_args).await,
         Command::PrepareKeys => {
-            let key = keypair_from_string(&seed);
-            let controller_account_id = account_from_keypair(key.signer());
-            prepare_keys(cfg.get_root_connection().await, controller_account_id).await?
+            prepare_keys(cfg.get_root_connection().await).await?
         }
         Command::Bond {
-            controller_account,
             initial_stake_tokens,
         } => {
             bond(
                 cfg.get_signed_connection().await,
                 initial_stake_tokens,
-                controller_account,
             )
             .await
         }

@@ -2,7 +2,7 @@ use aleph_client::{
     pallets::balances::BalanceUserApi, AccountId, Balance, SignedConnection, TxStatus,
 };
 use primitives::TOKEN;
-use subxt::ext::sp_core::crypto::Ss58Codec;
+use aleph_client::Ss58Codec;
 
 pub async fn transfer(connection: SignedConnection, amount_in_tokens: u64, to_account: String) {
     let to_account = AccountId::from_ss58check(&to_account).expect("Address is valid");

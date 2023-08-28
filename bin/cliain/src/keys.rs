@@ -10,17 +10,15 @@ use aleph_client::{
 use hex::ToHex;
 use log::{error, info};
 use primitives::staking::MIN_VALIDATOR_BOND;
-use serde_json::json;
-use subxt::ext::sp_core::crypto::Ss58Codec;
+use serde_json::json;use aleph_client::Ss58Codec;
+
 
 pub async fn prepare_keys(
     connection: RootConnection,
-    controller_account_id: AccountId,
 ) -> anyhow::Result<()> {
     connection
         .bond(
             MIN_VALIDATOR_BOND,
-            controller_account_id,
             TxStatus::Finalized,
         )
         .await
