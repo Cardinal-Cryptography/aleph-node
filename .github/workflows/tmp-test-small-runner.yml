@@ -1,0 +1,18 @@
+---
+name: tmp - test small runner
+
+on:
+  push:
+    branches:
+      - A0-2659-add-small-github-runners
+
+jobs:
+  main:
+    name: YAML Lint
+    runs-on: [self-hosted, Linux, X64, small]
+    steps:
+      - name: Just delay 30
+        shell: bash
+        run: |
+          echo "Hey"
+          sleep 120
