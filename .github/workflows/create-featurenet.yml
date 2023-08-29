@@ -54,7 +54,7 @@ jobs:
   create-featurenet:
     needs: [push-featurnet-node-image-to-ecr]
     name: Create featurenet based on the PR
-    runs-on: [self-hosted, Linux, X64, small]
+    runs-on: [self-hosted, Linux, X64, little]
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:

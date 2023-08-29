@@ -9,7 +9,7 @@ on:
 jobs:
   main:
     name: YAML Lint
-    runs-on: [self-hosted, Linux, X64, small]
+    runs-on: [self-hosted, Linux, X64, little]
     steps:
       - name: Just delay 30
         shell: bash
