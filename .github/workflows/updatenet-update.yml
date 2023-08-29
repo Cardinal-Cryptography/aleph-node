@@ -29,7 +29,7 @@ jobs:
   update-updatenet:
     needs: [check-vars-and-secrets]
     name: Update updatenet
-    runs-on: [self-hosted, Linux, X64, little]
+    runs-on: [self-hosted, Linux, X64, small]
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
     steps:
