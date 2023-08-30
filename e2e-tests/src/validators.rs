@@ -149,7 +149,7 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
 /// gets ws address to `n-th` node
 pub fn validator_address(index: u32) -> String {
     const BASE: &str = "ws://127.0.0.1";
-    const FIRST_PORT: u32 = 9934;
+    const FIRST_PORT: u32 = 9933;
 
     let port = FIRST_PORT + index;
 
