@@ -652,6 +652,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::{Error, ExtensionRequest, Forest, Interest::*, MAX_DEPTH};
     use crate::{
         session::SessionBoundaryInfo,
@@ -662,7 +664,6 @@ mod tests {
         },
         BlockIdentifier, SessionPeriod,
     };
-    use std::collections::HashSet;
 
     type MockForest = Forest<MockPeerId, MockJustification>;
 
