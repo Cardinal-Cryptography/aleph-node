@@ -36,9 +36,6 @@ pub struct Accounts {
     stash_keys: Vec<KeyPair>,
     stash_accounts: Vec<AccountId>,
     stash_raw_keys: Vec<RawKeyPair>,
-    controller_keys: Vec<KeyPair>,
-    controller_accounts: Vec<AccountId>,
-    controller_raw_keys: Vec<RawKeyPair>,
 }
 
 #[allow(dead_code)]
@@ -51,15 +48,6 @@ impl Accounts {
     }
     pub fn get_stash_accounts(&self) -> &Vec<AccountId> {
         &self.stash_accounts
-    }
-    pub fn get_controller_keys(&self) -> &Vec<KeyPair> {
-        &self.controller_keys
-    }
-    pub fn get_controller_raw_keys(&self) -> &Vec<RawKeyPair> {
-        &self.controller_raw_keys
-    }
-    pub fn get_controller_accounts(&self) -> &Vec<AccountId> {
-        &self.controller_accounts
     }
 }
 
@@ -78,26 +66,10 @@ pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
         .map(|k| account_from_keypair(k.signer()))
         .collect();
 
-    let controller_seeds = seeds.map(|seed| format!("{seed}//Controller"));
-    let controller_keys: Vec<_> = controller_seeds
-        .clone()
-        .map(|s| keypair_from_string(&s))
-        .collect();
-    let controller_raw_keys = controller_seeds
-        .map(|s| raw_keypair_from_string(&s))
-        .collect();
-    let controller_accounts = controller_keys
-        .iter()
-        .map(|k| account_from_keypair(k.signer()))
-        .collect();
-
     Accounts {
         stash_keys,
         stash_accounts,
-        controller_keys,
-        controller_accounts,
         stash_raw_keys,
-        controller_raw_keys,
     }
 }
 
@@ -115,10 +87,6 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
             MIN_VALIDATOR_BOND + TOKEN,
             TxStatus::Finalized,
         )
-        .await
-        .unwrap();
-    connection
-        .batch_transfer(&accounts.controller_accounts, TOKEN, TxStatus::Finalized)
         .await
         .unwrap();
 

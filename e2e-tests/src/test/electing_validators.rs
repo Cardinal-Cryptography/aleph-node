@@ -177,10 +177,10 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
     info!("New validators are set up");
 
     let reserved_validators = accounts.get_stash_accounts()[..reserved_seats as usize].to_vec();
-    let chilling_reserved = KeyPair::new(accounts.get_controller_raw_keys()[0].clone()); // first reserved validator
+    let chilling_reserved = KeyPair::new(accounts.get_stash_raw_keys()[0].clone()); // first reserved validator
     let non_reserved_validators = accounts.get_stash_accounts()[reserved_seats as usize..].to_vec();
     let chilling_non_reserved =
-        KeyPair::new(accounts.get_controller_raw_keys()[reserved_seats as usize].clone()); // first non-reserved validator
+        KeyPair::new(accounts.get_stash_raw_keys()[reserved_seats as usize].clone()); // first non-reserved validator
 
     let reserved_count = reserved_validators.len() as u32;
     let non_reserved_count = non_reserved_validators.len() as u32;
