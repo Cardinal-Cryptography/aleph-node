@@ -107,8 +107,9 @@ jobs:
     steps:
       - name: Checkout repo
         # Allow only a few tests for now
-        if: matrix.testcase == finalization::finalization ||
-            matrix.testcase == ban::ban_manual
+        if: >
+            matrix.testcase == 'finalization::finalization' ||
+            matrix.testcase == 'ban::ban_manual'
         uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
