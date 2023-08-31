@@ -10,12 +10,9 @@ use log::{trace, warn};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sc_service::Arc;
-use substrate_prometheus_endpoint::{
-    exponential_buckets, prometheus::HistogramTimer, register, Gauge, Histogram, HistogramOpts,
-    Opts, PrometheusError, Registry, U64,
-};
+use substrate_prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
 
-use crate::Protocol;
+use crate::aleph_primitives::BlockHash;
 
 // How many entries (block hash + timestamp) we keep in memory per one checkpoint type.
 // Each entry takes 32B (Hash) + 16B (Instant), so a limit of 5000 gives ~234kB (per checkpoint).
@@ -23,19 +20,15 @@ use crate::Protocol;
 // (e.g. when the gap between checkpoints for a block grows over `MAX_BLOCKS_PER_CHECKPOINT`).
 const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
-pub trait Key: Hash + Eq + Debug + Copy + Send + 'static {}
-impl<T: Hash + Eq + Debug + Copy + Send + 'static> Key for T {}
-
 const LOG_TARGET: &str = "aleph-metrics";
 
-struct Inner<H: Key> {
+struct Inner {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
-    starts: HashMap<Checkpoint, LruCache<H, Instant>>,
-    network_send_times: HashMap<Protocol, Histogram>,
+    starts: HashMap<Checkpoint, LruCache<BlockHash, Instant>>,
 }
 
-impl<H: Key> Inner<H> {
+impl Inner {
     fn new(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
@@ -60,29 +53,6 @@ impl<H: Key> Inner<H> {
             );
         }
 
-        use Protocol::*;
-        let mut network_send_times = HashMap::new();
-        for key in [Authentication, BlockSync] {
-            network_send_times.insert(
-                key,
-                register(
-                    Histogram::with_opts(HistogramOpts {
-                        common_opts: Opts {
-                            namespace: "gossip_network".to_string(),
-                            subsystem: protocol_name(key),
-                            name: "send_duration".to_string(),
-                            help: "How long did it take for substrate to send a message."
-                                .to_string(),
-                            const_labels: Default::default(),
-                            variable_labels: Default::default(),
-                        },
-                        buckets: exponential_buckets(0.001, 1.26, 30)?,
-                    })?,
-                    registry,
-                )?,
-            );
-        }
-
         Ok(Self {
             prev,
             gauges,
@@ -95,11 +65,15 @@ impl<H: Key> Inner<H> {
                     )
                 })
                 .collect(),
-            network_send_times,
         })
     }
 
-    fn report_block(&mut self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
+    fn report_block(
+        &mut self,
+        hash: BlockHash,
+        checkpoint_time: Instant,
+        checkpoint_type: Checkpoint,
+    ) {
         trace!(
             target: LOG_TARGET,
             "Reporting block stage: {:?} (hash: {:?}, at: {:?}",
@@ -141,19 +115,6 @@ impl<H: Key> Inner<H> {
             }
         }
     }
-
-    fn start_sending_in(&self, protocol: Protocol) -> HistogramTimer {
-        self.network_send_times[&protocol].start_timer()
-    }
-}
-
-fn protocol_name(protocol: Protocol) -> String {
-    use Protocol::*;
-    match protocol {
-        Authentication => "authentication",
-        BlockSync => "block_sync",
-    }
-    .to_string()
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -166,12 +127,13 @@ pub enum Checkpoint {
     Finalized,
 }
 
+/// TODO(A0-3009): Replace this whole thing.
 #[derive(Clone)]
-pub struct Metrics<H: Key> {
-    inner: Option<Arc<Mutex<Inner<H>>>>,
+pub struct BlockMetrics {
+    inner: Option<Arc<Mutex<Inner>>>,
 }
 
-impl<H: Key> Metrics<H> {
+impl BlockMetrics {
     pub fn noop() -> Self {
         Self { inner: None }
     }
@@ -182,18 +144,17 @@ impl<H: Key> Metrics<H> {
         Ok(Self { inner })
     }
 
-    pub fn report_block(&self, hash: H, checkpoint_time: Instant, checkpoint_type: Checkpoint) {
+    pub fn report_block(
+        &self,
+        hash: BlockHash,
+        checkpoint_time: Instant,
+        checkpoint_type: Checkpoint,
+    ) {
         if let Some(inner) = &self.inner {
             inner
                 .lock()
                 .report_block(hash, checkpoint_time, checkpoint_type);
         }
-    }
-
-    pub fn start_sending_in(&self, protocol: Protocol) -> Option<HistogramTimer> {
-        self.inner
-            .as_ref()
-            .map(|inner| inner.lock().start_sending_in(protocol))
     }
 }
 
@@ -203,11 +164,11 @@ mod tests {
 
     use super::*;
 
-    fn register_dummy_metrics() -> Metrics<usize> {
-        Metrics::<usize>::new(&Registry::new()).unwrap()
+    fn register_dummy_metrics() -> BlockMetrics {
+        BlockMetrics::new(&Registry::new()).unwrap()
     }
 
-    fn starts_for<H: Key>(m: &Metrics<H>, c: Checkpoint) -> usize {
+    fn starts_for(m: &BlockMetrics, c: Checkpoint) -> usize {
         m.inner
             .as_ref()
             .expect("There are some metrics")
@@ -218,9 +179,9 @@ mod tests {
             .len()
     }
 
-    fn check_reporting_with_memory_excess(metrics: &Metrics<usize>, checkpoint: Checkpoint) {
+    fn check_reporting_with_memory_excess(metrics: &BlockMetrics, checkpoint: Checkpoint) {
         for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
-            metrics.report_block(i, Instant::now(), checkpoint);
+            metrics.report_block(BlockHash::random(), Instant::now(), checkpoint);
             assert_eq!(
                 min(i, MAX_BLOCKS_PER_CHECKPOINT),
                 starts_for(metrics, checkpoint)
@@ -230,8 +191,8 @@ mod tests {
 
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
-        let m = Metrics::<usize>::noop();
-        m.report_block(0, Instant::now(), Checkpoint::Ordered);
+        let m = BlockMetrics::noop();
+        m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
         assert!(m.inner.is_none());
     }
 
@@ -253,7 +214,8 @@ mod tests {
         let metrics = register_dummy_metrics();
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
-        metrics.report_block(0, later_timestamp, Checkpoint::Ordering);
-        metrics.report_block(0, earlier_timestamp, Checkpoint::Ordered);
+        let hash = BlockHash::random();
+        metrics.report_block(hash, later_timestamp, Checkpoint::Ordering);
+        metrics.report_block(hash, earlier_timestamp, Checkpoint::Ordered);
     }
 }
