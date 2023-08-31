@@ -106,6 +106,9 @@ jobs:
         testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
     steps:
       - name: Checkout repo
+        # Allow only a few tests for now
+        if: matrix.testcase == finalization::finalization ||
+            matrix.testcase == ban::ban_manual
         uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
@@ -151,7 +154,7 @@ jobs:
         shell: bash
         run: docker load -i aleph-e2e-client.tar
 
-      - name: Run finalization e2e test
+      - name: Run ${{ matrix.testcase }} e2e test
         shell: bash
         run: |
           echo "Running e2e test ${{ matrix.testcase }}"
@@ -175,6 +178,7 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.name }}
 
   slack-notification:
     name: Slack notification
