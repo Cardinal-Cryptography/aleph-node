@@ -60,7 +60,9 @@ jobs:
             `# swap newlines with command and a space` \
             tr '\n' ', ' | \
             `# but remove last trailing comma so it is valid JSON array` \
-            sed 's/.$//')
+            sed 's/.$//' | \
+            `# for now limit testcases to those which work on FEs` \
+            grep 'finalization::finalization\|ban::ban_manual')
           echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
 
   build-test-node-and-runtime:
@@ -106,10 +108,6 @@ jobs:
         testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
     steps:
       - name: Checkout repo
-        # Allow only a few tests for now
-        if: >
-            matrix.testcase == 'finalization::finalization' ||
-            matrix.testcase == 'ban::ban_manual'
         uses: actions/checkout@v3
 
       - name: Call action get-ref-properties
