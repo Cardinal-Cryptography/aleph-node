@@ -174,7 +174,7 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
         #[cfg(feature = "try-runtime")]
-        fn try_state(_n: T::BlockNumber) -> Result<(), &'static str> {
+        fn try_state(_n: T::BlockNumber) -> Result<(), DispatchError> {
             let current_validators = CurrentEraValidators::<T>::get();
             Self::ensure_validators_are_ok(
                 current_validators.reserved,
