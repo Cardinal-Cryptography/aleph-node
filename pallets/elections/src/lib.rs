@@ -15,7 +15,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod impls;
-mod migration;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -23,7 +22,6 @@ mod tests;
 mod traits;
 
 use frame_support::traits::StorageVersion;
-pub use migration::{v4::Migration as MigrateToV4, v5::Migration as CommitteeSizeMigration};
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
 pub use primitives::EraValidators;

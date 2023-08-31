@@ -59,7 +59,7 @@ impl Default for WithdrawPrivateInput {
     fn default() -> Self {
         let uid = BigUint::from(0u64);
         let elem = CircuitField::from(0u64);
-        let mt = RescueSparseMerkleTree::from_kv_set(MERKLE_TREE_HEIGHT, &[(uid.clone(), elem)])
+        let mt = RescueSparseMerkleTree::from_kv_set(MERKLE_TREE_HEIGHT, [(uid.clone(), elem)])
             .unwrap();
         let (_, merkle_proof) = mt.lookup(&uid).expect_ok().unwrap();
 
