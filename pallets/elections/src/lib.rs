@@ -34,7 +34,6 @@ use sp_std::{
 pub type TotalReward = u32;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
-const LOG_TARGET: &str = "pallet-elections";
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
