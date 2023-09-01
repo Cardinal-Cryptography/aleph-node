@@ -11,7 +11,7 @@ use static_assertions::const_assert;
 use crate::{
     aleph_primitives::DEFAULT_SESSION_PERIOD,
     sync::{data::BranchKnowledge, Block, BlockIdFor, ChainStatus, Header, Justification, PeerId},
-    BlockIdentifier,
+    BlockIdentifier, BlockNumber,
 };
 
 mod vertex;
@@ -60,7 +60,7 @@ pub enum Interest<I: PeerId, J: Justification> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExtensionRequest<I: PeerId, J: Justification> {
     /// We are not interested in requesting anything at this point.
-    None,
+    Noop,
     /// We would like to have children of our favourite block.
     FavouriteBlock { know_most: HashSet<I> },
     /// We would like to have the justified block.
@@ -159,7 +159,7 @@ where
 {
     vertices: HashMap<BlockIdFor<J>, VertexWithChildren<I, J>>,
     highest_justified: BlockIdFor<J>,
-    justified_blocks: HashMap<u32, BlockIdFor<J>>,
+    justified_blocks: HashMap<BlockNumber, BlockIdFor<J>>,
     imported_leaves: HashSet<BlockIdFor<J>>,
     favourite: BlockIdFor<J>,
     root_id: BlockIdFor<J>,
@@ -471,7 +471,7 @@ where
         }
     }
 
-    fn prune_level(&mut self, level: u32) {
+    fn prune_level(&mut self, level: BlockNumber) {
         let to_prune: Vec<_> = self
             .vertices
             .keys()
@@ -487,7 +487,7 @@ where
     }
 
     /// Attempt to finalize one block, returns the correct justification if successful.
-    pub fn try_finalize(&mut self, number: &u32) -> Option<J> {
+    pub fn try_finalize(&mut self, number: &BlockNumber) -> Option<J> {
         if let Some(id) = self.justified_blocks.get(number) {
             if let Some(VertexWithChildren { vertex, children }) = self.vertices.remove(id) {
                 match vertex.ready() {
@@ -634,7 +634,7 @@ where
                 return FavouriteBlock { know_most };
             }
         }
-        None
+        Noop
     }
 
     /// Whether this block should be skipped during importing.
@@ -662,7 +662,7 @@ mod tests {
             mock::{Backend, MockHeader, MockJustification, MockPeerId},
             ChainStatus, Header, Justification,
         },
-        BlockIdentifier, SessionPeriod,
+        BlockIdentifier, BlockNumber, SessionPeriod,
     };
 
     type MockForest = Forest<MockPeerId, MockJustification>;
@@ -686,7 +686,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         assert_eq!(forest.request_interest(&initial_header.id()), Uninterested);
         assert!(!forest.importable(&initial_header.id()));
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -701,7 +701,7 @@ mod tests {
         assert_eq!(forest.request_interest(&child.id()), Uninterested);
         // We don't know this is a descendant.
         assert!(!forest.importable(&child.id()));
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
             other_state => panic!("Expected top required, got {other_state:?}."),
         }
         assert!(forest.importable(&child.id()));
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
         assert!(!forest
             .update_block_identifier(&child.id(), Some(peer_id), true)
             .expect("it's not too high"));
@@ -956,7 +956,7 @@ mod tests {
         assert!(forest.try_finalize(&1).is_none());
         assert_eq!(forest.request_interest(&child.id()), Uninterested);
         assert!(!forest.importable(&child.id()));
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -1002,7 +1002,7 @@ mod tests {
             .update_body(child.header())
             .expect("header was correct");
         assert_eq!(forest.try_finalize(&1).expect("the block is ready"), child);
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -1110,7 +1110,7 @@ mod tests {
             forest.update_header(&fork_child, Some(fork_peer_id), true),
             Ok(false)
         );
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -1145,7 +1145,7 @@ mod tests {
             assert_eq!(forest.request_interest(&header.id()), Uninterested);
             assert!(!forest.importable(&header.id()));
         }
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
     }
 
     #[test]
@@ -1157,7 +1157,7 @@ mod tests {
             assert_eq!(forest.request_interest(&header.id()), Uninterested);
             assert!(!forest.importable(&header.id()));
         }
-        assert_eq!(forest.extension_request(), ExtensionRequest::None);
+        assert_eq!(forest.extension_request(), ExtensionRequest::Noop);
         let fork_child = fork_branch
             .last()
             .expect("the fork is not empty")
@@ -1347,7 +1347,7 @@ mod tests {
         for (number, justification) in justifications.into_iter().enumerate() {
             assert_eq!(
                 forest
-                    .try_finalize(&(number as u32 + 1))
+                    .try_finalize(&(number as BlockNumber + 1))
                     .expect("the block is ready"),
                 justification
             );
@@ -1383,12 +1383,12 @@ mod tests {
             if number.is_power_of_two() {
                 assert_eq!(
                     forest
-                        .try_finalize(&(number as u32 + 1))
+                        .try_finalize(&(number as BlockNumber + 1))
                         .expect("the block is ready"),
                     justification
                 );
             } else {
-                assert!(forest.try_finalize(&(number as u32 + 1)).is_none());
+                assert!(forest.try_finalize(&(number as BlockNumber + 1)).is_none());
             }
         }
     }
