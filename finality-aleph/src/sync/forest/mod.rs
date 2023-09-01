@@ -397,7 +397,7 @@ where
                         self.favourite = id.clone();
                     }
                     self.imported_leaves.remove(&parent_id);
-                    self.imported_leaves.insert(id.clone());
+                    self.imported_leaves.insert(id);
                 }
                 Ok(())
             }
@@ -453,12 +453,12 @@ where
             // The favourite is fine.
             return;
         }
-        self.favourite = self.root_id.clone();
-        for leaf in &self.imported_leaves {
-            if leaf.number() > self.favourite.number() {
-                self.favourite = leaf.clone();
-            }
-        }
+        self.favourite = self
+            .imported_leaves
+            .iter()
+            .max_by_key(|leaf| leaf.number())
+            .unwrap_or(&self.root_id)
+            .clone();
     }
 
     fn prune(&mut self, id: &BlockIdFor<J>) {
@@ -589,10 +589,10 @@ where
         }
     }
 
-    fn know_most(&self, id: &BlockIdFor<J>) -> impl Iterator<Item = I> {
+    fn know_most(&self, id: &BlockIdFor<J>) -> HashSet<I> {
         match self.get(id) {
-            VertexHandle::Candidate(vertex) => vertex.vertex.know_most().clone().into_iter(),
-            _ => HashSet::new().into_iter(),
+            VertexHandle::Candidate(vertex) => vertex.vertex.know_most().clone(),
+            _ => HashSet::new(),
         }
     }
 
@@ -775,9 +775,12 @@ mod tests {
         );
         let grandchild = child.random_child();
         let grandpeer_id = rand::random();
-        assert!(!forest
-            .update_header(&grandchild, Some(grandpeer_id), false)
-            .expect("header was correct"));
+        assert!(
+            !forest
+                .update_header(&grandchild, Some(grandpeer_id), false)
+                .expect("header was correct"),
+            "should not count as a child of the favourite",
+        );
         assert!(forest.try_finalize(&1).is_none());
         assert_eq!(forest.request_interest(&grandchild.id()), Uninterested);
         assert!(!forest.importable(&grandchild.id()));
@@ -835,9 +838,12 @@ mod tests {
         );
         let grandchild = child.random_child();
         let grandpeer_id = rand::random();
-        assert!(forest
-            .update_header(&grandchild, Some(grandpeer_id), true)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(&grandchild, Some(grandpeer_id), true)
+                .expect("header was correct"),
+            "not a child of the favourite, but important",
+        );
         assert!(forest.try_finalize(&1).is_none());
         match forest.request_interest(&grandchild.id()) {
             Required { know_most, .. } => assert!(know_most.contains(&grandpeer_id)),
@@ -907,9 +913,12 @@ mod tests {
         assert!(forest.importable(&child.id()));
         let grandchild = MockJustification::for_header(child.header().random_child());
         let grandpeer_id = rand::random();
-        assert!(forest
-            .update_justification(grandchild.clone(), Some(grandpeer_id))
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_justification(grandchild.clone(), Some(grandpeer_id))
+                .expect("header was correct"),
+            "should be new highest justified"
+        );
         assert!(forest.try_finalize(&1).is_none());
         assert_eq!(forest.request_interest(&child.id()), Uninterested);
         match forest.request_interest(&grandchild.header().id()) {
