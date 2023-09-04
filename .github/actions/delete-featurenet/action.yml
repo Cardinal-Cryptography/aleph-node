@@ -6,9 +6,6 @@ inputs:
   gh-ci-token:
     description: 'GH token to be used in the action'
     required: true
-  repo-apps-name:
-    description: 'Name of the repository containing apps definitions'
-    required: true
   repo-featurenets-name:
     description: 'Name of the repository containing featurenets manifests'
     required: true
@@ -55,14 +52,6 @@ runs:
       # yamllint disable-line rule:line-length
       uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
-    - name: Checkout argocd apps repo
-      uses: actions/checkout@v3
-      with:
-        repository: Cardinal-Cryptography/${{ inputs.repo-apps-name }}
-        token: ${{ inputs.gh-ci-token }}
-        path: "${{ inputs.repo-apps-name }}"
-        ref: main
-
     - name: Checkout featurenets repo
       uses: actions/checkout@v3
       with:
@@ -95,7 +84,7 @@ runs:
       env:
         OPSSH_TARGETPATH: "${{ github.workspace }}/${{ inputs.repo-featurenets-name }}"
       run: |
-        cd "${{ inputs.repo-apps-name }}"
+        cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh delete-featurenet "${{ steps.get-argocd-featurnet-app-name.outputs.name }}"
       # yamllint enable rule:line-length
 
@@ -112,7 +101,7 @@ runs:
     - name: Refresh Argo and wait for the deletion to be finished
       shell: bash
       run: |
-        cd "${{ inputs.repo-apps-name }}"
+        cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}"
 
