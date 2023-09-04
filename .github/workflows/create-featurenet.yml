@@ -103,7 +103,7 @@ jobs:
         uses: ./.github/actions/wait-for-finalized-heads
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_ARGOCD_FEATURENETS_NAME }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           # yamllint disable-line rule:line-length
           json-rpc-endpoint: https://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}.dev.azero.dev
 

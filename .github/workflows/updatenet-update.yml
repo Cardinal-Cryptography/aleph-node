@@ -84,7 +84,7 @@ jobs:
         uses: ./.github/actions/wait-for-finalized-heads
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_ARGOCD_FEATURENETS_NAME }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           json-rpc-endpoint: https://ws-fe-updnet-${{ inputs.name }}.dev.azero.dev
 
       - name: Finish featurenet Deployment
