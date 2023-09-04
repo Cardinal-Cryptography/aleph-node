@@ -1,6 +1,8 @@
 use aleph_client::{
-    pallets::staking::{StakingApi, StakingSudoApi},
-    pallets::timestamp::TimestampApi,
+    pallets::{
+        staking::{StakingApi, StakingSudoApi},
+        timestamp::TimestampApi,
+    },
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
     TxStatus,

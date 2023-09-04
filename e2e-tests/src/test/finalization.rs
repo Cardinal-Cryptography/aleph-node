@@ -1,10 +1,11 @@
-use crate::config::setup_test;
 use aleph_client::{
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},
 };
 use anyhow::anyhow;
 use log::info;
+
+use crate::config::setup_test;
 
 #[tokio::test]
 pub async fn finalization() -> anyhow::Result<()> {
