@@ -4,7 +4,7 @@ use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_consensus::BlockOrigin;
 use sp_core::hash::H256;
-use sp_runtime::{traits::Block as BlockT, ConsensusEngineId, Digest, DigestItem};
+use sp_runtime::{traits::Block as BlockT, DigestItem};
 use substrate_test_runtime::ExtrinsicBuilder;
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
