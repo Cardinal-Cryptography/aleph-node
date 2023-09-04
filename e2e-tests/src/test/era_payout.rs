@@ -4,7 +4,7 @@ use aleph_client::{
         timestamp::TimestampApi,
     },
     utility::BlocksApi,
-    waiting::{AlephWaiting, BlockStatus, WaitingExt},
+    waiting::{AlephWaiting, BlockStatus},
     TxStatus,
 };
 use primitives::{
@@ -21,19 +21,6 @@ pub async fn era_payouts_calculated_correctly() -> anyhow::Result<()> {
     force_era_payout(config).await?;
 
     Ok(())
-}
-
-async fn wait_to_kth_era<C: StakingApi + WaitingExt>(
-    connection: &C,
-    kth_era: EraIndex,
-) -> EraIndex {
-    let active_era = connection.get_active_era(None).await;
-    if active_era < kth_era {
-        connection
-            .wait_for_n_eras(kth_era - active_era, BlockStatus::Best)
-            .await;
-    }
-    connection.get_active_era(None).await
 }
 
 async fn get_era_duration<C: TimestampApi + BlocksApi>(era: EraIndex, connection: &C) -> u64 {
@@ -61,7 +48,9 @@ async fn get_era_duration<C: TimestampApi + BlocksApi>(era: EraIndex, connection
 
 async fn force_era_payout(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection().await;
-    let active_era = wait_to_kth_era(&root_connection, 3).await;
+    root_connection.wait_for_era(3, BlockStatus::Best).await;
+    let active_era = root_connection.get_active_era(None).await;
+
     let starting_session = active_era * DEFAULT_SESSIONS_PER_ERA;
     root_connection
         .wait_for_session(starting_session + 1, BlockStatus::Best)
@@ -99,7 +88,9 @@ async fn force_era_payout(config: &Config) -> anyhow::Result<()> {
 async fn normal_era_payout(config: &Config) -> anyhow::Result<()> {
     let root_connection = config.create_root_connection().await;
 
-    let active_era = wait_to_kth_era(&root_connection, 2).await;
+    root_connection.wait_for_era(2, BlockStatus::Best).await;
+    let active_era = root_connection.get_active_era(None).await;
+
     let payout = root_connection
         .get_payout_for_era(active_era - 1, None)
         .await;
