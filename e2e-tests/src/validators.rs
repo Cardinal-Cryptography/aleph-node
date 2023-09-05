@@ -99,7 +99,8 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
                 .await
                 .unwrap();
         }));
-        let connection = SignedConnection::new(&validator_address(i as u32), KeyPair::new(stash.clone())).await;
+        let connection =
+            SignedConnection::new(&validator_address(i as u32), KeyPair::new(stash.clone())).await;
         let keys = connection.author_rotate_keys().await?;
         handles.push(tokio::spawn(async move {
             connection
