@@ -112,7 +112,7 @@ jobs:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format("-{0}", github.run_id) || '' }}.dev.azero.dev
+          json-rpc-endpoint: https://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format('-{0}', github.run_id) || '' }}.dev.azero.dev
 
       - name: Remove deleted label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
@@ -131,7 +131,7 @@ jobs:
           env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format("-{0}", github.run_id) || '' }}.dev.azero.dev#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format('-{0}', github.run_id) || '' }}.dev.azero.dev#/explorer
           ref: ${{ github.head_ref }}
 
       - name: Remove deployment request label if exists
