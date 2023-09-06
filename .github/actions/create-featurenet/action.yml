@@ -123,14 +123,14 @@ runs:
     - name: Get argocd featurenet app name
       id: get-argocd-featurnet-app-name
       shell: bash
+      # yamllint disable rule:line-length
       env:
-        # yamllint disable rule:line-length
         APP_NAME: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo) }}
         APP_NAME_WITH_RUN_ID: ${{ inputs.featurenet-name != '' && inputs.featurenet-name || format('{0}{1}-{2}', 'fe-', steps.get-ref-properties.outputs.branch-name-for-argo, github.run_id) }}
-        # yamllint enable rule:line-length
       run: |
         name_local=${{ inputs.append-run-id-to-name == 'true' && env.APP_NAME_WITH_RUN_ID || env.APP_NAME }}
         echo "name=$name_local" >> $GITHUB_OUTPUT
+      # yamllint enable rule:line-length
 
     - name: Get node commit SHA
       if: ${{ inputs.featurenet-aleph-node-image == 'testnet' ||
