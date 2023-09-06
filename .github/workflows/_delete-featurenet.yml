@@ -3,6 +3,12 @@ name: Delete featurenet
 
 on:
   workflow_call:
+    inputs:
+      append-run-id-to-name:
+        description: When set to 'true' then run ID will be appended to featurenet name
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
@@ -34,6 +40,7 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+          append-run-id-to-name: "${{ inputs.append-run-id-to-name }}"
 
       - name: Remove created label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
