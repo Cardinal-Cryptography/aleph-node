@@ -47,6 +47,11 @@ inputs:
       will be updated. If not specified, all nodes will be updated.
     required: false
     default: "0"
+  replicas:
+    description: |
+      Number of pods to start, from 0 to 50.
+    required: false
+    default: "5"
   append-run-id-to-name:
     description: |
       When 'true' then run ID will be appended to featurenet name
@@ -83,6 +88,14 @@ runs:
         ]]
         then
           echo "!!! Expected rolling update partition to be a cardinal value from 0 to 9"
+          exit 1
+        fi
+        if [[
+          "${{ inputs.replicas }}" != "" && \
+          ! "${{ inputs.replicas }}" =~ ^[0-9]$ || "${{ inputs.replicas }}" -gt 50
+        ]]
+        then
+          echo "!!! Expected replicas to be a cardinal value from 0 to 50"
           exit 1
         fi
         if [[
@@ -159,7 +172,8 @@ runs:
           "${fnet_aleph_node_image}" \
           "${fnet_bootstrap_chain_node_image}" \
           "${{ inputs.rolling-update-partition }}" \
-          "${fnet_create_hook}"
+          "${fnet_create_hook}" \
+          "${{ inputs.replicas }}"
       # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
