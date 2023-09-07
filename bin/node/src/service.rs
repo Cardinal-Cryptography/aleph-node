@@ -136,11 +136,11 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = match BlockMetrics::new(config.prometheus_registry().cloned()) {
+    let metrics = match BlockMetrics::new(config.prometheus_registry()) {
         Ok(metrics) => metrics,
         Err(e) => {
             warn!("Failed to register Prometheus metrics: {:?}.", e);
-            BlockMetrics::Noop
+            BlockMetrics::noop()
         }
     };
 

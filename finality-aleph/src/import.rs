@@ -8,7 +8,6 @@ use sc_consensus::{
 use sp_consensus::Error as ConsensusError;
 use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
-use crate::metrics::TopBlockMetricsType;
 use crate::{
     aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
     justification::{backwards_compatible_decode, DecodeError},
@@ -66,8 +65,7 @@ where
             self.metrics
                 .report_block(post_hash, Instant::now(), Checkpoint::Imported);
             if aux.is_new_best {
-                self.metrics
-                    .update_top_block_metrics(number, TopBlockMetricsType::Best);
+                self.metrics.top_block.update_best(number);
             }
         }
         result
