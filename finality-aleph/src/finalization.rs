@@ -9,6 +9,7 @@ use sp_runtime::{
     Justification,
 };
 
+use crate::metrics::TopBlockMetricsType;
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
     metrics::Checkpoint,
@@ -75,6 +76,8 @@ where
                 debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number);
                 self.metrics
                     .report_block(hash, Instant::now(), Checkpoint::Finalized);
+                self.metrics
+                    .update_top_block_metrics(number, TopBlockMetricsType::Finalized);
             }
             Err(_) => {
                 debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number)

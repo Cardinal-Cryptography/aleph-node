@@ -12,7 +12,7 @@ use finality_aleph::{
     SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::{info, warn};
+use log::warn;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -136,17 +136,11 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = match config.prometheus_registry() {
-        Some(register) => match BlockMetrics::new(register) {
-            Ok(metrics) => metrics,
-            Err(e) => {
-                warn!("Failed to register Prometheus metrics: {:?}.", e);
-                BlockMetrics::noop()
-            }
-        },
-        None => {
-            info!("Running with the metrics is not available.");
-            BlockMetrics::noop()
+    let metrics = match BlockMetrics::new(config.prometheus_registry().cloned()) {
+        Ok(metrics) => metrics,
+        Err(e) => {
+            warn!("Failed to register Prometheus metrics: {:?}.", e);
+            BlockMetrics::Noop
         }
     };
 

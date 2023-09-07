@@ -9,8 +9,9 @@ use std::{
 use log::{trace, warn};
 use lru::LruCache;
 use parking_lot::Mutex;
+use primitives::BlockNumber;
 use sc_service::Arc;
-use substrate_prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
+use substrate_prometheus_endpoint::{register, Counter, Gauge, PrometheusError, Registry, U64};
 
 use crate::aleph_primitives::BlockHash;
 
@@ -22,13 +23,14 @@ const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
 const LOG_TARGET: &str = "aleph-metrics";
 
-struct Inner {
+/// TODO(A0-3009): Replace this whole thing.
+pub struct TimedBlockMetrics {
     prev: HashMap<Checkpoint, Checkpoint>,
     gauges: HashMap<Checkpoint, Gauge<U64>>,
     starts: HashMap<Checkpoint, LruCache<BlockHash, Instant>>,
 }
 
-impl Inner {
+impl TimedBlockMetrics {
     fn new(registry: &Registry) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
@@ -127,21 +129,66 @@ pub enum Checkpoint {
     Finalized,
 }
 
-/// TODO(A0-3009): Replace this whole thing.
 #[derive(Clone)]
-pub struct BlockMetrics {
-    inner: Option<Arc<Mutex<Inner>>>,
+pub struct TopBlockMetrics {
+    highest_finalized: Counter<U64>,
+    best: Gauge<U64>,
+}
+
+pub enum TopBlockMetricsType {
+    Finalized,
+    Best,
+}
+impl TopBlockMetrics {
+    pub fn new(registry: &Registry) -> Result<Self, PrometheusError> {
+        Ok(Self {
+            highest_finalized: register(
+                Counter::new("aleph_highest_finalized_block", "no help")?,
+                registry,
+            )?,
+            best: register(Gauge::new("aleph_best_block", "no help")?, registry)?,
+        })
+    }
+
+    pub fn update(&self, number: BlockNumber, status: TopBlockMetricsType) {
+        match status {
+            TopBlockMetricsType::Finalized => self.update_highest_finalized(number),
+            TopBlockMetricsType::Best => self.update_best(number),
+        };
+    }
+    fn update_best(&self, number: BlockNumber) {
+        self.best.set(number as u64);
+    }
+
+    fn update_highest_finalized(&self, number: BlockNumber) {
+        let number = number as u64;
+        if number < self.highest_finalized.get() {
+            warn!(target: LOG_TARGET, "Tried to set highest finalized block to a lower number than before. Resetting `highest_finalized` counter.");
+            self.highest_finalized.reset();
+        }
+        let delta = number - self.highest_finalized.get();
+        self.highest_finalized.inc_by(delta);
+    }
+}
+
+#[derive(Clone)]
+pub enum BlockMetrics {
+    Prometheus {
+        timed: Arc<Mutex<TimedBlockMetrics>>,
+        top_block: TopBlockMetrics,
+    },
+    Noop,
 }
 
 impl BlockMetrics {
-    pub fn noop() -> Self {
-        Self { inner: None }
-    }
-
-    pub fn new(registry: &Registry) -> Result<Self, PrometheusError> {
-        let inner = Some(Arc::new(Mutex::new(Inner::new(registry)?)));
-
-        Ok(Self { inner })
+    pub fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
+        match registry {
+            Some(registry) => Ok(BlockMetrics::Prometheus {
+                timed: Arc::new(Mutex::new(TimedBlockMetrics::new(&registry)?)),
+                top_block: TopBlockMetrics::new(&registry)?,
+            }),
+            None => Ok(BlockMetrics::Noop),
+        }
     }
 
     pub fn report_block(
@@ -150,10 +197,16 @@ impl BlockMetrics {
         checkpoint_time: Instant,
         checkpoint_type: Checkpoint,
     ) {
-        if let Some(inner) = &self.inner {
-            inner
+        if let BlockMetrics::Prometheus { timed, .. } = self {
+            timed
                 .lock()
                 .report_block(hash, checkpoint_time, checkpoint_type);
+        }
+    }
+
+    pub fn update_top_block_metrics(&self, number: BlockNumber, status: TopBlockMetricsType) {
+        if let BlockMetrics::Prometheus { top_block, .. } = self {
+            top_block.update(number, status);
         }
     }
 }
@@ -165,18 +218,14 @@ mod tests {
     use super::*;
 
     fn register_dummy_metrics() -> BlockMetrics {
-        BlockMetrics::new(&Registry::new()).unwrap()
+        BlockMetrics::new(Some(Registry::new())).unwrap()
     }
 
     fn starts_for(m: &BlockMetrics, c: Checkpoint) -> usize {
-        m.inner
-            .as_ref()
-            .expect("There are some metrics")
-            .lock()
-            .starts
-            .get(&c)
-            .unwrap()
-            .len()
+        match m {
+            BlockMetrics::Noop => 0,
+            BlockMetrics::Prometheus { timed, .. } => timed.lock().starts.get(&c).unwrap().len(),
+        }
     }
 
     fn check_reporting_with_memory_excess(metrics: &BlockMetrics, checkpoint: Checkpoint) {
@@ -191,9 +240,9 @@ mod tests {
 
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
-        let m = BlockMetrics::noop();
+        let m = BlockMetrics::new(None).expect("There are some metrics");
         m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
-        assert!(m.inner.is_none());
+        assert!(matches!(m, BlockMetrics::Noop));
     }
 
     #[test]

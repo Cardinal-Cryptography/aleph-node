@@ -8,6 +8,7 @@ use sc_consensus::{
 use sp_consensus::Error as ConsensusError;
 use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
+use crate::metrics::TopBlockMetricsType;
 use crate::{
     aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
     justification::{backwards_compatible_decode, DecodeError},
@@ -54,15 +55,20 @@ where
         &mut self,
         block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
+        let number = block.header.number().clone();
         let post_hash = block.post_hash();
         self.metrics
             .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 
-        if let Ok(ImportResult::Imported(_)) = &result {
+        if let Ok(ImportResult::Imported(ref aux)) = &result {
             self.metrics
                 .report_block(post_hash, Instant::now(), Checkpoint::Imported);
+            if aux.is_new_best {
+                self.metrics
+                    .update_top_block_metrics(number, TopBlockMetricsType::Best);
+            }
         }
         result
     }

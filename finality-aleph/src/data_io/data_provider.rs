@@ -370,7 +370,7 @@ mod tests {
             client,
             session_boundaries,
             config,
-            BlockMetrics::noop(),
+            BlockMetrics::Noop,
         );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
