@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use log::{debug, info};
+use log::debug;
 use primitives::Balance;
 use subxt::{blocks::ExtrinsicEvents, config::Hasher, Config};
 
