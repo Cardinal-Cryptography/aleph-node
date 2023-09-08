@@ -24,14 +24,14 @@ use crate::{
 /// Capable of communicating with a live Aleph chain.
 #[derive(Clone)]
 pub struct Connection {
-    client: SubxtClient,
+    pub client: SubxtClient,
 }
 
 /// Any connection that is signed by some key.
 #[derive(Clone)]
 pub struct SignedConnection {
-    connection: Connection,
-    signer: KeyPair,
+    pub connection: Connection,
+    pub signer: KeyPair,
 }
 
 /// Specific connection that is signed by the sudo key.
