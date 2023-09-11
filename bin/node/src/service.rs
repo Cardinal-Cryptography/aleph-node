@@ -261,6 +261,7 @@ fn setup(
             warp_sync_params: None,
         })?;
 
+    let sync_oracle = sync_network.clone();
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -271,6 +272,7 @@ fn setup(
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
                 justification_translator: JustificationTranslator::new(chain_status.clone()),
+                sync_oracle: sync_oracle.clone(),
             };
 
             Ok(create_full_rpc(deps)?)
