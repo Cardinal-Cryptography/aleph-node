@@ -54,7 +54,7 @@ where
         &mut self,
         block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
-        let number = block.header.number().clone();
+        let number = *block.header.number();
         let post_hash = block.post_hash();
         self.metrics
             .report_block(post_hash, Instant::now(), Checkpoint::Importing);
