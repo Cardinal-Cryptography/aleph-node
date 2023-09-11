@@ -9,6 +9,11 @@ on:
         required: false
         type: boolean
         default: false
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       expiration:
@@ -22,6 +27,11 @@ on:
           - 3h
           - 96h
           - never
+      append-run-id-to-name:
+        description: When set to 'true' then run ID will be appended to featurenet name
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
@@ -105,6 +115,7 @@ jobs:
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           expiration: ${{ inputs.expiration == '' && '48h' || inputs.expiration }}
           append-run-id-to-name: "${{ inputs.append-run-id-to-name }}"
+          internal: ${{ inputs.internal == 'true' && 'true' || 'false' }}
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads

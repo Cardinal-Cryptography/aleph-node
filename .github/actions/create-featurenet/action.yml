@@ -57,6 +57,10 @@ inputs:
       When 'true' then run ID will be appended to featurenet name
     required: false
     default: "false"
+  internal:
+    description: 'Internal network, accessible from VPN only'
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -174,6 +178,7 @@ runs:
           "${{ inputs.rolling-update-partition }}" \
           "${fnet_create_hook}" \
           "${{ inputs.replicas }}"
+          "${{ inputs.internal == 'true' && 'true' : 'false' }}"
       # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
