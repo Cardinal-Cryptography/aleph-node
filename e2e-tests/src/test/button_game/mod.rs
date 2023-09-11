@@ -57,7 +57,7 @@ pub async fn wrapped_azero() -> Result<()> {
     let balance_before = conn.get_free_balance(account_id.clone(), None).await;
     wazero.unwrap(account_conn, alephs(1)).await?;
 
-    let event = assert_recv_id(&mut events, "UnWrapped").await;
+    let event = assert_recv_id(&mut events, "Unwrapped").await;
     let balance_after = conn.get_free_balance(account_id.clone(), None).await;
     let max_fee = alephs(1) / 100;
     assert!(balance_after - balance_before > alephs(1) - max_fee);
@@ -144,16 +144,23 @@ pub async fn simple_dex() -> Result<()> {
         .await?;
     assert_recv_id(&mut events, "Approval").await;
 
-    dex.deposit(
-        authority_conn,
-        &[
-            (token1, mega(3000)),
-            (token2, mega(5000)),
-            (token3, mega(10000)),
-        ],
-    )
-    .await?;
-    assert_recv_id(&mut events, "Deposited").await;
+    token1
+        .transfer(authority_conn, dex.contract.address(), mega(3000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
+
+    token2
+        .transfer(authority_conn, dex.contract.address(), mega(5000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
+
+    token3
+        .transfer(authority_conn, dex.contract.address(), mega(10000))
+        .await?;
+
+    assert_recv_id(&mut events, "Transfer").await;
 
     let more_than_liquidity = mega(1_000_000);
     let res = dex
@@ -268,7 +275,7 @@ pub async fn marketplace() -> Result<()> {
     let player = &player;
 
     marketplace.reset(&sign(&conn, &authority)).await?;
-    assert_recv_id(&mut events, "Reset").await;
+    assert_recv_id(&mut events, "MarketplaceReset").await;
     ticket_token
         .transfer(&sign(&conn, &authority), &marketplace.as_ref().into(), 2)
         .await?;
@@ -295,11 +302,11 @@ pub async fn marketplace() -> Result<()> {
         .await?;
     marketplace.buy(&sign(&conn, player), None).await?;
 
-    let event = assert_recv_id(&mut events, "Bought").await;
+    let event = assert_recv_id(&mut events, "TicketBought").await;
     assert!(event.contract == marketplace.as_ref().into());
     let_assert!(Some(&Value::UInt(price)) = event.data.get("price"));
     assert!(price <= later_price);
-    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("account_id"));
+    let_assert!(Some(Value::Literal(acc_id)) = event.data.get("by"));
     assert!(acc_id == &player.account_id().to_string());
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
     assert!(reward_token.balance_of(&conn, player.account_id()).await? <= player_balance - price);
@@ -315,14 +322,14 @@ pub async fn marketplace() -> Result<()> {
             .is_err(),
         "set price too low, should fail"
     );
-    refute_recv_id(&mut events, "Bought").await;
+    refute_recv_id(&mut events, "TicketBought").await;
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
 
     info!("Setting max price high enough");
     marketplace
         .buy(&sign(&conn, player), Some(latest_price * 2))
         .await?;
-    assert_recv_id(&mut events, "Bought").await;
+    assert_recv_id(&mut events, "TicketBought").await;
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 2);
 
     Ok(())
@@ -343,6 +350,7 @@ pub async fn button_game_reset() -> Result<()> {
         ..
     } = setup_button_test(config, &config.test_case_params.early_bird_special).await?;
 
+    let round_old = button.round(&conn).await?;
     let deadline_old = button.deadline(&conn).await?;
     let marketplace_initial = ticket_token
         .balance_of(&conn, &marketplace.as_ref().into())
@@ -350,12 +358,14 @@ pub async fn button_game_reset() -> Result<()> {
     ticket_token
         .transfer(&sign(&conn, &authority), &button.as_ref().into(), 1)
         .await?;
+    let button_balance = ticket_token
+        .balance_of(&conn, &button.as_ref().into())
+        .await?;
 
-    wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
 
-    assert_recv_id(&mut events, "GameReset").await;
-    assert_recv_id(&mut events, "Reset").await;
+    assert_recv_id(&mut events, "ButtonReset").await;
+    assert_recv_id(&mut events, "MarketplaceReset").await;
 
     let deadline_new = button.deadline(&conn).await?;
     assert!(deadline_new > deadline_old);
@@ -363,8 +373,11 @@ pub async fn button_game_reset() -> Result<()> {
         ticket_token
             .balance_of(&conn, &marketplace.as_ref().into())
             .await?
-            == marketplace_initial + 1
+            == marketplace_initial + button_balance
     );
+
+    let round_new = button.round(&conn).await?;
+    assert!(round_new > round_old);
 
     Ok(())
 }
@@ -376,8 +389,11 @@ pub async fn early_bird_special() -> Result<()> {
     button_game_play(
         config,
         &config.test_case_params.early_bird_special,
-        |early_presser_score, late_presser_score| {
-            assert!(early_presser_score > late_presser_score);
+        |first_presser_time, first_presser_score, second_presser_time, second_presser_score| {
+            assert!(
+                first_presser_time.cmp(&second_presser_time)
+                    == first_presser_score.cmp(&second_presser_score).reverse()
+            );
         },
     )
     .await
@@ -390,8 +406,11 @@ pub async fn back_to_the_future() -> Result<()> {
     button_game_play(
         config,
         &config.test_case_params.back_to_the_future,
-        |early_presser_score, late_presser_score| {
-            assert!(early_presser_score < late_presser_score);
+        |first_presser_time, first_presser_score, second_presser_time, second_presser_score| {
+            assert!(
+                first_presser_time.cmp(&second_presser_time)
+                    == first_presser_score.cmp(&second_presser_score)
+            );
         },
     )
     .await
@@ -404,9 +423,9 @@ pub async fn the_pressiah_cometh() -> Result<()> {
     button_game_play(
         config,
         &config.test_case_params.the_pressiah_cometh,
-        |early_presser_score, late_presser_score| {
-            assert!(early_presser_score == 1);
-            assert!(late_presser_score == 2);
+        |_, first_presser_score, _, second_presser_score| {
+            assert!(first_presser_score == 1_000_000_000_000);
+            assert!(second_presser_score == 2 * 1_000_000_000_000);
         },
     )
     .await
@@ -424,7 +443,7 @@ pub async fn the_pressiah_cometh() -> Result<()> {
 ///
 /// Passes the scores received by an early presser and late presser to `score_check` so that different scoring rules
 /// can be tested generically.
-async fn button_game_play<F: Fn(u128, u128)>(
+async fn button_game_play<F: Fn(u128, u128, u128, u128)>(
     config: &Config,
     button_contract_address: &Option<String>,
     score_check: F,
@@ -439,6 +458,8 @@ async fn button_game_play<F: Fn(u128, u128)>(
         player,
         ..
     } = setup_button_test(config, button_contract_address).await?;
+    info!("Setup done");
+
     let player = &player;
 
     ticket_token
@@ -446,8 +467,18 @@ async fn button_game_play<F: Fn(u128, u128)>(
         .await?;
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
-    let event = assert_recv_id(&mut events, "GameReset").await;
-    let_assert!(Some(&Value::UInt(reset_at)) = event.data.get("when"));
+
+    let pressiah = button.last_presser(&conn).await?;
+
+    let event = assert_recv_id(&mut events, "ButtonReset").await;
+
+    let_assert!(reset_at = event.block_details.unwrap().block_number);
+
+    if pressiah.is_some() {
+        // pressiah reward is minted
+        assert_recv_id(&mut events, "RewardMinted").await;
+    }
+
     let old_button_balance = ticket_token
         .balance_of(&conn, &button.as_ref().into())
         .await?;
@@ -457,11 +488,13 @@ async fn button_game_play<F: Fn(u128, u128)>(
         .await?;
     button.press(&sign(&conn, player)).await?;
 
-    let event = assert_recv_id(&mut events, "ButtonPressed").await;
-    let_assert!(Some(&Value::UInt(first_presser_score)) = event.data.get("score"));
-    assert!(event.data.get("by") == Some(&Value::Literal(player.account_id().to_string())));
-    assert!(reward_token.balance_of(&conn, player.account_id()).await? == first_presser_score);
-    assert!(first_presser_score > 0);
+    let event = assert_recv_id(&mut events, "RewardMinted").await;
+    let_assert!(Some(&Value::UInt(first_reward_amount)) = event.data.get("reward"));
+
+    assert!(event.data.get("to") == Some(&Value::Literal(player.account_id().to_string())));
+
+    assert!(reward_token.balance_of(&conn, player.account_id()).await? == first_reward_amount);
+    assert!(first_reward_amount > 0);
     assert!(ticket_token.balance_of(&conn, player.account_id()).await? == 1);
     assert!(
         ticket_token
@@ -469,33 +502,39 @@ async fn button_game_play<F: Fn(u128, u128)>(
             .await?
             == old_button_balance + 1
     );
-    let_assert!(Some(&Value::UInt(first_press_at)) = event.data.get("when"));
+
+    let_assert!(first_press_at = event.block_details.unwrap().block_number);
 
     info!("Waiting before pressing again");
     sleep(Duration::from_secs(3)).await;
 
     button.press(&sign(&conn, player)).await?;
-    let event = assert_recv_id(&mut events, "ButtonPressed").await;
-    let_assert!(Some(&Value::UInt(second_presser_score)) = event.data.get("score"));
-    let_assert!(Some(&Value::UInt(second_press_at)) = event.data.get("when"));
-    let (early_presser_score, late_presser_score) =
-        if (first_press_at - reset_at) < (second_press_at - first_press_at) {
-            (first_presser_score, second_presser_score)
-        } else {
-            (second_presser_score, first_presser_score)
-        };
+    let event = assert_recv_id(&mut events, "RewardMinted").await;
+    let_assert!(Some(&Value::UInt(second_reward_amount)) = event.data.get("reward"));
 
-    score_check(early_presser_score, late_presser_score);
-    let total_score = early_presser_score + late_presser_score;
-    assert!(reward_token.balance_of(&conn, player.account_id()).await? == total_score);
+    let_assert!(second_press_at = event.block_details.unwrap().block_number);
+
+    let first_presser_time = first_press_at - reset_at;
+    let second_presser_time = second_press_at - first_press_at;
+
+    score_check(
+        first_presser_time.into(),
+        first_reward_amount,
+        second_presser_time.into(),
+        second_reward_amount,
+    );
+
+    let player_rewards = first_reward_amount + second_reward_amount;
+    assert!(reward_token.balance_of(&conn, player.account_id()).await? == player_rewards);
 
     wait_for_death(&conn, &button).await?;
     button.reset(&sign(&conn, &authority)).await?;
-    assert_recv_id(&mut events, "Reset").await;
+    let event = assert_recv_id(&mut events, "RewardMinted").await;
+    let_assert!(Some(&Value::UInt(pressiah_reward)) = event.data.get("reward"));
 
-    let pressiah_score = total_score / 4;
     assert!(
-        reward_token.balance_of(&conn, player.account_id()).await? == total_score + pressiah_score
+        reward_token.balance_of(&conn, player.account_id()).await?
+            == player_rewards + pressiah_reward
     );
 
     Ok(())

@@ -9,11 +9,12 @@ use bytes::Bytes;
 
 use crate::network::Data;
 
+mod metrics;
 #[cfg(test)]
 pub mod mock;
 mod service;
 
-pub use service::Service;
+pub use service::{Error, Service};
 
 #[async_trait::async_trait]
 /// Interface for the gossip network. This represents a P2P network and a lot of the properties of
@@ -43,6 +44,7 @@ pub trait Network<D: Data>: Send + 'static {
     fn broadcast(&mut self, data: D) -> Result<(), Self::Error>;
 
     /// Receive some data from the network, including information about who sent it.
+    /// This method's implementation must be cancellation safe.
     async fn next(&mut self) -> Result<(D, Self::PeerId), Self::Error>;
 }
 
@@ -76,6 +78,8 @@ pub enum Event<P> {
 
 #[async_trait::async_trait]
 pub trait EventStream<P> {
+    /// Retrieves next event from the stream or returns None if the stream is closed.
+    /// This method's implementation must be cancellation safe.
     async fn next_event(&mut self) -> Option<Event<P>>;
 }
 

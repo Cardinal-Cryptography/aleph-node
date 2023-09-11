@@ -2,12 +2,12 @@ use std::{collections::HashSet, marker::PhantomData};
 
 use anyhow::{anyhow, ensure};
 use codec::{Decode, Encode};
-use primitives::{Balance, BlockNumber};
+use subxt::utils::Static;
 
 use crate::{
     account_from_keypair, aleph_runtime::RuntimeCall, api, api::runtime_types, connections::TxInfo,
     sp_core::blake2_256, sp_runtime::traits::TrailingZeroInput, sp_weights::weight_v2::Weight,
-    AccountId, BlockHash, ConnectionApi, SignedConnectionApi, TxStatus,
+    AccountId, Balance, BlockHash, BlockNumber, ConnectionApi, SignedConnectionApi, TxStatus,
 };
 
 /// An alias for a call hash.
@@ -82,7 +82,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .multisig()
-            .as_multi_threshold_1(other_signatories, call);
+            .as_multi_threshold_1(wrap_vec_elements_with_static(other_signatories), call);
 
         self.send_tx(tx, status).await
     }
@@ -98,7 +98,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call,
             max_weight,
@@ -118,7 +118,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().approve_as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call_hash,
             max_weight,
@@ -137,7 +137,7 @@ impl<S: SignedConnectionApi> MultisigUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx().multisig().cancel_as_multi(
             threshold,
-            other_signatories,
+            wrap_vec_elements_with_static(other_signatories),
             timepoint,
             call_hash,
         );
@@ -224,9 +224,8 @@ impl<C: ConnectionApi> MultisigApiExt for C {
     ) -> Timepoint {
         let multisigs = api::storage()
             .multisig()
-            .multisigs(party_account, call_hash);
-        let Multisig { when, .. } = self.get_storage_entry(&multisigs, block_hash).await;
-        when
+            .multisigs(&Static(party_account.clone()), call_hash);
+        self.get_storage_entry(&multisigs, block_hash).await.when
     }
 }
 
@@ -615,4 +614,8 @@ fn ensure_signer_in_party<S: SignedConnectionApi>(
     } else {
         Err(anyhow!("Connection should be signed by a party member"))
     }
+}
+
+fn wrap_vec_elements_with_static<T>(vec: Vec<T>) -> Vec<Static<T>> {
+    vec.into_iter().map(Static).collect()
 }

@@ -1,56 +1,50 @@
-use std::{
-    fmt::Display,
-    hash::{Hash, Hasher},
-};
-
-use aleph_primitives::BlockNumber;
-use codec::{Decode, Encode};
-use sp_runtime::traits::{CheckedSub, Header as SubstrateHeader, One};
+use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
+use sp_consensus::BlockOrigin;
+use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
-    sync::{BlockIdentifier, Header, Justification as JustificationT},
-    AlephJustification,
+    aleph_primitives::{Block, Header},
+    sync::{Block as BlockT, BlockImport, Header as HeaderT},
+    BlockId,
 };
 
 mod chain_status;
 mod finalizer;
+mod justification;
 mod status_notifier;
-mod translator;
 mod verification;
 
-pub use verification::SessionVerifier;
+pub use chain_status::SubstrateChainStatus;
+pub use justification::{
+    InnerJustification, Justification, JustificationTranslator, TranslateError,
+};
+pub use status_notifier::SubstrateChainStatusNotifier;
+pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-/// An identifier uniquely specifying a block and its height.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode)]
-pub struct BlockId<H: SubstrateHeader<Number = BlockNumber>> {
-    hash: H::Hash,
-    number: H::Number,
-}
+/// Wrapper around the trait object that we get from Substrate.
+pub struct BlockImporter(pub Box<dyn ImportQueueService<Block>>);
 
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockId<H> {
-    pub fn new(hash: H::Hash, number: H::Number) -> Self {
-        BlockId { hash, number }
+impl BlockImport<Block> for BlockImporter {
+    fn import_block(&mut self, block: Block) {
+        let origin = BlockOrigin::NetworkBroadcast;
+        let incoming_block = IncomingBlock::<Block> {
+            hash: block.header.hash(),
+            header: Some(block.header),
+            body: Some(block.extrinsics),
+            indexed_body: None,
+            justifications: None,
+            origin: None,
+            allow_missing_state: false,
+            skip_execution: false,
+            import_existing: false,
+            state: None,
+        };
+        self.0.import_blocks(origin, vec![incoming_block]);
     }
 }
 
-impl<SH: SubstrateHeader<Number = BlockNumber>> Hash for BlockId<SH> {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        self.hash.hash(state);
-        self.number.hash(state);
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
-    fn number(&self) -> u32 {
-        self.number
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
-    type Identifier = BlockId<H>;
+impl HeaderT for Header {
+    type Identifier = BlockId;
 
     fn id(&self) -> Self::Identifier {
         BlockId {
@@ -68,46 +62,11 @@ impl<H: SubstrateHeader<Number = BlockNumber>> Header for H {
     }
 }
 
-/// A justification, including the related header.
-#[derive(Clone, Debug, Encode, Decode)]
-pub struct Justification<H: SubstrateHeader<Number = BlockNumber>> {
-    header: H,
-    raw_justification: AlephJustification,
-}
+impl BlockT for Block {
+    type Header = Header;
 
-impl<H: SubstrateHeader<Number = BlockNumber>> Header for Justification<H> {
-    type Identifier = BlockId<H>;
-
-    fn id(&self) -> Self::Identifier {
-        self.header().id()
-    }
-
-    fn parent_id(&self) -> Option<Self::Identifier> {
-        self.header().parent_id()
-    }
-}
-
-impl<H: SubstrateHeader<Number = BlockNumber>> JustificationT for Justification<H> {
-    type Header = H;
-    type Unverified = Self;
-
+    /// The header of the block.
     fn header(&self) -> &Self::Header {
         &self.header
     }
-
-    fn into_unverified(self) -> Self::Unverified {
-        self
-    }
-}
-
-/// Translates raw aleph justifications into ones acceptable to sync.
-pub trait JustificationTranslator<H: SubstrateHeader<Number = BlockNumber>> {
-    type Error: Display;
-
-    fn translate(
-        &self,
-        raw_justification: AlephJustification,
-        hash: H::Hash,
-        number: H::Number,
-    ) -> Result<Justification<H>, Self::Error>;
 }

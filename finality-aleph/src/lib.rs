@@ -1,28 +1,38 @@
-extern crate core;
+use std::{
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    hash::Hash,
+    path::PathBuf,
+    sync::Arc,
+};
 
-use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
-
-use aleph_primitives::BlockNumber;
-use codec::{Decode, Encode, Output};
 use derive_more::Display;
 use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use sc_client_api::{Backend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor};
+use parity_scale_codec::{Codec, Decode, Encode, Output};
+use primitives as aleph_primitives;
+use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Hash as AlephHash};
+use sc_client_api::{
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
+};
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
-use sc_network_common::ExHashT;
-use sc_service::SpawnTaskHandle;
-use sp_api::{NumberFor, ProvideRuntimeApi};
+use sc_network_sync::SyncingService;
+use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
-use sp_keystore::CryptoStore;
-use sp_runtime::traits::{BlakeTwo256, Block, Header};
+use sp_keystore::Keystore;
+use sp_runtime::traits::{BlakeTwo256, Block};
+use substrate_prometheus_endpoint::Registry;
 use tokio::time::Duration;
 
 use crate::{
-    abft::{CurrentNetworkData, LegacyNetworkData, CURRENT_VERSION, LEGACY_VERSION},
+    abft::{
+        CurrentNetworkData, Keychain, LegacyNetworkData, NodeCount, NodeIndex, Recipient,
+        SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
+    },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
+    compatibility::{Version, Versioned},
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
@@ -36,43 +46,38 @@ mod data_io;
 mod finalization;
 mod import;
 mod justification;
-pub mod metrics;
+mod metrics;
 mod network;
 mod nodes;
 mod party;
 mod session;
 mod session_map;
-// TODO: remove when module is used
-#[allow(dead_code)]
 mod sync;
 #[cfg(test)]
 pub mod testing;
 
-pub use abft::{Keychain, NodeCount, NodeIndex, Recipient, SignatureSet, SpawnHandle};
-pub use aleph_primitives::{AuthorityId, AuthorityPair, AuthoritySignature};
-pub use import::{AlephBlockImport, TracingBlockImport};
-pub use justification::{AlephJustification, JustificationNotification};
-pub use network::{Protocol, ProtocolNaming};
-pub use nodes::run_validator_node;
-pub use session::SessionPeriod;
-
-use crate::compatibility::{Version, Versioned};
-pub use crate::metrics::Metrics;
+pub use crate::{
+    import::{AlephBlockImport, TracingBlockImport},
+    justification::AlephJustification,
+    metrics::BlockMetrics,
+    network::{Protocol, ProtocolNaming},
+    nodes::run_validator_node,
+    session::SessionPeriod,
+    sync::{
+        substrate::{BlockImporter, Justification},
+        JustificationTranslator, SubstrateChainStatus,
+    },
+};
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
-
-#[derive(Clone, Debug, Encode, Decode)]
-enum Error {
-    SendData,
-}
 
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(
     naming: ProtocolNaming,
     protocol: Protocol,
-) -> sc_network_common::config::NonDefaultSetConfig {
-    let mut config = sc_network_common::config::NonDefaultSetConfig::new(
+) -> sc_network::config::NonDefaultSetConfig {
+    let mut config = sc_network::config::NonDefaultSetConfig::new(
         naming.protocol_name(&protocol),
         // max_notification_size should be larger than the maximum possible honest message size (in bytes).
         // Max size of alert is UNIT_SIZE * MAX_UNITS_IN_ALERT ~ 100 * 5000 = 50000 bytes
@@ -81,7 +86,7 @@ pub fn peers_set_config(
         1024 * 1024,
     );
 
-    config.set_config = sc_network_common::config::SetConfig::default();
+    config.set_config = sc_network::config::SetConfig::default();
     config.add_fallback_names(naming.fallback_protocol_names(&protocol));
     config
 }
@@ -92,14 +97,14 @@ pub struct MillisecsPerBlock(pub u64);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
 
-pub type LegacySplitData<B> = Split<LegacyNetworkData<B>, LegacyRmcNetworkData<B>>;
-pub type CurrentSplitData<B> = Split<CurrentNetworkData<B>, CurrentRmcNetworkData<B>>;
+type LegacySplitData = Split<LegacyNetworkData, LegacyRmcNetworkData>;
+type CurrentSplitData = Split<CurrentNetworkData, CurrentRmcNetworkData>;
 
-impl<B: Block> Versioned for LegacyNetworkData<B> {
+impl Versioned for LegacyNetworkData {
     const VERSION: Version = Version(LEGACY_VERSION);
 }
 
-impl<B: Block> Versioned for CurrentNetworkData<B> {
+impl Versioned for CurrentNetworkData {
     const VERSION: Version = Version(CURRENT_VERSION);
 }
 
@@ -115,7 +120,9 @@ pub enum VersionedEitherMessage<L, R> {
 }
 
 impl<L: Versioned + Decode, R: Versioned + Decode> Decode for VersionedEitherMessage<L, R> {
-    fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(
+        input: &mut I,
+    ) -> Result<Self, parity_scale_codec::Error> {
         let version = Version::decode(input)?;
         if version == L::VERSION {
             return Ok(VersionedEitherMessage::Left(L::decode(input)?));
@@ -149,7 +156,7 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-pub type VersionedNetworkData<B> = VersionedEitherMessage<LegacySplitData<B>, CurrentSplitData<B>>;
+type VersionedNetworkData = VersionedEitherMessage<LegacySplitData, CurrentSplitData>;
 
 #[derive(Debug, Display, Clone)]
 pub enum VersionedTryFromError {
@@ -157,20 +164,20 @@ pub enum VersionedTryFromError {
     ExpectedOldGotNew,
 }
 
-impl<B: Block> TryFrom<VersionedNetworkData<B>> for LegacySplitData<B> {
+impl TryFrom<VersionedNetworkData> for LegacySplitData {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData<B>) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(data) => data,
             VersionedEitherMessage::Right(_) => return Err(ExpectedOldGotNew),
         })
     }
 }
-impl<B: Block> TryFrom<VersionedNetworkData<B>> for CurrentSplitData<B> {
+impl TryFrom<VersionedNetworkData> for CurrentSplitData {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData<B>) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(_) => return Err(ExpectedNewGotOld),
             VersionedEitherMessage::Right(data) => data,
@@ -178,14 +185,14 @@ impl<B: Block> TryFrom<VersionedNetworkData<B>> for CurrentSplitData<B> {
     }
 }
 
-impl<B: Block> From<LegacySplitData<B>> for VersionedNetworkData<B> {
-    fn from(data: LegacySplitData<B>) -> Self {
+impl From<LegacySplitData> for VersionedNetworkData {
+    fn from(data: LegacySplitData) -> Self {
         VersionedEitherMessage::Left(data)
     }
 }
 
-impl<B: Block> From<CurrentSplitData<B>> for VersionedNetworkData<B> {
-    fn from(data: CurrentSplitData<B>) -> Self {
+impl From<CurrentSplitData> for VersionedNetworkData {
+    fn from(data: CurrentSplitData) -> Self {
         VersionedEitherMessage::Right(data)
     }
 }
@@ -198,6 +205,7 @@ pub trait ClientForAleph<B, BE>:
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
+    + BlockBackend<B>
 where
     BE: Backend<B>,
     B: Block,
@@ -214,41 +222,67 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>,
+        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+        + BlockBackend<B>,
 {
+}
+
+/// The identifier of a block, the least amount of knowledge we can have about a block.
+pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
+    /// The block number, useful when reasoning about hopeless forks.
+    fn number(&self) -> BlockNumber;
 }
 
 type Hasher = abft::HashWrapper<BlakeTwo256>;
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub struct HashNum<H, N> {
-    hash: H,
-    num: N,
+#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode, Hash)]
+pub struct BlockId {
+    hash: BlockHash,
+    number: BlockNumber,
 }
 
-impl<H> HashNum<H, BlockNumber> {
-    fn new(hash: H, num: BlockNumber) -> Self {
-        HashNum { hash, num }
+impl BlockId {
+    pub fn new(hash: BlockHash, number: BlockNumber) -> Self {
+        BlockId { hash, number }
     }
 }
 
-impl<H> From<(H, BlockNumber)> for HashNum<H, BlockNumber> {
-    fn from(pair: (H, BlockNumber)) -> Self {
-        HashNum::new(pair.0, pair.1)
+impl From<(BlockHash, BlockNumber)> for BlockId {
+    fn from(pair: (BlockHash, BlockNumber)) -> Self {
+        BlockId::new(pair.0, pair.1)
     }
 }
 
-pub type BlockHashNum<B> = HashNum<<B as Block>::Hash, NumberFor<B>>;
+impl Display for BlockId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(f, "#{} ({})", self.number, self.hash,)
+    }
+}
 
-pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
-    pub network: Arc<NetworkService<B, H>>,
+impl BlockIdentifier for BlockId {
+    fn number(&self) -> BlockNumber {
+        self.number
+    }
+}
+
+#[derive(Clone)]
+pub struct RateLimiterConfig {
+    /// Maximum bit-rate per node in bytes per second of the alephbft validator network.
+    pub alephbft_bit_rate_per_connection: usize,
+}
+
+pub struct AlephConfig<C, SC> {
+    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
+    pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
-    pub blockchain_backend: BB,
+    pub chain_status: SubstrateChainStatus,
+    pub import_queue_handle: BlockImporter,
     pub select_chain: SC,
-    pub spawn_handle: SpawnTaskHandle,
-    pub keystore: Arc<dyn CryptoStore>,
-    pub justification_rx: mpsc::UnboundedReceiver<JustificationNotification<B>>,
-    pub metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    pub spawn_handle: SpawnHandle,
+    pub keystore: Arc<dyn Keystore>,
+    pub justification_rx: mpsc::UnboundedReceiver<Justification>,
+    pub metrics: BlockMetrics,
+    pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
@@ -256,13 +290,5 @@ pub struct AlephConfig<B: Block, H: ExHashT, C, SC, BB> {
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
     pub protocol_naming: ProtocolNaming,
-}
-
-pub trait BlockchainBackend<B: Block> {
-    fn children(&self, parent_hash: <B as Block>::Hash) -> Vec<<B as Block>::Hash>;
-    fn info(&self) -> sp_blockchain::Info<B>;
-    fn header(
-        &self,
-        block_id: sp_api::BlockId<B>,
-    ) -> sp_blockchain::Result<Option<<B as Block>::Header>>;
+    pub rate_limiter_config: RateLimiterConfig,
 }

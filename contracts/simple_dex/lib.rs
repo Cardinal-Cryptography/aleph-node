@@ -1,5 +1,6 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 #![allow(clippy::let_unit_value)]
+#![feature(min_specialization)]
 
 /// Simple DEX contract
 ///
@@ -13,17 +14,21 @@
 mod simple_dex {
     use access_control::{roles::Role, AccessControlRef, ACCESS_CONTROL_PUBKEY};
     use ink::{
-        codegen::EmitEvent,
-        env::{call::FromAccountId, CallFlags, Error as InkEnvError},
+        codegen::{EmitEvent, Env},
+        env::{
+            call::{build_call, ExecutionInput, FromAccountId},
+            set_code_hash, CallFlags, DefaultEnvironment, Error as InkEnvError,
+        },
         prelude::{format, string::String, vec, vec::Vec},
         reflect::ContractEventBase,
+        storage::{traits::ManualKey, Lazy, Mapping},
         LangError, ToAccountId,
     };
     use openbrush::{
         contracts::{psp22::PSP22Ref, traits::errors::PSP22Error},
-        storage::Mapping,
         traits::Storage,
     };
+    use shared_traits::{Haltable, HaltableData, HaltableError, Internal, Selector};
 
     type Event = <SimpleDex as ContractEventBase>::Type;
 
@@ -45,6 +50,7 @@ mod simple_dex {
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum DexError {
+        HaltableError(HaltableError),
         PSP22(PSP22Error),
         InsufficientAllowanceOf(AccountId),
         Arithmethic,
@@ -55,6 +61,18 @@ mod simple_dex {
         TooMuchSlippage,
         NotEnoughLiquidityOf(AccountId),
         UnsupportedSwapPair(SwapPair),
+    }
+
+    impl From<DexError> for HaltableError {
+        fn from(why: DexError) -> Self {
+            HaltableError::Custom(format!("{:?}", why))
+        }
+    }
+
+    impl From<HaltableError> for DexError {
+        fn from(why: HaltableError) -> Self {
+            DexError::HaltableError(why)
+        }
     }
 
     impl From<PSP22Error> for DexError {
@@ -76,7 +94,8 @@ mod simple_dex {
     }
 
     #[ink(event)]
-    pub struct Deposited {
+    pub struct Withdrawn {
+        #[ink(topic)]
         caller: AccountId,
         #[ink(topic)]
         token: AccountId,
@@ -96,6 +115,12 @@ mod simple_dex {
     }
 
     #[ink(event)]
+    pub struct Halted;
+
+    #[ink(event)]
+    pub struct Resumed;
+
+    #[ink(event)]
     pub struct Swapped {
         caller: AccountId,
         #[ink(topic)]
@@ -106,21 +131,46 @@ mod simple_dex {
         amount_out: Balance,
     }
 
-    #[ink(event)]
-    pub struct SwapFeeSet {
-        #[ink(topic)]
-        caller: AccountId,
-        swap_fee_percentage: u128,
+    #[derive(Debug)]
+    #[ink::storage_item]
+    pub struct Data {
+        pub swap_fee_percentage: u128,
+        pub access_control: AccessControlRef,
     }
 
     #[ink(storage)]
     #[derive(Storage)]
     pub struct SimpleDex {
-        pub swap_fee_percentage: u128,
-        pub access_control: AccessControlRef,
+        pub data: Lazy<Data, ManualKey<0x44415441>>,
         // a set of pairs that are availiable for swapping between
-        pub swap_pairs: Mapping<SwapPair, ()>,
+        pub swap_pairs: Mapping<SwapPair, (), ManualKey<0x50414952>>,
+        #[storage_field]
+        pub halted: HaltableData,
     }
+
+    impl Internal for SimpleDex {
+        fn _after_halt(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Halted(Halted {}));
+            Ok(())
+        }
+
+        fn _after_resume(&self) -> Result<(), HaltableError> {
+            Self::emit_event(self.env(), Event::Resumed(Resumed {}));
+            Ok(())
+        }
+
+        fn _before_halt(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+
+        fn _before_resume(&self) -> Result<(), HaltableError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            Ok(())
+        }
+    }
+
+    impl Haltable for SimpleDex {}
 
     impl SimpleDex {
         #[ink(constructor)]
@@ -134,10 +184,18 @@ mod simple_dex {
             let access_control = AccessControlRef::from_account_id(access_control);
 
             if access_control.has_role(caller, required_role) {
-                Self {
+                let mut data = Lazy::new();
+                data.set(&Data {
                     swap_fee_percentage: 0,
                     access_control,
+                });
+
+                Self {
+                    data,
                     swap_pairs: Mapping::default(),
+                    halted: HaltableData {
+                        halted: Lazy::default(),
+                    },
                 }
             } else {
                 panic!("Caller is not allowed to initialize this contract");
@@ -155,6 +213,8 @@ mod simple_dex {
             amount_token_in: Balance,
             min_amount_token_out: Balance,
         ) -> Result<(), DexError> {
+            self.check_halted()?;
+
             let this = self.env().account_id();
             let caller = self.env().caller();
 
@@ -202,42 +262,6 @@ mod simple_dex {
             Ok(())
         }
 
-        /// Liquidity deposit
-        ///
-        /// Can only be performed by an account with a LiquidityProvider role
-        /// Caller needs to give at least the passed amount of allowance to the contract to spend the deposited tokens on his behalf
-        /// prior to executing this tx
-        #[ink(message)]
-        pub fn deposit(&mut self, deposits: Vec<(AccountId, Balance)>) -> Result<(), DexError> {
-            let this = self.env().account_id();
-            let caller = self.env().caller();
-
-            // check role, only designated account can add liquidity
-            self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?;
-
-            deposits
-                .into_iter()
-                .try_for_each(|(token_in, amount)| -> Result<(), DexError> {
-                    // transfer token_in from the caller to the contract
-                    // will revert if the contract does not have enough allowance from the caller
-                    // in which case the whole tx is reverted
-                    self.transfer_from_tx(token_in, caller, this, amount)?;
-
-                    Self::emit_event(
-                        self.env(),
-                        Event::Deposited(Deposited {
-                            caller,
-                            token: token_in,
-                            amount,
-                        }),
-                    );
-
-                    Ok(())
-                })?;
-
-            Ok(())
-        }
-
         #[ink(message)]
         pub fn withdrawal(
             &mut self,
@@ -246,13 +270,26 @@ mod simple_dex {
             let this = self.env().account_id();
             let caller = self.env().caller();
 
-            // check role, only designated account can remove liquidity
-            self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?;
+            // check role, under normal circumstances only designated account can remove liquidity
+            // when halted only Admin can make withdrawals
+            match self.is_halted() {
+                false => self.check_role(caller, Role::Custom(this, LIQUIDITY_PROVIDER))?,
+                true => self.check_role(caller, Role::Admin(this))?,
+            }
 
             withdrawals.into_iter().try_for_each(
                 |(token_out, amount)| -> Result<(), DexError> {
                     // transfer token_out from the contract to the caller
                     self.transfer_tx(token_out, caller, amount)?;
+                    Self::emit_event(
+                        self.env(),
+                        Event::Withdrawn(Withdrawn {
+                            caller,
+                            token: token_out,
+                            amount,
+                        }),
+                    );
+
                     Ok(())
                 },
             )?;
@@ -273,27 +310,20 @@ mod simple_dex {
             }
 
             let caller = self.env().caller();
-            let this = self.env().account_id();
 
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
 
-            // emit event
-            Self::emit_event(
-                self.env(),
-                Event::SwapFeeSet(SwapFeeSet {
-                    caller,
-                    swap_fee_percentage,
-                }),
-            );
+            let mut data = self.data.get().unwrap();
+            data.swap_fee_percentage = swap_fee_percentage;
+            self.data.set(&data);
 
-            self.swap_fee_percentage = swap_fee_percentage;
             Ok(())
         }
 
         /// Returns current value of the swap_fee_percentage parameter
         #[ink(message)]
         pub fn swap_fee_percentage(&self) -> Balance {
-            self.swap_fee_percentage
+            self.data.get().unwrap().swap_fee_percentage
         }
 
         /// Sets access_control to a new contract address
@@ -304,19 +334,19 @@ mod simple_dex {
         where
             Self: AccessControlled,
         {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
-            self.check_role(caller, Role::Admin(this))?;
+            let mut data = self.data.get().unwrap();
+            data.access_control = AccessControlRef::from_account_id(access_control);
+            self.data.set(&data);
 
-            self.access_control = AccessControlRef::from_account_id(access_control);
             Ok(())
         }
 
         /// Returns current address of the AccessControl contract that holds the account priviledges for this DEX
         #[ink(message)]
         pub fn access_control(&self) -> AccountId {
-            self.access_control.to_account_id()
+            self.data.get().unwrap().access_control.to_account_id()
         }
 
         /// Whitelists a token pair for swapping between
@@ -325,9 +355,7 @@ mod simple_dex {
         /// Can only be called by an Admin
         #[ink(message)]
         pub fn add_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.insert(&pair, &());
@@ -340,7 +368,7 @@ mod simple_dex {
         /// Returns true if a pair of tokens is whitelisted for swapping between
         #[ink(message)]
         pub fn can_swap_pair(&self, from: AccountId, to: AccountId) -> bool {
-            self.swap_pairs.contains(&SwapPair::new(from, to))
+            self.swap_pairs.contains(SwapPair::new(from, to))
         }
 
         /// Blacklists a token pair from swapping
@@ -349,13 +377,10 @@ mod simple_dex {
         /// Can only be called by an Admin
         #[ink(message)]
         pub fn remove_swap_pair(&mut self, from: AccountId, to: AccountId) -> Result<(), DexError> {
-            let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
 
             let pair = SwapPair::new(from, to);
             self.swap_pairs.remove(&pair);
-
             Self::emit_event(self.env(), Event::SwapPairRemoved(SwapPairRemoved { pair }));
 
             Ok(())
@@ -367,8 +392,7 @@ mod simple_dex {
         #[ink(message)]
         pub fn terminate(&mut self) -> Result<(), DexError> {
             let caller = self.env().caller();
-            let this = self.env().account_id();
-            self.check_role(caller, Role::Admin(this))?;
+            self.check_role(caller, Role::Admin(self.env().account_id()))?;
             self.env().terminate_contract(caller)
         }
 
@@ -380,9 +404,58 @@ mod simple_dex {
                 .map_err(|why| DexError::InkEnv(format!("Can't retrieve own code hash: {:?}", why)))
         }
 
-        /// Swap trade output given a curve with equal token weights
+        /// Upgrades contract code
+        #[ink(message)]
+        pub fn set_code(
+            &mut self,
+            code_hash: [u8; 32],
+            callback: Option<Selector>,
+        ) -> Result<(), DexError> {
+            self.check_role(self.env().caller(), Role::Admin(self.env().account_id()))?;
+            set_code_hash(&code_hash)?;
+
+            // Optionally call a callback function in the new contract that performs the storage data migration.
+            // By convention this function should be called `migrate`, it should take no arguments
+            // and be call-able only by `this` contract's instance address.
+            // To ensure the latter the `migrate` in the updated contract can e.g. check if it has an Admin role on self.
+            //
+            // `delegatecall` ensures that the target contract is called within the caller contracts context.
+            if let Some(selector) = callback {
+                build_call::<DefaultEnvironment>()
+                    .delegate(Hash::from(code_hash))
+                    .exec_input(ExecutionInput::new(ink::env::call::Selector::new(selector)))
+                    .returns::<Result<(), DexError>>()
+                    .invoke()?;
+            }
+
+            Ok(())
+        }
+
+        /// Returns the swap trade input given a desired amount and assuming a curve with equal token weights
         ///
-        /// B_0 - (100 * B_0 * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
+        /// Mostly useful for traders
+        #[ink(message)]
+        pub fn in_given_out(
+            &self,
+            token_in: AccountId,
+            token_out: AccountId,
+            amount_token_out: Balance,
+        ) -> Result<Balance, DexError> {
+            let this = self.env().account_id();
+            let balance_token_in = self.balance_of(token_in, this);
+            let balance_token_out = self.balance_of(token_out, this);
+
+            if balance_token_out <= amount_token_out {
+                // throw early as otherwise caller will only see DexError::Arithmetic
+                return Err(DexError::NotEnoughLiquidityOf(token_out));
+            }
+
+            Self::_in_given_out(amount_token_out, balance_token_in, balance_token_out)
+        }
+
+        /// Return swap trade output given a curve with equal token weights
+        ///
+        /// B_o - (100 * B_o * B_i) / (100 * (B_i + A_i) - A_i * swap_fee)
         /// where swap_fee (integer) is a percentage of the trade that goes towards the pool
         /// and is used to pay the liquidity providers
         #[ink(message)]
@@ -396,43 +469,41 @@ mod simple_dex {
             let balance_token_in = self.balance_of(token_in, this);
             let balance_token_out = self.balance_of(token_out, this);
 
-            Self::_out_given_in(
-                amount_token_in,
-                balance_token_in,
-                balance_token_out,
-                self.swap_fee_percentage,
-            )
+            Self::_out_given_in(amount_token_in, balance_token_in, balance_token_out)
         }
 
+        /// B_i * A_o / (B_o - A_o)
+        fn _in_given_out(
+            amount_token_out: Balance,
+            balance_token_in: Balance,
+            balance_token_out: Balance,
+        ) -> Result<Balance, DexError> {
+            let op1 = balance_token_in
+                .checked_mul(amount_token_out)
+                .ok_or(DexError::Arithmethic)?;
+
+            let op2 = balance_token_out
+                .checked_sub(amount_token_out)
+                .ok_or(DexError::Arithmethic)?;
+
+            op1.checked_div(op2).ok_or(DexError::Arithmethic)
+        }
+
+        /// B_o * A_i / (B_i + A_i)
         fn _out_given_in(
             amount_token_in: Balance,
             balance_token_in: Balance,
             balance_token_out: Balance,
-            swap_fee_percentage: Balance,
         ) -> Result<Balance, DexError> {
-            let op0 = amount_token_in
-                .checked_mul(swap_fee_percentage)
+            let op1 = balance_token_out
+                .checked_mul(amount_token_in)
                 .ok_or(DexError::Arithmethic)?;
 
-            let op1 = balance_token_in
+            let op2 = balance_token_in
                 .checked_add(amount_token_in)
-                .and_then(|result| result.checked_mul(100))
                 .ok_or(DexError::Arithmethic)?;
 
-            let op2 = op1.checked_sub(op0).ok_or(DexError::Arithmethic)?;
-
-            let op3 = balance_token_in
-                .checked_mul(balance_token_out)
-                .and_then(|result| result.checked_mul(100))
-                .ok_or(DexError::Arithmethic)?;
-
-            let op4 = op3.checked_div(op2).ok_or(DexError::Arithmethic)?;
-
-            balance_token_out
-                .checked_sub(op4)
-                // If the division is not even, leave the 1 unit of dust in the exchange instead of paying it out.
-                .and_then(|result| result.checked_sub((op3 % op2 > 0).into()))
-                .ok_or(DexError::Arithmethic)
+            op1.checked_div(op2).ok_or(DexError::Arithmethic)
         }
 
         /// Transfers a given amount of a PSP22 token to a specified using the callers own balance
@@ -475,7 +546,13 @@ mod simple_dex {
         }
 
         fn check_role(&self, account: AccountId, role: Role) -> Result<(), DexError> {
-            if self.access_control.has_role(account, role) {
+            if self
+                .data
+                .get()
+                .unwrap()
+                .access_control
+                .has_role(account, role)
+            {
                 Ok(())
             } else {
                 Err(DexError::MissingRole(account, role))
@@ -502,20 +579,69 @@ mod simple_dex {
 
         use super::*;
 
+        #[test]
+        fn test_liquidity_error() {
+            let balance_in = 1000000000000000u128;
+            let balance_out = 10000000000000u128;
+            let amount_out = 10000000000000u128;
+
+            assert_eq!(
+                Err(DexError::Arithmethic),
+                SimpleDex::_in_given_out(amount_out, balance_in, balance_out)
+            );
+        }
+
+        #[test]
+        fn test_in_given_out() {
+            let balance_in = 1054100000000000u128;
+            let balance_out = 991358845313840u128;
+
+            let dust = 1u128;
+            let expected_amount_in = 1000000000000u128;
+
+            let amount_out =
+                SimpleDex::_out_given_in(expected_amount_in, balance_in, balance_out).unwrap();
+
+            assert_eq!(939587570196u128, amount_out);
+
+            let amount_in = SimpleDex::_in_given_out(amount_out, balance_in, balance_out).unwrap();
+
+            assert_eq!(amount_in, expected_amount_in - dust);
+        }
+
+        proptest! {
+            #[test]
+            fn proptest_in_given_out(
+                amount_in   in 1000000000000..1054100000000000u128,
+            ) {
+                let balance_in =  1054100000000000u128;
+                let balance_out = 991358845313840u128;
+
+                let amount_out =
+                    SimpleDex::_out_given_in(amount_in, balance_in, balance_out).unwrap();
+
+                let in_given_out = SimpleDex::_in_given_out(amount_out, balance_in, balance_out).unwrap();
+                let dust = 1u128;
+
+                println! ("{} - {} = {}", amount_in, in_given_out, amount_in - in_given_out);
+                assert!(amount_in - in_given_out <= 10 * dust);
+            }
+        }
+
         proptest! {
             #[test]
             fn rounding_benefits_dex(
-                balance_token_a in 1..1000u128,
-                balance_token_b in 1..1000u128,
-                pay_token_a in 1..1000u128,
-                fee_percentage in 0..10u128
+                balance_token_a in 1000000000000..100000000000000u128,
+                balance_token_b in 1000000000000..100000000000000u128,
+                pay_token_a in 1000000000000..100000000000000u128,
+
             ) {
                 let get_token_b =
-                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b, fee_percentage).unwrap();
+                    SimpleDex::_out_given_in(pay_token_a, balance_token_a, balance_token_b).unwrap();
                 let balance_token_a = balance_token_a + pay_token_a;
                 let balance_token_b = balance_token_b - get_token_b;
                 let get_token_a =
-                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a, fee_percentage).unwrap();
+                    SimpleDex::_out_given_in(get_token_b, balance_token_b, balance_token_a).unwrap();
 
                 assert!(get_token_a <= pay_token_a);
             }

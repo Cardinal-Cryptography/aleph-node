@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use aleph_client::{
-    api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
+    bounded_collections::bounded_vec::BoundedVec,
     pallets::{
         committee_management::{CommitteeManagementApi, CommitteeManagementSudoApi},
         elections::{ElectionsApi, ElectionsSudoApi},
@@ -51,7 +51,7 @@ async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyh
     let connection_to_disable =
         SignedConnection::new(validator_address, controller_key_to_disable).await;
 
-    set_invalid_keys_for_validator(&connection_to_disable).await
+    set_invalid_keys_for_validator(vec![connection_to_disable]).await
 }
 
 async fn signed_connection_for_disabled_controller() -> SignedConnection {
@@ -264,6 +264,7 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     let seats = CommitteeSeats {
         reserved_seats: 2,
         non_reserved_seats: 2,
+        non_reserved_finality_seats: 2,
     };
 
     let validator_to_ban =
@@ -327,7 +328,7 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
 #[tokio::test]
 pub async fn ban_threshold() -> anyhow::Result<()> {
     let config = config::setup_test();
-    let (root_connection, reserved_validators, non_reserved_validators, seats) =
+    let (root_connection, reserved_validators, non_reserved_validators, _) =
         setup_test(config).await?;
 
     // Check current era validators.
@@ -367,7 +368,6 @@ pub async fn ban_threshold() -> anyhow::Result<()> {
         &root_connection,
         &reserved_validators,
         &non_reserved_validators,
-        &seats,
         check_start_session,
         check_end_session,
         DEFAULT_BAN_SESSION_COUNT_THRESHOLD,

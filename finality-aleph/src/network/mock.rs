@@ -1,12 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
-use aleph_primitives::KEY_TYPE;
-use codec::{Decode, Encode, Output};
 use futures::{channel::mpsc, StreamExt};
-use sp_keystore::{testing::KeyStore, CryptoStore};
+use parity_scale_codec::{Decode, Encode, Output};
+use sp_keystore::{testing::MemoryKeystore as Keystore, Keystore as _};
 use tokio::time::timeout;
 
 use crate::{
+    aleph_primitives::KEY_TYPE,
     crypto::{AuthorityPen, AuthorityVerifier},
     AuthorityId, NodeIndex,
 };
@@ -43,7 +43,9 @@ impl Encode for MockData {
 }
 
 impl Decode for MockData {
-    fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(
+        value: &mut I,
+    ) -> Result<Self, parity_scale_codec::Error> {
         let data = u32::decode(value)?;
         let filler = Vec::<u8>::decode(value)?;
         let decodes = bool::decode(value)?;
@@ -104,13 +106,13 @@ impl<T> Default for Channel<T> {
     }
 }
 
-pub async fn crypto_basics(
+pub fn crypto_basics(
     num_crypto_basics: usize,
 ) -> (Vec<(NodeIndex, AuthorityPen)>, AuthorityVerifier) {
-    let keystore = Arc::new(KeyStore::new());
+    let keystore = Arc::new(Keystore::new());
     let mut auth_ids = Vec::with_capacity(num_crypto_basics);
     for _ in 0..num_crypto_basics {
-        let pk = keystore.ed25519_generate_new(KEY_TYPE, None).await.unwrap();
+        let pk = keystore.ed25519_generate_new(KEY_TYPE, None).unwrap();
         auth_ids.push(AuthorityId::from(pk));
     }
     let mut result = Vec::with_capacity(num_crypto_basics);
@@ -118,7 +120,6 @@ pub async fn crypto_basics(
         result.push((
             NodeIndex(i),
             AuthorityPen::new(auth_id.clone(), keystore.clone())
-                .await
                 .expect("The keys should sign successfully"),
         ));
     }

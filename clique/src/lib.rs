@@ -1,25 +1,30 @@
 //! A network for maintaining direct connections between all nodes.
+
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    pin::Pin,
 };
 
-use codec::Codec;
+use parity_scale_codec::Codec;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 mod crypto;
 mod incoming;
 mod io;
 mod manager;
+pub mod metrics;
 pub mod mock;
 mod outgoing;
 mod protocols;
+mod rate_limiting;
 mod service;
 #[cfg(test)]
 mod testing;
 
 pub use crypto::{PublicKey, SecretKey};
-pub use service::Service;
+pub use rate_limiting::{RateLimitingDialer, RateLimitingListener};
+pub use service::{Service, SpawnHandleT};
 
 const LOG_TARGET: &str = "network-clique";
 /// A basic alias for properties we expect basic data to satisfy.
@@ -31,7 +36,7 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send {
     /// This function is used for logging. It implements a shorter version of `to_string` for ids implementing display.
     fn to_short_string(&self) -> String {
-        let id = format!("{}", self);
+        let id = format!("{self}");
         if id.len() <= 12 {
             return id;
         }
@@ -84,6 +89,7 @@ pub trait Network<PK: PublicKey, A: Data, D: Data>: Send + 'static {
     fn send(&self, data: D, recipient: PK);
 
     /// Receive a message from the network.
+    /// This method's implementation must be cancellation safe.
     async fn next(&mut self) -> Option<D>;
 }
 
@@ -135,7 +141,7 @@ impl ConnectionInfo for TcpStream {
     fn peer_address_info(&self) -> String {
         match self.peer_addr() {
             Ok(addr) => addr.to_string(),
-            Err(e) => format!("unknown address: {}", e),
+            Err(e) => format!("unknown address: {e}"),
         }
     }
 }
@@ -179,5 +185,60 @@ impl Listener for TcpListener {
             info!(target: LOG_TARGET, "stream.set_linger(None) failed.");
         };
         Ok(stream)
+    }
+}
+
+pub struct Splitted<I, O>(I, O);
+
+impl<I: AsyncRead + Unpin, O: Unpin> AsyncRead for Splitted<I, O> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        Pin::new(&mut self.0).poll_read(cx, buf)
+    }
+}
+
+impl<I: Unpin, O: AsyncWrite + Unpin> AsyncWrite for Splitted<I, O> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut self.1).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.1).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut self.1).poll_shutdown(cx)
+    }
+}
+
+impl<I, O: ConnectionInfo> ConnectionInfo for Splitted<I, O> {
+    fn peer_address_info(&self) -> PeerAddressInfo {
+        self.1.peer_address_info()
+    }
+}
+
+impl<
+        I: AsyncRead + ConnectionInfo + Unpin + Send,
+        O: AsyncWrite + ConnectionInfo + Unpin + Send,
+    > Splittable for Splitted<I, O>
+{
+    type Sender = O;
+    type Receiver = I;
+
+    fn split(self) -> (Self::Sender, Self::Receiver) {
+        (self.1, self.0)
     }
 }

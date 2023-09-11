@@ -17,7 +17,6 @@ mod types;
 use std::fmt::Debug;
 
 use aleph_bft_crypto::{PartialMultisignature, Signature};
-use codec::{Decode, Encode};
 pub use crypto::Keychain;
 pub use current::{
     create_aleph_config as current_create_aleph_config, run_member as run_current_member,
@@ -28,7 +27,8 @@ pub use legacy::{
     VERSION as LEGACY_VERSION,
 };
 pub use network::{CurrentNetworkData, LegacyNetworkData, NetworkWrapper};
-pub use traits::{Hash, SpawnHandle, SpawnHandleT, Wrapper as HashWrapper};
+use parity_scale_codec::{Decode, Encode};
+pub use traits::{Hash, SpawnHandle, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
 
 /// Wrapper for `SignatureSet` to be able to implement both legacy and current `PartialMultisignature` trait.

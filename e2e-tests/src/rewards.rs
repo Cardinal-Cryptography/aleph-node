@@ -13,11 +13,12 @@ use aleph_client::{
     primitives::{CommitteeSeats, EraValidators},
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus, WaitingExt},
-    AccountId, SignedConnection, TxStatus,
+    AccountId, AsConnection, SignedConnection, TxStatus,
 };
 use anyhow::anyhow;
 use log::{debug, info};
 use primitives::{Balance, BlockHash, EraIndex, SessionIndex, LENIENT_THRESHOLD, TOKEN};
+use rand::Rng;
 use sp_runtime::Perquintill;
 
 use crate::{
@@ -28,22 +29,30 @@ use crate::{
 const COMMITTEE_SEATS: CommitteeSeats = CommitteeSeats {
     reserved_seats: 2,
     non_reserved_seats: 2,
+    non_reserved_finality_seats: 2,
 };
 type RewardPoint = u32;
 
 /// Changes session_keys used by a given `controller` to some `zero`/invalid value,
 /// making it impossible to create new legal blocks.
 pub async fn set_invalid_keys_for_validator<S: WaitingExt + SessionUserApi>(
-    controller_connection: &S,
+    controller_connections: Vec<S>,
 ) -> anyhow::Result<()> {
-    let zero_session_keys = [0; 64].to_vec().into();
+    if controller_connections.is_empty() {
+        return Ok(());
+    }
 
+    let mut rng = rand::thread_rng();
+    for con in &controller_connections {
+        let mut invalid_keys = [0u8; 64];
+        rng.fill(&mut invalid_keys);
+
+        con.set_keys(invalid_keys.to_vec().into(), TxStatus::Finalized)
+            .await
+            .unwrap();
+    }
     // wait until our node is forced to use new keys, i.e. current session + 2
-    controller_connection
-        .set_keys(zero_session_keys, TxStatus::InBlock)
-        .await
-        .unwrap();
-    controller_connection
+    controller_connections[0]
         .wait_for_n_sessions(2, BlockStatus::Best)
         .await;
 
@@ -102,8 +111,7 @@ fn check_rewards(
         let reward = *reward;
         let retrieved_reward = *retrieved_reward_points.get(account).unwrap_or_else(|| {
             panic!(
-                "missing account={} in retrieved collection of reward points {:?}",
-                account, validator_reward_points
+                "missing account={account} in retrieved collection of reward points {validator_reward_points:?}"
             )
         });
 
@@ -152,9 +160,7 @@ async fn get_node_performance<S: ElectionsApi + CommitteeManagementApi>(
     lenient_performance
 }
 
-pub async fn check_points<
-    S: ElectionsApi + CommitteeManagementApi + AlephWaiting + BlocksApi + StakingApi,
->(
+pub async fn check_points<S: AsConnection + Sync>(
     connection: &S,
     session: SessionIndex,
     era: EraIndex,
@@ -322,7 +328,7 @@ pub async fn setup_validators(
         )
         .await?;
 
-    root_connection.wait_for_n_eras(1, BlockStatus::Best).await;
+    root_connection.wait_for_n_eras(2, BlockStatus::Best).await;
     let session = root_connection.get_session(None).await;
 
     let first_block_in_session = root_connection.first_block_of_session(session).await?;

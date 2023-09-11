@@ -1,16 +1,17 @@
-use std::{fmt::Debug, time::Duration};
+use std::{fmt::Debug, pin::Pin, time::Duration};
 
 use futures::{
     channel::{mpsc, oneshot},
-    StreamExt,
+    Future, StreamExt,
 };
 use log::{info, trace, warn};
-use sc_service::SpawnTaskHandle;
+use substrate_prometheus_endpoint::Registry;
 use tokio::time;
 
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
+    metrics::Metrics,
     outgoing::outgoing,
     protocols::ResultForService,
     Data, Dialer, Listener, Network, PeerId, PublicKey, SecretKey, LOG_TARGET,
@@ -71,8 +72,21 @@ impl<PK: PublicKey, D: Data, A: Data> Network<PK, A, D> for ServiceInterface<PK,
     }
 }
 
+/// Trait abstracting spawning tasks
+pub trait SpawnHandleT {
+    /// Run task
+    fn spawn(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static);
+
+    /// Run an essential task
+    fn spawn_essential(
+        &self,
+        name: &'static str,
+        task: impl Future<Output = ()> + Send + 'static,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ()>> + Send>>;
+}
+
 /// A service that has to be run for the clique network to work.
-pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener>
+pub struct Service<SK: SecretKey, D: Data, A: Data, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
 where
     SK::PublicKey: PeerId,
 {
@@ -81,11 +95,13 @@ where
     manager: Manager<SK::PublicKey, A, D>,
     dialer: ND,
     listener: NL,
-    spawn_handle: SpawnTaskHandle,
+    spawn_handle: SH,
     secret_key: SK,
+    metrics: Metrics,
 }
 
-impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener> Service<SK, D, A, ND, NL>
+impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
+    Service<SK, D, A, ND, NL, SH>
 where
     SK::PublicKey: PeerId,
 {
@@ -94,21 +110,30 @@ where
         dialer: ND,
         listener: NL,
         secret_key: SK,
-        spawn_handle: SpawnTaskHandle,
+        spawn_handle: SH,
+        metrics_registry: Option<Registry>,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
         let (next_to_interface, next_from_service) = mpsc::unbounded();
+        let metrics = match Metrics::new(metrics_registry) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!(target: LOG_TARGET, "Failed to create metrics: {}", e);
+                Metrics::noop()
+            }
+        };
         (
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(secret_key.public_key()),
+                manager: Manager::new(secret_key.public_key(), metrics.clone()),
                 dialer,
                 listener,
                 spawn_handle,
                 secret_key,
+                metrics,
             },
             ServiceInterface {
                 commands_for_service,
@@ -126,8 +151,9 @@ where
         let secret_key = self.secret_key.clone();
         let dialer = self.dialer.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
-            .spawn("aleph/clique_network_outgoing", None, async move {
+            .spawn("aleph/clique_network_outgoing", async move {
                 outgoing(
                     secret_key,
                     public_key,
@@ -135,6 +161,7 @@ where
                     address,
                     result_for_parent,
                     next_to_interface,
+                    metrics,
                 )
                 .await;
             });
@@ -151,14 +178,16 @@ where
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
-            .spawn("aleph/clique_network_incoming", None, async move {
+            .spawn("aleph/clique_network_incoming", async move {
                 incoming(
                     secret_key,
                     stream,
                     result_for_parent,
                     next_to_interface,
                     authorization_requests_sender,
+                    metrics,
                 )
                 .await;
             });

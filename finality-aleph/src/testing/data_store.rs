@@ -1,9 +1,8 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{future::Future, num::NonZeroUsize, sync::Arc, time::Duration};
 
-use aleph_primitives::BlockNumber;
 use futures::{
     channel::{
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender},
         oneshot,
     },
     StreamExt,
@@ -13,67 +12,47 @@ use sp_runtime::traits::Block as BlockT;
 use tokio::time::timeout;
 
 use crate::{
+    aleph_primitives::BlockNumber,
     data_io::{AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, MAX_DATA_BRANCH_LEN},
     network::{
         data::{component::Network as ComponentNetwork, Network as DataNetwork},
-        Data, RequestBlocks,
+        Data,
     },
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod},
+    sync::RequestBlocks,
     testing::{
         client_chain_builder::ClientChainBuilder,
         mocks::{
-            aleph_data_from_blocks, aleph_data_from_headers, TBlock, THash, THeader,
-            TestClientBuilder, TestClientBuilderExt,
+            aleph_data_from_blocks, aleph_data_from_headers, TBlock, THeader, TestClientBuilder,
+            TestClientBuilderExt,
         },
     },
-    BlockHashNum, Recipient,
+    BlockId, Recipient,
 };
 
 #[derive(Clone)]
 struct TestBlockRequester {
-    blocks: UnboundedSender<BlockHashNum<TBlock>>,
-    justifications: UnboundedSender<BlockHashNum<TBlock>>,
+    blocks: UnboundedSender<BlockId>,
 }
 
 impl TestBlockRequester {
-    fn new() -> (
-        Self,
-        UnboundedReceiver<BlockHashNum<TBlock>>,
-        UnboundedReceiver<BlockHashNum<TBlock>>,
-    ) {
+    fn new() -> (Self, UnboundedReceiver<BlockId>) {
         let (blocks_tx, blocks_rx) = mpsc::unbounded();
-        let (justifications_tx, justifications_rx) = mpsc::unbounded();
-        (
-            TestBlockRequester {
-                blocks: blocks_tx,
-                justifications: justifications_tx,
-            },
-            blocks_rx,
-            justifications_rx,
-        )
+        (TestBlockRequester { blocks: blocks_tx }, blocks_rx)
     }
 }
 
-impl RequestBlocks<TBlock> for TestBlockRequester {
-    fn request_justification(&self, hash: &THash, number: BlockNumber) {
-        self.justifications
-            .unbounded_send((*hash, number).into())
-            .unwrap();
-    }
-
-    fn request_stale_block(&self, hash: THash, number: BlockNumber) {
-        self.blocks.unbounded_send((hash, number).into()).unwrap();
-    }
-
-    fn clear_justification_requests(&self) {
-        panic!("`clear_justification_requests` not implemented!")
+impl RequestBlocks<BlockId> for TestBlockRequester {
+    type Error = TrySendError<BlockId>;
+    fn request_block(&self, block_id: BlockId) -> Result<(), Self::Error> {
+        self.blocks.unbounded_send(block_id)
     }
 }
 
-type TestData = Vec<AlephData<TBlock>>;
+type TestData = Vec<AlephData>;
 
-impl AlephNetworkMessage<TBlock> for TestData {
-    fn included_data(&self) -> Vec<AlephData<TBlock>> {
+impl AlephNetworkMessage for TestData {
+    fn included_data(&self) -> Vec<AlephData> {
         self.clone()
     }
 }
@@ -94,8 +73,7 @@ impl<D: Data> ComponentNetwork<D> for TestComponentNetwork<D, D> {
 
 struct TestHandler {
     chain_builder: ClientChainBuilder,
-    block_requests_rx: UnboundedReceiver<BlockHashNum<TBlock>>,
-    justification_requests_rx: UnboundedReceiver<BlockHashNum<TBlock>>,
+    block_requests_rx: UnboundedReceiver<BlockId>,
     network_tx: UnboundedSender<TestData>,
     network: Box<dyn DataNetwork<TestData>>,
 }
@@ -146,18 +124,13 @@ impl TestHandler {
     }
 
     /// Receive next block request from Data Store
-    async fn next_block_request(&mut self) -> BlockHashNum<TBlock> {
+    async fn next_block_request(&mut self) -> BlockId {
         self.block_requests_rx.next().await.unwrap()
-    }
-
-    /// Receive next justification request from Data Store
-    async fn next_justification_request(&mut self) -> BlockHashNum<TBlock> {
-        self.justification_requests_rx.next().await.unwrap()
     }
 
     async fn assert_no_message_out(&mut self, err_message: &'static str) {
         let res = timeout(TIMEOUT_FAIL, self.network.next()).await;
-        assert!(res.is_err(), "{} (message out: {:?})", err_message, res);
+        assert!(res.is_err(), "{err_message} (message out: {res:?})");
     }
 
     async fn assert_message_out(&mut self, err_message: &'static str) -> TestData {
@@ -173,7 +146,7 @@ fn prepare_data_store(
 ) -> (impl Future<Output = ()>, oneshot::Sender<()>, TestHandler) {
     let client = Arc::new(TestClientBuilder::new().build());
 
-    let (block_requester, block_requests_rx, justification_requests_rx) = TestBlockRequester::new();
+    let (block_requester, block_requests_rx) = TestBlockRequester::new();
     let (sender_tx, _sender_rx) = mpsc::unbounded();
     let (network_tx, network_rx) = mpsc::unbounded();
     let test_network = TestComponentNetwork {
@@ -184,7 +157,7 @@ fn prepare_data_store(
         max_triggers_pending: 80_000,
         max_proposals_pending: 80_000,
         max_messages_pending: 40_000,
-        available_proposals_cache_capacity: 8000,
+        available_proposals_cache_capacity: NonZeroUsize::new(8000).unwrap(),
         periodic_maintenance_interval: Duration::from_millis(20),
         request_block_after: Duration::from_millis(30),
     };
@@ -213,7 +186,6 @@ fn prepare_data_store(
         TestHandler {
             chain_builder,
             block_requests_rx,
-            justification_requests_rx,
             network_tx,
             network: Box::new(network),
         },
@@ -470,38 +442,6 @@ async fn sends_block_request_on_missing_block() {
 }
 
 #[tokio::test]
-async fn sends_justification_request_when_not_finalized() {
-    run_test(|mut test_handler| async move {
-        let blocks = test_handler
-            .initialize_single_branch(MAX_DATA_BRANCH_LEN * 10)
-            .await;
-        test_handler.import_branch(blocks.clone()).await;
-
-        let blocks_branch = vec![blocks[2].clone()];
-        let test_data = vec![aleph_data_from_blocks(blocks_branch)];
-        test_handler.send_data(test_data);
-
-        test_handler
-            .assert_no_message_out(
-                "Data Store let through a message with not finalized parent of base block",
-            )
-            .await;
-
-        let requested_block = timeout(TIMEOUT_SUCC, test_handler.next_justification_request())
-            .await
-            .expect("Did not receive block request from Data Store");
-        assert_eq!(requested_block.hash, blocks[1].hash());
-
-        test_handler.finalize_block(&blocks[1].hash());
-
-        test_handler
-            .assert_message_out("Did not receive message from Data Store")
-            .await;
-    })
-    .await;
-}
-
-#[tokio::test]
 async fn does_not_send_requests_when_no_block_missing() {
     run_test(|mut test_handler| async move {
         let blocks = test_handler
@@ -530,7 +470,6 @@ async fn message_with_genesis_block_does_not_get_through() {
         for i in 1..MAX_DATA_BRANCH_LEN {
             let test_data: TestData = vec![aleph_data_from_headers(
                 (0..i)
-                    .into_iter()
                     .map(|num| test_handler.get_header_at(num as BlockNumber))
                     .collect(),
             )];

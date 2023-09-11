@@ -1,12 +1,12 @@
-use aleph_primitives::BlockNumber;
 use futures::channel::oneshot;
 use log::debug;
+use network_clique::SpawnHandleT;
 use sc_client_api::HeaderBackend;
 use sp_consensus::SelectChain;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
-    abft::SpawnHandleT,
+    aleph_primitives::{BlockHash, BlockNumber},
     data_io::ChainTracker,
     party::{AuthoritySubtaskCommon, Task},
 };
@@ -17,7 +17,7 @@ pub fn task<B, SC, C>(
     chain_tracker: ChainTracker<B, SC, C>,
 ) -> Task
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,

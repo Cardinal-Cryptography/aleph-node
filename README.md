@@ -1,8 +1,5 @@
 [![LOGO][aleph-logo]][aleph-homepage]
 
-[![Unit tests][unit-tests-badge]][unit-tests]
-[![E2E Tests][e2e-tests-badge]][e2e-tests]
-
 This repository contains the Rust implementation of [Aleph Zero][aleph-homepage] blockchain node based on the [Substrate][substrate-homepage] framework.
 
 Aleph Zero is an open-source layer 1 blockchain focused on privacy, scalability and energy efficiency. It is based on a unique, peer-reviewed consensus algorithm, AlephBFT (as described in our [paper][aleph-bft-paper] and implemented [here][aleph-bft-link]).
@@ -36,14 +33,11 @@ The code in this repository is licensed as follows:
 - all crates under `bin` directory are licensed under the terms of the GNU GPL version 3
 - all rest of the crates are licensed under the terms of Apache License 2.0.
 
+
 [aleph-homepage]: https://alephzero.org
 [aleph-logo]: https://assets.alephzero.org/branding/logo/digital/A0-horizontal-light-background.jpg
 [aleph-bft-link]: https://github.com/Cardinal-Cryptography/AlephBFT
 [aleph-bft-paper]: https://arxiv.org/abs/1908.05156
 [aleph-polkadot-link]: https://github.com/Cardinal-Cryptography/apps
 [substrate-homepage]: https://substrate.io
-[unit-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml
-[unit-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/unit_tests.yml/badge.svg
-[e2e-tests]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/e2e-tests-main-devnet.yml
-[e2e-tests-badge]: https://github.com/Cardinal-Cryptography/aleph-node/actions/workflows/e2e-tests-main-devnet.yml/badge.svg
 [build]: ./BUILD.md

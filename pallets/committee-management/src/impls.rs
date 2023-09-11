@@ -1,8 +1,11 @@
 use frame_support::{log::info, pallet_prelude::Get};
+use parity_scale_codec::Encode;
 use primitives::{
     BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats, EraValidators,
-    SessionValidators, ValidatorProvider, LENIENT_THRESHOLD,
+    SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
 };
+use rand::{seq::SliceRandom, SeedableRng};
+use rand_pcg::Pcg32;
 use sp_runtime::{Perbill, Perquintill};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
@@ -16,8 +19,8 @@ use crate::{
         SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, CurrentAndNextSessionValidators, ValidatorExtractor, ValidatorTotalRewards,
-    LOG_TARGET,
+    BanConfigStruct, CurrentAndNextSessionValidators, LenientThreshold, ValidatorExtractor,
+    ValidatorTotalRewards, LOG_TARGET,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -52,28 +55,79 @@ fn choose_for_session<T: Clone>(validators: &[T], count: usize, session: usize) 
     Some(chosen)
 }
 
-fn rotate<AccountId: Clone + PartialEq>(
+fn shuffle_order_for_session<T>(
+    producers: &mut Vec<T>,
+    validators: &mut Vec<T>,
+    session: SessionIndex,
+) {
+    let mut rng = Pcg32::seed_from_u64(session as u64);
+
+    producers.shuffle(&mut rng);
+    validators.shuffle(&mut rng);
+}
+
+/// Choose all items from `reserved` if present and extend it by #`non_reserved_seats` from
+/// `non_reserved` if present.
+fn choose_finality_committee<T: Clone>(
+    reserved: &Option<Vec<T>>,
+    non_reserved: &Option<Vec<T>>,
+    non_reserved_seats: usize,
+    session: usize,
+) -> Vec<T> {
+    let non_reserved_finality_committee = non_reserved
+        .as_ref()
+        .and_then(|nr| choose_for_session(nr, non_reserved_seats, session))
+        .unwrap_or_default();
+
+    let mut finality_committee = reserved.clone().unwrap_or_default();
+    finality_committee.extend(non_reserved_finality_committee);
+
+    finality_committee
+}
+
+fn select_committee_inner<AccountId: Clone + PartialEq>(
     current_session: SessionIndex,
     reserved_seats: usize,
     non_reserved_seats: usize,
+    non_reserved_finality_seats: usize,
     reserved: &[AccountId],
     non_reserved: &[AccountId],
-) -> Option<Vec<AccountId>> {
+) -> Option<SessionCommittee<AccountId>> {
     // The validators for the committee at the session `n` are chosen as follow:
     // 1. `reserved_seats` validators are chosen from the reserved set while `non_reserved_seats` from the non_reserved set.
     // 2. Given a set of validators the chosen ones are from the range:
     // `n * seats` to `(n + 1) * seats` where seats is equal to reserved_seats(non_reserved_seats) for reserved(non_reserved) validators.
+    // 3. Finality committee is filled first with reserved_seats and then a subsample of non_reserved_seats equal to non_reserved_finality_seats
 
     let reserved_committee = choose_for_session(reserved, reserved_seats, current_session as usize);
     let non_reserved_committee =
         choose_for_session(non_reserved, non_reserved_seats, current_session as usize);
 
-    match (reserved_committee, non_reserved_committee) {
+    let mut finality_committee = choose_finality_committee(
+        &reserved_committee,
+        &non_reserved_committee,
+        non_reserved_finality_seats,
+        current_session as usize,
+    );
+
+    let mut block_producers = match (reserved_committee, non_reserved_committee) {
         (Some(rc), Some(nrc)) => Some(rc.into_iter().chain(nrc.into_iter()).collect()),
         (Some(rc), _) => Some(rc),
         (_, Some(nrc)) => Some(nrc),
         _ => None,
-    }
+    }?;
+
+    // randomize order of the producers and committee
+    shuffle_order_for_session(
+        &mut block_producers,
+        &mut finality_committee,
+        current_session,
+    );
+
+    Some(SessionCommittee {
+        block_producers,
+        finality_committee,
+    })
 }
 
 fn calculate_adjusted_session_points(
@@ -81,12 +135,13 @@ fn calculate_adjusted_session_points(
     blocks_to_produce_per_session: u32,
     blocks_created: u32,
     total_possible_reward: u32,
+    lenient_threshold: Perquintill,
 ) -> u32 {
     let performance =
         Perquintill::from_rational(blocks_created as u64, blocks_to_produce_per_session as u64);
 
-    // when produced more than 90% expected blocks, get 100% possible reward for session
-    if performance >= LENIENT_THRESHOLD {
+    // when produced more than `lenient_threshold`% expected blocks, get 100% possible reward for session
+    if performance >= lenient_threshold {
         return (Perquintill::from_rational(1, sessions_per_era as u64)
             * total_possible_reward as u64) as u32;
     }
@@ -130,11 +185,13 @@ impl<T: Config> Pallet<T> {
 
         ValidatorEraTotalReward::<T>::put(ValidatorTotalRewards(scaled_totals.collect()));
     }
+
     fn reward_for_session_non_committee(
         non_committee: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
         validator_totals: &BTreeMap<T::AccountId, u32>,
+        threshold: Perquintill,
     ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         non_committee.into_iter().map(move |validator| {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
@@ -145,6 +202,7 @@ impl<T: Config> Pallet<T> {
                     blocks_per_session,
                     blocks_per_session,
                     *total,
+                    threshold,
                 ),
             )
         })
@@ -155,6 +213,7 @@ impl<T: Config> Pallet<T> {
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
         validator_totals: &BTreeMap<T::AccountId, u32>,
+        threshold: Perquintill,
     ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
         committee.into_iter().map(move |validator| {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
@@ -166,23 +225,18 @@ impl<T: Config> Pallet<T> {
                     blocks_per_session,
                     blocks_created,
                     *total,
+                    threshold,
                 ),
             )
         })
     }
+
     fn blocks_to_produce_per_session() -> u32 {
-        T::SessionPeriod::get().saturating_div(
-            T::ValidatorProvider::current_era_committee_size()
-                .unwrap_or_default()
-                .size(),
-        )
+        T::SessionPeriod::get()
+            .saturating_div(T::ValidatorProvider::current_era_committee_size().size())
     }
 
     pub fn adjust_rewards_for_session() {
-        if T::EraInfoProvider::active_era().unwrap_or(0) == 0 {
-            return;
-        }
-
         let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
@@ -197,11 +251,14 @@ impl<T: Config> Pallet<T> {
             .unwrap_or_else(|| ValidatorTotalRewards(BTreeMap::new()))
             .0;
 
+        let lenient_threshold = LenientThreshold::<T>::get();
+
         let rewards = Self::reward_for_session_non_committee(
             non_committee,
             nr_of_sessions,
             blocks_per_session,
             &validator_total_rewards,
+            lenient_threshold,
         )
         .into_iter()
         .chain(
@@ -210,6 +267,7 @@ impl<T: Config> Pallet<T> {
                 nr_of_sessions,
                 blocks_per_session,
                 &validator_total_rewards,
+                lenient_threshold,
             )
             .into_iter(),
         );
@@ -241,29 +299,49 @@ impl<T: Config> Pallet<T> {
         CurrentAndNextSessionValidatorsStorage::<T>::put(session_validators);
     }
 
-    pub fn rotate_committee(current_session: SessionIndex) -> Option<Vec<T::AccountId>>
-    where
-        T::AccountId: Clone + PartialEq,
-    {
+    pub(crate) fn select_committee(
+        era_validators: &EraValidators<T::AccountId>,
+        committee_seats: CommitteeSeats,
+        current_session: SessionIndex,
+    ) -> Option<SessionCommittee<T::AccountId>> {
         let EraValidators {
             reserved,
             non_reserved,
-        } = T::ValidatorProvider::current_era_validators()?;
+        } = era_validators;
+
         let CommitteeSeats {
             reserved_seats,
             non_reserved_seats,
-        } = T::ValidatorProvider::current_era_committee_size()?;
+            non_reserved_finality_seats,
+        } = committee_seats;
 
-        let committee = rotate(
+        select_committee_inner(
             current_session,
             reserved_seats as usize,
             non_reserved_seats as usize,
-            &reserved,
-            &non_reserved,
-        );
+            non_reserved_finality_seats as usize,
+            reserved,
+            non_reserved,
+        )
+    }
+
+    pub(crate) fn rotate_committee(
+        current_session: SessionIndex,
+    ) -> Option<SessionCommittee<T::AccountId>>
+    where
+        T::AccountId: Clone + PartialEq,
+    {
+        let era_validators = T::ValidatorProvider::current_era_validators();
+        let committee_seats = T::ValidatorProvider::current_era_committee_size();
+
+        let committee = Self::select_committee(&era_validators, committee_seats, current_session);
 
         if let Some(c) = &committee {
-            Self::store_session_validators(c, reserved, non_reserved);
+            Self::store_session_validators(
+                &c.block_producers,
+                era_validators.reserved,
+                era_validators.non_reserved,
+            );
         }
 
         committee
@@ -353,44 +431,86 @@ impl<T: Config> Pallet<T> {
             Self::deposit_event(Event::BanValidators(fresh_bans));
         }
     }
+
+    /// Predict finality committee and block producers for the given session. `session` must be
+    /// within the current era (current, in the staking context).
+    ///
+    /// If the active era `E` starts in the session `a`, and ends in session `b` then from session
+    /// `a` to session `b-1` this function can answer question who will be in the committee in the
+    /// era `E`. In the last session of the era `E` (`b`) this can be used to determine all of the
+    /// sessions in the era `E+1`.
+    pub fn predict_session_committee_for_session(
+        session: SessionIndex,
+    ) -> Result<SessionCommittee<T::AccountId>, SessionValidatorError> {
+        let ce = T::EraInfoProvider::current_era()
+            .ok_or_else(|| SessionValidatorError::Other("No current era".encode()))?;
+
+        let current_starting_index =
+            T::EraInfoProvider::era_start_session_index(ce).ok_or_else(|| {
+                SessionValidatorError::Other("No known starting session for current era".encode())
+            })?;
+        let planned_era_end = current_starting_index + T::EraInfoProvider::sessions_per_era() - 1;
+
+        if session < current_starting_index || session > planned_era_end {
+            return Err(SessionValidatorError::SessionNotWithinRange {
+                lower_limit: current_starting_index,
+                upper_limit: planned_era_end,
+            });
+        }
+
+        let era_validators = T::ValidatorProvider::current_era_validators();
+        let committee_seats = T::ValidatorProvider::current_era_committee_size();
+        Self::select_committee(&era_validators, committee_seats, session)
+            .ok_or_else(|| SessionValidatorError::Other("Internal error".encode()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::VecDeque;
+    use std::collections::{BTreeSet, VecDeque};
+
+    use sp_runtime::Perquintill;
 
     use crate::impls::{
-        calculate_adjusted_session_points, compute_validator_scaled_total_rewards, rotate,
-        MAX_REWARD,
+        calculate_adjusted_session_points, compute_validator_scaled_total_rewards,
+        select_committee_inner, MAX_REWARD,
     };
+
+    const THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
     #[test]
     fn adjusted_session_points_all_blocks_created_are_calculated_correctly() {
-        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 30, 25_000));
+        assert_eq!(
+            5000,
+            calculate_adjusted_session_points(5, 30, 30, 25_000, THRESHOLD)
+        );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 900, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 900, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 900, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 900, 590_000_000, THRESHOLD)
         );
     }
 
     #[test]
     fn adjusted_session_points_above_90_perc_are_calculated_correctly() {
-        assert_eq!(5000, calculate_adjusted_session_points(5, 30, 27, 25_000));
+        assert_eq!(
+            5000,
+            calculate_adjusted_session_points(5, 30, 27, 25_000, THRESHOLD)
+        );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 811, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 811, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 899, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 899, 590_000_000, THRESHOLD)
         );
     }
 
@@ -398,17 +518,17 @@ mod tests {
     fn adjusted_session_points_more_than_all_blocks_created_are_calculated_correctly() {
         assert_eq!(
             5000,
-            calculate_adjusted_session_points(5, 30, 2 * 30, 25_000)
+            calculate_adjusted_session_points(5, 30, 2 * 30, 25_000, THRESHOLD)
         );
 
         assert_eq!(
             6250000,
-            calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000)
+            calculate_adjusted_session_points(96, 900, 3 * 900, 600_000_000, THRESHOLD)
         );
 
         assert_eq!(
             6145833,
-            calculate_adjusted_session_points(96, 900, 901, 590_000_000)
+            calculate_adjusted_session_points(96, 900, 901, 590_000_000, THRESHOLD)
         );
     }
 
@@ -481,17 +601,21 @@ mod tests {
                 rotated_non_reserved_validators.push_back(first);
             }
 
-            assert_eq!(
-                expected_committee,
-                rotate(
+            let expected_committee: BTreeSet<_> = BTreeSet::from_iter(expected_committee);
+            let committee: BTreeSet<_> = BTreeSet::from_iter(
+                select_committee_inner(
                     session_index,
                     reserved_seats,
                     non_reserved_seats,
+                    non_reserved_seats + non_reserved_seats,
                     &reserved,
                     &non_reserved,
                 )
                 .expect("Expected non-empty rotated committee!")
+                .block_producers,
             );
+
+            assert_eq!(expected_committee, committee,);
         }
     }
 }

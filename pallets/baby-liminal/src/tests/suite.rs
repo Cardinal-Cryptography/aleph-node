@@ -1,28 +1,31 @@
 use frame_support::{assert_err, assert_ok, sp_runtime, traits::ReservableCurrency, BoundedVec};
 use frame_system::{pallet_prelude::OriginFor, Config};
+use once_cell::sync::Lazy;
 use sp_runtime::traits::Get;
 
 use super::setup::*;
 use crate::{
-    Error, ProvingSystem, VerificationError, VerificationKeyDeposits, VerificationKeyIdentifier,
-    VerificationKeyOwners, VerificationKeys,
+    tests::relation::{get_artifacts, get_incorrect_proof, get_invalid_input, Artifacts},
+    Error, VerificationKeyDeposits, VerificationKeyIdentifier, VerificationKeyOwners,
+    VerificationKeys,
 };
 
 type BabyLiminal = crate::Pallet<TestRuntime>;
 
 const IDENTIFIER: VerificationKeyIdentifier = [0; 8];
-const SYSTEM: ProvingSystem = ProvingSystem::Groth16;
+
+static ARTIFACTS: Lazy<Artifacts> = Lazy::new(get_artifacts);
 
 fn vk() -> Vec<u8> {
-    include_bytes!("../resources/groth16/xor.vk.bytes").to_vec()
+    ARTIFACTS.vk.clone()
 }
 
 fn proof() -> Vec<u8> {
-    include_bytes!("../resources/groth16/xor.proof.bytes").to_vec()
+    ARTIFACTS.proof.clone()
 }
 
 fn input() -> Vec<u8> {
-    include_bytes!("../resources/groth16/xor.public_input.bytes").to_vec()
+    ARTIFACTS.input.clone()
 }
 
 fn owner() -> OriginFor<TestRuntime> {
@@ -170,13 +173,7 @@ fn verifies_proof() {
     new_test_ext().execute_with(|| {
         put_key();
 
-        assert_ok!(BabyLiminal::verify(
-            owner(),
-            IDENTIFIER,
-            proof(),
-            input(),
-            SYSTEM
-        ));
+        assert_ok!(BabyLiminal::verify(owner(), IDENTIFIER, proof(), input(),));
     });
 }
 
@@ -185,26 +182,16 @@ fn verify_shouts_when_data_is_too_long() {
     new_test_ext().execute_with(|| {
         let limit: u32 = <TestRuntime as crate::Config>::MaximumDataLength::get();
 
-        let result = BabyLiminal::verify(
-            owner(),
-            IDENTIFIER,
-            vec![0; (limit + 1) as usize],
-            input(),
-            SYSTEM,
-        );
+        let result =
+            BabyLiminal::verify(owner(), IDENTIFIER, vec![0; (limit + 1) as usize], input());
         assert_err!(
             result.map_err(|e| e.error),
             Error::<TestRuntime>::DataTooLong
         );
         assert!(result.unwrap_err().post_info.actual_weight.is_some());
 
-        let result = BabyLiminal::verify(
-            owner(),
-            IDENTIFIER,
-            proof(),
-            vec![0; (limit + 1) as usize],
-            SYSTEM,
-        );
+        let result =
+            BabyLiminal::verify(owner(), IDENTIFIER, proof(), vec![0; (limit + 1) as usize]);
         assert_err!(
             result.map_err(|e| e.error),
             Error::<TestRuntime>::DataTooLong
@@ -216,7 +203,7 @@ fn verify_shouts_when_data_is_too_long() {
 #[test]
 fn verify_shouts_when_no_key_was_registered() {
     new_test_ext().execute_with(|| {
-        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), input(), SYSTEM);
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), input());
 
         assert_err!(
             result.map_err(|e| e.error),
@@ -234,7 +221,7 @@ fn verify_shouts_when_key_is_not_deserializable() {
             BoundedVec::try_from(vec![0, 1, 2]).unwrap(),
         );
 
-        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), input(), SYSTEM);
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), input());
 
         assert_err!(
             result.map_err(|e| e.error),
@@ -249,7 +236,7 @@ fn verify_shouts_when_proof_is_not_deserializable() {
     new_test_ext().execute_with(|| {
         put_key();
 
-        let result = BabyLiminal::verify(owner(), IDENTIFIER, input(), input(), SYSTEM);
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, input(), input());
 
         assert_err!(
             result.map_err(|e| e.error),
@@ -264,7 +251,7 @@ fn verify_shouts_when_input_is_not_deserializable() {
     new_test_ext().execute_with(|| {
         put_key();
 
-        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), proof(), SYSTEM);
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), proof());
 
         assert_err!(
             result.map_err(|e| e.error),
@@ -278,15 +265,9 @@ fn verify_shouts_when_input_is_not_deserializable() {
 fn verify_shouts_when_verification_fails() {
     new_test_ext().execute_with(|| {
         put_key();
-        let other_input = include_bytes!("../resources/groth16/linear_equation.public_input.bytes");
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, proof(), get_invalid_input());
 
-        let result =
-            BabyLiminal::verify(owner(), IDENTIFIER, proof(), other_input.to_vec(), SYSTEM);
-
-        assert_err!(
-            result,
-            Error::<TestRuntime>::VerificationFailed(VerificationError::MalformedVerifyingKey)
-        );
+        assert_err!(result, Error::<TestRuntime>::VerificationFailed);
         assert!(result.unwrap_err().post_info.actual_weight.is_none());
     });
 }
@@ -295,10 +276,7 @@ fn verify_shouts_when_verification_fails() {
 fn verify_shouts_when_proof_is_incorrect() {
     new_test_ext().execute_with(|| {
         put_key();
-        let other_proof = include_bytes!("../resources/groth16/linear_equation.proof.bytes");
-
-        let result =
-            BabyLiminal::verify(owner(), IDENTIFIER, other_proof.to_vec(), input(), SYSTEM);
+        let result = BabyLiminal::verify(owner(), IDENTIFIER, get_incorrect_proof(), input());
 
         assert_err!(result, Error::<TestRuntime>::IncorrectProof);
         assert!(result.unwrap_err().post_info.actual_weight.is_none());

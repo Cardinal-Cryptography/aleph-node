@@ -1,14 +1,10 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use aleph_primitives::SessionAuthorityData;
-use codec::Encode;
-use log::warn;
-use sp_runtime::{traits::Block as BlockT, RuntimeAppPublic};
+use sp_runtime::RuntimeAppPublic;
 
 use crate::{
-    crypto::AuthorityVerifier,
-    justification::{AlephJustification, Verifier as LegacyVerifier},
-    AuthorityId,
+    aleph_primitives::SessionAuthorityData, crypto::AuthorityVerifier,
+    justification::AlephJustification, AuthorityId,
 };
 
 /// A justification verifier within a single session.
@@ -71,20 +67,6 @@ impl SessionVerifier {
                 true => Ok(()),
                 false => Err(BadEmergencySignature),
             },
-        }
-    }
-}
-
-// This shouldn't be necessary after we remove the legacy justification sync. Then we can also
-// rewrite the implementation above and make it simpler.
-impl<B: BlockT> LegacyVerifier<B> for SessionVerifier {
-    fn verify(&self, justification: &AlephJustification, hash: B::Hash) -> bool {
-        match self.verify_bytes(justification, hash.encode()) {
-            Ok(()) => true,
-            Err(e) => {
-                warn!(target: "aleph-justification", "Bad justification for block {:?}: {}", hash, e);
-                false
-            }
         }
     }
 }

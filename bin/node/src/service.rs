@@ -5,18 +5,20 @@ use std::{
     sync::Arc,
 };
 
-use aleph_primitives::{AlephSessionApi, MAX_BLOCK_SIZE};
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, JustificationNotification, Metrics,
-    MillisecsPerBlock, Protocol, ProtocolNaming, SessionPeriod, TracingBlockImport,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, BlockMetrics, Justification,
+    JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
+    SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::warn;
-use sc_client_api::{Backend, BlockBackend, HeaderBackend};
+use log::{info, warn};
+use sc_client_api::{BlockBackend, HeaderBackend};
+use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::NetworkService;
+use sc_network_sync::SyncingService;
 use sc_service::{
     error::Error as ServiceError, Configuration, KeystoreContainer, NetworkStarter, RpcHandlers,
     TFullClient, TaskManager,
@@ -24,14 +26,15 @@ use sc_service::{
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
-use sp_blockchain::Backend as _;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
-use sp_runtime::{
-    generic::BlockId,
-    traits::{Block as BlockT, Header as HeaderT},
-};
 
-use crate::{aleph_cli::AlephCli, chain_spec::DEFAULT_BACKUP_FOLDER, executor::AlephExecutor};
+use crate::{
+    aleph_cli::AlephCli,
+    aleph_primitives::{AlephSessionApi, BlockHash, MAX_BLOCK_SIZE},
+    chain_spec::DEFAULT_BACKUP_FOLDER,
+    executor::AlephExecutor,
+    rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
+};
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -69,7 +72,7 @@ fn backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
         Some(path)
     } else {
         let path = base_path.join(DEFAULT_BACKUP_FOLDER);
-        eprintln!("No backup path provided, using default path: {:?} for AlephBFT backups. Please do not remove this folder", path);
+        eprintln!("No backup path provided, using default path: {path:?} for AlephBFT backups. Please do not remove this folder");
         Some(path)
     }
 }
@@ -85,11 +88,11 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            TracingBlockImport<Block, Arc<FullClient>>,
-            mpsc::UnboundedSender<JustificationNotification<Block>>,
-            mpsc::UnboundedReceiver<JustificationNotification<Block>>,
+            TracingBlockImport<Arc<FullClient>>,
+            mpsc::UnboundedSender<Justification>,
+            mpsc::UnboundedReceiver<Justification>,
             Option<Telemetry>,
-            Option<Metrics<<<Block as BlockT>::Header as HeaderT>::Hash>>,
+            BlockMetrics,
         ),
     >,
     ServiceError,
@@ -105,12 +108,7 @@ pub fn new_partial(
         })
         .transpose()?;
 
-    let executor = AlephExecutor::new(
-        config.wasm_method,
-        config.default_heap_pages,
-        config.max_runtime_instances,
-        config.runtime_cache_size,
-    );
+    let executor = sc_service::new_native_or_wasm_executor(config);
 
     let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, AlephExecutor>(
@@ -138,18 +136,31 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = config.prometheus_registry().cloned().and_then(|r| {
-        Metrics::register(&r)
-            .map_err(|err| {
-                warn!("Failed to register Prometheus metrics\n{:?}", err);
-            })
-            .ok()
-    });
+    let metrics = match config.prometheus_registry() {
+        Some(register) => match BlockMetrics::new(register) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!("Failed to register Prometheus metrics: {:?}.", e);
+                BlockMetrics::noop()
+            }
+        },
+        None => {
+            info!("Running with the metrics is not available.");
+            BlockMetrics::noop()
+        }
+    };
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
     let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
-    let aleph_block_import =
-        AlephBlockImport::new(tracing_block_import.clone(), justification_tx.clone());
+    let justification_translator = JustificationTranslator::new(
+        SubstrateChainStatus::new(backend.clone())
+            .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?,
+    );
+    let aleph_block_import = AlephBlockImport::new(
+        tracing_block_import.clone(),
+        justification_tx.clone(),
+        justification_translator,
+    );
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
@@ -200,17 +211,19 @@ pub fn new_partial(
 fn setup(
     mut config: Configuration,
     backend: Arc<FullBackend>,
+    chain_status: SubstrateChainStatus,
     keystore_container: &KeystoreContainer,
     import_queue: sc_consensus::DefaultImportQueue<Block, FullClient>,
     transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
     task_manager: &mut TaskManager,
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<JustificationNotification<Block>>,
+    import_justification_tx: mpsc::UnboundedSender<Justification>,
 ) -> Result<
     (
         RpcHandlers,
-        Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Arc<NetworkService<Block, BlockHash>>,
+        Arc<SyncingService<Block>>,
         ProtocolNaming,
         NetworkStarter,
     ),
@@ -222,8 +235,8 @@ fn setup(
         .flatten()
         .expect("we should have a hash");
     let chain_prefix = match config.chain_spec.fork_id() {
-        Some(fork_id) => format!("/{}/{}", genesis_hash, fork_id),
-        None => format!("/{}", genesis_hash),
+        Some(fork_id) => format!("/{genesis_hash}/{fork_id}"),
+        None => format!("/{genesis_hash}"),
     };
     let protocol_naming = ProtocolNaming::new(chain_prefix);
     config
@@ -241,7 +254,7 @@ fn setup(
             Protocol::BlockSync,
         ));
 
-    let (network, system_rpc_tx, tx_handler_controller, network_starter) =
+    let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -249,29 +262,30 @@ fn setup(
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
             block_announce_validator_builder: None,
-            warp_sync: None,
+            warp_sync_params: None,
         })?;
 
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
-
         Box::new(move |deny_unsafe, _| {
-            let deps = crate::rpc::FullDeps {
+            let deps = RpcFullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
+                justification_translator: JustificationTranslator::new(chain_status.clone()),
             };
 
-            Ok(crate::rpc::create_full(deps)?)
+            Ok(create_full_rpc(deps)?)
         })
     };
 
     let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         network: network.clone(),
+        sync_service: sync_network.clone(),
         client,
-        keystore: keystore_container.sync_keystore(),
+        keystore: keystore_container.keystore(),
         task_manager,
         transaction_pool,
         rpc_builder,
@@ -282,7 +296,13 @@ fn setup(
         telemetry: telemetry.as_mut(),
     })?;
 
-    Ok((rpc_handlers, network, protocol_naming, network_starter))
+    Ok((
+        rpc_handlers,
+        network,
+        sync_network,
+        protocol_naming,
+        network_starter,
+    ))
 }
 
 /// Builds a new service for a full client.
@@ -310,29 +330,25 @@ pub fn new_authority(
             .path(),
     );
 
-    let finalized = client.info().finalized_number;
+    let finalized = client.info().finalized_hash;
 
-    let session_period = SessionPeriod(
-        client
-            .runtime_api()
-            .session_period(&BlockId::Number(finalized))
-            .unwrap(),
-    );
+    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
 
-    let millisecs_per_block = MillisecsPerBlock(
-        client
-            .runtime_api()
-            .millisecs_per_block(&BlockId::Number(finalized))
-            .unwrap(),
-    );
+    let millisecs_per_block =
+        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let (_rpc_handlers, network, protocol_naming, network_starter) = setup(
+    let import_queue_handle = BlockImporter(import_queue.service());
+
+    let chain_status = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
+    let (_rpc_handlers, network, sync_network, protocol_naming, network_starter) = setup(
         config,
-        backend.clone(),
+        backend,
+        chain_status.clone(),
         &keystore_container,
         import_queue,
         transaction_pool.clone(),
@@ -373,9 +389,9 @@ pub fn new_authority(
             },
             force_authoring,
             backoff_authoring_blocks,
-            keystore: keystore_container.sync_keystore(),
-            sync_oracle: network.clone(),
-            justification_sync_link: network.clone(),
+            keystore: keystore_container.keystore(),
+            sync_oracle: sync_network.clone(),
+            justification_sync_link: sync_network.clone(),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
             telemetry: telemetry.as_ref().map(|x| x.handle()),
@@ -390,24 +406,36 @@ pub fn new_authority(
     if aleph_config.external_addresses().is_empty() {
         panic!("Cannot run a validator node without external addresses, stopping.");
     }
-    let blockchain_backend = BlockchainBackendImpl { backend };
+
+    let rate_limiter_config = RateLimiterConfig {
+        alephbft_bit_rate_per_connection: aleph_config
+            .alephbft_bit_rate_per_connection()
+            .try_into()
+            .unwrap_or(usize::MAX),
+    };
+
     let aleph_config = AlephConfig {
         network,
+        sync_network,
         client,
-        blockchain_backend,
+        chain_status,
+        import_queue_handle,
         select_chain,
         session_period,
         millisecs_per_block,
-        spawn_handle: task_manager.spawn_handle(),
+        spawn_handle: task_manager.spawn_handle().into(),
         keystore: keystore_container.keystore(),
         justification_rx,
         metrics,
+        registry: prometheus_registry,
         unit_creation_delay: aleph_config.unit_creation_delay(),
         backup_saving_path: backup_path,
         external_addresses: aleph_config.external_addresses(),
         validator_port: aleph_config.validator_port(),
         protocol_naming,
+        rate_limiter_config,
     };
+
     task_manager.spawn_essential_handle().spawn_blocking(
         "aleph",
         None,
@@ -416,37 +444,4 @@ pub fn new_authority(
 
     network_starter.start_network();
     Ok(task_manager)
-}
-
-struct BlockchainBackendImpl {
-    backend: Arc<FullBackend>,
-}
-impl finality_aleph::BlockchainBackend<Block> for BlockchainBackendImpl {
-    fn children(&self, parent_hash: <Block as BlockT>::Hash) -> Vec<<Block as BlockT>::Hash> {
-        self.backend
-            .blockchain()
-            .children(parent_hash)
-            .unwrap_or_default()
-    }
-    fn info(&self) -> sp_blockchain::Info<Block> {
-        self.backend.blockchain().info()
-    }
-    fn header(
-        &self,
-        block_id: BlockId<Block>,
-    ) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-        let hash = match block_id {
-            BlockId::Hash(h) => h,
-            BlockId::Number(n) => {
-                let maybe_hash = self.backend.blockchain().hash(n)?;
-
-                if let Some(h) = maybe_hash {
-                    h
-                } else {
-                    return Ok(None);
-                }
-            }
-        };
-        self.backend.blockchain().header(hash)
-    }
 }

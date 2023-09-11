@@ -1,125 +1,121 @@
-use std::{collections::HashMap, time::Instant};
+use std::{fmt::Debug, time::Instant};
 
-use aleph_primitives::ALEPH_ENGINE_ID;
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
 use sp_consensus::Error as ConsensusError;
-use sp_runtime::{
-    traits::{Block as BlockT, Header, NumberFor},
-    Justification,
-};
+use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
 use crate::{
-    justification::{backwards_compatible_decode, DecodeError, JustificationNotification},
-    metrics::{Checkpoint, Metrics},
+    aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
+    justification::{backwards_compatible_decode, DecodeError},
+    metrics::{BlockMetrics, Checkpoint},
+    sync::substrate::{Justification, JustificationTranslator, TranslateError},
+    BlockId,
 };
 
 /// A wrapper around a block import that also marks the start and end of the import of every block
 /// in the metrics, if provided.
 #[derive(Clone)]
-pub struct TracingBlockImport<B, I>
+pub struct TracingBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Send + Sync,
+    I: BlockImport<Block> + Send + Sync,
 {
     inner: I,
-    metrics: Option<Metrics<<B::Header as Header>::Hash>>,
+    metrics: BlockMetrics,
 }
 
-impl<B, I> TracingBlockImport<B, I>
+impl<I> TracingBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Send + Sync,
+    I: BlockImport<Block> + Send + Sync,
 {
-    pub fn new(inner: I, metrics: Option<Metrics<<B::Header as Header>::Hash>>) -> Self {
+    pub fn new(inner: I, metrics: BlockMetrics) -> Self {
         TracingBlockImport { inner, metrics }
     }
 }
 #[async_trait::async_trait]
-impl<B, I> BlockImport<B> for TracingBlockImport<B, I>
+impl<I> BlockImport<Block> for TracingBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Send + Sync,
+    I: BlockImport<Block> + Send + Sync,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
-        block: BlockCheckParams<B>,
+        block: BlockCheckParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         self.inner.check_block(block).await
     }
 
     async fn import_block(
         &mut self,
-        block: BlockImportParams<B, Self::Transaction>,
-        cache: HashMap<[u8; 4], Vec<u8>>,
+        block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
-        if let Some(m) = &self.metrics {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Importing);
-        };
+        self.metrics
+            .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
-        let result = self.inner.import_block(block, cache).await;
+        let result = self.inner.import_block(block).await;
 
-        if let (Some(m), Ok(ImportResult::Imported(_))) = (&self.metrics, &result) {
-            m.report_block(post_hash, Instant::now(), Checkpoint::Imported);
+        if let Ok(ImportResult::Imported(_)) = &result {
+            self.metrics
+                .report_block(post_hash, Instant::now(), Checkpoint::Imported);
         }
         result
     }
 }
 
-/// A wrapper around a block import that also extracts any present jsutifications and send them to
+/// A wrapper around a block import that also extracts any present justifications and sends them to
 /// our components which will process them further and possibly finalize the block.
 #[derive(Clone)]
-pub struct AlephBlockImport<B, I>
+pub struct AlephBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Clone + Send,
+    I: BlockImport<Block> + Clone + Send,
 {
     inner: I,
-    justification_tx: UnboundedSender<JustificationNotification<B>>,
+    justification_tx: UnboundedSender<Justification>,
+    translator: JustificationTranslator,
 }
 
 #[derive(Debug)]
-enum SendJustificationError<B: BlockT> {
-    Send(TrySendError<JustificationNotification<B>>),
+enum SendJustificationError<TE: Debug> {
+    Send(Box<TrySendError<Justification>>),
     Consensus(Box<ConsensusError>),
     Decode(DecodeError),
+    Translate(TE),
 }
 
-impl<B: BlockT> From<DecodeError> for SendJustificationError<B> {
+impl<TE: Debug> From<DecodeError> for SendJustificationError<TE> {
     fn from(decode_error: DecodeError) -> Self {
         Self::Decode(decode_error)
     }
 }
 
-impl<B, I> AlephBlockImport<B, I>
+impl<I> AlephBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Clone + Send,
+    I: BlockImport<Block> + Clone + Send,
 {
     pub fn new(
         inner: I,
-        justification_tx: UnboundedSender<JustificationNotification<B>>,
-    ) -> AlephBlockImport<B, I> {
+        justification_tx: UnboundedSender<Justification>,
+        translator: JustificationTranslator,
+    ) -> AlephBlockImport<I> {
         AlephBlockImport {
             inner,
             justification_tx,
+            translator,
         }
     }
 
     fn send_justification(
         &mut self,
-        hash: B::Hash,
-        number: NumberFor<B>,
-        justification: Justification,
-    ) -> Result<(), SendJustificationError<B>> {
-        debug!(target: "aleph-justification", "Importing justification for block {:?}", number);
+        block_id: BlockId,
+        justification: SubstrateJustification,
+    ) -> Result<(), SendJustificationError<TranslateError>> {
+        debug!(target: "aleph-justification", "Importing justification for block {}.", block_id);
         if justification.0 != ALEPH_ENGINE_ID {
             return Err(SendJustificationError::Consensus(Box::new(
                 ConsensusError::ClientImport("Aleph can import only Aleph justifications.".into()),
@@ -127,37 +123,35 @@ where
         }
         let justification_raw = justification.1;
         let aleph_justification = backwards_compatible_decode(justification_raw)?;
+        let justification = self
+            .translator
+            .translate(aleph_justification, block_id)
+            .map_err(SendJustificationError::Translate)?;
 
         self.justification_tx
-            .unbounded_send(JustificationNotification {
-                hash,
-                number,
-                justification: aleph_justification,
-            })
-            .map_err(SendJustificationError::Send)
+            .unbounded_send(justification)
+            .map_err(|e| SendJustificationError::Send(Box::new(e)))
     }
 }
 
 #[async_trait::async_trait]
-impl<B, I> BlockImport<B> for AlephBlockImport<B, I>
+impl<I> BlockImport<Block> for AlephBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Clone + Send,
+    I: BlockImport<Block> + Clone + Send,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
-        block: BlockCheckParams<B>,
+        block: BlockCheckParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         self.inner.check_block(block).await
     }
 
     async fn import_block(
         &mut self,
-        mut block: BlockImportParams<B, Self::Transaction>,
-        cache: HashMap<[u8; 4], Vec<u8>>,
+        mut block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
         let post_hash = block.post_hash();
@@ -165,7 +159,7 @@ where
         let justifications = block.justifications.take();
 
         debug!(target: "aleph-justification", "Importing block {:?} {:?} {:?}", number, block.header.hash(), block.post_hash());
-        let result = self.inner.import_block(block, cache).await;
+        let result = self.inner.import_block(block).await;
 
         if let Ok(ImportResult::Imported(_)) = result {
             if let Some(justification) =
@@ -173,9 +167,10 @@ where
             {
                 debug!(target: "aleph-justification", "Got justification along imported block {:?}", number);
 
-                if let Err(e) =
-                    self.send_justification(post_hash, number, (ALEPH_ENGINE_ID, justification))
-                {
+                if let Err(e) = self.send_justification(
+                    BlockId::new(post_hash, number),
+                    (ALEPH_ENGINE_ID, justification),
+                ) {
                     warn!(target: "aleph-justification", "Error while receiving justification for block {:?}: {:?}", post_hash, e);
                 }
             }
@@ -186,34 +181,36 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, I> JustificationImport<B> for AlephBlockImport<B, I>
+impl<I> JustificationImport<Block> for AlephBlockImport<I>
 where
-    B: BlockT,
-    I: BlockImport<B> + Clone + Send,
+    I: BlockImport<Block> + Clone + Send,
 {
     type Error = ConsensusError;
 
-    async fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> {
+    async fn on_start(&mut self) -> Vec<(BlockHash, BlockNumber)> {
         debug!(target: "aleph-justification", "On start called");
         Vec::new()
     }
 
     async fn import_justification(
         &mut self,
-        hash: B::Hash,
-        number: NumberFor<B>,
-        justification: Justification,
+        hash: BlockHash,
+        number: BlockNumber,
+        justification: SubstrateJustification,
     ) -> Result<(), Self::Error> {
+        use SendJustificationError::*;
         debug!(target: "aleph-justification", "import_justification called on {:?}", justification);
-        self.send_justification(hash, number, justification)
+        self.send_justification(BlockId::new(hash, number), justification)
             .map_err(|error| match error {
-                SendJustificationError::Send(_) => ConsensusError::ClientImport(String::from(
+                Send(_) => ConsensusError::ClientImport(String::from(
                     "Could not send justification to ConsensusParty",
                 )),
-                SendJustificationError::Consensus(e) => *e,
-                SendJustificationError::Decode(e) => {
-                    warn!(target: "aleph-justification", "Justification for block {:?} decoded incorrectly: {}", number, e);
-                    ConsensusError::ClientImport(String::from("Could not decode justification"))
+                Consensus(e) => *e,
+                Decode(e) => ConsensusError::ClientImport(format!(
+                    "Justification for block {number:?} decoded incorrectly: {e}"
+                )),
+                Translate(e) => {
+                    ConsensusError::ClientImport(format!("Could not translate justification: {e}"))
                 }
             })
     }

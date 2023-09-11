@@ -1,11 +1,20 @@
-use primitives::{EraIndex, SessionCount};
+use codec::{DecodeAll, Encode};
+use primitives::{SessionCommittee, SessionValidatorError};
+use subxt::{
+    ext::{sp_core::Bytes, sp_runtime::Perquintill},
+    rpc_params,
+    utils::Static,
+};
 
 use crate::{
     aleph_runtime::RuntimeCall::CommitteeManagement,
     api,
-    pallet_committee_management::pallet::Call::{ban_from_committee, set_ban_config},
+    pallet_committee_management::pallet::Call::{
+        ban_from_committee, set_ban_config, set_lenient_threshold,
+    },
     primitives::{BanConfig, BanInfo, BanReason},
-    AccountId, AsConnection, BlockHash, ConnectionApi, RootConnection, SudoCall, TxInfo, TxStatus,
+    AccountId, AsConnection, BlockHash, ConnectionApi, EraIndex, RootConnection, SessionCount,
+    SessionIndex, SudoCall, TxInfo, TxStatus,
 };
 
 /// Pallet CommitteeManagement read-only api.
@@ -50,8 +59,21 @@ pub trait CommitteeManagementApi {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo>;
+
     /// Returns `committee-management.session_period` const of the committee-management pallet.
     async fn get_session_period(&self) -> anyhow::Result<u32>;
+
+    /// Returns committee for a given session. If session belongs to era `E` which spawns across sessions
+    /// n...m then block `at` should be in one of the session from `n-1...m-1` otherwise it will return an error.
+    /// This can compute committee for future sessions in the current era.
+    async fn get_session_committee(
+        &self,
+        session: SessionIndex,
+        at: Option<BlockHash>,
+    ) -> anyhow::Result<Result<SessionCommittee<AccountId>, SessionValidatorError>>;
+
+    /// Returns `committee-management.lenient_threshold` for the current era.
+    async fn get_lenient_threshold_percentage(&self, at: Option<BlockHash>) -> Option<Perquintill>;
 }
 
 /// any object that implements pallet committee-management api that requires sudo
@@ -82,6 +104,13 @@ pub trait CommitteeManagementSudoApi {
         ban_reason: Vec<u8>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo>;
+
+    /// Set lenient threshold. Effective from the next era.
+    async fn set_lenient_threshold(
+        &self,
+        threshold_percent: u8,
+        status: TxStatus,
+    ) -> anyhow::Result<TxInfo>;
 }
 
 #[async_trait::async_trait]
@@ -99,7 +128,7 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     ) -> Option<u32> {
         let addrs = api::storage()
             .committee_management()
-            .session_validator_block_count(&validator);
+            .session_validator_block_count(Static::from(validator));
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
@@ -111,7 +140,7 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     ) -> Option<SessionCount> {
         let addrs = api::storage()
             .committee_management()
-            .underperformed_validator_session_count(&validator);
+            .underperformed_validator_session_count(Static::from(validator));
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
@@ -121,7 +150,9 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanReason> {
-        let addrs = api::storage().committee_management().banned(validator);
+        let addrs = api::storage()
+            .committee_management()
+            .banned(Static::from(validator));
 
         self.get_storage_entry_maybe(&addrs, at)
             .await
@@ -133,7 +164,9 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
         validator: AccountId,
         at: Option<BlockHash>,
     ) -> Option<BanInfo> {
-        let addrs = api::storage().committee_management().banned(validator);
+        let addrs = api::storage()
+            .committee_management()
+            .banned(Static::from(validator));
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
@@ -145,6 +178,26 @@ impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
             .constants()
             .at(&addrs)
             .map_err(|e| e.into())
+    }
+
+    async fn get_session_committee(
+        &self,
+        session: SessionIndex,
+        at: Option<BlockHash>,
+    ) -> anyhow::Result<Result<SessionCommittee<AccountId>, SessionValidatorError>> {
+        let method = "state_call";
+        let api_method = "AlephSessionApi_predict_session_committee";
+        let params = rpc_params![api_method, Bytes(session.encode()), at];
+
+        self.rpc_call(method.to_string(), params).await
+    }
+
+    async fn get_lenient_threshold_percentage(&self, at: Option<BlockHash>) -> Option<Perquintill> {
+        let addrs = api::storage().committee_management().lenient_threshold();
+
+        self.get_storage_entry_maybe(&addrs, at)
+            .await
+            .map(|lt| Perquintill::decode_all(&mut &*lt.encode()).unwrap())
     }
 }
 
@@ -175,9 +228,19 @@ impl CommitteeManagementSudoApi for RootConnection {
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
         let call = CommitteeManagement(ban_from_committee {
-            banned: account,
+            banned: account.into(),
             ban_reason,
         });
+        self.sudo_unchecked(call, status).await
+    }
+
+    async fn set_lenient_threshold(
+        &self,
+        threshold_percent: u8,
+        status: TxStatus,
+    ) -> anyhow::Result<TxInfo> {
+        let call = CommitteeManagement(set_lenient_threshold { threshold_percent });
+
         self.sudo_unchecked(call, status).await
     }
 }

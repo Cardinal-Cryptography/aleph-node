@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-use codec::{Decode, Encode};
 use futures::channel::oneshot;
 use network_clique::{
     mock::{
@@ -13,6 +12,7 @@ use network_clique::{
     },
     AddressingInformation,
 };
+use parity_scale_codec::{Decode, Encode};
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
@@ -25,7 +25,7 @@ use crate::{
             authentication, ConnectionManager, ConnectionManagerConfig, DataInSession,
             ManagerError, SessionHandler, SessionManager, VersionedAuthentication,
         },
-        GossipService, MockEvent, MockRawNetwork, Protocol,
+        GossipError, GossipNetwork, GossipService, MockEvent, MockRawNetwork, Protocol,
     },
     MillisecsPerBlock, NodeIndex, Recipient, SessionId, SessionPeriod,
 };
@@ -73,11 +73,14 @@ struct TestData {
     gossip_service_handle: JoinHandle<()>,
     // `TaskManager` can't be dropped for `SpawnTaskHandle` to work
     _task_manager: TaskManager,
+    // If we drop the sync network, the underlying network service dies, stopping the whole
+    // network.
+    _sync_network: Box<dyn GossipNetwork<MockData, Error = GossipError, PeerId = MockPublicKey>>,
 }
 
 async fn prepare_one_session_test_data() -> TestData {
     let task_manager = TaskManager::new(Handle::current(), None).unwrap();
-    let (authority_pens, authority_verifier) = crypto_basics(NODES_N).await;
+    let (authority_pens, authority_verifier) = crypto_basics(NODES_N);
     let mut authorities = Vec::new();
     for (index, p) in authority_pens {
         let address = random_address_from(index.0.to_string(), true);
@@ -97,8 +100,11 @@ async fn prepare_one_session_test_data() -> TestData {
     let network = MockRawNetwork::new(event_stream_tx);
     let validator_network = MockCliqueNetwork::new();
 
-    let (gossip_service, gossip_network, _) =
-        GossipService::new(network.clone(), task_manager.spawn_handle());
+    let (gossip_service, gossip_network, sync_network) = GossipService::<_, _, MockData>::new(
+        network.clone(),
+        task_manager.spawn_handle().into(),
+        None,
+    );
 
     let (connection_manager_service, session_manager) = ConnectionManager::new(
         authorities[0].address(),
@@ -107,6 +113,7 @@ async fn prepare_one_session_test_data() -> TestData {
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
     let session_manager = Box::new(session_manager);
+    let sync_network = Box::new(sync_network);
 
     let network_manager_task = async move {
         tokio::select! {
@@ -137,6 +144,7 @@ async fn prepare_one_session_test_data() -> TestData {
         network_manager_handle,
         gossip_service_handle,
         _task_manager: task_manager,
+        _sync_network: sync_network,
     }
 }
 
@@ -162,7 +170,7 @@ impl TestData {
             .await
         {
             Ok(network) => network,
-            Err(e) => panic!("Failed to start validator session: {}", e),
+            Err(e) => panic!("Failed to start validator session: {e}"),
         }
     }
 
@@ -173,11 +181,11 @@ impl TestData {
             NodeIndex(node_id),
             self.authorities[node_id].pen(),
         ) {
-            panic!("Failed to start validator session: {}", e);
+            panic!("Failed to start validator session: {e}");
         }
     }
 
-    async fn get_session_handler(
+    fn get_session_handler(
         &self,
         node_id: usize,
         session_id: u32,
@@ -188,7 +196,6 @@ impl TestData {
             SessionId(session_id),
             self.authorities[node_id].address(),
         )
-        .await
     }
 
     async fn check_add_connection(&mut self) {
@@ -211,9 +218,9 @@ impl TestData {
         assert_eq!(reserved_addresses, expected_addresses);
     }
 
-    async fn connect_session_authorities(&mut self, session_id: u32) {
+    fn connect_session_authorities(&mut self, session_id: u32) {
         for (index, authority) in self.authorities.clone().into_iter().enumerate().skip(1) {
-            let handler = self.get_session_handler(index, session_id).await;
+            let handler = self.get_session_handler(index, session_id);
 
             self.connect_identity_to_network(authority.auth_peer_id(), Protocol::Authentication);
 
@@ -233,7 +240,7 @@ impl TestData {
 
     async fn start_session(&mut self, session_id: u32) -> impl Network<MockData> {
         let data_network = self.start_validator_session(0, session_id).await;
-        self.connect_session_authorities(session_id).await;
+        self.connect_session_authorities(session_id);
         self.check_add_connection().await;
 
         data_network
@@ -283,7 +290,7 @@ async fn test_sends_discovery_message() {
     let connected_peer_id = test_data.authorities[1].auth_peer_id();
     test_data.connect_identity_to_network(connected_peer_id.clone(), Protocol::Authentication);
     let mut data_network = test_data.start_validator_session(0, session_id).await;
-    let handler = test_data.get_session_handler(0, session_id).await;
+    let handler = test_data.get_session_handler(0, session_id);
 
     for _ in 0..4 {
         match test_data.next_sent_auth().await {
@@ -308,9 +315,9 @@ async fn test_forwards_authentication_broadcast() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
     let mut data_network = test_data.start_validator_session(0, session_id).await;
-    let handler = test_data.get_session_handler(0, session_id).await;
+    let handler = test_data.get_session_handler(0, session_id);
     let sending_peer = test_data.authorities[1].clone();
-    let sending_peer_handler = test_data.get_session_handler(1, session_id).await;
+    let sending_peer_handler = test_data.get_session_handler(1, session_id);
 
     for authority in test_data.authorities.clone().iter().skip(1) {
         test_data.connect_identity_to_network(authority.auth_peer_id(), Protocol::Authentication);
@@ -394,7 +401,7 @@ async fn test_connects_to_others_early_validator() {
     let session_id = 43;
     let mut test_data = prepare_one_session_test_data().await;
     test_data.early_start_validator_session(0, session_id);
-    test_data.connect_session_authorities(session_id).await;
+    test_data.connect_session_authorities(session_id);
     test_data.check_add_connection().await;
 
     let mut data_network = test_data.start_validator_session(0, session_id).await;

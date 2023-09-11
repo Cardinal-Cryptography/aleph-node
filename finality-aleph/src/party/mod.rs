@@ -107,17 +107,14 @@ where
             .await
             .await
         {
-            Err(e) => panic!(
-                "Error while receiving the notification about current session {:?}",
-                e
-            ),
+            Err(e) => panic!("Error while receiving the notification about current session {e:?}"),
             Ok(authority_data) => authority_data,
         };
         let authorities = authority_data.authorities();
 
         trace!(target: "aleph-party", "Authority data for session {:?}: {:?}", session_id, authorities);
         let mut maybe_authority_task = if let Some(node_id) =
-            self.session_manager.node_idx(authorities).await
+            self.session_manager.node_idx(authorities)
         {
             match backup::rotate(self.backup_saving_path.clone(), session_id.0) {
                 Ok(backup) => {
@@ -187,14 +184,14 @@ where
                     }
                 } => {
                     let next_session_authorities = next_session_authority_data.authorities();
-                    match self.session_manager.node_idx(next_session_authorities).await {
+                    match self.session_manager.node_idx(next_session_authorities) {
                          Some(next_session_node_id) => if let Err(e) = self
                                 .session_manager
                                 .early_start_validator_session(
                                     next_session_id,
                                     next_session_node_id,
                                     next_session_authorities,
-                                ).await
+                                )
                             {
                                 warn!(target: "aleph-party", "Failed to early start validator session{:?}: {}", next_session_id, e);
                             }
@@ -262,11 +259,11 @@ mod tests {
         time::Duration,
     };
 
-    use aleph_primitives::{AuthorityId, SessionAuthorityData};
     use sp_runtime::testing::UintAuthorityId;
     use tokio::{task::JoinHandle, time::sleep};
 
     use crate::{
+        aleph_primitives::{AuthorityId, SessionAuthorityData},
         party::{
             mocks::{MockChainState, MockNodeSessionManager, MockSyncState},
             ConsensusParty, ConsensusPartyParams, SESSION_STATUS_CHECK_PERIOD,
@@ -337,8 +334,7 @@ mod tests {
                     .lock()
                     .unwrap(),
                 HashSet::from_iter(validator_started),
-                "`validator_session_started` mismatch at block #{}",
-                block
+                "`validator_session_started` mismatch at block #{block}"
             );
 
             assert_eq!(
@@ -349,8 +345,7 @@ mod tests {
                     .lock()
                     .unwrap(),
                 HashSet::from_iter(early_started),
-                "`session_early_started` mismatch at block #{}",
-                block
+                "`session_early_started` mismatch at block #{block}"
             );
 
             assert_eq!(
@@ -361,8 +356,7 @@ mod tests {
                     .lock()
                     .unwrap(),
                 HashSet::from_iter(stopped),
-                "`session_stopped` mismatch at block #{}",
-                block
+                "`session_stopped` mismatch at block #{block}"
             );
 
             assert_eq!(
@@ -373,8 +367,7 @@ mod tests {
                     .lock()
                     .unwrap(),
                 HashSet::from_iter(non_validator_started),
-                "`nonvalidator_session_started` mismatch at block #{}",
-                block
+                "`nonvalidator_session_started` mismatch at block #{block}"
             );
         }
 

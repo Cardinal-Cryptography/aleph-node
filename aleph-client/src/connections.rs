@@ -9,13 +9,16 @@ use subxt::{
     ext::sp_core::Bytes,
     metadata::DecodeWithMetadata,
     rpc::RpcParams,
-    storage::{address::Yes, StaticStorageAddress, StorageAddress},
+    storage::{
+        address::{Address, StaticStorageMapKey, Yes},
+        StorageAddress,
+    },
     tx::TxPayload,
 };
 
 use crate::{
-    api, sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call, KeyPair,
-    ParamsBuilder, SubxtClient, TxHash, TxStatus,
+    api, runtime_types::sp_weights::weight_v2::Weight, AccountId, AlephConfig, BlockHash, Call,
+    KeyPair, ParamsBuilder, SubxtClient, TxHash, TxStatus,
 };
 
 /// Capable of communicating with a live Aleph chain.
@@ -61,9 +64,9 @@ pub trait ConnectionApi: Sync {
     /// * `at` - optional block hash to query state from
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> T::Target;
+    ) -> T;
 
     /// Retrieves a decoded storage value stored under given key.
     ///
@@ -84,9 +87,9 @@ pub trait ConnectionApi: Sync {
         Iterable: Sync,
     >(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> Option<T::Target>;
+    ) -> Option<T>;
 
     /// Submit a RPC call.
     ///
@@ -108,6 +111,9 @@ pub trait ConnectionApi: Sync {
     /// rpc_call("state_call".to_string(), params).await;
     /// ```
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R>;
+
+    /// Same as [rpc_call] but used for rpc endpoint that does not return values.
+    async fn rpc_call_no_return(&self, func_name: String, params: RpcParams) -> anyhow::Result<()>;
 }
 
 /// Data regarding submitted transaction.
@@ -232,9 +238,9 @@ impl AsSigned for RootConnection {
 impl<C: AsConnection + Sync> ConnectionApi for C {
     async fn get_storage_entry<T: DecodeWithMetadata + Sync, Defaultable: Sync, Iterable: Sync>(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> T::Target {
+    ) -> T {
         self.get_storage_entry_maybe(addrs, at)
             .await
             .expect("There should be a value")
@@ -246,20 +252,22 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
         Iterable: Sync,
     >(
         &self,
-        addrs: &StaticStorageAddress<T, Yes, Defaultable, Iterable>,
+        addrs: &Address<StaticStorageMapKey, T, Yes, Defaultable, Iterable>,
         at: Option<BlockHash>,
-    ) -> Option<T::Target> {
+    ) -> Option<T> {
         info!(target: "aleph-client", "accessing storage at {}::{} at block {:?}", addrs.pallet_name(), addrs.entry_name(), at);
-        self.as_connection()
-            .as_client()
-            .storage()
-            .fetch(addrs, at)
-            .await
-            .expect("Should access storage")
+
+        let storage = self.as_connection().as_client().storage();
+        let block = match at {
+            Some(block_hash) => storage.at(block_hash),
+            None => storage.at_latest().await.expect("Should access storage"),
+        };
+
+        block.fetch(addrs).await.expect("Should access storage")
     }
 
     async fn rpc_call<R: Decode>(&self, func_name: String, params: RpcParams) -> anyhow::Result<R> {
-        info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params);
+        info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params.clone().build());
         let bytes: Bytes = self
             .as_connection()
             .as_client()
@@ -268,6 +276,18 @@ impl<C: AsConnection + Sync> ConnectionApi for C {
             .await?;
 
         Ok(R::decode(&mut bytes.as_ref())?)
+    }
+
+    async fn rpc_call_no_return(&self, func_name: String, params: RpcParams) -> anyhow::Result<()> {
+        info!(target: "aleph-client", "submitting rpc call `{}`, with params {:?}", func_name, params.clone().build());
+        let _: () = self
+            .as_connection()
+            .as_client()
+            .rpc()
+            .request(&func_name, params)
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -354,7 +374,7 @@ impl Connection {
             let client = SubxtClient::from_url(&address).await;
             match (retries, client) {
                 (_, Ok(client)) => return Connection { client },
-                (0, Err(e)) => panic!("{:?}", e),
+                (0, Err(e)) => panic!("{e:?}"),
                 _ => {
                     sleep(Duration::from_secs(Self::RETRY_WAIT_SECS));
                     retries -= 1;
@@ -407,12 +427,15 @@ impl RootConnection {
         let root = match connection
             .as_client()
             .storage()
-            .fetch(&root_address, None)
+            .at_latest()
+            .await?
+            .fetch(&root_address)
             .await
         {
             Ok(Some(account)) => account,
             _ => return Err(anyhow!("Could not read sudo key from chain")),
-        };
+        }
+        .0;
 
         if root != *signer.account_id() {
             return Err(anyhow!(

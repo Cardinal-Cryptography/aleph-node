@@ -1,10 +1,10 @@
 import os
-import os.path as op
 import subprocess
 import time
+from os.path import join, abspath
 
 from .node import Node
-from .utils import flags_from_dict, check_file
+from .utils import flags_from_dict, check_file, check_finalized, check_version
 
 
 # Seq is a wrapper type around int for supplying numerical parameters
@@ -20,7 +20,7 @@ class Chain:
 
     def __init__(self, workdir):
         os.makedirs(workdir, exist_ok=True)
-        self.path = op.abspath(workdir)
+        self.path = abspath(workdir)
         self.nodes = []
         self.validator_nodes = []
         self.nonvalidator_nodes = []
@@ -31,35 +31,42 @@ class Chain:
     def __iter__(self):
         return iter(self.nodes)
 
+    def new(self, binary, validators, nonvalidators=None):
+        """Initialize the chain but does not do any bootstraping. `validators` and `nonvalidators` should be lists
+        of strings with public keys."""
+        nonvalidators = nonvalidators or []
+        binary = check_file(binary)
+        chainspec = join(self.path, 'chainspec.json')
+
+        self.validator_nodes = [Node(i, binary, chainspec, join(self.path, v), self.path) for (i,v) in enumerate(validators)]
+        self.nonvalidator_nodes = [Node(i+len(validators), binary, chainspec, join(self.path, nv), self.path) for (i,nv) in enumerate(nonvalidators)]
+
+        self.nodes = self.validator_nodes + self.nonvalidator_nodes
+
     def bootstrap(self, binary, validators, nonvalidators=None, raw=True, **kwargs):
         """Bootstrap the chain. `validators` and `nonvalidators` should be lists of strings
         with public keys. Flags `--account-ids`, `--base-path` and `--raw` are added automatically.
         All other flags are taken from kwargs"""
+        self.new(binary, validators, nonvalidators)
         nonvalidators = nonvalidators or []
-        cmd = [check_file(binary),
-               'bootstrap-chain',
+
+        binary = check_file(binary)
+        cmd = [binary, 'bootstrap-chain',
                '--base-path', self.path,
                '--account-ids', ','.join(validators)]
         if raw:
             cmd.append('--raw')
         cmd += flags_from_dict(kwargs)
 
-        chainspec = op.join(self.path, 'chainspec.json')
+        chainspec = join(self.path, 'chainspec.json')
         with open(chainspec, 'w', encoding='utf-8') as f:
             subprocess.run(cmd, stdout=f, check=True)
 
         for nv in nonvalidators:
-            cmd = [check_file(binary),
-                   'bootstrap-node',
-                   '--base-path', op.join(self.path, nv),
+            cmd = [binary, 'bootstrap-node',
+                   '--base-path', join(self.path, nv),
                    '--account-id', nv]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, check=True)
-
-        new_node = lambda x: Node(binary, chainspec, op.join(self.path, x), self.path)
-        self.validator_nodes = [new_node(a) for a in validators]
-        self.nonvalidator_nodes = [new_node(a) for a in nonvalidators]
-
-        self.nodes = self.validator_nodes + self.nonvalidator_nodes
 
     @staticmethod
     def _set_flags(nodes, *args, **kwargs):
@@ -112,7 +119,7 @@ class Chain:
         """Replace nodes' binary with `binary`. Optional `nodes` argument can be used to specify
         which nodes are affected and should be a list of integer indices (0..N-1).
         Affects all nodes if omitted."""
-        check_file(binary)
+        binary = check_file(binary)
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].binary = binary
@@ -141,7 +148,7 @@ class Chain:
         a list of integer indices (0..N-1). Affects all nodes if omitted."""
         idx = nodes or range(len(self.nodes))
         for i in idx:
-            self.nodes[i].start(name + str(i), backup)
+            self.nodes[i].start(name, backup)
 
     def stop(self, nodes=None):
         """Stop the chain. Optional `nodes` argument can be used to specify which nodes are affected
@@ -149,6 +156,11 @@ class Chain:
         idx = nodes or range(len(self.nodes))
         for i in idx:
             self.nodes[i].stop()
+
+    def status(self):
+        """Prints to stdout basic status check of the chain: blocks seen by nodes and binaries versions."""
+        check_finalized(self)
+        check_version(self)
 
     def purge(self, nodes=None):
         """Delete the database of the chosen nodes. Optional `nodes` argument can be used to specify
@@ -158,25 +170,35 @@ class Chain:
         for i in idx:
             self.nodes[i].purge()
 
-    def fork(self, forkoff_path, ws_endpoint):
+    def fork(self, forkoff_path, ws_endpoint, snapshot_file=None):
         """Replace the chainspec of this chain with the state forked from the given `ws_endpoint`.
         This method should be run after bootstrapping the chain, but before starting it.
         'forkoff_path' should be a path to fork-off binary."""
-        forked = op.join(self.path, 'forked.json')
+        forked = join(self.path, 'forked.json')
+        chainspec = join(self.path, 'chainspec.json')
+        snapshot = snapshot_file if snapshot_file else join(self.path, 'snapshot.json')
         cmd = [check_file(forkoff_path), '--ws-rpc-endpoint', ws_endpoint,
-                '--initial-spec-path', op.join(self.path, 'chainspec.json'),
-                '--snapshot-path', op.join(self.path, 'snapshot.json'),
-                '--combined-spec-path', forked]
+               '--initial-spec-path', chainspec,
+               '--snapshot-path', snapshot,
+               '--combined-spec-path', forked]
+        if snapshot_file:
+            cmd.append('--use-snapshot-file')
         subprocess.run(cmd, check=True)
         self.set_chainspec(forked)
 
-    def update_runtime(self, cliain_path, sudo_phrase, runtime):
-        """Send set_code extrinsic with runtime update.
-        Requires a path to `cliain` binary, a path to new WASM runtime and the sudo phrase."""
-        port = self.nodes[0].ws_port()
-        cmd = [check_file(cliain_path), '--node', f'localhost:{port}', '--seed', sudo_phrase,
-                'update-runtime', '--runtime', check_file(runtime)]
-        subprocess.run(cmd, check=True)
+    def get_highest_imported(self, nodes=None):
+        """Return the maximum height such that each of the selected nodes (all nodes if None)
+        imported a block of such height."""
+        nodes = range(len(self.nodes)) if nodes is None else nodes
+        nodes = [self.nodes[i] for i in nodes]
+        return min([n.highest_block()[0] for n in nodes], default=-1)
+
+    def get_highest_finalized(self, nodes=None):
+        """Return the maximum height such that each of the selected nodes (all nodes if None)
+        finalized a block of such height."""
+        nodes = range(len(self.nodes)) if nodes is None else nodes
+        nodes = [self.nodes[i] for i in nodes]
+        return min([n.highest_block()[1] for n in nodes], default=-1)
 
     def wait_for_finalization(self, old_finalized, nodes=None, timeout=600, finalized_delta=3, catchup=True, catchup_delta=10):
         """Wait for finalization to catch up with the newest blocks. Requires providing the number
@@ -186,12 +208,13 @@ class Chain:
         If `catchup` is True, wait until finalization catches up with the newly produced blocks
         (within `catchup_delta` blocks). 'timeout' (in seconds) is a global timeout for the whole method
         to execute. Raise TimeoutError if finalization fails to recover within the given timeout."""
-        nodes = [self.nodes[i] for i in nodes] if nodes else self.nodes
+        nodes = range(len(self.nodes)) if nodes is None else nodes
         deadline = time.time() + timeout
-        while any((n.highest_block()[1] <= old_finalized + finalized_delta) for n in nodes):
+        while self.get_highest_finalized(nodes) <= old_finalized + finalized_delta:
             time.sleep(5)
             if time.time() > deadline:
                 raise TimeoutError(f'Block finalization stalled after {timeout} seconds')
+        nodes = [self.nodes[i] for i in nodes]
         if catchup:
             def lags(node):
                 r, f = node.highest_block()
@@ -202,10 +225,19 @@ class Chain:
                     print(f'Finalization restored, but failed to catch up with recent blocks within {timeout} seconds')
                     break
 
+    def wait_for_imported_at_height(self, height, nodes=None, timeout=600):
+        """Wait until all the selected `nodes` (all nodes if None) imported a block at height `height`"""
+        nodes = range(len(self.nodes)) if nodes is None else nodes
+        deadline = time.time() + timeout
+        while self.get_highest_imported(nodes) < height:
+            time.sleep(1)
+            if time.time() > deadline:
+                raise TimeoutError(f'Block production stalled after {timeout} seconds')
+
     def wait_for_authorities(self, nodes=None, timeout=600):
         """Wait for the selected `nodes` (all validator nodes if None) to connect to all known authorities.
         If not successful within the given `timeout` (in seconds), raise TimeoutError."""
-        nodes = [self.nodes[i] for i in nodes] if nodes else self.validator_nodes
+        nodes = [self.nodes[i] for i in nodes] if nodes is not None else self.validator_nodes
         deadline = time.time() + timeout
         while not all(n.check_authorities() for n in nodes):
             time.sleep(5)

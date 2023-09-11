@@ -1,12 +1,13 @@
 use anyhow::anyhow;
-use log::info;
-use primitives::{BlockNumber, EraIndex, SessionIndex};
-use subxt::{blocks::ExtrinsicEvents, ext::sp_runtime::traits::Hash, Config};
+use log::debug;
+use primitives::Balance;
+use subxt::{blocks::ExtrinsicEvents, config::Hasher, Config};
 
 use crate::{
+    api::transaction_payment::events::TransactionFeePaid,
     connections::{AsConnection, TxInfo},
     pallets::{committee_management::CommitteeManagementApi, staking::StakingApi},
-    AlephConfig, BlockHash,
+    AlephConfig, BlockHash, BlockNumber, EraIndex, SessionIndex,
 };
 
 /// Block info API.
@@ -43,6 +44,9 @@ pub trait BlocksApi {
 
     /// Fetch all events that corresponds to the transaction identified by `tx_info`.
     async fn get_tx_events(&self, tx_info: TxInfo) -> anyhow::Result<ExtrinsicEvents<AlephConfig>>;
+
+    /// Returns the fee that was paid for the transaction identified by `tx_info`.
+    async fn get_tx_fee(&self, tx_info: TxInfo) -> anyhow::Result<Balance>;
 }
 
 /// Interaction logic between pallet session and pallet staking.
@@ -66,7 +70,7 @@ impl<C: AsConnection + Sync> BlocksApi for C {
     }
 
     async fn get_block_hash(&self, block: BlockNumber) -> anyhow::Result<Option<BlockHash>> {
-        info!(target: "aleph-client", "querying block hash for number #{}", block);
+        debug!(target: "aleph-client", "querying block hash for number #{}", block);
         self.as_connection()
             .as_client()
             .rpc()
@@ -88,6 +92,10 @@ impl<C: AsConnection + Sync> BlocksApi for C {
             .map_err(|e| e.into())
     }
 
+    async fn get_block_number(&self, block: BlockHash) -> anyhow::Result<Option<BlockNumber>> {
+        self.get_block_number_opt(Some(block)).await
+    }
+
     async fn get_block_number_opt(
         &self,
         block: Option<BlockHash>,
@@ -101,29 +109,33 @@ impl<C: AsConnection + Sync> BlocksApi for C {
             .map_err(|e| e.into())
     }
 
-    async fn get_block_number(&self, block: BlockHash) -> anyhow::Result<Option<BlockNumber>> {
-        self.get_block_number_opt(Some(block)).await
-    }
-
     async fn get_tx_events(&self, tx_info: TxInfo) -> anyhow::Result<ExtrinsicEvents<AlephConfig>> {
         let block_body = self
             .as_connection()
             .as_client()
             .blocks()
-            .at(Some(tx_info.block_hash))
+            .at(tx_info.block_hash)
             .await?
             .body()
             .await?;
 
         let extrinsic_events = block_body
             .extrinsics()
-            .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hashing::hash_of(&tx.bytes()))
+            .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hasher::hash_of(&tx.bytes()))
             .ok_or_else(|| anyhow!("Couldn't find the transaction in the block."))?
             .events()
             .await
             .map_err(|e| anyhow!("Couldn't fetch events for the transaction: {e:?}"))?;
 
         Ok(extrinsic_events)
+    }
+
+    async fn get_tx_fee(&self, tx_info: TxInfo) -> anyhow::Result<Balance> {
+        let events = self.get_tx_events(tx_info).await?;
+        events
+            .find_first::<TransactionFeePaid>()?
+            .ok_or_else(|| anyhow!("TransactionFeePaid event not found"))
+            .map(|tfp| tfp.actual_fee)
     }
 }
 

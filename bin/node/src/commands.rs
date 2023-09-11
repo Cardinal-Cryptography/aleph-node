@@ -1,28 +1,27 @@
 use std::{
     fs,
-    io::{self, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 
-use aleph_primitives::AuthorityId as AlephId;
 use aleph_runtime::AccountId;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use sc_cli::{
     clap::{self, Args, Parser},
-    CliConfiguration, DatabaseParams, Error, KeystoreParams, SharedParams,
+    Error, KeystoreParams,
 };
 use sc_keystore::LocalKeystore;
-use sc_service::{
-    config::{BasePath, KeystoreConfig},
-    DatabaseSource,
-};
+use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_keystore::SyncCryptoStore;
+use sp_keystore::Keystore;
 
-use crate::chain_spec::{
-    self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
-    DEFAULT_BACKUP_FOLDER,
+use crate::{
+    aleph_primitives::AuthorityId as AlephId,
+    chain_spec::{
+        self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
+        DEFAULT_BACKUP_FOLDER,
+    },
 };
 
 #[derive(Debug, Args)]
@@ -57,22 +56,22 @@ impl NodeParams {
 }
 
 /// returns Aura key, if absent a new key is generated
-fn aura_key(keystore: &impl SyncCryptoStore) -> AuraId {
-    SyncCryptoStore::sr25519_public_keys(keystore, key_types::AURA)
+fn aura_key(keystore: &impl Keystore) -> AuraId {
+    Keystore::sr25519_public_keys(keystore, key_types::AURA)
         .pop()
         .unwrap_or_else(|| {
-            SyncCryptoStore::sr25519_generate_new(keystore, key_types::AURA, None)
+            Keystore::sr25519_generate_new(keystore, key_types::AURA, None)
                 .expect("Could not create Aura key")
         })
         .into()
 }
 
 /// returns Aleph key, if absent a new key is generated
-fn aleph_key(keystore: &impl SyncCryptoStore) -> AlephId {
-    SyncCryptoStore::ed25519_public_keys(keystore, aleph_primitives::KEY_TYPE)
+fn aleph_key(keystore: &impl Keystore) -> AlephId {
+    Keystore::ed25519_public_keys(keystore, crate::aleph_primitives::KEY_TYPE)
         .pop()
         .unwrap_or_else(|| {
-            SyncCryptoStore::ed25519_generate_new(keystore, aleph_primitives::KEY_TYPE, None)
+            Keystore::ed25519_generate_new(keystore, crate::aleph_primitives::KEY_TYPE, None)
                 .expect("Could not create Aleph key")
         })
         .into()
@@ -104,13 +103,13 @@ fn open_keystore(
     keystore_params: &KeystoreParams,
     chain_id: &str,
     base_path: &BasePath,
-) -> impl SyncCryptoStore {
+) -> impl Keystore {
     let config_dir = base_path.config_dir(chain_id);
     match keystore_params
         .keystore_config(&config_dir)
         .expect("keystore configuration should be available")
     {
-        (_, KeystoreConfig::Path { path, password }) => {
+        KeystoreConfig::Path { path, password } => {
             LocalKeystore::open(path, password).expect("Keystore open should succeed")
         }
         _ => unreachable!("keystore_config always returns path and password; qed"),
@@ -122,10 +121,7 @@ fn bootstrap_backup(base_path_with_account_id: &Path, backup_dir: &str) {
 
     if backup_path.exists() {
         if !backup_path.is_dir() {
-            panic!(
-                "Could not create backup directory at {:?}. Path is already a file.",
-                backup_path
-            );
+            panic!("Could not create backup directory at {backup_path:?}. Path is already a file.");
         }
     } else {
         fs::create_dir_all(backup_path).expect("Could not create backup directory.");
@@ -133,7 +129,7 @@ fn bootstrap_backup(base_path_with_account_id: &Path, backup_dir: &str) {
 }
 
 fn authority_keys(
-    keystore: &impl SyncCryptoStore,
+    keystore: &impl Keystore,
     base_path: &Path,
     node_key_file: &str,
     account_id: AccountId,
@@ -247,7 +243,7 @@ impl BootstrapNodeCmd {
         let authority_keys = authority_keys(&keystore, base_path.path(), node_key_file, account_id);
         let keys_json = serde_json::to_string_pretty(&authority_keys)
             .expect("serialization of authority keys should have succeeded");
-        println!("{}", keys_json);
+        println!("{keys_json}");
         Ok(())
     }
 
@@ -285,87 +281,6 @@ impl ConvertChainspecToRawCmd {
             let _ = std::io::stderr().write_all(b"Error writing to stdout\n");
         }
 
-        Ok(())
-    }
-}
-
-/// The `purge-chain` command used to remove the whole chain and backup made by AlephBFT.
-/// First runs substrate PurgeChainCmd and after that removes AlephBFT backup.
-#[derive(Debug, Parser)]
-pub struct PurgeChainCmd {
-    #[clap(flatten)]
-    pub purge_backup: PurgeBackupCmd,
-
-    #[clap(flatten)]
-    pub purge_chain: sc_cli::PurgeChainCmd,
-}
-
-impl PurgeChainCmd {
-    pub fn run(&self, database_config: DatabaseSource) -> Result<(), Error> {
-        self.purge_backup.run(
-            self.purge_chain.yes,
-            self.purge_chain
-                .shared_params
-                .base_path()?
-                .ok_or_else(|| Error::Input("need base-path to be provided".to_string()))?,
-        )?;
-        self.purge_chain.run(database_config)
-    }
-}
-
-impl CliConfiguration for PurgeChainCmd {
-    fn shared_params(&self) -> &SharedParams {
-        self.purge_chain.shared_params()
-    }
-
-    fn database_params(&self) -> Option<&DatabaseParams> {
-        self.purge_chain.database_params()
-    }
-}
-
-#[derive(Debug, Parser)]
-pub struct PurgeBackupCmd {
-    /// Directory under which AlephBFT backup is stored
-    #[arg(long, default_value = DEFAULT_BACKUP_FOLDER)]
-    pub backup_dir: String,
-}
-
-impl PurgeBackupCmd {
-    pub fn run(&self, skip_prompt: bool, base_path: BasePath) -> Result<(), Error> {
-        let backup_path = backup_path(base_path.path(), &self.backup_dir);
-
-        if !skip_prompt {
-            print!(
-                "Are you sure you want to remove {:?}? [y/N]: ",
-                &backup_path
-            );
-            io::stdout().flush().expect("failed to flush stdout");
-
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
-
-            match input.chars().next() {
-                Some('y') | Some('Y') => {}
-                _ => {
-                    println!("Aborted");
-                    return Ok(());
-                }
-            }
-        }
-
-        for entry in fs::read_dir(&backup_path)? {
-            let path = entry?.path();
-            match fs::remove_dir_all(&path) {
-                Ok(_) => {
-                    println!("{:?} removed.", &path);
-                }
-                Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
-                    eprintln!("{:?} did not exist.", &path);
-                }
-                Err(err) => return Err(err.into()),
-            }
-        }
         Ok(())
     }
 }

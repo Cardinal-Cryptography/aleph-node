@@ -1,6 +1,6 @@
 use aleph_client::{
     account_from_keypair,
-    api::runtime_types::sp_core::bounded::bounded_vec::BoundedVec,
+    bounded_collections::bounded_vec::BoundedVec,
     keypair_from_string,
     pallet_staking::StakingLedger,
     pallets::{
@@ -12,13 +12,14 @@ use aleph_client::{
     },
     primitives::CommitteeSeats,
     waiting::{BlockStatus, WaitingExt},
-    AccountId, KeyPair, Pair, SignedConnection, SignedConnectionApi, TxStatus,
+    AccountId, AsConnection, KeyPair, Pair, SignedConnection, SignedConnectionApi, TxStatus,
 };
 use log::info;
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
     Balance, BlockNumber, TOKEN,
 };
+use subxt::utils::Static;
 
 use crate::{
     accounts::{account_ids_from_keys, accounts_seeds_to_keys, get_validators_seeds},
@@ -29,7 +30,7 @@ fn get_validator_stashes_key_pairs(config: &Config) -> (Vec<KeyPair>, Vec<KeyPai
     let validators_seeds = get_validators_seeds(config);
     let validator_stashes: Vec<_> = validators_seeds
         .iter()
-        .map(|v| format!("{}//stash", v))
+        .map(|v| format!("{v}//stash"))
         .collect();
     let validator_accounts_key_pairs = accounts_seeds_to_keys(&validators_seeds);
     let stashes_accounts_key_pairs = accounts_seeds_to_keys(&validator_stashes);
@@ -129,6 +130,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
             Some(CommitteeSeats {
                 reserved_seats: 4,
                 non_reserved_seats: 0,
+                non_reserved_finality_seats: 0,
             }),
             TxStatus::InBlock,
         )
@@ -186,7 +188,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
     assert_eq!(
         ledger,
         StakingLedger {
-            stash: stash_account.clone(),
+            stash: Static(stash_account.clone()),
             total: MIN_VALIDATOR_BOND,
             active: MIN_VALIDATOR_BOND,
             unlocking: BoundedVec(vec![]),
@@ -204,6 +206,7 @@ pub async fn staking_new_validator() -> anyhow::Result<()> {
             Some(CommitteeSeats {
                 reserved_seats: 5,
                 non_reserved_seats: 0,
+                non_reserved_finality_seats: 0,
             }),
             TxStatus::InBlock,
         )
@@ -241,7 +244,7 @@ pub async fn multi_bond(node: &str, bonders: &[KeyPair], stake: Balance) {
     }
 }
 
-async fn payout_stakers_and_assert_locked_balance<S: SignedConnectionApi>(
+async fn payout_stakers_and_assert_locked_balance<S: SignedConnectionApi + AsConnection>(
     stash_connection: &S,
     accounts_to_check_balance: &[AccountId],
     stash_account: &AccountId,

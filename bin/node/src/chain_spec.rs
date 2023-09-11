@@ -1,10 +1,5 @@
 use std::{collections::HashSet, str::FromStr, string::ToString};
 
-use aleph_primitives::{
-    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, SessionValidators, Version as FinalityVersion, ADDRESSES_ENCODING,
-    LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
-};
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, CommitteeManagementConfig, ElectionsConfig,
     GenesisConfig, Perbill, SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
@@ -22,6 +17,12 @@ use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair};
+
+use crate::aleph_primitives::{
+    staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
+    AuthorityId as AlephId, SessionValidators, Version as FinalityVersion, ADDRESSES_ENCODING,
+    LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
+};
 
 pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";
@@ -65,7 +66,7 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
     {
         let s = String::deserialize(deserializer)?;
         let inner = PeerId::from_str(&s)
-            .map_err(|_| D::Error::custom(format!("Could not deserialize as PeerId: {}", s)))?;
+            .map_err(|_| D::Error::custom(format!("Could not deserialize as PeerId: {s}")))?;
         Ok(SerializablePeerId { inner })
     }
 }
@@ -89,7 +90,7 @@ fn parse_chaintype(s: &str) -> Result<ChainType, CliError> {
         CHAINTYPE_DEV => ChainType::Development,
         CHAINTYPE_LOCAL => ChainType::Local,
         CHAINTYPE_LIVE => ChainType::Live,
-        s => panic!("Wrong chain type {} Possible values: dev local live", s),
+        s => panic!("Wrong chain type {s} Possible values: dev local live"),
     })
 }
 
@@ -214,11 +215,8 @@ pub fn config(
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
     let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
-        .into_iter()
         .enumerate()
-        .map(|(index, _account)| {
-            account_id_from_string(format!("//{}//Controller", index).as_str())
-        })
+        .map(|(index, _account)| account_id_from_string(format!("//{index}//Controller").as_str()))
         .collect();
     generate_chain_spec_config(chain_params, authorities, controller_accounts)
 }

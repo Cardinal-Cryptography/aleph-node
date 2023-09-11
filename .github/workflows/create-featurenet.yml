@@ -1,0 +1,148 @@
+---
+name: Create featurenet
+
+on:
+  workflow_call:
+    inputs:
+      append-run-id-to-name:
+        description: When set to 'true' then run ID will be appended to featurenet name
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      expiration:
+        description: 'Time after which featurenet will be removed'
+        required: false
+        type: choice
+        options:
+          - 48h
+          - 24h
+          - 12h
+          - 3h
+          - 96h
+          - never
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  build-test-node-and-runtime:
+    name: Build test node and runtime
+    needs: [check-vars-and-secrets]
+    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    secrets: inherit
+
+  store-test-node-and-runtime:
+    name: Store test node and runtime in Devnet bucket
+    runs-on: ubuntu-20.04
+    needs: [build-test-node-and-runtime]
+    steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
+      - name: Store test node and runtime
+        uses: ./.github/actions/store-node-and-runtime
+        with:
+          profile: test
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
+
+  push-featurnet-node-image-to-ecr:
+    needs: [store-test-node-and-runtime]
+    name: Build and push PR tesdocker image to ECR
+    uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
+    secrets: inherit
+
+  create-featurenet:
+    needs: [push-featurnet-node-image-to-ecr]
+    name: Create featurenet based on the PR
+    runs-on: [self-hosted, Linux, X64, small]
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Delete old featurenet app and data
+        if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
+        uses: ./.github/actions/delete-featurenet
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+
+      - name: Start featurenet Deployment
+        uses: bobheadxi/deployments@v1.1.0
+        id: deployment
+        with:
+          step: start
+          token: ${{ secrets.CI_GH_TOKEN }}
+          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          ref: ${{ github.head_ref }}
+          override: true
+
+      - name: Create featurenet from scratch
+        uses: ./.github/actions/create-featurenet
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+          expiration: ${{ inputs.expiration == '' && '48h' || inputs.expiration }}
+          append-run-id-to-name: "${{ inputs.append-run-id-to-name }}"
+
+      - name: Wait for the aleph-node binary to accept some blocks
+        uses: ./.github/actions/wait-for-finalized-heads
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          # yamllint disable-line rule:line-length
+          json-rpc-endpoint: https://ws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format('-{0}', github.run_id) || '' }}.dev.azero.dev
+
+      - name: Remove deleted label if present
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        if: contains(github.event.pull_request.labels.*.name, 'state:deleted-featurenet')
+        with:
+          labels: 'state:deleted-featurenet'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Finish featurenet Deployment
+        uses: bobheadxi/deployments@v1
+        if: always()
+        with:
+          step: finish
+          token: ${{ secrets.CI_GH_TOKEN }}
+          status: ${{ job.status }}
+          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          # yamllint disable-line rule:line-length
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo }}${{ inputs.append-run-id-to-name == 'true' && format('-{0}', github.run_id) || '' }}.dev.azero.dev#/explorer
+          ref: ${{ github.head_ref }}
+
+      - name: Remove deployment request label if exists
+        if: contains(github.event.pull_request.labels.*.name, 'trigger:create-featurenet')
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
+        with:
+          labels: 'trigger:create-featurenet'
+          github_token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Add label to mark that featurenet has been created
+        uses: actions-ecosystem/action-add-labels@v1.1.0
+        with:
+          labels: 'state:created-featurenet'
+          github_token: ${{ secrets.CI_GH_TOKEN }}

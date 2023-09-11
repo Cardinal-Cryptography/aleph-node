@@ -1,13 +1,18 @@
-pub use aleph_primitives::{BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use current_aleph_bft::{default_config, Config, LocalIO, Terminator};
 use log::debug;
+use network_clique::SpawnHandleT;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 
+use super::common::sanity_check_round_delays;
+pub use crate::aleph_primitives::{BlockHash, BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use crate::{
-    abft::{common::unit_creation_delay_fn, NetworkWrapper, SpawnHandleT},
+    abft::{
+        common::{unit_creation_delay_fn, MAX_ROUNDS},
+        NetworkWrapper,
+    },
     crypto::Signature,
-    data_io::{AlephData, OrderedDataInterpreter},
+    data_io::{AlephData, OrderedDataInterpreter, SubstrateChainInfoProvider},
     network::data::Network,
     oneshot,
     party::{
@@ -22,19 +27,25 @@ pub fn run_member<B, C, ADN>(
     multikeychain: Keychain,
     config: Config,
     network: NetworkWrapper<
-        current_aleph_bft::NetworkData<Hasher, AlephData<B>, Signature, SignatureSet<Signature>>,
+        current_aleph_bft::NetworkData<Hasher, AlephData, Signature, SignatureSet<Signature>>,
         ADN,
     >,
-    data_provider: impl current_aleph_bft::DataProvider<AlephData<B>> + Send + 'static,
-    ordered_data_interpreter: OrderedDataInterpreter<B, C>,
+    data_provider: impl current_aleph_bft::DataProvider<AlephData> + Send + 'static,
+    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<B, C>>,
     backup: ABFTBackup,
 ) -> Task
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     C: HeaderBackend<B> + Send + 'static,
-    ADN: Network<CurrentNetworkData<B>> + 'static,
+    ADN: Network<CurrentNetworkData> + 'static,
 {
+    // Remove this check once we implement one on the AlephBFT side (A0-2583).
+    // Checks that the total time of a session is at least 7 days.
+    sanity_check_round_delays(
+        config.max_round,
+        config.delay_config.unit_creation_delay.clone(),
+    );
     let SubtaskCommon {
         spawn_handle,
         session_id,
@@ -72,6 +83,7 @@ pub fn create_aleph_config(
 ) -> Config {
     let mut config = default_config(n_members.into(), node_id.into(), session_id.0 as u64);
     config.delay_config.unit_creation_delay = unit_creation_delay_fn(unit_creation_delay);
+    config.max_round = MAX_ROUNDS;
 
     config
 }

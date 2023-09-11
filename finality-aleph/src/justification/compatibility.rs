@@ -3,13 +3,13 @@ use std::{
     mem::size_of,
 };
 
-use codec::{Decode, DecodeAll, Encode, Error as CodecError, Input as CodecInput};
 use log::warn;
+use parity_scale_codec::{Decode, DecodeAll, Encode, Error as CodecError, Input as CodecInput};
 
 use crate::{
     abft::SignatureSet,
     crypto::{Signature, SignatureV1},
-    justification::AlephJustification,
+    justification::{AlephJustification, LOG_TARGET},
     Version,
 };
 
@@ -66,6 +66,7 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
     let size = payload.len().try_into().unwrap_or_else(|_| {
         if payload.len() > ByteCount::MAX.into() {
             warn!(
+                target: LOG_TARGET,
                 "Versioned Justification v{:?} too big during Encode. Size is {:?}. Should be {:?} at max.",
                 version,
                 payload.len(),
@@ -203,8 +204,7 @@ pub fn versioned_encode(justification: AlephJustification) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use aleph_primitives::{AuthorityPair, AuthoritySignature};
-    use codec::{Decode, Encode};
+    use parity_scale_codec::{Decode, Encode};
     use sp_core::Pair;
 
     use super::{
@@ -212,6 +212,7 @@ mod test {
         VersionedAlephJustification,
     };
     use crate::{
+        aleph_primitives::{AuthorityPair, AuthoritySignature},
         crypto::{Signature, SignatureV1},
         justification::AlephJustification,
         NodeCount, SignatureSet, Version,
@@ -295,7 +296,7 @@ mod test {
             Ok(AlephJustification::EmergencySignature(_)) => {
                 panic!("decoded V1 as emergency signature")
             }
-            Err(e) => panic!("decoding V1 failed: {}", e),
+            Err(e) => panic!("decoding V1 failed: {e}"),
         }
     }
 

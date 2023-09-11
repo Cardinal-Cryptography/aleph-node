@@ -1,13 +1,12 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use aleph_primitives::BlockNumber;
 use sc_client_api::Backend;
-use sc_network::NetworkService;
-use sc_network_common::ExHashT;
+use sc_network_sync::SyncingService;
 use sp_consensus::SyncOracle;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
+    aleph_primitives::BlockNumber,
     party::traits::{ChainState, SyncState},
     ClientForAleph,
 };
@@ -37,8 +36,8 @@ where
     }
 }
 
-impl<B: BlockT, H: ExHashT> SyncState for Arc<NetworkService<B, H>> {
+impl<B: BlockT> SyncState for Arc<SyncingService<B>> {
     fn is_major_syncing(&self) -> bool {
-        NetworkService::is_major_syncing(self)
+        SyncingService::is_major_syncing(self)
     }
 }

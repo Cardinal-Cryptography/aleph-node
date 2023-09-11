@@ -72,7 +72,7 @@ done
 
 bootnodes=""
 for i in 0 1; do
-    bootnodes+=${addresses[i]}
+    bootnodes+="${addresses[i]} "
 done
 
 run_node() {
@@ -98,12 +98,12 @@ run_node() {
     --bootnodes $bootnodes \
     --node-key-file $BASE_PATH/$account_id/p2p_secret \
     --backup-path $BASE_PATH/$account_id/backup-stash \
-    --unit-creation-delay 500 \
     --execution Native \
     --rpc-cors=all \
     --no-mdns \
     --public-validator-addresses 127.0.0.1:${validator_port} \
     --validator-port ${validator_port} \
+    --detailed-log-output \
     -laleph-party=debug \
     -laleph-network=debug \
     -lnetwork-clique=debug \

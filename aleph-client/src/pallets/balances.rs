@@ -1,11 +1,11 @@
-use subxt::ext::sp_runtime::MultiAddress;
+use subxt::utils::{MultiAddress, Static};
 
 use crate::{
-    aleph_zero::{self, api, api::runtime_types::pallet_balances::BalanceLock},
+    aleph_zero::{self, api},
     connections::TxInfo,
-    pallet_balances::pallet::Call::transfer,
+    pallet_balances::{pallet::Call::transfer, types::BalanceLock},
     pallets::utility::UtilityApi,
-    AccountId, Balance, BlockHash,
+    AccountId, AsConnection, Balance, BlockHash,
     Call::Balances,
     ConnectionApi, ParamsBuilder, SignedConnectionApi, TxStatus,
 };
@@ -33,6 +33,9 @@ pub trait BalanceApi {
 
     /// Returns [`total_issuance`](https://paritytech.github.io/substrate/master/pallet_balances/pallet/type.TotalIssuance.html).
     async fn total_issuance(&self, at: Option<BlockHash>) -> Balance;
+
+    /// Returns [`existential_deposit`](https://paritytech.github.io/substrate/master/pallet_balances/index.html#terminology).
+    async fn existential_deposit(&self) -> anyhow::Result<Balance>;
 }
 
 /// Pallet balances API
@@ -83,13 +86,13 @@ pub trait BalanceUserBatchExtApi {
 }
 
 #[async_trait::async_trait]
-impl<C: ConnectionApi> BalanceApi for C {
+impl<C: ConnectionApi + AsConnection> BalanceApi for C {
     async fn locks_for_account(
         &self,
         account: AccountId,
         at: Option<BlockHash>,
     ) -> Vec<BalanceLock<Balance>> {
-        let address = aleph_zero::api::storage().balances().locks(&account);
+        let address = aleph_zero::api::storage().balances().locks(Static(account));
 
         self.get_storage_entry(&address, at).await.0
     }
@@ -113,6 +116,15 @@ impl<C: ConnectionApi> BalanceApi for C {
 
         self.get_storage_entry(&address, at).await
     }
+
+    async fn existential_deposit(&self) -> anyhow::Result<Balance> {
+        let address = api::constants().balances().existential_deposit();
+        self.as_connection()
+            .as_client()
+            .constants()
+            .at(&address)
+            .map_err(|e| e.into())
+    }
 }
 
 #[async_trait::async_trait]
@@ -125,7 +137,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .balances()
-            .transfer(MultiAddress::Id(dest), amount);
+            .transfer(MultiAddress::Id(dest.into()), amount);
         self.send_tx(tx, status).await
     }
 
@@ -138,7 +150,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
     ) -> anyhow::Result<TxInfo> {
         let tx = api::tx()
             .balances()
-            .transfer(MultiAddress::Id(dest), amount);
+            .transfer(MultiAddress::Id(dest.into()), amount);
 
         self.send_tx_with_params(tx, ParamsBuilder::new().tip(tip), status)
             .await
@@ -157,7 +169,7 @@ impl<S: SignedConnectionApi> BalanceUserBatchExtApi for S {
             .iter()
             .map(|dest| {
                 Balances(transfer {
-                    dest: MultiAddress::Id(dest.clone()),
+                    dest: MultiAddress::Id(dest.clone().into()),
                     value: amount,
                 })
             })

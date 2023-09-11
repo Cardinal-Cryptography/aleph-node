@@ -1,5 +1,6 @@
-use aleph_primitives::BlockNumber;
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
+
+use crate::aleph_primitives::BlockNumber;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SessionBoundaries {
@@ -17,13 +18,14 @@ impl SessionBoundaries {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SessionBoundaryInfo {
     session_period: SessionPeriod,
 }
 
 /// Struct for getting the session boundaries.
 impl SessionBoundaryInfo {
-    pub fn new(session_period: SessionPeriod) -> Self {
+    pub const fn new(session_period: SessionPeriod) -> Self {
         Self { session_period }
     }
 
@@ -52,8 +54,9 @@ impl SessionBoundaryInfo {
 
 #[cfg(test)]
 pub mod testing {
-    use aleph_primitives::SessionAuthorityData;
     use sp_runtime::testing::UintAuthorityId;
+
+    use crate::aleph_primitives::SessionAuthorityData;
 
     pub fn authority_data(from: u32, to: u32) -> SessionAuthorityData {
         SessionAuthorityData::new(
@@ -67,6 +70,13 @@ pub mod testing {
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct SessionId(pub u32);
+
+impl SessionId {
+    /// The id of the session following this one.
+    pub fn next(&self) -> Self {
+        SessionId(self.0 + 1)
+    }
+}
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct SessionPeriod(pub u32);

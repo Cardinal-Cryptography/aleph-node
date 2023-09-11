@@ -8,12 +8,12 @@ use std::{
     time::Duration,
 };
 
-use codec::{Decode, Encode, Output};
 use futures::{
     channel::{mpsc, mpsc::UnboundedReceiver, oneshot},
     Future, StreamExt,
 };
 use log::info;
+use parity_scale_codec::{Decode, Encode, Output};
 use rand::Rng;
 use tokio::{
     io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf},
@@ -70,7 +70,9 @@ impl Encode for MockData {
 }
 
 impl Decode for MockData {
-    fn decode<I: codec::Input>(value: &mut I) -> Result<Self, codec::Error> {
+    fn decode<I: parity_scale_codec::Input>(
+        value: &mut I,
+    ) -> Result<Self, parity_scale_codec::Error> {
         let data = u32::decode(value)?;
         let filler = Vec::<u8>::decode(value)?;
         let decodes = bool::decode(value)?;
@@ -173,12 +175,11 @@ impl PublicKey for MockPublicKey {
 
 impl PeerId for MockPublicKey {}
 
-#[async_trait::async_trait]
 impl SecretKey for MockSecretKey {
     type Signature = MockSignature;
     type PublicKey = MockPublicKey;
 
-    async fn sign(&self, message: &[u8]) -> Self::Signature {
+    fn sign(&self, message: &[u8]) -> Self::Signature {
         MockSignature {
             message: message.to_vec(),
             key_id: self.0,

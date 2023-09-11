@@ -8,10 +8,47 @@ on:
       - 'release-*'
 
 jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
   build-production-node-and-runtime:
+    needs: [check-vars-and-secrets]
     name: Build production node and runtime
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
-    secrets: inherit
+
+  store-production-node-and-runtime-in-mainnet-s3:
+    name: Store production node and runtime in Mainnet bucket
+    runs-on: ubuntu-20.04
+    needs: [build-production-node-and-runtime]
+    steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
+      - name: Store production node and runtime
+        uses: ./.github/actions/store-node-and-runtime
+        with:
+          profile: production
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          aws-bucket: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
+
+  store-production-node-and-runtime-in-devnet-s3:
+    name: Store production node and runtime in Devnet bucket
+    runs-on: ubuntu-20.04
+    needs: [build-production-node-and-runtime]
+    steps:
+      - name: Checkout aleph-node source code
+        uses: actions/checkout@v3
+
+      - name: Store production node and runtime
+        uses: ./.github/actions/store-node-and-runtime
+        with:
+          profile: production
+          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
+          aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
 
   push-node-image-to-ecr:
     name: Push node docker image to the ECR
@@ -23,12 +60,13 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: ./.github/actions/get-ref-properties
+        # yamllint disable-line rule:line-length
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Download node production binary from artifacts
         uses: actions/download-artifact@v3
         with:
-          name: aleph-release-node
+          name: aleph-production-node
           path: target/release/
 
       - name: Build production docker node image
@@ -41,14 +79,14 @@ jobs:
         id: login-public-ecr
         uses: docker/login-action@v2
         with:
-          registry: public.ecr.aws
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
 
       - name: Push aleph-node image to ECR
         env:
           CURRENT_IMAGE: aleph-node
-          ECR_PUSH_IMAGE: public.ecr.aws/p6e8q1z1/aleph-node
+          ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node
         run: |
           docker tag ${{ env.CURRENT_IMAGE }} \
             ${{ env.ECR_PUSH_IMAGE }}:${{ steps.get-ref-properties.outputs.sha }}
@@ -58,11 +96,27 @@ jobs:
             docker push ${{ env.ECR_PUSH_IMAGE }}:latest
           fi
 
-  send-slack-notification:
+  send-slack-notification-release:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
+    if: always() && startsWith(github.ref_name, 'release-')
     needs: [push-node-image-to-ecr]
-    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "always"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+
+  send-slack-notification-main:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    if: always() && github.ref_name == 'main'
+    needs: [push-node-image-to-ecr]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -72,4 +126,4 @@ jobs:
         with:
           notify-on: "failure"
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TEMP_GRAFANA_NOTIFICATIONS }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

@@ -1,0 +1,105 @@
+---
+name: UpdateNet Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Name of deployment (updatenet)
+        required: true
+        type: string
+      destination:
+        description: Node image tag, ie 7-byte SHA of some existing ECR aleph-node image tag
+        required: true
+        type: string
+      rolling-update-partition:
+        description: |
+          Number from 0 to N-1, where N is size of am existing feature net.
+          All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
+          will be updated. If not specified, all nodes will be updated.
+        required: false
+        default: "0"
+      replicas:
+        description: 'Number of replicas to start, from 0 to 50'
+        required: true
+        default: '5'
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  update-updatenet:
+    needs: [check-vars-and-secrets]
+    name: Update updatenet
+    runs-on: [self-hosted, Linux, X64, small]
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+    steps:
+      - name: Validate inputs
+        shell: bash
+        run: |
+          if [[ ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$ ]]; then
+            echo "!!! Invalid updatenet name"
+            exit 1
+          fi
+          if [[
+            "${{ inputs.destination }}" != "" && \
+            ! "${{ inputs.destination }}" =~ ^[a-f0-9]{7}$
+          ]]; then
+            echo "!!! Expected a 7-byte SHA in destination parameter"
+            exit 1
+          fi
+          if [[
+            "${{ inputs.rolling-update-partition }}" != "" && \
+            ! "${{ inputs.rolling-update-partition }}" =~ ^[0-9]$ \
+          ]]; then
+            echo "!!! Expected rolling update partition to be a cardinal value from 0 to 9"
+            exit 1
+          fi
+
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Start featurenet Deployment
+        uses: bobheadxi/deployments@v1.1.0
+        id: deployment
+        with:
+          step: start
+          token: ${{ secrets.CI_GH_TOKEN }}
+          env: updatenet-${{ inputs.name }}
+          override: true
+
+      - name: Update featurenet data, app and deploy it
+        uses: ./.github/actions/create-featurenet
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
+          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+          featurenet-name: fe-updnet-${{ inputs.name }}
+          featurenet-aleph-node-image: ${{ inputs.destination }}
+          rolling-update-partition: ${{ inputs.rolling-update-partition }}
+          replicas: ${{ inputs.replicas }}
+
+      - name: Wait for the aleph-node binary to accept some blocks
+        uses: ./.github/actions/wait-for-finalized-heads
+        with:
+          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          json-rpc-endpoint: https://ws-fe-updnet-${{ inputs.name }}.dev.azero.dev
+
+      - name: Finish featurenet Deployment
+        uses: bobheadxi/deployments@v1
+        if: always()
+        with:
+          step: finish
+          token: ${{ secrets.CI_GH_TOKEN }}
+          status: ${{ job.status }}
+          env: updatenet-${{ inputs.name }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          # yamllint disable-line rule:line-length
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ inputs.name }}.dev.azero.dev#/explorer

@@ -41,7 +41,7 @@ pub(crate) type Balance = u128;
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub BlockWeights: frame_system::limits::BlockWeights =
-        frame_system::limits::BlockWeights::simple_max(Weight::from_ref_time(1024));
+        frame_system::limits::BlockWeights::simple_max(Weight::from_parts(1024, 0));
     pub const TestDbWeight: RuntimeDbWeight = RuntimeDbWeight {
         read: 25,
         write: 100
@@ -89,6 +89,10 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
     type WeightInfo = ();
     type MaxLocks = ();
+    type HoldIdentifier = ();
+    type FreezeIdentifier = ();
+    type MaxHolds = ConstU32<0>;
+    type MaxFreezes = ConstU32<0>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
@@ -193,6 +197,7 @@ impl TestExtBuilder {
             committee_seats: CommitteeSeats {
                 reserved_seats: reserved_validators.len() as u32,
                 non_reserved_seats: non_reserved_validators.len() as u32,
+                non_reserved_finality_seats: non_reserved_validators.len() as u32,
             },
             reserved_validators,
             non_reserved_validators,

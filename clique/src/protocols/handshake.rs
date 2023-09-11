@@ -1,6 +1,6 @@
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use rand::Rng;
 use tokio::time::{timeout, Duration};
 
@@ -30,13 +30,12 @@ impl<PK: PublicKey> Display for HandshakeError<PK> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use HandshakeError::*;
         match self {
-            SendError(e) => write!(f, "send error: {}", e),
-            ReceiveError(e) => write!(f, "receive error: {}", e),
+            SendError(e) => write!(f, "send error: {e}"),
+            ReceiveError(e) => write!(f, "receive error: {e}"),
             SignatureError => write!(f, "signature error"),
             ChallengeError(expected, got) => write!(
                 f,
-                "challenge error, expected peer {}, received from {}",
-                expected, got
+                "challenge error, expected peer {expected}, received from {got}"
             ),
             TimedOut => write!(f, "timed out"),
         }
@@ -82,13 +81,13 @@ impl<PK: PublicKey> Response<PK> {
     // Amusingly the `Signature = PK::Signature` is necessary, the compiler cannot even do this
     // simple reasoning. :/
     /// Create a new response by signing the challenge.
-    async fn new<SK: SecretKey<PublicKey = PK, Signature = PK::Signature>>(
+    fn new<SK: SecretKey<PublicKey = PK, Signature = PK::Signature>>(
         secret_key: &SK,
         challenge: &Challenge<PK>,
     ) -> Self {
         Self {
             public_key: secret_key.public_key(),
-            signature: secret_key.sign(&challenge.encode()).await,
+            signature: secret_key.sign(&challenge.encode()),
         }
     }
 
@@ -147,7 +146,7 @@ pub async fn execute_v0_handshake_outgoing<SK: SecretKey, S: Splittable>(
         ));
     }
     // send response
-    let our_response = Response::new(&secret_key, &peer_challenge).await;
+    let our_response = Response::new(&secret_key, &peer_challenge);
     let stream = send_data(stream, our_response).await?;
     let (sender, receiver) = stream.split();
     Ok((sender, receiver))
@@ -197,20 +196,14 @@ mod tests {
     fn assert_send_error<T: std::fmt::Debug>(result: Result<T, HandshakeError<MockPublicKey>>) {
         match result {
             Err(HandshakeError::SendError(_)) => (),
-            x => panic!(
-                "should end with HandshakeError::SendError, but we got {:?}",
-                x
-            ),
+            x => panic!("should end with HandshakeError::SendError, but we got {x:?}"),
         };
     }
 
     fn assert_receive_error<T: std::fmt::Debug>(result: Result<T, HandshakeError<MockPublicKey>>) {
         match result {
             Err(HandshakeError::ReceiveError(_)) => (),
-            x => panic!(
-                "should end with HandshakeError::ReceiveError, but we got {:?}",
-                x
-            ),
+            x => panic!("should end with HandshakeError::ReceiveError, but we got {x:?}"),
         };
     }
 
@@ -219,10 +212,7 @@ mod tests {
     ) {
         match result {
             Err(HandshakeError::SignatureError) => (),
-            x => panic!(
-                "should end with HandshakeError::SignatureError, but we got {:?}",
-                x
-            ),
+            x => panic!("should end with HandshakeError::SignatureError, but we got {x:?}"),
         };
     }
 
@@ -231,10 +221,7 @@ mod tests {
     ) {
         match result {
             Err(HandshakeError::ChallengeError(_, _)) => (),
-            x => panic!(
-                "should end with HandshakeError::ChallengeError, but we got {:?}",
-                x
-            ),
+            x => panic!("should end with HandshakeError::ChallengeError, but we got {x:?}"),
         };
     }
 
@@ -288,7 +275,7 @@ mod tests {
             let (fake_id, _) = key();
             let fake_challenge = Challenge::new(fake_id);
             // send response with substituted challenge
-            let our_response = Response::new(&secret_key, &fake_challenge).await;
+            let our_response = Response::new(&secret_key, &fake_challenge);
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;
         }
@@ -315,7 +302,7 @@ mod tests {
             // prepare fake id
             let (fake_id, _) = key();
             // send response with substituted id
-            let mut our_response = Response::new(&secret_key, &challenge).await;
+            let mut our_response = Response::new(&secret_key, &challenge);
             our_response.public_key = fake_id;
             send_data(stream, our_response).await.expect("should send");
             futures::future::pending::<()>().await;

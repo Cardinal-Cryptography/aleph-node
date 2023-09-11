@@ -6,6 +6,7 @@ use aleph_client::{
         ContractInstance,
     },
     contract_transcode::Value,
+    pallets::system::SystemApi,
     AccountId, ConnectionApi, SignedConnectionApi, TxInfo,
 };
 use anyhow::{anyhow, Context, Result};
@@ -106,6 +107,38 @@ pub async fn adder_fetching_events() -> Result<()> {
     Ok(())
 }
 
+/// This test ensures that `aleph-client` won't submit call if dry-run fails.
+#[tokio::test]
+pub async fn adder_dry_run_failure() -> Result<()> {
+    let config = setup_test();
+
+    let (conn, _authority, account) = basic_test_context(config).await?;
+
+    let contract = AdderInstance::new(
+        &config.test_case_params.adder,
+        &config.test_case_params.adder_metadata,
+    )?;
+
+    // Make the counter value non-zero to enable overflow during next call.
+    contract.add(&account.sign(&conn), 1).await?;
+
+    let caller_balance_before = conn
+        .get_free_balance(account.account_id().clone(), None)
+        .await;
+
+    // Should fail due to the overflow check in contract.
+    let result = contract.add(&account.sign(&conn), u32::MAX).await;
+    assert!(result.is_err());
+
+    let caller_balance_after = conn
+        .get_free_balance(account.account_id().clone(), None)
+        .await;
+
+    assert_eq!(caller_balance_before, caller_balance_after);
+
+    Ok(())
+}
+
 #[derive(Debug)]
 struct AdderInstance {
     contract: ContractInstance,
@@ -132,7 +165,7 @@ impl AdderInstance {
 
         let address = AccountId::from_str(address)
             .ok()
-            .with_context(|| format!("Failed to parse address: {}", address))?;
+            .with_context(|| format!("Failed to parse address: {address}"))?;
         let contract = ContractInstance::new(address, metadata_path)?;
         Ok(Self { contract })
     }
@@ -157,7 +190,7 @@ impl AdderInstance {
             |name| {
                 let mut bytes = name.bytes().take(20).collect::<Vec<_>>();
                 bytes.extend(std::iter::repeat(0).take(20 - bytes.len()));
-                format!("Some({:?})", bytes)
+                format!("Some({bytes:?})")
             },
         );
 

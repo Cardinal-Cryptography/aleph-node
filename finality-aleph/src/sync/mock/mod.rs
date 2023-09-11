@@ -1,21 +1,20 @@
 use std::hash::Hash;
 
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use sp_core::H256;
 
-use crate::sync::{
-    BlockIdentifier, BlockStatus, ChainStatusNotification, Header, Justification as JustificationT,
+use crate::{
+    sync::{Block, ChainStatusNotification, Header, Justification},
+    BlockIdentifier,
 };
 
 mod backend;
 mod status_notifier;
-mod verifier;
 
 type MockNumber = u32;
 type MockHash = H256;
 
 pub use backend::Backend;
-pub use verifier::MockVerifier;
 
 pub type MockPeerId = u32;
 
@@ -33,6 +32,18 @@ impl MockIdentifier {
     pub fn new_random(number: MockNumber) -> Self {
         MockIdentifier::new(number, MockHash::random())
     }
+
+    pub fn random_child(&self) -> MockHeader {
+        let id = MockIdentifier::new_random(self.number + 1);
+        let parent = Some(self.clone());
+        MockHeader { id, parent }
+    }
+
+    pub fn random_branch(&self) -> impl Iterator<Item = MockHeader> {
+        RandomBranch {
+            parent: self.clone(),
+        }
+    }
 }
 
 impl BlockIdentifier for MockIdentifier {
@@ -48,8 +59,14 @@ pub struct MockHeader {
 }
 
 impl MockHeader {
-    fn new(id: MockIdentifier, parent: Option<MockIdentifier>) -> Self {
-        MockHeader { id, parent }
+    pub fn genesis() -> Self {
+        MockHeader {
+            id: MockIdentifier {
+                number: 0,
+                hash: MockHash::zero(),
+            },
+            parent: None,
+        }
     }
 
     pub fn random_parentless(number: MockNumber) -> Self {
@@ -58,20 +75,16 @@ impl MockHeader {
     }
 
     pub fn random_child(&self) -> Self {
-        let id = MockIdentifier::new_random(self.id.number() + 1);
-        let parent = Some(self.id.clone());
-        MockHeader { id, parent }
+        self.id.random_child()
     }
 
     pub fn random_branch(&self) -> impl Iterator<Item = Self> {
-        RandomBranch {
-            parent: self.clone(),
-        }
+        self.id.random_branch()
     }
 }
 
 struct RandomBranch {
-    parent: MockHeader,
+    parent: MockIdentifier,
 }
 
 impl Iterator for RandomBranch {
@@ -79,7 +92,7 @@ impl Iterator for RandomBranch {
 
     fn next(&mut self) -> Option<Self::Item> {
         let result = self.parent.random_child();
-        self.parent = result.clone();
+        self.parent = result.id();
         Some(result)
     }
 }
@@ -97,6 +110,51 @@ impl Header for MockHeader {
 }
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
+pub struct MockBlock {
+    header: MockHeader,
+    justification: Option<MockJustification>,
+    is_correct: bool,
+}
+
+impl MockBlock {
+    pub fn new(header: MockHeader, is_correct: bool) -> Self {
+        Self {
+            header,
+            justification: None,
+            is_correct,
+        }
+    }
+
+    fn finalize(&mut self, justification: MockJustification) {
+        self.justification = Some(justification);
+    }
+
+    pub fn verify(&self) -> bool {
+        self.is_correct
+    }
+}
+
+impl Header for MockBlock {
+    type Identifier = MockIdentifier;
+
+    fn id(&self) -> Self::Identifier {
+        self.header().id()
+    }
+
+    fn parent_id(&self) -> Option<Self::Identifier> {
+        self.header().parent_id()
+    }
+}
+
+impl Block for MockBlock {
+    type Header = MockHeader;
+
+    fn header(&self) -> &Self::Header {
+        &self.header
+    }
+}
+
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MockJustification {
     header: MockHeader,
     is_correct: bool,
@@ -107,13 +165,6 @@ impl MockJustification {
         Self {
             header,
             is_correct: true,
-        }
-    }
-
-    pub fn for_header_incorrect(header: MockHeader) -> Self {
-        Self {
-            header,
-            is_correct: false,
         }
     }
 }
@@ -130,7 +181,7 @@ impl Header for MockJustification {
     }
 }
 
-impl JustificationT for MockJustification {
+impl Justification for MockJustification {
     type Header = MockHeader;
     type Unverified = Self;
 
@@ -144,4 +195,3 @@ impl JustificationT for MockJustification {
 }
 
 type MockNotification = ChainStatusNotification<MockHeader>;
-type MockBlockStatus = BlockStatus<MockJustification>;
