@@ -178,7 +178,7 @@ runs:
           "${{ inputs.rolling-update-partition }}" \
           "${fnet_create_hook}" \
           "${{ inputs.replicas }}"
-          "${{ inputs.internal == 'true' && 'true' : 'false' }}"
+          "${{ inputs.internal == 'true' && 'true' || 'false' }}"
       # yamllint enable rule:line-length
 
     - name: Set featurenet expiration
