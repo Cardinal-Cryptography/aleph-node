@@ -1,7 +1,9 @@
+use std::sync::Arc;
 use std::{fmt::Debug, time::Instant};
 
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
+use sc_client_api::HeaderBackend;
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
@@ -18,27 +20,48 @@ use crate::{
 
 /// A wrapper around a block import that also marks the start and end of the import of every block
 /// in the metrics, if provided.
-#[derive(Clone)]
-pub struct TracingBlockImport<I>
+pub struct TracingBlockImport<I, C>
 where
     I: BlockImport<Block> + Send + Sync,
+    C: HeaderBackend<Block>,
 {
     inner: I,
     metrics: BlockMetrics,
+    client: Arc<C>,
 }
 
-impl<I> TracingBlockImport<I>
+impl<I, C> Clone for TracingBlockImport<I, C>
+where
+    I: Clone + BlockImport<Block> + Send + Sync,
+    C: HeaderBackend<Block>,
+{
+    fn clone(&self) -> TracingBlockImport<I, C> {
+        TracingBlockImport {
+            inner: self.inner.clone(),
+            metrics: self.metrics.clone(),
+            client: self.client.clone(),
+        }
+    }
+}
+
+impl<I, C> TracingBlockImport<I, C>
 where
     I: BlockImport<Block> + Send + Sync,
+    C: HeaderBackend<Block>,
 {
-    pub fn new(inner: I, metrics: BlockMetrics) -> Self {
-        TracingBlockImport { inner, metrics }
+    pub fn new(inner: I, metrics: BlockMetrics, client: Arc<C>) -> Self {
+        TracingBlockImport {
+            inner,
+            metrics,
+            client,
+        }
     }
 }
 #[async_trait::async_trait]
-impl<I> BlockImport<Block> for TracingBlockImport<I>
+impl<I, C> BlockImport<Block> for TracingBlockImport<I, C>
 where
     I: BlockImport<Block> + Send + Sync,
+    C: HeaderBackend<Block>,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
@@ -54,7 +77,6 @@ where
         &mut self,
         block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
-        let number = *block.header.number();
         let post_hash = block.post_hash();
         self.metrics
             .timed
@@ -67,7 +89,10 @@ where
                 .timed
                 .report_block(post_hash, Instant::now(), Checkpoint::Imported);
             if aux.is_new_best {
-                self.metrics.top_block.update_best(number);
+                // use best number from client to avoid race conditions
+                self.metrics
+                    .top_block
+                    .update_best(self.client.info().best_number);
             }
         }
         result
