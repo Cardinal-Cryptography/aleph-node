@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use std::{fmt::Debug, time::Instant};
+use std::{fmt::Debug, sync::Arc, time::Instant};
 
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
