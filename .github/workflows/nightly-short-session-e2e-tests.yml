@@ -63,7 +63,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Create featurenet from scratch
-        uses: ./.github/actions/create-featurenet
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3204-add-featurenet-actions-from-aleph-node
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
-        uses: ./.github/actions/delete-featurenet
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3204-add-featurenet-actions-from-aleph-node
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
