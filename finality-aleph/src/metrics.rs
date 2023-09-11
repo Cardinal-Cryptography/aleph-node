@@ -24,14 +24,18 @@ const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 const LOG_TARGET: &str = "aleph-metrics";
 
 /// TODO(A0-3009): Replace this whole thing.
-pub struct TimedBlockMetrics {
-    prev: HashMap<Checkpoint, Checkpoint>,
-    gauges: HashMap<Checkpoint, Gauge<U64>>,
-    starts: HashMap<Checkpoint, LruCache<BlockHash, Instant>>,
+#[derive(Clone)]
+pub enum TimedBlockMetrics {
+    Prometheus {
+        prev: HashMap<Checkpoint, Checkpoint>,
+        gauges: HashMap<Checkpoint, Gauge<U64>>,
+        starts: Arc<Mutex<HashMap<Checkpoint, LruCache<BlockHash, Instant>>>>,
+    },
+    Noop,
 }
 
 impl TimedBlockMetrics {
-    fn new(registry: &Registry) -> Result<Self, PrometheusError> {
+    fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
             Importing,
@@ -41,6 +45,12 @@ impl TimedBlockMetrics {
             Aggregating,
             Finalized,
         ];
+
+        let registry = match registry {
+            None => return Ok(Self::Noop),
+            Some(registry) => registry,
+        };
+
         let prev: HashMap<_, _> = keys[1..]
             .iter()
             .cloned()
@@ -55,23 +65,24 @@ impl TimedBlockMetrics {
             );
         }
 
-        Ok(Self {
+        Ok(Self::Prometheus {
             prev,
             gauges,
-            starts: keys
-                .iter()
-                .map(|k| {
-                    (
-                        *k,
-                        LruCache::new(NonZeroUsize::new(MAX_BLOCKS_PER_CHECKPOINT).unwrap()),
-                    )
-                })
-                .collect(),
+            starts: Arc::new(Mutex::new(
+                keys.iter()
+                    .map(|k| {
+                        (
+                            *k,
+                            LruCache::new(NonZeroUsize::new(MAX_BLOCKS_PER_CHECKPOINT).unwrap()),
+                        )
+                    })
+                    .collect(),
+            )),
         })
     }
 
-    fn report_block(
-        &mut self,
+    pub fn report_block(
+        &self,
         hash: BlockHash,
         checkpoint_time: Instant,
         checkpoint_type: Checkpoint,
@@ -83,36 +94,43 @@ impl TimedBlockMetrics {
             hash,
             checkpoint_time
         );
-        self.starts.entry(checkpoint_type).and_modify(|starts| {
-            starts.put(hash, checkpoint_time);
-        });
+        if let TimedBlockMetrics::Prometheus {
+            prev,
+            gauges,
+            starts,
+        } = self
+        {
+            let starts = &mut *starts.lock();
+            starts.entry(checkpoint_type).and_modify(|starts| {
+                starts.put(hash, checkpoint_time);
+            });
 
-        if let Some(prev_checkpoint_type) = self.prev.get(&checkpoint_type) {
-            if let Some(start) = self
-                .starts
-                .get_mut(prev_checkpoint_type)
-                .expect("All checkpoint types were initialized")
-                .get(&hash)
-            {
-                let duration = match checkpoint_time.checked_duration_since(*start) {
-                    Some(duration) => duration,
-                    None => {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Earlier metrics time {:?} is later that current one \
-                        {:?}. Checkpoint type {:?}, block: {:?}",
-                            *start,
-                            checkpoint_time,
-                            checkpoint_type,
-                            hash
-                        );
-                        Duration::new(0, 0)
-                    }
-                };
-                self.gauges
-                    .get(&checkpoint_type)
+            if let Some(prev_checkpoint_type) = prev.get(&checkpoint_type) {
+                if let Some(start) = starts
+                    .get_mut(prev_checkpoint_type)
                     .expect("All checkpoint types were initialized")
-                    .set(duration.as_millis() as u64);
+                    .get(&hash)
+                {
+                    let duration = match checkpoint_time.checked_duration_since(*start) {
+                        Some(duration) => duration,
+                        None => {
+                            warn!(
+                                target: LOG_TARGET,
+                                "Earlier metrics time {:?} is later that current one \
+                            {:?}. Checkpoint type {:?}, block: {:?}",
+                                *start,
+                                checkpoint_time,
+                                checkpoint_type,
+                                hash
+                            );
+                            Duration::new(0, 0)
+                        }
+                    };
+                    gauges
+                        .get(&checkpoint_type)
+                        .expect("All checkpoint types were initialized")
+                        .set(duration.as_millis() as u64);
+                }
             }
         }
     }
@@ -180,36 +198,21 @@ impl TopBlockMetrics {
 #[derive(Clone)]
 pub struct BlockMetrics {
     pub top_block: TopBlockMetrics,
-    timed: Option<Arc<Mutex<TimedBlockMetrics>>>,
+    pub timed: TimedBlockMetrics,
 }
 
 impl BlockMetrics {
     pub fn noop() -> Self {
         Self {
             top_block: TopBlockMetrics::Noop,
-            timed: None,
+            timed: TimedBlockMetrics::Noop,
         }
     }
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         Ok(Self {
             top_block: TopBlockMetrics::new(registry)?,
-            timed: match registry {
-                None => None,
-                Some(registry) => Some(Arc::new(Mutex::new(TimedBlockMetrics::new(registry)?))),
-            },
+            timed: TimedBlockMetrics::new(registry)?,
         })
-    }
-    pub fn report_block(
-        &self,
-        hash: BlockHash,
-        checkpoint_time: Instant,
-        checkpoint_type: Checkpoint,
-    ) {
-        if let Some(timed) = &self.timed {
-            timed
-                .lock()
-                .report_block(hash, checkpoint_time, checkpoint_type);
-        }
     }
 }
 
@@ -224,19 +227,17 @@ mod tests {
     }
 
     fn starts_for(m: &BlockMetrics, c: Checkpoint) -> usize {
-        m.timed
-            .as_ref()
-            .expect("There are some metrics")
-            .lock()
-            .starts
-            .get(&c)
-            .unwrap()
-            .len()
+        match &m.timed {
+            TimedBlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
+            _ => 0,
+        }
     }
 
     fn check_reporting_with_memory_excess(metrics: &BlockMetrics, checkpoint: Checkpoint) {
         for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
-            metrics.report_block(BlockHash::random(), Instant::now(), checkpoint);
+            metrics
+                .timed
+                .report_block(BlockHash::random(), Instant::now(), checkpoint);
             assert_eq!(
                 min(i, MAX_BLOCKS_PER_CHECKPOINT),
                 starts_for(metrics, checkpoint)
@@ -247,8 +248,9 @@ mod tests {
     #[test]
     fn registration_with_no_register_creates_empty_metrics() {
         let m = BlockMetrics::noop();
-        m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
-        assert!(m.timed.is_none());
+        m.timed
+            .report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
+        assert!(matches!(m.timed, TimedBlockMetrics::Noop));
     }
 
     #[test]
@@ -270,7 +272,11 @@ mod tests {
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let hash = BlockHash::random();
-        metrics.report_block(hash, later_timestamp, Checkpoint::Ordering);
-        metrics.report_block(hash, earlier_timestamp, Checkpoint::Ordered);
+        metrics
+            .timed
+            .report_block(hash, later_timestamp, Checkpoint::Ordering);
+        metrics
+            .timed
+            .report_block(hash, earlier_timestamp, Checkpoint::Ordered);
     }
 }

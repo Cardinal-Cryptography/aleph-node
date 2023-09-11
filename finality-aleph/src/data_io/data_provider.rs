@@ -311,7 +311,7 @@ impl DataProvider {
         let data_to_propose = (*self.data_to_propose.lock()).take();
 
         if let Some(data) = &data_to_propose {
-            self.metrics.report_block(
+            self.metrics.timed.report_block(
                 *data.head_proposal.branch.last().unwrap(),
                 std::time::Instant::now(),
                 Checkpoint::Ordering,

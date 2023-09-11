@@ -45,7 +45,9 @@ async fn process_new_block_data<CN, LN>(
     LN: Network<LegacyRmcNetworkData>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    metrics.report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
+    metrics
+        .timed
+        .report_block(block.hash, std::time::Instant::now(), Checkpoint::Ordered);
 
     aggregator.start_aggregation(block.hash).await;
 }

@@ -57,12 +57,14 @@ where
         let number = *block.header.number();
         let post_hash = block.post_hash();
         self.metrics
+            .timed
             .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 
         if let Ok(ImportResult::Imported(ref aux)) = &result {
             self.metrics
+                .timed
                 .report_block(post_hash, Instant::now(), Checkpoint::Imported);
             if aux.is_new_best {
                 self.metrics.top_block.update_best(number);
