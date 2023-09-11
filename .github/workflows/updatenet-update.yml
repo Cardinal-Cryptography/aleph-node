@@ -86,7 +86,7 @@ jobs:
           replicas: ${{ inputs.replicas }}
 
       - name: Wait for the aleph-node binary to accept some blocks
-        uses: ./.github/actions/wait-for-finalized-heads
+        uses: Cardinal-Cryptography/github-actions/wait-for-finalized-heads@A0-3204-add-featurenet-actions-from-aleph-node
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
