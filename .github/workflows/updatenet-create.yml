@@ -108,7 +108,7 @@ jobs:
           featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
           expiration: ${{ inputs.expiration }}
           replicas: ${{ inputs.replicas }}
-          internal: ${{ inputs.internal == 'true' && 'true' || 'false' }}
+          internal: ${{ inputs.internal && 'true' || 'false' }}
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
