@@ -24,13 +24,16 @@ use crate::{
 /// Capable of communicating with a live Aleph chain.
 #[derive(Clone)]
 pub struct Connection {
+    /// inner subxt type
     pub client: SubxtClient,
 }
 
 /// Any connection that is signed by some key.
 #[derive(Clone)]
 pub struct SignedConnection {
+    /// vanilla connection
     pub connection: Connection,
+    /// signing authority
     pub signer: KeyPair,
 }
 
