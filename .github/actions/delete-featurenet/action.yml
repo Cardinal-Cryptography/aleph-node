@@ -100,5 +100,5 @@ runs:
           -e AWS_REGION \
           -e FEATURENETS_S3_BUCKET_NAME=${{ inputs.featurenet-keys-s3bucket-name }} \
           -e FEATURENET_NAME=${{ inputs.featurenet-name }} \
-          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.3.0 \
+          ${{ inputs.ecr-public-registry }}featurenet-helper:v0.4.0 \
           delete-featurenet-data-from-s3

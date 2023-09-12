@@ -88,7 +88,7 @@ jobs:
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          json-rpc-endpoint: https://ws-fe-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev
+          json-rpc-endpoint: https://ws-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           docker run --network host \
-            -e NODE_URL="wss://ws-fe-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev:443" \
+            -e NODE_URL="wss://ws-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev:443" \
             -e TEST_CASES="finalization::finalization" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
