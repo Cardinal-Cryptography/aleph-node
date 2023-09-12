@@ -74,11 +74,7 @@ where
             Ok(_) => {
                 debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current highest finalized: #{:?}.", hash, number, status.finalized_number);
                 self.metrics
-                    .timed
                     .report_block(hash, Instant::now(), Checkpoint::Finalized);
-                self.metrics
-                    .top_block
-                    .update_highest_finalized(status.finalized_number);
             }
             Err(_) => {
                 debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current highest finalized: #{:?}.", hash, number, status.finalized_number)

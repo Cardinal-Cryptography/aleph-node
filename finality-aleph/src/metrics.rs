@@ -9,9 +9,8 @@ use std::{
 use log::{trace, warn};
 use lru::LruCache;
 use parking_lot::Mutex;
-use primitives::BlockNumber;
 use sc_service::Arc;
-use substrate_prometheus_endpoint::{register, Counter, Gauge, PrometheusError, Registry, U64};
+use substrate_prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
 
 use crate::aleph_primitives::BlockHash;
 
@@ -25,7 +24,7 @@ const LOG_TARGET: &str = "aleph-metrics";
 
 /// TODO(A0-3009): Replace this whole thing.
 #[derive(Clone)]
-pub enum TimedBlockMetrics {
+pub enum BlockMetrics {
     Prometheus {
         prev: HashMap<Checkpoint, Checkpoint>,
         gauges: HashMap<Checkpoint, Gauge<U64>>,
@@ -34,8 +33,8 @@ pub enum TimedBlockMetrics {
     Noop,
 }
 
-impl TimedBlockMetrics {
-    fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
+impl BlockMetrics {
+    pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [
             Importing,
@@ -94,7 +93,7 @@ impl TimedBlockMetrics {
             hash,
             checkpoint_time
         );
-        if let TimedBlockMetrics::Prometheus {
+        if let BlockMetrics::Prometheus {
             prev,
             gauges,
             starts,
@@ -146,98 +145,26 @@ pub enum Checkpoint {
     Finalized,
 }
 
-#[derive(Clone)]
-pub enum TopBlockMetrics {
-    Prometheus {
-        highest_finalized: Counter<U64>,
-        best: Gauge<U64>,
-    },
-    Noop,
-}
-
-impl TopBlockMetrics {
-    pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
-        let registry = match registry {
-            None => return Ok(Self::Noop),
-            Some(registry) => registry,
-        };
-        Ok(Self::Prometheus {
-            highest_finalized: register(
-                Counter::new("aleph_highest_finalized_block", "no help")?,
-                registry,
-            )?,
-            best: register(Gauge::new("aleph_best_block", "no help")?, registry)?,
-        })
-    }
-
-    pub fn update_best(&self, number: BlockNumber) {
-        match self {
-            TopBlockMetrics::Noop => {}
-            TopBlockMetrics::Prometheus { best, .. } => best.set(number as u64),
-        }
-    }
-
-    pub fn update_highest_finalized(&self, number: BlockNumber) {
-        match self {
-            TopBlockMetrics::Noop => {}
-            TopBlockMetrics::Prometheus {
-                highest_finalized, ..
-            } => {
-                let number = number as u64;
-                if number < highest_finalized.get() {
-                    warn!(target: LOG_TARGET, "Tried to set highest finalized block to a lower number than before. Resetting `highest_finalized` counter.");
-                    highest_finalized.reset();
-                }
-                let delta = number - highest_finalized.get();
-                highest_finalized.inc_by(delta);
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct BlockMetrics {
-    pub top_block: TopBlockMetrics,
-    pub timed: TimedBlockMetrics,
-}
-
-impl BlockMetrics {
-    pub fn noop() -> Self {
-        Self {
-            top_block: TopBlockMetrics::Noop,
-            timed: TimedBlockMetrics::Noop,
-        }
-    }
-    pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
-        Ok(Self {
-            top_block: TopBlockMetrics::new(registry)?,
-            timed: TimedBlockMetrics::new(registry)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::cmp::min;
 
     use super::*;
 
-    fn register_dummy_metrics() -> BlockMetrics {
+    fn register_prometheus_metrics_with_dummy_registry() -> BlockMetrics {
         BlockMetrics::new(Some(&Registry::new())).unwrap()
     }
 
     fn starts_for(m: &BlockMetrics, c: Checkpoint) -> usize {
-        match &m.timed {
-            TimedBlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
+        match &m {
+            BlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
             _ => 0,
         }
     }
 
     fn check_reporting_with_memory_excess(metrics: &BlockMetrics, checkpoint: Checkpoint) {
         for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
-            metrics
-                .timed
-                .report_block(BlockHash::random(), Instant::now(), checkpoint);
+            metrics.report_block(BlockHash::random(), Instant::now(), checkpoint);
             assert_eq!(
                 min(i, MAX_BLOCKS_PER_CHECKPOINT),
                 starts_for(metrics, checkpoint)
@@ -246,37 +173,32 @@ mod tests {
     }
 
     #[test]
-    fn registration_with_no_register_creates_empty_metrics() {
-        let m = BlockMetrics::noop();
-        m.timed
-            .report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
-        assert!(matches!(m.timed, TimedBlockMetrics::Noop));
+    fn noop_metrics() {
+        let m = BlockMetrics::Noop;
+        m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
+        assert!(matches!(m, BlockMetrics::Noop));
     }
 
     #[test]
     fn should_keep_entries_up_to_defined_limit() {
-        let m = register_dummy_metrics();
+        let m = register_prometheus_metrics_with_dummy_registry();
         check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
     }
 
     #[test]
     fn should_manage_space_for_checkpoints_independently() {
-        let m = register_dummy_metrics();
+        let m = register_prometheus_metrics_with_dummy_registry();
         check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
         check_reporting_with_memory_excess(&m, Checkpoint::Imported);
     }
 
     #[test]
     fn given_not_monotonic_clock_when_report_block_is_called_repeatedly_code_does_not_panic() {
-        let metrics = register_dummy_metrics();
+        let metrics = register_prometheus_metrics_with_dummy_registry();
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let hash = BlockHash::random();
-        metrics
-            .timed
-            .report_block(hash, later_timestamp, Checkpoint::Ordering);
-        metrics
-            .timed
-            .report_block(hash, earlier_timestamp, Checkpoint::Ordered);
+        metrics.report_block(hash, later_timestamp, Checkpoint::Ordering);
+        metrics.report_block(hash, earlier_timestamp, Checkpoint::Ordered);
     }
 }

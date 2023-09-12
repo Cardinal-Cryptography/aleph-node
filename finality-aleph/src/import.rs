@@ -78,21 +78,13 @@ where
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
         self.metrics
-            .timed
             .report_block(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 
-        if let Ok(ImportResult::Imported(ref aux)) = &result {
+        if let Ok(ImportResult::Imported(_)) = &result {
             self.metrics
-                .timed
                 .report_block(post_hash, Instant::now(), Checkpoint::Imported);
-            if aux.is_new_best {
-                // use best number from client to avoid race conditions
-                self.metrics
-                    .top_block
-                    .update_best(self.client.info().best_number);
-            }
         }
         result
     }

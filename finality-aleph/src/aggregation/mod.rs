@@ -162,15 +162,13 @@ impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
 
 impl legacy_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
     fn report_aggregation_complete(&mut self, h: BlockHash) {
-        self.timed
-            .report_block(h, Instant::now(), Checkpoint::Aggregating);
+        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
     }
 }
 
 impl current_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
     fn report_aggregation_complete(&mut self, h: BlockHash) {
-        self.timed
-            .report_block(h, Instant::now(), Checkpoint::Aggregating);
+        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
     }
 }
 

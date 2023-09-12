@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
+use log::warn;
+use substrate_prometheus_endpoint::{register, Counter, Gauge, PrometheusError, Registry, U64};
+const LOG_TARGET: &str = "aleph-metrics";
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Event {
@@ -19,6 +21,8 @@ pub enum Event {
 }
 
 use Event::*;
+
+use crate::BlockNumber;
 
 impl Event {
     fn name(&self) -> &str {
@@ -109,10 +113,6 @@ impl Metrics {
         Ok(Metrics::Prometheus { calls, errors })
     }
 
-    pub fn noop() -> Self {
-        Metrics::Noop
-    }
-
     pub fn report_event(&self, event: Event) {
         if let Metrics::Prometheus { calls, .. } = self {
             if let Some(counter) = calls.get(&event) {
@@ -125,6 +125,62 @@ impl Metrics {
         if let Metrics::Prometheus { errors, .. } = self {
             if let Some(counter) = errors.get(&event) {
                 counter.inc();
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum TopBlockMetrics {
+    Prometheus {
+        highest_finalized: Counter<U64>,
+        best: Gauge<U64>,
+    },
+    Noop,
+}
+
+impl TopBlockMetrics {
+    pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
+        let registry = match registry {
+            None => return Ok(Self::Noop),
+            Some(registry) => registry,
+        };
+        Ok(Self::Prometheus {
+            highest_finalized: register(
+                Counter::new("aleph_top_finalized_block", "no help")?,
+                registry,
+            )?,
+            best: register(Gauge::new("aleph_best_block", "no help")?, registry)?,
+        })
+    }
+
+    pub fn update_best(&self, number: BlockNumber) {
+        match self {
+            TopBlockMetrics::Noop => {}
+            TopBlockMetrics::Prometheus { best, .. } => best.set(number as u64),
+        }
+    }
+
+    pub fn get_best(&self) -> BlockNumber {
+        match self {
+            TopBlockMetrics::Noop => 0,
+            TopBlockMetrics::Prometheus { best, .. } => best.get().try_into().unwrap(),
+        }
+    }
+
+    pub fn update_top_finalized(&self, number: BlockNumber) {
+        match self {
+            TopBlockMetrics::Noop => {}
+            TopBlockMetrics::Prometheus {
+                highest_finalized, ..
+            } => {
+                let number = number as u64;
+                if number < highest_finalized.get() {
+                    warn!(target: LOG_TARGET, "Tried to set highest finalized block to a lower number than before. Resetting `highest_finalized` counter.");
+                    highest_finalized.reset();
+                }
+                let delta = number - highest_finalized.get();
+                highest_finalized.inc_by(delta);
             }
         }
     }
