@@ -63,7 +63,7 @@ runs:
       shell: bash
       run: |
         if [[
-          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
+          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,40}$
         ]]
         then
           echo "!!! Invalid feature net name"
