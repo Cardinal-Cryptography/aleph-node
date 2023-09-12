@@ -65,9 +65,11 @@ jobs:
       - name: Get fe name
         id: get-fe-name
         shell: bash
+        # yamllint disable rule:line-length
         run: |
           name_local=${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}
           echo "name=$name_local" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
         uses: ./.github/actions/create-featurenet
