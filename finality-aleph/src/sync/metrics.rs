@@ -176,11 +176,14 @@ impl TopBlockMetrics {
             } => {
                 let number = number as u64;
                 if number < highest_finalized.get() {
-                    warn!(target: LOG_TARGET, "Tried to set highest finalized block to a lower number than before. Resetting `highest_finalized` counter.");
-                    highest_finalized.reset();
+                    warn!(
+                        target: LOG_TARGET,
+                        "Tried to set highest finalized block to a lower number than before."
+                    );
+                } else {
+                    let delta = number - highest_finalized.get();
+                    highest_finalized.inc_by(delta);
                 }
-                let delta = number - highest_finalized.get();
-                highest_finalized.inc_by(delta);
             }
         }
     }
