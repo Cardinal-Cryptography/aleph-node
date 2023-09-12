@@ -4,11 +4,14 @@ name: Delete featurenet
 on:
   workflow_call:
     inputs:
-      append-run-id-to-name:
-        description: When set to 'true' then run ID will be appended to featurenet name
-        required: false
-        type: boolean
-        default: false
+      featurenet-name:
+        description: 'Name of featurenet'
+        required: true
+  workflow_dispatch:
+    inputs:
+      featurenet-name:
+        description: 'Name of featurenet'
+        required: true
 
 jobs:
   check-vars-and-secrets:
@@ -24,11 +27,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Call action get-ref-properties
-        id: get-ref-properties
-        # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
-
       - name: Delete featurenet app and data
         uses: ./.github/actions/delete-featurenet
         with:
@@ -40,7 +38,7 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          append-run-id-to-name: "${{ inputs.append-run-id-to-name }}"
+          featurenet-name: ${{ inputs.featurenet-name }}
 
       - name: Remove created label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
@@ -54,7 +52,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          env: ${{ inputs.featurenet-name }}
           desc: Environment was deleted
           debug: true
 
@@ -62,7 +60,7 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.get-ref-properties.outputs.branch-name-flattened }}
+          environment: ${{ inputs.featurenet-name }}
 
       - name: Remove delete deployment request label if exists
         if: contains(github.event.pull_request.labels.*.name, 'trigger:delete-featurenet')
@@ -72,6 +70,7 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that featurenet has been deleted
+        if: github.event_name == 'pull_request'
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
           labels: 'state:deleted-featurenet'
