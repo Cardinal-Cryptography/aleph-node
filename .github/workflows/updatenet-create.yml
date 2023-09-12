@@ -61,7 +61,7 @@ jobs:
         run: |
           if [[
             "${{ inputs.name }}" != "" && \
-            ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,40}$
+            ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,44}$
           ]]
           then
             echo "!!! Invalid name"
