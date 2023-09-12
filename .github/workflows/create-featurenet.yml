@@ -153,6 +153,7 @@ jobs:
           github_token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Add label to mark that featurenet has been created
+        if: github.event_name == 'pull_request'
         uses: actions-ecosystem/action-add-labels@v1.1.0
         with:
           labels: 'state:created-featurenet'
