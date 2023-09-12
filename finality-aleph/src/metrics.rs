@@ -22,7 +22,7 @@ const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
 const LOG_TARGET: &str = "aleph-metrics";
 
-/// TODO(A0-3009): Replace this whole thing.
+/// TODO(A0-3009): Improve BlockMetrics and rename to TimedBlockMetrics or such
 #[derive(Clone)]
 pub enum BlockMetrics {
     Prometheus {

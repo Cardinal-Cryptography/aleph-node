@@ -412,7 +412,7 @@ where
                         "Error marking block as imported: {}.", e
                     )
                 } else {
-                    // TODO: use is_best_block info from Forest
+                    /// TODO: use is_best_block info from Forest
                     if number > self.metrics.1.get_best() {
                         self.metrics.1.update_best(number);
                     }
