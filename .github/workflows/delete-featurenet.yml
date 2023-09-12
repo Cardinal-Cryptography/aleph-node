@@ -6,11 +6,13 @@ on:
     inputs:
       featurenet-name:
         description: 'Name of featurenet'
+        type: string
         required: true
   workflow_dispatch:
     inputs:
       featurenet-name:
         description: 'Name of featurenet'
+        type: string
         required: true
 
 jobs:

@@ -6,6 +6,7 @@ on:
     inputs:
       featurenet-name:
         description: 'Name of featurenet'
+        type: string
         required: true
       internal:
         description: 'Internal network, accessible from VPN only'
@@ -27,6 +28,7 @@ on:
           - never
       featurenet-name:
         description: 'Name of featurenet'
+        type: string
         required: true
 
 jobs:
