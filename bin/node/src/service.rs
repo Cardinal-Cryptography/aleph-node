@@ -88,7 +88,7 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            TracingBlockImport<Arc<FullClient>, FullClient>,
+            TracingBlockImport<Arc<FullClient>>,
             mpsc::UnboundedSender<Justification>,
             mpsc::UnboundedReceiver<Justification>,
             Option<Telemetry>,
@@ -145,8 +145,7 @@ pub fn new_partial(
     };
 
     let (justification_tx, justification_rx) = mpsc::unbounded();
-    let tracing_block_import =
-        TracingBlockImport::new(client.clone(), metrics.clone(), client.clone());
+    let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
     let justification_translator = JustificationTranslator::new(
         SubstrateChainStatus::new(backend.clone())
             .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?,

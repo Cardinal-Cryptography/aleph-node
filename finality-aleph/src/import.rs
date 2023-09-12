@@ -1,8 +1,7 @@
-use std::{fmt::Debug, sync::Arc, time::Instant};
+use std::{fmt::Debug, time::Instant};
 
 use futures::channel::mpsc::{TrySendError, UnboundedSender};
 use log::{debug, warn};
-use sc_client_api::HeaderBackend;
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
 };
@@ -19,48 +18,27 @@ use crate::{
 
 /// A wrapper around a block import that also marks the start and end of the import of every block
 /// in the metrics, if provided.
-pub struct TracingBlockImport<I, C>
+#[derive(Clone)]
+pub struct TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
-    C: HeaderBackend<Block>,
 {
     inner: I,
     metrics: BlockMetrics,
-    client: Arc<C>,
 }
 
-impl<I, C> Clone for TracingBlockImport<I, C>
-where
-    I: Clone + BlockImport<Block> + Send + Sync,
-    C: HeaderBackend<Block>,
-{
-    fn clone(&self) -> TracingBlockImport<I, C> {
-        TracingBlockImport {
-            inner: self.inner.clone(),
-            metrics: self.metrics.clone(),
-            client: self.client.clone(),
-        }
-    }
-}
-
-impl<I, C> TracingBlockImport<I, C>
+impl<I> TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
-    C: HeaderBackend<Block>,
 {
-    pub fn new(inner: I, metrics: BlockMetrics, client: Arc<C>) -> Self {
-        TracingBlockImport {
-            inner,
-            metrics,
-            client,
-        }
+    pub fn new(inner: I, metrics: BlockMetrics) -> Self {
+        TracingBlockImport { inner, metrics }
     }
 }
 #[async_trait::async_trait]
-impl<I, C> BlockImport<Block> for TracingBlockImport<I, C>
+impl<I> BlockImport<Block> for TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
-    C: HeaderBackend<Block>,
 {
     type Error = I::Error;
     type Transaction = I::Transaction;
