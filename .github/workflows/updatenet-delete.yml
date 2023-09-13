@@ -34,7 +34,7 @@ jobs:
             exit 1
           fi
           final_updatenet_name_local=updnet-${{ inputs.name }}
-          final_deployment_name_local=updatenet-${final_updatenet_name_local}
+          final_deployment_name_local=updatenet-${{ inputs.name }}
           echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
           echo "final-deployment-name=$final_deployment_name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
