@@ -54,6 +54,8 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
       - name: Deactivate deployed environment
         uses: bobheadxi/deployments@v1

@@ -105,6 +105,8 @@ jobs:
           featurenet-aleph-node-image: ${{ inputs.destination }}
           rolling-update-partition: ${{ inputs.rolling-update-partition }}
           replicas: ${{ inputs.replicas }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
