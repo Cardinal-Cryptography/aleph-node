@@ -61,7 +61,7 @@ jobs:
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          final_featurenet_name_local=fe-${{ inputs.featurenet-name }}
+          final_featurenet_name_local=${{ inputs.featurenet-name }}
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 

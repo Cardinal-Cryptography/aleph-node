@@ -56,7 +56,7 @@ runs:
       shell: bash
       # yamllint disable rule:line-length
       run: |
-        final_name_local=fe-${{ inputs.featurenet-name }}
+        final_name_local=${{ inputs.featurenet-name }}
         echo "final-featurenet-name=$final_name_local" >> $GITHUB_OUTPUT
       # yamllint enable rule:line-length
 
