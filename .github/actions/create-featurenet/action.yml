@@ -111,15 +111,6 @@ runs:
           exit 1
         fi
 
-    - name: Get final featurenet name
-      id: get-final-name
-      shell: bash
-      # yamllint disable rule:line-length
-      run: |
-        final_name_local=fe-${{ inputs.featurenet-name }}
-        echo "final-featurenet-name=$final_name_local" >> $GITHUB_OUTPUT
-      # yamllint enable rule:line-length
-
     - name: Get branch name and commit SHA
       id: get-ref-properties
       uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
@@ -166,7 +157,7 @@ runs:
           fnet_create_hook="false"
         fi
         ./Ops.sh create-featurenet-using-kustomize \
-          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \
+          "${{ inputs.featurenet-name }}" \
           "${fnet_aleph_node_image}" \
           "${fnet_bootstrap_chain_node_image}" \
           "${{ inputs.rolling-update-partition }}" \
@@ -181,7 +172,7 @@ runs:
       run: |
         cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh create-featurenet-expiration \
-          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \
+          "${{ inputs.featurenet-name }}" \
           "${{ inputs.expiration }}"
 
     - name: Commit featurenet change
@@ -190,7 +181,7 @@ runs:
         author_name: "${{ inputs.git-commit-author }}"
         author_email: "${{ inputs.git-commit-email }}"
         # yamllint disable-line rule:line-length
-        message: "Upsert featurenet ${{ steps.get-final-name.outputs.final-featurenet-name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
+        message: "Upsert featurenet ${{ inputs.featurenet-name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
 
@@ -200,4 +191,4 @@ runs:
         cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}" \
-          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \
+          "${{ inputs.featurenet-name }}" \
