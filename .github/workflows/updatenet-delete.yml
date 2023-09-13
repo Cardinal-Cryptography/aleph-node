@@ -34,9 +34,7 @@ jobs:
             exit 1
           fi
           final_updatenet_name_local=updnet-${{ inputs.name }}
-          final_deployment_name_local=updatenet-${{ inputs.name }}
           echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
-          echo "final-deployment-name=$final_deployment_name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Checkout repo
@@ -62,7 +60,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
           desc: Environment was deleted
           debug: true
 
@@ -70,4 +68,4 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
+          environment: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}

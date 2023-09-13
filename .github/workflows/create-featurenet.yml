@@ -63,9 +63,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           final_featurenet_name_local=fe-${{ inputs.featurenet-name }}
-          final_ws_hostname=ws-fe-${{ inputs.featurenet-name }}.dev.azero.dev
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
-          echo "final-ws-hostname=$final_ws_hostname" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
   check-vars-and-secrets:
@@ -140,6 +138,7 @@ jobs:
 
       - name: Create featurenet from scratch
         uses: ./.github/actions/create-featurenet
+        id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -159,7 +158,7 @@ jobs:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://${{ needs.get-final-names.outputs.final-ws-hostname }}
+          json-rpc-endpoint: https://${{ steps.create-featurenet.outputs.ws-hostname }}
 
       - name: Remove deleted label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
@@ -178,7 +177,7 @@ jobs:
           env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ needs.get-final-names.outputs.final-ws-hostname }}#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-featurenet.outputs.ws-hostname }}#/explorer
           ref: ${{ github.head_ref }}
 
       - name: Remove deployment request label if exists

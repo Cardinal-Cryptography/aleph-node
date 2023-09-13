@@ -68,11 +68,7 @@ jobs:
             exit 1
           fi
           final_updatenet_name_local=updnet-${{ inputs.name != '' && inputs.name || github.run_id }}
-          final_deployment_name_local=updatenet-${{ inputs.name != '' && inputs.name || github.run_id }}
-          final_ws_hostname_local=ws-fe-${final_updatenet_name_local}.dev.azero.dev
           echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
-          echo "final-deployment-name=$final_deployment_name_local" >> $GITHUB_OUTPUT
-          echo "final-ws-hostname=$final_ws_hostname_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
@@ -97,12 +93,13 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
           override: true
           debug: true
 
       - name: Create updatenet from scratch, node binary from testnet or mainnet
         uses: ./.github/actions/create-featurenet
+        id: create-updatenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -124,7 +121,7 @@ jobs:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://${{ steps.get-updatenet-name.outputs.final-ws-hostname }}
+          json-rpc-endpoint: https://${{ steps.create-updatenet.outputs.ws-hostname }}
 
       - name: Finish featurenet Deployment
         uses: bobheadxi/deployments@v1
@@ -133,8 +130,8 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.get-updatenet-name.outputs.final-ws-hostname }}#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-updatenet.outputs.ws-hostname }}#/explorer
           debug: true
