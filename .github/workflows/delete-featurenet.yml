@@ -39,17 +39,14 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
-      final-deployment-name: ${{ steps.get-final-names.outputs.final-deployment-name }}
     steps:
       - name: Get final names
         id: get-final-names
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          final_featurenet_name_local=${{ inputs.featurenet-name }}
-          final_deployment_name=fe-${{ inputs.featurenet-name }}
+          final_featurenet_name_local=fe-${{ inputs.featurenet-name }}
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
-          echo "final-deployment-name=$final_deployment_name" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
   check-vars-and-secrets:
@@ -93,7 +90,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ needs.get-final-names.outputs.final-deployment-name }}
+          env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
           desc: Environment was deleted
           debug: true
 
@@ -101,7 +98,7 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ needs.get-final-names.outputs.final-deployment-name }}
+          environment: ${{ needs.get-final-names.outputs.final-featurenet-name }}
 
       - name: Remove delete deployment request label if exists
         if: contains(github.event.pull_request.labels.*.name, 'trigger:delete-featurenet')

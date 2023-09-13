@@ -92,6 +92,7 @@ jobs:
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          # yamllint disable-line rule:line-length
           json-rpc-endpoint: https://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}
 
       - name: Download artifact with the test suite image
@@ -105,12 +106,14 @@ jobs:
 
       - name: Run finalization e2e test
         shell: bash
+        # yamllint disable rule:line-length
         run: |
           docker run --network host \
             -e NODE_URL="wss://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}.dev.azero.dev:443" \
             -e TEST_CASES="finalization::finalization" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
+        # yamllint enable rule:line-length
 
       - name: Delete featurenet app and data
         uses: ./.github/actions/delete-featurenet

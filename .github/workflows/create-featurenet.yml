@@ -55,20 +55,17 @@ jobs:
     needs: [validate-inputs]
     outputs:
       final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
-      final-ws-hostname-name: ${{ steps.get-final-names.outputs.final-ws-hostname-name }}
-      final-deployment-name: ${{ steps.get-final-names.outputs.final-deployment-name }}
+      final-ws-hostname ${{ steps.get-final-names.outputs.final-ws-hostname }}
     steps:
       - name: Get final names
         id: get-final-names
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          final_featurenet_name_local=${{ inputs.featurenet-name }}
+          final_featurenet_name_local=fe-${{ inputs.featurenet-name }}
           final_ws_hostname=ws-fe-${{ inputs.featurenet-name }}.dev.azero.dev
-          final_deployment_name=fe-${{ inputs.featurenet-name }}
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
           echo "final-ws-hostname=$final_ws_hostname" >> $GITHUB_OUTPUT
-          echo "final-deployment-name=$final_deployment_name" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
   check-vars-and-secrets:
@@ -137,7 +134,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ needs.get-final-names.outputs.final-deployment-name }}
+          env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
           ref: ${{ github.head_ref }}
           override: true
 
@@ -155,11 +152,6 @@ jobs:
           internal: "${{ inputs.internal }}"
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-
-      - name: Debug
-        shell: bash
-        run: |
-          echo "final-ws-hostname: https://${{ needs.get-final-names.outputs.final-ws-hostname }}"
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
@@ -183,7 +175,7 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ needs.get-final-names.outputs.final-deployment-name }}
+          env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ needs.get-final-names.outputs.final-ws-hostname }}#/explorer
