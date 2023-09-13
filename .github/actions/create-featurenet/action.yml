@@ -2,9 +2,9 @@
 name: Create featurenet
 description: |
   This action several flows
-  * spawns new feature net bootstraped from PR, node binary is test one (short session)
+  * spawns new featurenet bootstraped from PR, node binary is test one (short session)
   * spawns new update net from a node image that is on ECR, prpduction one (normal session)
-  * upgrades feature net binary to a given version
+  * upgrades featurenet binary to a given version
 inputs:
   gh-ci-token:
     description: 'GH token to be used in the action'
@@ -27,9 +27,15 @@ inputs:
   featurenet-name:
     description: 'Name of featurenet'
     required: true
+  git-commit-author:
+    description: 'Git commit author when pushing to featurenets repository'
+    required: true
+  git-commit-email:
+    description: 'Git commit email when pushing to featurenets repository'
+    required: true
   featurenet-aleph-node-image:
     description: |
-      Set feature net image either to:
+      Set featurenet image either to:
        * 'testnet' or 'mainnet' - to Testnet or Mainnet image respectively,
        * a 7 byte SHA - to exisiting ECR aleph-node image tag
        * empty value - to image built from PR
@@ -41,7 +47,7 @@ inputs:
     default: ''
   rolling-update-partition:
     description: |
-      Number from 0 to N-1, where N is size of am existing feature net.
+      Number from 0 to N-1, where N is size of am existing featurenet.
       All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
       will be updated. If not specified, all nodes will be updated.
     required: false
@@ -63,10 +69,10 @@ runs:
       shell: bash
       run: |
         if [[
-          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,52}$
+          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,48}$
         ]]
         then
-          echo "!!! Invalid feature net name"
+          echo "!!! Invalid featurenet name"
           exit 1
         fi
         if [[
@@ -76,7 +82,7 @@ runs:
           "${{ inputs.featurenet-aleph-node-image }}" != "mainnet"
         ]]
         then
-          echo "!!! Invalid feature net node image tag"
+          echo "!!! Invalid featurenet node image tag"
           exit 1
         fi
         if [[
@@ -104,6 +110,15 @@ runs:
           echo "!!! Expected expiration to have values from set {3h, 12h, 24h, 48h, 96h, never}"
           exit 1
         fi
+
+    - name: Get final featurenet name
+      id: get-final-name
+      shell: bash
+      # yamllint disable rule:line-length
+      run: |
+        final_name_local=fe-${{ inputs.featurenet-name }}
+        echo "final-featurenet-name=$final_name_local" >> $GITHUB_OUTPUT
+      # yamllint enable rule:line-length
 
     - name: Get branch name and commit SHA
       id: get-ref-properties
@@ -151,7 +166,7 @@ runs:
           fnet_create_hook="false"
         fi
         ./Ops.sh create-featurenet-using-kustomize \
-          "${{ inputs.featurenet-name }}" \
+          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \
           "${fnet_aleph_node_image}" \
           "${fnet_bootstrap_chain_node_image}" \
           "${{ inputs.rolling-update-partition }}" \
@@ -166,16 +181,16 @@ runs:
       run: |
         cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh create-featurenet-expiration \
-          "${{ inputs.featurenet-name }}" \
+          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \
           "${{ inputs.expiration }}"
 
     - name: Commit featurenet change
       uses: EndBug/add-and-commit@v9.1.1
       with:
-        author_name: AlephZero Automation
-        author_email: alephzero@10clouds.com
+        author_name: "${{ inputs.git-commit-author }}"
+        author_email: "${{ inputs.git-commit-email }}"
         # yamllint disable-line rule:line-length
-        message: "Upsert featurenet ${{ inputs.featurenet-name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
+        message: "Upsert featurenet ${{ steps.get-final-name.outputs.final-featurenet-name }} with image: ${{ inputs.featurenet-aleph-node-image != '' && inputs.featurenet-aleph-node-image || steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
 
@@ -185,4 +200,4 @@ runs:
         cd "${{ inputs.repo-featurenets-name }}"
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}" \
-          "${{ inputs.featurenet-name }}" \
+          "${{ steps.get-final-name.outputs.final-featurenet-name }}" \

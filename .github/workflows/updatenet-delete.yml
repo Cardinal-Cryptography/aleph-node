@@ -20,13 +20,24 @@ jobs:
     name: Delete updatenet
     runs-on: [self-hosted, Linux, X64, small]
     steps:
-      - name: Validate inputs
+      - name: Get updatenet name
+        id: get-updatenet-name
         shell: bash
+        # yamllint disable rule:line-length
         run: |
-          if [[ ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,44}$ ]]; then
-            echo "!!! Invalid updatenet name"
+          if [[
+            "${{ inputs.name }}" != "" && \
+            ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
+          ]]
+          then
+            echo "!!! Invalid name"
             exit 1
           fi
+          final_updatenet_name_local=updnet-${{ inputs.name }}
+          final_deployment_name_local=updatenet-${final_updatenet_name_local}
+          echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
+          echo "final-deployment-name=$final_deployment_name_local" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
 
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -42,14 +53,14 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: fe-updnet-${{ inputs.name }}
+          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
 
       - name: Deactivate deployed environment
         uses: bobheadxi/deployments@v1
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: updatenet-${{ inputs.name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
           desc: Environment was deleted
           debug: true
 
@@ -57,4 +68,4 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: updatenet-${{ inputs.name }}
+          environment: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}

@@ -59,6 +59,27 @@ jobs:
             exit 1
           fi
 
+      - name: Get updatenet name
+        id: get-updatenet-name
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          if [[
+            "${{ inputs.name }}" != "" && \
+            ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
+          ]]
+          then
+            echo "!!! Invalid name"
+            exit 1
+          fi
+          final_updatenet_name_local=updnet-${{ inputs.name }}
+          final_deployment_name_local=updatenet-${final_updatenet_name_local}
+          final_ws_hostname_local=ws-fe-updnet-${final_updatenet_name_local}.dev.azero.dev
+          echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
+          echo "final-deployment-name=$final_deployment_name_local" >> $GITHUB_OUTPUT
+          echo "final-ws-hostname=$final_ws_hostname_local" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -68,7 +89,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: updatenet-${{ inputs.name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
           override: true
 
       - name: Update featurenet data, app and deploy it
@@ -80,7 +101,7 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: fe-updnet-${{ inputs.name }}
+          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
           featurenet-aleph-node-image: ${{ inputs.destination }}
           rolling-update-partition: ${{ inputs.rolling-update-partition }}
           replicas: ${{ inputs.replicas }}
@@ -90,7 +111,7 @@ jobs:
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          json-rpc-endpoint: https://ws-fe-updnet-${{ inputs.name }}.dev.azero.dev
+          json-rpc-endpoint: https://${{ steps.get-updatenet-name.outputs.final-ws-hostname }}
 
       - name: Finish featurenet Deployment
         uses: bobheadxi/deployments@v1
@@ -99,7 +120,7 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: updatenet-${{ inputs.name }}
+          env: ${{ steps.get-updatenet-name.outputs.final-deployment-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2Fws-fe-updnet-${{ inputs.name }}.dev.azero.dev#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.get-updatenet-name.outputs.final-ws-hostname }}#/explorer

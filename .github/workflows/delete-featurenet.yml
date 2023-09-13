@@ -16,13 +16,50 @@ on:
         required: true
 
 jobs:
+  validate-inputs:
+    name: Validate inputs
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Validate inputs
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          if [[
+          ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,48}$
+          ]]
+          then
+            echo "!!! Invalid featurenet name"
+            exit 1
+          fi
+        # yamllint enable rule:line-length
+
+  get-final-names:
+    needs: [validate-inputs]
+    name: Get final names
+    runs-on: ubuntu-20.04
+    outputs:
+      final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
+      final-deployment-name: ${{ steps.get-final-names.outputs.final-deployment-name }}
+    steps:
+      - name: Get final names
+        id: get-final-names
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          final_featurenet_name_local=${{ inputs.featurenet-name }}
+          final_deployment_name=fe-${{ inputs.featurenet-name }}
+          echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
+          echo "final-deployment-name=$final_deployment_name" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
+
   check-vars-and-secrets:
+    needs: [get-final-names]
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   delete-featurenet:
-    needs: [check-vars-and-secrets]
+    needs: [check-vars-and-secrets, get-final-names]
     name: Delete featurenet
     runs-on: [self-hosted, Linux, X64, small]
     steps:
@@ -40,7 +77,9 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ inputs.featurenet-name }}
+          featurenet-name: ${{ needs.get-final-names.outputs.final-featurenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
       - name: Remove created label if present
         uses: actions-ecosystem/action-remove-labels@v1.3.0
@@ -54,7 +93,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ inputs.featurenet-name }}
+          env: ${{ needs.get-final-names.outputs.final-deployment-name }}
           desc: Environment was deleted
           debug: true
 
@@ -62,7 +101,7 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ inputs.featurenet-name }}
+          environment: ${{ needs.get-final-names.outputs.final-deployment-name }}
 
       - name: Remove delete deployment request label if exists
         if: contains(github.event.pull_request.labels.*.name, 'trigger:delete-featurenet')
