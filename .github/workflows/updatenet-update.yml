@@ -23,6 +23,11 @@ on:
         description: 'Number of replicas to start, from 0 to 50'
         required: true
         default: '5'
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
@@ -105,6 +110,7 @@ jobs:
           featurenet-aleph-node-image: ${{ inputs.destination }}
           rolling-update-partition: ${{ inputs.rolling-update-partition }}
           replicas: ${{ inputs.replicas }}
+          internal: ${{ inputs.internal && 'true' || 'false' }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
