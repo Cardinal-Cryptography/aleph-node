@@ -36,6 +36,7 @@ jobs:
   get-final-names:
     needs: [validate-inputs]
     name: Get final names
+    id: get-final-names
     runs-on: ubuntu-20.04
     outputs:
       final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
