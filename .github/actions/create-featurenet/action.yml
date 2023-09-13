@@ -62,7 +62,9 @@ inputs:
     required: false
     default: "false"
 outputs:
-  ws-hostname: ${{ steps.start-featurenet.outputs.ws-hostname }}
+  ws-hostname:
+    description: Hostname of the WS endpoint
+    value: ${{ steps.start-featurenet.outputs.ws-hostname }}
 
 runs:
   using: "composite"
