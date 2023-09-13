@@ -51,7 +51,6 @@ jobs:
 
   get-final-names:
     name: Get final names
-    id: get-final-names
     runs-on: ubuntu-20.04
     needs: [validate-inputs]
     outputs:
@@ -156,6 +155,11 @@ jobs:
           internal: "${{ inputs.internal }}"
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
+
+      - name: Debug
+        shell: bash
+        run: |
+          echo "final-ws-hostname: https://${{ needs.get-final-names.outputs.final-ws-hostname }}"
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
