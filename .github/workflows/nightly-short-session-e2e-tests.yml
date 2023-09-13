@@ -63,12 +63,14 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Get fe name
-        id: get-fe-name
+        id: get-final-featurenet-name
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          name_local=${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}
-          echo "name=$name_local" >> $GITHUB_OUTPUT
+          final_featurename_local=${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}
+          final_ws_hostname_local=ws-${final_featurename_local}.dev.azero.dev
+          echo "final-featurenet-name=$final_featurename_local" >> $GITHUB_OUTPUT
+          echo "final-ws-hostname=$final_ws_hostname_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
@@ -81,14 +83,16 @@ jobs:
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           expiration: '3h'
-          featurenet-name: ${{ steps.get-fe-name.outputs.name }}
+          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          json-rpc-endpoint: https://ws-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev
+          json-rpc-endpoint: https://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -103,12 +107,12 @@ jobs:
         shell: bash
         run: |
           docker run --network host \
-            -e NODE_URL="wss://ws-${{ steps.get-fe-name.outputs.name }}.dev.azero.dev:443" \
+            -e NODE_URL="wss://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}.dev.azero.dev:443" \
             -e TEST_CASES="finalization::finalization" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
 
-      - name: Delete old featurenet app and data
+      - name: Delete featurenet app and data
         uses: ./.github/actions/delete-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -119,7 +123,9 @@ jobs:
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-fe-name.outputs.name }}
+          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
   slack-notification:
     name: Slack notification
