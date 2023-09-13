@@ -55,7 +55,6 @@ jobs:
     needs: [validate-inputs]
     outputs:
       final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
-      final-ws-hostname: ${{ steps.get-final-names.outputs.final-ws-hostname }}
     steps:
       - name: Get final names
         id: get-final-names
