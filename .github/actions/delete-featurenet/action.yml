@@ -92,6 +92,7 @@ runs:
         message: "Delete featurenet ${{ steps.get-final-name.outputs.final-featurenet-name }}"
         add: '["*.yaml","*.expiration.txt"]'
         cwd: "${{ inputs.repo-featurenets-name }}"
+        pull: '--rebase'
 
     # we need self-hosted runner only because of this step
     - name: Refresh Argo and wait for the deletion to be finished
