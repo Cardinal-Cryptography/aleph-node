@@ -61,6 +61,10 @@ inputs:
     description: 'Internal network, accessible from VPN only'
     required: false
     default: "false"
+  hard-refresh:
+    description: 'Make hard-refresh of ArgoCD application'
+    required: false
+    default: "false"
 outputs:
   ws-hostname:
     description: Hostname of the WS endpoint
@@ -200,3 +204,4 @@ runs:
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}" \
           "${{ inputs.featurenet-name }}" \
+          "${{ inputs.hard-refresh == 'true' && 'true' : 'false' }}"
