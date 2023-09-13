@@ -204,4 +204,4 @@ runs:
         ./Ops.sh refresh-featurenets "${{ inputs.argo-host }}" \
           "${{ inputs.argo-sync-user-token }}" \
           "${{ inputs.featurenet-name }}" \
-          "${{ inputs.hard-refresh == 'true' && 'true' : 'false' }}"
+          "${{ inputs.hard-refresh == 'true' && 'true' || 'false' }}"
