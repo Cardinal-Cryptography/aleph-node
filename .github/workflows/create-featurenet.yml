@@ -64,7 +64,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           final_featurenet_name_local=${{ inputs.featurenet-name }}
-          final_ws_hostname=ws-${{ inputs.featurenet-name }}.dev.azero.dev
+          final_ws_hostname=ws-fe-${{ inputs.featurenet-name }}.dev.azero.dev
           final_deployment_name=fe-${{ inputs.featurenet-name }}
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
           echo "final-ws-hostname=$final_ws_hostname" >> $GITHUB_OUTPUT
