@@ -163,7 +163,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           docker run --network host \
-            -e NODE_URL="wss://${{ steps.create-featurenet.outputs.ws-hostname }}.dev.azero.dev:443" \
+            -e NODE_URL="wss://${{ steps.create-featurenet.outputs.ws-hostname }}:443" \
             -e TEST_CASES="${{ matrix.testcase }}" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
