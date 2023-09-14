@@ -1,10 +1,6 @@
 ---
 name: Nightly pipeline short session e2e tests
 on:
-  # tmp remove
-  push:
-    branches:
-      - A0-2902-run-all-e2e-in-matrix
   workflow_dispatch:
   schedule:
     - cron: '00 23 * * *'
