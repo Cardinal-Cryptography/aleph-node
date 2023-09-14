@@ -117,7 +117,7 @@ jobs:
       - name: Get fe name
         id: get-final-featurenet-name
         shell: bash
-	env:
+        env:
         # yamllint disable rule:line-length
           APP_NAME: ${{ format('{0}-{1}', github.run_id, matrix.testcase) }}
         run: |
