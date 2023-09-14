@@ -77,7 +77,7 @@ jobs:
     needs: [build-test-node-and-runtime]
     steps:
       - name: Checkout aleph-node source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Store test node and runtime
         uses: ./.github/actions/store-node-and-runtime
@@ -108,24 +108,26 @@ jobs:
         testcase: ${{ fromJSON(needs.get-e2e-test-case-names.outputs.testcases) }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Call action get-ref-properties
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
-      - name: Get featurenet name
-        id: get-featurenet-name
+      - name: Get fe name
+        id: get-final-featurenet-name
         shell: bash
-        env:
-          # yamllint disable-line rule:line-length
-          APP_NAME: ${{ format('fe-{0}-{1}', github.run_id, matrix.testcase) }}
+	env:
+        # yamllint disable rule:line-length
+          APP_NAME: ${{ format('{0}-{1}', github.run_id, matrix.testcase) }}
         run: |
-          name_local=${{ env.APP_NAME }}
-          echo "name=$(printf $name_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
+          final_featurename_local=${{ env.APP_NAME }}
+          echo "final-featurenet-name=$(printf $final_featurename_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
         uses: ./.github/actions/create-featurenet
+        id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -134,15 +136,18 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-featurenet-name.outputs.name }}
           expiration: '3h'
+          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
       - name: Wait for the aleph-node binary to accept some blocks
         uses: ./.github/actions/wait-for-finalized-heads
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
-          json-rpc-endpoint: https://ws-${{ steps.get-featurenet-name.outputs.name }}.dev.azero.dev
+          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          # yamllint disable-line rule:line-length
+          json-rpc-endpoint: https://${{ steps.create-featurenet.outputs.ws-hostname }}
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -155,17 +160,16 @@ jobs:
 
       - name: Run ${{ matrix.testcase }} e2e test
         shell: bash
+        # yamllint disable rule:line-length
         run: |
-          echo "Running e2e test ${{ matrix.testcase }}"
           docker run --network host \
-            -e NODE_URL="wss://ws-${{ steps.get-featurenet-name.outputs.name }}.dev.azero.dev:443"\
+            -e NODE_URL="wss://${{ steps.create-featurenet.outputs.ws-hostname }}.dev.azero.dev:443" \
             -e TEST_CASES="${{ matrix.testcase }}" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
         timeout-minutes: 15
 
-      - name: Delete old featurenet app and data
-        if: always()
+      - name: Delete featurenet app and data
         uses: ./.github/actions/delete-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -173,11 +177,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-apps-name: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-featurenet-name.outputs.name }}
+          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
+          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
   slack-notification:
     name: Slack notification
@@ -186,7 +191,7 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification
