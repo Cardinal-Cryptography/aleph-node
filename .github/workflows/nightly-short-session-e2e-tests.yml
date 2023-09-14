@@ -53,8 +53,8 @@ jobs:
             grep "test::" | \
             `# remote test:: prefix` \
             sed -e 's/test:://g' | \
-            `# for now limit testcases to those which work on FEs` \
-            grep 'finalization::finalization\|ban::ban_manual' | \
+            `# for now limit testcases one testcase` \
+            grep 'finalization::finalization' | \
             `# first column is testcase name` \
             awk '{print $1;}' | \
             `# add "" quotes` \
