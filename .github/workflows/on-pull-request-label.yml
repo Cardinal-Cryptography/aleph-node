@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   get-featurenet-name:
-    name: Get FE name
+    name: Get featurenet name
     runs-on: ubuntu-20.04
     outputs:
       name: ${{ steps.get-argocd-featurenet-app-name.outputs.name }}

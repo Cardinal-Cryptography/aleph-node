@@ -68,13 +68,12 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           final_featurename_local=${{ steps.get-ref-properties.outputs.branch-name-for-argo }}-${{ github.run_id }}
-          final_ws_hostname_local=ws-${final_featurename_local}.dev.azero.dev
           echo "final-featurenet-name=$final_featurename_local" >> $GITHUB_OUTPUT
-          echo "final-ws-hostname=$final_ws_hostname_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
         uses: ./.github/actions/create-featurenet
+        id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -93,7 +92,7 @@ jobs:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}
+          json-rpc-endpoint: https://${{ steps.create-featurenet.outputs.ws-hostname }}
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -109,7 +108,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           docker run --network host \
-            -e NODE_URL="wss://${{ steps.get-final-featurenet-name.outputs.final-ws-hostname }}.dev.azero.dev:443" \
+            -e NODE_URL="wss://${{ steps.create-featurenet.outputs.ws-hostname }}.dev.azero.dev:443" \
             -e TEST_CASES="finalization::finalization" \
             -e RUST_LOG=info \
             aleph-e2e-client:latest
