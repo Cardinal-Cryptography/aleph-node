@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '00 22 * * *'
 
+  # TODO remove
+  push:
+    branches:
+      - sync_tests_synthetic-network
+
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
   cancel-in-progress: true
@@ -62,6 +67,132 @@ jobs:
           image-path: aleph-release-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
+        timeout-minutes: 35
+
+  run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - one node catching up and then becoming necessary for consensus
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::one_node_catching_up_and_then_becoming_necessary_for_consensus
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
+        timeout-minutes: 35
+
+  run-e2e-sync-test-one_node_catching_up:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - one node catching up
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::one_node_catching_up
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
+        timeout-minutes: 35
+
+  run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - into two groups and one quorum and switch quorum between them
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::into_two_groups_and_one_quorum_and_switch_quorum_between_them
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
+        timeout-minutes: 35
+
+  run-e2e-sync-test-into_multiple_groups_of_two:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - into multiple groups of two
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::into_multiple_groups_of_two
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
+        timeout-minutes: 35
+
+  run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - into two equal size groups with no quorum
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::into_two_equal_size_groups_with_no_quorum
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
+        timeout-minutes: 35
+
+  run-e2e-sync-test-into_two_groups_one_with_quorum:
+    needs: [build-production-node-and-e2e-client-image]
+    name: Run tests for sync where we modify network's connectivity - into two groups one with quorum
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          - NETWORK: "synthetic-network"
+          - NODE_URL: "ws://Node0:9943"
+        with:
+          test-case: test::sync::into_two_groups_one_with_quorum
+          image-path: aleph-release-synthetic-docker
+          node-image: aleph-node:syntheticnet
+          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+          node-count: 7
         timeout-minutes: 35
 
   run-major-sync-test:
