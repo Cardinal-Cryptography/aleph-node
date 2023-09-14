@@ -163,6 +163,7 @@ jobs:
             -e RUST_LOG=info \
             aleph-e2e-client:latest
         timeout-minutes: 15
+        # yamllint enable rule:line-length
 
       - name: Delete featurenet app and data
         uses: ./.github/actions/delete-featurenet
