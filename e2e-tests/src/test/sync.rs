@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context};
-use futures::future::join_all;
 use log::info;
 
 use crate::{
@@ -257,48 +256,29 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 
 async fn perform_test(
     all_nodes: impl IntoIterator<Item = &NodeConfig>,
-    nodes_to_query: impl IntoIterator<Item = &NodeConfig>,
-    nodes_to_check_finalization_after_reconfigure: impl IntoIterator<Item = &NodeConfig>,
+    nodes_to_query: impl IntoIterator<Item = &NodeConfig> + Clone,
+    nodes_to_check_finalization_after_reconfigure: impl IntoIterator<Item = &NodeConfig> + Clone,
     disconnect_configuration: NodesConnectivityConfiguration,
     reconnect_configuration: NodesConnectivityConfiguration,
     blocks_to_wait_after_disconnect: u32,
     blocks_to_wait_after_reconnect: u32,
 ) -> anyhow::Result<()> {
     execute_synthetic_network_test(all_nodes, async move {
-        let nodes_to_query = join_all(nodes_to_query.into_iter().map(|node| async {
-            (
-                node.node_name().to_string(),
-                node.create_signed_connection().await,
-            )
-        }))
-        .await;
 
         // check the finalization first
-        await_finalized_blocks(nodes_to_query.as_slice(), 0, 2).await?;
+        await_finalized_blocks(nodes_to_query.clone(), 0, 2).await?;
 
         info!("Configuring network connectivity");
         disconnect_configuration.commit().await?;
 
         let best_seen_block =
-            await_new_blocks(nodes_to_query.as_slice(), blocks_to_wait_after_disconnect).await?;
+            await_new_blocks(nodes_to_query, blocks_to_wait_after_disconnect).await?;
 
         info!("Re-configuring network connectivity");
         reconnect_configuration.commit().await?;
 
-        let nodes_to_check_finalization = join_all(
-            nodes_to_check_finalization_after_reconfigure
-                .into_iter()
-                .map(|node| async {
-                    (
-                        node.node_name().to_string(),
-                        node.create_signed_connection().await,
-                    )
-                }),
-        )
-        .await;
-
         await_finalized_blocks(
-            nodes_to_check_finalization.as_slice(),
+            nodes_to_check_finalization_after_reconfigure,
             best_seen_block,
             blocks_to_wait_after_reconnect,
         )

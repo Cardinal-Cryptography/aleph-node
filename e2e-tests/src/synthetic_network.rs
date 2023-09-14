@@ -268,19 +268,27 @@ async fn wait_for_further_finalized_blocks(
 }
 
 pub async fn await_new_blocks<'a>(
-    nodes: impl IntoIterator<Item = &'a (String, SignedConnection)> + Clone,
+    nodes: impl IntoIterator<Item = &'a NodeConfig>,
     blocks_to_wait: u32,
 ) -> anyhow::Result<u32> {
     info!("Awaiting new blocks");
+
+    let nodes = join_all(
+        nodes
+            .into_iter()
+            .map(|config| async { (config.node_name(), config.create_signed_connection().await) }),
+    )
+        .await;
+
     let mut best_seen_block = 0;
-    for (node_name, connection) in nodes.clone().into_iter() {
+    for (node_name, connection) in nodes.iter() {
         let best_block = connection.get_best_block().await?.unwrap_or(0);
-        info!("best block for {} is {}", node_name, best_block);
+        info!("Best block for {} is {}", node_name, best_block);
         best_seen_block = max(best_seen_block, best_block);
     }
-    for (node_name, connection) in nodes.into_iter() {
+    for (node_name, connection) in nodes.iter() {
         let wait_for_block = best_seen_block + blocks_to_wait;
-        info!("waiting for {} at {}", wait_for_block, node_name);
+        info!("Waiting for {} at {}", wait_for_block, node_name);
         connection
             .wait_for_block(|block| block >= wait_for_block, BlockStatus::Best)
             .await;
@@ -289,12 +297,20 @@ pub async fn await_new_blocks<'a>(
 }
 
 pub async fn await_finalized_blocks<'a>(
-    nodes: impl IntoIterator<Item = &'a (String, SignedConnection)> + Clone,
+    nodes: impl IntoIterator<Item = &'a NodeConfig>,
     mut best_seen_block: u32,
     blocks_to_wait: u32,
 ) -> anyhow::Result<()> {
     info!("Checking finalization");
-    for (node_name, connection) in nodes.clone() {
+
+    let nodes = join_all(
+        nodes
+            .into_iter()
+            .map(|config| async { (config.node_name(), config.create_signed_connection().await) }),
+    )
+    .await;
+
+    for (node_name, connection) in nodes.iter() {
         let finalized = connection.get_finalized_block_hash().await?;
         let finalized_number =
             connection
@@ -307,7 +323,7 @@ pub async fn await_finalized_blocks<'a>(
     }
     let wait_block = best_seen_block + blocks_to_wait;
 
-    for (node_name, connection) in nodes {
+    for (node_name, connection) in nodes.iter() {
         info!("Awaiting finalization of the block {wait_block} at node {node_name}",);
         connection
             .wait_for_block(|n| n > wait_block, BlockStatus::Finalized)
