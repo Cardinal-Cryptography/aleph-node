@@ -96,7 +96,7 @@ jobs:
       - store-test-node-and-runtime
       - get-e2e-test-case-names
     name: e2e
-    runs-on: [self-hosted, Linux, X64, large]
+    runs-on: [self-hosted, Linux, X64, small]
     strategy:
       fail-fast: false
       max-parallel: 3
