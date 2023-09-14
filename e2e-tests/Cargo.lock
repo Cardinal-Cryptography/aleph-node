@@ -97,6 +97,7 @@ dependencies = [
  "subxt",
  "synthetic-link",
  "tokio",
+ "url",
 ]
 
 [[package]]

@@ -1,8 +1,14 @@
-use std::{env, str::FromStr};
+use std::{
+    env,
+    net::{Ipv4Addr, ToSocketAddrs},
+    str::FromStr,
+};
 
-use aleph_client::{RootConnection, SignedConnection};
+use aleph_client::{KeyPair, RootConnection, SignedConnection};
+use anyhow::Context;
 use once_cell::sync::Lazy;
 use primitives::SessionIndex;
+use url::Url;
 
 use crate::accounts::{get_sudo_key, get_validators_keys, get_validators_seeds, NodeKeys};
 
@@ -62,6 +68,49 @@ pub fn setup_test() -> &'static Config {
     &GLOBAL_CONFIG
 }
 
+#[derive(Clone)]
+pub struct NodeConfig {
+    name: String,
+    synthetic_network_url: String,
+    ip_address: Ipv4Addr,
+    node: String,
+    account: KeyPair,
+}
+
+impl NodeConfig {
+    pub fn new(
+        node: String,
+        name: String,
+        synthetic_network_url: Url,
+        ip_address: Ipv4Addr,
+        account: KeyPair,
+    ) -> Self {
+        Self {
+            name,
+            synthetic_network_url: synthetic_network_url.into(),
+            ip_address,
+            node,
+            account,
+        }
+    }
+
+    pub fn node_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn synthetic_network_url(&self) -> &str {
+        &self.synthetic_network_url
+    }
+
+    pub fn ip_address(&self) -> &Ipv4Addr {
+        &self.ip_address
+    }
+
+    pub async fn create_signed_connection(&self) -> SignedConnection {
+        SignedConnection::new(&self.node, self.account.to_owned()).await
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     /// WS endpoint address of the node to connect to
@@ -114,6 +163,32 @@ impl Config {
         }
     }
 
+    pub fn nodes_ip_addresses(&self) -> anyhow::Result<std::vec::IntoIter<Ipv4Addr>> {
+        self.validator_names()
+            .into_iter()
+            .map(|node_name| {
+                // we need to provide a valid socket address, i.e. add a port number
+                let node_name = node_name + ":22";
+                for addr in node_name.to_socket_addrs().context(format!(
+                    "Failed to convert node's name ({}) into IPv4 addrress.",
+                    node_name
+                ))? {
+                    match addr {
+                        std::net::SocketAddr::V4(socket_address) => {
+                            return Ok(socket_address.ip().clone())
+                        }
+                        _ => {}
+                    }
+                }
+                Err(anyhow::anyhow!(
+                    "Unable to convert node's name ({}) into IPv4 address.",
+                    node_name
+                ))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map(|vec| vec.into_iter())
+    }
+
     /// Get a `SignedConnection` where the signer is the first validator.
     pub async fn get_first_signed_connection(&self) -> SignedConnection {
         let node = &self.node;
@@ -129,6 +204,27 @@ impl Config {
                 .map(|account| async { SignedConnection::new(&self.node, account).await }),
         )
         .await
+    }
+
+    pub fn nodes_configs(&self) -> anyhow::Result<std::vec::IntoIter<NodeConfig>> {
+        self.validator_names()
+            .into_iter()
+            .zip(self.synthetic_network_urls())
+            .zip(self.nodes_ip_addresses()?)
+            .zip(get_validators_keys(self))
+            .map(
+                |(((node_name, synthetic_network_url), ip_address), account)| -> anyhow::Result<_> {
+                    Ok(NodeConfig::new(
+                        format!("ws://{node_name}:9943").to_string(),
+                        node_name,
+                        Url::parse(&synthetic_network_url)?,
+                        ip_address,
+                        account,
+                    ))
+                },
+            )
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map(|vec| vec.into_iter())
     }
 }
 
