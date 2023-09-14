@@ -9,9 +9,6 @@ inputs:
   gh-ci-token:
     description: 'GH token to be used in the action'
     required: true
-  repo-apps-name:
-    description: 'Name of the repository containing apps definitions'
-    required: true
   repo-featurenets-name:
     description: 'Name of the repository containing featurenets manifests'
     required: true
