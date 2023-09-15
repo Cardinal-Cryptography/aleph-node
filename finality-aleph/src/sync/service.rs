@@ -13,7 +13,7 @@ use crate::{
         data::{NetworkData, Request, ResponseItems, State, VersionWrapper, VersionedNetworkData},
         handler::{Action, Error as HandlerError, HandleStateAction, Handler},
         message_limiter::MsgLimiter,
-        metrics::{Event, Metrics, TopBlockMetrics},
+        metrics::{Event, Metrics},
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, PreRequest, RequestTask},
         ticker::Ticker,
@@ -47,7 +47,7 @@ where
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
     _phantom: PhantomData<B>,
-    metrics: (Metrics, TopBlockMetrics),
+    metrics: Metrics,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -102,21 +102,11 @@ where
         let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
         let (block_requests_for_sync, block_requests_from_user) = mpsc::unbounded();
-        let top_block_metrics = match TopBlockMetrics::new(metrics_registry.as_ref()) {
-            Ok(metrics) => metrics,
-            Err(e) => {
-                warn!(
-                    target: LOG_TARGET,
-                    "Failed to create top block metrics: {}.", e
-                );
-                TopBlockMetrics::Noop
-            }
-        };
         let metrics = match Metrics::new(metrics_registry) {
             Ok(metrics) => metrics,
             Err(e) => {
                 warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
-                Metrics::Noop
+                Metrics::noop()
             }
         };
 
@@ -130,7 +120,7 @@ where
                 justifications_from_user,
                 additional_justifications_from_user,
                 block_requests_from_user,
-                metrics: (metrics, top_block_metrics),
+                metrics,
                 _phantom: PhantomData,
             },
             justifications_for_sync,
@@ -157,12 +147,12 @@ where
     }
 
     fn broadcast(&mut self) {
-        self.metrics.0.report_event(Event::Broadcast);
+        self.metrics.report_event(Event::Broadcast);
         self.broadcast_ticker.reset();
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
-                self.metrics.0.report_event_error(Event::Broadcast);
+                self.metrics.report_event_error(Event::Broadcast);
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -174,17 +164,17 @@ where
 
         let data = NetworkData::StateBroadcast(state);
         if let Err(e) = self.network.broadcast(data) {
-            self.metrics.0.report_event_error(Event::Broadcast);
+            self.metrics.report_event_error(Event::Broadcast);
             warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e)
         }
     }
 
     fn send_request(&mut self, pre_request: PreRequest<N::PeerId, J>) {
-        self.metrics.0.report_event(Event::SendRequest);
+        self.metrics.report_event(Event::SendRequest);
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
-                self.metrics.0.report_event_error(Event::SendRequest);
+                self.metrics.report_event_error(Event::SendRequest);
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -197,13 +187,13 @@ where
         let data = NetworkData::Request(request);
 
         if let Err(e) = self.network.send_to_random(data, peers) {
-            self.metrics.0.report_event_error(Event::SendRequest);
+            self.metrics.report_event_error(Event::SendRequest);
             warn!(target: LOG_TARGET, "Error sending request: {}.", e);
         }
     }
 
     fn send_to(&mut self, data: NetworkData<B, J>, peer: N::PeerId) {
-        self.metrics.0.report_event(Event::SendTo);
+        self.metrics.report_event(Event::SendTo);
         trace!(
             target: LOG_TARGET,
             "Sending data {:?} to peer {:?}",
@@ -211,13 +201,13 @@ where
             peer
         );
         if let Err(e) = self.network.send_to(data, peer) {
-            self.metrics.0.report_event_error(Event::SendTo);
+            self.metrics.report_event_error(Event::SendTo);
             warn!(target: LOG_TARGET, "Error sending response: {}.", e);
         }
     }
 
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
-        self.metrics.0.report_event(Event::HandleState);
+        self.metrics.report_event(Event::HandleState);
         use HandleStateAction::*;
         trace!(
             target: LOG_TARGET,
@@ -232,7 +222,7 @@ where
                 Noop => (),
             },
             Err(e) => {
-                self.metrics.0.report_event_error(Event::HandleState);
+                self.metrics.report_event_error(Event::HandleState);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -260,7 +250,7 @@ where
             maybe_justification,
             peer
         );
-        self.metrics.0.report_event(Event::HandleStateResponse);
+        self.metrics.report_event(Event::HandleStateResponse);
         let (maybe_id, maybe_error) =
             self.handler
                 .handle_state_response(justification, maybe_justification, peer.clone());
@@ -287,14 +277,12 @@ where
             justification,
         );
         self.metrics
-            .0
             .report_event(Event::HandleJustificationFromUser);
         match self.handler.handle_justification_from_user(justification) {
             Ok(Some(id)) => self.request_highest_justified(id),
             Ok(_) => {}
             Err(e) => {
                 self.metrics
-                    .0
                     .report_event_error(Event::HandleJustificationFromUser);
                 match e {
                     HandlerError::Verifier(e) => debug!(
@@ -317,7 +305,7 @@ where
             peer,
             response_items,
         );
-        self.metrics.0.report_event(Event::HandleRequestResponse);
+        self.metrics.report_event(Event::HandleRequestResponse);
         let (maybe_id, maybe_error) = self
             .handler
             .handle_request_response(response_items, peer.clone());
@@ -344,7 +332,7 @@ where
             request,
             peer
         );
-        self.metrics.0.report_event(Event::HandleRequest);
+        self.metrics.report_event(Event::HandleRequest);
 
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
@@ -362,14 +350,14 @@ where
                                 target: LOG_TARGET,
                                 "Error while sending request response: {}.", e
                             );
-                            break self.metrics.0.report_event_error(Event::HandleRequest);
+                            break self.metrics.report_event_error(Event::HandleRequest);
                         }
                     }
                 }
             }
             Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => {
-                self.metrics.0.report_event_error(Event::HandleRequest);
+                self.metrics.report_event_error(Event::HandleRequest);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -393,7 +381,7 @@ where
             self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);
         }
-        self.metrics.0.report_event(Event::HandleTask);
+        self.metrics.report_event(Event::HandleTask);
     }
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
@@ -402,29 +390,28 @@ where
             BlockImported(header) => {
                 let number = header.id().number();
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
-                self.metrics.0.report_event(Event::HandleBlockImported);
+                self.metrics.report_event(Event::HandleBlockImported);
                 if let Err(e) = self.handler.block_imported(header) {
-                    self.metrics
-                        .0
-                        .report_event_error(Event::HandleBlockImported);
+                    self.metrics.report_event_error(Event::HandleBlockImported);
                     error!(
                         target: LOG_TARGET,
                         "Error marking block as imported: {}.", e
                     )
                 } else {
                     // TODO: use is_best_block info from Forest
-                    if number > self.metrics.1.get_best() {
-                        self.metrics.1.update_best(number);
+                    if number > self.metrics.get_best_block() {
+                        self.metrics.update_best_block(number);
                     }
                 }
             }
             BlockFinalized(header) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");
-                self.metrics.0.report_event(Event::HandleBlockFinalized);
+                self.metrics.report_event(Event::HandleBlockFinalized);
                 if self.broadcast_ticker.try_tick() {
                     self.broadcast();
                 }
-                self.metrics.1.update_top_finalized(header.id().number());
+                self.metrics
+                    .update_top_finalized_block(header.id().number());
             }
         }
     }
@@ -435,14 +422,14 @@ where
             "Handling an internal request for block {:?}.",
             id,
         );
-        self.metrics.0.report_event(Event::HandleInternalRequest);
+        self.metrics.report_event(Event::HandleInternalRequest);
         match self.handler.handle_internal_request(&id) {
             Ok(true) => self.request_block(id),
 
             Ok(_) => debug!(target: LOG_TARGET, "Already requested block {:?}.", id),
 
             Err(e) => {
-                self.metrics.0.report_event(Event::HandleInternalRequest);
+                self.metrics.report_event(Event::HandleInternalRequest);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,

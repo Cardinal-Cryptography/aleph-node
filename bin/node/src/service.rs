@@ -140,7 +140,7 @@ pub fn new_partial(
         Ok(metrics) => metrics,
         Err(e) => {
             warn!("Failed to register Prometheus metrics: {:?}.", e);
-            BlockMetrics::Noop
+            BlockMetrics::noop()
         }
     };
 

@@ -80,6 +80,10 @@ impl BlockMetrics {
         })
     }
 
+    pub fn noop() -> Self {
+        Self::Noop
+    }
+
     pub fn report_block(
         &self,
         hash: BlockHash,
@@ -174,7 +178,7 @@ mod tests {
 
     #[test]
     fn noop_metrics() {
-        let m = BlockMetrics::Noop;
+        let m = BlockMetrics::noop();
         m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
         assert!(matches!(m, BlockMetrics::Noop));
     }
