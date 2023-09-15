@@ -97,43 +97,45 @@ impl BlockMetrics {
             hash,
             checkpoint_time
         );
-        if let BlockMetrics::Prometheus {
-            prev,
-            gauges,
-            starts,
-        } = self
-        {
-            let starts = &mut *starts.lock();
-            starts.entry(checkpoint_type).and_modify(|starts| {
-                starts.put(hash, checkpoint_time);
-            });
+        let (prev, gauges, starts) = match self {
+            BlockMetrics::Noop => return,
+            BlockMetrics::Prometheus {
+                prev,
+                gauges,
+                starts,
+            } => (prev, gauges, starts),
+        };
 
-            if let Some(prev_checkpoint_type) = prev.get(&checkpoint_type) {
-                if let Some(start) = starts
-                    .get_mut(prev_checkpoint_type)
+        let starts = &mut *starts.lock();
+        starts.entry(checkpoint_type).and_modify(|starts| {
+            starts.put(hash, checkpoint_time);
+        });
+
+        if let Some(prev_checkpoint_type) = prev.get(&checkpoint_type) {
+            if let Some(start) = starts
+                .get_mut(prev_checkpoint_type)
+                .expect("All checkpoint types were initialized")
+                .get(&hash)
+            {
+                let duration = match checkpoint_time.checked_duration_since(*start) {
+                    Some(duration) => duration,
+                    None => {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Earlier metrics time {:?} is later that current one \
+                        {:?}. Checkpoint type {:?}, block: {:?}",
+                            *start,
+                            checkpoint_time,
+                            checkpoint_type,
+                            hash
+                        );
+                        Duration::new(0, 0)
+                    }
+                };
+                gauges
+                    .get(&checkpoint_type)
                     .expect("All checkpoint types were initialized")
-                    .get(&hash)
-                {
-                    let duration = match checkpoint_time.checked_duration_since(*start) {
-                        Some(duration) => duration,
-                        None => {
-                            warn!(
-                                target: LOG_TARGET,
-                                "Earlier metrics time {:?} is later that current one \
-                            {:?}. Checkpoint type {:?}, block: {:?}",
-                                *start,
-                                checkpoint_time,
-                                checkpoint_type,
-                                hash
-                            );
-                            Duration::new(0, 0)
-                        }
-                    };
-                    gauges
-                        .get(&checkpoint_type)
-                        .expect("All checkpoint types were initialized")
-                        .set(duration.as_millis() as u64);
-                }
+                    .set(duration.as_millis() as u64);
             }
         }
     }

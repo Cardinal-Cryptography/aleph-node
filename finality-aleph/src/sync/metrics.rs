@@ -143,38 +143,32 @@ impl Metrics {
         }
     }
 
-    pub fn update_best_block(&self, number: BlockNumber) {
-        match self {
-            Metrics::Noop => {}
-            Metrics::Prometheus { best_block, .. } => best_block.set(number as u64),
-        }
-    }
-
-    pub fn get_best_block(&self) -> BlockNumber {
-        match self {
-            Metrics::Noop => 0,
-            Metrics::Prometheus { best_block, .. } => best_block.get().try_into().unwrap(),
+    pub fn update_best_block_if_better(&self, number: BlockNumber) {
+        if let Metrics::Prometheus { best_block, .. } = self {
+            let number = number as u64;
+            if number > best_block.get() {
+                best_block.set(number)
+            }
         }
     }
 
     pub fn update_top_finalized_block(&self, number: BlockNumber) {
-        match self {
-            Metrics::Noop => {}
+        let top_finalized_block = match self {
+            Metrics::Noop => return,
             Metrics::Prometheus {
                 top_finalized_block,
                 ..
-            } => {
-                let number = number as u64;
-                if number < top_finalized_block.get() {
-                    warn!(
-                        target: LOG_TARGET,
-                        "Tried to set highest finalized block to a lower number than before."
-                    );
-                } else {
-                    let delta = number - top_finalized_block.get();
-                    top_finalized_block.inc_by(delta);
-                }
-            }
+            } => top_finalized_block,
+        };
+        let number = number as u64;
+        if number < top_finalized_block.get() {
+            warn!(
+                target: LOG_TARGET,
+                "Tried to set highest finalized block to a lower number than before."
+            );
+        } else {
+            let delta = number - top_finalized_block.get();
+            top_finalized_block.inc_by(delta);
         }
     }
 }

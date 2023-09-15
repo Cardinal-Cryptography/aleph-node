@@ -398,10 +398,9 @@ where
                         "Error marking block as imported: {}.", e
                     )
                 } else {
-                    // TODO: use is_best_block info from Forest
-                    if number > self.metrics.get_best_block() {
-                        self.metrics.update_best_block(number);
-                    }
+                    // TODO: best block could decrease in case of reorgs.
+                    // TODO: use instead is_best_block info from Forest
+                    self.metrics.update_best_block_if_better(number);
                 }
             }
             BlockFinalized(header) => {
