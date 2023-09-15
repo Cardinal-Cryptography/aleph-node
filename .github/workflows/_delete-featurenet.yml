@@ -30,7 +30,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
       - name: Delete featurenet app and data
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3204-add-featurenet-actions-from-aleph-node
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v1
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}

@@ -69,7 +69,7 @@ jobs:
 
       - name: Delete old featurenet app and data
         if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3204-add-featurenet-actions-from-aleph-node
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v1
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
@@ -95,7 +95,7 @@ jobs:
           override: true
 
       - name: Create featurenet from scratch
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3204-add-featurenet-actions-from-aleph-node
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -107,7 +107,7 @@ jobs:
           append-run-id-to-name: "${{ inputs.append-run-id-to-name }}"
 
       - name: Wait for the aleph-node binary to accept some blocks
-        uses: Cardinal-Cryptography/github-actions/wait-for-finalized-heads@A0-3204-add-featurenet-actions-from-aleph-node
+        uses: Cardinal-Cryptography/github-actions/wait-for-finalized-heads@v1
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
