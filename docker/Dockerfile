@@ -15,4 +15,7 @@ RUN chmod +x /usr/local/bin/aleph-node
 COPY docker/docker_entrypoint.sh /node/docker_entrypoint.sh
 RUN chmod +x /node/docker_entrypoint.sh
 
+COPY docker/check-readiness.sh /node/check-readiness.sh
+RUN chmod +x /node/check-readiness.sh
+
 ENTRYPOINT ["./docker_entrypoint.sh"]
