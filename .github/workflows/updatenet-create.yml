@@ -99,6 +99,7 @@ jobs:
 
       - name: Create updatenet from scratch, node binary from testnet or mainnet
         uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
+        id: create-updatenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
