@@ -5,7 +5,7 @@ use subxt::{ext::sp_core::Bytes, rpc_params, utils::Static};
 use crate::{
     api,
     api::runtime_types,
-    pallet_contracts::wasm::{Determinism, CodeInfo},
+    pallet_contracts::wasm::{CodeInfo, Determinism},
     sp_weights::weight_v2::Weight,
     AccountId, Balance, BlockHash, CodeHash, ConnectionApi, SignedConnectionApi, TxInfo, TxStatus,
 };
@@ -105,11 +105,7 @@ pub trait ContractRpc {
 
 #[async_trait::async_trait]
 impl<C: ConnectionApi> ContractsApi for C {
-    async fn get_code_info(
-        &self,
-        code_hash: CodeHash,
-        at: Option<BlockHash>,
-    ) -> Option<CodeInfo> {
+    async fn get_code_info(&self, code_hash: CodeHash, at: Option<BlockHash>) -> Option<CodeInfo> {
         let addrs = api::storage().contracts().code_info_of(code_hash);
 
         self.get_storage_entry_maybe(&addrs, at).await
