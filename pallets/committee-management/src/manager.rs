@@ -18,7 +18,7 @@ use crate::{
 /// *  We update rewards and clear block count for the session `S`.
 /// 3. `start_session(S + 1)` is called.
 /// *  if session `S+1` starts new era we populate totals and unban all validators whose ban expired.
-/// *  if session `S+1` % [`BanConfig::clean_session_counter_delay`] == 0, we
+/// *  if session `S+1` % [`primitives::BanConfig::clean_session_counter_delay`] == 0, we
 ///    clean up underperformed session counter
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era we emit fresh bans events
