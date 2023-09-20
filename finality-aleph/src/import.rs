@@ -55,8 +55,15 @@ where
         block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
+
+        self.metrics.convert_header_hash_to_post_hash(
+            block.header.hash(),
+            post_hash,
+            Checkpoint::Importing,
+        );
+
         self.metrics
-            .report_block(post_hash, Instant::now(), Checkpoint::Importing);
+            .report_block_if_not_present(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 

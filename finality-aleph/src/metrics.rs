@@ -74,6 +74,58 @@ impl BlockMetrics {
         Self::Noop
     }
 
+    pub fn convert_header_hash_to_post_hash(
+        &self,
+        header_hash: BlockHash,
+        post_hash: BlockHash,
+        checkpoint: Checkpoint,
+    ) {
+        let (_, _, starts) = match self {
+            BlockMetrics::Noop => return,
+            BlockMetrics::Prometheus {
+                time_since_prev_checkpoint,
+                imported_to_finalized,
+                starts,
+            } => (time_since_prev_checkpoint, imported_to_finalized, starts),
+        };
+        let starts = &mut starts.lock();
+        let checkpoint_map = starts
+            .get_mut(&checkpoint)
+            .expect("All checkpoint types were initialized");
+
+        if let Some((_, time)) = checkpoint_map.pop_entry(&header_hash) {
+            checkpoint_map.push(post_hash, time);
+        } else {
+            warn!(
+                target: LOG_TARGET,
+                "Header hash {:?} was not found in the metrics when converting header hash to post hash. Checkpoint type: {:?}",
+                header_hash,
+                checkpoint
+            );
+        }
+    }
+
+    pub fn report_block_if_not_present(
+        &self,
+        hash: BlockHash,
+        checkpoint_time: Instant,
+        checkpoint_type: Checkpoint,
+    ) {
+        let (_, _, starts) = match self {
+            BlockMetrics::Noop => return,
+            BlockMetrics::Prometheus {
+                time_since_prev_checkpoint,
+                imported_to_finalized,
+                starts,
+            } => (time_since_prev_checkpoint, imported_to_finalized, starts),
+        };
+        let starts = &mut *starts.lock();
+        starts
+            .get_mut(&checkpoint_type)
+            .expect("All checkpoint types were initialized")
+            .get_or_insert(hash, || checkpoint_time);
+    }
+
     pub fn report_block(
         &self,
         hash: BlockHash,
