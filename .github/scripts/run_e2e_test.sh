@@ -60,6 +60,9 @@ function set_randomized_test_params {
 NODE_URL=${NODE_URL:-"ws://127.0.0.1:9943"}
 NETWORK=${NETWORK:-"container:Node0"}
 
+echo network is $NETWORK
+echo NODE_URL is $NODE_URL
+
 ARGS=(
   --network "${NETWORK}"
   -e NODE_URL="${NODE_URL}"
