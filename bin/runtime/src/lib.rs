@@ -232,7 +232,7 @@ impl pallet_balances::Config for Runtime {
     type FreezeIdentifier = ();
     type MaxHolds = ConstU32<0>;
     type MaxFreezes = ConstU32<0>;
-    type RuntimeHoldReason = ();
+    type RuntimeHoldReason = RuntimeHoldReason;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
