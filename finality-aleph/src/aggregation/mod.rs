@@ -44,7 +44,6 @@ pub type CurrentAggregator<'a, N> = current_aleph_aggregator::IO<
     NetworkWrapper<CurrentRmcNetworkData, N>,
     SignatureSet<Signature>,
     CurrentRmc<'a>,
-    BlockMetrics,
 >;
 
 enum EitherAggregator<'a, CN, LN>
@@ -116,7 +115,7 @@ where
             current_aleph_bft::Keychain::node_count(multikeychain),
             scheduler,
         );
-        let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new(metrics);
+        let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new();
         let aggregator_io = CurrentAggregator::<CN>::new(
             messages_for_rmc,
             messages_from_rmc,
@@ -161,15 +160,7 @@ impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
 }
 
 impl legacy_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
-    fn report_aggregation_complete(&mut self, h: BlockHash) {
-        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
-    }
-}
-
-impl current_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
-    fn report_aggregation_complete(&mut self, h: BlockHash) {
-        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
-    }
+    fn report_aggregation_complete(&mut self, h: BlockHash) {}
 }
 
 #[async_trait::async_trait]

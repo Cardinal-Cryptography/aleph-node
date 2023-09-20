@@ -36,14 +36,7 @@ pub enum BlockMetrics {
 impl BlockMetrics {
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
-        let keys = [
-            Importing,
-            Imported,
-            Ordering,
-            Ordered,
-            Aggregating,
-            Finalized,
-        ];
+        let keys = [Importing, Imported, Ordering, Ordered, Finalized];
 
         let registry = match registry {
             None => return Ok(Self::Noop),
@@ -147,7 +140,6 @@ pub enum Checkpoint {
     Imported,
     Ordering,
     Ordered,
-    Aggregating,
     Finalized,
 }
 
