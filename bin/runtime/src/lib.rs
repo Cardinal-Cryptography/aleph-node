@@ -756,7 +756,7 @@ impl pallet_identity::Config for Runtime {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(not(feature = "liminal"))]
 construct_runtime!(
-    pub enum Runtime
+    pub struct Runtime
     {
         System: frame_system,
         RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
@@ -785,7 +785,7 @@ construct_runtime!(
 
 #[cfg(feature = "liminal")]
 construct_runtime!(
-    pub enum Runtime
+    pub struct Runtime
     {
         System: frame_system,
         RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip,
