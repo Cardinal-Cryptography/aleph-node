@@ -80,3 +80,4 @@ services:
 networks:
   synthetic-network:
     name: synthetic-network
+    driver: bridge
