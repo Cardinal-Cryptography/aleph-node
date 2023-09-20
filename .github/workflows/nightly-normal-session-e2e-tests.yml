@@ -179,7 +179,8 @@ jobs:
 
   run-e2e-sync-test-into_two_groups_one_with_quorum:
     needs: [build-production-node-and-e2e-client-image]
-    name: Run tests for sync where we modify network's connectivity - into two groups one with quorum
+    name: Run tests for sync where we modify network's connectivity - into two groups one with
+          quorum
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
