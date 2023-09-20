@@ -5,7 +5,8 @@ services:
       service: Node0
     environment:
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
 
   Node1:
     extends:
@@ -13,7 +14,8 @@ services:
       service: Node1
     environment:
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
 
   Node2:
     extends:
@@ -21,7 +23,8 @@ services:
       service: Node2
     environment:
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
 
   Node3:
     extends:
@@ -29,7 +32,8 @@ services:
       service: Node3
     environment:
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
 
   Node4:
     extends:
@@ -37,7 +41,8 @@ services:
       service: Node4
     environment:
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
 
   Node5:
     extends:
@@ -54,7 +59,8 @@ services:
       - PUBLIC_VALIDATOR_ADDRESS=Node5:30348
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
     ports:
       - 3005:80
 
@@ -73,7 +79,8 @@ services:
       - PUBLIC_VALIDATOR_ADDRESS=Node6:30349
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
-      - WS_PORT=9943
+      # - WS_PORT=9943
+      - RPC_PORT=9943
     ports:
       - 3006:80
 
