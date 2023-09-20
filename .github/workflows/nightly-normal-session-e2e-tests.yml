@@ -89,6 +89,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-e2e-sync-test-one_node_catching_up:
@@ -110,6 +111,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them:
@@ -132,6 +134,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-e2e-sync-test-into_multiple_groups_of_two:
@@ -153,6 +156,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum:
@@ -175,6 +179,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-e2e-sync-test-into_two_groups_one_with_quorum:
@@ -197,6 +202,7 @@ jobs:
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
           node-count: 7
+          min-validator-count: 7
         timeout-minutes: 35
 
   run-major-sync-test:
