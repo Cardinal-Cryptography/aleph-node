@@ -26,8 +26,8 @@ const LOG_TARGET: &str = "aleph-metrics";
 #[derive(Clone)]
 pub enum BlockMetrics {
     Prometheus {
-        prev: HashMap<Checkpoint, Checkpoint>,
-        gauges: HashMap<Checkpoint, Gauge<U64>>,
+        time_since_prev_checkpoint: HashMap<Checkpoint, Gauge<U64>>,
+        imported_to_finalized: Gauge<U64>,
         starts: Arc<Mutex<HashMap<Checkpoint, LruCache<BlockHash, Instant>>>>,
     },
     Noop,
@@ -43,23 +43,20 @@ impl BlockMetrics {
             Some(registry) => registry,
         };
 
-        let prev: HashMap<_, _> = keys[1..]
-            .iter()
-            .cloned()
-            .zip(keys.iter().cloned())
-            .collect();
-
-        let mut gauges = HashMap::new();
+        let mut time_since_prev_checkpoint = HashMap::new();
         for key in keys.iter() {
-            gauges.insert(
+            time_since_prev_checkpoint.insert(
                 *key,
                 register(Gauge::new(format!("aleph_{key:?}"), "no help")?, registry)?,
             );
         }
 
         Ok(Self::Prometheus {
-            prev,
-            gauges,
+            time_since_prev_checkpoint,
+            imported_to_finalized: register(
+                Gauge::new("aleph_Imported_to_Finalized", "no help")?,
+                registry,
+            )?,
             starts: Arc::new(Mutex::new(
                 keys.iter()
                     .map(|k| {
@@ -90,13 +87,13 @@ impl BlockMetrics {
             hash,
             checkpoint_time
         );
-        let (prev, gauges, starts) = match self {
+        let (time_since_prev_checkpoint, imported_to_finalized, starts) = match self {
             BlockMetrics::Noop => return,
             BlockMetrics::Prometheus {
-                prev,
-                gauges,
+                time_since_prev_checkpoint,
+                imported_to_finalized,
                 starts,
-            } => (prev, gauges, starts),
+            } => (time_since_prev_checkpoint, imported_to_finalized, starts),
         };
 
         let starts = &mut *starts.lock();
@@ -104,33 +101,66 @@ impl BlockMetrics {
             starts.put(hash, checkpoint_time);
         });
 
-        if let Some(prev_checkpoint_type) = prev.get(&checkpoint_type) {
+        if let Some(prev_checkpoint_type) = checkpoint_type.prev() {
             if let Some(start) = starts
-                .get_mut(prev_checkpoint_type)
+                .get_mut(&prev_checkpoint_type)
                 .expect("All checkpoint types were initialized")
                 .get(&hash)
             {
-                let duration = match checkpoint_time.checked_duration_since(*start) {
-                    Some(duration) => duration,
-                    None => {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Earlier metrics time {:?} is later that current one \
-                        {:?}. Checkpoint type {:?}, block: {:?}",
+                let duration = checkpoint_time
+                    .checked_duration_since(*start)
+                    .unwrap_or_else(|| {
+                        Self::warn_about_monotonicity_violation(
                             *start,
                             checkpoint_time,
                             checkpoint_type,
-                            hash
+                            hash,
                         );
                         Duration::new(0, 0)
-                    }
-                };
-                gauges
+                    });
+                time_since_prev_checkpoint
                     .get(&checkpoint_type)
                     .expect("All checkpoint types were initialized")
                     .set(duration.as_millis() as u64);
             }
         }
+        if checkpoint_type == Checkpoint::Finalized {
+            if let Some(start) = starts
+                .get_mut(&Checkpoint::Imported)
+                .expect("All checkpoint types were initialized")
+                .get(&hash)
+            {
+                let duration = checkpoint_time
+                    .checked_duration_since(*start)
+                    .unwrap_or_else(|| {
+                        Self::warn_about_monotonicity_violation(
+                            *start,
+                            checkpoint_time,
+                            checkpoint_type,
+                            hash,
+                        );
+                        Duration::new(0, 0)
+                    });
+                imported_to_finalized.set(duration.as_millis() as u64);
+            }
+        }
+    }
+
+    fn warn_about_monotonicity_violation(
+        start: Instant,
+        checkpoint_time: Instant,
+        checkpoint_type: Checkpoint,
+        hash: BlockHash,
+    ) {
+        warn!(
+            target: LOG_TARGET,
+            "Earlier metrics time {:?} is later that current one \
+        {:?}. Checkpoint type {:?}, block: {:?}",
+            start,
+            checkpoint_time,
+            checkpoint_type,
+            hash
+        );
     }
 }
 
@@ -141,6 +171,19 @@ pub enum Checkpoint {
     Ordering,
     Ordered,
     Finalized,
+}
+
+impl Checkpoint {
+    fn prev(&self) -> Option<Checkpoint> {
+        use Checkpoint::*;
+        match self {
+            Importing => None,
+            Imported => Some(Importing),
+            Ordering => Some(Imported),
+            Ordered => Some(Ordering),
+            Finalized => Some(Ordered),
+        }
+    }
 }
 
 #[cfg(test)]
