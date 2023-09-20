@@ -35,6 +35,12 @@ pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
     last_change: Instant,
 }
 
+impl<H: Copy + Hash, PMS> Default for BlockSignatureAggregator<H, PMS> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
     pub fn new() -> Self {
         BlockSignatureAggregator {

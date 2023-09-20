@@ -194,9 +194,7 @@ where
     let task = {
         async move {
             let aggregator_io = match version {
-                Current(rmc_network) => {
-                    Aggregator::new_current(&multikeychain, rmc_network, metrics.clone())
-                }
+                Current(rmc_network) => Aggregator::new_current(&multikeychain, rmc_network),
                 Legacy(rmc_network) => {
                     Aggregator::new_legacy(&multikeychain, rmc_network, metrics.clone())
                 }

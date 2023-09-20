@@ -1,6 +1,6 @@
 //! Module to glue legacy and current version of the aggregator;
 
-use std::{marker::PhantomData, time::Instant};
+use std::marker::PhantomData;
 
 use current_aleph_aggregator::NetworkError as CurrentNetworkError;
 use legacy_aleph_aggregator::NetworkError as LegacyNetworkError;
@@ -9,7 +9,6 @@ use crate::{
     abft::SignatureSet,
     aleph_primitives::BlockHash,
     crypto::Signature,
-    metrics::Checkpoint,
     mpsc,
     network::{
         data::{Network, SendError},
@@ -98,11 +97,7 @@ where
         }
     }
 
-    pub fn new_current(
-        multikeychain: &'a Keychain,
-        rmc_network: CN,
-        metrics: BlockMetrics,
-    ) -> Self {
+    pub fn new_current(multikeychain: &'a Keychain, rmc_network: CN) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = current_aleph_bft_rmc::DoublingDelayScheduler::new(
@@ -160,7 +155,7 @@ impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
 }
 
 impl legacy_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
-    fn report_aggregation_complete(&mut self, h: BlockHash) {}
+    fn report_aggregation_complete(&mut self, _: BlockHash) {}
 }
 
 #[async_trait::async_trait]
