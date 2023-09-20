@@ -3,11 +3,11 @@ name: Nightly pipeline normal session e2e tests
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '00 22 * * *'
+  # schedule:
+  #   - cron: '00 22 * * *'
 
   # TODO remove
-  push:
+  pull_request:
     branches:
       - sync_tests_synthetic-network
 
