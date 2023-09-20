@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use log::warn;
 use substrate_prometheus_endpoint::{register, Counter, Gauge, PrometheusError, Registry, U64};
-const LOG_TARGET: &str = "aleph-metrics";
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Event {
@@ -74,7 +72,7 @@ pub enum Metrics {
     Prometheus {
         event_calls: HashMap<Event, Counter<U64>>,
         event_errors: HashMap<Event, Counter<U64>>,
-        top_finalized_block: Counter<U64>,
+        top_finalized_block: Gauge<U64>,
         best_block: Gauge<U64>,
     },
     Noop,
@@ -116,7 +114,7 @@ impl Metrics {
             event_calls,
             event_errors,
             top_finalized_block: register(
-                Counter::new("aleph_top_finalized_block", "no help")?,
+                Gauge::new("aleph_top_finalized_block", "no help")?,
                 &registry,
             )?,
             best_block: register(Gauge::new("aleph_best_block", "no help")?, &registry)?,
@@ -160,15 +158,6 @@ impl Metrics {
                 ..
             } => top_finalized_block,
         };
-        let number = number as u64;
-        if number < top_finalized_block.get() {
-            warn!(
-                target: LOG_TARGET,
-                "Tried to set highest finalized block to a lower number than before."
-            );
-        } else {
-            let delta = number - top_finalized_block.get();
-            top_finalized_block.inc_by(delta);
-        }
+        top_finalized_block.set(number as u64);
     }
 }
