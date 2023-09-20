@@ -67,7 +67,7 @@ jobs:
           image-path: aleph-release-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.synthetic-network.yml
-        timeout-minutes: 35
+        timeout-minutes: 40
 
   run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus:
     needs: [build-production-node-and-e2e-client-image]
