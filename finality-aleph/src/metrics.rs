@@ -23,7 +23,9 @@ use crate::aleph_primitives::BlockHash;
 const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
 const LOG_TARGET: &str = "aleph-metrics";
-
+const HISTOGRAM_BUCKETS: [f64; 11] = [
+    1., 5., 25., 100., 150., 250., 500., 1000., 2000., 5000., 10000.,
+];
 /// TODO(A0-3009): Improve BlockMetrics and rename to TimedBlockMetrics or such
 #[derive(Clone)]
 pub enum BlockMetrics {
@@ -50,7 +52,10 @@ impl BlockMetrics {
             time_since_prev_checkpoint.insert(
                 *key,
                 register(
-                    Histogram::with_opts(HistogramOpts::new(format!("aleph_{key:?}"), "no help"))?,
+                    Histogram::with_opts(
+                        HistogramOpts::new(format!("aleph_{key:?}"), "no help")
+                            .buckets(HISTOGRAM_BUCKETS.to_vec()),
+                    )?,
                     registry,
                 )?,
             );
@@ -59,7 +64,10 @@ impl BlockMetrics {
         Ok(Self::Prometheus {
             time_since_prev_checkpoint,
             imported_to_finalized: register(
-                Histogram::with_opts(HistogramOpts::new("aleph_Imported_to_Finalized", "no help"))?,
+                Histogram::with_opts(
+                    HistogramOpts::new("aleph_Imported_to_Finalized", "no help")
+                        .buckets(HISTOGRAM_BUCKETS.to_vec()),
+                )?,
                 registry,
             )?,
             starts: Arc::new(Mutex::new(
@@ -96,13 +104,6 @@ impl BlockMetrics {
 
         if let Some((_, time)) = checkpoint_map.pop_entry(&header_hash) {
             checkpoint_map.push(post_hash, time);
-        } else {
-            warn!(
-                target: LOG_TARGET,
-                "Header hash {:?} was not found in the metrics when converting header hash to post hash. Checkpoint type: {:?}",
-                header_hash,
-                checkpoint
-            );
         }
     }
 
