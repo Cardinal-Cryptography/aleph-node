@@ -83,6 +83,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::one_node_catching_up_and_then_becoming_necessary_for_consensus
           image-path: aleph-release-synthetic-docker
@@ -105,6 +106,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::one_node_catching_up
           image-path: aleph-release-synthetic-docker
@@ -128,6 +130,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::into_two_groups_and_one_quorum_and_switch_quorum_between_them
           image-path: aleph-release-synthetic-docker
@@ -150,6 +153,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::into_multiple_groups_of_two
           image-path: aleph-release-synthetic-docker
@@ -173,6 +177,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::into_two_equal_size_groups_with_no_quorum
           image-path: aleph-release-synthetic-docker
@@ -196,6 +201,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9943"
+          VALIDATOR_COUNT: 7
         with:
           test-case: test::sync::into_two_groups_one_with_quorum
           image-path: aleph-release-synthetic-docker
