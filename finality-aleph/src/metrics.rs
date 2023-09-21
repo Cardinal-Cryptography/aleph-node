@@ -243,6 +243,7 @@ mod tests {
     use std::cmp::min;
 
     use super::*;
+    use Checkpoint::*;
 
     fn register_prometheus_metrics_with_dummy_registry() -> BlockMetrics {
         BlockMetrics::new(Some(&Registry::new())).unwrap()
@@ -268,21 +269,21 @@ mod tests {
     #[test]
     fn noop_metrics() {
         let m = BlockMetrics::noop();
-        m.report_block(BlockHash::random(), Instant::now(), Checkpoint::Ordered);
+        m.report_block(BlockHash::random(), Instant::now(), Ordered);
         assert!(matches!(m, BlockMetrics::Noop));
     }
 
     #[test]
     fn should_keep_entries_up_to_defined_limit() {
         let m = register_prometheus_metrics_with_dummy_registry();
-        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
+        check_reporting_with_memory_excess(&m, Ordered);
     }
 
     #[test]
     fn should_manage_space_for_checkpoints_independently() {
         let m = register_prometheus_metrics_with_dummy_registry();
-        check_reporting_with_memory_excess(&m, Checkpoint::Ordered);
-        check_reporting_with_memory_excess(&m, Checkpoint::Imported);
+        check_reporting_with_memory_excess(&m, Ordered);
+        check_reporting_with_memory_excess(&m, Imported);
     }
 
     #[test]
@@ -291,7 +292,59 @@ mod tests {
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let hash = BlockHash::random();
-        metrics.report_block(hash, later_timestamp, Checkpoint::Ordering);
-        metrics.report_block(hash, earlier_timestamp, Checkpoint::Ordered);
+        metrics.report_block(hash, later_timestamp, Ordering);
+        metrics.report_block(hash, earlier_timestamp, Ordered);
+    }
+
+    #[test]
+    fn tests_hash_conversion() {
+        let metrics = register_prometheus_metrics_with_dummy_registry();
+        let timestamp1 = Instant::now();
+        let timestamp2 = timestamp1 + Duration::new(0, 5);
+
+        let hash = [
+            BlockHash::random(),
+            BlockHash::random(),
+            BlockHash::random(),
+        ];
+
+        metrics.report_block(hash[0], timestamp1, Ordering);
+        metrics.report_block(hash[1], timestamp2, Ordering);
+
+        metrics.convert_header_hash_to_post_hash(hash[0], hash[2], Ordering);
+
+        let entries = match &metrics {
+            BlockMetrics::Prometheus { starts, .. } => starts
+                .lock()
+                .get(&Ordering)
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (*k, *v))
+                .collect::<Vec<_>>(),
+            _ => vec![],
+        };
+        assert_eq!(entries, &[(hash[2], timestamp1), (hash[1], timestamp2)]);
+    }
+
+    #[test]
+    fn test_report_block_if_not_present() {
+        let metrics = register_prometheus_metrics_with_dummy_registry();
+        let earlier_timestamp = Instant::now();
+        let later_timestamp = earlier_timestamp + Duration::new(0, 5);
+        let hash = BlockHash::random();
+
+        metrics.report_block(hash, earlier_timestamp, Ordering);
+        metrics.report_block_if_not_present(hash, later_timestamp, Ordered);
+
+        let timestamp = match &metrics {
+            BlockMetrics::Prometheus { starts, .. } => starts
+                .lock()
+                .get_mut(&Ordering)
+                .unwrap()
+                .get(&hash)
+                .cloned(),
+            _ => None,
+        };
+        assert_eq!(timestamp, Some(earlier_timestamp));
     }
 }

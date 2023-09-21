@@ -62,6 +62,8 @@ where
             Checkpoint::Importing,
         );
 
+        // Self-created blocks are imported without using the import queue,
+        // so we need to report them here.
         self.metrics
             .report_block_if_not_present(post_hash, Instant::now(), Checkpoint::Importing);
 
