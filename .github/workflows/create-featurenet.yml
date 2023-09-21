@@ -136,7 +136,7 @@ jobs:
           override: true
 
       - name: Create featurenet from scratch
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3223-add-featurenet-compatibility
         id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}

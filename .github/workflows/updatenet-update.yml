@@ -94,7 +94,7 @@ jobs:
           override: true
 
       - name: Update featurenet data, app and deploy it
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3223-add-featurenet-compatibility
         id: create-updatenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}

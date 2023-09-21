@@ -98,7 +98,7 @@ jobs:
           debug: true
 
       - name: Create updatenet from scratch, node binary from testnet or mainnet
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3223-add-featurenet-compatibility
         id: create-updatenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
