@@ -14,7 +14,7 @@ use substrate_prometheus_endpoint::{
     register, Histogram, HistogramOpts, PrometheusError, Registry,
 };
 
-use crate::aleph_primitives::BlockHash;
+use crate::{aleph_primitives::BlockHash, Display};
 
 // How many entries (block hash + timestamp) we keep in memory per one checkpoint type.
 // Each entry takes 32B (Hash) + 16B (Instant), so a limit of 5000 gives ~234kB (per checkpoint).
@@ -26,7 +26,7 @@ const LOG_TARGET: &str = "aleph-metrics";
 const HISTOGRAM_BUCKETS: [f64; 11] = [
     1., 5., 25., 100., 150., 250., 500., 1000., 2000., 5000., 10000.,
 ];
-/// TODO(A0-3009): Improve BlockMetrics and rename to TimedBlockMetrics or such
+
 #[derive(Clone)]
 pub enum BlockMetrics {
     Prometheus {
@@ -53,8 +53,11 @@ impl BlockMetrics {
                 *key,
                 register(
                     Histogram::with_opts(
-                        HistogramOpts::new(format!("aleph_{key:?}"), "no help")
-                            .buckets(HISTOGRAM_BUCKETS.to_vec()),
+                        HistogramOpts::new(
+                            format!("aleph_{:?}", key.to_string().make_ascii_lowercase()),
+                            "no help",
+                        )
+                        .buckets(HISTOGRAM_BUCKETS.to_vec()),
                     )?,
                     registry,
                 )?,
@@ -65,7 +68,7 @@ impl BlockMetrics {
             time_since_prev_checkpoint,
             imported_to_finalized: register(
                 Histogram::with_opts(
-                    HistogramOpts::new("aleph_Imported_to_Finalized", "no help")
+                    HistogramOpts::new("aleph_imported_to_finalized", "no help")
                         .buckets(HISTOGRAM_BUCKETS.to_vec()),
                 )?,
                 registry,
@@ -87,6 +90,10 @@ impl BlockMetrics {
         Self::Noop
     }
 
+    /// Updates metrics for `checkpoint` so that all blocks referenced previously with `header_hash`
+    /// are now referenced with `post_hash`. This is useful when a block is first reported
+    /// with header hash not including post-digests, and later it is reported with header hash
+    /// including post digests.
     pub fn convert_header_hash_to_post_hash(
         &self,
         header_hash: BlockHash,
@@ -174,7 +181,7 @@ impl BlockMetrics {
                 time_since_prev_checkpoint
                     .get(&checkpoint_type)
                     .expect("All checkpoint types were initialized")
-                    .observe(duration.as_millis() as f64);
+                    .observe(duration.as_secs_f64() / 1000.);
             }
         }
         if checkpoint_type == Checkpoint::Finalized {
@@ -194,7 +201,7 @@ impl BlockMetrics {
                         );
                         Duration::new(0, 0)
                     });
-                imported_to_finalized.observe(duration.as_millis() as f64);
+                imported_to_finalized.observe(duration.as_secs_f64() / 1000.);
             }
         }
     }
@@ -217,7 +224,7 @@ impl BlockMetrics {
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Display, Hash, PartialEq, Eq)]
 pub enum Checkpoint {
     Importing,
     Imported,
@@ -243,8 +250,9 @@ impl Checkpoint {
 mod tests {
     use std::cmp::min;
 
-    use super::*;
     use Checkpoint::*;
+
+    use super::*;
 
     fn register_prometheus_metrics_with_dummy_registry() -> BlockMetrics {
         BlockMetrics::new(Some(&Registry::new())).unwrap()
