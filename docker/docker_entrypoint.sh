@@ -17,12 +17,13 @@ DISCOVER_LOCAL=${DISCOVER_LOCAL:-}
 CHAIN=${CHAIN:?'Chain should be specified'}
 NAME=${NAME:?'Name should be specified'}
 BASE_PATH=${BASE_PATH:?'Base path should be specified'}
-RPC_PORT=${RPC_PORT:-9944}
+RPC_PORT=${RPC_PORT:-9933}
+WS_PORT=${WS_PORT:-9943}
 PORT=${PORT:-30333}
 VALIDATOR_PORT=${VALIDATOR_PORT:-30343}
 EXTERNAL_PORT=${EXTERNAL_PORT:-${PORT}}
 VALIDATOR=${VALIDATOR:-true}
-RPC_MAX_CONNECTIONS=${RPC_MAX_CONNECTIONS:-100}
+WS_MAX_CONNECTIONS=${WS_MAX_CONNECTIONS:-100}
 POOL_LIMIT=${POOL_LIMIT:-1024}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-true}
 TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
@@ -49,12 +50,13 @@ ARGS=(
   --node-key-file "${NODE_KEY_PATH}"
   --backup-path "${BACKUP_PATH}"
   --rpc-port "${RPC_PORT}"
+  --ws-port "${WS_PORT}"
   --port "${PORT}"
   --validator-port "${VALIDATOR_PORT}"
   --rpc-cors all
   --no-mdns
-  --rpc-max-connections "${RPC_MAX_CONNECTIONS}"
-   --unsafe-rpc-external
+  --ws-max-connections "${WS_MAX_CONNECTIONS}"
+  --unsafe-ws-external --unsafe-rpc-external
   --enable-log-reloading
   --db-cache "${DB_CACHE}"
   --runtime-cache-size "${RUNTIME_CACHE_SIZE}"

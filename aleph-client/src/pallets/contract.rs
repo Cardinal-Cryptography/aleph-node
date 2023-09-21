@@ -4,15 +4,10 @@ use subxt::{ext::sp_core::Bytes, rpc_params, utils::Static};
 
 use crate::{
     api,
-    api::runtime_types,
-    pallet_contracts::wasm::{CodeInfo, Determinism},
+    pallet_contracts::wasm::{Determinism, OwnerInfo},
     sp_weights::weight_v2::Weight,
     AccountId, Balance, BlockHash, CodeHash, ConnectionApi, SignedConnectionApi, TxInfo, TxStatus,
 };
-
-/// The Event that was emitted during execution of calls.
-pub type EventRecord =
-    runtime_types::frame_system::EventRecord<runtime_types::aleph_runtime::RuntimeEvent, BlockHash>;
 
 /// Arguments to [`ContractRpc::call_and_get`].
 #[derive(Encode)]
@@ -34,10 +29,11 @@ pub struct ContractCallArgs {
 /// Pallet contracts read-only api.
 #[async_trait::async_trait]
 pub trait ContractsApi {
-    /// Returns `contracts.code_info` storage for a given code hash.
+    /// Returns `contracts.owner_info_of` storage for a given code hash.
     /// * `code_hash` - a code hash
     /// * `at` - optional hash of a block to query state from
-    async fn get_code_info(&self, code_hash: CodeHash, at: Option<BlockHash>) -> Option<CodeInfo>;
+    async fn get_owner_info(&self, code_hash: CodeHash, at: Option<BlockHash>)
+        -> Option<OwnerInfo>;
 }
 
 /// Pallet contracts api.
@@ -100,13 +96,17 @@ pub trait ContractRpc {
     async fn call_and_get(
         &self,
         args: ContractCallArgs,
-    ) -> anyhow::Result<ContractExecResult<Balance, EventRecord>>;
+    ) -> anyhow::Result<ContractExecResult<Balance>>;
 }
 
 #[async_trait::async_trait]
 impl<C: ConnectionApi> ContractsApi for C {
-    async fn get_code_info(&self, code_hash: CodeHash, at: Option<BlockHash>) -> Option<CodeInfo> {
-        let addrs = api::storage().contracts().code_info_of(code_hash);
+    async fn get_owner_info(
+        &self,
+        code_hash: CodeHash,
+        at: Option<BlockHash>,
+    ) -> Option<OwnerInfo> {
+        let addrs = api::storage().contracts().owner_info_of(code_hash);
 
         self.get_storage_entry_maybe(&addrs, at).await
     }
@@ -203,7 +203,7 @@ impl<C: ConnectionApi> ContractRpc for C {
     async fn call_and_get(
         &self,
         args: ContractCallArgs,
-    ) -> anyhow::Result<ContractExecResult<Balance, EventRecord>> {
+    ) -> anyhow::Result<ContractExecResult<Balance>> {
         let params = rpc_params!["ContractsApi_call", Bytes(args.encode())];
         self.rpc_call("state_call".to_string(), params).await
     }

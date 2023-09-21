@@ -1,7 +1,21 @@
+//! This pallet manages changes in the committee responsible for producing blocks and establishing consensus.
+//!
+//! # Terminology
+//! For definition of session, era, staking see pallet_session and pallet_staking.
+//! - committee ([`EraValidators`]): Set of nodes that produce and finalize blocks in the session.
+//! - validator: Node that can become a member of committee (or already is) via rotation.
+//! - `EraValidators::reserved`: immutable validators, ie they cannot be removed from that list.
+//! - `EraValidators::non_reserved`: validators that can be banned out from that list.
+//!
+//! # Elections process
+//! There are two options for choosing validators during election process governed by ([`Openness`]) storage value:
+//! - `Permissionless`: choose all validators that bonded enough amount and are not banned.
+//! - `Permissioned`: choose `EraValidators::reserved` and all `EraValidators::non_reserved` that are not banned.
+
 #![cfg_attr(not(feature = "std"), no_std)]
-#![doc = include_str!("../README.md")]
 
 mod impls;
+mod migration;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -9,6 +23,7 @@ mod tests;
 mod traits;
 
 use frame_support::traits::StorageVersion;
+pub use migration::{v4::Migration as MigrateToV4, v5::Migration as CommitteeSizeMigration};
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
 pub use primitives::EraValidators;
@@ -21,22 +36,19 @@ use sp_std::{
 pub type TotalReward = u32;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
+const LOG_TARGET: &str = "pallet-elections";
 
 #[derive(Decode, Encode, TypeInfo)]
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
 #[frame_support::pallet]
-#[pallet_doc("../README.md")]
 pub mod pallet {
     use frame_election_provider_support::{
         BoundedSupportsOf, ElectionDataProvider, ElectionProvider, ElectionProviderBase, Support,
         Supports,
     };
     use frame_support::{pallet_prelude::*, traits::Get};
-    use frame_system::{
-        ensure_root,
-        pallet_prelude::{BlockNumberFor, OriginFor},
-    };
+    use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use primitives::{BannedValidators, CommitteeSeats, ElectionOpenness};
 
     use super::*;
@@ -48,7 +60,7 @@ pub mod pallet {
         /// Something that provides data for elections.
         type DataProvider: ElectionDataProvider<
             AccountId = Self::AccountId,
-            BlockNumber = BlockNumberFor<Self>,
+            BlockNumber = Self::BlockNumber,
         >;
         type ValidatorProvider: ValidatorProvider<AccountId = Self::AccountId>;
         /// The maximum number of winners that can be elected by this `ElectionProvider`
@@ -163,9 +175,9 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
         #[cfg(feature = "try-runtime")]
-        fn try_state(_n: BlockNumberFor<T>) -> Result<(), DispatchError> {
+        fn try_state(_n: T::BlockNumber) -> Result<(), &'static str> {
             let current_validators = CurrentEraValidators::<T>::get();
             Self::ensure_validators_are_ok(
                 current_validators.reserved,
@@ -184,15 +196,25 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
-    #[derive(frame_support::DefaultNoBound)]
     pub struct GenesisConfig<T: Config> {
         pub non_reserved_validators: Vec<T::AccountId>,
         pub reserved_validators: Vec<T::AccountId>,
         pub committee_seats: CommitteeSeats,
     }
 
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                non_reserved_validators: Vec::new(),
+                reserved_validators: Vec::new(),
+                committee_seats: Default::default(),
+            }
+        }
+    }
+
     #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <CommitteeSize<T>>::put(self.committee_seats);
             <NextEraCommitteeSize<T>>::put(self.committee_seats);
@@ -275,7 +297,7 @@ pub mod pallet {
 
     impl<T: Config> ElectionProviderBase for Pallet<T> {
         type AccountId = T::AccountId;
-        type BlockNumber = BlockNumberFor<T>;
+        type BlockNumber = T::BlockNumber;
         type Error = ElectionError;
         type DataProvider = T::DataProvider;
         type MaxWinners = T::MaxWinners;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use substrate_prometheus_endpoint::{register, Counter, Gauge, PrometheusError, Registry, U64};
+use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Event {
@@ -19,8 +19,6 @@ pub enum Event {
 }
 
 use Event::*;
-
-use crate::BlockNumber;
 
 impl Event {
     fn name(&self) -> &str {
@@ -70,10 +68,8 @@ const ERRORING_EVENTS: [Event; 9] = [
 
 pub enum Metrics {
     Prometheus {
-        event_calls: HashMap<Event, Counter<U64>>,
-        event_errors: HashMap<Event, Counter<U64>>,
-        top_finalized_block: Gauge<U64>,
-        best_block: Gauge<U64>,
+        calls: HashMap<Event, Counter<U64>>,
+        errors: HashMap<Event, Counter<U64>>,
     },
     Noop,
 }
@@ -84,10 +80,10 @@ impl Metrics {
             Some(registry) => registry,
             None => return Ok(Metrics::Noop),
         };
-        let mut event_calls = HashMap::new();
-        let mut event_errors = HashMap::new();
+        let mut calls = HashMap::new();
+        let mut errors = HashMap::new();
         for event in ALL_EVENTS {
-            event_calls.insert(
+            calls.insert(
                 event,
                 register(
                     Counter::new(
@@ -99,7 +95,7 @@ impl Metrics {
             );
         }
         for event in ERRORING_EVENTS {
-            event_errors.insert(
+            errors.insert(
                 event,
                 register(
                     Counter::new(
@@ -110,15 +106,7 @@ impl Metrics {
                 )?,
             );
         }
-        Ok(Metrics::Prometheus {
-            event_calls,
-            event_errors,
-            top_finalized_block: register(
-                Gauge::new("aleph_top_finalized_block", "no help")?,
-                &registry,
-            )?,
-            best_block: register(Gauge::new("aleph_best_block", "no help")?, &registry)?,
-        })
+        Ok(Metrics::Prometheus { calls, errors })
     }
 
     pub fn noop() -> Self {
@@ -126,38 +114,18 @@ impl Metrics {
     }
 
     pub fn report_event(&self, event: Event) {
-        if let Metrics::Prometheus { event_calls, .. } = self {
-            if let Some(counter) = event_calls.get(&event) {
+        if let Metrics::Prometheus { calls, .. } = self {
+            if let Some(counter) = calls.get(&event) {
                 counter.inc();
             }
         }
     }
 
     pub fn report_event_error(&self, event: Event) {
-        if let Metrics::Prometheus { event_errors, .. } = self {
-            if let Some(counter) = event_errors.get(&event) {
+        if let Metrics::Prometheus { errors, .. } = self {
+            if let Some(counter) = errors.get(&event) {
                 counter.inc();
             }
         }
-    }
-
-    pub fn update_best_block_if_better(&self, number: BlockNumber) {
-        if let Metrics::Prometheus { best_block, .. } = self {
-            let number = number as u64;
-            if number > best_block.get() {
-                best_block.set(number)
-            }
-        }
-    }
-
-    pub fn update_top_finalized_block(&self, number: BlockNumber) {
-        let top_finalized_block = match self {
-            Metrics::Noop => return,
-            Metrics::Prometheus {
-                top_finalized_block,
-                ..
-            } => top_finalized_block,
-        };
-        top_finalized_block.set(number as u64);
     }
 }

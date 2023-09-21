@@ -25,7 +25,8 @@ chain.bootstrap(binary,
 chain.set_flags('no-mdns',
                 port=Seq(30334),
                 validator_port=Seq(30343),
-                rpc_port=Seq(9944),
+                ws_port=Seq(9944),
+                rpc_port=Seq(9933),
                 unit_creation_delay=200,
                 execution='Native')
 

@@ -58,9 +58,10 @@ pub async fn disable_validators(indexes: &[u32]) -> anyhow::Result<()> {
 
     for &index in indexes {
         let validator_seed = get_validator_seed(index);
-        let validator = NodeKeys::from(validator_seed).validator;
+        let stash_controller = NodeKeys::from(validator_seed);
+        let controller_key_to_disable = stash_controller.controller;
 
-        connections.push(SignedConnection::new(&address, validator).await);
+        connections.push(SignedConnection::new(&address, controller_key_to_disable).await);
     }
 
     set_invalid_keys_for_validator(connections).await

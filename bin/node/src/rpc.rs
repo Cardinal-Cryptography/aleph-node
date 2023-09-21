@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use aleph_runtime::{opaque::Block, AccountId, Balance, Nonce};
+use aleph_runtime::{opaque::Block, AccountId, Balance, Index};
 use finality_aleph::{Justification, JustificationTranslator};
 use futures::channel::mpsc;
 use jsonrpsee::RpcModule;
@@ -17,10 +17,9 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_consensus::SyncOracle;
 
 /// Full client dependencies.
-pub struct FullDeps<C, P, SO> {
+pub struct FullDeps<C, P> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
@@ -29,12 +28,11 @@ pub struct FullDeps<C, P, SO> {
     pub deny_unsafe: DenyUnsafe,
     pub import_justification_tx: mpsc::UnboundedSender<Justification>,
     pub justification_translator: JustificationTranslator,
-    pub sync_oracle: SO,
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P, BE, SO>(
-    deps: FullDeps<C, P, SO>,
+pub fn create_full<C, P, BE>(
+    deps: FullDeps<C, P>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
@@ -45,11 +43,10 @@ where
         + Sync
         + 'static,
     BE: sc_client_api::Backend<Block> + 'static,
-    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
+    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>
         + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
         + BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    SO: SyncOracle + Send + Sync + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -61,7 +58,6 @@ where
         deny_unsafe,
         import_justification_tx,
         justification_translator,
-        sync_oracle,
     } = deps;
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
@@ -70,13 +66,7 @@ where
 
     use crate::aleph_node_rpc::{AlephNode, AlephNodeApiServer};
     module.merge(
-        AlephNode::new(
-            import_justification_tx,
-            justification_translator,
-            client,
-            sync_oracle,
-        )
-        .into_rpc(),
+        AlephNode::new(import_justification_tx, justification_translator, client).into_rpc(),
     )?;
 
     Ok(module)

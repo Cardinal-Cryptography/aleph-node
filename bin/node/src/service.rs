@@ -12,7 +12,7 @@ use finality_aleph::{
     SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::warn;
+use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -136,10 +136,16 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = match BlockMetrics::new(config.prometheus_registry()) {
-        Ok(metrics) => metrics,
-        Err(e) => {
-            warn!("Failed to register Prometheus metrics: {:?}.", e);
+    let metrics = match config.prometheus_registry() {
+        Some(register) => match BlockMetrics::new(register) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!("Failed to register Prometheus metrics: {:?}.", e);
+                BlockMetrics::noop()
+            }
+        },
+        None => {
+            info!("Running with the metrics is not available.");
             BlockMetrics::noop()
         }
     };
@@ -203,7 +209,7 @@ pub fn new_partial(
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 fn setup(
-    config: Configuration,
+    mut config: Configuration,
     backend: Arc<FullBackend>,
     chain_status: SubstrateChainStatus,
     keystore_container: &KeystoreContainer,
@@ -233,20 +239,24 @@ fn setup(
         None => format!("/{genesis_hash}"),
     };
     let protocol_naming = ProtocolNaming::new(chain_prefix);
-    let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
-    net_config.add_notification_protocol(finality_aleph::peers_set_config(
-        protocol_naming.clone(),
-        Protocol::Authentication,
-    ));
-    net_config.add_notification_protocol(finality_aleph::peers_set_config(
-        protocol_naming.clone(),
-        Protocol::BlockSync,
-    ));
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(
+            protocol_naming.clone(),
+            Protocol::Authentication,
+        ));
+    config
+        .network
+        .extra_sets
+        .push(finality_aleph::peers_set_config(
+            protocol_naming.clone(),
+            Protocol::BlockSync,
+        ));
 
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
-            net_config,
             client: client.clone(),
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
@@ -255,7 +265,6 @@ fn setup(
             warp_sync_params: None,
         })?;
 
-    let sync_oracle = sync_network.clone();
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -266,7 +275,6 @@ fn setup(
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
                 justification_translator: JustificationTranslator::new(chain_status.clone()),
-                sync_oracle: sync_oracle.clone(),
             };
 
             Ok(create_full_rpc(deps)?)
@@ -313,7 +321,14 @@ pub fn new_authority(
         other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = backup_path(&aleph_config, config.base_path.path());
+    let backup_path = backup_path(
+        &aleph_config,
+        config
+            .base_path
+            .as_ref()
+            .expect("Please specify base path")
+            .path(),
+    );
 
     let finalized = client.info().finalized_hash;
 

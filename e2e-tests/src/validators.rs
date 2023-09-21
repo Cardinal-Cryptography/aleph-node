@@ -36,6 +36,9 @@ pub struct Accounts {
     stash_keys: Vec<KeyPair>,
     stash_accounts: Vec<AccountId>,
     stash_raw_keys: Vec<RawKeyPair>,
+    controller_keys: Vec<KeyPair>,
+    controller_accounts: Vec<AccountId>,
+    controller_raw_keys: Vec<RawKeyPair>,
 }
 
 #[allow(dead_code)]
@@ -48,6 +51,15 @@ impl Accounts {
     }
     pub fn get_stash_accounts(&self) -> &Vec<AccountId> {
         &self.stash_accounts
+    }
+    pub fn get_controller_keys(&self) -> &Vec<KeyPair> {
+        &self.controller_keys
+    }
+    pub fn get_controller_raw_keys(&self) -> &Vec<RawKeyPair> {
+        &self.controller_raw_keys
+    }
+    pub fn get_controller_accounts(&self) -> &Vec<AccountId> {
+        &self.controller_accounts
     }
 }
 
@@ -66,10 +78,26 @@ pub fn setup_accounts(desired_validator_count: u32) -> Accounts {
         .map(|k| account_from_keypair(k.signer()))
         .collect();
 
+    let controller_seeds = seeds.map(|seed| format!("{seed}//Controller"));
+    let controller_keys: Vec<_> = controller_seeds
+        .clone()
+        .map(|s| keypair_from_string(&s))
+        .collect();
+    let controller_raw_keys = controller_seeds
+        .map(|s| raw_keypair_from_string(&s))
+        .collect();
+    let controller_accounts = controller_keys
+        .iter()
+        .map(|k| account_from_keypair(k.signer()))
+        .collect();
+
     Accounts {
         stash_keys,
         stash_accounts,
+        controller_keys,
+        controller_accounts,
         stash_raw_keys,
+        controller_raw_keys,
     }
 }
 
@@ -80,6 +108,7 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     connection: &S,
     node: &str,
     accounts: &Accounts,
+    controller_connections: Vec<SignedConnection>,
 ) -> anyhow::Result<()> {
     connection
         .batch_transfer(
@@ -89,20 +118,30 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
         )
         .await
         .unwrap();
+    connection
+        .batch_transfer(&accounts.controller_accounts, TOKEN, TxStatus::Finalized)
+        .await
+        .unwrap();
 
     let mut handles = vec![];
-    for (i, stash) in accounts.stash_raw_keys.iter().enumerate() {
+    for (stash, controller) in accounts
+        .stash_raw_keys
+        .iter()
+        .zip(accounts.get_controller_accounts().iter())
+    {
         let connection = SignedConnection::new(node, KeyPair::new(stash.clone())).await;
-        let stash = stash.clone();
+        let contr = controller.clone();
         handles.push(tokio::spawn(async move {
             connection
-                .bond(MIN_VALIDATOR_BOND, TxStatus::Finalized)
+                .bond(MIN_VALIDATOR_BOND, contr, TxStatus::Finalized)
                 .await
                 .unwrap();
-            let connection =
-                SignedConnection::new(&validator_address(i as u32), KeyPair::new(stash.clone()))
-                    .await;
-            let keys = connection.author_rotate_keys().await.unwrap();
+        }));
+    }
+
+    for connection in controller_connections {
+        let keys = connection.author_rotate_keys().await?;
+        handles.push(tokio::spawn(async move {
             connection
                 .set_keys(keys, TxStatus::Finalized)
                 .await
@@ -115,10 +154,35 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     Ok(())
 }
 
+// Assumes the same ip address and consecutive ports for nodes, e.g. ws://127.0.0.1:9943,
+// ws://127.0.0.1:9944, etc.
+pub async fn get_controller_connections_to_nodes(
+    first_node_address: &str,
+    controller_raw_keys: Vec<RawKeyPair>,
+) -> anyhow::Result<Vec<SignedConnection>> {
+    let address_tokens = first_node_address.split(':').collect::<Vec<_>>();
+    let prefix = format!("{}:{}", address_tokens[0], address_tokens[1]);
+    let address_prefix = prefix.as_str();
+    let first_port = address_tokens[2].parse::<u16>()?;
+    let controller_connections =
+        controller_raw_keys
+            .into_iter()
+            .enumerate()
+            .map(|(port_idx, controller)| async move {
+                SignedConnection::new(
+                    format!("{}:{}", address_prefix, first_port + port_idx as u16).as_str(),
+                    KeyPair::new(controller),
+                )
+                .await
+            });
+    let connections = join_all(controller_connections.collect::<Vec<_>>()).await;
+    Ok(connections)
+}
+
 /// gets ws address to `n-th` node
 pub fn validator_address(index: u32) -> String {
     const BASE: &str = "ws://127.0.0.1";
-    const FIRST_PORT: u32 = 9943;
+    const FIRST_PORT: u32 = 9944;
 
     let port = FIRST_PORT + index;
 

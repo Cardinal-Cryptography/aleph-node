@@ -1,14 +1,35 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![doc = include_str!("../README.md")]
+//!
+//! # Ban logic
+//! In case of insufficient validator's uptime, we need to remove such validators from
+//! the committee, so that the network is as healthy as possible. This is achieved by calculating
+//! number of _underperformance_ sessions, which means that number of blocks produced by the
+//! validator is less than some predefined threshold.
+//! In other words, if a validator:
+//! * performance in a session is less or equal to a configurable threshold
+//! `BanConfig::minimal_expected_performance` (from 0 to 100%), and,
+//! * it happened at least `BanConfig::underperformed_session_count_threshold` times,
+//! then the validator is considered an underperformer and hence removed (ie _banned out_) from the
+//! committee.
+//!
+//! ## Thresholds
+//! There are two ban thresholds described above, see [`BanConfig`].
+//!
+//! ### Next era vs current era
+//! Current and next era have distinct thresholds values, as we calculate bans during the start of the new era.
+//! They follow the same logic as next era committee seats: at the time of planning the first
+//! session of next the era, next values become current ones.
 
 extern crate core;
 
 mod impls;
 mod manager;
+mod migration;
 mod traits;
 
 use frame_support::{pallet_prelude::Get, traits::StorageVersion};
 pub use manager::SessionAndEraManager;
+pub use migration::PrefixMigration;
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
 use primitives::{BanConfig as BanConfigStruct, BanInfo, SessionValidators, LENIENT_THRESHOLD};
@@ -48,7 +69,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 pub(crate) const LOG_TARGET: &str = "pallet-committee-management";
 
 #[frame_support::pallet]
-#[pallet_doc("../README.md")]
 pub mod pallet {
     use frame_support::{
         dispatch::DispatchResult, ensure, pallet_prelude::*, BoundedVec, Twox64Concat,
@@ -133,7 +153,7 @@ pub mod pallet {
         InvalidBanConfig,
 
         /// Ban reason is too big, ie given vector of bytes is greater than
-        /// [`primitives::DEFAULT_BAN_REASON_LENGTH`]
+        /// [`Config::MaximumBanReasonLength`]
         BanReasonTooBig,
 
         /// Lenient threshold not in [0-100] range
@@ -252,14 +272,23 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
-    #[derive(frame_support::DefaultNoBound)]
     pub struct GenesisConfig<T: Config> {
         pub committee_ban_config: BanConfigStruct,
         pub session_validators: SessionValidators<T::AccountId>,
     }
 
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                committee_ban_config: Default::default(),
+                session_validators: Default::default(),
+            }
+        }
+    }
+
     #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <BanConfig<T>>::put(self.committee_ban_config.clone());
             <CurrentAndNextSessionValidatorsStorage<T>>::put(CurrentAndNextSessionValidators {

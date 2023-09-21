@@ -56,7 +56,7 @@ use pallet_contracts_primitives::ContractExecResult;
 use crate::{
     connections::TxInfo,
     contract_transcode::Value,
-    pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi, EventRecord},
+    pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi},
     sp_weights::weight_v2::Weight,
     AccountId, Balance, ConnectionApi, SignedConnectionApi, TxStatus,
 };
@@ -224,7 +224,7 @@ impl ContractInstance {
         message: &str,
         args: &[S],
         sender: AccountId,
-    ) -> Result<ContractExecResult<Balance, EventRecord>> {
+    ) -> Result<ContractExecResult<Balance>> {
         let payload = self.encode(message, args)?;
         let args = ContractCallArgs {
             origin: sender,

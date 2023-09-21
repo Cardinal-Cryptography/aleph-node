@@ -12,7 +12,6 @@ use primitives::{AccountId, Block, BlockHash, BlockNumber, Signature};
 use sc_client_api::StorageProvider;
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
-use sp_consensus::SyncOracle;
 use sp_consensus_aura::digests::CompatibleDigestItem;
 use sp_core::{twox_128, Bytes};
 use sp_runtime::{
@@ -152,44 +151,33 @@ pub trait AlephNodeApi<BE> {
     /// Get the author of the block with given hash.
     #[method(name = "getBlockAuthor")]
     fn block_author(&self, hash: BlockHash) -> RpcResult<Option<AccountId>>;
-
-    ///
-    #[method(name = "ready")]
-    fn ready(&self) -> RpcResult<bool>;
 }
 
 /// Aleph Node API implementation
-pub struct AlephNode<Client, SO> {
+pub struct AlephNode<Client> {
     import_justification_tx: mpsc::UnboundedSender<Justification>,
     justification_translator: JustificationTranslator,
     client: Arc<Client>,
-    sync_oracle: SO,
 }
 
-impl<Client, SO> AlephNode<Client, SO>
-where
-    SO: SyncOracle,
-{
+impl<Client> AlephNode<Client> {
     pub fn new(
         import_justification_tx: mpsc::UnboundedSender<Justification>,
         justification_translator: JustificationTranslator,
         client: Arc<Client>,
-        sync_oracle: SO,
     ) -> Self {
         AlephNode {
             import_justification_tx,
             justification_translator,
             client,
-            sync_oracle,
         }
     }
 }
 
-impl<Client, BE, SO> AlephNodeApiServer<BE> for AlephNode<Client, SO>
+impl<Client, BE> AlephNodeApiServer<BE> for AlephNode<Client>
 where
     BE: sc_client_api::Backend<Block> + 'static,
     Client: HeaderBackend<Block> + StorageProvider<Block, BE> + 'static,
-    SO: SyncOracle + Send + Sync + 'static,
 {
     fn emergency_finalize(
         &self,
@@ -243,10 +231,6 @@ where
             block_producers_at_parent[(u64::from(slot) as usize) % block_producers_at_parent.len()]
                 .clone(),
         ))
-    }
-
-    fn ready(&self) -> RpcResult<bool> {
-        Ok(!self.sync_oracle.is_offline() && !self.sync_oracle.is_major_syncing())
     }
 }
 
