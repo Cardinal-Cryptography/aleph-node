@@ -37,7 +37,7 @@ jobs:
     if: github.event.label.name == 'trigger:create-featurenet'
     needs: [get-featurenet-name]
     name: Create featurenet
-    uses: ./.github/workflows/create-featurenet.yml
+    uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3223-add-featurenet-compatibility
     with:
       featurenet-name: ${{ needs.get-featurenet-name.outputs.name }}
     secrets: inherit
