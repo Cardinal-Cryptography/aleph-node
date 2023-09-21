@@ -10,7 +10,9 @@ use log::{trace, warn};
 use lru::LruCache;
 use parking_lot::Mutex;
 use sc_service::Arc;
-use substrate_prometheus_endpoint::{register, Gauge, PrometheusError, Registry, U64};
+use substrate_prometheus_endpoint::{
+    register, Histogram, HistogramOpts, PrometheusError, Registry,
+};
 
 use crate::aleph_primitives::BlockHash;
 
@@ -26,8 +28,8 @@ const LOG_TARGET: &str = "aleph-metrics";
 #[derive(Clone)]
 pub enum BlockMetrics {
     Prometheus {
-        time_since_prev_checkpoint: HashMap<Checkpoint, Gauge<U64>>,
-        imported_to_finalized: Gauge<U64>,
+        time_since_prev_checkpoint: HashMap<Checkpoint, Histogram>,
+        imported_to_finalized: Histogram,
         starts: Arc<Mutex<HashMap<Checkpoint, LruCache<BlockHash, Instant>>>>,
     },
     Noop,
@@ -44,17 +46,20 @@ impl BlockMetrics {
         };
 
         let mut time_since_prev_checkpoint = HashMap::new();
-        for key in keys.iter() {
+        for key in keys[1..].iter() {
             time_since_prev_checkpoint.insert(
                 *key,
-                register(Gauge::new(format!("aleph_{key:?}"), "no help")?, registry)?,
+                register(
+                    Histogram::with_opts(HistogramOpts::new(format!("aleph_{key:?}"), "no help"))?,
+                    registry,
+                )?,
             );
         }
 
         Ok(Self::Prometheus {
             time_since_prev_checkpoint,
             imported_to_finalized: register(
-                Gauge::new("aleph_Imported_to_Finalized", "no help")?,
+                Histogram::with_opts(HistogramOpts::new("aleph_Imported_to_Finalized", "no help"))?,
                 registry,
             )?,
             starts: Arc::new(Mutex::new(
@@ -80,13 +85,9 @@ impl BlockMetrics {
         post_hash: BlockHash,
         checkpoint: Checkpoint,
     ) {
-        let (_, _, starts) = match self {
+        let starts = match self {
             BlockMetrics::Noop => return,
-            BlockMetrics::Prometheus {
-                time_since_prev_checkpoint,
-                imported_to_finalized,
-                starts,
-            } => (time_since_prev_checkpoint, imported_to_finalized, starts),
+            BlockMetrics::Prometheus { starts, .. } => starts,
         };
         let starts = &mut starts.lock();
         let checkpoint_map = starts
@@ -111,19 +112,18 @@ impl BlockMetrics {
         checkpoint_time: Instant,
         checkpoint_type: Checkpoint,
     ) {
-        let (_, _, starts) = match self {
+        let starts = match self {
             BlockMetrics::Noop => return,
-            BlockMetrics::Prometheus {
-                time_since_prev_checkpoint,
-                imported_to_finalized,
-                starts,
-            } => (time_since_prev_checkpoint, imported_to_finalized, starts),
+            BlockMetrics::Prometheus { starts, .. } => starts,
         };
-        let starts = &mut *starts.lock();
-        starts
+        if !starts
+            .lock()
             .get_mut(&checkpoint_type)
             .expect("All checkpoint types were initialized")
-            .get_or_insert(hash, || checkpoint_time);
+            .contains(&hash)
+        {
+            self.report_block(hash, checkpoint_time, checkpoint_type);
+        }
     }
 
     pub fn report_block(
@@ -173,7 +173,7 @@ impl BlockMetrics {
                 time_since_prev_checkpoint
                     .get(&checkpoint_type)
                     .expect("All checkpoint types were initialized")
-                    .set(duration.as_millis() as u64);
+                    .observe(duration.as_millis() as f64);
             }
         }
         if checkpoint_type == Checkpoint::Finalized {
@@ -193,7 +193,7 @@ impl BlockMetrics {
                         );
                         Duration::new(0, 0)
                     });
-                imported_to_finalized.set(duration.as_millis() as u64);
+                imported_to_finalized.observe(duration.as_millis() as f64);
             }
         }
     }
