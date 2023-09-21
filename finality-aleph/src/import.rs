@@ -11,7 +11,7 @@ use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustificat
 use crate::{
     aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
     justification::{backwards_compatible_decode, DecodeError},
-    metrics::{BlockMetrics, Checkpoint},
+    metrics::{Checkpoint, TimingBlockMetrics},
     sync::substrate::{Justification, JustificationTranslator, TranslateError},
     BlockId,
 };
@@ -24,14 +24,14 @@ where
     I: BlockImport<Block> + Send + Sync,
 {
     inner: I,
-    metrics: BlockMetrics,
+    metrics: TimingBlockMetrics,
 }
 
 impl<I> TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
 {
-    pub fn new(inner: I, metrics: BlockMetrics) -> Self {
+    pub fn new(inner: I, metrics: TimingBlockMetrics) -> Self {
         TracingBlockImport { inner, metrics }
     }
 }

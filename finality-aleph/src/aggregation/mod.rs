@@ -14,7 +14,7 @@ use crate::{
         data::{Network, SendError},
         Data,
     },
-    BlockMetrics, Keychain,
+    Keychain, TimingBlockMetrics,
 };
 
 pub type LegacyRmcNetworkData =
@@ -31,7 +31,7 @@ pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
     NetworkWrapper<LegacyRmcNetworkData, N>,
     SignatureSet<Signature>,
     LegacyRmc<'a>,
-    BlockMetrics,
+    TimingBlockMetrics,
 >;
 
 pub type CurrentSignableBlockHash = current_aleph_aggregator::SignableHash<BlockHash>;
@@ -69,7 +69,11 @@ where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    pub fn new_legacy(multikeychain: &'a Keychain, rmc_network: LN, metrics: BlockMetrics) -> Self {
+    pub fn new_legacy(
+        multikeychain: &'a Keychain,
+        rmc_network: LN,
+        metrics: TimingBlockMetrics,
+    ) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = legacy_aleph_bft_rmc::DoublingDelayScheduler::new(
@@ -154,7 +158,7 @@ impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
     }
 }
 
-impl legacy_aleph_aggregator::Metrics<BlockHash> for BlockMetrics {
+impl legacy_aleph_aggregator::Metrics<BlockHash> for TimingBlockMetrics {
     fn report_aggregation_complete(&mut self, _: BlockHash) {}
 }
 

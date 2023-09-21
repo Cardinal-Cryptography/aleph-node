@@ -7,7 +7,7 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 use crate::{
     aleph_primitives::{Block, Header},
     sync::{Block as BlockT, BlockImport, Header as HeaderT},
-    BlockId, BlockMetrics,
+    BlockId, TimingBlockMetrics,
 };
 
 mod chain_status;
@@ -28,11 +28,11 @@ use crate::metrics::Checkpoint;
 /// Wrapper around the trait object that we get from Substrate.
 pub struct BlockImporter {
     importer: Box<dyn ImportQueueService<Block>>,
-    metrics: BlockMetrics,
+    metrics: TimingBlockMetrics,
 }
 
 impl BlockImporter {
-    pub fn new(importer: Box<dyn ImportQueueService<Block>>, metrics: BlockMetrics) -> Self {
+    pub fn new(importer: Box<dyn ImportQueueService<Block>>, metrics: TimingBlockMetrics) -> Self {
         Self { importer, metrics }
     }
 }

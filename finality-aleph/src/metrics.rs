@@ -28,7 +28,7 @@ const HISTOGRAM_BUCKETS: [f64; 11] = [
 ];
 
 #[derive(Clone)]
-pub enum BlockMetrics {
+pub enum TimingBlockMetrics {
     Prometheus {
         time_since_prev_checkpoint: HashMap<Checkpoint, Histogram>,
         imported_to_finalized: Histogram,
@@ -37,7 +37,7 @@ pub enum BlockMetrics {
     Noop,
 }
 
-impl BlockMetrics {
+impl TimingBlockMetrics {
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [Importing, Imported, Ordering, Ordered, Finalized];
@@ -101,8 +101,8 @@ impl BlockMetrics {
         checkpoint: Checkpoint,
     ) {
         let starts = match self {
-            BlockMetrics::Noop => return,
-            BlockMetrics::Prometheus { starts, .. } => starts,
+            TimingBlockMetrics::Noop => return,
+            TimingBlockMetrics::Prometheus { starts, .. } => starts,
         };
         let starts = &mut starts.lock();
         let checkpoint_map = starts
@@ -121,8 +121,8 @@ impl BlockMetrics {
         checkpoint_type: Checkpoint,
     ) {
         let starts = match self {
-            BlockMetrics::Noop => return,
-            BlockMetrics::Prometheus { starts, .. } => starts,
+            TimingBlockMetrics::Noop => return,
+            TimingBlockMetrics::Prometheus { starts, .. } => starts,
         };
         if !starts
             .lock()
@@ -148,8 +148,8 @@ impl BlockMetrics {
             checkpoint_time
         );
         let (time_since_prev_checkpoint, imported_to_finalized, starts) = match self {
-            BlockMetrics::Noop => return,
-            BlockMetrics::Prometheus {
+            TimingBlockMetrics::Noop => return,
+            TimingBlockMetrics::Prometheus {
                 time_since_prev_checkpoint,
                 imported_to_finalized,
                 starts,
@@ -254,18 +254,18 @@ mod tests {
 
     use super::*;
 
-    fn register_prometheus_metrics_with_dummy_registry() -> BlockMetrics {
-        BlockMetrics::new(Some(&Registry::new())).unwrap()
+    fn register_prometheus_metrics_with_dummy_registry() -> TimingBlockMetrics {
+        TimingBlockMetrics::new(Some(&Registry::new())).unwrap()
     }
 
-    fn starts_for(m: &BlockMetrics, c: Checkpoint) -> usize {
+    fn starts_for(m: &TimingBlockMetrics, c: Checkpoint) -> usize {
         match &m {
-            BlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
+            TimingBlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
             _ => 0,
         }
     }
 
-    fn check_reporting_with_memory_excess(metrics: &BlockMetrics, checkpoint: Checkpoint) {
+    fn check_reporting_with_memory_excess(metrics: &TimingBlockMetrics, checkpoint: Checkpoint) {
         for i in 1..(MAX_BLOCKS_PER_CHECKPOINT + 10) {
             metrics.report_block(BlockHash::random(), Instant::now(), checkpoint);
             assert_eq!(
@@ -277,9 +277,9 @@ mod tests {
 
     #[test]
     fn noop_metrics() {
-        let m = BlockMetrics::noop();
+        let m = TimingBlockMetrics::noop();
         m.report_block(BlockHash::random(), Instant::now(), Ordered);
-        assert!(matches!(m, BlockMetrics::Noop));
+        assert!(matches!(m, TimingBlockMetrics::Noop));
     }
 
     #[test]
@@ -323,7 +323,7 @@ mod tests {
         metrics.convert_header_hash_to_post_hash(hash[0], hash[2], Ordering);
 
         let entries = match &metrics {
-            BlockMetrics::Prometheus { starts, .. } => starts
+            TimingBlockMetrics::Prometheus { starts, .. } => starts
                 .lock()
                 .get(&Ordering)
                 .unwrap()
@@ -346,7 +346,7 @@ mod tests {
         metrics.report_block_if_not_present(hash, later_timestamp, Ordered);
 
         let timestamp = match &metrics {
-            BlockMetrics::Prometheus { starts, .. } => starts
+            TimingBlockMetrics::Prometheus { starts, .. } => starts
                 .lock()
                 .get_mut(&Ordering)
                 .unwrap()
