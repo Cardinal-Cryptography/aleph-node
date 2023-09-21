@@ -167,7 +167,7 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3223-add-featurenet-compatibility
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
