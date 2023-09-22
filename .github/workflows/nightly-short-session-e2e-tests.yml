@@ -137,14 +137,7 @@ jobs:
           featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-
-      - name: Wait for the aleph-node binary to accept some blocks
-        uses: Cardinal-Cryptography/github-actions/wait-for-finalized-heads@v1
-        with:
-          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://${{ steps.create-featurenet.outputs.ws-hostname }}
+          wait-for-finalized-heads: "true"
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
