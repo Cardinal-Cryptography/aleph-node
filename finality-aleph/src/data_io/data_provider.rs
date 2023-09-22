@@ -314,7 +314,7 @@ impl DataProvider {
             self.metrics.report_block(
                 *data.head_proposal.branch.last().unwrap(),
                 std::time::Instant::now(),
-                Checkpoint::Ordering,
+                Checkpoint::Proposed,
             );
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };

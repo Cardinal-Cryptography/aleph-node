@@ -40,7 +40,7 @@ pub enum TimingBlockMetrics {
 impl TimingBlockMetrics {
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
-        let keys = [Importing, Imported, Ordering, Ordered, Finalized];
+        let keys = [Importing, Imported, Proposed, Ordered, Finalized];
 
         let registry = match registry {
             None => return Ok(Self::Noop),
@@ -181,7 +181,7 @@ impl TimingBlockMetrics {
                 time_since_prev_checkpoint
                     .get(&checkpoint_type)
                     .expect("All checkpoint types were initialized")
-                    .observe(duration.as_secs_f64() / 1000.);
+                    .observe(duration.as_secs_f64() * 1000.);
             }
         }
         if checkpoint_type == Checkpoint::Finalized {
@@ -201,7 +201,7 @@ impl TimingBlockMetrics {
                         );
                         Duration::new(0, 0)
                     });
-                imported_to_finalized.observe(duration.as_secs_f64() / 1000.);
+                imported_to_finalized.observe(duration.as_secs_f64() * 1000.);
             }
         }
     }
@@ -228,7 +228,7 @@ impl TimingBlockMetrics {
 pub enum Checkpoint {
     Importing,
     Imported,
-    Ordering,
+    Proposed,
     Ordered,
     Finalized,
 }
@@ -239,8 +239,8 @@ impl Checkpoint {
         match self {
             Importing => None,
             Imported => Some(Importing),
-            Ordering => Some(Imported),
-            Ordered => Some(Ordering),
+            Proposed => Some(Imported),
+            Ordered => Some(Proposed),
             Finalized => Some(Ordered),
         }
     }
@@ -301,7 +301,7 @@ mod tests {
         let earlier_timestamp = Instant::now();
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let hash = BlockHash::random();
-        metrics.report_block(hash, later_timestamp, Ordering);
+        metrics.report_block(hash, later_timestamp, Proposed);
         metrics.report_block(hash, earlier_timestamp, Ordered);
     }
 
@@ -317,15 +317,15 @@ mod tests {
             BlockHash::random(),
         ];
 
-        metrics.report_block(hash[0], timestamp1, Ordering);
-        metrics.report_block(hash[1], timestamp2, Ordering);
+        metrics.report_block(hash[0], timestamp1, Proposed);
+        metrics.report_block(hash[1], timestamp2, Proposed);
 
-        metrics.convert_header_hash_to_post_hash(hash[0], hash[2], Ordering);
+        metrics.convert_header_hash_to_post_hash(hash[0], hash[2], Proposed);
 
         let entries = match &metrics {
             TimingBlockMetrics::Prometheus { starts, .. } => starts
                 .lock()
-                .get(&Ordering)
+                .get(&Proposed)
                 .unwrap()
                 .iter()
                 .map(|(k, v)| (*k, *v))
@@ -342,13 +342,13 @@ mod tests {
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let hash = BlockHash::random();
 
-        metrics.report_block(hash, earlier_timestamp, Ordering);
+        metrics.report_block(hash, earlier_timestamp, Proposed);
         metrics.report_block_if_not_present(hash, later_timestamp, Ordered);
 
         let timestamp = match &metrics {
             TimingBlockMetrics::Prometheus { starts, .. } => starts
                 .lock()
-                .get_mut(&Ordering)
+                .get_mut(&Proposed)
                 .unwrap()
                 .get(&hash)
                 .cloned(),
