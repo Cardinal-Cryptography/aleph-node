@@ -54,7 +54,7 @@ impl TimingBlockMetrics {
                 register(
                     Histogram::with_opts(
                         HistogramOpts::new(
-                            format!("aleph_{:?}", key.to_string().make_ascii_lowercase()),
+                            format!("aleph_{}", key.to_string().to_ascii_lowercase()),
                             "no help",
                         )
                         .buckets(HISTOGRAM_BUCKETS.to_vec()),
