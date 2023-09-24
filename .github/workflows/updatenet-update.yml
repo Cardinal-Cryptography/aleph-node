@@ -33,21 +33,27 @@ on:
       name:
         description: Name of deployment (updatenet)
         required: true
+        type: string
       destination:
         description: Node image tag, ie 7-byte SHA of some existing ECR aleph-node image tag
         required: true
+        type: string
       rolling-update-partition:
         description: |
           Number from 0 to N-1, where N is size of am existing feature net.
           All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
           will be updated. If not specified, all nodes will be updated.
-        required: true
+        required: false
+        default: '0'
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
         required: true
+        default: '5'
       internal:
         description: 'Internal network, accessible from VPN only'
-        required: true
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
