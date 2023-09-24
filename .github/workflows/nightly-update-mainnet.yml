@@ -1,0 +1,72 @@
+---
+name: Nightly pipeline update mainnet
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '00 3 * * *'
+
+concurrency:
+  group: "${{ github.ref }}-${{ github.workflow }}"
+  cancel-in-progress: true
+
+jobs:
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  get-updatenet-details:
+    needs: [check-vars-and-secrets]
+    name: Create updatenet
+    runs-on: [self-hosted, Linux, X64, small]
+    outputs:
+      updatenet-name: ${{ steps.get-updatenet-name.outputs.updatenet-name }}
+      sha: ${{ steps.get-ref-properties.outputs.sha }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+
+      - name: Get updatenet name
+        id: get-updatenet-name
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          name_local=n-mainnet-${{ steps.get-ref-properties.outputs.sha }}
+          echo "updatenet-name=$name_local)" >> $GITHUB_OUTPUT
+        # yamllint enable rule:line-length
+
+  create-updatenet:
+    needs: [get-updatenet-details]
+    name: Create updatenet
+    uses: ./.github/workflows/updatenet-create.yml
+    secrets: inherit
+    with:
+      start: mainnet
+      expiration: 24h
+      replicas: 5
+      internal: true
+      name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
+
+  update-updatenet:
+    needs: [create-updatenet]
+    name: Update updatenet to last commit
+    uses: ./.github/workflows/updatenet-update.yml
+    secrets: inherit
+    with: 
+      name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
+      destination: ${{ needs.get-updatenet-details.outputs.sha }}
+      rolling-update-partition: "0"
+      replicasd: 5
+      internal: true
+
+  delete-updatenet:
+    needs: [update-updatenet]
+    name: Delete updatenet
+    uses: ./.github/workflows/updatenet-delete.yml
+    secrets: inherit
+    with:
+      name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
