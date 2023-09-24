@@ -55,7 +55,7 @@ jobs:
       name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
 
   update-updatenet:
-    needs: [create-updatenet]
+    needs: [get-updatenet-details,create-updatenet]
     name: Update updatenet to last commit
     uses: ./.github/workflows/updatenet-update.yml
     secrets: inherit
@@ -67,7 +67,7 @@ jobs:
       internal: true
 
   delete-updatenet:
-    needs: [update-updatenet]
+    needs: [get-updatenet-details,update-updatenet]
     name: Delete updatenet
     uses: ./.github/workflows/updatenet-delete.yml
     secrets: inherit
