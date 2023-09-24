@@ -1,9 +1,12 @@
 ---
 name: Nightly pipeline update testnet
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '00 2 * * *'
+  #workflow_dispatch:
+  #schedule:
+  #  - cron: '00 2 * * *'
+  push:
+    branches:
+      - A0-3225-add-nightly-update-tests
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"

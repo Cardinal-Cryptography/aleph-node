@@ -1,9 +1,12 @@
 ---
 name: Nightly pipeline update mainnet
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '00 3 * * *'
+  #workflow_dispatch:
+  #schedule:
+  #  - cron: '00 3 * * *'
+  push:
+    branches:
+      - A0-3225-add-nightly-update-tests
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
