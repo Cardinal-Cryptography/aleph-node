@@ -39,7 +39,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           name_local=n-testnet-${{ steps.get-ref-properties.outputs.sha }}
-          echo "updatenet-name=$name_local)" >> $GITHUB_OUTPUT
+          echo "updatenet-name=$name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
   create-updatenet:
