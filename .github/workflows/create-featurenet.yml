@@ -49,25 +49,25 @@ jobs:
           fi
         # yamllint enable rule:line-length
 
-  get-final-names:
-    name: Get final names
+  get-featurenet-name:
+    name: Get featurenet name
     runs-on: ubuntu-20.04
     needs: [validate-inputs]
     outputs:
-      final-featurenet-name: ${{ steps.get-final-names.outputs.final-featurenet-name }}
+      featurenet-name: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
     steps:
       - name: Get final names
-        id: get-final-names
+        id: get-featurenet-name
         shell: bash
         # yamllint disable rule:line-length
         run: |
-          final_featurenet_name_local=${{ inputs.featurenet-name }}
-          echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
+          name_local=${{ inputs.featurenet-name }}
+          echo "featurenet-name=$name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
   check-vars-and-secrets:
     name: Check vars and secrets
-    needs: [get-final-names]
+    needs: [get-featurenet-name]
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
@@ -100,7 +100,7 @@ jobs:
     secrets: inherit
 
   create-featurenet:
-    needs: [push-featurnet-node-image-to-ecr, get-final-names]
+    needs: [push-featurnet-node-image-to-ecr, get-featurenet-name]
     name: Create featurenet based on the PR
     runs-on: [self-hosted, Linux, X64, small]
     outputs:
@@ -122,7 +122,7 @@ jobs:
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ needs.get-final-names.outputs.final-featurenet-name }}
+          featurenet-name: ${{ needs.get-featurenet-name.outputs.featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
@@ -132,7 +132,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
+          env: ${{ needs.get-featurenet-name.outputs.featurenet-name }}
           ref: ${{ github.head_ref }}
           override: true
 
@@ -148,7 +148,7 @@ jobs:
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           expiration: ${{ inputs.expiration == '' && '48h' || inputs.expiration }}
-          featurenet-name: ${{ needs.get-final-names.outputs.final-featurenet-name }}
+          featurenet-name: ${{ needs.get-featurenet-name.outputs.featurenet-name }}
           internal: "${{ inputs.internal }}"
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
@@ -168,7 +168,7 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ needs.get-final-names.outputs.final-featurenet-name }}
+          env: ${{ needs.get-featurenet-name.outputs.featurenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
           env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-featurenet.outputs.ws-hostname }}#/explorer

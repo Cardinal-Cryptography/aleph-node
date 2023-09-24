@@ -8,6 +8,12 @@ on:
         description: Name of updatenet
         required: true
         type: string
+  workflow_call:
+    inputs:
+      name:
+        description: Name of updatenet
+        required: true
+        type: string
 
 jobs:
   check-vars-and-secrets:
@@ -21,7 +27,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, small]
     steps:
       - name: Get updatenet name
-        id: get-updatenet-name
+        id: get-featurenet-name
         shell: bash
         # yamllint disable rule:line-length
         run: |
@@ -33,14 +39,14 @@ jobs:
             echo "!!! Invalid name"
             exit 1
           fi
-          final_updatenet_name_local=updnet-${{ inputs.name }}
-          echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
+          name_local=updnet-${{ inputs.name }}
+          echo "featurenet-name=$name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Delete featurenet app and data
+      - name: Delete updatenet app and data
         uses: Cardinal-Cryptography/github-actions/delete-featurenet@v2
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
@@ -52,7 +58,7 @@ jobs:
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
@@ -61,7 +67,7 @@ jobs:
         with:
           step: deactivate-env
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          env: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           desc: Environment was deleted
           debug: true
 
@@ -69,4 +75,4 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.CI_GH_TOKEN }}
-          environment: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          environment: ${{ steps.get-featurenet-name.outputs.featurenet-name }}

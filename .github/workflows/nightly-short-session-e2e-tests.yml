@@ -111,15 +111,13 @@ jobs:
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
 
-      - name: Get fe name
-        id: get-final-featurenet-name
+      - name: Get featurenet name
+        id: get-featurenet-name
         shell: bash
-        env:
         # yamllint disable rule:line-length
-          APP_NAME: ${{ format('{0}-{1}', github.run_id, matrix.testcase) }}
         run: |
-          final_featurename_local=${{ env.APP_NAME }}
-          echo "final-featurenet-name=$(printf $final_featurename_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
+          name_local=${{ format('n-{0}-{1}', github.run_id, matrix.testcase) }}
+          echo "featurenet-name=$(printf $name_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
@@ -134,7 +132,7 @@ jobs:
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           expiration: '3h'
-          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           wait-for-finalized-heads: "true"
@@ -172,7 +170,7 @@ jobs:
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 

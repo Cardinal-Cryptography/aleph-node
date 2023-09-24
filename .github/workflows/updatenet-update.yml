@@ -28,6 +28,32 @@ on:
         required: false
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      name:
+        description: Name of deployment (updatenet)
+        required: true
+        type: string
+      destination:
+        description: Node image tag, ie 7-byte SHA of some existing ECR aleph-node image tag
+        required: true
+        type: string
+      rolling-update-partition:
+        description: |
+          Number from 0 to N-1, where N is size of am existing feature net.
+          All aleph-node-validator-N with an ordinal N that is great than or equal to the partition
+          will be updated. If not specified, all nodes will be updated.
+        required: false
+        default: "0"
+      replicas:
+        description: 'Number of replicas to start, from 0 to 50'
+        required: true
+        default: '5'
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
@@ -65,7 +91,7 @@ jobs:
           fi
 
       - name: Get updatenet name
-        id: get-updatenet-name
+        id: get-featurenet-name
         shell: bash
         # yamllint disable rule:line-length
         run: |
@@ -77,25 +103,25 @@ jobs:
             echo "!!! Invalid name"
             exit 1
           fi
-          final_updatenet_name_local=updnet-${{ inputs.name }}
-          echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
+          name_local=updnet-${{ inputs.name }}
+          echo "featurenet-name=$name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Start featurenet Deployment
+      - name: Start updatenet Deployment
         uses: bobheadxi/deployments@v1.1.0
         id: deployment
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          env: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           override: true
 
-      - name: Update featurenet data, app and deploy it
+      - name: Update updatenet data, app and deploy it
         uses: Cardinal-Cryptography/github-actions/create-featurenet@v2
-        id: create-updatenet
+        id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -104,7 +130,7 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           featurenet-aleph-node-image: ${{ inputs.destination }}
           rolling-update-partition: ${{ inputs.rolling-update-partition }}
           replicas: ${{ inputs.replicas }}
@@ -114,14 +140,14 @@ jobs:
           hard-refresh: 'true'
           wait-for-finalized-heads: "true"
 
-      - name: Finish featurenet Deployment
+      - name: Finish updatenet Deployment
         uses: bobheadxi/deployments@v1
         if: always()
         with:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          env: ${{ steps.get-featurenet-name.outputs.featurenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-updatenet.outputs.ws-hostname }}#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-featurenet.outputs.ws-hostname }}#/explorer
