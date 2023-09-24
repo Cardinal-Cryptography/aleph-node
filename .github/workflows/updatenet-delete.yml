@@ -13,7 +13,6 @@ on:
       name:
         description: Name of updatenet
         required: true
-        type: string
 
 jobs:
   check-vars-and-secrets:
