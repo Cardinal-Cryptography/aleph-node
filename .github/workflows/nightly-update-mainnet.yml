@@ -50,7 +50,7 @@ jobs:
     with:
       start: mainnet
       expiration: 24h
-      replicas: 5
+      replicas: '5'
       internal: true
       name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
 
@@ -63,7 +63,7 @@ jobs:
       name: ${{ needs.get-updatenet-details.outputs.updatenet-name }}
       destination: ${{ needs.get-updatenet-details.outputs.sha }}
       rolling-update-partition: "0"
-      replicasd: 5
+      replicas: '5'
       internal: true
 
   delete-updatenet:
