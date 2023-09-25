@@ -38,14 +38,13 @@ impl TimingBlockMetrics {
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [Importing, Imported, Proposed, Ordered, Finalized];
-        let target_time_since_prev_checkpoint: HashMap<_, f64> = [
+        let target_time_since_prev_checkpoint = HashMap::from([
             (Imported, 100.0),
             (Proposed, 1000.0),
             (Ordered, 1000.0),
             (Finalized, 150.0),
-        ]
-        .into_iter()
-        .collect();
+        ]);
+
         const BUCKETS_FACTOR: f64 = 1.5;
 
         let registry = match registry {
