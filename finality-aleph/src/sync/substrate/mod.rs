@@ -32,8 +32,14 @@ pub struct BlockImporter {
 }
 
 impl BlockImporter {
-    pub fn new(importer: Box<dyn ImportQueueService<Block>>, metrics: TimingBlockMetrics) -> Self {
-        Self { importer, metrics }
+    pub fn new(importer: Box<dyn ImportQueueService<Block>>) -> Self {
+        Self {
+            importer,
+            metrics: TimingBlockMetrics::Noop,
+        }
+    }
+    pub fn attach_metrics(&mut self, metrics: TimingBlockMetrics) {
+        self.metrics = metrics;
     }
 }
 

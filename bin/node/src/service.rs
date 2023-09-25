@@ -326,7 +326,7 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let import_queue_handle = BlockImporter::new(import_queue.service(), metrics.clone());
+    let import_queue_handle = BlockImporter::new(import_queue.service());
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
