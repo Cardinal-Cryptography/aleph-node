@@ -65,7 +65,7 @@ impl TimingBlockMetrics {
                 register(
                     Histogram::with_opts(
                         HistogramOpts::new(
-                            format!("aleph_{}", key.to_string().to_ascii_lowercase()),
+                            format!("aleph_timing_{}", key.to_string().to_ascii_lowercase()),
                             "no help",
                         )
                         .buckets(exponential_buckets_two_sided(
@@ -84,7 +84,7 @@ impl TimingBlockMetrics {
             time_since_prev_checkpoint,
             imported_to_finalized: register(
                 Histogram::with_opts(
-                    HistogramOpts::new("aleph_imported_to_finalized", "no help")
+                    HistogramOpts::new("aleph_timing_imported_to_finalized", "no help")
                         .buckets(exponential_buckets_two_sided(2000.0, BUCKETS_FACTOR, 4, 6)?),
                 )?,
                 registry,
