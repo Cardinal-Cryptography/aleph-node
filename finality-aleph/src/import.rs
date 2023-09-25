@@ -55,13 +55,6 @@ where
         block: BlockImportParams<Block, Self::Transaction>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
-
-        self.metrics.convert_header_hash_to_post_hash(
-            block.header.hash(),
-            post_hash,
-            Checkpoint::Importing,
-        );
-
         // Self-created blocks are imported without using the import queue,
         // so we need to report them here.
         self.metrics

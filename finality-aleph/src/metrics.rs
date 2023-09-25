@@ -90,30 +90,6 @@ impl TimingBlockMetrics {
         Self::Noop
     }
 
-    /// Updates metrics for `checkpoint` so that all blocks referenced previously with `header_hash`
-    /// are now referenced with `post_hash`. This is useful when a block is first reported
-    /// with header hash not including post-digests, and later it is reported with header hash
-    /// including post digests.
-    pub fn convert_header_hash_to_post_hash(
-        &self,
-        header_hash: BlockHash,
-        post_hash: BlockHash,
-        checkpoint: Checkpoint,
-    ) {
-        let starts = match self {
-            TimingBlockMetrics::Noop => return,
-            TimingBlockMetrics::Prometheus { starts, .. } => starts,
-        };
-        let starts = &mut starts.lock();
-        let checkpoint_map = starts
-            .get_mut(&checkpoint)
-            .expect("All checkpoint types were initialized");
-
-        if let Some((_, time)) = checkpoint_map.pop_entry(&header_hash) {
-            checkpoint_map.push(post_hash, time);
-        }
-    }
-
     pub fn report_block_if_not_present(
         &self,
         hash: BlockHash,

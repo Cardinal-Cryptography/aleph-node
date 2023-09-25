@@ -54,7 +54,7 @@ impl BlockImport<Block> for BlockImporter {
             state: None,
         };
         self.metrics
-            .report_block(hash, Instant::now(), Checkpoint::Importing);
+            .report_block_if_not_present(hash, Instant::now(), Checkpoint::Importing);
         self.importer.import_blocks(origin, vec![incoming_block]);
     }
 }
