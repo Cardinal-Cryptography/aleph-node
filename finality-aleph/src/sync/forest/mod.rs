@@ -757,7 +757,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_second_unimportant_header() {
+    fn accepts_unimportant_descendant_of_unimportant_header() {
         let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
@@ -817,7 +817,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_second_important_header() {
+    fn accepts_important_descendant_of_important_header() {
         let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
@@ -892,7 +892,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_second_justification() {
+    fn accepts_descendand_justification() {
         let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
