@@ -9,8 +9,10 @@ use crate::{
     },
 };
 
-/// Forces a single node to lag behind the rest of the network by disconnecting it with very other peer and then after some time
-/// makes it crucial for achieving consensus, i.e. include it in a group of size that is minimal for consensus.
+/// Forces a single node to lag behind the rest of the network by disconnecting it with very other
+/// peer and then after some time makes it critical for achieving consensus, i.e. it creates a group
+/// of connected peers (disconnected with any other peer outside of that group) that includes it and
+/// is of minimal size that allows to achieve consensus.
 #[tokio::test]
 pub async fn one_node_catching_up_and_then_becoming_necessary_for_consensus() -> anyhow::Result<()>
 {
@@ -58,8 +60,8 @@ pub async fn one_node_catching_up_and_then_becoming_necessary_for_consensus() ->
     .await
 }
 
-/// Forces a single node to lag behind the rest of the network. After some time it reconnects all nodes and then
-/// checks if all nodes are able to finalize their blocks.
+/// Forces a single node to lag behind the rest of the network. After some time it reconnects all
+/// nodes and then checks if all nodes are able to finalize their blocks.
 #[tokio::test]
 pub async fn one_node_catching_up() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_DISCONNECT: u32 = 128;
@@ -95,9 +97,9 @@ pub async fn one_node_catching_up() -> anyhow::Result<()> {
     .await
 }
 
-/// Divides nodes into two groups where only one consists of a quorum. After some time it modifies nodes connectivity so the
-/// nodes that previously were not included in a quorum are now part of it. Then it checks if nodes are able to further finalize
-/// their blocks.
+/// Divides nodes into two groups where only one consists of a quorum. After some time it modifies
+/// nodes connectivity so the nodes that previously were not included in a quorum are now part of
+/// it. Then it checks if nodes are able to further finalize their blocks.
 #[tokio::test]
 pub async fn into_two_groups_and_one_quorum_and_switch_quorum_between_them() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -143,8 +145,9 @@ pub async fn into_two_groups_and_one_quorum_and_switch_quorum_between_them() -> 
     .await
 }
 
-/// It divides nodes into disjoint sets of two nodes each, awaits for all sets to create several new blocks (which shouldn't be
-/// finalized), reconnects them and checks if nodes are still able to finalize new blocks.
+/// It divides nodes into disjoint groups consisting of two nodes each, then awaits for all sets to
+/// create several new blocks (which shouldn't be finalized), reconnects them and checks if nodes
+/// are still able to finalize new blocks.
 #[tokio::test]
 pub async fn into_multiple_groups_of_two() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -185,9 +188,10 @@ pub async fn into_multiple_groups_of_two() -> anyhow::Result<()> {
     .await
 }
 
-/// Tests if nodes are able to proceed after we divide them into two ~equal size disjoint sets. More precisely, it divides nodes
-/// into two halves, awaits for both sets to create several new blocks (which shouldn't be finalized), reconnects them and checks
-/// if nodes are still able to finalize new blocks.
+/// Tests if nodes are able to proceed after we divide them into two ~equal size disjoint sets. More
+/// precisely, it divides nodes into two halves, awaits for both sets to create several new blocks
+/// (which shouldn't be finalized), reconnects them and checks if nodes are still able to finalize
+/// new blocks.
 #[tokio::test]
 pub async fn into_two_equal_size_groups_with_no_quorum() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -216,9 +220,10 @@ pub async fn into_two_equal_size_groups_with_no_quorum() -> anyhow::Result<()> {
     .await
 }
 
-/// Tests if nodes are able to proceed after we divide them into two disjoint sets, where one of them consists of a quorum. More
-/// precisely, it divides nodes into two sets (one of them contains a quorum), awaits for nodes in both sets to create several
-/// new blocks (these shouldn't be finalized), reconnects all nodes and checks if nodes are still able to finalize new blocks.
+/// Tests if nodes are able to proceed after we divide them into two disjoint sets, where one of
+/// them consists of a quorum. More precisely, it divides nodes into two disjoint sets (one of them
+/// contains a quorum), awaits for nodes in both sets to create several new blocks (these shouldn't
+/// be finalized), reconnects all nodes and checks if nodes are still able to finalize new blocks.
 #[tokio::test]
 pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -255,30 +260,30 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 }
 
 async fn perform_test(
-    all_nodes: impl IntoIterator<Item = &NodeConfig>,
-    nodes_to_query: impl IntoIterator<Item = &NodeConfig> + Clone,
-    nodes_to_check_finalization_after_reconfigure: impl IntoIterator<Item = &NodeConfig> + Clone,
+    all_nodes_to_check: impl IntoIterator<Item = &NodeConfig>,
+    nodes_to_check_after_disconnect: impl IntoIterator<Item = &NodeConfig> + Clone,
+    nodes_to_check_after_reconfigure: impl IntoIterator<Item = &NodeConfig> + Clone,
     disconnect_configuration: NodesConnectivityConfiguration,
     reconnect_configuration: NodesConnectivityConfiguration,
     blocks_to_wait_after_disconnect: u32,
     blocks_to_wait_after_reconnect: u32,
 ) -> anyhow::Result<()> {
-    execute_synthetic_network_test(all_nodes, async move {
+    execute_synthetic_network_test(all_nodes_to_check, async move {
 
         // check the finalization first
-        await_finalized_blocks(nodes_to_query.clone(), 0, 2).await?;
+        await_finalized_blocks(nodes_to_check_after_disconnect.clone(), 0, 2).await?;
 
         info!("Configuring network connectivity");
         disconnect_configuration.commit().await?;
 
         let best_seen_block =
-            await_new_blocks(nodes_to_query, blocks_to_wait_after_disconnect).await?;
+            await_new_blocks(nodes_to_check_after_disconnect, blocks_to_wait_after_disconnect).await?;
 
         info!("Re-configuring network connectivity");
         reconnect_configuration.commit().await?;
 
         await_finalized_blocks(
-            nodes_to_check_finalization_after_reconfigure,
+            nodes_to_check_after_reconfigure,
             best_seen_block,
             blocks_to_wait_after_reconnect,
         )
