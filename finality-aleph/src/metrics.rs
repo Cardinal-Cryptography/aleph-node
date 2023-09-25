@@ -11,7 +11,7 @@ use lru::LruCache;
 use parking_lot::Mutex;
 use sc_service::Arc;
 use substrate_prometheus_endpoint::{
-    register, Histogram, HistogramOpts, PrometheusError, Registry,
+    exponential_buckets, prometheus, register, Histogram, HistogramOpts, PrometheusError, Registry,
 };
 
 use crate::{aleph_primitives::BlockHash, Display};
@@ -23,9 +23,6 @@ use crate::{aleph_primitives::BlockHash, Display};
 const MAX_BLOCKS_PER_CHECKPOINT: usize = 5000;
 
 const LOG_TARGET: &str = "aleph-metrics";
-const HISTOGRAM_BUCKETS: [f64; 11] = [
-    1., 5., 25., 100., 150., 250., 500., 1000., 2000., 5000., 10000.,
-];
 
 #[derive(Clone)]
 pub enum TimingBlockMetrics {
@@ -41,6 +38,15 @@ impl TimingBlockMetrics {
     pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [Importing, Imported, Proposed, Ordered, Finalized];
+        let target_time_since_prev_checkpoint: HashMap<_, f64> = [
+            (Imported, 100.0),
+            (Proposed, 1000.0),
+            (Ordered, 1000.0),
+            (Finalized, 150.0),
+        ]
+        .into_iter()
+        .collect();
+        const BUCKETS_FACTOR: f64 = 1.5;
 
         let registry = match registry {
             None => return Ok(Self::Noop),
@@ -48,7 +54,12 @@ impl TimingBlockMetrics {
         };
 
         let mut time_since_prev_checkpoint = HashMap::new();
+
         for key in keys[1..].iter() {
+            let target = target_time_since_prev_checkpoint
+                .get(key)
+                .copied()
+                .expect("Target times initialized");
             time_since_prev_checkpoint.insert(
                 *key,
                 register(
@@ -57,7 +68,12 @@ impl TimingBlockMetrics {
                             format!("aleph_{}", key.to_string().to_ascii_lowercase()),
                             "no help",
                         )
-                        .buckets(HISTOGRAM_BUCKETS.to_vec()),
+                        .buckets(exponential_buckets_two_sided(
+                            target,
+                            BUCKETS_FACTOR,
+                            4,
+                            6,
+                        )?),
                     )?,
                     registry,
                 )?,
@@ -69,7 +85,7 @@ impl TimingBlockMetrics {
             imported_to_finalized: register(
                 Histogram::with_opts(
                     HistogramOpts::new("aleph_imported_to_finalized", "no help")
-                        .buckets(HISTOGRAM_BUCKETS.to_vec()),
+                        .buckets(exponential_buckets_two_sided(2000.0, BUCKETS_FACTOR, 4, 6)?),
                 )?,
                 registry,
             )?,
@@ -220,6 +236,32 @@ impl Checkpoint {
             Finalized => Some(Ordered),
         }
     }
+}
+
+/// Create `count_below` + 1 + `count_above` buckets, where (`count_below` + 1)th bucket
+/// has an upper bound `start`. The buckets are exponentially distributed with a factor `factor`.
+fn exponential_buckets_two_sided(
+    start: f64,
+    factor: f64,
+    count_below: usize,
+    count_above: usize,
+) -> prometheus::Result<Vec<f64>> {
+    let mut strictly_smaller =
+        exponential_buckets(start / factor.powi(count_below as i32), factor, count_below)?;
+    let mut greater_than_or_equal = exponential_buckets(start, factor, 1 + count_above)?;
+    if strictly_smaller.last().is_some()
+        && strictly_smaller.last().unwrap()
+            >= greater_than_or_equal
+                .first()
+                .expect("There is at least one checkpoint")
+    {
+        return Err(prometheus::Error::Msg(
+            "Floating point arithmetic error causing incorrect buckets, try larger factor or smaller count_below"
+                .to_string(),
+        ));
+    }
+    strictly_smaller.append(&mut greater_than_or_equal);
+    Ok(strictly_smaller)
 }
 
 #[cfg(test)]
