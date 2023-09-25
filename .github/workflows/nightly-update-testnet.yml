@@ -28,7 +28,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        ref: main
+        with:
+          ref: main
 
       - name: Call action get-ref-properties
         id: get-ref-properties
