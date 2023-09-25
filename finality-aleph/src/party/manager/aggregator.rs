@@ -195,9 +195,7 @@ where
         async move {
             let aggregator_io = match version {
                 Current(rmc_network) => Aggregator::new_current(&multikeychain, rmc_network),
-                Legacy(rmc_network) => {
-                    Aggregator::new_legacy(&multikeychain, rmc_network, metrics.clone())
-                }
+                Legacy(rmc_network) => Aggregator::new_legacy(&multikeychain, rmc_network),
             };
             debug!(target: "aleph-party", "Running the aggregator task for {:?}", session_id);
             let result = run_aggregator(

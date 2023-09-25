@@ -14,7 +14,7 @@ use crate::{
         data::{Network, SendError},
         Data,
     },
-    Keychain, TimingBlockMetrics,
+    Keychain,
 };
 
 pub type LegacyRmcNetworkData =
@@ -25,13 +25,20 @@ pub type CurrentRmcNetworkData =
 pub type LegacySignableBlockHash = legacy_aleph_aggregator::SignableHash<BlockHash>;
 pub type LegacyRmc<'a> =
     legacy_aleph_bft_rmc::ReliableMulticast<'a, LegacySignableBlockHash, Keychain>;
+
+pub struct NoopMetrics;
+
+impl legacy_aleph_aggregator::Metrics<BlockHash> for NoopMetrics {
+    fn report_aggregation_complete(&mut self, _: BlockHash) {}
+}
+
 pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
     BlockHash,
     LegacyRmcNetworkData,
     NetworkWrapper<LegacyRmcNetworkData, N>,
     SignatureSet<Signature>,
     LegacyRmc<'a>,
-    TimingBlockMetrics,
+    NoopMetrics,
 >;
 
 pub type CurrentSignableBlockHash = current_aleph_aggregator::SignableHash<BlockHash>;
@@ -69,11 +76,7 @@ where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    pub fn new_legacy(
-        multikeychain: &'a Keychain,
-        rmc_network: LN,
-        metrics: TimingBlockMetrics,
-    ) -> Self {
+    pub fn new_legacy(multikeychain: &'a Keychain, rmc_network: LN) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = legacy_aleph_bft_rmc::DoublingDelayScheduler::new(
@@ -87,7 +90,7 @@ where
             scheduler,
         );
         // For the compatibility with the legacy aggregator we need extra `Some` layer
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(Some(metrics));
+        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(None);
         let aggregator_io = LegacyAggregator::<LN>::new(
             messages_for_rmc,
             messages_from_rmc,
@@ -156,10 +159,6 @@ impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
     pub fn new(network: N) -> Self {
         Self(network, PhantomData)
     }
-}
-
-impl legacy_aleph_aggregator::Metrics<BlockHash> for TimingBlockMetrics {
-    fn report_aggregation_complete(&mut self, _: BlockHash) {}
 }
 
 #[async_trait::async_trait]
