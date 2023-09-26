@@ -18,7 +18,7 @@ use crate::{
         Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
         Verifier,
     },
-    BlockIdentifier, BlockNumber,
+    BlockIdentifier, BlockNumber, SyncOracle,
 };
 
 mod request_handler;
@@ -209,6 +209,7 @@ where
     session_info: SessionBoundaryInfo,
     block_importer: BI,
     missed_import_data: MissedImportData,
+    sync_oracle: SyncOracle,
     phantom: PhantomData<B>,
 }
 
@@ -373,6 +374,7 @@ where
     pub fn new(
         database_io: DatabaseIO<B, J, CS, F, BI>,
         verifier: V,
+        sync_oracle: SyncOracle,
         session_info: SessionBoundaryInfo,
     ) -> Result<Self, <Self as HandlerTypes>::Error> {
         let DatabaseIO {
@@ -390,6 +392,7 @@ where
             session_info,
             block_importer,
             missed_import_data: MissedImportData::new(),
+            sync_oracle,
             phantom: PhantomData,
         })
     }
@@ -488,6 +491,8 @@ where
             false => None,
         };
         self.try_finalize()?;
+        self.sync_oracle
+            .update_behind(self.forest.behind_finalization());
         Ok(maybe_id)
     }
 
@@ -680,7 +685,7 @@ mod tests {
             ChainStatusNotification::*,
             ChainStatusNotifier, Header, Justification,
         },
-        BlockIdentifier, BlockNumber, SessionPeriod,
+        BlockIdentifier, BlockNumber, SessionPeriod, SyncOracle,
     };
 
     type TestHandler =
@@ -698,8 +703,13 @@ mod tests {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
-        let handler =
-            Handler::new(database_io, verifier, SESSION_BOUNDARY_INFO).expect("mock backend works");
+        let handler = Handler::new(
+            database_io,
+            verifier,
+            SyncOracle::new(),
+            SESSION_BOUNDARY_INFO,
+        )
+        .expect("mock backend works");
         let genesis = backend.top_finalized().expect("genesis").header().id();
         (handler, backend, notifier, genesis)
     }
@@ -1559,6 +1569,7 @@ mod tests {
         let mut handler = Handler::new(
             database_io,
             verifier,
+            SyncOracle::new(),
             SessionBoundaryInfo::new(SessionPeriod(20)),
         )
         .expect("mock backend works");
