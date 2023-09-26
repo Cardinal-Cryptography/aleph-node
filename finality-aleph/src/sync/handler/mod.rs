@@ -470,7 +470,7 @@ where
     ///
     /// First treats it as a request for our favourite block with their favourite block
     /// as the top imported.
-    /// If that fails due to their favourite block not being a descendant of our,
+    /// If that fails due to our favourite block not being a descendant of theirs,
     /// it falls back to attempting to send any finalized blocks the requester doesn't have.
     pub fn handle_chain_extension_request(
         &mut self,
