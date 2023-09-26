@@ -32,6 +32,7 @@ impl SyncOracle {
 
     pub fn update_behind(&self, behind: u32) {
         self.behind.store(behind, Ordering::Relaxed);
+        *self.last_update.lock() = Instant::now();
     }
 }
 
