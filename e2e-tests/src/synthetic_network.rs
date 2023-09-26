@@ -48,14 +48,14 @@ impl SyntheticNetworkConfigurator {
         self
     }
 
-    fn set_rate_configuration(&mut self, rate: u64, node: Ipv4Addr) -> &mut Self {
+    fn set_bit_rate(&mut self, bits_per_second: u64, node: Ipv4Addr) -> &mut Self {
         let node_int: u32 = node.into();
         let node_int = node_int.to_be();
         let label = format!("{}", node_int);
 
         info!(
             "creating a synthetic-network flow with label {} for node {} with bit-rate of {}",
-            &label, &node, rate
+            &label, &node, bits_per_second
         );
 
         let flow = self
@@ -77,36 +77,23 @@ impl SyntheticNetworkConfigurator {
         flow.flow.ip = IpPattern::Ip(node_int);
         flow.flow.protocol = Protocol::All;
         flow.flow.port_range = PortRange::all();
-        flow.link.ingress.rate = rate;
-        flow.link.egress.rate = rate;
+        flow.link.ingress.rate = bits_per_second;
+        flow.link.egress.rate = bits_per_second;
         self
     }
 
     pub fn disconnect_node_from(&mut self, nodes: impl IntoIterator<Item = Ipv4Addr>) -> &mut Self {
         for node in nodes {
-            self.set_rate_configuration(0, node);
+            self.set_bit_rate(0, node);
         }
         self
     }
 
     pub fn connect_node_to(&mut self, nodes: impl IntoIterator<Item = Ipv4Addr>) -> &mut Self {
         for node in nodes {
-            self.set_rate_configuration(QualityOfService::default().rate, node);
+            self.set_bit_rate(QualityOfService::default().rate, node);
         }
         self
-    }
-
-    pub async fn commit_config(
-        &mut self,
-        client: &mut SyntheticNetworkClient,
-    ) -> anyhow::Result<()> {
-        client.commit_config(&self.config).await
-    }
-}
-
-impl AsRef<SyntheticNetwork> for SyntheticNetworkConfigurator {
-    fn as_ref(&self) -> &SyntheticNetwork {
-        &self.config
     }
 }
 
@@ -127,9 +114,9 @@ pub async fn set_out_latency(
     let mut client = SyntheticNetworkClient::new(synthetic_url);
     let config = client.load_config().await?;
     let mut config = SyntheticNetworkConfigurator::new(config);
-    config
-        .set_out_latency(milliseconds)
-        .commit_config(&mut client)
+    config.set_out_latency(milliseconds);
+    client
+        .commit_config(&config.into())
         .await
         .context("unable to commit network configuration")
 }
@@ -173,13 +160,14 @@ impl From<GroupedNodes> for NodesConnectivityConfiguration {
     fn from(groups: Vec<Vec<NodeConfig>>) -> Self {
         let mut grouped = HashMap::with_capacity(groups.len());
         for (group_index, group) in groups.iter().enumerate() {
-            let other_nodes = groups
+            let other_nodes: HashSet<_> = groups
                 .iter()
                 .enumerate()
                 .filter_map(|(index, group)| (index != group_index).then_some(group.iter()))
                 .flatten()
                 .map(|node| node.ip_address())
-                .cloned();
+                .cloned()
+                .collect();
 
             for node in group {
                 grouped
@@ -189,7 +177,7 @@ impl From<GroupedNodes> for NodesConnectivityConfiguration {
                     })
                     .or_insert_with(|| ConnectivityConfiguration {
                         to_connect: HashSet::new(),
-                        to_disconnect: other_nodes.clone().collect(),
+                        to_disconnect: other_nodes.clone(),
                     });
             }
         }
@@ -197,26 +185,16 @@ impl From<GroupedNodes> for NodesConnectivityConfiguration {
     }
 }
 
-// impl IntoIterator for NodesConnectivityConfiguration {
-//     type Item = ConnectivityConfiguration;
-
-//     type IntoIter = <Vec<ConnectivityConfiguration> as IntoIterator>::IntoIter;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.0.into_iter()
-//     }
-// }
-
 impl NodesConnectivityConfiguration {
     pub async fn commit(self) -> anyhow::Result<()> {
         for (node, config) in self.0 {
             info!("Building connectivity configuration for node {}", node);
 
             let mut client = SyntheticNetworkClient::new(node);
-            let mut configurator = SyntheticNetworkConfigurator::new(client.load_config().await?);
+            let mut configurator = SyntheticNetworkConfigurator::new(Default::default());
             configurator.connect_node_to(config.to_connect);
             configurator.disconnect_node_from(config.to_disconnect);
-            configurator.commit_config(&mut client).await?;
+            client.commit_config(&configurator.into()).await?
         }
 
         Ok(())

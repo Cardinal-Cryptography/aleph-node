@@ -70,10 +70,10 @@ pub fn setup_test() -> &'static Config {
 
 #[derive(Clone)]
 pub struct NodeConfig {
+    node: String,
     name: String,
     synthetic_network_url: String,
     ip_address: Ipv4Addr,
-    node: String,
     account: KeyPair,
 }
 
@@ -109,6 +109,24 @@ impl NodeConfig {
     pub async fn create_signed_connection(&self) -> SignedConnection {
         SignedConnection::new(&self.node, self.account.to_owned()).await
     }
+}
+
+fn try_node_name_into_ip_address(node_name: String) -> anyhow::Result<Ipv4Addr> {
+    // we need to provide a valid socket address, i.e. add a port number
+    let node_name = node_name + ":22";
+    for addr in node_name.to_socket_addrs().context(format!(
+        "Failed to convert node's name ({}) into IPv4 addrress.",
+        node_name
+    ))? {
+        match addr {
+            std::net::SocketAddr::V4(socket_address) => return Ok(socket_address.ip().clone()),
+            _ => {}
+        }
+    }
+    Err(anyhow::anyhow!(
+        "Unable to convert node's name ({}) into IPv4 address.",
+        node_name
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -166,25 +184,7 @@ impl Config {
     pub fn nodes_ip_addresses(&self) -> anyhow::Result<std::vec::IntoIter<Ipv4Addr>> {
         self.validator_names()
             .into_iter()
-            .map(|node_name| {
-                // we need to provide a valid socket address, i.e. add a port number
-                let node_name = node_name + ":22";
-                for addr in node_name.to_socket_addrs().context(format!(
-                    "Failed to convert node's name ({}) into IPv4 addrress.",
-                    node_name
-                ))? {
-                    match addr {
-                        std::net::SocketAddr::V4(socket_address) => {
-                            return Ok(socket_address.ip().clone())
-                        }
-                        _ => {}
-                    }
-                }
-                Err(anyhow::anyhow!(
-                    "Unable to convert node's name ({}) into IPv4 address.",
-                    node_name
-                ))
-            })
+            .map(|node_name| try_node_name_into_ip_address(node_name))
             .collect::<anyhow::Result<Vec<_>>>()
             .map(|vec| vec.into_iter())
     }
