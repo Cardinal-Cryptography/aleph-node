@@ -269,15 +269,17 @@ async fn perform_test(
     blocks_to_wait_after_reconnect: u32,
 ) -> anyhow::Result<()> {
     execute_synthetic_network_test(all_nodes_to_check, async move {
-
         // check the finalization first
         await_finalized_blocks(nodes_to_check_after_disconnect.clone(), 0, 2).await?;
 
         info!("Configuring network connectivity");
         disconnect_configuration.commit().await?;
 
-        let best_seen_block =
-            await_new_blocks(nodes_to_check_after_disconnect, blocks_to_wait_after_disconnect).await?;
+        let best_seen_block = await_new_blocks(
+            nodes_to_check_after_disconnect,
+            blocks_to_wait_after_disconnect,
+        )
+        .await?;
 
         info!("Re-configuring network connectivity");
         reconnect_configuration.commit().await?;

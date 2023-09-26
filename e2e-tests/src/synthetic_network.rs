@@ -1,6 +1,6 @@
 use std::{
     cmp::max,
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, HashMap, HashSet},
     mem::swap,
     net::Ipv4Addr,
 };
@@ -136,109 +136,109 @@ pub async fn set_out_latency(
 
 #[derive(Clone)]
 pub struct ConnectivityConfiguration {
-    nodes: Vec<NodeConfig>,
-    to_connect: Vec<NodeConfig>,
-    to_disconnect: Vec<NodeConfig>,
+    to_connect: HashSet<Ipv4Addr>,
+    to_disconnect: HashSet<Ipv4Addr>,
 }
 
 impl ConnectivityConfiguration {
     pub fn reconnect(&mut self) -> &mut Self {
         swap(&mut self.to_connect, &mut self.to_disconnect);
-        self.to_disconnect = vec![];
+        self.to_disconnect = HashSet::new();
+        self
+    }
+
+    pub fn connect(&mut self, to_connect: impl IntoIterator<Item = Ipv4Addr>) -> &mut Self {
+        for address in to_connect {
+            self.to_disconnect.remove(&address);
+            self.to_connect.insert(address);
+        }
+        self
+    }
+
+    pub fn disconnect(&mut self, to_disconnect: impl IntoIterator<Item = Ipv4Addr>) -> &mut Self {
+        for address in to_disconnect {
+            self.to_connect.remove(&address);
+            self.to_disconnect.insert(address);
+        }
         self
     }
 }
 
 #[derive(Clone)]
-pub struct NodesConnectivityConfiguration(Vec<ConnectivityConfiguration>);
+pub struct NodesConnectivityConfiguration(HashMap<String, ConnectivityConfiguration>);
 
 type GroupedNodes = Vec<Vec<NodeConfig>>;
 
 impl From<GroupedNodes> for NodesConnectivityConfiguration {
     fn from(groups: Vec<Vec<NodeConfig>>) -> Self {
-        let mut grouped = Vec::with_capacity(groups.len());
+        let mut grouped = HashMap::with_capacity(groups.len());
         for (group_index, group) in groups.iter().enumerate() {
             let other_nodes = groups
                 .iter()
                 .enumerate()
                 .filter_map(|(index, group)| (index != group_index).then_some(group.iter()))
                 .flatten()
-                .cloned()
-                .collect();
+                .map(|node| node.ip_address())
+                .cloned();
 
-            grouped.push(ConnectivityConfiguration {
-                nodes: group.to_vec(),
-                to_connect: vec![],
-                to_disconnect: other_nodes,
-            });
+            for node in group {
+                grouped
+                    .entry(node.synthetic_network_url().to_string())
+                    .and_modify(|config: &mut ConnectivityConfiguration| {
+                        config.disconnect(other_nodes.clone());
+                    })
+                    .or_insert_with(|| ConnectivityConfiguration {
+                        to_connect: HashSet::new(),
+                        to_disconnect: other_nodes.clone().collect(),
+                    });
+            }
         }
         Self(grouped)
     }
 }
 
-impl IntoIterator for NodesConnectivityConfiguration {
-    type Item = ConnectivityConfiguration;
+// impl IntoIterator for NodesConnectivityConfiguration {
+//     type Item = ConnectivityConfiguration;
 
-    type IntoIter = <Vec<ConnectivityConfiguration> as IntoIterator>::IntoIter;
+//     type IntoIter = <Vec<ConnectivityConfiguration> as IntoIterator>::IntoIter;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.0.into_iter()
+//     }
+// }
 
 impl NodesConnectivityConfiguration {
-    pub async fn commit(&self) -> anyhow::Result<()> {
-        let mut configs = HashMap::new();
-        for config in &self.0 {
-            for node in &config.nodes {
-                info!(
-                    "Building connectivity configuration for node {}",
-                    node.node_name()
-                );
-                let node_entry = configs.entry(node.synthetic_network_url().to_string());
-                let update = |configurator: &mut SyntheticNetworkConfigurator| {
-                    configurator.connect_node_to(
-                        config
-                            .to_connect
-                            .iter()
-                            .map(|node| node.ip_address())
-                            .cloned(),
-                    );
-                    configurator.disconnect_node_from(
-                        config
-                            .to_disconnect
-                            .iter()
-                            .map(|node| node.ip_address())
-                            .cloned(),
-                    );
-                };
-                let node_entry = node_entry.and_modify(|(configurator, _)| update(configurator));
+    pub async fn commit(self) -> anyhow::Result<()> {
+        for (node, config) in self.0 {
+            info!("Building connectivity configuration for node {}", node);
 
-                if let Entry::Vacant(entry) = node_entry {
-                    let mut client =
-                        SyntheticNetworkClient::new(node.synthetic_network_url().to_string());
-                    let config = client.load_config().await?;
-                    let mut configurator = SyntheticNetworkConfigurator::new(config);
-                    update(&mut configurator);
-                    entry.insert((configurator, client));
-                }
-            }
-        }
-
-        for (mut configurator, mut client) in configs.into_values() {
+            let mut client = SyntheticNetworkClient::new(node);
+            let mut configurator = SyntheticNetworkConfigurator::new(client.load_config().await?);
+            configurator.connect_node_to(config.to_connect);
+            configurator.disconnect_node_from(config.to_disconnect);
             configurator.commit_config(&mut client).await?;
         }
 
         Ok(())
     }
 
-    pub fn merge(mut self, mut config: NodesConnectivityConfiguration) -> Self {
-        self.0.append(&mut config.0);
+    pub fn merge(mut self, config: NodesConnectivityConfiguration) -> Self {
+        for (node, config) in config.0 {
+            match self.0.entry(node) {
+                Entry::Occupied(mut entry) => {
+                    let entry = entry.get_mut();
+                    entry
+                        .connect(config.to_connect)
+                        .disconnect(config.to_disconnect)
+                }
+                Entry::Vacant(entry) => entry.insert(config),
+            };
+        }
         self
     }
 
     pub fn reconnect(mut self) -> Self {
-        for configuration in &mut self.0 {
+        for configuration in self.0.values_mut() {
             configuration.reconnect();
         }
         self
@@ -278,7 +278,7 @@ pub async fn await_new_blocks<'a>(
             .into_iter()
             .map(|config| async { (config.node_name(), config.create_signed_connection().await) }),
     )
-        .await;
+    .await;
 
     let mut best_seen_block = 0;
     for (node_name, connection) in nodes.iter() {
