@@ -6,7 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use frame_support::pallet_prelude::Get;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -22,6 +21,7 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
+    pallet_prelude::Get,
     sp_runtime::Perquintill,
     traits::{
         ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, SortedMembers,
@@ -834,8 +834,8 @@ pub type SignedExtra = (
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
-pub struct NominationPoolsMigrationV5OldPallet;
-impl Get<Perbill> for NominationPoolsMigrationV5OldPallet {
+pub struct ZeroMaxGlobalCommission;
+impl Get<Perbill> for ZeroMaxGlobalCommission {
     fn get() -> Perbill {
         Perbill::from_percent(0)
     }
@@ -847,7 +847,7 @@ impl Get<Perbill> for NominationPoolsMigrationV5OldPallet {
 pub type Migrations = (
     pallet_nomination_pools::migration::v4::MigrateV3ToV5<
         Runtime,
-        NominationPoolsMigrationV5OldPallet,
+        ZeroMaxGlobalCommission,
     >,
 );
 
