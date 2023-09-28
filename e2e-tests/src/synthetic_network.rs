@@ -62,7 +62,7 @@ impl SyntheticNetworkConfigurator {
             .config
             .flows
             .iter_mut()
-            .find(|flow| flow.label.as_ref().to_owned() == label);
+            .find(|flow| flow.label.as_ref() == &label);
         let flow = if let Some(flow) = flow {
             flow
         } else {

@@ -118,9 +118,8 @@ fn try_node_name_into_ip_address(node_name: String) -> anyhow::Result<Ipv4Addr> 
         "Failed to convert node's name ({}) into IPv4 addrress.",
         node_name
     ))? {
-        match addr {
-            std::net::SocketAddr::V4(socket_address) => return Ok(socket_address.ip().clone()),
-            _ => {}
+        if let std::net::SocketAddr::V4(socket_address) = addr {
+            return Ok(*socket_address.ip());
         }
     }
     Err(anyhow::anyhow!(
@@ -184,7 +183,7 @@ impl Config {
     pub fn nodes_ip_addresses(&self) -> anyhow::Result<std::vec::IntoIter<Ipv4Addr>> {
         self.validator_names()
             .into_iter()
-            .map(|node_name| try_node_name_into_ip_address(node_name))
+            .map(try_node_name_into_ip_address)
             .collect::<anyhow::Result<Vec<_>>>()
             .map(|vec| vec.into_iter())
     }
@@ -215,7 +214,7 @@ impl Config {
             .map(
                 |(((node_name, synthetic_network_url), ip_address), account)| -> anyhow::Result<_> {
                     Ok(NodeConfig::new(
-                        format!("ws://{node_name}:9943").to_string(),
+                        format!("ws://{node_name}:9943"),
                         node_name,
                         Url::parse(&synthetic_network_url)?,
                         ip_address,
