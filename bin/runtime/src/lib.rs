@@ -844,12 +844,8 @@ impl Get<Perbill> for ZeroMaxGlobalCommission {
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// Should be cleared after every release.
-pub type Migrations = (
-    pallet_nomination_pools::migration::v4::MigrateV3ToV5<
-        Runtime,
-        ZeroMaxGlobalCommission,
-    >,
-);
+pub type Migrations =
+    (pallet_nomination_pools::migration::v4::MigrateV3ToV5<Runtime, ZeroMaxGlobalCommission>,);
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
