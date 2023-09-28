@@ -6,6 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use frame_support::pallet_prelude::Get;
 pub use frame_support::{
     construct_runtime, log, parameter_types,
     traits::{
@@ -29,7 +30,6 @@ use frame_support::{
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
 };
-use frame_support::pallet_prelude::Get;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
@@ -863,7 +863,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    Migrations
+    Migrations,
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
