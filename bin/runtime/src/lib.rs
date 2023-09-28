@@ -29,6 +29,7 @@ use frame_support::{
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
 };
+use frame_support::pallet_prelude::Get;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
@@ -832,6 +833,24 @@ pub type SignedExtra = (
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
+
+pub struct NominationPoolsMigrationV5OldPallet;
+impl Get<Perbill> for NominationPoolsMigrationV5OldPallet {
+    fn get() -> Perbill {
+        Perbill::from_percent(0)
+    }
+}
+
+/// All migrations that will run on the next runtime upgrade.
+///
+/// Should be cleared after every release.
+pub type Migrations = (
+    pallet_nomination_pools::migration::v4::MigrateV3ToV5<
+        Runtime,
+        NominationPoolsMigrationV5OldPallet,
+    >,
+);
+
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -844,6 +863,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    Migrations
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
