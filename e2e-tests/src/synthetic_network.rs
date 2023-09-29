@@ -249,7 +249,7 @@ pub async fn await_new_blocks<'a>(
     nodes: impl IntoIterator<Item = &'a NodeConfig>,
     blocks_to_wait: u32,
 ) -> anyhow::Result<u32> {
-    info!("Awaiting new blocks");
+    info!("Awaiting {blocks_to_wait} new block(s)");
 
     let nodes = join_all(
         nodes

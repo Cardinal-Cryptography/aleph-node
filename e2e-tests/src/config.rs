@@ -6,6 +6,7 @@ use std::{
 
 use aleph_client::{KeyPair, RootConnection, SignedConnection};
 use anyhow::Context;
+use itertools::izip;
 use once_cell::sync::Lazy;
 use primitives::SessionIndex;
 use url::Url;
@@ -206,24 +207,25 @@ impl Config {
     }
 
     pub fn nodes_configs(&self) -> anyhow::Result<std::vec::IntoIter<NodeConfig>> {
-        self.validator_names()
-            .into_iter()
-            .zip(self.synthetic_network_urls())
-            .zip(self.nodes_ip_addresses()?)
-            .zip(get_validators_keys(self))
-            .map(
-                |(((node_name, synthetic_network_url), ip_address), account)| -> anyhow::Result<_> {
-                    Ok(NodeConfig::new(
-                        format!("ws://{node_name}:9943"),
-                        node_name,
-                        Url::parse(&synthetic_network_url)?,
-                        ip_address,
-                        account,
-                    ))
-                },
-            )
-            .collect::<anyhow::Result<Vec<_>>>()
-            .map(|vec| vec.into_iter())
+        izip!(
+            self.validator_names(),
+            self.synthetic_network_urls(),
+            self.nodes_ip_addresses()?,
+            get_validators_keys(self)
+        )
+        .map(
+            |(node_name, synthetic_network_url, ip_address, account)| -> anyhow::Result<_> {
+                Ok(NodeConfig::new(
+                    format!("ws://{node_name}:9943"),
+                    node_name,
+                    Url::parse(&synthetic_network_url)?,
+                    ip_address,
+                    account,
+                ))
+            },
+        )
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map(|vec| vec.into_iter())
     }
 }
 
