@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
     future::Future,
     hash::Hash,
+    time::Instant,
 };
 
 use futures::{channel::mpsc, StreamExt};
@@ -50,6 +51,7 @@ pub struct Service<N: RawNetwork, AD: Data, BSD: Data> {
     block_sync_peer_senders: HashMap<N::PeerId, mpsc::Sender<BSD>>,
     spawn_handle: SpawnHandle,
     metrics: Metrics,
+    last_channel_is_full_logged_timestap: HashMap<(N::PeerId, Protocol), Instant>,
 }
 
 struct ServiceInterface<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
@@ -151,6 +153,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                 authentication_peer_senders: HashMap::new(),
                 block_sync_connected_peers: HashSet::new(),
                 block_sync_peer_senders: HashMap::new(),
+                last_channel_is_full_logged_timestap: HashMap::new(),
             },
             ServiceInterface {
                 messages_from_service: messages_from_authentication_service,
@@ -183,6 +186,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
             let mut sender = None;
             loop {
                 if let Some(data) = receiver.next().await {
+                    metrics.report_message_popped_from_peer_sender_queue(protocol);
                     let s = if let Some(s) = sender.as_mut() {
                         s
                     } else {
@@ -225,11 +229,21 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                 match sender.try_send(data) {
                     Err(e) => {
                         if e.is_full() {
-                            warn!(
-                                target: LOG_TARGET,
-                                "Failed sending data through authentication notification channel to peer because peer_sender receiver is full: {:?}",
-                                peer
-                            );
+                            let peer_and_protocol = (peer.clone(), Protocol::Authentication);
+                            if self
+                                .last_channel_is_full_logged_timestap
+                                .get(&peer_and_protocol)
+                                .map(|t| t.elapsed() >= time::Duration::from_secs(1))
+                                .unwrap_or(true)
+                            {
+                                info!(
+                                    target: LOG_TARGET,
+                                    "Failed sending data through authentication notification channel to peer because peer_sender receiver is full: {:?}",
+                                    peer
+                                );
+                                self.last_channel_is_full_logged_timestap
+                                    .insert(peer_and_protocol, Instant::now());
+                            }
                         }
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here
@@ -238,7 +252,12 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         }
                         Err(SendError::SendingFailed)
                     }
-                    Ok(_) => Ok(()),
+                    Ok(_) => {
+                        // can be temporarily negative because of race conditions
+                        self.metrics
+                            .report_message_pushed_to_peer_sender_queue(Protocol::Authentication);
+                        Ok(())
+                    }
                 }
             }
             None => Err(SendError::MissingSender),
@@ -250,21 +269,35 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
             Some(sender) => {
                 match sender.try_send(data) {
                     Err(e) => {
+                        if e.is_full() {
+                            let peer_and_protocol = (peer.clone(), Protocol::BlockSync);
+                            if self
+                                .last_channel_is_full_logged_timestap
+                                .get(&peer_and_protocol)
+                                .map(|t| t.elapsed() >= time::Duration::from_secs(1))
+                                .unwrap_or(true)
+                            {
+                                info!(
+                                    target: LOG_TARGET,
+                                    "Failed sending data through block sync notification channel to peer because peer_sender receiver is full: {:?}",
+                                    peer
+                                );
+                                self.last_channel_is_full_logged_timestap
+                                    .insert(peer_and_protocol, Instant::now());
+                            }
+                        }
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here
-                        if e.is_full() {
-                            warn!(
-                                target: LOG_TARGET,
-                                "Failed sending data in block sync notification channel to peer because peer_sender receiver is full: {:?}",
-                                peer
-                            );
-                        }
                         if e.is_disconnected() {
                             trace!(target: LOG_TARGET, "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
                         }
                         Err(SendError::SendingFailed)
                     }
-                    Ok(_) => Ok(()),
+                    Ok(_) => {
+                        self.metrics
+                            .report_message_pushed_to_peer_sender_queue(Protocol::BlockSync);
+                        Ok(())
+                    }
                 }
             }
             None => Err(SendError::MissingSender),
