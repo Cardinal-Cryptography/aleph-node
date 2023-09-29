@@ -1,6 +1,6 @@
 use std::{collections::HashSet, marker::PhantomData, mem::size_of};
 
-use log::warn;
+use log::{debug, warn};
 use parity_scale_codec::{Decode, Encode, Error as CodecError, Input as CodecInput};
 use static_assertions::const_assert;
 
@@ -462,7 +462,10 @@ where
         loop {
             match self.inner.next().await? {
                 (VersionedNetworkData::Other(version, _), _) => {
-                    warn!(target: LOG_TARGET, "Received sync data of unsupported version {:?}, this node might be running outdated software.", version)
+                    debug!(
+                        target: LOG_TARGET,
+                        "Received sync data of unsupported version {:?}.", version
+                    )
                 }
                 (VersionedNetworkData::V2(data), peer_id) => return Ok((data.into(), peer_id)),
                 (VersionedNetworkData::V3(data), peer_id) => return Ok((data, peer_id)),
