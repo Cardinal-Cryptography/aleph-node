@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-/// Forces a single node to lag behind the rest of the network by disconnecting it with very other
+/// Forces a single node to lag behind the rest of the network by disconnecting it with every other
 /// peer and then after some time makes it critical for achieving consensus, i.e. it creates a group
 /// of connected peers (disconnected with any other peer outside of that group) that includes it and
 /// is of minimal size that allows to achieve consensus.
@@ -97,9 +97,9 @@ pub async fn one_node_catching_up() -> anyhow::Result<()> {
     .await
 }
 
-/// Divides nodes into two groups where only one consists of a quorum. After some time it modifies
-/// nodes connectivity so the nodes that previously were not included in a quorum are now part of
-/// it. Then it checks if nodes are able to further finalize their blocks.
+/// First, we divide nodes into two groups where only one contains a quorum. After some time we
+/// modify nodes connectivity so the nodes that previously were not included in a quorum now become
+/// part of it. Then we check if subset that contains a quorum is still able to finalize new blocks.
 #[tokio::test]
 pub async fn into_two_groups_and_one_quorum_and_switch_quorum_between_them() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -145,9 +145,9 @@ pub async fn into_two_groups_and_one_quorum_and_switch_quorum_between_them() -> 
     .await
 }
 
-/// It divides nodes into disjoint groups consisting of two nodes each, then awaits for all sets to
-/// create several new blocks (which shouldn't be finalized), reconnects them and checks if nodes
-/// are still able to finalize new blocks.
+/// It divides nodes into disjoint groups consisting of two nodes each, then awaits for all these
+/// sets to create several new blocks (which shouldn't be finalized), reconnects them and checks if
+/// nodes are still able to finalize new blocks.
 #[tokio::test]
 pub async fn into_multiple_groups_of_two() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -220,10 +220,9 @@ pub async fn into_two_equal_size_groups_with_no_quorum() -> anyhow::Result<()> {
     .await
 }
 
-/// Tests if nodes are able to proceed after we divide them into two disjoint sets, where one of
-/// them consists of a quorum. More precisely, it divides nodes into two disjoint sets (one of them
-/// contains a quorum), awaits for nodes in both sets to create several new blocks (these shouldn't
-/// be finalized), reconnects all nodes and checks if nodes are still able to finalize new blocks.
+/// We divide nodes into two disjoint sets where on of them contains a quorum, await for nodes in
+/// both sets to create several new blocks (only one them should be able to finalize), reconnect all
+/// nodes and then check if nodes are still able to finalize new blocks.
 #[tokio::test]
 pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
     const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 32;
@@ -231,8 +230,7 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
     let config = setup_test();
     if config.validator_count < 7 {
         return Err(anyhow!(
-            "provided test-network is to small ({}), should be >= 7",
-            config.validator_count
+            "provided test-network is to small ({config.validator_count}), should be >= 7"
         ));
     }
 
