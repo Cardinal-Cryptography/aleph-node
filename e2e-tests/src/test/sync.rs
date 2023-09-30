@@ -230,7 +230,8 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
     let config = setup_test();
     if config.validator_count < 7 {
         return Err(anyhow!(
-            "provided test-network is to small ({config.validator_count}), should be >= 7"
+            "provided test-network is to small ({0}), should be >= 7",
+            config.validator_count,
         ));
     }
 
