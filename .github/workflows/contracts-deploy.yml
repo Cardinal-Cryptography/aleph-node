@@ -51,7 +51,7 @@ jobs:
       button: ${{ steps.filter.outputs.button }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -86,7 +86,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, large]
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Check if environment is reachable
         shell: bash
@@ -97,7 +97,7 @@ jobs:
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v2
 
       - name: Install jq
         shell: bash
@@ -110,7 +110,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         env:
           AWS_REGION: us-east-1
         with:
@@ -185,7 +185,7 @@ jobs:
       - name: KUSTOMIZE | Init kustomize
         uses: imranismail/setup-kustomize@v2
         with:
-          kustomize-version: '4.4.1'
+          kustomize-version: ${{ vars.KUSTOMIZE_VERSION }}
 
       - name: KUBECTL | Setup kubectl
         uses: azure/setup-kubectl@v3.2

@@ -25,9 +25,9 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, DatabaseIO as SyncDatabaseIO, FinalizationStatus, Justification,
-        JustificationTranslator, OldSyncCompatibleRequestBlocks, Service as SyncService,
-        SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
+        ChainStatus, FinalizationStatus, Justification, JustificationTranslator,
+        OldSyncCompatibleRequestBlocks, Service as SyncService, SubstrateChainStatusNotifier,
+        SubstrateFinalizationInfo, VerifierCache, IO as SyncIO,
     },
     AlephConfig,
 };
@@ -55,7 +55,7 @@ where
         sync_network,
         client,
         chain_status,
-        import_queue_handle,
+        mut import_queue_handle,
         select_chain,
         spawn_handle,
         keystore,
@@ -70,6 +70,7 @@ where
         validator_port,
         protocol_naming,
         rate_limiter_config,
+        sync_oracle,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -111,7 +112,7 @@ where
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
         SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming),
         spawn_handle.clone(),
-        metrics.clone(),
+        registry.clone(),
     );
     let gossip_network_task = async move { gossip_network_service.run().await };
 
@@ -148,19 +149,21 @@ where
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-    let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
-    let (sync_service, justifications_for_sync, request_block) = match SyncService::new(
+    import_queue_handle.attach_metrics(metrics.clone());
+    let sync_io = SyncIO::new(
+        chain_status.clone(),
+        finalizer,
+        import_queue_handle,
         block_sync_network,
         chain_events,
-        verifier,
-        database_io,
-        session_info.clone(),
+        sync_oracle,
         justification_rx,
-        metrics.clone(),
-    ) {
-        Ok(x) => x,
-        Err(e) => panic!("Failed to initialize Sync service: {e}"),
-    };
+    );
+    let (sync_service, justifications_for_sync, request_block) =
+        match SyncService::new(verifier, session_info.clone(), sync_io, registry.clone()) {
+            Ok(x) => x,
+            Err(e) => panic!("Failed to initialize Sync service: {e}"),
+        };
     let sync_task = async move { sync_service.run().await };
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(

@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use log::info;
+use log::debug;
 use primitives::Balance;
 use subxt::{blocks::ExtrinsicEvents, config::Hasher, Config};
 
@@ -70,7 +70,7 @@ impl<C: AsConnection + Sync> BlocksApi for C {
     }
 
     async fn get_block_hash(&self, block: BlockNumber) -> anyhow::Result<Option<BlockHash>> {
-        info!(target: "aleph-client", "querying block hash for number #{}", block);
+        debug!(target: "aleph-client", "querying block hash for number #{}", block);
         self.as_connection()
             .as_client()
             .rpc()
@@ -121,8 +121,12 @@ impl<C: AsConnection + Sync> BlocksApi for C {
 
         let extrinsic_events = block_body
             .extrinsics()
-            .find(|tx| tx_info.tx_hash == <AlephConfig as Config>::Hasher::hash_of(&tx.bytes()))
-            .ok_or_else(|| anyhow!("Couldn't find the transaction in the block."))?
+            .iter()
+            .find(|tx| match tx {
+                Ok(tx) => tx_info.tx_hash == <AlephConfig as Config>::Hasher::hash_of(&tx.bytes()),
+                _ => false,
+            })
+            .ok_or_else(|| anyhow!("Couldn't find the transaction in the block."))??
             .events()
             .await
             .map_err(|e| anyhow!("Couldn't fetch events for the transaction: {e:?}"))?;

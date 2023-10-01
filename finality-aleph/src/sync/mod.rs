@@ -11,6 +11,7 @@ mod data;
 mod forest;
 mod handler;
 mod message_limiter;
+mod metrics;
 #[cfg(test)]
 mod mock;
 mod service;
@@ -20,7 +21,7 @@ mod tasks;
 mod ticker;
 
 pub use compatibility::OldSyncCompatibleRequestBlocks;
-pub use service::{DatabaseIO, Service};
+pub use service::{Service, IO};
 pub use substrate::{
     Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
     SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
@@ -62,12 +63,17 @@ pub trait BlockImport<B>: Send + 'static {
 
 type BlockIdFor<J> = <<J as Justification>::Header as Header>::Identifier;
 
+pub trait UnverifiedJustification: Clone + Codec + Send + Sync + Debug + 'static {
+    type Header: Header;
+
+    /// The header of the block.
+    fn header(&self) -> &Self::Header;
+}
+
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone + Send + Sync + Debug + 'static {
     type Header: Header;
-    /// The implementation has to behave as if the header here is identical to the one returned by
-    /// the `header` method after successful verification.
-    type Unverified: Header<Identifier = BlockIdFor<Self>> + Debug;
+    type Unverified: UnverifiedJustification<Header = Self::Header>;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;

@@ -1,90 +1,82 @@
 //! Module to glue legacy and current version of the aggregator;
 
-use std::{marker::PhantomData, time::Instant};
+use std::marker::PhantomData;
 
 use current_aleph_aggregator::NetworkError as CurrentNetworkError;
 use legacy_aleph_aggregator::NetworkError as LegacyNetworkError;
-use sp_runtime::traits::Block;
 
 use crate::{
     abft::SignatureSet,
+    aleph_primitives::BlockHash,
     crypto::Signature,
-    metrics::{Checkpoint, Key},
     mpsc,
     network::{
         data::{Network, SendError},
         Data,
     },
-    Keychain, Metrics,
+    Keychain,
 };
 
-pub type LegacyRmcNetworkData<B> =
-    legacy_aleph_aggregator::RmcNetworkData<<B as Block>::Hash, Signature, SignatureSet<Signature>>;
-pub type CurrentRmcNetworkData<B> = current_aleph_aggregator::RmcNetworkData<
-    <B as Block>::Hash,
-    Signature,
+pub type LegacyRmcNetworkData =
+    legacy_aleph_aggregator::RmcNetworkData<BlockHash, Signature, SignatureSet<Signature>>;
+pub type CurrentRmcNetworkData =
+    current_aleph_aggregator::RmcNetworkData<BlockHash, Signature, SignatureSet<Signature>>;
+
+pub type LegacySignableBlockHash = legacy_aleph_aggregator::SignableHash<BlockHash>;
+pub type LegacyRmc<'a> =
+    legacy_aleph_bft_rmc::ReliableMulticast<'a, LegacySignableBlockHash, Keychain>;
+
+pub struct NoopMetrics;
+
+impl legacy_aleph_aggregator::Metrics<BlockHash> for NoopMetrics {
+    fn report_aggregation_complete(&mut self, _: BlockHash) {}
+}
+
+pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
+    BlockHash,
+    LegacyRmcNetworkData,
+    NetworkWrapper<LegacyRmcNetworkData, N>,
     SignatureSet<Signature>,
+    LegacyRmc<'a>,
+    NoopMetrics,
 >;
 
-pub type LegacySignableBlockHash<B> = legacy_aleph_aggregator::SignableHash<<B as Block>::Hash>;
-pub type LegacyRmc<'a, B> =
-    legacy_aleph_bft_rmc::ReliableMulticast<'a, LegacySignableBlockHash<B>, Keychain>;
-pub type LegacyAggregator<'a, B, N> = legacy_aleph_aggregator::IO<
-    <B as Block>::Hash,
-    LegacyRmcNetworkData<B>,
-    NetworkWrapper<LegacyRmcNetworkData<B>, N>,
+pub type CurrentSignableBlockHash = current_aleph_aggregator::SignableHash<BlockHash>;
+pub type CurrentRmc<'a> =
+    current_aleph_bft_rmc::ReliableMulticast<'a, CurrentSignableBlockHash, Keychain>;
+pub type CurrentAggregator<'a, N> = current_aleph_aggregator::IO<
+    BlockHash,
+    CurrentRmcNetworkData,
+    NetworkWrapper<CurrentRmcNetworkData, N>,
     SignatureSet<Signature>,
-    LegacyRmc<'a, B>,
-    Metrics<<B as Block>::Hash>,
+    CurrentRmc<'a>,
 >;
 
-pub type CurrentSignableBlockHash<B> = current_aleph_aggregator::SignableHash<<B as Block>::Hash>;
-pub type CurrentRmc<'a, B> =
-    current_aleph_bft_rmc::ReliableMulticast<'a, CurrentSignableBlockHash<B>, Keychain>;
-pub type CurrentAggregator<'a, B, N> = current_aleph_aggregator::IO<
-    <B as Block>::Hash,
-    CurrentRmcNetworkData<B>,
-    NetworkWrapper<CurrentRmcNetworkData<B>, N>,
-    SignatureSet<Signature>,
-    CurrentRmc<'a, B>,
-    Metrics<<B as Block>::Hash>,
->;
-
-enum EitherAggregator<'a, B, CN, LN>
+enum EitherAggregator<'a, CN, LN>
 where
-    B: Block,
-    LN: Network<LegacyRmcNetworkData<B>>,
-    CN: Network<CurrentRmcNetworkData<B>>,
-    <B as Block>::Hash: AsRef<[u8]>,
+    LN: Network<LegacyRmcNetworkData>,
+    CN: Network<CurrentRmcNetworkData>,
 {
-    Current(CurrentAggregator<'a, B, CN>),
-    Legacy(LegacyAggregator<'a, B, LN>),
+    Current(CurrentAggregator<'a, CN>),
+    Legacy(LegacyAggregator<'a, LN>),
 }
 
 /// Wrapper on the aggregator, which is either current or legacy one. Depending on the inner variant
 /// it behaves runs the legacy one or the current.
-pub struct Aggregator<'a, B, CN, LN>
+pub struct Aggregator<'a, CN, LN>
 where
-    B: Block,
-    LN: Network<LegacyRmcNetworkData<B>>,
-    CN: Network<CurrentRmcNetworkData<B>>,
-    <B as Block>::Hash: AsRef<[u8]>,
+    LN: Network<LegacyRmcNetworkData>,
+    CN: Network<CurrentRmcNetworkData>,
 {
-    agg: EitherAggregator<'a, B, CN, LN>,
+    agg: EitherAggregator<'a, CN, LN>,
 }
 
-impl<'a, B, CN, LN> Aggregator<'a, B, CN, LN>
+impl<'a, CN, LN> Aggregator<'a, CN, LN>
 where
-    B: Block,
-    LN: Network<LegacyRmcNetworkData<B>>,
-    CN: Network<CurrentRmcNetworkData<B>>,
-    <B as Block>::Hash: AsRef<[u8]>,
+    LN: Network<LegacyRmcNetworkData>,
+    CN: Network<CurrentRmcNetworkData>,
 {
-    pub fn new_legacy(
-        multikeychain: &'a Keychain,
-        rmc_network: LN,
-        metrics: Metrics<<B as Block>::Hash>,
-    ) -> Self {
+    pub fn new_legacy(multikeychain: &'a Keychain, rmc_network: LN) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = legacy_aleph_bft_rmc::DoublingDelayScheduler::new(
@@ -97,9 +89,9 @@ where
             legacy_aleph_bft::Keychain::node_count(multikeychain),
             scheduler,
         );
-        // For the compatibility with the legacy aggregator we need extra `Some` layer
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(Some(metrics));
-        let aggregator_io = LegacyAggregator::<B, LN>::new(
+        // For the compatibility with the legacy aggregator we need extra `Option` layer
+        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(None);
+        let aggregator_io = LegacyAggregator::<LN>::new(
             messages_for_rmc,
             messages_from_rmc,
             NetworkWrapper::new(rmc_network),
@@ -112,11 +104,7 @@ where
         }
     }
 
-    pub fn new_current(
-        multikeychain: &'a Keychain,
-        rmc_network: CN,
-        metrics: Metrics<<B as Block>::Hash>,
-    ) -> Self {
+    pub fn new_current(multikeychain: &'a Keychain, rmc_network: CN) -> Self {
         let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
         let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = current_aleph_bft_rmc::DoublingDelayScheduler::new(
@@ -129,8 +117,8 @@ where
             current_aleph_bft::Keychain::node_count(multikeychain),
             scheduler,
         );
-        let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new(metrics);
-        let aggregator_io = CurrentAggregator::<B, CN>::new(
+        let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new();
+        let aggregator_io = CurrentAggregator::<CN>::new(
             messages_for_rmc,
             messages_from_rmc,
             NetworkWrapper::new(rmc_network),
@@ -143,16 +131,14 @@ where
         }
     }
 
-    pub async fn start_aggregation(&mut self, h: <B as Block>::Hash) {
+    pub async fn start_aggregation(&mut self, h: BlockHash) {
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.start_aggregation(h).await,
             EitherAggregator::Legacy(agg) => agg.start_aggregation(h).await,
         }
     }
 
-    pub async fn next_multisigned_hash(
-        &mut self,
-    ) -> Option<(<B as Block>::Hash, SignatureSet<Signature>)> {
+    pub async fn next_multisigned_hash(&mut self) -> Option<(BlockHash, SignatureSet<Signature>)> {
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.next_multisigned_hash().await,
             EitherAggregator::Legacy(agg) => agg.next_multisigned_hash().await,
@@ -172,18 +158,6 @@ pub struct NetworkWrapper<D: Data, N: Network<D>>(N, PhantomData<D>);
 impl<D: Data, N: Network<D>> NetworkWrapper<D, N> {
     pub fn new(network: N) -> Self {
         Self(network, PhantomData)
-    }
-}
-
-impl<H: Key> legacy_aleph_aggregator::Metrics<H> for Metrics<H> {
-    fn report_aggregation_complete(&mut self, h: H) {
-        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
-    }
-}
-
-impl<H: Key> current_aleph_aggregator::Metrics<H> for Metrics<H> {
-    fn report_aggregation_complete(&mut self, h: H) {
-        self.report_block(h, Instant::now(), Checkpoint::Aggregating);
     }
 }
 

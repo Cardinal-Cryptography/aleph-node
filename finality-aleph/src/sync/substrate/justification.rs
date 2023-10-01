@@ -10,7 +10,7 @@ use crate::{
             chain_status::{Error as ChainStatusError, SubstrateChainStatus},
             BlockId,
         },
-        BlockStatus, ChainStatus, Header as HeaderT, Justification as JustificationT,
+        BlockStatus, ChainStatus, Justification as JustificationT, UnverifiedJustification,
     },
 };
 
@@ -50,15 +50,11 @@ impl Justification {
     }
 }
 
-impl HeaderT for Justification {
-    type Identifier = BlockId<Header>;
+impl UnverifiedJustification for Justification {
+    type Header = Header;
 
-    fn id(&self) -> Self::Identifier {
-        self.header().id()
-    }
-
-    fn parent_id(&self) -> Option<Self::Identifier> {
-        self.header().parent_id()
+    fn header(&self) -> &Self::Header {
+        &self.header
     }
 }
 
@@ -113,7 +109,7 @@ impl JustificationTranslator {
     pub fn translate(
         &self,
         aleph_justification: AlephJustification,
-        block_id: BlockId<Header>,
+        block_id: BlockId,
     ) -> Result<Justification, TranslateError> {
         use BlockStatus::*;
         match self.chain_status.status_of(block_id)? {

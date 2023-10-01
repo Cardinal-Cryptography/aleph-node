@@ -1,33 +1,85 @@
 use core::marker::PhantomData;
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, error, trace, warn};
+use substrate_prometheus_endpoint::Registry;
 
-pub use crate::sync::handler::DatabaseIO;
 use crate::{
-    metrics::{Key, SyncEvent},
     network::GossipNetwork,
     session::SessionBoundaryInfo,
     sync::{
-        data::{NetworkData, Request, ResponseItems, State, VersionWrapper, VersionedNetworkData},
-        handler::{Action, Error as HandlerError, HandleStateAction, Handler},
-        message_limiter::MsgLimiter,
+        data::{
+            NetworkData, PreRequest, Request, ResponseItem, ResponseItems, State, VersionWrapper,
+            VersionedNetworkData,
+        },
+        forest::ExtensionRequest,
+        handler::{Action, DatabaseIO, Error as HandlerError, HandleStateAction, Handler},
+        message_limiter::{Error as MsgLimiterError, MsgLimiter},
+        metrics::{Event, Metrics},
         task_queue::TaskQueue,
-        tasks::{Action as TaskAction, PreRequest, RequestTask},
+        tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
         Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
-        ChainStatusNotifier, Finalizer, Justification, JustificationSubmissions, RequestBlocks,
-        Verifier, LOG_TARGET,
+        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
+        RequestBlocks, UnverifiedJustification, Verifier, LOG_TARGET,
     },
-    Metrics,
+    SyncOracle,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
-const BROADCAST_PERIOD: Duration = Duration::from_secs(5);
+const CHAIN_EXTENSION_COOLDOWN: Duration = Duration::from_millis(300);
+const TICK_PERIOD: Duration = Duration::from_secs(5);
+
+pub struct IO<B, J, N, CE, CS, F, BI>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    N: GossipNetwork<VersionedNetworkData<B, J>>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
+    F: Finalizer<J>,
+    BI: BlockImport<B>,
+{
+    network: N,
+    chain_events: CE,
+    sync_oracle: SyncOracle,
+    additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    database_io: DatabaseIO<B, J, CS, F, BI>,
+}
+
+impl<B, J, N, CE, CS, F, BI> IO<B, J, N, CE, CS, F, BI>
+where
+    B: Block,
+    J: Justification<Header = B::Header>,
+    N: GossipNetwork<VersionedNetworkData<B, J>>,
+    CE: ChainStatusNotifier<B::Header>,
+    CS: ChainStatus<B, J>,
+    F: Finalizer<J>,
+    BI: BlockImport<B>,
+{
+    pub fn new(
+        chain_status: CS,
+        finalizer: F,
+        block_importer: BI,
+        network: N,
+        chain_events: CE,
+        sync_oracle: SyncOracle,
+        additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    ) -> Self {
+        let database_io = DatabaseIO::new(chain_status, finalizer, block_importer);
+        IO {
+            network,
+            chain_events,
+            sync_oracle,
+            additional_justifications_from_user,
+            database_io,
+        }
+    }
+}
 
 /// A service synchronizing the knowledge about the chain between the nodes.
-pub struct Service<B, J, N, CE, CS, V, F, BI, H>
+pub struct Service<B, J, N, CE, CS, V, F, BI>
 where
     B: Block,
     J: Justification<Header = B::Header>,
@@ -37,18 +89,18 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
-    H: Key,
 {
     network: VersionWrapper<B, J, N>,
     handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
     tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
     broadcast_ticker: Ticker,
+    chain_extension_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
     _phantom: PhantomData<B>,
-    metrics: Metrics<H>,
+    metrics: Metrics,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -67,7 +119,7 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
     }
 }
 
-impl<B, J, N, CE, CS, V, F, BI, H> Service<B, J, N, CE, CS, V, F, BI, H>
+impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
 where
     B: Block,
     J: Justification<Header = B::Header>,
@@ -77,19 +129,15 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
-    H: Key,
 {
     /// Create a new service using the provided network for communication.
     /// Also returns an interface for submitting additional justifications,
     /// and an interface for requesting blocks.
     pub fn new(
-        network: N,
-        chain_events: CE,
         verifier: V,
-        database_io: DatabaseIO<B, J, CS, F, BI>,
         session_info: SessionBoundaryInfo,
-        additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-        metrics: Metrics<H>,
+        io: IO<B, J, N, CE, CS, F, BI>,
+        metrics_registry: Option<Registry>,
     ) -> Result<
         (
             Self,
@@ -98,18 +146,35 @@ where
         ),
         HandlerError<B, J, CS, V, F>,
     > {
+        let IO {
+            network,
+            chain_events,
+            sync_oracle,
+            additional_justifications_from_user,
+            database_io,
+        } = io;
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(database_io, verifier, session_info)?;
+        let handler = Handler::new(database_io, verifier, sync_oracle, session_info)?;
         let tasks = TaskQueue::new();
-        let broadcast_ticker = Ticker::new(BROADCAST_PERIOD, BROADCAST_COOLDOWN);
+        let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);
+        let chain_extension_ticker = Ticker::new(TICK_PERIOD, CHAIN_EXTENSION_COOLDOWN);
         let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
         let (block_requests_for_sync, block_requests_from_user) = mpsc::unbounded();
+        let metrics = match Metrics::new(metrics_registry) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
+                Metrics::noop()
+            }
+        };
+
         Ok((
             Service {
                 network,
                 handler,
                 tasks,
                 broadcast_ticker,
+                chain_extension_ticker,
                 chain_events,
                 justifications_from_user,
                 additional_justifications_from_user,
@@ -122,30 +187,22 @@ where
         ))
     }
 
-    fn request_highest_justified(&mut self, block_id: BlockIdFor<J>) {
-        debug!(
-            target: LOG_TARGET,
-            "Initiating a request for highest justified block {:?}.", block_id
-        );
-        self.tasks
-            .schedule_in(RequestTask::new_highest_justified(block_id), Duration::ZERO);
-    }
-
     fn request_block(&mut self, block_id: BlockIdFor<J>) {
         debug!(
             target: LOG_TARGET,
             "Initiating a request for block {:?}.", block_id
         );
         self.tasks
-            .schedule_in(RequestTask::new_block(block_id), Duration::ZERO);
+            .schedule_in(RequestTask::new(block_id), Duration::ZERO);
     }
 
     fn broadcast(&mut self) {
-        self.metrics.report_event(SyncEvent::Broadcast);
+        self.metrics.report_event(Event::Broadcast);
+        self.broadcast_ticker.reset();
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
-                self.metrics.report_event_error(SyncEvent::Broadcast);
+                self.metrics.report_event_error(Event::Broadcast);
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -154,20 +211,77 @@ where
             }
         };
         trace!(target: LOG_TARGET, "Broadcasting state: {:?}", state);
+        // Since we just computed the state this is a good moment to update
+        // the metrics.
+        self.metrics
+            .update_top_finalized_block(state.top_justification().header().id().number());
+        self.metrics
+            .update_best_block(state.favourite_block().id().number());
 
         let data = NetworkData::StateBroadcast(state);
         if let Err(e) = self.network.broadcast(data) {
-            self.metrics.report_event_error(SyncEvent::Broadcast);
+            self.metrics.report_event_error(Event::Broadcast);
             warn!(target: LOG_TARGET, "Error sending broadcast: {}.", e)
         }
     }
 
+    fn request_favourite_extension(&mut self, know_most: HashSet<N::PeerId>) {
+        self.metrics.report_event(Event::SendExtensionRequest);
+        let data = match self.handler.state() {
+            Ok(state) => NetworkData::ChainExtensionRequest(state),
+            Err(e) => {
+                self.metrics.report_event_error(Event::SendExtensionRequest);
+                warn!(
+                    target: LOG_TARGET,
+                    "Error producing state for chain extension request: {}.", e
+                );
+                return;
+            }
+        };
+        match self.network.send_to_random(data, know_most) {
+            Ok(()) => self.chain_extension_ticker.reset(),
+            Err(e) => {
+                self.metrics.report_event_error(Event::SendExtensionRequest);
+                warn!(
+                    target: LOG_TARGET,
+                    "Error sending chain extension request: {}.", e
+                );
+            }
+        }
+    }
+
+    fn request_chain_extension(&mut self, force: bool) {
+        use ExtensionRequest::*;
+        match self.handler.extension_request() {
+            FavouriteBlock { know_most } => self.request_favourite_extension(know_most),
+            HighestJustified {
+                id,
+                know_most,
+                branch_knowledge,
+            } => {
+                self.send_request(PreRequest::new(id, branch_knowledge, know_most));
+                self.chain_extension_ticker.reset();
+            }
+            Noop => {
+                if force {
+                    self.request_favourite_extension(HashSet::new());
+                }
+            }
+        }
+    }
+
+    fn try_request_chain_extension(&mut self) {
+        if self.chain_extension_ticker.try_tick() {
+            self.request_chain_extension(false);
+        }
+    }
+
     fn send_request(&mut self, pre_request: PreRequest<N::PeerId, J>) {
-        self.metrics.report_event(SyncEvent::SendRequest);
+        self.metrics.report_event(Event::SendRequest);
         let state = match self.handler.state() {
             Ok(state) => state,
             Err(e) => {
-                self.metrics.report_event_error(SyncEvent::SendRequest);
+                self.metrics.report_event_error(Event::SendRequest);
                 warn!(
                     target: LOG_TARGET,
                     "Failed to construct own knowledge state: {}.", e
@@ -180,13 +294,13 @@ where
         let data = NetworkData::Request(request);
 
         if let Err(e) = self.network.send_to_random(data, peers) {
-            self.metrics.report_event_error(SyncEvent::SendRequest);
+            self.metrics.report_event_error(Event::SendRequest);
             warn!(target: LOG_TARGET, "Error sending request: {}.", e);
         }
     }
 
     fn send_to(&mut self, data: NetworkData<B, J>, peer: N::PeerId) {
-        self.metrics.report_event(SyncEvent::SendTo);
+        self.metrics.report_event(Event::SendTo);
         trace!(
             target: LOG_TARGET,
             "Sending data {:?} to peer {:?}",
@@ -194,13 +308,13 @@ where
             peer
         );
         if let Err(e) = self.network.send_to(data, peer) {
-            self.metrics.report_event_error(SyncEvent::SendTo);
+            self.metrics.report_event_error(Event::SendTo);
             warn!(target: LOG_TARGET, "Error sending response: {}.", e);
         }
     }
 
     fn handle_state(&mut self, state: State<J>, peer: N::PeerId) {
-        self.metrics.report_event(SyncEvent::HandleState);
+        self.metrics.report_event(Event::HandleState);
         use HandleStateAction::*;
         trace!(
             target: LOG_TARGET,
@@ -211,11 +325,11 @@ where
         match self.handler.handle_state(state, peer.clone()) {
             Ok(action) => match action {
                 Response(data) => self.send_to(data, peer),
-                HighestJustified(block_id) => self.request_highest_justified(block_id),
+                ExtendChain => self.try_request_chain_extension(),
                 Noop => (),
             },
             Err(e) => {
-                self.metrics.report_event_error(SyncEvent::HandleState);
+                self.metrics.report_event_error(Event::HandleState);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -243,8 +357,8 @@ where
             maybe_justification,
             peer
         );
-        self.metrics.report_event(SyncEvent::HandleStateResponse);
-        let (maybe_id, maybe_error) =
+        self.metrics.report_event(Event::HandleStateResponse);
+        let (new_info, maybe_error) =
             self.handler
                 .handle_state_response(justification, maybe_justification, peer.clone());
         match maybe_error {
@@ -258,8 +372,8 @@ where
             ),
             _ => {}
         }
-        if let Some(id) = maybe_id {
-            self.request_highest_justified(id);
+        if new_info {
+            self.try_request_chain_extension();
         }
     }
 
@@ -270,13 +384,13 @@ where
             justification,
         );
         self.metrics
-            .report_event(SyncEvent::HandleJustificationFromUserCalls);
+            .report_event(Event::HandleJustificationFromUser);
         match self.handler.handle_justification_from_user(justification) {
-            Ok(Some(id)) => self.request_highest_justified(id),
-            Ok(_) => {}
+            Ok(true) => self.try_request_chain_extension(),
+            Ok(false) => {}
             Err(e) => {
                 self.metrics
-                    .report_event_error(SyncEvent::HandleJustificationFromUserCalls);
+                    .report_event_error(Event::HandleJustificationFromUser);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -298,8 +412,8 @@ where
             peer,
             response_items,
         );
-        self.metrics.report_event(SyncEvent::HandleRequestResponse);
-        let (maybe_id, maybe_error) = self
+        self.metrics.report_event(Event::HandleRequestResponse);
+        let (new_info, maybe_error) = self
             .handler
             .handle_request_response(response_items, peer.clone());
         match maybe_error {
@@ -313,9 +427,21 @@ where
             ),
             _ => {}
         }
-        if let Some(id) = maybe_id {
-            self.request_highest_justified(id);
+        if new_info {
+            self.try_request_chain_extension();
         }
+    }
+
+    fn send_big_response(
+        &mut self,
+        response_items: &[ResponseItem<B, J>],
+        peer: N::PeerId,
+    ) -> Result<(), MsgLimiterError> {
+        let mut limiter = MsgLimiter::new(response_items);
+        while let Some(chunk) = limiter.next_largest_msg()? {
+            self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone())
+        }
+        Ok(())
     }
 
     fn handle_request(&mut self, request: Request<J>, peer: N::PeerId) {
@@ -325,32 +451,21 @@ where
             request,
             peer
         );
-        self.metrics.report_event(SyncEvent::HandleRequest);
+        self.metrics.report_event(Event::HandleRequest);
 
         match self.handler.handle_request(request) {
             Ok(Action::Response(response_items)) => {
-                let mut limiter = MsgLimiter::new(&response_items);
-                loop {
-                    match limiter.next_largest_msg() {
-                        Ok(None) => {
-                            break;
-                        }
-                        Ok(Some(chunk)) => {
-                            self.send_to(NetworkData::RequestResponse(chunk.to_vec()), peer.clone())
-                        }
-                        Err(e) => {
-                            error!(
-                                target: LOG_TARGET,
-                                "Error while sending request response: {}.", e
-                            );
-                            break self.metrics.report_event_error(SyncEvent::HandleRequest);
-                        }
-                    }
+                if let Err(e) = self.send_big_response(&response_items, peer) {
+                    error!(
+                        target: LOG_TARGET,
+                        "Error while sending request response: {}.", e
+                    );
+                    self.metrics.report_event_error(Event::HandleRequest);
                 }
             }
             Ok(Action::RequestBlock(id)) => self.request_block(id),
             Err(e) => {
-                self.metrics.report_event_error(SyncEvent::HandleRequest);
+                self.metrics.report_event_error(Event::HandleRequest);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -374,7 +489,7 @@ where
             self.send_request(pre_request);
             self.tasks.schedule_in(task, delay);
         }
-        self.metrics.report_event(SyncEvent::HandleTask);
+        self.metrics.report_event(Event::HandleTask);
     }
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
@@ -382,10 +497,9 @@ where
         match event {
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
-                self.metrics.report_event(SyncEvent::HandleBlockImported);
+                self.metrics.report_event(Event::HandleBlockImported);
                 if let Err(e) = self.handler.block_imported(header) {
-                    self.metrics
-                        .report_event_error(SyncEvent::HandleBlockImported);
+                    self.metrics.report_event_error(Event::HandleBlockImported);
                     error!(
                         target: LOG_TARGET,
                         "Error marking block as imported: {}.", e
@@ -394,11 +508,14 @@ where
             }
             BlockFinalized(_) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");
-                self.metrics.report_event(SyncEvent::HandleBlockFinalized);
-                if self.broadcast_ticker.try_tick() {
-                    self.broadcast();
-                }
+                self.metrics.report_event(Event::HandleBlockFinalized);
             }
+        }
+        // We either learned about a new finalized or best block, so we
+        // might want to broadcast. This will also fire whenever we import
+        // forks, but that is rare and mostly harmless.
+        if self.broadcast_ticker.try_tick() {
+            self.broadcast();
         }
     }
 
@@ -408,14 +525,14 @@ where
             "Handling an internal request for block {:?}.",
             id,
         );
-        self.metrics.report_event(SyncEvent::HandleInternalRequest);
+        self.metrics.report_event(Event::HandleInternalRequest);
         match self.handler.handle_internal_request(&id) {
             Ok(true) => self.request_block(id),
 
             Ok(_) => debug!(target: LOG_TARGET, "Already requested block {:?}.", id),
 
             Err(e) => {
-                self.metrics.report_event(SyncEvent::HandleInternalRequest);
+                self.metrics.report_event(Event::HandleInternalRequest);
                 match e {
                     HandlerError::Verifier(e) => debug!(
                         target: LOG_TARGET,
@@ -424,6 +541,38 @@ where
                     e => warn!(
                         target: LOG_TARGET,
                         "Error handling internal request for block {:?}: {}.", id, e
+                    ),
+                }
+            }
+        }
+    }
+
+    fn handle_chain_extension_request(&mut self, state: State<J>, peer: N::PeerId) {
+        self.metrics.report_event(Event::HandleExtensionRequest);
+        match self.handler.handle_chain_extension_request(state) {
+            Ok(Action::Response(response_items)) => {
+                if let Err(e) = self.send_big_response(&response_items, peer) {
+                    error!(
+                        target: LOG_TARGET,
+                        "Error while sending chain extension request response: {}.", e
+                    );
+                    self.metrics
+                        .report_event_error(Event::HandleExtensionRequest);
+                }
+            }
+            Ok(Action::RequestBlock(id)) => self.request_block(id),
+            Ok(Action::Noop) => {}
+            Err(e) => {
+                self.metrics
+                    .report_event_error(Event::HandleExtensionRequest);
+                match e {
+                    HandlerError::Verifier(e) => debug!(
+                        target: LOG_TARGET,
+                        "Could not verify justification from {:?}: {}", peer, e
+                    ),
+                    e => warn!(
+                        target: LOG_TARGET,
+                        "Error handling chain extension request from {:?}: {}.", peer, e
                     ),
                 }
             }
@@ -443,6 +592,7 @@ where
                 self.handle_state(state, peer);
             }
             RequestResponse(response_items) => self.handle_request_response(response_items, peer),
+            ChainExtensionRequest(state) => self.handle_chain_extension_request(state, peer),
         }
     }
 
@@ -456,6 +606,7 @@ where
                 },
                 Some(task) = self.tasks.pop() => self.handle_task(task),
                 _ = self.broadcast_ticker.wait_and_tick() => self.broadcast(),
+                force = self.chain_extension_ticker.wait_and_tick() => self.request_chain_extension(force),
                 maybe_event = self.chain_events.next() => match maybe_event {
                     Ok(chain_event) => self.handle_chain_event(chain_event),
                     Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),

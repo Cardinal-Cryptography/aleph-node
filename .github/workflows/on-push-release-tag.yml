@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get docker image names
         id: get-docker-image-names
@@ -28,7 +28,7 @@ jobs:
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -39,7 +39,7 @@ jobs:
       # or release branch, see on-main-or-release-branch-commit.yml
       - name: Check release candidate docker image existence
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/check-image-existence-ecr@v1
+        uses: Cardinal-Cryptography/github-actions/check-image-existence-ecr@v2
         with:
           ecr-image: ${{ steps.get-docker-image-names.outputs.ecr-rc-image }}
 
@@ -60,7 +60,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification

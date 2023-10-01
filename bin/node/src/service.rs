@@ -8,11 +8,11 @@ use std::{
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
-    JustificationTranslator, Metrics, MillisecsPerBlock, Protocol, ProtocolNaming,
-    RateLimiterConfig, SessionPeriod, SubstrateChainStatus, TracingBlockImport,
+    JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
+    SessionPeriod, SubstrateChainStatus, SyncOracle, TimingBlockMetrics, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::{info, warn};
+use log::warn;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -92,7 +92,7 @@ pub fn new_partial(
             mpsc::UnboundedSender<Justification>,
             mpsc::UnboundedReceiver<Justification>,
             Option<Telemetry>,
-            Metrics<BlockHash>,
+            TimingBlockMetrics,
         ),
     >,
     ServiceError,
@@ -136,17 +136,11 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = match config.prometheus_registry() {
-        Some(register) => match Metrics::new(register) {
-            Ok(metrics) => metrics,
-            Err(e) => {
-                warn!("Failed to register Prometheus metrics: {:?}.", e);
-                Metrics::noop()
-            }
-        },
-        None => {
-            info!("Running with the metrics is not available.");
-            Metrics::noop()
+    let metrics = match TimingBlockMetrics::new(config.prometheus_registry()) {
+        Ok(metrics) => metrics,
+        Err(e) => {
+            warn!("Failed to register Prometheus metrics: {:?}.", e);
+            TimingBlockMetrics::noop()
         }
     };
 
@@ -209,7 +203,7 @@ pub fn new_partial(
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 fn setup(
-    mut config: Configuration,
+    config: Configuration,
     backend: Arc<FullBackend>,
     chain_status: SubstrateChainStatus,
     keystore_container: &KeystoreContainer,
@@ -239,24 +233,20 @@ fn setup(
         None => format!("/{genesis_hash}"),
     };
     let protocol_naming = ProtocolNaming::new(chain_prefix);
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config(
-            protocol_naming.clone(),
-            Protocol::Authentication,
-        ));
-    config
-        .network
-        .extra_sets
-        .push(finality_aleph::peers_set_config(
-            protocol_naming.clone(),
-            Protocol::BlockSync,
-        ));
+    let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+    net_config.add_notification_protocol(finality_aleph::peers_set_config(
+        protocol_naming.clone(),
+        Protocol::Authentication,
+    ));
+    net_config.add_notification_protocol(finality_aleph::peers_set_config(
+        protocol_naming.clone(),
+        Protocol::BlockSync,
+    ));
 
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
+            net_config,
             client: client.clone(),
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
@@ -265,6 +255,7 @@ fn setup(
             warp_sync_params: None,
         })?;
 
+    let sync_oracle = sync_network.clone();
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -275,6 +266,7 @@ fn setup(
                 deny_unsafe,
                 import_justification_tx: import_justification_tx.clone(),
                 justification_translator: JustificationTranslator::new(chain_status.clone()),
+                sync_oracle: sync_oracle.clone(),
             };
 
             Ok(create_full_rpc(deps)?)
@@ -321,14 +313,7 @@ pub fn new_authority(
         other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
 
-    let backup_path = backup_path(
-        &aleph_config,
-        config
-            .base_path
-            .as_ref()
-            .expect("Please specify base path")
-            .path(),
-    );
+    let backup_path = backup_path(&aleph_config, config.base_path.path());
 
     let finalized = client.info().finalized_hash;
 
@@ -341,7 +326,7 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let import_queue_handle = BlockImporter(import_queue.service());
+    let import_queue_handle = BlockImporter::new(import_queue.service());
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
@@ -369,6 +354,8 @@ pub fn new_authority(
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
+    let sync_oracle = SyncOracle::new();
+
     let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
         StartAuraParams {
             slot_duration,
@@ -390,7 +377,7 @@ pub fn new_authority(
             force_authoring,
             backoff_authoring_blocks,
             keystore: keystore_container.keystore(),
-            sync_oracle: sync_network.clone(),
+            sync_oracle: sync_oracle.clone(),
             justification_sync_link: sync_network.clone(),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
@@ -434,6 +421,7 @@ pub fn new_authority(
         validator_port: aleph_config.validator_port(),
         protocol_naming,
         rate_limiter_config,
+        sync_oracle,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

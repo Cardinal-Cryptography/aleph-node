@@ -29,7 +29,7 @@ jobs:
       AWS_REGION: eu-central-1
     steps:
       - name: GIT | Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: GIT | Get branch info & current commit sha.
         id: vars
@@ -38,14 +38,14 @@ jobs:
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: GIT | Checkout argocd apps repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
           token: ${{ secrets.CI_GH_TOKEN }}
@@ -54,7 +54,7 @@ jobs:
       - name: Init kustomize
         uses: imranismail/setup-kustomize@v2
         with:
-          kustomize-version: "4.4.1"
+          kustomize-version: ${{ vars.KUSTOMIZE_VERSION }}
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3.2
@@ -148,7 +148,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification

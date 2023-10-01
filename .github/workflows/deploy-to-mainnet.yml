@@ -26,18 +26,18 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get Testnet node commit SHA
         id: get-testnet-node-commit-sha
-        uses: ./.github/actions/get-node-system-version
+        uses: Cardinal-Cryptography/github-actions/get-node-system-version@v2
         with:
           env: testnet
 
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v2
 
       - name: Compare Testnet node SHA version with currently deployed SHA
         if: inputs.force != true
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get docker image names
         id: get-docker-image-names
@@ -91,7 +91,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification

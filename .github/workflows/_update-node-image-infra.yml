@@ -24,12 +24,12 @@ jobs:
           fi
 
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v2
 
       - name: Call action Get ECR image names
         id: get-docker-image-names
@@ -42,7 +42,7 @@ jobs:
       # otherwise ECR image would not exist
       - name: Check deploy image existence
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/check-image-existence-ecr@v1
+        uses: Cardinal-Cryptography/github-actions/check-image-existence-ecr@v2
         with:
           ecr-image: ${{ steps.get-docker-image-names.outputs.ecr-deploy-image }}
 
@@ -53,7 +53,7 @@ jobs:
           echo "repo-owner=$GITHUB_REPOSITORY_OWNER" >> $GITHUB_OUTPUT
 
       - name: GIT | Checkout argocd apps repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.env }}
           # yamllint disable-line rule:line-length
@@ -64,7 +64,7 @@ jobs:
       - name: Init kustomize
         uses: imranismail/setup-kustomize@v2
         with:
-          kustomize-version: "4.4.1"
+          kustomize-version: ${{ vars.KUSTOMIZE_VERSION }}
 
       - name: Update aleph-node docker image and trigger ArgoCD deploy for ${{ inputs.env }}
         env:
