@@ -236,7 +236,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                                 .map(|t| t.elapsed() >= time::Duration::from_secs(1))
                                 .unwrap_or(true)
                             {
-                                info!(
+                                debug!(
                                     target: LOG_TARGET,
                                     "Failed sending data through authentication notification channel to peer because peer_sender receiver is full: {:?}",
                                     peer
@@ -276,7 +276,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                                 .map(|t| t.elapsed() >= time::Duration::from_secs(1))
                                 .unwrap_or(true)
                             {
-                                info!(
+                                debug!(
                                     target: LOG_TARGET,
                                     "Failed sending data through block sync notification channel to peer because peer_sender receiver is full: {:?}",
                                     peer
