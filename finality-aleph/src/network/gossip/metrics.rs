@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use substrate_prometheus_endpoint::{
-    exponential_buckets, prometheus::HistogramTimer, register, GaugeVec, Histogram, HistogramOpts,
-    Opts, PrometheusError, Registry, U64,
+    exponential_buckets, prometheus::HistogramTimer, register, CounterVec, Histogram,
+    HistogramOpts, Opts, PrometheusError, Registry, U64,
 };
 
 use crate::Protocol;
@@ -19,7 +19,7 @@ fn protocol_name(protocol: Protocol) -> &'static str {
 pub enum Metrics {
     Prometheus {
         send_times: HashMap<Protocol, Histogram>,
-        peer_sender_queue_size: GaugeVec<U64>,
+        peer_sender_queue_size: CounterVec<U64>,
     },
     Noop,
 }
@@ -54,13 +54,13 @@ impl Metrics {
             );
         }
 
-        let peer_sender_queue_size = GaugeVec::new(
+        let peer_sender_queue_size = register(CounterVec::new(
             Opts::new(
                 "gossip_network_peer_sender_queue_size",
                 "Total number of messages waiting in peer sender queues for all peers, for a given protocol",
             ),
-            &["protocol"],
-        )?;
+            &["protocol", "action"],
+        )?, &registry)?;
 
         Ok(Metrics::Prometheus {
             send_times,
@@ -88,7 +88,7 @@ impl Metrics {
                 ..
             } => {
                 peer_sender_queue_size
-                    .with_label_values(&[protocol_name(protocol)])
+                    .with_label_values(&[protocol_name(protocol), "send"])
                     .inc();
             }
             Metrics::Noop => {}
@@ -102,8 +102,8 @@ impl Metrics {
                 ..
             } => {
                 peer_sender_queue_size
-                    .with_label_values(&[protocol_name(protocol)])
-                    .dec();
+                    .with_label_values(&[protocol_name(protocol), "received"])
+                    .inc();
             }
             Metrics::Noop => {}
         }

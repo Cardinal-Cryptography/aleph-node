@@ -13,7 +13,7 @@ use rand::{seq::IteratorRandom, thread_rng};
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
 
-const MAX_QUEUE_SIZE: usize = 1_000;
+const MAX_QUEUE_SIZE: usize = 16;
 
 use crate::{
     network::{
@@ -136,7 +136,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         let metrics = match Metrics::new(metrics_registry) {
             Ok(metrics) => metrics,
             Err(e) => {
-                warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
+                warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
                 Metrics::noop()
             }
         };
@@ -253,7 +253,6 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                         Err(SendError::SendingFailed)
                     }
                     Ok(_) => {
-                        // can be temporarily negative because of race conditions
                         self.metrics
                             .report_message_pushed_to_peer_sender_queue(Protocol::Authentication);
                         Ok(())
