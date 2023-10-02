@@ -56,8 +56,8 @@ impl Metrics {
 
         let peer_sender_queue_size = register(CounterVec::new(
             Opts::new(
-                "gossip_network_peer_sender_queue_size",
-                "Total number of messages waiting in peer sender queues for all peers, for a given protocol",
+                "gossip_network_peer_sender_queue",
+                "Total number of messages sent and received by peer sender queues for all peers, for a given protocol",
             ),
             &["protocol", "action"],
         )?, &registry)?;
