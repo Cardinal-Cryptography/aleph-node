@@ -507,13 +507,21 @@ where
     ) -> Result<bool, <Self as HandlerTypes>::Error> {
         let justification = self
             .verifier
-            .verify(justification)
+            .verify_justification(justification)
             .map_err(Error::Verifier)?;
         let new_highest = self
             .forest
             .update_justification(justification, maybe_peer)?;
         self.try_finalize()?;
         Ok(new_highest)
+    }
+
+    /// Handle a single unverified header.
+    fn handle_header(
+        &mut self,
+        header: J::Unverified,
+    ) -> Result<(), <Self as HandlerTypes>::Error> {
+        Ok(())
     }
 
     /// Handle a justification from the user, returning whether it became the new highest justification.

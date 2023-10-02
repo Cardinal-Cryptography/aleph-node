@@ -51,15 +51,16 @@ impl Justification {
 }
 
 impl UnverifiedJustification for Justification {
-    type Header = Header;
+    type UnverifiedHeader = Header;
 
-    fn header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
     }
 }
 
 impl JustificationT for Justification {
     type Header = Header;
+    type UnverifiedHeader = Header;
     type Unverified = Self;
 
     fn header(&self) -> &Self::Header {

@@ -7,7 +7,7 @@ use static_assertions::const_assert;
 use crate::{
     aleph_primitives::MAX_BLOCK_SIZE,
     network::GossipNetwork,
-    sync::{Block, BlockIdFor, Header, Justification, PeerId, UnverifiedJustification, LOG_TARGET},
+    sync::{Block, BlockIdFor, UnverifiedHeader, Justification, PeerId, UnverifiedJustification, LOG_TARGET},
     Version,
 };
 
@@ -22,7 +22,7 @@ pub struct StateV1<J: Justification> {
 #[derive(Clone, PartialEq, Debug, Encode, Decode)]
 pub struct State<J: Justification> {
     top_justification: J::Unverified,
-    favourite_block: J::Header,
+    favourite_block: J::UnverifiedHeader,
 }
 
 impl<J: Justification> From<StateV1<J>> for State<J> {
@@ -46,7 +46,7 @@ impl<J: Justification> From<State<J>> for StateV1<J> {
 }
 
 impl<J: Justification> State<J> {
-    pub fn new(top_justification: J::Unverified, favourite_block: J::Header) -> Self {
+    pub fn new(top_justification: J::Unverified, favourite_block: J::UnverifiedHeader) -> Self {
         State {
             top_justification,
             favourite_block,
@@ -57,7 +57,7 @@ impl<J: Justification> State<J> {
         self.top_justification.clone()
     }
 
-    pub fn favourite_block(&self) -> J::Header {
+    pub fn favourite_block(&self) -> J::UnverifiedHeader {
         self.favourite_block.clone()
     }
 }
@@ -70,7 +70,7 @@ where
     J: Justification<Header = B::Header>,
 {
     Justification(J::Unverified),
-    Header(J::Header),
+    Header(J::UnverifiedHeader),
     Block(B),
 }
 

@@ -15,6 +15,7 @@ use crate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
             InnerJustification, Justification,
         },
+        Justification as JustificationT,
         Verifier,
     },
 };
@@ -80,7 +81,7 @@ where
 {
     type Error = VerificationError;
 
-    fn verify(&mut self, justification: Justification) -> Result<Justification, Self::Error> {
+    fn verify_justification(&mut self, justification: Justification) -> Result<Justification, Self::Error> {
         let header = &justification.header;
         match &justification.inner_justification {
             InnerJustification::AlephJustification(aleph_justification) => {
@@ -93,5 +94,9 @@ where
                 false => Err(Self::Error::Cache(CacheError::BadGenesisHeader)),
             },
         }
+    }
+
+    fn verify_header(&mut self, header: <Justification as JustificationT>::UnverifiedHeader) -> Result<<Justification as JustificationT>::Header, Self::Error> {
+        header
     }
 }

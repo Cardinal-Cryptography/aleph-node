@@ -6,7 +6,7 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    sync::{Block as BlockT, BlockImport, Header as HeaderT},
+    sync::{Block as BlockT, BlockImport, Header as HeaderT, UnverifiedHeader},
     BlockId, TimingBlockMetrics,
 };
 
@@ -65,7 +65,7 @@ impl BlockImport<Block> for BlockImporter {
     }
 }
 
-impl HeaderT for Header {
+impl UnverifiedHeader for Header {
     type Identifier = BlockId;
 
     fn id(&self) -> Self::Identifier {
@@ -81,6 +81,30 @@ impl HeaderT for Header {
             hash: *self.parent_hash(),
             number,
         })
+    }
+}
+
+impl HeaderT for Header {
+    type Identifier = BlockId;
+    type Unverified = Self;
+
+    fn id(&self) -> Self::Identifier {
+        BlockId {
+            hash: self.hash(),
+            number: *self.number(),
+        }
+    }
+
+    fn parent_id(&self) -> Option<Self::Identifier> {
+        let number = self.number().checked_sub(&One::one())?;
+        Some(BlockId {
+            hash: *self.parent_hash(),
+            number,
+        })
+    }
+
+    fn into_unverified(self) -> Self::Unverified {
+        self
     }
 }
 
