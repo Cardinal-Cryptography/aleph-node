@@ -23,6 +23,7 @@ mod tasks;
 mod ticker;
 
 pub use compatibility::OldSyncCompatibleRequestBlocks;
+pub use handler::DatabaseIO;
 pub use service::{Service, IO};
 pub use substrate::{
     Justification as SubstrateJustification, JustificationTranslator, SessionVerifier,
@@ -97,7 +98,7 @@ pub trait Finalizer<J: Justification> {
 }
 
 /// A notification about the chain status changing.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChainStatusNotification<H: Header> {
     /// A block has been imported.
     BlockImported(H),
@@ -109,7 +110,7 @@ pub enum ChainStatusNotification<H: Header> {
 /// We assume that this will return all the events, otherwise we will end up with a broken state.
 #[async_trait::async_trait]
 pub trait ChainStatusNotifier<H: Header> {
-    type Error: Display;
+    type Error: Debug + Display;
 
     /// Returns a chain status notification when it is available.
     /// This method's implementation must be cancellation safe.
