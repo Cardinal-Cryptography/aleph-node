@@ -97,6 +97,6 @@ where
     }
 
     fn verify_header(&mut self, header: <Justification as JustificationT>::UnverifiedHeader) -> Result<<Justification as JustificationT>::Header, Self::Error> {
-        header
+        Ok(header)
     }
 }

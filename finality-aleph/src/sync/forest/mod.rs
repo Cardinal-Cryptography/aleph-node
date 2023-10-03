@@ -99,7 +99,7 @@ impl Display for Error {
 pub enum InitializationError<B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     Error(Error),
@@ -109,7 +109,7 @@ where
 impl<B, J, CS> Display for InitializationError<B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
@@ -172,7 +172,7 @@ where
 {
     pub fn new<B, CS>(chain_status: &CS) -> Result<Self, InitializationError<B, J, CS>>
     where
-        B: Block<Header = J::Header>,
+        B: Block<Header = J::UnverifiedHeader>,
         CS: ChainStatus<B, J>,
     {
         let top_finalized = chain_status

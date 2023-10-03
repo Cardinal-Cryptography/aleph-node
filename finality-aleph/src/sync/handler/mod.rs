@@ -15,7 +15,7 @@ use crate::{
             InitializationError as ForestInitializationError, Interest,
         },
         handler::request_handler::RequestHandler,
-        Block, BlockIdFor, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification,
+        Block, BlockIdFor, BlockImport, BlockStatus, ChainStatus, Finalizer, UnverifiedHeader, Header, Justification,
         PeerId, UnverifiedJustification, Verifier,
     },
     BlockIdentifier, BlockNumber, SyncOracle,
@@ -30,7 +30,7 @@ use crate::sync::data::{ResponseItem, ResponseItems};
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -44,7 +44,7 @@ where
 impl<B, J, CS, F, BI> DatabaseIO<B, J, CS, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -100,7 +100,7 @@ enum MissedImportData {
 enum TrySyncError<B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     ChainStatus(CS::Error),
@@ -119,7 +119,7 @@ impl MissedImportData {
     ) -> Result<(), CS::Error>
     where
         B: Block,
-        J: Justification<Header = B::Header>,
+        J: Justification<UnverifiedHeader = B::Header>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -143,7 +143,7 @@ impl MissedImportData {
     where
         B: Block,
         I: PeerId,
-        J: Justification<Header = B::Header>,
+        J: Justification<UnverifiedHeader = B::Header>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -196,7 +196,7 @@ pub struct Handler<B, I, J, CS, V, F, BI>
 where
     B: Block,
     I: PeerId,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -218,7 +218,7 @@ where
 pub enum HandleStateAction<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     /// A response for the peer that sent us the data.
     Response(NetworkData<B, J>),
@@ -231,7 +231,7 @@ where
 impl<B, J> HandleStateAction<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn response(justification: J::Unverified, other_justification: Option<J::Unverified>) -> Self {
         Self::Response(NetworkData::StateBroadcastResponse(
@@ -253,7 +253,7 @@ where
 pub enum Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -273,7 +273,7 @@ where
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -305,7 +305,7 @@ where
 impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -318,7 +318,7 @@ where
 impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -335,7 +335,7 @@ where
 impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -349,7 +349,7 @@ impl<B, I, J, CS, V, F, BI> HandlerTypes for Handler<B, I, J, CS, V, F, BI>
 where
     B: Block,
     I: PeerId,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -362,7 +362,7 @@ impl<B, I, J, CS, V, F, BI> Handler<B, I, J, CS, V, F, BI>
 where
     B: Block,
     I: PeerId,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -522,11 +522,11 @@ where
     }
 
     /// Handle a single unverified header.
-    fn handle_header(
+    fn verify_header(
         &mut self,
-        header: J::Unverified,
-    ) -> Result<(), <Self as HandlerTypes>::Error> {
-        Ok(())
+        header: J::UnverifiedHeader,
+    ) -> Result<J::Header, <Self as HandlerTypes>::Error> {
+        self.verifier.verify_header(header).map_err(Error::Verifier)
     }
 
     /// Handle a justification from the user, returning whether it became the new highest justification.
@@ -588,6 +588,10 @@ where
                     }
                 }
                 ResponseItem::Header(h) => {
+                    let h = match self.verify_header(h) {
+                        Ok(h) => h,
+                        Err(e) => return (new_highest, Some(e)),
+                    };
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
@@ -701,8 +705,8 @@ where
             .status_of(self.forest.favourite_block())
             .map_err(Error::ChainStatus)?
         {
-            Justified(justification) => justification.header().clone(),
-            Present(header) => header,
+            Justified(justification) => justification.header().clone().into_unverified(),
+            Present(header) => header.into_unverified(),
             Unknown => return Err(Error::MissingFavouriteBlock),
         };
         Ok(State::new(top_justification, favourite_block))

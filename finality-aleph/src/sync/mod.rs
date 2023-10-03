@@ -63,7 +63,7 @@ pub trait Header: Clone + Codec + Debug + Send + Sync + 'static {
 
 /// The block, including a header.
 pub trait Block: Clone + Codec + Debug + Send + Sync + 'static {
-    type Header: Header;
+    type Header: UnverifiedHeader;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;
@@ -87,7 +87,7 @@ pub trait UnverifiedJustification: Clone + Codec + Send + Sync + Debug + 'static
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone + Send + Sync + Debug + 'static {
     type Header: Header;
-    type UnverifiedHeader: UnverifiedHeader;
+    type UnverifiedHeader: UnverifiedHeader<Identifier = <Self::Header as Header>::Identifier>;
     type Unverified: UnverifiedJustification<UnverifiedHeader = Self::UnverifiedHeader>;
 
     /// The header of the block.
@@ -172,7 +172,7 @@ impl<J: Justification> FinalizationStatus<J> {
 pub trait ChainStatus<B, J>: Clone + Send + Sync + 'static
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<Header = J::UnverifiedHeader>,
 {
     type Error: Display;
 

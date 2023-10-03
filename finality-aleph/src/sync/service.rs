@@ -21,7 +21,7 @@ use crate::{
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
         Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
-        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
+        ChainStatusNotifier, Finalizer, UnverifiedHeader, Justification, JustificationSubmissions,
         RequestBlocks, UnverifiedJustification, Verifier, LOG_TARGET,
     },
     SyncOracle,
@@ -34,9 +34,9 @@ const TICK_PERIOD: Duration = Duration::from_secs(5);
 pub struct IO<B, J, N, CE, CS, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<B::Header>,
+    CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -51,9 +51,9 @@ where
 impl<B, J, N, CE, CS, F, BI> IO<B, J, N, CE, CS, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<B::Header>,
+    CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -82,9 +82,9 @@ where
 pub struct Service<B, J, N, CE, CS, V, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<B::Header>,
+    CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -122,9 +122,9 @@ impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
 impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
-    CE: ChainStatusNotifier<B::Header>,
+    CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,

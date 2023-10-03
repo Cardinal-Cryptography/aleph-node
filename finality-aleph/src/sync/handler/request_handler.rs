@@ -9,7 +9,7 @@ use crate::{
         data::{BranchKnowledge, ResponseItem},
         handler::Request,
         Block, BlockIdFor, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
-        UnverifiedJustification,
+        UnverifiedJustification, UnverifiedHeader,
     },
     BlockIdentifier,
 };
@@ -97,7 +97,7 @@ enum State {
 struct StepResult<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     pre_chunk: PreChunk<B, J>,
     state: State,
@@ -107,7 +107,7 @@ where
 impl<B, J> StepResult<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn new(head: HeadOfChunk<J>, state: State) -> Self {
         Self {
@@ -201,7 +201,7 @@ where
 pub enum Action<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     RequestBlock(BlockIdFor<J>),
     Response(Vec<ResponseItem<B, J>>),
@@ -211,7 +211,7 @@ where
 impl<B, J> Action<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn request_block(id: BlockIdFor<J>) -> Self {
         Action::RequestBlock(id)
@@ -229,17 +229,17 @@ where
 struct PreChunk<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     pub just: Option<J>,
     pub blocks: Vec<B>,
-    pub headers: Vec<J::Header>,
+    pub headers: Vec<J::UnverifiedHeader>,
 }
 
 impl<B, J> PreChunk<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn new(head: &HeadOfChunk<J>) -> Self {
         match head {
@@ -292,7 +292,7 @@ where
 pub struct RequestHandler<'a, B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     chain_status: &'a CS,
@@ -303,7 +303,7 @@ where
 impl<'a, B, J, CS> HandlerTypes for RequestHandler<'a, B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     type Justification = J;
@@ -313,7 +313,7 @@ where
 impl<'a, B, J, CS> RequestHandler<'a, B, J, CS>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
 {
     pub fn new(chain_status: &'a CS, session_info: &'a SessionBoundaryInfo) -> Self {

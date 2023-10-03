@@ -4,6 +4,7 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::H256;
 
 use crate::{
+    BlockNumber, BlockHash,
     sync::{Block, ChainStatusNotification, Header, Justification, UnverifiedJustification},
     BlockIdentifier,
 };
@@ -11,8 +12,8 @@ use crate::{
 mod backend;
 mod status_notifier;
 
-type MockNumber = u32;
-type MockHash = H256;
+type MockNumber = BlockNumber;
+type MockHash = BlockHash;
 
 pub use backend::Backend;
 

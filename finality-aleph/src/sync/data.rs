@@ -67,7 +67,7 @@ impl<J: Justification> State<J> {
 pub enum ResponseItem<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     Justification(J::Unverified),
     Header(J::UnverifiedHeader),
@@ -103,7 +103,7 @@ impl<J: Justification> RequestV1<J> {
     /// A silly fallback to have old nodes respond with at least justifications
     /// when we request a chain extension.
     pub fn from_state_only(state: StateV1<J>) -> Self {
-        let target_id = state.top_justification.header().id();
+        let target_id = state.top_justification.header().into_unverified().id();
         let branch_knowledge = BranchKnowledge::TopImported(target_id.clone());
         Self {
             target_id,
@@ -213,7 +213,7 @@ impl<I: PeerId, J: Justification> PreRequest<I, J> {
 pub enum NetworkDataV2<B: Block, J: Justification>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
     /// send what we are missing, and sometimes just use the justifications to update their own
@@ -233,7 +233,7 @@ where
 pub enum NetworkData<B: Block, J: Justification>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     /// A periodic state broadcast, so that neighbouring nodes can request what they are missing,
     /// send what we are missing, and sometimes just use the justifications to update their own
@@ -253,7 +253,7 @@ where
 impl<B: Block, J: Justification> From<NetworkDataV2<B, J>> for NetworkData<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn from(data: NetworkDataV2<B, J>) -> Self {
         match data {
@@ -272,7 +272,7 @@ where
 impl<B: Block, J: Justification> From<NetworkData<B, J>> for NetworkDataV2<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn from(data: NetworkData<B, J>) -> Self {
         match data {
@@ -296,7 +296,7 @@ where
 pub enum VersionedNetworkData<B: Block, J: Justification>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     // Most likely from the future.
     Other(Version, Vec<u8>),
@@ -337,7 +337,7 @@ fn encode_with_version(version: Version, payload: &[u8]) -> Vec<u8> {
 impl<B, J> Encode for VersionedNetworkData<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn size_hint(&self) -> usize {
         use VersionedNetworkData::*;
@@ -365,7 +365,7 @@ where
 impl<B, J> Decode for VersionedNetworkData<B, J>
 where
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     fn decode<I: CodecInput>(input: &mut I) -> Result<Self, CodecError> {
         use VersionedNetworkData::*;
@@ -391,7 +391,7 @@ pub struct VersionWrapper<B, J, N>
 where
     N: GossipNetwork<VersionedNetworkData<B, J>>,
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     inner: N,
     _phantom: PhantomData<(B, J)>,
@@ -401,7 +401,7 @@ impl<B, J, N> VersionWrapper<B, J, N>
 where
     N: GossipNetwork<VersionedNetworkData<B, J>>,
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     /// Wrap the inner network.
     pub fn new(inner: N) -> Self {
@@ -417,7 +417,7 @@ impl<B, J, N> GossipNetwork<NetworkData<B, J>> for VersionWrapper<B, J, N>
 where
     N: GossipNetwork<VersionedNetworkData<B, J>>,
     B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification<UnverifiedHeader = B::Header>,
 {
     type Error = N::Error;
     type PeerId = N::PeerId;
