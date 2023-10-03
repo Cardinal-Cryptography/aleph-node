@@ -29,11 +29,11 @@ on:
         default: 48h
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
-        required: false
+        required: true
         default: '5'
       internal:
         description: 'Internal network, accessible from VPN only'
-        required: false
+        required: true
         type: boolean
         default: false
   workflow_call:
@@ -70,85 +70,11 @@ jobs:
     needs: [check-vars-and-secrets]
     name: Create featurenet
     runs-on: [self-hosted, Linux, X64, small]
-    outputs:
-      deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Get featurenet name
-        id: get-featurenet-name
-        shell: bash
-        # yamllint disable rule:line-length
-        run: |
-          if [[
-            "${{ inputs.featurenet-name }}" != "" && \
-            ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
-          ]]
-          then
-            echo "!!! Invalid name"
-            exit 1
-          fi
-          final_featurenet_name_local=${{ inputs.featurenet-name != '' && inputs.featurenet-name || github.run_id }}
-          echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
-        # yamllint enable rule:line-length
-
-      - name: Delete old featurenet app and data
-        if: contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v2
-        with:
-          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
-          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
-          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
-          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-
-      - name: Start featurenet Deployment
-        uses: bobheadxi/deployments@v1.1.0
-        id: deployment
-        with:
-          step: start
-          token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
-          override: true
-          debug: true
-
-      - name: Create featurenet from scratch, node binary from testnet or mainnet
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v2
-        id: create-featurenet
-        with:
-          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
-          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
-          featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
-          expiration: ${{ inputs.expiration }}
-          replicas: ${{ inputs.replicas }}
-          internal: ${{ inputs.internal && 'true' || 'false' }}
-          git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
-          git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-          wait-for-finalized-heads: "true"
-
-      - name: Finish featurenet Deployment
-        uses: bobheadxi/deployments@v1
-        if: always()
-        with:
-          step: finish
-          token: ${{ secrets.CI_GH_TOKEN }}
-          status: ${{ job.status }}
-          env: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
-          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
-          # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-featurenet.outputs.ws-hostname }}#/explorer
-          debug: true
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/featurenet-create-from-net.yml@v3
+    secrets: inherit
+    with:
+      featurenet-name: ${{ inputs.featurenet-name }}
+      featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
+      expiration: ${{ inputs.expiration }}
+      replicas: ${{ inputs.replicas }}
+      internal: ${{ inputs.internal && 'true' || 'false' }}
