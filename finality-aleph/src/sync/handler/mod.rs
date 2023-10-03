@@ -15,10 +15,10 @@ use crate::{
             InitializationError as ForestInitializationError, Interest,
         },
         handler::request_handler::RequestHandler,
-        Block, BlockIdFor, BlockImport, BlockStatus, ChainStatus, Finalizer, UnverifiedHeader, Header, Justification,
+        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, UnverifiedHeader, Header, Justification,
         PeerId, UnverifiedJustification, Verifier,
     },
-    BlockIdentifier, BlockNumber, SyncOracle,
+    BlockId, BlockNumber, SyncOracle,
 };
 
 mod request_handler;
@@ -73,7 +73,7 @@ where
     I: PeerId,
     J: Justification,
 {
-    pub fn get(&self, id: &BlockIdFor<J>) -> Interest<I, J> {
+    pub fn get(&self, id: &BlockId) -> Interest<I> {
         self.forest.request_interest(id)
     }
 }
@@ -263,7 +263,7 @@ where
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
-    RequestHandlerError(RequestHandlerError<J, CS::Error>),
+    RequestHandlerError(RequestHandlerError<CS::Error>),
     MissingJustification,
     BlockNotImportable,
     HeaderNotRequired,
@@ -332,7 +332,7 @@ where
     }
 }
 
-impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
+impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
     B: Block<Header = J::UnverifiedHeader>,
@@ -340,7 +340,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    fn from(e: RequestHandlerError<J, CS::Error>) -> Self {
+    fn from(e: RequestHandlerError<CS::Error>) -> Self {
         Error::RequestHandlerError(e)
     }
 }
@@ -578,7 +578,7 @@ where
     ) -> (bool, Option<<Self as HandlerTypes>::Error>) {
         let mut new_highest = false;
         // Lets us import descendands of importable blocks, useful for favourite blocks.
-        let mut last_imported_block: Option<BlockIdFor<J>> = None;
+        let mut last_imported_block: Option<BlockId> = None;
         for item in response_items {
             match item {
                 ResponseItem::Justification(j) => {
@@ -723,7 +723,7 @@ where
     /// Returns `true` if this was the first time something indicated interest in this block.
     pub fn handle_internal_request(
         &mut self,
-        id: &BlockIdFor<J>,
+        id: &BlockId,
     ) -> Result<bool, <Self as HandlerTypes>::Error> {
         let should_request = self.forest.update_block_identifier(id, None, true)?;
 
@@ -731,7 +731,7 @@ where
     }
 
     /// Returns the extension request we could be making right now.
-    pub fn extension_request(&self) -> ExtensionRequest<I, J> {
+    pub fn extension_request(&self) -> ExtensionRequest<I> {
         self.forest.extension_request()
     }
 }
@@ -747,12 +747,12 @@ mod tests {
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             forest::{ExtensionRequest, Interest},
             handler::Action,
-            mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
+            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId},
             Block, BlockImport, ChainStatus,
             ChainStatusNotification::*,
             ChainStatusNotifier, Header, Justification,
         },
-        BlockIdentifier, BlockNumber, SessionPeriod, SyncOracle,
+        BlockId, BlockNumber, SessionPeriod, SyncOracle,
     };
 
     type TestHandler =
@@ -765,7 +765,7 @@ mod tests {
         TestHandler,
         Backend,
         impl ChainStatusNotifier<MockHeader>,
-        MockIdentifier,
+        BlockId,
     ) {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
@@ -797,8 +797,8 @@ mod tests {
 
     fn assert_dangling_branch_required(
         handler: &TestHandler,
-        top: &MockIdentifier,
-        bottom: &MockIdentifier,
+        top: &BlockId,
+        bottom: &BlockId,
         know_most: HashSet<MockPeerId>,
     ) {
         assert_eq!(
@@ -818,7 +818,7 @@ mod tests {
 
     fn grow_light_branch_till(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         top: &BlockNumber,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -828,7 +828,7 @@ mod tests {
 
     fn grow_light_branch(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -869,8 +869,8 @@ mod tests {
         height: BlockNumber,
         length: usize,
         peer_id: MockPeerId,
-    ) -> (MockIdentifier, MockIdentifier) {
-        let bottom = MockIdentifier::new_random(height);
+    ) -> (BlockId, BlockId) {
+        let bottom = BlockId::new_random(height);
         let top = grow_light_branch(handler, &bottom, length, peer_id)
             .last()
             .expect("branch should not be empty")
@@ -915,9 +915,9 @@ mod tests {
         handler: &mut TestHandler,
         backend: &mut Backend,
         notifier: &mut impl ChainStatusNotifier<MockHeader>,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
-    ) -> MockIdentifier {
+    ) -> BlockId {
         let branch: Vec<_> = bottom.random_branch().take(length).collect();
         let top = branch.last().expect("should not be empty").id();
         for header in branch.iter() {
@@ -1292,7 +1292,7 @@ mod tests {
 
         // grow the dangling branch that will be pruned
         let fork_peer = 6;
-        let fork_bottom = MockIdentifier::new_random(15);
+        let fork_bottom = BlockId::new_random(15);
         let fork_child = fork_bottom.random_child();
         let fork = grow_light_branch(&mut handler, &fork_child.id(), 10, fork_peer);
         let fork_top = fork.last().expect("fork not empty").id();
@@ -1903,8 +1903,8 @@ mod tests {
 
         let header = MockHeader::random_parentless(105);
         let state = State::new(MockJustification::for_header(header.clone()), header);
-        let requested_id = MockIdentifier::new_random(120);
-        let lowest_id = MockIdentifier::new_random(110);
+        let requested_id = BlockId::new_random(120);
+        let lowest_id = BlockId::new_random(110);
 
         let request = Request::new(requested_id.clone(), LowestId(lowest_id), state);
 
