@@ -29,7 +29,7 @@ on:
         default: 48h
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
-        required: true
+        required: false
         default: '5'
       internal:
         description: 'Internal network, accessible from VPN only'
@@ -47,8 +47,9 @@ on:
         type: string
       expiration:
         description: 'Time after which featurenet will be removed: "Xh" or "never"'
-        required: true
+        required: false
         type: string
+        default: 48h
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
         required: false
@@ -81,14 +82,14 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           if [[
-            "${{ inputs.name }}" != "" && \
-            ! "${{ inputs.name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
+            "${{ inputs.featurenet-name }}" != "" && \
+            ! "${{ inputs.featurenet-name }}" =~ ^[a-z0-9][a-z0-9\-]{4,30}$
           ]]
           then
             echo "!!! Invalid name"
             exit 1
           fi
-          final_featurenet_name_local=${{ inputs.name != '' && inputs.name || github.run_id }}
+          final_featurenet_name_local=${{ inputs.featurenet-name != '' && inputs.featurenet-name || github.run_id }}
           echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
