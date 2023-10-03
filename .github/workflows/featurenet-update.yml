@@ -75,4 +75,4 @@ jobs:
       featurenet-aleph-node-image: ${{ inputs.destination }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
       replicas: ${{ inputs.replicas }}
-      internal: ${{ inputs.internal && 'true' || 'false' }}
+      internal: ${{ inputs.internal && true || false }}

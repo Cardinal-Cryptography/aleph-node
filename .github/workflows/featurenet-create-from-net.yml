@@ -80,4 +80,4 @@ jobs:
       featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
       expiration: ${{ inputs.expiration }}
       replicas: ${{ inputs.replicas }}
-      internal: ${{ inputs.internal && 'true' || 'false' }}
+      internal: ${{ inputs.internal && true || false }}

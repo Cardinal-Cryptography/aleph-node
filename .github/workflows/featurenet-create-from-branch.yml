@@ -112,5 +112,5 @@ jobs:
     with:
       expiration: ${{ inputs.expiration }}
       replicas: ${{ inputs.replicas }}
-      internal: ${{ inputs.internal && 'true' || 'false' }}
+      internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
