@@ -524,7 +524,7 @@ where
         Ok(new_highest)
     }
 
-    /// Handle a single unverified header.
+    /// Verify an unverified header.
     fn verify_header(
         &mut self,
         header: J::UnverifiedHeader,
