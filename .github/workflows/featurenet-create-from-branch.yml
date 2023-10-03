@@ -105,7 +105,7 @@ jobs:
     secrets: inherit
 
   create-featurenet:
-    needs: [push-featurnet-node-image-to-ecr, get-final-names]
+    needs: [push-featurnet-node-image-to-ecr]
     name: Create featurenet based on the PR
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-branch.yml@v3
     secrets: inherit
