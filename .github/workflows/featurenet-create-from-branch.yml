@@ -1,5 +1,5 @@
 ---
-name: Create featurenet
+name: FE - Create from branch
 
 on:
   workflow_call:

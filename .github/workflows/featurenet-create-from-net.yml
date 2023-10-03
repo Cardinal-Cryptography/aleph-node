@@ -1,5 +1,5 @@
 ---
-name: UpdateNet Create
+name: FE - Create from net
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
           - mainnet
         default: testnet
       expiration:
-        description: 'Time after which updatenet will be removed'
+        description: 'Time after which featurenet will be removed'
         required: true
         type: choice
         options:
@@ -34,7 +34,7 @@ on:
         type: boolean
         default: false
       name:
-        description: 'Name of the updatenet, used instead of run ID'
+        description: 'Name of the featurenet, used instead of run ID'
         required: false
         default: ''
 
@@ -44,9 +44,9 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  create-updatenet:
+  create-featurenet:
     needs: [check-vars-and-secrets]
-    name: Create updatenet
+    name: Create featurenet
     runs-on: [self-hosted, Linux, X64, small]
     outputs:
       deployment-id: ${{ steps.deployment.outputs.deployment_id }}
@@ -54,8 +54,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Get updatenet name
-        id: get-updatenet-name
+      - name: Get featurenet name
+        id: get-featurenet-name
         shell: bash
         # yamllint disable rule:line-length
         run: |
@@ -67,8 +67,8 @@ jobs:
             echo "!!! Invalid name"
             exit 1
           fi
-          final_updatenet_name_local=updnet-${{ inputs.name != '' && inputs.name || github.run_id }}
-          echo "final-updatenet-name=$final_updatenet_name_local" >> $GITHUB_OUTPUT
+          final_featurenet_name_local=${{ inputs.name != '' && inputs.name || github.run_id }}
+          echo "final-featurenet-name=$final_featurenet_name_local" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
@@ -84,23 +84,23 @@ jobs:
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
 
-      - name: Start updatenet Deployment
+      - name: Start featurenet Deployment
         uses: bobheadxi/deployments@v1.1.0
         id: deployment
         with:
           step: start
           token: ${{ secrets.CI_GH_TOKEN }}
-          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          env: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
           override: true
           debug: true
 
-      - name: Create updatenet from scratch, node binary from testnet or mainnet
+      - name: Create featurenet from scratch, node binary from testnet or mainnet
         uses: Cardinal-Cryptography/github-actions/create-featurenet@v2
-        id: create-updatenet
+        id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
@@ -109,7 +109,7 @@ jobs:
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
-          featurenet-name: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          featurenet-name: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
           featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
           expiration: ${{ inputs.expiration }}
           replicas: ${{ inputs.replicas }}
@@ -125,8 +125,8 @@ jobs:
           step: finish
           token: ${{ secrets.CI_GH_TOKEN }}
           status: ${{ job.status }}
-          env: ${{ steps.get-updatenet-name.outputs.final-updatenet-name }}
+          env: ${{ steps.get-featurenet-name.outputs.final-featurenet-name }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           # yamllint disable-line rule:line-length
-          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-updatenet.outputs.ws-hostname }}#/explorer
+          env_url: https://dev.azero.dev/?rpc=wss%3A%2F%2F${{ steps.create-featurenet.outputs.ws-hostname }}#/explorer
           debug: true
