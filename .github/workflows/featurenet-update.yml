@@ -65,7 +65,7 @@ jobs:
     needs: [check-vars-and-secrets]
     name: Update featurenet
     runs-on: [self-hosted, Linux, X64, small]
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/featurenet-update.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
