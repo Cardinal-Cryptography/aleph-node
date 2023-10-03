@@ -4,7 +4,7 @@ name: FE - Update
 on:
   workflow_dispatch:
     inputs:
-      name:
+      featurenet-name:
         description: Name of featurenet
         required: true
         type: string
@@ -32,7 +32,7 @@ on:
         default: false
   workflow_call:
     inputs:
-      name:
+      featurenet-name:
         description: Name of featurenet
         required: true
         type: string
@@ -68,6 +68,7 @@ jobs:
   update-featurenet:
     needs: [check-vars-and-secrets]
     name: Update featurenet
+    # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@A0-3266-add-featurenet-workflows
     secrets: inherit
     with:
