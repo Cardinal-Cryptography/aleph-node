@@ -7,8 +7,7 @@ use static_assertions::const_assert;
 use crate::{
     aleph_primitives::MAX_BLOCK_SIZE,
     network::GossipNetwork,
-    sync::{Block, UnverifiedHeader, Justification, PeerId, UnverifiedJustification, LOG_TARGET},
-    Version,
+    sync::{Block, Justification, PeerId, UnverifiedHeader, UnverifiedJustification, LOG_TARGET},
     BlockId, Version,
 };
 
@@ -104,7 +103,7 @@ impl<J: Justification> RequestV1<J> {
     /// A silly fallback to have old nodes respond with at least justifications
     /// when we request a chain extension.
     pub fn from_state_only(state: StateV1<J>) -> Self {
-        let target_id = state.top_justification.header().into_unverified().id();
+        let target_id = state.top_justification.header().id();
         let branch_knowledge = BranchKnowledge::TopImported(target_id.clone());
         Self {
             target_id,

@@ -400,7 +400,7 @@ impl Display for VerifierError {
 impl Verifier<MockJustification> for Backend {
     type Error = VerifierError;
 
-    fn verify(
+    fn verify_justification(
         &mut self,
         justification: MockJustification,
     ) -> Result<MockJustification, Self::Error> {
@@ -426,5 +426,9 @@ impl Verifier<MockJustification> for Backend {
             true => Ok(justification),
             false => Err(Self::Error::IncorrectJustification),
         }
+    }
+
+    fn verify_header(&mut self, header: MockHeader) -> Result<MockHeader, Self::Error> {
+        Ok(header)
     }
 }

@@ -1,12 +1,13 @@
 use std::hash::Hash;
 
 use parity_scale_codec::{Decode, Encode};
-use primitives::{BlockHash, BlockNumber};
 
 use crate::{
-    BlockNumber, BlockHash,
-    sync::{Block, ChainStatusNotification, Header, Justification, UnverifiedJustification},
-    BlockId,
+    sync::{
+        Block, ChainStatusNotification, Header, Justification, UnverifiedHeader,
+        UnverifiedJustification,
+    },
+    BlockHash, BlockId, BlockNumber,
 };
 
 mod backend;
@@ -74,18 +75,34 @@ impl Iterator for RandomBranch {
 
     fn next(&mut self) -> Option<Self::Item> {
         let result = self.parent.random_child();
-        self.parent = result.id();
+        self.parent = Header::id(&result);
         Some(result)
     }
 }
 
-impl Header for MockHeader {
+impl UnverifiedHeader for MockHeader {
     fn id(&self) -> BlockId {
         self.id.clone()
     }
 
     fn parent_id(&self) -> Option<BlockId> {
         self.parent.clone()
+    }
+}
+
+impl Header for MockHeader {
+    type Unverified = Self;
+
+    fn id(&self) -> BlockId {
+        self.id.clone()
+    }
+
+    fn parent_id(&self) -> Option<BlockId> {
+        self.parent.clone()
+    }
+
+    fn into_unverified(self) -> Self::Unverified {
+        self
     }
 }
 
@@ -115,12 +132,18 @@ impl MockBlock {
 }
 
 impl Header for MockBlock {
+    type Unverified = MockHeader;
+
     fn id(&self) -> BlockId {
-        self.header().id()
+        Header::id(self.header())
     }
 
     fn parent_id(&self) -> Option<BlockId> {
-        self.header().parent_id()
+        Header::parent_id(self.header())
+    }
+
+    fn into_unverified(self) -> Self::Unverified {
+        self.header.into_unverified()
     }
 }
 
@@ -148,15 +171,16 @@ impl MockJustification {
 }
 
 impl UnverifiedJustification for MockJustification {
-    type Header = MockHeader;
+    type UnverifiedHeader = MockHeader;
 
-    fn header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
     }
 }
 
 impl Justification for MockJustification {
     type Header = MockHeader;
+    type UnverifiedHeader = MockHeader;
     type Unverified = Self;
 
     fn header(&self) -> &Self::Header {

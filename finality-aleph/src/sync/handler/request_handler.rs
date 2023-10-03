@@ -9,7 +9,7 @@ use crate::{
         data::{BranchKnowledge, ResponseItem},
         handler::Request,
         Block, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
-        UnverifiedJustification, UnverifiedHeader,
+        UnverifiedHeader, UnverifiedJustification,
     },
     BlockId,
 };

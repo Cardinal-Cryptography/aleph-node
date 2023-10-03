@@ -15,8 +15,8 @@ use crate::{
             InitializationError as ForestInitializationError, Interest,
         },
         handler::request_handler::RequestHandler,
-        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, UnverifiedHeader, Header, Justification,
-        PeerId, UnverifiedJustification, Verifier,
+        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification, PeerId,
+        UnverifiedHeader, UnverifiedJustification, Verifier,
     },
     BlockId, BlockNumber, SyncOracle,
 };
@@ -192,11 +192,12 @@ impl MissedImportData {
 }
 
 /// Handler for data incoming from the network.
-pub struct Handler<B, I, J, CS, V, F, BI>
+pub struct Handler<B, H, I, J, CS, V, F, BI>
 where
     B: Block,
+    H: Header<Unverified = B::Header>,
     I: PeerId,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -210,7 +211,7 @@ where
     block_importer: BI,
     missed_import_data: MissedImportData,
     sync_oracle: SyncOracle,
-    phantom: PhantomData<B>,
+    phantom: PhantomData<(B, H)>,
 }
 
 /// What actions can the handler recommend as a reaction to some data.
@@ -272,8 +273,8 @@ where
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
 where
-    J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block,
+    J: Justification<UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -345,11 +346,12 @@ where
     }
 }
 
-impl<B, I, J, CS, V, F, BI> HandlerTypes for Handler<B, I, J, CS, V, F, BI>
+impl<B, H, I, J, CS, V, F, BI> HandlerTypes for Handler<B, H, I, J, CS, V, F, BI>
 where
     B: Block,
+    H: Header<Unverified = B::Header>,
     I: PeerId,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -358,11 +360,12 @@ where
     type Error = Error<B, J, CS, V, F>;
 }
 
-impl<B, I, J, CS, V, F, BI> Handler<B, I, J, CS, V, F, BI>
+impl<B, H, I, J, CS, V, F, BI> Handler<B, H, I, J, CS, V, F, BI>
 where
     B: Block,
+    H: Header<Unverified = B::Header>,
     I: PeerId,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -656,23 +659,23 @@ where
             .session_id_from_block_num(local_top_number);
         match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
-            None => Ok(HandleStateAction::maybe_extend(
-                self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                    || self
-                        .forest
-                        .update_header(&state.favourite_block(), Some(peer), false)?,
-            )),
+            None => {
+                let header = self.verify_header(state.favourite_block())?;
+                Ok(HandleStateAction::maybe_extend(
+                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                        || self.forest.update_header(&header, Some(peer), false)?,
+                ))
+            }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
-                true => Ok(HandleStateAction::maybe_extend(
-                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                        || self.forest.update_header(
-                            &state.favourite_block(),
-                            Some(peer),
-                            false,
-                        )?,
-                )),
+                true => {
+                    let header = self.verify_header(state.favourite_block())?;
+                    Ok(HandleStateAction::maybe_extend(
+                        self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                            || self.forest.update_header(&header, Some(peer), false)?,
+                    ))
+                }
                 // remote top justification lower than ours, we can send a response
                 false => Ok(HandleStateAction::response(
                     local_top.into_unverified(),
@@ -755,8 +758,16 @@ mod tests {
         BlockId, BlockNumber, SessionPeriod, SyncOracle,
     };
 
-    type TestHandler =
-        Handler<MockBlock, MockPeerId, MockJustification, Backend, Backend, Backend, Backend>;
+    type TestHandler = Handler<
+        MockBlock,
+        MockHeader,
+        MockPeerId,
+        MockJustification,
+        Backend,
+        Backend,
+        Backend,
+        Backend,
+    >;
     type MockResponseItems = ResponseItems<MockBlock, MockJustification>;
 
     const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));

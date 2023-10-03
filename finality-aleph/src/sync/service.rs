@@ -21,8 +21,8 @@ use crate::{
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
         Block, BlockId, BlockImport, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
-        Finalizer, UnverifiedHeader, Justification, JustificationSubmissions,
-        RequestBlocks, UnverifiedJustification, Verifier, LOG_TARGET,
+        Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks,
+        UnverifiedHeader, UnverifiedJustification, Verifier, LOG_TARGET,
     },
     SyncOracle,
 };
@@ -79,10 +79,11 @@ where
 }
 
 /// A service synchronizing the knowledge about the chain between the nodes.
-pub struct Service<B, J, N, CE, CS, V, F, BI>
+pub struct Service<B, H, J, N, CE, CS, V, F, BI>
 where
     B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    H: Header<Unverified = B::Header>,
+    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
     CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
@@ -91,7 +92,7 @@ where
     BI: BlockImport<B>,
 {
     network: VersionWrapper<B, J, N>,
-    handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
+    handler: Handler<B, H, N::PeerId, J, CS, V, F, BI>,
     tasks: TaskQueue<RequestTask>,
     broadcast_ticker: Ticker,
     chain_extension_ticker: Ticker,
@@ -119,10 +120,11 @@ impl RequestBlocks for mpsc::UnboundedSender<BlockId> {
     }
 }
 
-impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
+impl<B, H, J, N, CE, CS, V, F, BI> Service<B, H, J, N, CE, CS, V, F, BI>
 where
     B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    H: Header<Unverified = B::Header>,
+    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     N: GossipNetwork<VersionedNetworkData<B, J>>,
     CE: ChainStatusNotifier<J::Header>,
     CS: ChainStatus<B, J>,
