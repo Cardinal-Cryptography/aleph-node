@@ -78,7 +78,7 @@ jobs:
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
-      featurenet-aleph-node-image: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
+      start: ${{ inputs.start == 'mainnet' && 'mainnet' || 'testnet' }}
       expiration: ${{ inputs.expiration }}
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}

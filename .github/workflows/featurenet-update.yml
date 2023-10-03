@@ -73,7 +73,7 @@ jobs:
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
-      featurenet-aleph-node-image: ${{ inputs.destination }}
+      destination: ${{ inputs.destination }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
