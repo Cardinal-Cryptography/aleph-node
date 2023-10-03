@@ -73,7 +73,7 @@ jobs:
   create-featurenet:
     needs: [check-vars-and-secrets]
     name: Create featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/featurenet-create-from-net.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-net.yml@A0-3266-add-featurenet-workflows
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
