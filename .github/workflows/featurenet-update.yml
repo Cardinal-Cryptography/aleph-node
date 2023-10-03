@@ -19,10 +19,12 @@ on:
           will be updated. If not specified, all nodes will be updated.
         required: true
         default: "0"
+        type: string
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
         required: true
         default: '5'
+        type: string
       internal:
         description: 'Internal network, accessible from VPN only'
         required: true
@@ -45,10 +47,12 @@ on:
           will be updated. If not specified, all nodes will be updated.
         required: false
         default: "0"
+        type: string
       replicas:
         description: 'Number of replicas to start, from 0 to 50'
         required: false
         default: '5'
+        type: string
       internal:
         description: 'Internal network, accessible from VPN only'
         required: false
@@ -64,7 +68,6 @@ jobs:
   update-featurenet:
     needs: [check-vars-and-secrets]
     name: Update featurenet
-    runs-on: [self-hosted, Linux, X64, small]
     uses: Cardinal-Cryptography/github-actions/.github/workflows/featurenet-update.yml@v3
     secrets: inherit
     with:

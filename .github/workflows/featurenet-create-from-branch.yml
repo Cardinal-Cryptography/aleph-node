@@ -24,6 +24,7 @@ on:
         description: 'Number of replicas to start, from 0 to 50'
         required: true
         default: '5'
+        type: string
       internal:
         description: 'Internal network, accessible from VPN only'
         required: true
@@ -44,6 +45,7 @@ on:
         description: 'Number of replicas to start, from 0 to 50'
         required: false
         default: '5'
+        type: string
       internal:
         description: 'Internal network, accessible from VPN only'
         required: false
@@ -105,7 +107,6 @@ jobs:
   create-featurenet:
     needs: [push-featurnet-node-image-to-ecr, get-final-names]
     name: Create featurenet based on the PR
-    runs-on: [self-hosted, Linux, X64, small]
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-branch.yml@v3
     secrets: inherit
     with:

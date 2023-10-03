@@ -24,7 +24,6 @@ jobs:
   delete-featurenet:
     needs: [check-vars-and-secrets]
     name: Delete featurenet
-    runs-on: [self-hosted, Linux, X64, small]
     uses: Cardinal-Cryptography/github-actions/.github/workflows/featurenet-delete.yml@v3
     secrets: inherit
     with:
