@@ -4,6 +4,9 @@ name: FE - Create from net
 on:
   workflow_dispatch:
     inputs:
+      featurenet-name:
+        description: 'Name of the featurenet'
+        required: true
       start:
         description: 'aleph-node image to be started'
         required: true
@@ -33,10 +36,28 @@ on:
         required: false
         type: boolean
         default: false
-      name:
-        description: 'Name of the featurenet, used instead of run ID'
+  workflow_call:
+    inputs:
+      featurenet-name:
+        description: 'Name of the featurenet'
+        required: true
+      start:
+        description: 'aleph-node image to be started'
+        required: true
+        type: string
+      expiration:
+        description: 'Time after which featurenet will be removed: "Xh" or "never"'
+        required: true
+        type: string
+      replicas:
+        description: 'Number of replicas to start, from 0 to 50'
         required: false
-        default: ''
+        default: '5'
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   check-vars-and-secrets:
