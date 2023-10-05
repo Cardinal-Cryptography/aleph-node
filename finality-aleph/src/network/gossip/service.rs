@@ -51,7 +51,7 @@ pub struct Service<N: RawNetwork, AD: Data, BSD: Data> {
     block_sync_peer_senders: HashMap<N::PeerId, mpsc::Sender<BSD>>,
     spawn_handle: SpawnHandle,
     metrics: Metrics,
-    last_channel_is_full_logged_timestap: HashMap<(N::PeerId, Protocol), Instant>,
+    timestamp_of_last_log_that_channel_is_full: HashMap<(N::PeerId, Protocol), Instant>,
 }
 
 struct ServiceInterface<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
@@ -153,7 +153,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                 authentication_peer_senders: HashMap::new(),
                 block_sync_connected_peers: HashSet::new(),
                 block_sync_peer_senders: HashMap::new(),
-                last_channel_is_full_logged_timestap: HashMap::new(),
+                timestamp_of_last_log_that_channel_is_full: HashMap::new(),
             },
             ServiceInterface {
                 messages_from_service: messages_from_authentication_service,
@@ -223,27 +223,35 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         }
     }
 
+    fn possibly_log_that_channel_is_full(&mut self, peer: N::PeerId, protocol: Protocol) {
+        let peer_and_protocol = (peer, protocol);
+        if self
+            .timestamp_of_last_log_that_channel_is_full
+            .get(&peer_and_protocol)
+            .map(|t| t.elapsed() >= time::Duration::from_secs(1))
+            .unwrap_or(true)
+        {
+            debug!(
+                target: LOG_TARGET,
+                "Failed sending data in {:?} protocol to peer {:?}, because peer_sender receiver is full",
+                protocol,
+                peer_and_protocol.0
+            );
+            self.timestamp_of_last_log_that_channel_is_full
+                .insert(peer_and_protocol, Instant::now());
+        }
+    }
+
     fn send_to_authentication_peer(&mut self, data: AD, peer: N::PeerId) -> Result<(), SendError> {
         match self.get_authentication_sender(&peer) {
             Some(sender) => {
                 match sender.try_send(data) {
                     Err(e) => {
                         if e.is_full() {
-                            let peer_and_protocol = (peer.clone(), Protocol::Authentication);
-                            if self
-                                .last_channel_is_full_logged_timestap
-                                .get(&peer_and_protocol)
-                                .map(|t| t.elapsed() >= time::Duration::from_secs(1))
-                                .unwrap_or(true)
-                            {
-                                debug!(
-                                    target: LOG_TARGET,
-                                    "Failed sending data through authentication notification channel to peer because peer_sender receiver is full: {:?}",
-                                    peer
-                                );
-                                self.last_channel_is_full_logged_timestap
-                                    .insert(peer_and_protocol, Instant::now());
-                            }
+                            self.possibly_log_that_channel_is_full(
+                                peer.clone(),
+                                Protocol::Authentication,
+                            );
                         }
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here
@@ -269,21 +277,10 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
                 match sender.try_send(data) {
                     Err(e) => {
                         if e.is_full() {
-                            let peer_and_protocol = (peer.clone(), Protocol::BlockSync);
-                            if self
-                                .last_channel_is_full_logged_timestap
-                                .get(&peer_and_protocol)
-                                .map(|t| t.elapsed() >= time::Duration::from_secs(1))
-                                .unwrap_or(true)
-                            {
-                                debug!(
-                                    target: LOG_TARGET,
-                                    "Failed sending data through block sync notification channel to peer because peer_sender receiver is full: {:?}",
-                                    peer
-                                );
-                                self.last_channel_is_full_logged_timestap
-                                    .insert(peer_and_protocol, Instant::now());
-                            }
+                            self.possibly_log_that_channel_is_full(
+                                peer.clone(),
+                                Protocol::BlockSync,
+                            );
                         }
                         // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
                         // No need to remove the entry here
