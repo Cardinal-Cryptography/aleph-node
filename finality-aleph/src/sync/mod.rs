@@ -7,7 +7,6 @@ use std::{
 use parity_scale_codec::Codec;
 
 use crate::BlockId;
-
 mod compatibility;
 mod data;
 mod forest;

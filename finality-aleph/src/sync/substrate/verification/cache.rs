@@ -6,7 +6,7 @@ use std::{
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    aleph_primitives::BlockNumber,
+    aleph_primitives::{BlockNumber, SessionAuthorityData},
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::{
@@ -98,6 +98,10 @@ where
 
     pub fn genesis_header(&self) -> &H {
         &self.genesis_header
+    }
+
+    pub fn authority_data(&self, number: BlockNumber) -> Option<SessionAuthorityData> {
+        self.authority_provider.authority_data(number)
     }
 }
 
