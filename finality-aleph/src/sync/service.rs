@@ -647,7 +647,7 @@ where
                 },
                 maybe_own_block = self.blocks_from_creator.next() => match maybe_own_block {
                     Some(block) => {
-                        debug!(target: LOG_TARGET, "Received new onw block: {:?}.", block.header().id());
+                        debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
                         self.handle_own_block(block)
                     },
                     None => warn!(target: LOG_TARGET, "Channel with own blocks closed."),
