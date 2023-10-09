@@ -3,15 +3,17 @@ use std::{
     sync::Arc,
 };
 
+use log::info;
 use parity_scale_codec::Encode;
 use sc_client_api::HeaderBackend;
 use sc_consensus_aura::{find_pre_digest, standalone::PreDigestLookupError, CompatibleDigestItem};
+use sp_consensus_aura::sr25519::AuthorityPair;
 use sp_consensus_slots::Slot;
 use sp_core::Pair;
-use sp_runtime::traits::Header as SubstrateHeader;
+use sp_runtime::traits::{Header as SubstrateHeader, Zero};
 
 use crate::{
-    aleph_primitives::{AuthorityPair, AuthoritySignature, Block, BlockNumber, Header},
+    aleph_primitives::{AuthoritySignature, Block, BlockNumber, Header},
     session_map::AuthorityProvider,
     sync::{
         substrate::{
@@ -129,6 +131,9 @@ where
 
     fn verify_header(&mut self, header: Header) -> Result<Header, Self::Error> {
         use HeaderVerificationError::*;
+        if header.number().is_zero() {
+            return Ok(header);
+        }
         let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
             .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
         let slot_now = Slot::from_timestamp(
@@ -146,11 +151,9 @@ where
         let sig = seal
             .as_aura_seal()
             .ok_or(Self::Error::HeaderVerification(IncorrectSeal))?;
-        let pre_hash = header.hash();
-        let authority_data = self
-            .authority_data(*header.number())
+        let authorities = self
+            .authorities(*header.parent_hash())
             .ok_or(Self::Error::HeaderVerification(MissingAuthorityData))?;
-        let authorities = authority_data.authorities();
         let idx = *slot % (authorities.len() as u64);
         assert!(
             idx <= usize::MAX as u64,
@@ -159,7 +162,15 @@ where
         let author = authorities.get(idx as usize).expect(
             "authorities not empty; index constrained to list length;this is a valid index; qed",
         );
-        if !AuthorityPair::verify(&sig, pre_hash.as_ref(), author) {
+
+        info!("index index index {idx}");
+        for author in authorities.iter() {
+            let result = AuthorityPair::verify(&sig, header.hash().as_ref(), author);
+            info!("{result}");
+        }
+        info!("done");
+
+        if !AuthorityPair::verify(&sig, header.hash().as_ref(), author) {
             return Err(Self::Error::HeaderVerification(IncorrectAuthority));
         }
         Ok(header)

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
 
 use futures::StreamExt;
 use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
+use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_runtime::traits::{Block, Header};
 use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
@@ -13,7 +14,7 @@ use tokio::sync::{
 use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, SessionAuthorityData},
     session::SessionBoundaryInfo,
-    ClientForAleph, SessionId, SessionPeriod,
+    AuthorityId, ClientForAleph, SessionId, SessionPeriod,
 };
 
 const PRUNING_THRESHOLD: u32 = 10;
@@ -26,6 +27,7 @@ pub trait AuthorityProvider {
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
     fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
+    fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>>;
 }
 
 /// Default implementation of authority provider trait.
@@ -34,7 +36,7 @@ pub trait AuthorityProvider {
 pub struct AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B> + AuraApi<B, AuraId>,
     B: Block<Hash = BlockHash>,
     BE: Backend<B> + 'static,
 {
@@ -45,7 +47,7 @@ where
 impl<C, B, BE> AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B> + AuraApi<B, AuraId>,
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
@@ -74,19 +76,20 @@ where
 impl<C, B, BE> AuthorityProvider for AuthorityProviderImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
+    C::Api: AlephSessionApi<B> + AuraApi<B, AuraId>,
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
 {
+    fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+        AuraApi::authorities(self.client.runtime_api().deref(), parent_hash).ok()
+    }
+
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
         let block_hash = self.block_hash(block_number)?;
         match self.client.runtime_api().authority_data(block_hash) {
             Ok(data) => Some(data),
-            Err(_) => self
-                .client
-                .runtime_api()
-                .authorities(block_hash)
+            Err(_) => AlephSessionApi::authorities(self.client.runtime_api().deref(), block_hash)
                 .map(|authorities| SessionAuthorityData::new(authorities, None))
                 .ok(),
         }

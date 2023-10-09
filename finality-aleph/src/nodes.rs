@@ -7,10 +7,11 @@ use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHan
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
+use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::Block,
+    aleph_primitives::{AlephSessionApi, AuthorityId, Block},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
@@ -46,7 +47,7 @@ pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
 pub async fn run_validator_node<C, BE, SC>(aleph_config: AlephConfig<C, SC>)
 where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
+    C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
 {

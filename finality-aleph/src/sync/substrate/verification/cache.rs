@@ -3,16 +3,18 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    aleph_primitives::{BlockNumber, SessionAuthorityData},
+    aleph_primitives::{BlockHash, BlockNumber},
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::{
         substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
         Header,
     },
+    AuthorityId,
 };
 
 /// Ways in which a justification can fail verification.
@@ -100,8 +102,8 @@ where
         &self.genesis_header
     }
 
-    pub fn authority_data(&self, number: BlockNumber) -> Option<SessionAuthorityData> {
-        self.authority_provider.authority_data(number)
+    pub fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+        self.authority_provider.authorities(parent_hash)
     }
 }
 
