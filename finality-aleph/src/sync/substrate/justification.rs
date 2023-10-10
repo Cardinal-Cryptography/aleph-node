@@ -60,7 +60,6 @@ impl UnverifiedJustification for Justification {
 
 impl JustificationT for Justification {
     type Header = Header;
-    type UnverifiedHeader = Header;
     type Unverified = Self;
 
     fn header(&self) -> &Self::Header {

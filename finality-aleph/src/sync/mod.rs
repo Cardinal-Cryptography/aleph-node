@@ -39,9 +39,6 @@ impl<T: Debug + Clone + Hash + Eq> PeerId for T {}
 pub trait UnverifiedHeader: Clone + Codec + Debug + Send + Sync + 'static {
     /// The identifier of this block.
     fn id(&self) -> BlockId;
-
-    /// The identifier of this block's parent.
-    fn parent_id(&self) -> Option<BlockId>;
 }
 
 /// The header of a block, containing information about the parent relation.
@@ -60,10 +57,10 @@ pub trait Header: Clone + Codec + Debug + Send + Sync + 'static {
 
 /// The block, including a header.
 pub trait Block: Clone + Codec + Debug + Send + Sync + 'static {
-    type Header: UnverifiedHeader;
+    type UnverifiedHeader: UnverifiedHeader;
 
     /// The header of the block.
-    fn header(&self) -> &Self::Header;
+    fn header(&self) -> &Self::UnverifiedHeader;
 }
 
 /// The block importer.
@@ -82,8 +79,9 @@ pub trait UnverifiedJustification: Clone + Codec + Send + Sync + Debug + 'static
 /// The verified justification of a block, including a header.
 pub trait Justification: Clone + Send + Sync + Debug + 'static {
     type Header: Header;
-    type UnverifiedHeader: UnverifiedHeader;
-    type Unverified: UnverifiedJustification<UnverifiedHeader = Self::UnverifiedHeader>;
+    type Unverified: UnverifiedJustification<
+        UnverifiedHeader = <Self::Header as Header>::Unverified,
+    >;
 
     /// The header of the block.
     fn header(&self) -> &Self::Header;
@@ -91,6 +89,8 @@ pub trait Justification: Clone + Send + Sync + Debug + 'static {
     /// Return an unverified version of this, for sending over the network.
     fn into_unverified(self) -> Self::Unverified;
 }
+
+type UnverifiedHeaderFor<J> = <<J as Justification>::Header as Header>::Unverified;
 
 /// A verifier of justifications and headers.
 pub trait Verifier<J: Justification> {
@@ -101,7 +101,7 @@ pub trait Verifier<J: Justification> {
     fn verify_justification(&mut self, justification: J::Unverified) -> Result<J, Self::Error>;
 
     // /// Verifies the raw header and returns a full header if successful, otherwise an error.
-    fn verify_header(&mut self, header: J::UnverifiedHeader) -> Result<J::Header, Self::Error>;
+    fn verify_header(&mut self, header: UnverifiedHeaderFor<J>) -> Result<J::Header, Self::Error>;
 }
 
 /// A facility for finalizing blocks using justifications.
@@ -167,7 +167,7 @@ impl<J: Justification> FinalizationStatus<J> {
 pub trait ChainStatus<B, J>: Clone + Send + Sync + 'static
 where
     J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     type Error: Display;
 

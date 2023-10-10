@@ -72,14 +72,6 @@ impl UnverifiedHeader for Header {
             number: *self.number(),
         }
     }
-
-    fn parent_id(&self) -> Option<BlockId> {
-        let number = self.number().checked_sub(&One::one())?;
-        Some(BlockId {
-            hash: *self.parent_hash(),
-            number,
-        })
-    }
 }
 
 impl HeaderT for Header {
@@ -106,10 +98,10 @@ impl HeaderT for Header {
 }
 
 impl BlockT for Block {
-    type Header = Header;
+    type UnverifiedHeader = Header;
 
     /// The header of the block.
-    fn header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
     }
 }

@@ -84,10 +84,6 @@ impl UnverifiedHeader for MockHeader {
     fn id(&self) -> BlockId {
         self.id.clone()
     }
-
-    fn parent_id(&self) -> Option<BlockId> {
-        self.parent.clone()
-    }
 }
 
 impl Header for MockHeader {
@@ -148,9 +144,9 @@ impl Header for MockBlock {
 }
 
 impl Block for MockBlock {
-    type Header = MockHeader;
+    type UnverifiedHeader = MockHeader;
 
-    fn header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
     }
 }
@@ -180,7 +176,6 @@ impl UnverifiedJustification for MockJustification {
 
 impl Justification for MockJustification {
     type Header = MockHeader;
-    type UnverifiedHeader = MockHeader;
     type Unverified = Self;
 
     fn header(&self) -> &Self::Header {

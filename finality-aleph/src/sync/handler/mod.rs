@@ -16,7 +16,7 @@ use crate::{
         },
         handler::request_handler::RequestHandler,
         Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification, PeerId,
-        UnverifiedHeader, UnverifiedJustification, Verifier,
+        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, Verifier,
     },
     BlockId, BlockNumber, SyncOracle,
 };
@@ -29,8 +29,8 @@ use crate::sync::data::{ResponseItem, ResponseItems};
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -43,8 +43,8 @@ where
 
 impl<B, J, CS, F, BI> DatabaseIO<B, J, CS, F, BI>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -99,8 +99,8 @@ enum MissedImportData {
 
 enum TrySyncError<B, J, CS>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
 {
     ChainStatus(CS::Error),
@@ -118,8 +118,8 @@ impl MissedImportData {
         chain_status: &CS,
     ) -> Result<(), CS::Error>
     where
-        B: Block,
-        J: Justification<UnverifiedHeader = B::Header>,
+        J: Justification,
+        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -141,9 +141,9 @@ impl MissedImportData {
         forest: &mut Forest<I, J>,
     ) -> Result<(), TrySyncError<B, J, CS>>
     where
-        B: Block,
+        J: Justification,
+        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         I: PeerId,
-        J: Justification<UnverifiedHeader = B::Header>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -192,12 +192,11 @@ impl MissedImportData {
 }
 
 /// Handler for data incoming from the network.
-pub struct Handler<B, H, I, J, CS, V, F, BI>
+pub struct Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
-    H: Header<Unverified = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -211,15 +210,15 @@ where
     block_importer: BI,
     missed_import_data: MissedImportData,
     sync_oracle: SyncOracle,
-    phantom: PhantomData<(B, H)>,
+    phantom: PhantomData<B>,
 }
 
 /// What actions can the handler recommend as a reaction to some data.
 #[derive(Clone, Debug)]
 pub enum HandleStateAction<B, J>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     /// A response for the peer that sent us the data.
     Response(NetworkData<B, J>),
@@ -231,8 +230,8 @@ where
 
 impl<B, J> HandleStateAction<B, J>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     fn response(justification: J::Unverified, other_justification: Option<J::Unverified>) -> Self {
         Self::Response(NetworkData::StateBroadcastResponse(
@@ -254,7 +253,7 @@ where
 pub enum Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -273,8 +272,8 @@ where
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
 where
-    B: Block,
-    J: Justification<UnverifiedHeader = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -306,7 +305,7 @@ where
 impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -319,7 +318,7 @@ where
 impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -336,7 +335,7 @@ where
 impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::UnverifiedHeader>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -346,12 +345,11 @@ where
     }
 }
 
-impl<B, H, I, J, CS, V, F, BI> HandlerTypes for Handler<B, H, I, J, CS, V, F, BI>
+impl<B, I, J, CS, V, F, BI> HandlerTypes for Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
-    H: Header<Unverified = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -360,12 +358,11 @@ where
     type Error = Error<B, J, CS, V, F>;
 }
 
-impl<B, H, I, J, CS, V, F, BI> Handler<B, H, I, J, CS, V, F, BI>
+impl<B, I, J, CS, V, F, BI> Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
-    H: Header<Unverified = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = H, UnverifiedHeader = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -527,7 +524,7 @@ where
     /// Verify an unverified header.
     fn verify_header(
         &mut self,
-        header: J::UnverifiedHeader,
+        header: UnverifiedHeaderFor<J>,
     ) -> Result<J::Header, <Self as HandlerTypes>::Error> {
         self.verifier.verify_header(header).map_err(Error::Verifier)
     }
@@ -758,16 +755,8 @@ mod tests {
         BlockId, BlockNumber, SessionPeriod, SyncOracle,
     };
 
-    type TestHandler = Handler<
-        MockBlock,
-        MockHeader,
-        MockPeerId,
-        MockJustification,
-        Backend,
-        Backend,
-        Backend,
-        Backend,
-    >;
+    type TestHandler =
+        Handler<MockBlock, MockPeerId, MockJustification, Backend, Backend, Backend, Backend>;
     type MockResponseItems = ResponseItems<MockBlock, MockJustification>;
 
     const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));
