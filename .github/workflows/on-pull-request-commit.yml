@@ -41,10 +41,19 @@ jobs:
     needs: [build-test-node-and-runtime]
     uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml
 
-  run-e2e-tests:
-    name: Run e2e tests
-    needs: [build-test-node-image-and-e2e-client-image]
-    uses: ./.github/workflows/_run-e2e-tests.yml
+  run-e2e-finalization-test:
+    name: Run e2e finalization test
+    needs: [ build-test-node-image-and-e2e-client-image ]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: finalization::finalization
+        timeout-minutes: 3
 
   check-e2e-test-suite-completion:
     needs: [run-e2e-tests]
