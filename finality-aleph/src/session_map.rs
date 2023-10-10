@@ -14,7 +14,7 @@ use tokio::sync::{
 use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, SessionAuthorityData},
     session::SessionBoundaryInfo,
-    AuthorityId, ClientForAleph, SessionId, SessionPeriod,
+    ClientForAleph, SessionId, SessionPeriod,
 };
 
 const PRUNING_THRESHOLD: u32 = 10;
@@ -27,6 +27,7 @@ pub trait AuthorityProvider {
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
     fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
+    /// returns list of Aura authorities for a given parent hash
     fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>>;
 }
 
@@ -433,6 +434,10 @@ mod tests {
 
         fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.next_session_map.get(&block_number).cloned()
+        }
+
+        fn authorities(&self, _parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+            None
         }
     }
 

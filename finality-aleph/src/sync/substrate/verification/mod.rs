@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use log::info;
 use parity_scale_codec::Encode;
 use sc_client_api::HeaderBackend;
 use sc_consensus_aura::{find_pre_digest, standalone::PreDigestLookupError, CompatibleDigestItem};
@@ -54,6 +53,7 @@ impl<BE: HeaderBackend<Block>> FinalizationInfo for SubstrateFinalizationInfo<BE
 pub enum HeaderVerificationError {
     PreDigestLookupError(PreDigestLookupError),
     HeaderTooNew(Slot),
+    IncorrectGenesis,
     MissingSeal,
     IncorrectSeal,
     MissingAuthorityData,
@@ -66,6 +66,7 @@ impl Display for HeaderVerificationError {
         match self {
             PreDigestLookupError(e) => write!(f, "pre digest lookup error, {e}"),
             HeaderTooNew(slot) => write!(f, "slot {slot} too far in the future"),
+            IncorrectGenesis => write!(f, "incorrect genesis header"),
             MissingSeal => write!(f, "missing seal"),
             IncorrectSeal => write!(f, "incorrect seal"),
             MissingAuthorityData => write!(f, "missing authority data"),
@@ -129,24 +130,31 @@ where
         }
     }
 
-    fn verify_header(&mut self, header: Header) -> Result<Header, Self::Error> {
+    fn verify_header(&mut self, mut header: Header) -> Result<Header, Self::Error> {
         use HeaderVerificationError::*;
+        // compare genesis header directly to the one we know
         if header.number().is_zero() {
-            return Ok(header);
+            return match &header == self.genesis_header() {
+                true => Ok(header),
+                false => Err(Self::Error::HeaderVerification(IncorrectGenesis)),
+            };
         }
         let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
             .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
+        // duplicate code, watch out!
+        // assuming slot duration == 1000 ms
         let slot_now = Slot::from_timestamp(
             sp_timestamp::Timestamp::current(),
             sp_consensus_slots::SlotDuration::from_millis(1000),
         );
+        // timorl's offset
         if slot > slot_now + 10 {
             return Err(Self::Error::HeaderVerification(HeaderTooNew(slot)));
         }
+        // pop the seal BEFORE hashing
         let seal = header
-            .digest()
-            .logs()
-            .last()
+            .digest_mut()
+            .pop()
             .ok_or(Self::Error::HeaderVerification(MissingSeal))?;
         let sig = seal
             .as_aura_seal()
@@ -154,25 +162,18 @@ where
         let authorities = self
             .authorities(*header.parent_hash())
             .ok_or(Self::Error::HeaderVerification(MissingAuthorityData))?;
+        // duplicate code, watch out!
+        // assuming round robin
         let idx = *slot % (authorities.len() as u64);
-        assert!(
-            idx <= usize::MAX as u64,
-            "It is impossible to have a vector with length beyond the address space; qed",
-        );
-        let author = authorities.get(idx as usize).expect(
-            "authorities not empty; index constrained to list length;this is a valid index; qed",
-        );
-
-        info!("index index index {idx}");
-        for author in authorities.iter() {
-            let result = AuthorityPair::verify(&sig, header.hash().as_ref(), author);
-            info!("{result}");
-        }
-        info!("done");
-
+        let author = authorities
+            .get(idx as usize)
+            .expect("idx < authorities.len()");
+        // verify the signature
         if !AuthorityPair::verify(&sig, header.hash().as_ref(), author) {
             return Err(Self::Error::HeaderVerification(IncorrectAuthority));
         }
+        // push the seal back
+        header.digest_mut().push(seal);
         Ok(header)
     }
 }

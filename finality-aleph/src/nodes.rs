@@ -11,7 +11,7 @@ use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::{AlephSessionApi, AuthorityId, Block},
+    aleph_primitives::{AlephSessionApi, Block},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{

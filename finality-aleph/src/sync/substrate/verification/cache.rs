@@ -14,7 +14,6 @@ use crate::{
         substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
         Header,
     },
-    AuthorityId,
 };
 
 /// Ways in which a justification can fail verification.
@@ -191,12 +190,14 @@ where
 mod tests {
     use std::{cell::Cell, collections::HashMap};
 
+    use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+
     use super::{
         AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,
         VerifierCache,
     };
     use crate::{
-        aleph_primitives::SessionAuthorityData,
+        aleph_primitives::{BlockHash, SessionAuthorityData},
         session::{testing::authority_data, SessionBoundaryInfo, SessionId},
         sync::mock::MockHeader,
         SessionPeriod,
@@ -253,6 +254,10 @@ mod tests {
                     self.session_info.session_id_from_block_num(block_number).0 + 1,
                 ))
                 .cloned()
+        }
+
+        fn authorities(&self, _parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+            None
         }
     }
 
