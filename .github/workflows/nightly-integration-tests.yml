@@ -4,10 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '01 00 * * *'
-  # testing, remove before merge
-  push:
-    branches:
-      - A0-3298
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
