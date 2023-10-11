@@ -71,6 +71,7 @@ where
         protocol_naming,
         rate_limiter_config,
         sync_oracle,
+        validators_addressing_info,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -170,6 +171,7 @@ where
         network_identity,
         validator_network,
         authentication_network,
+        validators_addressing_info,
         ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
     );
 

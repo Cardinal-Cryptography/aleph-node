@@ -10,6 +10,7 @@ use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
     JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
     SessionPeriod, SubstrateChainStatus, SyncOracle, TimingBlockMetrics, TracingBlockImport,
+    ValidatorsAddressingInfo,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -403,6 +404,8 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
+    let validators_addressing_info = ValidatorsAddressingInfo::new();
+
     let aleph_config = AlephConfig {
         network,
         sync_network,
@@ -424,6 +427,7 @@ pub fn new_authority(
         protocol_naming,
         rate_limiter_config,
         sync_oracle,
+        validators_addressing_info,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

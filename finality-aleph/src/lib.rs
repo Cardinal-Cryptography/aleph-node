@@ -61,7 +61,7 @@ pub use crate::{
     import::{AlephBlockImport, TracingBlockImport},
     justification::AlephJustification,
     metrics::TimingBlockMetrics,
-    network::{Protocol, ProtocolNaming},
+    network::{Protocol, ProtocolNaming, ValidatorsAddressingInfo},
     nodes::run_validator_node,
     session::SessionPeriod,
     sync::{
@@ -287,4 +287,5 @@ pub struct AlephConfig<C, SC> {
     pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
+    pub validators_addressing_info: ValidatorsAddressingInfo,
 }

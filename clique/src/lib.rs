@@ -58,6 +58,9 @@ pub trait AddressingInformation: Debug + Hash + Codec + Clone + Eq + Send + Sync
 
     /// Verify the information.
     fn verify(&self) -> bool;
+
+    // Address used internally by the protocol.
+    fn internal_protocol_address(&self) -> String;
 }
 
 /// Abstraction for requesting own network addressing information.

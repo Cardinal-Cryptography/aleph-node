@@ -26,7 +26,8 @@ use crate::{
         },
         AddressingInformation, Data, GossipNetwork, NetworkIdentity,
     },
-    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
+    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, ValidatorsAddressingInfo,
+    STATUS_REPORT_INTERVAL,
 };
 
 /// Commands for manipulating sessions, stopping them and starting both validator and non-validator
@@ -222,6 +223,7 @@ where
         network_identity: NI,
         validator_network: CN,
         gossip_network: GN,
+        validators_addressing_info: ValidatorsAddressingInfo,
         config: Config,
     ) -> (
         Service<D, NI, CN, GN>,
@@ -232,7 +234,11 @@ where
             maintenance_period,
             initial_delay,
         } = config;
-        let manager = Manager::new(network_identity, discovery_cooldown);
+        let manager = Manager::new(
+            network_identity,
+            validators_addressing_info,
+            discovery_cooldown,
+        );
         let (commands_for_service, commands_from_user) = mpsc::unbounded();
         let (messages_for_service, messages_from_user) = mpsc::unbounded();
         (
@@ -381,11 +387,11 @@ where
                     }
                 },
                 maybe_authentication = self.gossip_network.next() => {
-                    let (authentication, _) = maybe_authentication.map_err(Error::GossipNetwork)?;
+                    let (authentication, low_level_peer_id) = maybe_authentication.map_err(Error::GossipNetwork)?;
                     trace!(target: "aleph-network", "Manager received an authentication from network");
                     match authentication.try_into() {
                         Ok(message) => {
-                            let manager_actions = self.manager.on_discovery_message(message);
+                            let manager_actions = self.manager.on_discovery_message(message, low_level_peer_id);
                             self.handle_manager_actions(manager_actions)?
                         },
                         Err(e) => debug!(target: "aleph-network", "Could not cast versioned authentication in discovery message: {:?}", e),

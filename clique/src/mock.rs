@@ -293,6 +293,10 @@ impl AddressingInformation for MockAddressingInformation {
     fn verify(&self) -> bool {
         self.valid
     }
+
+    fn internal_protocol_address(&self) -> String {
+        self.address.clone()
+    }
 }
 
 impl NetworkIdentity for MockAddressingInformation {

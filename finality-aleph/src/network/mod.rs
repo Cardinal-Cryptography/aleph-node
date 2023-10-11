@@ -1,4 +1,9 @@
+use current_aleph_bft::NodeIndex;
 use parity_scale_codec::Codec;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 
 pub mod data;
 mod gossip;
@@ -28,3 +33,31 @@ pub trait RequestBlocks: Clone + Send + Sync + 'static {
 pub trait Data: Clone + Codec + Send + Sync + 'static {}
 
 impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
+
+#[derive(Debug, Clone)]
+struct SingleValidatorNetworkDetails {
+    address: String,
+    network_level_peer_id: String,
+    authority_index_in_current_session: Option<NodeIndex>,
+}
+pub struct ValidatorsAddressingInfo {
+    data: Arc<Mutex<HashMap<String, SingleValidatorNetworkDetails>>>,
+}
+
+impl ValidatorsAddressingInfo {
+    pub fn new() -> Self {
+        ValidatorsAddressingInfo {
+            data: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+    fn update<A: AddressingInformation>(&self, info: A, network_level_peer_id: String) {
+        self.data.lock().insert(
+            info.peer_id().to_string(),
+            SingleValidatorNetworkDetails {
+                address: info.internal_protocol_address(),
+                network_level_peer_id,
+                authority_index_in_current_session: None,
+            },
+        );
+    }
+}

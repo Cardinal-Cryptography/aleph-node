@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -7,6 +8,7 @@ use std::{
 use futures::channel::mpsc;
 use log::{debug, info};
 
+use crate::network::ValidatorsAddressingInfo;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
@@ -82,6 +84,7 @@ pub struct Manager<NI: NetworkIdentity, D: Data> {
     network_identity: NI,
     connections: Connections<NI::PeerId>,
     sessions: HashMap<SessionId, Session<D, NI::AddressingInformation>>,
+    validators_addressing_info: ValidatorsAddressingInfo,
     discovery_cooldown: Duration,
 }
 
@@ -94,11 +97,16 @@ pub enum SendError {
 
 impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
     /// Create a new connection manager.
-    pub fn new(network_identity: NI, discovery_cooldown: Duration) -> Self {
+    pub fn new(
+        network_identity: NI,
+        validators_addressing_info: ValidatorsAddressingInfo,
+        discovery_cooldown: Duration,
+    ) -> Self {
         Manager {
             network_identity,
             connections: Connections::new(),
             sessions: HashMap::new(),
+            validators_addressing_info,
             discovery_cooldown,
         }
     }
@@ -303,9 +311,10 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
 
     /// Handle a discovery message.
     /// Returns actions the manager wants to take.
-    pub fn on_discovery_message(
+    pub fn on_discovery_message<LPID: Display>(
         &mut self,
         message: DiscoveryMessage<NI::AddressingInformation>,
+        low_level_peer_id: LPID,
     ) -> ManagerActions<NI::AddressingInformation> {
         let session_id = message.session_id();
         match self.sessions.get_mut(&session_id) {
@@ -318,6 +327,8 @@ impl<NI: NetworkIdentity, D: Data> Manager<NI, D> {
                     (Some(address), true) => {
                         debug!(target: "aleph-network", "Adding addresses for session {:?} to reserved: {:?}", session_id, address);
                         self.connections.add_peers(session_id, [address.peer_id()]);
+                        self.validators_addressing_info
+                            .update(address.clone(), low_level_peer_id.to_string());
                         Some(ConnectionCommand::AddReserved([address].into()))
                     }
                     _ => None,
