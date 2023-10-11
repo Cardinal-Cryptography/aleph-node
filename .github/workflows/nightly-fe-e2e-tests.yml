@@ -180,7 +180,9 @@ jobs:
     name: Slack notification
     runs-on: ubuntu-20.04
     needs: [runs-e2e-test-on-fe]
-    if: ${{ !cancelled() && "${{ github.event_name }}" != "workflow_dispatch" }}
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
