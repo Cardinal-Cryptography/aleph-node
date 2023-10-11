@@ -46,4 +46,4 @@ jobs:
         with:
           command: test
           # yamllint disable-line rule:line-length
-          args: --features "liminal-try-runtime liminal-runtime-benchmarks" -- --skip clique_network
+          args: -- --skip clique_network
