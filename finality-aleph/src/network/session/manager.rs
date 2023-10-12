@@ -1,25 +1,24 @@
-use std::fmt::Display;
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
+    fmt::{Debug, Display},
     time::Duration,
 };
 
 use futures::channel::mpsc;
 use log::{debug, info};
 
-use crate::network::ValidatorAddressCacheUpdater;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        address_cache::{ValidatorAddressCacheUpdater, ValidatorAddressingInfo},
         session::{
             data::DataInSession, Authentication, Connections, Discovery, DiscoveryMessage,
             SessionHandler, SessionHandlerError,
         },
         AddressingInformation, Data, NetworkIdentity, PeerId,
     },
-    NodeIndex, SessionId, ValidatorAddressingInfo,
+    NodeIndex, SessionId,
 };
 
 /// Commands for manipulating the reserved peers set.
@@ -458,9 +457,11 @@ mod tests {
         ConnectionCommand, Manager, ManagerActions, PreNonvalidatorSession, PreValidatorSession,
         SendError,
     };
-    use crate::network::mock::MockValidatorAddressCacheUpdater;
     use crate::{
-        network::{mock::crypto_basics, session::data::DataInSession},
+        network::{
+            mock::{crypto_basics, MockValidatorAddressCacheUpdater},
+            session::data::DataInSession,
+        },
         Recipient, SessionId,
     };
 

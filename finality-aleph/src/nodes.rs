@@ -1,14 +1,23 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::network::KeyOwnerInfoProviderImpl;
+use bip39::{Language, Mnemonic, MnemonicType};
+use futures::channel::oneshot;
+use log::{debug, error};
+use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
+use rate_limiter::SleepingRateLimiter;
+use sc_client_api::Backend;
+use sp_consensus::SelectChain;
+use sp_keystore::Keystore;
+
 use crate::{
     aleph_primitives::Block,
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
+        address_cache::{KeyOwnerInfoProviderImpl, ValidatorAddressCacheUpdaterImpl},
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        GossipService, SubstrateNetwork, ValidatorAddressCacheUpdaterImpl,
+        GossipService, SubstrateNetwork,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -23,14 +32,6 @@ use crate::{
     },
     AlephConfig,
 };
-use bip39::{Language, Mnemonic, MnemonicType};
-use futures::channel::oneshot;
-use log::{debug, error};
-use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
-use rate_limiter::SleepingRateLimiter;
-use sc_client_api::Backend;
-use sp_consensus::SelectChain;
-use sp_keystore::Keystore;
 
 // How many sessions we remember.
 pub const VERIFIER_CACHE_SIZE: usize = 2;

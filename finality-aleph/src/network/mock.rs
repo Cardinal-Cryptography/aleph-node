@@ -5,11 +5,11 @@ use parity_scale_codec::{Decode, Encode, Output};
 use sp_keystore::{testing::MemoryKeystore as Keystore, Keystore as _};
 use tokio::time::timeout;
 
-use crate::network::ValidatorAddressCacheUpdater;
-use crate::session::SessionId;
 use crate::{
     aleph_primitives::KEY_TYPE,
     crypto::{AuthorityPen, AuthorityVerifier},
+    network::address_cache::ValidatorAddressCacheUpdater,
+    session::SessionId,
     AuthorityId, NodeIndex, ValidatorAddressingInfo,
 };
 

@@ -12,11 +12,11 @@ use log::{debug, trace, warn};
 use network_clique::{Network as CliqueNetwork, PublicKey};
 use tokio::time::{self, Instant};
 
-use crate::network::ValidatorAddressCacheUpdater;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        address_cache::ValidatorAddressCacheUpdater,
         session::{
             data::DataInSession,
             manager::{

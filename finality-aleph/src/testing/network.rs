@@ -16,12 +16,11 @@ use parity_scale_codec::{Decode, Encode};
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
-use crate::network::mock::MockValidatorAddressCacheUpdater;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
         data::Network,
-        mock::{crypto_basics, MockData},
+        mock::{crypto_basics, MockData, MockValidatorAddressCacheUpdater},
         session::{
             authentication, ConnectionManager, ConnectionManagerConfig, DataInSession,
             ManagerError, SessionHandler, SessionManager, VersionedAuthentication,
