@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use finality_aleph::{
-    AlephJustification, BlockId, Justification, JustificationTranslator, ValidatorsAddressingInfo,
+    AlephJustification, BlockId, Justification, JustificationTranslator, ValidatorAddressCache,
 };
 use futures::channel::mpsc;
 use jsonrpsee::{

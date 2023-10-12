@@ -1,14 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use bip39::{Language, Mnemonic, MnemonicType};
-use futures::channel::oneshot;
-use log::{debug, error};
-use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
-use rate_limiter::SleepingRateLimiter;
-use sc_client_api::Backend;
-use sp_consensus::SelectChain;
-use sp_keystore::Keystore;
-
+use crate::network::KeyOwnerInfoProviderImpl;
 use crate::{
     aleph_primitives::Block,
     crypto::AuthorityPen,
@@ -16,7 +8,7 @@ use crate::{
     network::{
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        GossipService, SubstrateNetwork,
+        GossipService, SubstrateNetwork, ValidatorAddressCacheUpdaterImpl,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -31,6 +23,14 @@ use crate::{
     },
     AlephConfig,
 };
+use bip39::{Language, Mnemonic, MnemonicType};
+use futures::channel::oneshot;
+use log::{debug, error};
+use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
+use rate_limiter::SleepingRateLimiter;
+use sc_client_api::Backend;
+use sp_consensus::SelectChain;
+use sp_keystore::Keystore;
 
 // How many sessions we remember.
 pub const VERIFIER_CACHE_SIZE: usize = 2;
@@ -71,7 +71,7 @@ where
         protocol_naming,
         rate_limiter_config,
         sync_oracle,
-        validators_addressing_info,
+        validator_address_cache,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -167,11 +167,18 @@ where
         };
     let sync_task = async move { sync_service.run().await };
 
+    let validator_address_cache_updater = ValidatorAddressCacheUpdaterImpl::new(
+        validator_address_cache.clone(),
+        KeyOwnerInfoProviderImpl::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone()),
+        session_info.clone(),
+    );
+
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
         network_identity,
         validator_network,
         authentication_network,
-        validators_addressing_info,
+        validator_address_cache_updater,
         ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
     );
 

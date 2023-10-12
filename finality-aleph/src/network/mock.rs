@@ -5,10 +5,12 @@ use parity_scale_codec::{Decode, Encode, Output};
 use sp_keystore::{testing::MemoryKeystore as Keystore, Keystore as _};
 use tokio::time::timeout;
 
+use crate::network::ValidatorAddressCacheUpdater;
+use crate::session::SessionId;
 use crate::{
     aleph_primitives::KEY_TYPE,
     crypto::{AuthorityPen, AuthorityVerifier},
-    AuthorityId, NodeIndex,
+    AuthorityId, NodeIndex, ValidatorAddressingInfo,
 };
 
 #[derive(Hash, Debug, Clone, PartialEq, Eq)]
@@ -98,6 +100,12 @@ impl<T> Channel<T> {
         self.0.close_channel();
         self.try_next().await
     }
+}
+
+pub struct MockValidatorAddressCacheUpdater;
+
+impl ValidatorAddressCacheUpdater for MockValidatorAddressCacheUpdater {
+    fn update(&self, _: SessionId, _: NodeIndex, _: ValidatorAddressingInfo) {}
 }
 
 impl<T> Default for Channel<T> {

@@ -12,6 +12,7 @@ use log::{debug, trace, warn};
 use network_clique::{Network as CliqueNetwork, PublicKey};
 use tokio::time::{self, Instant};
 
+use crate::network::ValidatorAddressCacheUpdater;
 use crate::{
     abft::Recipient,
     crypto::{AuthorityPen, AuthorityVerifier},
@@ -26,8 +27,7 @@ use crate::{
         },
         AddressingInformation, Data, GossipNetwork, NetworkIdentity,
     },
-    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, ValidatorsAddressingInfo,
-    STATUS_REPORT_INTERVAL,
+    MillisecsPerBlock, NodeIndex, SessionId, SessionPeriod, STATUS_REPORT_INTERVAL,
 };
 
 /// Commands for manipulating sessions, stopping them and starting both validator and non-validator
@@ -177,10 +177,11 @@ pub struct Service<
     NI: NetworkIdentity,
     CN: CliqueNetwork<NI::PeerId, NI::AddressingInformation, DataInSession<D>>,
     GN: GossipNetwork<VersionedAuthentication<NI::AddressingInformation>>,
+    VU: ValidatorAddressCacheUpdater,
 > where
     NI::PeerId: PublicKey,
 {
-    manager: Manager<NI, D>,
+    manager: Manager<NI, D, VU>,
     commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
     messages_from_user: mpsc::UnboundedReceiver<(D, SessionId, Recipient)>,
     validator_network: CN,
@@ -215,7 +216,8 @@ impl<
         NI: NetworkIdentity,
         CN: CliqueNetwork<NI::PeerId, NI::AddressingInformation, DataInSession<D>>,
         GN: GossipNetwork<VersionedAuthentication<NI::AddressingInformation>>,
-    > Service<D, NI, CN, GN>
+        VU: ValidatorAddressCacheUpdater,
+    > Service<D, NI, CN, GN, VU>
 where
     NI::PeerId: PublicKey,
 {
@@ -223,10 +225,10 @@ where
         network_identity: NI,
         validator_network: CN,
         gossip_network: GN,
-        validators_addressing_info: ValidatorsAddressingInfo,
+        validator_address_cache_updater: VU,
         config: Config,
     ) -> (
-        Service<D, NI, CN, GN>,
+        Service<D, NI, CN, GN, VU>,
         impl SessionManager<D, Error = ManagerError>,
     ) {
         let Config {
@@ -236,7 +238,7 @@ where
         } = config;
         let manager = Manager::new(
             network_identity,
-            validators_addressing_info,
+            validator_address_cache_updater,
             discovery_cooldown,
         );
         let (commands_for_service, commands_from_user) = mpsc::unbounded();

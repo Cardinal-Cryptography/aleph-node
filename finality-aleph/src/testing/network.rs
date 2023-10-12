@@ -16,6 +16,7 @@ use parity_scale_codec::{Decode, Encode};
 use sc_service::TaskManager;
 use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 
+use crate::network::mock::MockValidatorAddressCacheUpdater;
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
@@ -110,6 +111,7 @@ async fn prepare_one_session_test_data() -> TestData {
         authorities[0].address(),
         validator_network.clone(),
         gossip_network,
+        MockValidatorAddressCacheUpdater,
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
     let session_manager = Box::new(session_manager);

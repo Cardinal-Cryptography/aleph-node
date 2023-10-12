@@ -290,6 +290,9 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+
+        /// Allows to get owner's AccountId for an Aleph key used in the current session.
+        fn aleph_key_owner(key: AuthorityId) -> Option<AccountId>;
     }
 }
 

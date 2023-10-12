@@ -1013,6 +1013,10 @@ impl_runtime_apis! {
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
             CommitteeManagement::predict_session_committee_for_session(session)
         }
+
+        fn aleph_key_owner(key: AlephId) -> Option<AccountId> {
+            Session::key_owner(primitives::KEY_TYPE, key.as_ref())
+        }
     }
 
     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
