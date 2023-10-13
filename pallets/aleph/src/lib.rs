@@ -16,8 +16,7 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
-    SessionIndex, Version, VersionChange,
-    DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
+    SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
 };
 use sp_std::prelude::*;
 
