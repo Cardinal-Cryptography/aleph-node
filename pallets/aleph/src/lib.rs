@@ -11,7 +11,7 @@ mod traits;
 
 use frame_support::{
     log,
-    sp_runtime::{BoundToRuntimeAppPublic, DigestItem},
+    sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
