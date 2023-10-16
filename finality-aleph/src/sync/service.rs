@@ -1,4 +1,3 @@
-use core::marker::PhantomData;
 use std::{collections::HashSet, time::Duration};
 
 use futures::{channel::mpsc, StreamExt};
@@ -20,9 +19,9 @@ use crate::{
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
-        Block, BlockIdFor, BlockIdentifier, BlockImport, ChainStatus, ChainStatusNotification,
-        ChainStatusNotifier, Finalizer, Header, Justification, JustificationSubmissions,
-        RequestBlocks, UnverifiedJustification, Verifier, LOG_TARGET,
+        Block, BlockId, BlockImport, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
+        Finalizer, Header, Justification, JustificationSubmissions, RequestBlocks,
+        UnverifiedJustification, Verifier, LOG_TARGET,
     },
     SyncOracle,
 };
@@ -45,6 +44,7 @@ where
     chain_events: CE,
     sync_oracle: SyncOracle,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    blocks_from_creator: mpsc::UnboundedReceiver<B>,
     database_io: DatabaseIO<B, J, CS, F, BI>,
 }
 
@@ -59,20 +59,19 @@ where
     BI: BlockImport<B>,
 {
     pub fn new(
-        chain_status: CS,
-        finalizer: F,
-        block_importer: BI,
+        database_io: DatabaseIO<B, J, CS, F, BI>,
         network: N,
         chain_events: CE,
         sync_oracle: SyncOracle,
         additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+        blocks_from_creator: mpsc::UnboundedReceiver<B>,
     ) -> Self {
-        let database_io = DatabaseIO::new(chain_status, finalizer, block_importer);
         IO {
             network,
             chain_events,
             sync_oracle,
             additional_justifications_from_user,
+            blocks_from_creator,
             database_io,
         }
     }
@@ -92,14 +91,14 @@ where
 {
     network: VersionWrapper<B, J, N>,
     handler: Handler<B, N::PeerId, J, CS, V, F, BI>,
-    tasks: TaskQueue<RequestTask<BlockIdFor<J>>>,
+    tasks: TaskQueue<RequestTask>,
     broadcast_ticker: Ticker,
     chain_extension_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    block_requests_from_user: mpsc::UnboundedReceiver<BlockIdFor<J>>,
-    _phantom: PhantomData<B>,
+    block_requests_from_user: mpsc::UnboundedReceiver<BlockId>,
+    blocks_from_creator: mpsc::UnboundedReceiver<B>,
     metrics: Metrics,
 }
 
@@ -111,10 +110,10 @@ impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::
     }
 }
 
-impl<BI: BlockIdentifier> RequestBlocks<BI> for mpsc::UnboundedSender<BI> {
-    type Error = mpsc::TrySendError<BI>;
+impl RequestBlocks for mpsc::UnboundedSender<BlockId> {
+    type Error = mpsc::TrySendError<BlockId>;
 
-    fn request_block(&self, block_id: BI) -> Result<(), Self::Error> {
+    fn request_block(&self, block_id: BlockId) -> Result<(), Self::Error> {
         self.unbounded_send(block_id)
     }
 }
@@ -142,7 +141,7 @@ where
         (
             Self,
             impl JustificationSubmissions<J> + Clone,
-            impl RequestBlocks<BlockIdFor<J>>,
+            impl RequestBlocks,
         ),
         HandlerError<B, J, CS, V, F>,
     > {
@@ -151,6 +150,7 @@ where
             chain_events,
             sync_oracle,
             additional_justifications_from_user,
+            blocks_from_creator,
             database_io,
         } = io;
         let network = VersionWrapper::new(network);
@@ -178,16 +178,16 @@ where
                 chain_events,
                 justifications_from_user,
                 additional_justifications_from_user,
+                blocks_from_creator,
                 block_requests_from_user,
                 metrics,
-                _phantom: PhantomData,
             },
             justifications_for_sync,
             block_requests_for_sync,
         ))
     }
 
-    fn request_block(&mut self, block_id: BlockIdFor<J>) {
+    fn request_block(&mut self, block_id: BlockId) {
         debug!(
             target: LOG_TARGET,
             "Initiating a request for block {:?}.", block_id
@@ -276,7 +276,7 @@ where
         }
     }
 
-    fn send_request(&mut self, pre_request: PreRequest<N::PeerId, J>) {
+    fn send_request(&mut self, pre_request: PreRequest<N::PeerId>) {
         self.metrics.report_event(Event::SendRequest);
         let state = match self.handler.state() {
             Ok(state) => state,
@@ -481,7 +481,7 @@ where
         }
     }
 
-    fn handle_task(&mut self, task: RequestTask<BlockIdFor<J>>) {
+    fn handle_task(&mut self, task: RequestTask) {
         trace!(target: LOG_TARGET, "Handling task {}.", task);
         if let TaskAction::Request(pre_request, (task, delay)) =
             task.process(self.handler.interest_provider())
@@ -519,7 +519,7 @@ where
         }
     }
 
-    fn handle_internal_request(&mut self, id: BlockIdFor<J>) {
+    fn handle_internal_request(&mut self, id: BlockId) {
         trace!(
             target: LOG_TARGET,
             "Handling an internal request for block {:?}.",
@@ -596,6 +596,19 @@ where
         }
     }
 
+    fn handle_own_block(&mut self, block: B) {
+        let broadcast = self.handler.handle_own_block(block);
+        if let Err(e) = self
+            .network
+            .broadcast(NetworkData::RequestResponse(broadcast))
+        {
+            warn!(
+                target: LOG_TARGET,
+                "Error broadcasting newly created block: {}.", e
+            )
+        }
+    }
+
     /// Stay synchronized.
     pub async fn run(mut self) {
         loop {
@@ -631,6 +644,13 @@ where
                         self.handle_internal_request(block_id)
                     },
                     None => warn!(target: LOG_TARGET, "Channel with internal block request from user closed."),
+                },
+                maybe_own_block = self.blocks_from_creator.next() => match maybe_own_block {
+                    Some(block) => {
+                        debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
+                        self.handle_own_block(block)
+                    },
+                    None => warn!(target: LOG_TARGET, "Channel with own blocks closed."),
                 },
             }
         }

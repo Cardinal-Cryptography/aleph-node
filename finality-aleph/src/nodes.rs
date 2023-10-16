@@ -25,8 +25,8 @@ use crate::{
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
-        ChainStatus, FinalizationStatus, Justification, JustificationTranslator,
-        OldSyncCompatibleRequestBlocks, Service as SyncService, SubstrateChainStatusNotifier,
+        ChainStatus, DatabaseIO as SyncDatabaseIO, FinalizationStatus, Justification,
+        JustificationTranslator, Service as SyncService, SubstrateChainStatusNotifier,
         SubstrateFinalizationInfo, VerifierCache, IO as SyncIO,
     },
     AlephConfig,
@@ -65,6 +65,7 @@ where
         session_period,
         millisecs_per_block,
         justification_rx,
+        block_rx,
         backup_saving_path,
         external_addresses,
         validator_port,
@@ -116,8 +117,6 @@ where
     );
     let gossip_network_task = async move { gossip_network_service.run().await };
 
-    let block_requester = sync_network.clone();
-
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone()),
         FinalityNotifierImpl::new(client.clone()),
@@ -151,13 +150,12 @@ where
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
     import_queue_handle.attach_metrics(metrics.clone());
     let sync_io = SyncIO::new(
-        chain_status.clone(),
-        finalizer,
-        import_queue_handle,
+        SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle),
         block_sync_network,
         chain_events,
-        sync_oracle,
+        sync_oracle.clone(),
         justification_rx,
+        block_rx,
     );
     let (sync_service, justifications_for_sync, request_block) =
         match SyncService::new(verifier, session_info.clone(), sync_io, registry.clone()) {
@@ -186,12 +184,9 @@ where
     spawn_handle.spawn("aleph/gossip_network", gossip_network_task);
     debug!(target: "aleph-party", "Gossip network has started.");
 
-    let compatible_block_request =
-        OldSyncCompatibleRequestBlocks::new(block_requester.clone(), request_block);
-
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
-        sync_state: block_requester,
+        sync_oracle,
         backup_saving_path,
         chain_state: ChainStateImpl {
             client: client.clone(),
@@ -204,7 +199,7 @@ where
             unit_creation_delay,
             justifications_for_sync,
             JustificationTranslator::new(chain_status.clone()),
-            compatible_block_request,
+            request_block,
             metrics,
             spawn_handle,
             connection_manager,

@@ -15,14 +15,14 @@ use crate::{
             InitializationError as ForestInitializationError, Interest,
         },
         handler::request_handler::RequestHandler,
-        Block, BlockIdFor, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification,
-        PeerId, UnverifiedJustification, Verifier,
+        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification, PeerId,
+        UnverifiedJustification, Verifier,
     },
-    BlockIdentifier, BlockNumber, SyncOracle,
+    BlockId, BlockNumber, SyncOracle,
 };
 
 mod request_handler;
-pub use request_handler::{Action, RequestHandlerError};
+pub use request_handler::{block_to_response, Action, RequestHandlerError};
 
 use crate::sync::data::{ResponseItem, ResponseItems};
 
@@ -73,7 +73,7 @@ where
     I: PeerId,
     J: Justification,
 {
-    pub fn get(&self, id: &BlockIdFor<J>) -> Interest<I, J> {
+    pub fn get(&self, id: &BlockId) -> Interest<I> {
         self.forest.request_interest(id)
     }
 }
@@ -263,7 +263,7 @@ where
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
-    RequestHandlerError(RequestHandlerError<J, CS::Error>),
+    RequestHandlerError(RequestHandlerError<CS::Error>),
     MissingJustification,
     BlockNotImportable,
     HeaderNotRequired,
@@ -332,7 +332,7 @@ where
     }
 }
 
-impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
+impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
     B: Block<Header = J::Header>,
@@ -340,7 +340,7 @@ where
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    fn from(e: RequestHandlerError<J, CS::Error>) -> Self {
+    fn from(e: RequestHandlerError<CS::Error>) -> Self {
         Error::RequestHandlerError(e)
     }
 }
@@ -570,7 +570,7 @@ where
     ) -> (bool, Option<<Self as HandlerTypes>::Error>) {
         let mut new_highest = false;
         // Lets us import descendands of importable blocks, useful for favourite blocks.
-        let mut last_imported_block: Option<BlockIdFor<J>> = None;
+        let mut last_imported_block: Option<BlockId> = None;
         for item in response_items {
             match item {
                 ResponseItem::Justification(j) => {
@@ -583,11 +583,11 @@ where
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
+                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), false) {
+                        return (new_highest, Some(Error::Forest(e)));
+                    }
                     if !self.forest.importable(&h.id()) {
                         return (new_highest, Some(Error::HeaderNotRequired));
-                    }
-                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), true) {
-                        return (new_highest, Some(Error::Forest(e)));
                     }
                 }
                 ResponseItem::Block(b) => {
@@ -711,7 +711,7 @@ where
     /// Returns `true` if this was the first time something indicated interest in this block.
     pub fn handle_internal_request(
         &mut self,
-        id: &BlockIdFor<J>,
+        id: &BlockId,
     ) -> Result<bool, <Self as HandlerTypes>::Error> {
         let should_request = self.forest.update_block_identifier(id, None, true)?;
 
@@ -719,8 +719,14 @@ where
     }
 
     /// Returns the extension request we could be making right now.
-    pub fn extension_request(&self) -> ExtensionRequest<I, J> {
+    pub fn extension_request(&self) -> ExtensionRequest<I> {
         self.forest.extension_request()
+    }
+
+    /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast.
+    pub fn handle_own_block(&mut self, block: B) -> Vec<ResponseItem<B, J>> {
+        self.block_importer.import_block(block.clone());
+        block_to_response(block)
     }
 }
 
@@ -735,12 +741,12 @@ mod tests {
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             forest::{ExtensionRequest, Interest},
             handler::Action,
-            mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
+            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId},
             Block, BlockImport, ChainStatus,
             ChainStatusNotification::*,
             ChainStatusNotifier, Header, Justification,
         },
-        BlockIdentifier, BlockNumber, SessionPeriod, SyncOracle,
+        BlockId, BlockNumber, SessionPeriod, SyncOracle,
     };
 
     type TestHandler =
@@ -753,7 +759,7 @@ mod tests {
         TestHandler,
         Backend,
         impl ChainStatusNotifier<MockHeader>,
-        MockIdentifier,
+        BlockId,
     ) {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
@@ -785,8 +791,8 @@ mod tests {
 
     fn assert_dangling_branch_required(
         handler: &TestHandler,
-        top: &MockIdentifier,
-        bottom: &MockIdentifier,
+        top: &BlockId,
+        bottom: &BlockId,
         know_most: HashSet<MockPeerId>,
     ) {
         assert_eq!(
@@ -806,7 +812,7 @@ mod tests {
 
     fn grow_light_branch_till(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         top: &BlockNumber,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -816,7 +822,7 @@ mod tests {
 
     fn grow_light_branch(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -857,8 +863,8 @@ mod tests {
         height: BlockNumber,
         length: usize,
         peer_id: MockPeerId,
-    ) -> (MockIdentifier, MockIdentifier) {
-        let bottom = MockIdentifier::new_random(height);
+    ) -> (BlockId, BlockId) {
+        let bottom = BlockId::new_random(height);
         let top = grow_light_branch(handler, &bottom, length, peer_id)
             .last()
             .expect("branch should not be empty")
@@ -903,9 +909,9 @@ mod tests {
         handler: &mut TestHandler,
         backend: &mut Backend,
         notifier: &mut impl ChainStatusNotifier<MockHeader>,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
-    ) -> MockIdentifier {
+    ) -> BlockId {
         let branch: Vec<_> = bottom.random_branch().take(length).collect();
         let top = branch.last().expect("should not be empty").id();
         for header in branch.iter() {
@@ -1280,7 +1286,7 @@ mod tests {
 
         // grow the dangling branch that will be pruned
         let fork_peer = 6;
-        let fork_bottom = MockIdentifier::new_random(15);
+        let fork_bottom = BlockId::new_random(15);
         let fork_child = fork_bottom.random_child();
         let fork = grow_light_branch(&mut handler, &fork_child.id(), 10, fork_peer);
         let fork_top = fork.last().expect("fork not empty").id();
@@ -1329,7 +1335,10 @@ mod tests {
         );
         let (new_info, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
-        assert!(maybe_error.is_none(), "should work");
+        match maybe_error {
+            None => panic!("should fail when it reaches the top finalized"),
+            Some(_) => (),
+        }
 
         // check that the fork is pruned
         assert_eq!(
@@ -1420,7 +1429,10 @@ mod tests {
         );
         let (new_info, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
-        assert!(maybe_error.is_none(), "should work");
+        match maybe_error {
+            None => panic!("should fail when it reaches the top finalized"),
+            Some(_) => (),
+        }
 
         // check that the fork is pruned
         assert_eq!(
@@ -1891,8 +1903,8 @@ mod tests {
 
         let header = MockHeader::random_parentless(105);
         let state = State::new(MockJustification::for_header(header.clone()), header);
-        let requested_id = MockIdentifier::new_random(120);
-        let lowest_id = MockIdentifier::new_random(110);
+        let requested_id = BlockId::new_random(120);
+        let lowest_id = BlockId::new_random(110);
 
         let request = Request::new(requested_id.clone(), LowestId(lowest_id), state);
 
@@ -2204,6 +2216,57 @@ mod tests {
 
         assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
         assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
+    }
+
+    #[test]
+    fn broadcasts_own_block() {
+        let (mut handler, backend, _keep, _genesis) = setup();
+        let block = MockBlock::new(
+            backend
+                .top_finalized()
+                .expect("mock backend works")
+                .header()
+                .random_branch()
+                .next()
+                .expect("branch creation succeeds"),
+            true,
+        );
+
+        let result = handler.handle_own_block(block.clone());
+        match result.get(0).expect("the header is there") {
+            ResponseItem::Header(header) => assert_eq!(header, block.header()),
+            other => panic!("expected header item, got {:?}", other),
+        }
+        match result.get(1).expect("the block is there") {
+            ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
+            other => panic!("expected block item, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn accepts_broadcast_block() {
+        let (mut handler, backend, mut notifier, _genesis) = setup();
+        let block = MockBlock::new(
+            backend
+                .top_finalized()
+                .expect("mock backend works")
+                .header()
+                .random_branch()
+                .next()
+                .expect("branch creation succeeds"),
+            true,
+        );
+
+        let broadcast = handler.handle_own_block(block.clone());
+        match handler.handle_request_response(broadcast, rand::random()) {
+            (true, _) => panic!("block unexpectedly changed top finalized"),
+            (false, Some(e)) => panic!("error handling block broadcast: {}", e),
+            (false, None) => (),
+        }
+        assert_eq!(
+            notifier.next().await.expect("should receive notification"),
+            BlockImported(block.header().clone())
+        );
     }
 
     //TODO(A0-2984): remove this after legacy sync is excised
