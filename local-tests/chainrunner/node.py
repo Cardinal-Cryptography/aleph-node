@@ -85,7 +85,7 @@ class Node:
         if isinstance(highest_block, Ok):
             return highest_block.result
         else:
-            None
+            return None
 
     def highest_finalized_hash(self):
         highest_finalized = self.rpc('chain_getFinalizedHead', None)

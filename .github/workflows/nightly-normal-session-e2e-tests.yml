@@ -213,7 +213,7 @@ jobs:
   run-force-reorg-test:
     needs: [build-production-node-and-runtime]
     name: Run force reorgs test
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64, small]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
