@@ -139,6 +139,8 @@ where
                 false => Err(Self::Error::HeaderVerification(IncorrectGenesis)),
             };
         }
+        // off by one!
+        let parent_number = header.number() - 1;
         let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
             .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
         // duplicate code, watch out!
@@ -160,8 +162,8 @@ where
             .as_aura_seal()
             .ok_or(Self::Error::HeaderVerification(IncorrectSeal))?;
         let authorities = self
-            .authorities(*header.parent_hash())
-            .ok_or(Self::Error::HeaderVerification(MissingAuthorityData))?;
+            .get_aura_authorities(parent_number)
+            .map_err(|_| Self::Error::HeaderVerification(MissingAuthorityData))?;
         // duplicate code, watch out!
         // assuming round robin
         let idx = *slot % (authorities.len() as u64);

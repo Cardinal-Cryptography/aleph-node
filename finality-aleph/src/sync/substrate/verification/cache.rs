@@ -7,7 +7,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    aleph_primitives::{BlockHash, BlockNumber},
+    aleph_primitives::BlockNumber,
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::{
@@ -20,9 +20,11 @@ use crate::{
 #[derive(Debug, PartialEq, Eq)]
 pub enum CacheError {
     UnknownAuthorities(SessionId),
+    UnknownAuraAuthorities(SessionId),
     SessionTooOld(SessionId, SessionId),
     SessionInFuture(SessionId, SessionId),
     BadGenesisHeader,
+    NoAuraAutoritiesForGenesis,
 }
 
 impl Display for CacheError {
@@ -43,11 +45,20 @@ impl Display for CacheError {
                     "authorities for session {session:?} not known even though they should be"
                 )
             }
+            UnknownAuraAuthorities(session) => {
+                write!(
+                    f,
+                    "Aura authorities for session {session:?} not known even though they should be"
+                )
+            }
             BadGenesisHeader => {
                 write!(
                     f,
                     "the provided genesis header does not match the cached genesis header"
                 )
+            }
+            NoAuraAutoritiesForGenesis => {
+                write!(f, "cannot provide Aura authorities for the genesis header")
             }
         }
     }
@@ -64,6 +75,7 @@ where
     H: Header,
 {
     sessions: HashMap<SessionId, SessionVerifier>,
+    aura_authorities: HashMap<SessionId, Vec<AuraId>>,
     session_info: SessionBoundaryInfo,
     finalization_info: FI,
     authority_provider: AP,
@@ -88,6 +100,7 @@ where
     ) -> Self {
         Self {
             sessions: HashMap::new(),
+            aura_authorities: HashMap::new(),
             session_info,
             finalization_info,
             authority_provider,
@@ -99,10 +112,6 @@ where
 
     pub fn genesis_header(&self) -> &H {
         &self.genesis_header
-    }
-
-    pub fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>> {
-        self.authority_provider.authorities(parent_hash)
     }
 }
 
@@ -124,6 +133,21 @@ fn download_session_verifier<AP: AuthorityProvider>(
     maybe_authority_data.map(|a| a.into())
 }
 
+/// Download and return Aura authorities for the given session.
+fn download_aura_authorities<AP: AuthorityProvider>(
+    authority_provider: &AP,
+    session_id: SessionId,
+    session_info: &SessionBoundaryInfo,
+) -> Option<Vec<AuraId>> {
+    match session_id {
+        SessionId(0) => authority_provider.aura_authorities(0),
+        SessionId(id) => {
+            let prev_first = session_info.first_block_of_session(SessionId(id - 1));
+            authority_provider.next_aura_authorities(prev_first)
+        }
+    }
+}
+
 impl<AP, FI, H> VerifierCache<AP, FI, H>
 where
     AP: AuthorityProvider,
@@ -133,7 +157,62 @@ where
     /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
         self.sessions.retain(|&id, _| id >= session_id);
+        // off by one!
+        self.aura_authorities
+            .retain(|&id, _| id.next() >= session_id);
         self.lower_bound = session_id;
+    }
+
+    fn try_prune(&mut self, session_id: &SessionId) {
+        if session_id.0
+            >= self
+                .lower_bound
+                .0
+                .saturating_add(self.cache_size.saturated_into())
+        {
+            self.prune(SessionId(
+                session_id
+                    .0
+                    .saturating_sub(self.cache_size.saturated_into())
+                    + 1,
+            ));
+        }
+    }
+
+    pub fn get_aura_authorities(
+        &mut self,
+        number: BlockNumber,
+    ) -> Result<&Vec<AuraId>, CacheError> {
+        if number == 0 {
+            return Err(CacheError::NoAuraAutoritiesForGenesis);
+        }
+        let session_id = self.session_info.session_id_from_block_num(number);
+        if session_id < self.lower_bound {
+            return Err(CacheError::SessionTooOld(session_id, self.lower_bound));
+        }
+        let upper_bound = SessionId(
+            self.session_info
+                .session_id_from_block_num(self.finalization_info.finalized_number())
+                .0,
+        );
+        if session_id > upper_bound {
+            return Err(CacheError::SessionInFuture(session_id, upper_bound));
+        }
+
+        self.try_prune(&session_id);
+
+        Ok(match self.aura_authorities.entry(session_id) {
+            Entry::Occupied(occupied) => occupied.into_mut(),
+            Entry::Vacant(vacant) => {
+                let authorities = download_aura_authorities(
+                    &self.authority_provider,
+                    session_id,
+                    &self.session_info,
+                )
+                .ok_or(CacheError::UnknownAuraAuthorities(session_id))?;
+                vacant.insert(authorities)
+            }
+        })
     }
 
     /// Returns session verifier for block number if available. Updates cache if necessary.
@@ -155,19 +234,7 @@ where
             return Err(CacheError::SessionInFuture(session_id, upper_bound));
         }
 
-        if session_id.0
-            >= self
-                .lower_bound
-                .0
-                .saturating_add(self.cache_size.saturated_into())
-        {
-            self.prune(SessionId(
-                session_id
-                    .0
-                    .saturating_sub(self.cache_size.saturated_into())
-                    + 1,
-            ));
-        }
+        self.try_prune(&session_id);
 
         let verifier = match self.sessions.entry(session_id) {
             Entry::Occupied(occupied) => occupied.into_mut(),
@@ -197,7 +264,7 @@ mod tests {
         VerifierCache,
     };
     use crate::{
-        aleph_primitives::{BlockHash, SessionAuthorityData},
+        aleph_primitives::SessionAuthorityData,
         session::{testing::authority_data, SessionBoundaryInfo, SessionId},
         sync::mock::MockHeader,
         SessionPeriod,
@@ -256,7 +323,11 @@ mod tests {
                 .cloned()
         }
 
-        fn authorities(&self, _parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+        fn aura_authorities(&self, _block_number: BlockNumber) -> Option<Vec<AuraId>> {
+            None
+        }
+
+        fn next_aura_authorities(&self, _block_number: BlockNumber) -> Option<Vec<AuraId>> {
             None
         }
     }

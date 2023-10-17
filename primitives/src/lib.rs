@@ -4,6 +4,7 @@
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use sp_consensus_aura::sr25519::AuthorityId as AuraAuthorityId;
 use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
@@ -16,7 +17,6 @@ use sp_runtime::{
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
-use sp_consensus_aura::{sr25519::AuthorityId as AuraAuthorityId};
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 

@@ -27,8 +27,10 @@ pub trait AuthorityProvider {
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
     fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
-    /// returns list of Aura authorities for a given parent hash
-    fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>>;
+    /// returns list of Aura authorities for a given block number
+    fn aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>>;
+    /// returns list of next session Aura authorities for a given block number
+    fn next_aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>>;
 }
 
 /// Default implementation of authority provider trait.
@@ -82,8 +84,21 @@ where
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
 {
-    fn authorities(&self, parent_hash: BlockHash) -> Option<Vec<AuraId>> {
-        AuraApi::authorities(self.client.runtime_api().deref(), parent_hash).ok()
+    fn aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>> {
+        AuraApi::authorities(
+            self.client.runtime_api().deref(),
+            self.block_hash(block_number)?,
+        )
+        .ok()
+    }
+
+    fn next_aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>> {
+        AlephSessionApi::next_session_aura_authorities(
+            self.client.runtime_api().deref(),
+            self.block_hash(block_number)?,
+        )
+        .ok()?
+        .ok()
     }
 
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
@@ -436,7 +451,11 @@ mod tests {
             self.next_session_map.get(&block_number).cloned()
         }
 
-        fn authorities(&self, _parent_hash: BlockHash) -> Option<Vec<AuraId>> {
+        fn aura_authorities(&self, _block_number: BlockNumber) -> Option<Vec<AuraId>> {
+            None
+        }
+
+        fn next_aura_authorities(&self, _block_number: BlockNumber) -> Option<Vec<AuraId>> {
             None
         }
     }
