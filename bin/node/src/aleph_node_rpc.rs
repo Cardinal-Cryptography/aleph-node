@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use finality_aleph::{
     AlephJustification, BlockId, Justification, JustificationTranslator, ValidatorAddressCache,
+    ValidatorAddressingInfo,
 };
 use futures::channel::mpsc;
 use jsonrpsee::{
@@ -158,6 +160,9 @@ pub trait AlephNodeApi<BE> {
     ///
     #[method(name = "ready")]
     fn ready(&self) -> RpcResult<bool>;
+
+    #[method(name = "validatorNetworkInfo")]
+    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>>;
 }
 
 /// Aleph Node API implementation
@@ -166,6 +171,7 @@ pub struct AlephNode<Client, SO> {
     justification_translator: JustificationTranslator,
     client: Arc<Client>,
     sync_oracle: SO,
+    validator_address_cache: ValidatorAddressCache,
 }
 
 impl<Client, SO> AlephNode<Client, SO>
@@ -177,12 +183,14 @@ where
         justification_translator: JustificationTranslator,
         client: Arc<Client>,
         sync_oracle: SO,
+        validator_address_cache: ValidatorAddressCache,
     ) -> Self {
         AlephNode {
             import_justification_tx,
             justification_translator,
             client,
             sync_oracle,
+            validator_address_cache,
         }
     }
 }
@@ -249,6 +257,10 @@ where
 
     fn ready(&self) -> RpcResult<bool> {
         Ok(!self.sync_oracle.is_offline() && !self.sync_oracle.is_major_syncing())
+    }
+
+    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
+        self.Ok(self.validator_address_cache.as_hashmap())
     }
 }
 

@@ -1,5 +1,4 @@
 use parity_scale_codec::Codec;
-use sp_runtime::traits::Block;
 
 pub mod address_cache;
 pub mod data;

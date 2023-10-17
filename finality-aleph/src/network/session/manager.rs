@@ -212,6 +212,17 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
             node_id,
             pen,
         } = pre_session;
+
+        self.validator_address_cache_updater.update(
+            session_id,
+            node_id,
+            ValidatorAddressingInfo {
+                network_level_address: address.internal_protocol_address(),
+                network_level_peer_id: None,
+                validator_network_peer_id: address.peer_id().to_string(),
+            },
+        );
+
         let peers_to_stay = session
             .handler
             .update(Some((node_id, pen)), verifier, address)?
@@ -333,7 +344,7 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
                             creator,
                             ValidatorAddressingInfo {
                                 network_level_address: address.internal_protocol_address(),
-                                network_level_peer_id: low_level_peer_id.to_string(),
+                                network_level_peer_id: Some(low_level_peer_id.to_string()),
                                 validator_network_peer_id: address.peer_id().to_string(),
                             },
                         );

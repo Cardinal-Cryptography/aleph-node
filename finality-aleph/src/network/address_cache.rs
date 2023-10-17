@@ -3,6 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 use parking_lot::Mutex;
 use primitives::{AccountId, AlephSessionApi, AuthorityId, BlockHash, BlockNumber};
 use sc_client_api::Backend;
+use serde::{Deserialize, Serialize};
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
@@ -16,12 +17,12 @@ pub trait KeyOwnerInfoProvider {
     fn aleph_key_owner(&self, block_number: BlockNumber, key: AuthorityId) -> Option<AccountId>;
 }
 
-/// Network details for a given validator. This information is purely informational
-/// and can change over time, even within a session.
-#[derive(Debug, Clone)]
+/// Network details for a given validator. This data is purely informational
+/// and can change over time, even within a single session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatorAddressingInfo {
     pub network_level_address: String,
-    pub network_level_peer_id: String,
+    pub network_level_peer_id: Option<String>,
     pub validator_network_peer_id: String,
 }
 

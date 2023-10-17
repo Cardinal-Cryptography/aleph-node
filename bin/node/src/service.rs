@@ -222,6 +222,7 @@ fn setup(
         ProtocolNaming,
         NetworkStarter,
         SyncOracle,
+        ValidatorAddressCache,
     ),
     ServiceError,
 > {
@@ -258,10 +259,12 @@ fn setup(
         })?;
 
     let sync_oracle = SyncOracle::new();
+    let validator_address_cache = ValidatorAddressCache::new();
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
         let sync_oracle = sync_oracle.clone();
+        let validator_address_cache = validator_address_cache.clone();
         Box::new(move |deny_unsafe, _| {
             let deps = RpcFullDeps {
                 client: client.clone(),
@@ -270,6 +273,7 @@ fn setup(
                 import_justification_tx: import_justification_tx.clone(),
                 justification_translator: JustificationTranslator::new(chain_status.clone()),
                 sync_oracle: sync_oracle.clone(),
+                validator_address_cache: validator_address_cache.clone(),
             };
 
             Ok(create_full_rpc(deps)?)
@@ -298,6 +302,7 @@ fn setup(
         protocol_naming,
         network_starter,
         sync_oracle,
+        validator_address_cache,
     ))
 }
 
@@ -334,19 +339,27 @@ pub fn new_authority(
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
-    let (_rpc_handlers, network, sync_network, protocol_naming, network_starter, sync_oracle) =
-        setup(
-            config,
-            backend,
-            chain_status.clone(),
-            &keystore_container,
-            import_queue,
-            transaction_pool.clone(),
-            &mut task_manager,
-            client.clone(),
-            &mut telemetry,
-            justification_tx,
-        )?;
+
+    let (
+        _rpc_handlers,
+        network,
+        sync_network,
+        protocol_naming,
+        network_starter,
+        sync_oracle,
+        validator_address_cache,
+    ) = setup(
+        config,
+        backend,
+        chain_status.clone(),
+        &keystore_container,
+        import_queue,
+        transaction_pool.clone(),
+        &mut task_manager,
+        client.clone(),
+        &mut telemetry,
+        justification_tx,
+    )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
         task_manager.spawn_handle(),
@@ -403,9 +416,6 @@ pub fn new_authority(
             .try_into()
             .unwrap_or(usize::MAX),
     };
-
-    // TODO before this PR: get from runtime instead
-    let validator_address_cache = ValidatorAddressCache::new();
 
     let aleph_config = AlephConfig {
         network,
