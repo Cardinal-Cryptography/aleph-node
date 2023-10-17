@@ -1,5 +1,6 @@
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, num::NonZeroUsize, sync::Arc};
 
+use lru::LruCache;
 use parking_lot::Mutex;
 use primitives::{AccountId, AlephSessionApi, AuthorityId, BlockHash, BlockNumber};
 use sc_client_api::Backend;
@@ -21,31 +22,39 @@ pub trait KeyOwnerInfoProvider {
 /// and can change over time, even within a single session.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatorAddressingInfo {
+    /// Network level address of the validator, i.e. IP address
     pub network_level_address: String,
+    /// List of peer_ids that have ever used same network level address as network_level_address.
+    /// It can be empty in case we don't have any info about the given validator peer_id, or even
+    /// could contain false positives when one validator changed its IP and other node picked it up.
     pub potential_p2p_network_peer_ids: Vec<String>,
+    /// PeerId of the validator used in validator (clique) network
     pub validator_network_peer_id: String,
 }
 
 /// Stores most recent information about validator addresses.
-/// TODO: Consider using LruCache there.
 #[derive(Debug, Clone)]
 pub struct ValidatorAddressCache {
-    data: Arc<Mutex<HashMap<AccountId, ValidatorAddressingInfo>>>,
+    data: Arc<Mutex<LruCache<AccountId, ValidatorAddressingInfo>>>,
 }
+
+const VALIDATOR_ADDRESS_CACHE_SIZE: usize = 300;
 
 impl ValidatorAddressCache {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(Mutex::new(HashMap::new())),
+            data: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::try_from(VALIDATOR_ADDRESS_CACHE_SIZE).unwrap(),
+            ))),
         }
     }
 
     pub fn insert(&self, validator_stash: AccountId, info: ValidatorAddressingInfo) {
-        self.data.lock().insert(validator_stash, info);
+        self.data.lock().put(validator_stash, info);
     }
 
-    pub fn as_hashmap(&self) -> HashMap<AccountId, ValidatorAddressingInfo> {
-        self.data.lock().clone()
+    pub fn read(&self) -> HashMap<AccountId, ValidatorAddressingInfo> {
+        HashMap::from_iter(self.data.lock().iter().map(|(k, v)| (k.clone(), v.clone())))
     }
 }
 

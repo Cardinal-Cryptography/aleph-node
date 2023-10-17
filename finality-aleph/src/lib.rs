@@ -17,7 +17,7 @@ use sc_client_api::{
     Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
 };
 use sc_consensus::BlockImport;
-use sc_network::{config::NonReservedPeerMode, NetworkService};
+use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};

@@ -268,7 +268,11 @@ where
     async fn validator_network_info(
         &self,
     ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
-        let mut info = self.validator_address_cache.as_hashmap();
+        let mut info = self.validator_address_cache.read();
+
+        // This uses unstable method from substrate's API, but there's probably no other easy way
+        // of doing this. On the other hand, the p2p peer_id is only for debuging purposes,
+        // so in case of future substrate API change this if statement can be temporarily safely removed.
         if let Ok(network_state) = self.network.network_state().await {
             add_p2p_peer_id_to_validator_addressing_info(&mut info, network_state);
         }
