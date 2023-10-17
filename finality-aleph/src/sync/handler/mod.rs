@@ -746,7 +746,7 @@ where
 mod tests {
     use std::collections::HashSet;
 
-    use super::{DatabaseIO, HandleStateAction, HandleStateAction::*, Handler};
+    use super::{DatabaseIO, Error, HandleStateAction, HandleStateAction::*, Handler};
     use crate::{
         session::{SessionBoundaryInfo, SessionId},
         sync::{
@@ -1101,6 +1101,26 @@ mod tests {
         assert!(new_info);
         assert!(maybe_error.is_none());
         consume_branch_finalized_notifications(&mut notifier, &branch[15..].to_vec()).await;
+    }
+
+    #[tokio::test]
+    async fn handles_response_with_incorrect_headers() {
+        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        let response = branch_response(
+            branch,
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        backend.start_discarding_headers();
+        let (_, maybe_error) = handler.handle_request_response(response, 7);
+        match maybe_error {
+            Some(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
     }
 
     #[tokio::test]
@@ -1740,6 +1760,30 @@ mod tests {
             }
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
+    }
+
+    #[test]
+    fn handles_state_with_incorrect_headers() {
+        let (mut handler, mut backend, _keep, genesis) = setup();
+        let peer = rand::random();
+        backend.start_discarding_headers();
+        let header = genesis.random_child();
+        let state = State::new(
+            MockJustification::for_header(
+                backend.top_finalized().expect("genesis").header().clone(),
+            ),
+            header,
+        );
+        match handler.handle_state(state, peer) {
+            Err(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
+        let header = MockHeader::random_parentless(1000).random_child();
+        let state = State::new(MockJustification::for_header(header.clone()), header);
+        match handler.handle_state(state, peer) {
+            Err(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
     }
 
     fn setup_request_tests(

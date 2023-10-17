@@ -30,6 +30,7 @@ struct BackendStorage {
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
+    headers_are_correct: Arc<Mutex<bool>>,
 }
 
 fn is_predecessor(
@@ -100,7 +101,12 @@ impl Backend {
         Self {
             inner: storage,
             notification_sender,
+            headers_are_correct: Arc::new(Mutex::new(true)),
         }
+    }
+
+    pub fn start_discarding_headers(&mut self) {
+        *self.headers_are_correct.lock() = false;
     }
 
     fn notify_imported(&self, header: MockHeader) {
@@ -387,13 +393,14 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
 
 #[derive(Debug)]
 pub enum VerifierError {
-    IncorrectJustification,
-    IncorrectSession,
+    Justification,
+    Session,
+    Header,
 }
 
 impl Display for VerifierError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(f, "{:?}", self)
+        write!(f, "incorrect {:?}", self)
     }
 }
 
@@ -420,15 +427,18 @@ impl Verifier<MockJustification> for Backend {
         if justification_session.0 > current_session.0 + 1
             || current_session.0 + 1 - justification_session.0 >= VERIFIER_CACHE_SIZE as u32
         {
-            return Err(Self::Error::IncorrectSession);
+            return Err(Self::Error::Session);
         }
         match justification.is_correct {
             true => Ok(justification),
-            false => Err(Self::Error::IncorrectJustification),
+            false => Err(Self::Error::Justification),
         }
     }
 
     fn verify_header(&mut self, header: MockHeader) -> Result<MockHeader, Self::Error> {
-        Ok(header)
+        match *self.headers_are_correct.lock() {
+            true => Ok(header),
+            false => Err(Self::Error::Header),
+        }
     }
 }
