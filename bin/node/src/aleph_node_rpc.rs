@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, net::IpAddr, sync::Arc};
 
 use finality_aleph::{
     AlephJustification, BlockId, Justification, JustificationTranslator, ValidatorAddressCache,
@@ -7,13 +6,14 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use jsonrpsee::{
-    core::{error::Error as JsonRpseeError, RpcResult},
+    core::{async_trait, error::Error as JsonRpseeError, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
 use parity_scale_codec::Decode;
-use primitives::{AccountId, Block, BlockHash, BlockNumber, Signature};
+use primitives::{AccountId, Block, BlockHash, BlockNumber, Hash, Signature};
 use sc_client_api::StorageProvider;
+use sc_network::{multiaddr::Protocol, network_state::NetworkState, Multiaddr, NetworkService};
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
@@ -162,7 +162,9 @@ pub trait AlephNodeApi<BE> {
     fn ready(&self) -> RpcResult<bool>;
 
     #[method(name = "validatorNetworkInfo")]
-    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>>;
+    async fn validator_network_info(
+        &self,
+    ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>>;
 }
 
 /// Aleph Node API implementation
@@ -172,6 +174,7 @@ pub struct AlephNode<Client, SO> {
     client: Arc<Client>,
     sync_oracle: SO,
     validator_address_cache: ValidatorAddressCache,
+    network: Arc<NetworkService<Block, Hash>>,
 }
 
 impl<Client, SO> AlephNode<Client, SO>
@@ -184,6 +187,7 @@ where
         client: Arc<Client>,
         sync_oracle: SO,
         validator_address_cache: ValidatorAddressCache,
+        network: Arc<NetworkService<Block, Hash>>,
     ) -> Self {
         AlephNode {
             import_justification_tx,
@@ -191,10 +195,12 @@ where
             client,
             sync_oracle,
             validator_address_cache,
+            network,
         }
     }
 }
 
+#[async_trait]
 impl<Client, BE, SO> AlephNodeApiServer<BE> for AlephNode<Client, SO>
 where
     BE: sc_client_api::Backend<Block> + 'static,
@@ -259,9 +265,52 @@ where
         Ok(!self.sync_oracle.is_offline() && !self.sync_oracle.is_major_syncing())
     }
 
-    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
-        self.Ok(self.validator_address_cache.as_hashmap())
+    async fn validator_network_info(
+        &self,
+    ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
+        let mut info = self.validator_address_cache.as_hashmap();
+        if let Ok(network_state) = self.network.network_state().await {
+            add_p2p_peer_id_to_validator_addressing_info(&mut info, network_state);
+        }
+        Ok(info)
     }
+}
+
+fn add_p2p_peer_id_to_validator_addressing_info(
+    info: &mut HashMap<AccountId, ValidatorAddressingInfo>,
+    network_state: NetworkState,
+) {
+    let mut ip_to_peer_id = HashMap::new();
+    network_state
+        .connected_peers
+        .iter()
+        .flat_map(|(peer_id, peer)| peer.known_addresses.iter().map(move |addr| (addr, peer_id)))
+        .for_each(|(addr, peer_id)| {
+            if let Some(ip_address) = try_to_ip_addr(addr) {
+                ip_to_peer_id
+                    .entry(ip_address)
+                    .or_insert(vec![])
+                    .push(peer_id.clone());
+            }
+        });
+    for (_, info) in info.iter_mut() {
+        if let Ok(addr) = info.network_level_address.parse::<IpAddr>() {
+            if let Some(peer_ids) = ip_to_peer_id.get(&addr) {
+                info.potential_p2p_network_peer_ids = peer_ids.clone();
+            }
+        }
+    }
+}
+
+fn try_to_ip_addr(multiaddr: &Multiaddr) -> Option<IpAddr> {
+    for component in multiaddr.iter() {
+        if let Protocol::Ip4(addr) = component {
+            return Some(IpAddr::V4(addr));
+        } else if let Protocol::Ip6(addr) = component {
+            return Some(IpAddr::V6(addr));
+        }
+    }
+    None
 }
 
 fn read_storage<

@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::{Debug, Display},
+    fmt::Debug,
     time::Duration,
 };
 
@@ -218,7 +218,7 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
             node_id,
             ValidatorAddressingInfo {
                 network_level_address: address.internal_protocol_address(),
-                network_level_peer_id: None,
+                potential_p2p_network_peer_ids: vec![],
                 validator_network_peer_id: address.peer_id().to_string(),
             },
         );
@@ -321,10 +321,9 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
 
     /// Handle a discovery message.
     /// Returns actions the manager wants to take.
-    pub fn on_discovery_message<LPID: Display>(
+    pub fn on_discovery_message(
         &mut self,
         message: DiscoveryMessage<NI::AddressingInformation>,
-        low_level_peer_id: LPID,
     ) -> ManagerActions<NI::AddressingInformation> {
         let session_id = message.session_id();
         let creator = message.0.creator();
@@ -344,7 +343,7 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
                             creator,
                             ValidatorAddressingInfo {
                                 network_level_address: address.internal_protocol_address(),
-                                network_level_peer_id: Some(low_level_peer_id.to_string()),
+                                potential_p2p_network_peer_ids: vec![],
                                 validator_network_peer_id: address.peer_id().to_string(),
                             },
                         );
@@ -600,7 +599,7 @@ mod tests {
         let ManagerActions {
             maybe_command,
             maybe_message,
-        } = manager.on_discovery_message(message, "mock peer id");
+        } = manager.on_discovery_message(message);
         assert_eq!(
             maybe_command,
             Some(ConnectionCommand::AddReserved(
@@ -635,7 +634,7 @@ mod tests {
             })
             .unwrap();
         let message = maybe_message.expect("there should be a discovery message");
-        manager.on_discovery_message(message, "mock peer id");
+        manager.on_discovery_message(message);
         let messages = manager.on_user_message(2137, session_id, Recipient::Everyone);
         assert_eq!(messages.len(), 1);
         let (network_data, _) = &messages[0];

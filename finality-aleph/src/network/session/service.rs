@@ -389,11 +389,11 @@ where
                     }
                 },
                 maybe_authentication = self.gossip_network.next() => {
-                    let (authentication, low_level_peer_id) = maybe_authentication.map_err(Error::GossipNetwork)?;
+                    let (authentication, _) = maybe_authentication.map_err(Error::GossipNetwork)?;
                     trace!(target: "aleph-network", "Manager received an authentication from network");
                     match authentication.try_into() {
                         Ok(message) => {
-                            let manager_actions = self.manager.on_discovery_message(message, low_level_peer_id);
+                            let manager_actions = self.manager.on_discovery_message(message);
                             self.handle_manager_actions(manager_actions)?
                         },
                         Err(e) => debug!(target: "aleph-network", "Could not cast versioned authentication in discovery message: {:?}", e),

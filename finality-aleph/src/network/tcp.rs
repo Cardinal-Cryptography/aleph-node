@@ -108,7 +108,16 @@ impl AddressingInformation for SignedTcpAddressingInformation {
     }
 
     fn internal_protocol_address(&self) -> String {
-        return self.addressing_information.primary_address.clone();
+        iter::once(self.addressing_information.primary_address.clone())
+            .chain(self.addressing_information.other_addresses.clone())
+            .filter_map(|address| {
+                let mut socket_addr = address.to_socket_addrs().ok()?;
+                socket_addr
+                    .next()
+                    .map(|socket_addr| socket_addr.ip().to_string())
+            })
+            .next()
+            .unwrap_or("unknown".to_string())
     }
 }
 

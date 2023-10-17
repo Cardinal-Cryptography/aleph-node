@@ -22,7 +22,7 @@ pub trait KeyOwnerInfoProvider {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatorAddressingInfo {
     pub network_level_address: String,
-    pub network_level_peer_id: Option<String>,
+    pub potential_p2p_network_peer_ids: Vec<String>,
     pub validator_network_peer_id: String,
 }
 
@@ -46,6 +46,12 @@ impl ValidatorAddressCache {
 
     pub fn as_hashmap(&self) -> HashMap<AccountId, ValidatorAddressingInfo> {
         self.data.lock().clone()
+    }
+}
+
+impl Default for ValidatorAddressCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
