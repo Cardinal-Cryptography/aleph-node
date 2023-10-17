@@ -34,6 +34,7 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
+use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
@@ -46,6 +47,7 @@ use primitives::{
 };
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Nonce, Signature};
 use sp_api::impl_runtime_apis;
+use sp_application_crypto::key_types::AURA;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
 use sp_core::{crypto::KeyTypeId, ConstU128, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
@@ -63,9 +65,7 @@ use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;use pallet_session::QueuedKeys;
-
-use sp_application_crypto::key_types::AURA;
+use sp_version::RuntimeVersion;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -1016,10 +1016,10 @@ impl_runtime_apis! {
             CommitteeManagement::predict_session_committee_for_session(session)
         }
 
-        fn next_session_aura_authorities() -> Result<Vec<AuraId>, AlephApiError> {
+        fn next_session_aura_authorities() -> Vec<AuraId> {
             let queued_keys = QueuedKeys::<Runtime>::get();
 
-            Ok(queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect())
+            queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect()
         }
     }
 
