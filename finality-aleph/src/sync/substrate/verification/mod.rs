@@ -12,7 +12,7 @@ use sp_core::Pair;
 use sp_runtime::traits::{Header as SubstrateHeader, Zero};
 
 use crate::{
-    aleph_primitives::{AuthoritySignature, Block, BlockNumber, Header},
+    aleph_primitives::{AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK},
     session_map::AuthorityProvider,
     sync::{
         substrate::{
@@ -144,10 +144,9 @@ where
         let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
             .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
         // duplicate code, watch out!
-        // assuming slot duration == 1000 ms
         let slot_now = Slot::from_timestamp(
             sp_timestamp::Timestamp::current(),
-            sp_consensus_slots::SlotDuration::from_millis(1000),
+            sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
         );
         // timorl's offset
         if slot > slot_now + 10 {

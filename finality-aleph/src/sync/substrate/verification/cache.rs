@@ -3,11 +3,10 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
 };
 
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    aleph_primitives::BlockNumber,
+    aleph_primitives::{AuraId, BlockNumber},
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::{
@@ -158,6 +157,7 @@ where
     fn prune(&mut self, session_id: SessionId) {
         self.sessions.retain(|&id, _| id >= session_id);
         // off by one!
+        // let's retain one more session, just to be safe
         self.aura_authorities
             .retain(|&id, _| id.next() >= session_id);
         self.lower_bound = session_id;
@@ -179,6 +179,9 @@ where
         }
     }
 
+    /// Returns the list of Aura authorities for a given block number. Updates cache if necessary.
+    /// This method assumes that the queued Aura authorities will indeed become Aura authorities
+    /// in the next session.
     pub fn get_aura_authorities(
         &mut self,
         number: BlockNumber,

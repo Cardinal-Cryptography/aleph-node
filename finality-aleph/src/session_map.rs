@@ -4,7 +4,7 @@ use futures::StreamExt;
 use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
-use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
+use sp_consensus_aura::AuraApi;
 use sp_runtime::traits::{Block, Header};
 use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
@@ -12,7 +12,7 @@ use tokio::sync::{
 };
 
 use crate::{
-    aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, SessionAuthorityData},
+    aleph_primitives::{AlephSessionApi, AuraId, BlockHash, BlockNumber, SessionAuthorityData},
     session::SessionBoundaryInfo,
     ClientForAleph, SessionId, SessionPeriod,
 };
