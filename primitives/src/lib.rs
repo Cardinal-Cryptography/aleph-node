@@ -16,6 +16,7 @@ use sp_runtime::{
 };
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
+use sp_consensus_aura::{sr25519::AuthorityId as AuraAuthorityId};
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 
@@ -281,6 +282,7 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+        fn next_session_aura_authorities() -> Result<Vec<AuraAuthorityId>, ApiError>;
     }
 }
 

@@ -63,7 +63,9 @@ use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;
+use sp_version::RuntimeVersion;use pallet_session::QueuedKeys;
+
+use sp_application_crypto::key_types::AURA;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -1012,6 +1014,12 @@ impl_runtime_apis! {
             session: SessionIndex,
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
             CommitteeManagement::predict_session_committee_for_session(session)
+        }
+
+        fn next_session_aura_authorities() -> Result<Vec<AuraId>, AlephApiError> {
+            let queued_keys = QueuedKeys::<Runtime>::get();
+
+            Ok(queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect())
         }
     }
 
