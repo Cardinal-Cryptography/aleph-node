@@ -28,10 +28,17 @@ pub struct ValidatorAddressingInfo {
     pub validator_network_peer_id: String,
     /// Session to which the given `validator_network_peer_id` corresponds.
     pub session: SessionId,
-    /// List of peer_ids that have ever used same network level address as network_level_address.
-    /// It can be empty in case we don't have any info about the given validator peer_id, or even
-    /// could contain false positives when one validator changed its IP and other node picked it up.
-    pub potential_p2p_network_peer_ids: Vec<String>,
+    /// Vec of substrate's P2P network extra data (e.g. peer_id) that *could* match a given addressing info,
+    /// that is, which was sent from the same address as network_level_address.
+    /// It can be empty in case we haven't been ever connected directly to a given peer in p2p network,
+    /// or even could contain false positives when one validator changed its IP and other node picked it up.
+    pub potential_p2p_network_additional_info: Vec<AdditionalP2PAddressingInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdditionalP2PAddressingInfo {
+    pub p2p_network_peer_id: String,
+    pub version_string: Option<String>,
 }
 
 /// Stores most recent information about validator addresses.

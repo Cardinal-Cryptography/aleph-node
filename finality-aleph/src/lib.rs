@@ -62,7 +62,9 @@ pub use crate::{
     justification::AlephJustification,
     metrics::TimingBlockMetrics,
     network::{
-        address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
+        address_cache::{
+            AdditionalP2PAddressingInfo, ValidatorAddressCache, ValidatorAddressingInfo,
+        },
         Protocol, ProtocolNaming,
     },
     nodes::run_validator_node,

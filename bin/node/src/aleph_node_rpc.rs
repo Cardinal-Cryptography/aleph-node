@@ -1,8 +1,8 @@
 use std::{collections::HashMap, net::IpAddr, sync::Arc};
 
 use finality_aleph::{
-    AlephJustification, BlockId, Justification, JustificationTranslator, ValidatorAddressCache,
-    ValidatorAddressingInfo,
+    AdditionalP2PAddressingInfo, AlephJustification, BlockId, Justification,
+    JustificationTranslator, ValidatorAddressCache, ValidatorAddressingInfo,
 };
 use futures::channel::mpsc;
 use jsonrpsee::{
@@ -13,7 +13,11 @@ use jsonrpsee::{
 use parity_scale_codec::Decode;
 use primitives::{AccountId, Block, BlockHash, BlockNumber, Hash, Signature};
 use sc_client_api::StorageProvider;
-use sc_network::{multiaddr::Protocol, network_state::NetworkState, Multiaddr, NetworkService};
+use sc_network::{
+    multiaddr::Protocol,
+    network_state::{NetworkState, PeerEndpoint},
+    Multiaddr, NetworkService,
+};
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
@@ -274,13 +278,13 @@ where
         // of doing this. On the other hand, the p2p peer_id is only for debuging purposes,
         // so in case of future substrate API change this if statement can be temporarily safely removed.
         if let Ok(network_state) = self.network.network_state().await {
-            add_p2p_peer_id_to_validator_addressing_info(&mut info, network_state);
+            attach_p2p_network_info_to_validator_addressing_info(&mut info, network_state);
         }
         Ok(info)
     }
 }
 
-fn add_p2p_peer_id_to_validator_addressing_info(
+fn attach_p2p_network_info_to_validator_addressing_info(
     info: &mut HashMap<AccountId, ValidatorAddressingInfo>,
     network_state: NetworkState,
 ) {
@@ -288,19 +292,30 @@ fn add_p2p_peer_id_to_validator_addressing_info(
     network_state
         .connected_peers
         .iter()
-        .flat_map(|(peer_id, peer)| peer.known_addresses.iter().map(move |addr| (addr, peer_id)))
-        .for_each(|(addr, peer_id)| {
+        .flat_map(|(peer_id, peer)| {
+            let extra_address_to_check = match &peer.endpoint {
+                PeerEndpoint::Dialing(addr, _) => Some(addr),
+                _ => None,
+            };
+            peer.known_addresses
+                .iter()
+                .chain(extra_address_to_check)
+                .map(move |addr| (addr, peer_id, peer.version_string.clone()))
+        })
+        .for_each(|(addr, peer_id, version_string)| {
             if let Some(ip_address) = try_to_ip_addr(addr) {
-                ip_to_peer_id
-                    .entry(ip_address)
-                    .or_insert(vec![])
-                    .push(peer_id.clone());
+                ip_to_peer_id.entry(ip_address).or_insert(vec![]).push(
+                    AdditionalP2PAddressingInfo {
+                        p2p_network_peer_id: peer_id.clone(),
+                        version_string,
+                    },
+                );
             }
         });
     for (_, info) in info.iter_mut() {
         if let Ok(addr) = info.network_level_address.parse::<IpAddr>() {
             if let Some(peer_ids) = ip_to_peer_id.get(&addr) {
-                info.potential_p2p_network_peer_ids = peer_ids.clone();
+                info.potential_p2p_network_additional_info = peer_ids.clone();
             }
         }
     }

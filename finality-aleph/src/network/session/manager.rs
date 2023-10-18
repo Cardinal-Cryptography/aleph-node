@@ -220,7 +220,7 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
                 network_level_address: address.internal_protocol_address(),
                 validator_network_peer_id: address.peer_id().to_string(),
                 session: session_id,
-                potential_p2p_network_peer_ids: vec![],
+                potential_p2p_network_additional_info: vec![],
             },
         );
 
@@ -343,7 +343,7 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
                             network_level_address: address.internal_protocol_address(),
                             validator_network_peer_id: address.peer_id().to_string(),
                             session: session_id,
-                            potential_p2p_network_peer_ids: vec![],
+                            potential_p2p_network_additional_info: vec![],
                         },
                     );
                     if handler.is_validator() {
