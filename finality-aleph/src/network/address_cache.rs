@@ -24,12 +24,14 @@ pub trait KeyOwnerInfoProvider {
 pub struct ValidatorAddressingInfo {
     /// Network level address of the validator, i.e. IP address
     pub network_level_address: String,
+    /// PeerId of the validator used in validator (clique) network
+    pub validator_network_peer_id: String,
+    /// Session to which the given `validator_network_peer_id` corresponds.
+    pub session: SessionId,
     /// List of peer_ids that have ever used same network level address as network_level_address.
     /// It can be empty in case we don't have any info about the given validator peer_id, or even
     /// could contain false positives when one validator changed its IP and other node picked it up.
     pub potential_p2p_network_peer_ids: Vec<String>,
-    /// PeerId of the validator used in validator (clique) network
-    pub validator_network_peer_id: String,
 }
 
 /// Stores most recent information about validator addresses.

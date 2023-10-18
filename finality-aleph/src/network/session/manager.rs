@@ -218,8 +218,9 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
             node_id,
             ValidatorAddressingInfo {
                 network_level_address: address.internal_protocol_address(),
-                potential_p2p_network_peer_ids: vec![],
                 validator_network_peer_id: address.peer_id().to_string(),
+                session: session_id,
+                potential_p2p_network_peer_ids: vec![],
             },
         );
 
@@ -343,8 +344,9 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
                             creator,
                             ValidatorAddressingInfo {
                                 network_level_address: address.internal_protocol_address(),
-                                potential_p2p_network_peer_ids: vec![],
                                 validator_network_peer_id: address.peer_id().to_string(),
+                                session: session_id,
+                                potential_p2p_network_peer_ids: vec![],
                             },
                         );
                         Some(ConnectionCommand::AddReserved([address].into()))
