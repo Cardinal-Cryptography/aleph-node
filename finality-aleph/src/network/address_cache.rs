@@ -35,6 +35,8 @@ pub struct ValidatorAddressingInfo {
     pub potential_p2p_network_additional_info: Vec<AdditionalP2PAddressingInfo>,
 }
 
+/// Additional information about a node in substrate's P2P network. Use only for debugging purposes,
+/// as content of this struct rely on unstable substrate's API and can change in future.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdditionalP2PAddressingInfo {
     pub p2p_network_peer_id: String,
