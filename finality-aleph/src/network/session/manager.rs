@@ -334,25 +334,25 @@ impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI,
             }) => {
                 let (maybe_address, maybe_message) =
                     discovery.handle_authentication(message, handler);
-                let maybe_command = match (maybe_address, handler.is_validator()) {
-                    (Some(address), true) => {
+                let mut maybe_command = None;
+                if let Some(address) = maybe_address {
+                    self.validator_address_cache_updater.update(
+                        session_id,
+                        creator,
+                        ValidatorAddressingInfo {
+                            network_level_address: address.internal_protocol_address(),
+                            validator_network_peer_id: address.peer_id().to_string(),
+                            session: session_id,
+                            potential_p2p_network_peer_ids: vec![],
+                        },
+                    );
+                    if handler.is_validator() {
                         debug!(target: "aleph-network", "Adding addresses for session {:?} to reserved: {:?}", session_id, address);
                         self.connections.add_peers(session_id, [address.peer_id()]);
-
-                        self.validator_address_cache_updater.update(
-                            session_id,
-                            creator,
-                            ValidatorAddressingInfo {
-                                network_level_address: address.internal_protocol_address(),
-                                validator_network_peer_id: address.peer_id().to_string(),
-                                session: session_id,
-                                potential_p2p_network_peer_ids: vec![],
-                            },
-                        );
-                        Some(ConnectionCommand::AddReserved([address].into()))
+                        maybe_command = Some(ConnectionCommand::AddReserved([address].into()));
                     }
-                    _ => None,
-                };
+                }
+
                 ManagerActions {
                     maybe_command,
                     maybe_message,
