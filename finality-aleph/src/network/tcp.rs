@@ -114,7 +114,7 @@ impl AddressingInformation for SignedTcpAddressingInformation {
     fn lower_level_address(&self) -> String {
         iter::once(self.addressing_information.primary_address.clone())
             .chain(self.addressing_information.other_addresses.clone())
-            .filter_map(|address| Some(address.parse::<SocketAddr>().ok()?.to_string()))
+            .filter_map(|address| Some(address.parse::<SocketAddr>().ok()?.ip().to_string()))
             .next()
             .unwrap_or("unknown".to_string())
     }
@@ -247,10 +247,12 @@ pub mod testing {
         for ip in ["127.0.0.1", "[::1]", "[2607:f8b0:4003:c00::6a]"] {
             let ip_and_port = format!("{}:1234", ip);
             let addr =
-                SignedTcpAddressingInformation::new(vec![ip_and_port.clone()], authority_pen)
-                    .unwrap();
+                SignedTcpAddressingInformation::new(vec![ip_and_port], authority_pen).unwrap();
 
-            assert_eq!(addr.lower_level_address(), ip_and_port.to_string())
+            assert_eq!(
+                addr.lower_level_address(),
+                ip.trim_matches(&['[', ']'] as &[_]).to_string()
+            )
         }
     }
     #[test]
