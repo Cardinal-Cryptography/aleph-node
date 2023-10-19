@@ -177,11 +177,11 @@ pub struct Service<
     NI: NetworkIdentity,
     CN: CliqueNetwork<NI::PeerId, NI::AddressingInformation, DataInSession<D>>,
     GN: GossipNetwork<VersionedAuthentication<NI::AddressingInformation>>,
-    VU: ValidatorAddressCacheUpdater,
+    VCU: ValidatorAddressCacheUpdater,
 > where
     NI::PeerId: PublicKey,
 {
-    manager: Manager<NI, D, VU>,
+    manager: Manager<NI, D, VCU>,
     commands_from_user: mpsc::UnboundedReceiver<SessionCommand<D>>,
     messages_from_user: mpsc::UnboundedReceiver<(D, SessionId, Recipient)>,
     validator_network: CN,
@@ -216,8 +216,8 @@ impl<
         NI: NetworkIdentity,
         CN: CliqueNetwork<NI::PeerId, NI::AddressingInformation, DataInSession<D>>,
         GN: GossipNetwork<VersionedAuthentication<NI::AddressingInformation>>,
-        VU: ValidatorAddressCacheUpdater,
-    > Service<D, NI, CN, GN, VU>
+        VCU: ValidatorAddressCacheUpdater,
+    > Service<D, NI, CN, GN, VCU>
 where
     NI::PeerId: PublicKey,
 {
@@ -225,10 +225,10 @@ where
         network_identity: NI,
         validator_network: CN,
         gossip_network: GN,
-        validator_address_cache_updater: VU,
+        validator_address_cache_updater: VCU,
         config: Config,
     ) -> (
-        Service<D, NI, CN, GN, VU>,
+        Service<D, NI, CN, GN, VCU>,
         impl SessionManager<D, Error = ManagerError>,
     ) {
         let Config {

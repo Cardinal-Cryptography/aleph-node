@@ -22,7 +22,7 @@ pub use service::{Error, Service};
 /// connected to them directly.
 pub trait Network<D: Data>: Send + 'static {
     type Error: Display + Send;
-    type PeerId: Clone + Debug + Display + Eq + Hash + Send + 'static;
+    type PeerId: Clone + Debug + Eq + Hash + Send + 'static;
 
     /// Attempt to send data to a peer. Might silently fail if we are not connected to them.
     fn send_to(&mut self, data: D, peer_id: Self::PeerId) -> Result<(), Self::Error>;
@@ -87,7 +87,7 @@ pub trait EventStream<P> {
 pub trait RawNetwork: Clone + Send + Sync + 'static {
     type SenderError: std::error::Error;
     type NetworkSender: NetworkSender;
-    type PeerId: Clone + Debug + Display + Eq + Hash + Send + 'static;
+    type PeerId: Clone + Debug + Eq + Hash + Send + 'static;
     type EventStream: EventStream<Self::PeerId>;
 
     /// Returns a stream of events representing what happens on the network.

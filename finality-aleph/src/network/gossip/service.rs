@@ -77,9 +77,7 @@ impl Display for Error {
 }
 
 #[async_trait::async_trait]
-impl<D: Data, P: Clone + Debug + Display + Eq + Hash + Send + 'static> Network<D>
-    for ServiceInterface<D, P>
-{
+impl<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> Network<D> for ServiceInterface<D, P> {
     type Error = Error;
     type PeerId = P;
 

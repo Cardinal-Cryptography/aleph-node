@@ -112,10 +112,8 @@ where
         validator_network_service.run(exit).await
     });
 
-    let substrate_network =
-        SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming);
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
-        substrate_network.clone(),
+        SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming),
         spawn_handle.clone(),
         registry.clone(),
     );

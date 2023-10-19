@@ -79,11 +79,11 @@ impl<A: AddressingInformation> ManagerActions<A> {
 ///    1. In-session messages are forwarded to the user.
 ///    2. Authentication messages forwarded to session handlers.
 /// 4. Running periodic maintenance, mostly related to node discovery.
-pub struct Manager<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> {
+pub struct Manager<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> {
     network_identity: NI,
     connections: Connections<NI::PeerId>,
     sessions: HashMap<SessionId, Session<D, NI::AddressingInformation>>,
-    validator_address_cache_updater: VU,
+    validator_address_cache_updater: VCU,
     discovery_cooldown: Duration,
 }
 
@@ -94,11 +94,11 @@ pub enum SendError {
     NoSession,
 }
 
-impl<NI: NetworkIdentity, D: Data, VU: ValidatorAddressCacheUpdater> Manager<NI, D, VU> {
+impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI, D, VCU> {
     /// Create a new connection manager.
     pub fn new(
         network_identity: NI,
-        validator_address_cache_updater: VU,
+        validator_address_cache_updater: VCU,
         discovery_cooldown: Duration,
     ) -> Self {
         Manager {
