@@ -4,6 +4,7 @@
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use sp_consensus_aura::sr25519::AuthorityId as AuraAuthorityId;
 use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
@@ -282,6 +283,7 @@ sp_api::decl_runtime_apis! {
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
 
+        fn next_session_aura_authorities() -> Vec<AuraAuthorityId>;
         /// Allows to get owner's AccountId for an Aleph key used in the current session.
         fn aleph_key_owner(key: AuthorityId) -> Option<AccountId>;
     }
