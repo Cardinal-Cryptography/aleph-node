@@ -323,10 +323,10 @@ fn attach_p2p_network_info_to_validator_addressing_info(
 
 fn try_to_ip_addr(multiaddr: &Multiaddr) -> Option<IpAddr> {
     for component in multiaddr.iter() {
-        if let Protocol::Ip4(addr) = component {
-            return Some(IpAddr::V4(addr));
-        } else if let Protocol::Ip6(addr) = component {
-            return Some(IpAddr::V6(addr));
+        match component {
+            Protocol::Ip4(addr) => return Some(IpAddr::V4(addr)),
+            Protocol::Ip6(addr) => return Some(IpAddr::V6(addr)),
+            _ => {}
         }
     }
     None

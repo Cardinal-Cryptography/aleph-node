@@ -294,7 +294,7 @@ impl AddressingInformation for MockAddressingInformation {
         self.valid
     }
 
-    fn internal_protocol_address(&self) -> String {
+    fn lower_level_address(&self) -> String {
         self.address.clone()
     }
 }
