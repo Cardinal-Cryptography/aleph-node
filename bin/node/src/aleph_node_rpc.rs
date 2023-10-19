@@ -1,4 +1,8 @@
-use std::{collections::HashMap, net::IpAddr, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    net::IpAddr,
+    sync::Arc,
+};
 
 use finality_aleph::{
     AdditionalP2PAddressingInfo, AlephJustification, BlockId, Justification,
@@ -304,18 +308,19 @@ fn attach_p2p_network_info_to_validator_addressing_info(
         })
         .for_each(|(addr, peer_id, version_string)| {
             if let Some(ip_address) = try_to_ip_addr(addr) {
-                ip_to_peer_id.entry(ip_address).or_insert(vec![]).push(
-                    AdditionalP2PAddressingInfo {
+                ip_to_peer_id
+                    .entry(ip_address)
+                    .or_insert(HashSet::new())
+                    .insert(AdditionalP2PAddressingInfo {
                         p2p_network_peer_id: peer_id.clone(),
                         version_string,
-                    },
-                );
+                    });
             }
         });
     for (_, info) in info.iter_mut() {
         if let Ok(addr) = info.network_level_address.parse::<IpAddr>() {
             if let Some(peer_ids) = ip_to_peer_id.get(&addr) {
-                info.potential_p2p_network_additional_info = peer_ids.clone();
+                info.potential_p2p_network_additional_info = peer_ids.iter().cloned().collect();
             }
         }
     }
