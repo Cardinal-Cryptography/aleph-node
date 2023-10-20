@@ -34,7 +34,7 @@ pub struct ValidatorAddressCache {
     data: Arc<Mutex<LruCache<AccountId, ValidatorAddressingInfo>>>,
 }
 
-const VALIDATOR_ADDRESS_CACHE_SIZE: usize = 300;
+const VALIDATOR_ADDRESS_CACHE_SIZE: usize = 1000;
 
 impl ValidatorAddressCache {
     pub fn new() -> Self {
