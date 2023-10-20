@@ -134,6 +134,9 @@ where
         }
     }
 
+    // This function assumes that:
+    // 1. Headers are created by Aura.
+    // 2. Slot number is calculated using the current system time.
     fn verify_header(&mut self, mut header: Header) -> Result<Header, Self::Error> {
         use HeaderVerificationError::*;
         // compare genesis header directly to the one we know
@@ -143,11 +146,12 @@ where
                 false => Err(Self::Error::HeaderVerification(IncorrectGenesis)),
             };
         }
-        // off by one!
+        // Aura: authorities are stored in the parent block
         let parent_number = header.number() - 1;
         let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
             .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
-        // duplicate code, watch out!
+        // Aura: slot number is calculated using the system time.
+        // This code duplicates one of the parameters that we pass to Aura when starting the node!
         let slot_now = Slot::from_timestamp(
             sp_timestamp::Timestamp::current(),
             sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
@@ -166,13 +170,11 @@ where
         let authorities = self
             .get_aura_authorities(parent_number)
             .map_err(|_| Self::Error::HeaderVerification(MissingAuthorityData))?;
-        // duplicate code, watch out!
-        // assuming round robin
+        // Aura: round robin
         let idx = *slot % (authorities.len() as u64);
         let author = authorities
             .get(idx as usize)
             .expect("idx < authorities.len()");
-        // verify the signature
         if !AuthorityPair::verify(&sig, header.hash().as_ref(), author) {
             return Err(Self::Error::HeaderVerification(IncorrectAuthority));
         }
