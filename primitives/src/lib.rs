@@ -281,7 +281,7 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
-        fn next_session_aura_authorities() -> Result<Vec<AuraId>, ApiError>;
+        fn next_session_aura_authorities() -> Vec<AuraId>;
     }
 }
 

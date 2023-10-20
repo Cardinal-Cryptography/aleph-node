@@ -1016,10 +1016,10 @@ impl_runtime_apis! {
             CommitteeManagement::predict_session_committee_for_session(session)
         }
 
-        fn next_session_aura_authorities() -> Result<Vec<AuraId>, AlephApiError> {
+        fn next_session_aura_authorities() -> Vec<AuraId> {
             let queued_keys = QueuedKeys::<Runtime>::get();
 
-            Ok(queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect())
+            queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect()
         }
     }
 

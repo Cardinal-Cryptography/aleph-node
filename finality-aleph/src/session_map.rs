@@ -97,7 +97,6 @@ where
             self.client.runtime_api().deref(),
             self.block_hash(block_number)?,
         )
-        .ok()?
         .ok()
     }
 
