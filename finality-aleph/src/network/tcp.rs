@@ -264,6 +264,6 @@ pub mod testing {
             authority_pen,
         )
         .unwrap();
-        assert_eq!(addr.lower_level_address().unwrap(), "unknown".to_string())
+        assert_eq!(addr.lower_level_address(), None);
     }
 }
