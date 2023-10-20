@@ -25,7 +25,11 @@ impl BlockId {
     pub fn random_child(&self) -> MockHeader {
         let id = Self::new_random(self.number + 1);
         let parent = Some(self.clone());
-        MockHeader { id, parent }
+        MockHeader {
+            id,
+            parent,
+            valid: true,
+        }
     }
 
     pub fn random_branch(&self) -> impl Iterator<Item = MockHeader> {
@@ -39,6 +43,7 @@ impl BlockId {
 pub struct MockHeader {
     id: BlockId,
     parent: Option<BlockId>,
+    valid: bool,
 }
 
 impl MockHeader {
@@ -49,12 +54,17 @@ impl MockHeader {
                 hash: BlockHash::zero(),
             },
             parent: None,
+            valid: true,
         }
     }
 
     pub fn random_parentless(number: BlockNumber) -> Self {
         let id = BlockId::new_random(number);
-        MockHeader { id, parent: None }
+        MockHeader {
+            id,
+            parent: None,
+            valid: true,
+        }
     }
 
     pub fn random_child(&self) -> Self {
@@ -63,6 +73,14 @@ impl MockHeader {
 
     pub fn random_branch(&self) -> impl Iterator<Item = Self> {
         self.id.random_branch()
+    }
+
+    pub fn invalidate(&mut self) {
+        self.valid = false;
+    }
+
+    pub fn valid(&self) -> bool {
+        self.valid
     }
 }
 

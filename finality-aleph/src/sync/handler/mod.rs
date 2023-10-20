@@ -1105,9 +1105,9 @@ mod tests {
 
     #[tokio::test]
     async fn handles_response_with_incorrect_headers() {
-        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let (mut handler, _backend, _notifier, genesis) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
-        let response = branch_response(
+        let mut response = branch_response(
             branch,
             BranchResponseContent {
                 headers: true,
@@ -1115,7 +1115,11 @@ mod tests {
                 justifications: true,
             },
         );
-        backend.start_discarding_headers();
+        for item in response.iter_mut() {
+            if let ResponseItem::Header(header) = item {
+                header.invalidate();
+            }
+        }
         let (_, maybe_error) = handler.handle_request_response(response, 7);
         match maybe_error {
             Some(Error::Verifier(_)) => (),
@@ -1764,10 +1768,10 @@ mod tests {
 
     #[test]
     fn handles_state_with_incorrect_headers() {
-        let (mut handler, mut backend, _keep, genesis) = setup();
+        let (mut handler, backend, _keep, genesis) = setup();
         let peer = rand::random();
-        backend.start_discarding_headers();
-        let header = genesis.random_child();
+        let mut header = genesis.random_child();
+        header.invalidate();
         let state = State::new(
             MockJustification::for_header(
                 backend.top_finalized().expect("genesis").header().clone(),
@@ -1778,7 +1782,8 @@ mod tests {
             Err(Error::Verifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
-        let header = MockHeader::random_parentless(1000).random_child();
+        let mut header = MockHeader::random_parentless(1000).random_child();
+        header.invalidate();
         let state = State::new(MockJustification::for_header(header.clone()), header);
         match handler.handle_state(state, peer) {
             Err(Error::Verifier(_)) => (),
