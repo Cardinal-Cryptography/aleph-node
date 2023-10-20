@@ -57,7 +57,7 @@ mod sync_oracle;
 #[cfg(test)]
 pub mod testing;
 
-use crate::network::address_cache::ValidatorAddressCache;
+pub use crate::network::address_cache::ValidatorAddressCache;
 pub use crate::{
     import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
