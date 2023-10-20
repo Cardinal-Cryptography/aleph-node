@@ -17,16 +17,15 @@ pub trait KeyOwnerInfoProvider {
     fn aleph_key_owner(&self, block_number: BlockNumber, key: AuthorityId) -> Option<AccountId>;
 }
 
-/// Network details for a given validator. This data is purely informational
-/// and can change over time, even within a single session.
+/// Network details for a given validator in a given session.
 #[derive(Debug, Clone)]
 pub struct ValidatorAddressingInfo {
-    /// Network level address of the validator, i.e. IP address
+    /// Session to which given information applies.
+    pub session: SessionId,
+    /// Network level address of the validator, i.e. IP address (for validator network)
     pub network_level_address: Option<String>,
     /// PeerId of the validator used in validator (clique) network
     pub validator_network_peer_id: String,
-    /// Session to which the given `validator_network_peer_id` corresponds.
-    pub session: SessionId,
 }
 
 /// Stores most recent information about validator addresses.
@@ -58,14 +57,9 @@ impl Default for ValidatorAddressCache {
 }
 
 pub trait ValidatorAddressCacheUpdater {
-    /// In session `SessionIndex`, validator `NodeIndex` was using addresses specified in `most_recent_info`.
-    /// A session and validator_index identify the validator uniquely.
-    fn update(
-        &self,
-        session: SessionId,
-        validator_index: NodeIndex,
-        most_recent_info: ValidatorAddressingInfo,
-    );
+    /// In session `session_info.session`, validator `NodeIndex` was using addresses specified in
+    /// `session_info`. A session and validator_index identify the validator uniquely.
+    fn update(&self, validator_index: NodeIndex, session_info: ValidatorAddressingInfo);
 }
 
 pub struct ValidatorAddressCacheUpdaterImpl<K: KeyOwnerInfoProvider, A: AuthorityProvider> {
@@ -89,30 +83,32 @@ impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdater
             session_boundary_info,
         }
     }
+
+    fn owner_at_session(
+        &self,
+        session: SessionId,
+        validator_index: NodeIndex,
+    ) -> Option<AccountId> {
+        let block_number = self
+            .session_boundary_info
+            .boundaries_for_session(session)
+            .first_block();
+
+        let authority_data = self
+            .authority_provider
+            .authority_data(block_number.clone())?;
+        let aleph_key = authority_data.authorities()[validator_index.0].clone();
+        self.key_owner_info_provider
+            .aleph_key_owner(block_number, aleph_key)
+    }
 }
 
 impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdater
     for ValidatorAddressCacheUpdaterImpl<K, A>
 {
-    fn update(
-        &self,
-        session: SessionId,
-        validator_index: NodeIndex,
-        info: ValidatorAddressingInfo,
-    ) {
-        let block = self
-            .session_boundary_info
-            .boundaries_for_session(session)
-            .first_block();
-
-        if let Some(authority_data) = self.authority_provider.authority_data(block) {
-            let aleph_key = authority_data.authorities()[validator_index.0].clone();
-            if let Some(validator_stash) = self
-                .key_owner_info_provider
-                .aleph_key_owner(block, aleph_key)
-            {
-                self.validator_address_cache.insert(validator_stash, info);
-            }
+    fn update(&self, validator_index: NodeIndex, info: ValidatorAddressingInfo) {
+        if let Some(validator_account) = self.owner_at_session(info.session, validator_index) {
+            self.validator_address_cache.insert(validator_account, info);
         }
     }
 }
@@ -120,7 +116,7 @@ impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdater
 pub struct NoopValidatorAddressCacheUpdater;
 
 impl ValidatorAddressCacheUpdater for NoopValidatorAddressCacheUpdater {
-    fn update(&self, _: SessionId, _: NodeIndex, _: ValidatorAddressingInfo) {}
+    fn update(&self, _: NodeIndex, _: ValidatorAddressingInfo) {}
 }
 
 pub struct KeyOwnerInfoProviderImpl<C, B, BE>

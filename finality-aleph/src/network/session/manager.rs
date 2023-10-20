@@ -212,14 +212,12 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
             node_id,
             pen,
         } = pre_session;
-
         self.validator_address_cache_updater.update(
-            session_id,
             node_id,
             ValidatorAddressingInfo {
+                session: session_id,
                 network_level_address: address.lower_level_address(),
                 validator_network_peer_id: address.peer_id().to_string(),
-                session: session_id,
             },
         );
 
@@ -336,12 +334,11 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
                 let mut maybe_command = None;
                 if let Some(address) = maybe_address {
                     self.validator_address_cache_updater.update(
-                        session_id,
                         creator,
                         ValidatorAddressingInfo {
+                            session: session_id,
                             network_level_address: address.lower_level_address(),
                             validator_network_peer_id: address.peer_id().to_string(),
-                            session: session_id,
                         },
                     );
                     if handler.is_validator() {
