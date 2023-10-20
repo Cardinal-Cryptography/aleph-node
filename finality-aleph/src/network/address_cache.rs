@@ -62,44 +62,58 @@ pub trait ValidatorAddressCacheUpdater {
     fn update(&self, validator_index: NodeIndex, session_info: ValidatorAddressingInfo);
 }
 
-pub struct ValidatorAddressCacheUpdaterImpl<K: KeyOwnerInfoProvider, A: AuthorityProvider> {
-    validator_address_cache: ValidatorAddressCache,
-    key_owner_info_provider: K,
-    authority_provider: A,
-    session_boundary_info: SessionBoundaryInfo,
-}
-
-impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdaterImpl<K, A> {
-    pub fn new(
+enum ValidatorAddressCacheUpdaterImpl<K: KeyOwnerInfoProvider, A: AuthorityProvider> {
+    Noop,
+    BackendBased {
         validator_address_cache: ValidatorAddressCache,
         key_owner_info_provider: K,
         authority_provider: A,
         session_boundary_info: SessionBoundaryInfo,
-    ) -> Self {
-        Self {
+    },
+}
+
+/// Construct a struct that can be used to update `validator_address_cache`, if it is `Some`.
+/// If passed None, the returned struct will be a no-op.
+pub fn validator_address_cache_updater<K: KeyOwnerInfoProvider, A: AuthorityProvider>(
+    validator_address_cache: Option<ValidatorAddressCache>,
+    key_owner_info_provider: K,
+    authority_provider: A,
+    session_boundary_info: SessionBoundaryInfo,
+) -> impl ValidatorAddressCacheUpdater {
+    match validator_address_cache {
+        Some(validator_address_cache) => ValidatorAddressCacheUpdaterImpl::BackendBased {
             validator_address_cache,
             key_owner_info_provider,
             authority_provider,
             session_boundary_info,
-        }
+        },
+        None => ValidatorAddressCacheUpdaterImpl::Noop,
     }
+}
 
+impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdaterImpl<K, A> {
     fn owner_at_session(
         &self,
         session: SessionId,
         validator_index: NodeIndex,
     ) -> Option<AccountId> {
-        let block_number = self
-            .session_boundary_info
-            .boundaries_for_session(session)
-            .first_block();
+        match self {
+            ValidatorAddressCacheUpdaterImpl::Noop => None,
+            ValidatorAddressCacheUpdaterImpl::BackendBased {
+                key_owner_info_provider,
+                authority_provider,
+                session_boundary_info,
+                ..
+            } => {
+                let block_number = session_boundary_info
+                    .boundaries_for_session(session)
+                    .first_block();
 
-        let authority_data = self
-            .authority_provider
-            .authority_data(block_number.clone())?;
-        let aleph_key = authority_data.authorities()[validator_index.0].clone();
-        self.key_owner_info_provider
-            .aleph_key_owner(block_number, aleph_key)
+                let authority_data = authority_provider.authority_data(block_number)?;
+                let aleph_key = authority_data.authorities()[validator_index.0].clone();
+                key_owner_info_provider.aleph_key_owner(block_number, aleph_key)
+            }
+        }
     }
 }
 
@@ -107,16 +121,17 @@ impl<K: KeyOwnerInfoProvider, A: AuthorityProvider> ValidatorAddressCacheUpdater
     for ValidatorAddressCacheUpdaterImpl<K, A>
 {
     fn update(&self, validator_index: NodeIndex, info: ValidatorAddressingInfo) {
-        if let Some(validator_account) = self.owner_at_session(info.session, validator_index) {
-            self.validator_address_cache.insert(validator_account, info);
+        if let (
+            Some(validator),
+            ValidatorAddressCacheUpdaterImpl::BackendBased {
+                validator_address_cache,
+                ..
+            },
+        ) = (self.owner_at_session(info.session, validator_index), self)
+        {
+            validator_address_cache.insert(validator, info)
         }
     }
-}
-
-pub struct NoopValidatorAddressCacheUpdater;
-
-impl ValidatorAddressCacheUpdater for NoopValidatorAddressCacheUpdater {
-    fn update(&self, _: NodeIndex, _: ValidatorAddressingInfo) {}
 }
 
 pub struct KeyOwnerInfoProviderImpl<C, B, BE>
@@ -158,4 +173,12 @@ where
         let block_hash = self.client.block_hash(block_number).ok()??;
         self.client.runtime_api().key_owner(block_hash, key).ok()?
     }
+}
+
+#[cfg(test)]
+pub struct MockValidatorCacheUpdater;
+
+#[cfg(test)]
+impl ValidatorAddressCacheUpdater for MockValidatorCacheUpdater {
+    fn update(&self, _: NodeIndex, _: ValidatorAddressingInfo) {}
 }

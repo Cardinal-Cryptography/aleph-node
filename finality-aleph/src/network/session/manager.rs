@@ -465,7 +465,7 @@ mod tests {
     };
     use crate::{
         network::{
-            address_cache::NoopValidatorAddressCacheUpdater, mock::crypto_basics,
+            address_cache::MockValidatorCacheUpdater, mock::crypto_basics,
             session::data::DataInSession,
         },
         Recipient, SessionId,
@@ -474,10 +474,10 @@ mod tests {
     const NUM_NODES: usize = 7;
     const DISCOVERY_PERIOD: Duration = Duration::from_secs(60);
 
-    fn build() -> Manager<MockAddressingInformation, i32, NoopValidatorAddressCacheUpdater> {
+    fn build() -> Manager<MockAddressingInformation, i32, MockValidatorCacheUpdater> {
         Manager::new(
             random_address(),
-            NoopValidatorAddressCacheUpdater,
+            MockValidatorCacheUpdater,
             DISCOVERY_PERIOD,
         )
     }

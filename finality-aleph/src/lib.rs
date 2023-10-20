@@ -57,6 +57,7 @@ mod sync_oracle;
 #[cfg(test)]
 pub mod testing;
 
+use crate::network::address_cache::ValidatorAddressCache;
 pub use crate::{
     import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
@@ -288,4 +289,5 @@ pub struct AlephConfig<C, SC> {
     pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
+    pub validator_address_cache: Option<ValidatorAddressCache>,
 }

@@ -14,9 +14,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
-        address_cache::{
-            KeyOwnerInfoProviderImpl, ValidatorAddressCache, ValidatorAddressCacheUpdaterImpl,
-        },
+        address_cache::{validator_address_cache_updater, KeyOwnerInfoProviderImpl},
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
@@ -75,6 +73,7 @@ where
         protocol_naming,
         rate_limiter_config,
         sync_oracle,
+        validator_address_cache,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -167,10 +166,8 @@ where
         };
     let sync_task = async move { sync_service.run().await };
 
-    let validator_address_cache = ValidatorAddressCache::new();
-
-    let validator_address_cache_updater = ValidatorAddressCacheUpdaterImpl::new(
-        validator_address_cache.clone(),
+    let validator_address_cache_updater = validator_address_cache_updater(
+        validator_address_cache,
         KeyOwnerInfoProviderImpl::new(client.clone()),
         AuthorityProviderImpl::new(client.clone()),
         session_info.clone(),
