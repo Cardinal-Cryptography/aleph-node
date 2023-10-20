@@ -1,4 +1,8 @@
-use std::{io::Error as IoError, iter, net::ToSocketAddrs as _};
+use std::{
+    io::Error as IoError,
+    iter,
+    net::{SocketAddr, ToSocketAddrs as _},
+};
 
 use derive_more::{AsRef, Display};
 use log::info;
@@ -106,6 +110,15 @@ impl AddressingInformation for SignedTcpAddressingInformation {
         self.peer_id()
             .verify(&self.addressing_information.encode(), &self.signature)
     }
+
+    // Returns first address (without port) from addressing information that parses to IP address,
+    // without performing dns resolution.
+    fn lower_level_address(&self) -> Option<String> {
+        iter::once(self.addressing_information.primary_address.clone())
+            .chain(self.addressing_information.other_addresses.clone())
+            .filter_map(|address| Some(address.parse::<SocketAddr>().ok()?.ip().to_string()))
+            .next()
+    }
 }
 
 impl NetworkIdentity for SignedTcpAddressingInformation {
@@ -209,9 +222,13 @@ pub async fn new_tcp_network<A: ToSocketAddrs>(
 
 #[cfg(test)]
 pub mod testing {
+    use network_clique::AddressingInformation;
 
     use super::{AuthorityIdWrapper, SignedTcpAddressingInformation};
-    use crate::{crypto::AuthorityPen, network::NetworkIdentity};
+    use crate::{
+        crypto::AuthorityPen,
+        network::{mock::crypto_basics, NetworkIdentity},
+    };
 
     /// Creates a realistic identity.
     pub fn new_identity(
@@ -223,5 +240,30 @@ pub mod testing {
     > {
         SignedTcpAddressingInformation::new(external_addresses, authority_pen)
             .expect("the provided addresses are fine")
+    }
+
+    #[test]
+    pub fn lower_level_address_parses_ip() {
+        let (_, authority_pen) = &crypto_basics(1).0[0];
+        for ip in ["127.0.0.1", "[::1]", "[2607:f8b0:4003:c00::6a]"] {
+            let ip_and_port = format!("{}:1234", ip);
+            let addr =
+                SignedTcpAddressingInformation::new(vec![ip_and_port], authority_pen).unwrap();
+
+            assert_eq!(
+                addr.lower_level_address().unwrap(),
+                ip.trim_matches(&['[', ']'] as &[_]).to_string()
+            )
+        }
+    }
+    #[test]
+    pub fn lower_level_address_doesnt_try_to_resolve_dns() {
+        let (_, authority_pen) = &crypto_basics(1).0[0];
+        let addr = SignedTcpAddressingInformation::new(
+            vec!["bootnode-eu-west-1-0.test.azero.dev:30333".to_string()],
+            authority_pen,
+        )
+        .unwrap();
+        assert_eq!(addr.lower_level_address().unwrap(), "unknown".to_string())
     }
 }

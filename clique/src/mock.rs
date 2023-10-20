@@ -293,6 +293,10 @@ impl AddressingInformation for MockAddressingInformation {
     fn verify(&self) -> bool {
         self.valid
     }
+
+    fn lower_level_address(&self) -> Option<String> {
+        Some(self.address.clone())
+    }
 }
 
 impl NetworkIdentity for MockAddressingInformation {
