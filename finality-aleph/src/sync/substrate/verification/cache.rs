@@ -23,7 +23,6 @@ pub enum CacheError {
     SessionTooOld(SessionId, SessionId),
     SessionInFuture(SessionId, SessionId),
     BadGenesisHeader,
-    NoAuraAutoritiesForGenesis,
 }
 
 impl Display for CacheError {
@@ -56,15 +55,13 @@ impl Display for CacheError {
                     "the provided genesis header does not match the cached genesis header"
                 )
             }
-            NoAuraAutoritiesForGenesis => {
-                write!(f, "cannot provide Aura authorities for the genesis header")
-            }
         }
     }
 }
 
-/// Cache storing SessionVerifier structs for multiple sessions. Keeps up to `cache_size` verifiers of top sessions.
-/// If the session is too new or ancient it will fail to return a SessionVerifier.
+/// Cache storing SessionVerifier structs and Aura authorities for multiple sessions.
+/// Keeps up to `cache_size` verifiers of top sessions.
+/// If the session is too new or ancient it will fail to return requested data.
 /// Highest session verifier this cache returns is for the session after the current finalization session.
 /// Lowest session verifier this cache returns is for `top_returned_session` - `cache_size`.
 pub struct VerifierCache<AP, FI, H>
@@ -156,14 +153,28 @@ where
     /// Prune all sessions with a number smaller than `session_id`
     fn prune(&mut self, session_id: SessionId) {
         self.sessions.retain(|&id, _| id >= session_id);
-        // off by one!
-        // let's retain one more session, just to be safe
-        self.aura_authorities
-            .retain(|&id, _| id.next() >= session_id);
+        self.aura_authorities.retain(|&id, _| id >= session_id);
         self.lower_bound = session_id;
     }
 
-    fn try_prune(&mut self, session_id: &SessionId) {
+    /// Check that `session_id` is in the valid range, and prune the cache if necessary.
+    fn check_and_try_prune(&mut self, session_id: &SessionId) -> Result<(), CacheError> {
+        if session_id < &self.lower_bound {
+            return Err(CacheError::SessionTooOld(*session_id, self.lower_bound));
+        }
+
+        // We are sure about authorities in all session that have first block
+        // from previous session finalized.
+        let upper_bound = SessionId(
+            self.session_info
+                .session_id_from_block_num(self.finalization_info.finalized_number())
+                .0
+                + 1,
+        );
+        if session_id > &upper_bound {
+            return Err(CacheError::SessionInFuture(*session_id, upper_bound));
+        }
+
         if session_id.0
             >= self
                 .lower_bound
@@ -177,6 +188,7 @@ where
                     + 1,
             ));
         }
+        Ok(())
     }
 
     /// Returns the list of Aura authorities for a given block number. Updates cache if necessary.
@@ -186,24 +198,8 @@ where
         &mut self,
         number: BlockNumber,
     ) -> Result<&Vec<AuraId>, CacheError> {
-        if number == 0 {
-            return Err(CacheError::NoAuraAutoritiesForGenesis);
-        }
         let session_id = self.session_info.session_id_from_block_num(number);
-        if session_id < self.lower_bound {
-            return Err(CacheError::SessionTooOld(session_id, self.lower_bound));
-        }
-        let upper_bound = SessionId(
-            self.session_info
-                .session_id_from_block_num(self.finalization_info.finalized_number())
-                .0,
-        );
-        if session_id > upper_bound {
-            return Err(CacheError::SessionInFuture(session_id, upper_bound));
-        }
-
-        self.try_prune(&session_id);
-
+        self.check_and_try_prune(&session_id)?;
         Ok(match self.aura_authorities.entry(session_id) {
             Entry::Occupied(occupied) => occupied.into_mut(),
             Entry::Vacant(vacant) => {
@@ -221,24 +217,7 @@ where
     /// Returns session verifier for block number if available. Updates cache if necessary.
     pub fn get(&mut self, number: BlockNumber) -> Result<&SessionVerifier, CacheError> {
         let session_id = self.session_info.session_id_from_block_num(number);
-
-        if session_id < self.lower_bound {
-            return Err(CacheError::SessionTooOld(session_id, self.lower_bound));
-        }
-
-        // We are sure about authorities in all session that have first block from previous session finalized.
-        let upper_bound = SessionId(
-            self.session_info
-                .session_id_from_block_num(self.finalization_info.finalized_number())
-                .0
-                + 1,
-        );
-        if session_id > upper_bound {
-            return Err(CacheError::SessionInFuture(session_id, upper_bound));
-        }
-
-        self.try_prune(&session_id);
-
+        self.check_and_try_prune(&session_id)?;
         let verifier = match self.sessions.entry(session_id) {
             Entry::Occupied(occupied) => occupied.into_mut(),
             Entry::Vacant(vacant) => {
@@ -274,7 +253,7 @@ mod tests {
     };
 
     const SESSION_PERIOD: u32 = 30;
-    const CACHE_SIZE: usize = 2;
+    const CACHE_SIZE: usize = 3;
 
     type TestVerifierCache<'a> =
         VerifierCache<MockAuthorityProvider, MockFinalizationInfo<'a>, MockHeader>;
@@ -398,9 +377,11 @@ mod tests {
 
     #[test]
     fn prunes_old_sessions() {
+        assert_eq!(CACHE_SIZE, 3);
+
         let finalized_number = Cell::new(0);
 
-        let mut verifier = setup_test(3, &finalized_number);
+        let mut verifier = setup_test(4, &finalized_number);
 
         check_session_verifier(&mut verifier, 0);
         check_session_verifier(&mut verifier, 1);
@@ -408,14 +389,17 @@ mod tests {
         finalize_first_in_session(&finalized_number, 1);
         check_session_verifier(&mut verifier, 2);
 
+        finalize_first_in_session(&finalized_number, 2);
+        check_session_verifier(&mut verifier, 3);
+
         // Should no longer have verifier for session 0
         assert_eq!(
             session_verifier(&mut verifier, 0),
             Err(CacheError::SessionTooOld(SessionId(0), SessionId(1)))
         );
 
-        finalize_first_in_session(&finalized_number, 2);
-        check_session_verifier(&mut verifier, 3);
+        finalize_first_in_session(&finalized_number, 3);
+        check_session_verifier(&mut verifier, 4);
 
         // Should no longer have verifier for session 1
         assert_eq!(

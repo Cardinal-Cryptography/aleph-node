@@ -34,7 +34,9 @@ use crate::{
 };
 
 // How many sessions we remember.
-pub const VERIFIER_CACHE_SIZE: usize = 2;
+// Keep in mind that Aura stores authority info in the parent block,
+// so the actual size probably needs to be increased by one.
+pub const VERIFIER_CACHE_SIZE: usize = 3;
 
 pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore

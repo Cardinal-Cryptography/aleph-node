@@ -588,13 +588,13 @@ where
                     }
                 }
                 ResponseItem::Header(h) => {
+                    if self.forest.skippable(&h.id()) {
+                        continue;
+                    }
                     let h = match self.verify_header(h) {
                         Ok(h) => h,
                         Err(e) => return (new_highest, Some(e)),
                     };
-                    if self.forest.skippable(&h.id()) {
-                        continue;
-                    }
                     if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), false) {
                         return (new_highest, Some(Error::Forest(e)));
                     }

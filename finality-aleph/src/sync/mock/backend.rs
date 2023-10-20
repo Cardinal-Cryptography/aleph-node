@@ -30,7 +30,7 @@ struct BackendStorage {
 pub struct Backend {
     inner: Arc<Mutex<BackendStorage>>,
     notification_sender: UnboundedSender<MockNotification>,
-    headers_are_correct: Arc<Mutex<bool>>,
+    accepting_headers: Arc<Mutex<bool>>,
 }
 
 fn is_predecessor(
@@ -101,12 +101,12 @@ impl Backend {
         Self {
             inner: storage,
             notification_sender,
-            headers_are_correct: Arc::new(Mutex::new(true)),
+            accepting_headers: Arc::new(Mutex::new(true)),
         }
     }
 
     pub fn start_discarding_headers(&mut self) {
-        *self.headers_are_correct.lock() = false;
+        *self.accepting_headers.lock() = false;
     }
 
     fn notify_imported(&self, header: MockHeader) {
@@ -436,7 +436,7 @@ impl Verifier<MockJustification> for Backend {
     }
 
     fn verify_header(&mut self, header: MockHeader) -> Result<MockHeader, Self::Error> {
-        match *self.headers_are_correct.lock() {
+        match *self.accepting_headers.lock() {
             true => Ok(header),
             false => Err(Self::Error::Header),
         }

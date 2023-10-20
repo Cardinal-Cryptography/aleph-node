@@ -29,6 +29,10 @@ mod verifier;
 pub use cache::VerifierCache;
 pub use verifier::SessionVerifier;
 
+// How many slots in the future (according to the system time) can the verified header be.
+// Must be non-negative. Chosen arbitrarily by timorl.
+const HEADER_VERIFICATION_SLOT_OFFSET: u64 = 10;
+
 /// Supplies finalized number. Will be unified together with other traits we used in A0-1839.
 pub trait FinalizationInfo {
     fn finalized_number(&self) -> BlockNumber;
@@ -148,8 +152,7 @@ where
             sp_timestamp::Timestamp::current(),
             sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
         );
-        // timorl's offset
-        if slot > slot_now + 10 {
+        if slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
             return Err(Self::Error::HeaderVerification(HeaderTooNew(slot)));
         }
         // pop the seal BEFORE hashing
