@@ -192,6 +192,7 @@ where
     }
 
     /// Returns the list of Aura authorities for a given block number. Updates cache if necessary.
+    /// Must be called using the number of the PARENT of the verified block.
     /// This method assumes that the queued Aura authorities will indeed become Aura authorities
     /// in the next session.
     pub fn get_aura_authorities(
@@ -215,6 +216,7 @@ where
     }
 
     /// Returns session verifier for block number if available. Updates cache if necessary.
+    /// Must be called using the number of the verified block.
     pub fn get(&mut self, number: BlockNumber) -> Result<&SessionVerifier, CacheError> {
         let session_id = self.session_info.session_id_from_block_num(number);
         self.check_and_try_prune(&session_id)?;
