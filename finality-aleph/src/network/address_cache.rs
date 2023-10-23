@@ -23,7 +23,7 @@ pub struct ValidatorAddressingInfo {
     /// Session to which given information applies.
     pub session: SessionId,
     /// Network level address of the validator, i.e. IP address (for validator network)
-    pub network_level_address: Option<String>,
+    pub network_level_address: String,
     /// PeerId of the validator used in validator (clique) network
     pub validator_network_peer_id: String,
 }
@@ -40,7 +40,8 @@ impl ValidatorAddressCache {
     pub fn new() -> Self {
         Self {
             data: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::try_from(VALIDATOR_ADDRESS_CACHE_SIZE).unwrap(),
+                NonZeroUsize::try_from(VALIDATOR_ADDRESS_CACHE_SIZE)
+                    .expect("the cache size is a non-zero constant"),
             ))),
         }
     }

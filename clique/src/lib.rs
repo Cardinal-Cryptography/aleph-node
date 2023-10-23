@@ -59,8 +59,8 @@ pub trait AddressingInformation: Debug + Hash + Codec + Clone + Eq + Send + Sync
     /// Verify the information.
     fn verify(&self) -> bool;
 
-    // Address used by the underlying protocol, for debugging purposes.
-    fn lower_level_address(&self) -> Option<String>;
+    // Address, *only* for debugging purposes.
+    fn address(&self) -> String;
 }
 
 /// Abstraction for requesting own network addressing information.

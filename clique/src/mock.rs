@@ -294,8 +294,8 @@ impl AddressingInformation for MockAddressingInformation {
         self.valid
     }
 
-    fn lower_level_address(&self) -> Option<String> {
-        Some(self.address.clone())
+    fn address(&self) -> String {
+        self.address.clone()
     }
 }
 

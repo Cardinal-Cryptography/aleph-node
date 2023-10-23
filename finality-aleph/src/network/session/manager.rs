@@ -216,7 +216,7 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
             node_id,
             ValidatorAddressingInfo {
                 session: session_id,
-                network_level_address: address.lower_level_address(),
+                network_level_address: address.address(),
                 validator_network_peer_id: address.peer_id().to_string(),
             },
         );
@@ -337,7 +337,7 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
                         creator,
                         ValidatorAddressingInfo {
                             session: session_id,
-                            network_level_address: address.lower_level_address(),
+                            network_level_address: address.address(),
                             validator_network_peer_id: address.peer_id().to_string(),
                         },
                     );
