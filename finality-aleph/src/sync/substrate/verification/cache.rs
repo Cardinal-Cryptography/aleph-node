@@ -150,6 +150,25 @@ where
     FI: FinalizationInfo,
     H: Header,
 {
+    // Prune old session data if necessary
+    fn try_prune(&mut self, session_id: SessionId) {
+        if session_id.0
+            >= self
+                .lower_bound
+                .0
+                .saturating_add(self.cache_size.saturated_into())
+        {
+            let new_lower_bound = SessionId(
+                session_id
+                    .0
+                    .saturating_sub(self.cache_size.saturated_into())
+                    + 1,
+            );
+            self.cached_data.retain(|&id, _| id >= new_lower_bound);
+            self.lower_bound = new_lower_bound;
+        }
+    }
+
     fn get_data(&mut self, number: BlockNumber) -> Result<&CachedData, CacheError> {
         let session_id = self.session_info.session_id_from_block_num(number);
 
@@ -169,22 +188,7 @@ where
             return Err(CacheError::SessionInFuture(session_id, upper_bound));
         }
 
-        // Prune old session data
-        if session_id.0
-            >= self
-                .lower_bound
-                .0
-                .saturating_add(self.cache_size.saturated_into())
-        {
-            let new_lower_bound = SessionId(
-                session_id
-                    .0
-                    .saturating_sub(self.cache_size.saturated_into())
-                    + 1,
-            );
-            self.cached_data.retain(|&id, _| id >= new_lower_bound);
-            self.lower_bound = new_lower_bound;
-        }
+        self.try_prune(session_id);
 
         Ok(match self.cached_data.entry(session_id) {
             Entry::Occupied(occupied) => occupied.into_mut(),
