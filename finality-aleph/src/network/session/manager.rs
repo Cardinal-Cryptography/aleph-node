@@ -465,7 +465,7 @@ mod tests {
     };
     use crate::{
         network::{
-            address_cache::{tests::noop_updater, ValidatorAddressCacheUpdater},
+            address_cache::{test::noop_updater, ValidatorAddressCacheUpdater},
             mock::crypto_basics,
             session::data::DataInSession,
         },

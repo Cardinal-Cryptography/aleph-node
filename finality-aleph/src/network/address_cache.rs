@@ -1,21 +1,12 @@
-use std::{fmt::Debug, marker::PhantomData, num::NonZeroUsize, sync::Arc};
+use std::{fmt::Debug, num::NonZeroUsize, sync::Arc};
 
 use lru::LruCache;
 use parking_lot::Mutex;
-use primitives::{AccountId, AlephSessionApi, BlockHash, BlockNumber};
-use sc_client_api::Backend;
-use sp_runtime::traits::{Block, Header};
+use primitives::AccountId;
 
 use crate::{
-    abft::NodeIndex,
-    session::{SessionBoundaryInfo, SessionId},
-    session_map::{AuthorityProvider, AuthorityProviderImpl},
-    ClientForAleph,
+    abft::NodeIndex, idx_to_account::ValidatorIndexToAccountIdConverter, session::SessionId,
 };
-
-pub trait ValidatorIndexToAccountIdConverter {
-    fn account(&self, session: SessionId, validator_index: NodeIndex) -> Option<AccountId>;
-}
 
 /// Network details for a given validator in a given session.
 #[derive(Debug, Clone)]
@@ -103,71 +94,13 @@ impl<C: ValidatorIndexToAccountIdConverter> ValidatorAddressCacheUpdater
     }
 }
 
-pub struct ValidatorIndexToAccountIdConverterImpl<C, B, BE>
-where
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block<Hash = BlockHash>,
-    BE: Backend<B> + 'static,
-{
-    client: Arc<C>,
-    session_boundary_info: SessionBoundaryInfo,
-    authority_provider: AuthorityProviderImpl<C, B, BE>,
-    _phantom: PhantomData<(B, BE)>,
-}
-
-impl<C, B, BE> ValidatorIndexToAccountIdConverterImpl<C, B, BE>
-where
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block<Hash = BlockHash>,
-    B::Header: Header<Number = BlockNumber>,
-    BE: Backend<B> + 'static,
-{
-    pub fn new(client: Arc<C>, session_boundary_info: SessionBoundaryInfo) -> Self {
-        Self {
-            client: client.clone(),
-            session_boundary_info,
-            authority_provider: AuthorityProviderImpl::new(client),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<C, B, BE> ValidatorIndexToAccountIdConverter
-    for ValidatorIndexToAccountIdConverterImpl<C, B, BE>
-where
-    C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block<Hash = BlockHash>,
-    B::Header: Header<Number = BlockNumber>,
-    BE: Backend<B> + 'static,
-{
-    fn account(&self, session: SessionId, validator_index: NodeIndex) -> Option<AccountId> {
-        let block_number = self
-            .session_boundary_info
-            .boundaries_for_session(session)
-            .first_block();
-        let block_hash = self.client.block_hash(block_number).ok()??;
-
-        let authority_data = self.authority_provider.authority_data(block_number)?;
-        let aleph_key = authority_data.authorities()[validator_index.0].clone();
-        self.client
-            .runtime_api()
-            .key_owner(block_hash, aleph_key)
-            .ok()?
-    }
-}
-
 #[cfg(test)]
-pub mod tests {
-    use super::*;
-    struct MockConverter;
-    impl ValidatorIndexToAccountIdConverter for MockConverter {
-        fn account(&self, _: SessionId, _: NodeIndex) -> Option<AccountId> {
-            None
-        }
-    }
+pub mod test {
+    use crate::{
+        idx_to_account::MockConverter,
+        network::address_cache::{validator_address_cache_updater, ValidatorAddressCacheUpdater},
+    };
+
     pub fn noop_updater() -> impl ValidatorAddressCacheUpdater {
         validator_address_cache_updater(None, MockConverter)
     }

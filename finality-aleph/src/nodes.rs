@@ -14,8 +14,9 @@ use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
+    idx_to_account::ValidatorIndexToAccountIdConverterImpl,
     network::{
-        address_cache::{validator_address_cache_updater, ValidatorIndexToAccountIdConverterImpl},
+        address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,

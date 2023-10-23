@@ -44,6 +44,7 @@ mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;
+mod idx_to_account;
 mod import;
 mod justification;
 mod metrics;

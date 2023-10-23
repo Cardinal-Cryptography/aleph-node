@@ -19,7 +19,7 @@ use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
-        address_cache::tests::noop_updater,
+        address_cache::test::noop_updater,
         data::Network,
         mock::{crypto_basics, MockData},
         session::{
