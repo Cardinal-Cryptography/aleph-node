@@ -3,7 +3,7 @@
 set -eu
 
 pushd local-tests/
-ALEPH_NODE_BINARY=${$ALEPH_NODE_BINARY:-"../target/release/aleph-node"}
+ALEPH_NODE_BINARY=${ALEPH_NODE_BINARY:-'../target/release/aleph-node'}
 
 if [ ! -f "$ALEPH_NODE_BINARY" ]; then
   echo "Binary $ALEPH_NODE_BINARY does not exist."
