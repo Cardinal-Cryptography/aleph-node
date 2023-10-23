@@ -14,7 +14,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     network::{
-        address_cache::{validator_address_cache_updater, KeyOwnerInfoProviderImpl},
+        address_cache::{validator_address_cache_updater, ValidatorIndexToAccountIdConverterImpl},
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
@@ -168,9 +168,7 @@ where
 
     let validator_address_cache_updater = validator_address_cache_updater(
         validator_address_cache,
-        KeyOwnerInfoProviderImpl::new(client.clone()),
-        AuthorityProviderImpl::new(client.clone()),
-        session_info.clone(),
+        ValidatorIndexToAccountIdConverterImpl::new(client.clone(), session_info.clone()),
     );
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
