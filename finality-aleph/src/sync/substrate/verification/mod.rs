@@ -247,6 +247,7 @@ where
             Entry::Occupied(occupied) => {
                 let (cached_header, certainly_own) = occupied.into_mut();
                 if cached_header == header {
+                    *certainly_own |= just_created;
                     return Ok(None);
                 }
                 Ok(Some(EquivocationProof {
