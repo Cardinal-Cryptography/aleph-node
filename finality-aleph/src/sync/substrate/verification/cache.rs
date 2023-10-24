@@ -76,6 +76,7 @@ where
     H: Header,
 {
     cached_data: HashMap<SessionId, CachedData>,
+    pub equivocation_cache: HashMap<u64, (H, bool)>,
     session_info: SessionBoundaryInfo,
     finalization_info: FI,
     authority_provider: AP,
@@ -100,6 +101,7 @@ where
     ) -> Self {
         Self {
             cached_data: HashMap::new(),
+            equivocation_cache: HashMap::new(),
             session_info,
             finalization_info,
             authority_provider,
@@ -165,6 +167,12 @@ where
                     + 1,
             );
             self.cached_data.retain(|&id, _| id >= new_lower_bound);
+            self.equivocation_cache.retain(|_, (header, _)| {
+                self.session_info
+                    .session_id_from_block_num(header.id().number())
+                    >= new_lower_bound
+            });
+
             self.lower_bound = new_lower_bound;
         }
     }

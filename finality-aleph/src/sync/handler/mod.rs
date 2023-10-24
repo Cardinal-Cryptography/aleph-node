@@ -6,6 +6,8 @@ use std::{
     iter,
 };
 
+use log::warn;
+
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
@@ -15,8 +17,9 @@ use crate::{
             InitializationError as ForestInitializationError, Interest,
         },
         handler::request_handler::RequestHandler,
-        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification, PeerId,
-        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, Verifier,
+        Block, BlockImport, BlockStatus, ChainStatus, EquivocationProof, Finalizer, Header,
+        Justification, PeerId, UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification,
+        Verifier, LOG_TARGET,
     },
     BlockId, BlockNumber, SyncOracle,
 };
@@ -525,8 +528,23 @@ where
     fn verify_header(
         &mut self,
         header: UnverifiedHeaderFor<J>,
+        just_created: bool,
     ) -> Result<J::Header, <Self as HandlerTypes>::Error> {
-        self.verifier.verify_header(header).map_err(Error::Verifier)
+        let mut header = self
+            .verifier
+            .verify_header(header)
+            .map_err(Error::Verifier)?;
+        if let Some(proof) = self
+            .verifier
+            .check_for_equivocation(&mut header, just_created)
+            .map_err(Error::Verifier)?
+        {
+            warn!(target: LOG_TARGET, "Equivocation detected: {proof}");
+            if proof.are_we_equivocating() {
+                panic!("We are equivocating, which is ILLEGAL - shutting down the node. This is probably caused by running two instances of the node with the same set of credentials. Make sure that you are running ONLY ONE instance of the node. If the problem persists, contact the Aleph Zero developers on Discord.");
+            }
+        }
+        Ok(header)
     }
 
     /// Handle a justification from the user, returning whether it became the new highest justification.
@@ -591,7 +609,7 @@ where
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    let h = match self.verify_header(h) {
+                    let h = match self.verify_header(h, false) {
                         Ok(h) => h,
                         Err(e) => return (new_highest, Some(e)),
                     };
@@ -657,7 +675,7 @@ where
         match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
             None => {
-                let header = self.verify_header(state.favourite_block())?;
+                let header = self.verify_header(state.favourite_block(), false)?;
                 Ok(HandleStateAction::maybe_extend(
                     self.handle_justification(state.top_justification(), Some(peer.clone()))?
                         || self.forest.update_header(&header, Some(peer), false)?,
@@ -667,7 +685,7 @@ where
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
                 true => {
-                    let header = self.verify_header(state.favourite_block())?;
+                    let header = self.verify_header(state.favourite_block(), false)?;
                     Ok(HandleStateAction::maybe_extend(
                         self.handle_justification(state.top_justification(), Some(peer.clone()))?
                             || self.forest.update_header(&header, Some(peer), false)?,
@@ -736,9 +754,13 @@ where
     }
 
     /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast.
-    pub fn handle_own_block(&mut self, block: B) -> Vec<ResponseItem<B, J>> {
+    pub fn handle_own_block(
+        &mut self,
+        block: B,
+    ) -> Result<Vec<ResponseItem<B, J>>, <Self as HandlerTypes>::Error> {
+        self.verify_header(block.header().clone(), true)?;
         self.block_importer.import_block(block.clone());
-        block_to_response(block)
+        Ok(block_to_response(block))
     }
 }
 

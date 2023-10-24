@@ -596,16 +596,25 @@ where
     }
 
     fn handle_own_block(&mut self, block: B) {
-        let broadcast = self.handler.handle_own_block(block);
-        if let Err(e) = self
-            .network
-            .broadcast(NetworkData::RequestResponse(broadcast))
-        {
-            warn!(
-                target: LOG_TARGET,
-                "Error broadcasting newly created block: {}.", e
-            )
-        }
+        match self.handler.handle_own_block(block) {
+            Ok(broadcast) => {
+                if let Err(e) = self
+                    .network
+                    .broadcast(NetworkData::RequestResponse(broadcast))
+                {
+                    warn!(
+                        target: LOG_TARGET,
+                        "Error broadcasting newly created block: {}.", e
+                    )
+                };
+            }
+            Err(e) => {
+                warn!(
+                    target: LOG_TARGET,
+                    "Error handling newly created block: {}.", e
+                );
+            }
+        };
     }
 
     /// Stay synchronized.

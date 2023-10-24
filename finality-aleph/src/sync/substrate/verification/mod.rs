@@ -1,4 +1,5 @@
 use std::{
+    collections::hash_map::Entry,
     fmt::{Debug, Display, Error as FmtError, Formatter},
     sync::Arc,
 };
@@ -6,20 +7,22 @@ use std::{
 use parity_scale_codec::Encode;
 use sc_client_api::HeaderBackend;
 use sc_consensus_aura::{find_pre_digest, standalone::PreDigestLookupError, CompatibleDigestItem};
-use sp_consensus_aura::sr25519::AuthorityPair;
+use sp_consensus_aura::sr25519::{AuthorityPair, AuthoritySignature as AuraSignature};
 use sp_consensus_slots::Slot;
-use sp_core::Pair;
+use sp_core::{Pair, H256};
 use sp_runtime::traits::{Header as SubstrateHeader, Zero};
 
 use crate::{
-    aleph_primitives::{AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK},
+    aleph_primitives::{
+        AuraId, AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK,
+    },
     session_map::AuthorityProvider,
     sync::{
         substrate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
             InnerJustification, Justification,
         },
-        Verifier,
+        EquivocationProof as EquivocationProofT, Header as HeaderT, Verifier,
     },
 };
 
@@ -79,6 +82,31 @@ impl Display for HeaderVerificationError {
     }
 }
 
+pub struct EquivocationProof {
+    header_a: Header,
+    header_b: Header,
+    author: AuraId,
+    are_we_equivocating: bool,
+}
+
+impl EquivocationProofT for EquivocationProof {
+    fn are_we_equivocating(&self) -> bool {
+        self.are_we_equivocating
+    }
+}
+
+impl Display for EquivocationProof {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(
+            f,
+            "author: {}, first header: {}, second header {}",
+            self.author,
+            self.header_a.id(),
+            self.header_b.id()
+        )
+    }
+}
+
 #[derive(Debug)]
 pub enum VerificationError {
     Verification(SessionVerificationError),
@@ -109,11 +137,48 @@ impl Display for VerificationError {
     }
 }
 
+impl<AP, FS> VerifierCache<AP, FS, Header>
+where
+    AP: AuthorityProvider,
+    FS: FinalizationInfo,
+{
+    fn parse_aura_header(
+        &mut self,
+        header: &mut Header,
+    ) -> Result<(Slot, AuraSignature, H256, &AuraId), HeaderVerificationError> {
+        use HeaderVerificationError::*;
+        let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
+            .map_err(|e| PreDigestLookupError(e))?;
+
+        // pop the seal BEFORE hashing
+        let seal = header.digest_mut().pop().ok_or(MissingSeal)?;
+        let sig = seal.as_aura_seal().ok_or(IncorrectSeal)?;
+
+        let pre_hash = header.hash();
+        // push the seal back
+        header.digest_mut().push(seal);
+
+        // Aura: authorities are stored in the parent block
+        let parent_number = header.number() - 1;
+        let authorities = self
+            .get_aura_authorities(parent_number)
+            .map_err(|_| MissingAuthorityData)?;
+        // Aura: round robin
+        let idx = *slot % (authorities.len() as u64);
+        let author = authorities
+            .get(idx as usize)
+            .expect("idx < authorities.len()");
+
+        Ok((slot, sig, pre_hash, author))
+    }
+}
+
 impl<AP, FS> Verifier<Justification> for VerifierCache<AP, FS, Header>
 where
     AP: AuthorityProvider,
     FS: FinalizationInfo,
 {
+    type EquivocationProof = EquivocationProof;
     type Error = VerificationError;
 
     fn verify_justification(
@@ -146,10 +211,11 @@ where
                 false => Err(Self::Error::HeaderVerification(IncorrectGenesis)),
             };
         }
-        // Aura: authorities are stored in the parent block
-        let parent_number = header.number() - 1;
-        let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
-            .map_err(|e| Self::Error::HeaderVerification(PreDigestLookupError(e)))?;
+
+        let (slot, sig, pre_hash, author) = self
+            .parse_aura_header(&mut header)
+            .map_err(Self::Error::HeaderVerification)?;
+
         // Aura: slot number is calculated using the system time.
         // This code duplicates one of the parameters that we pass to Aura when starting the node!
         let slot_now = Slot::from_timestamp(
@@ -159,27 +225,41 @@ where
         if slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
             return Err(Self::Error::HeaderVerification(HeaderTooNew(slot)));
         }
-        // pop the seal BEFORE hashing
-        let seal = header
-            .digest_mut()
-            .pop()
-            .ok_or(Self::Error::HeaderVerification(MissingSeal))?;
-        let sig = seal
-            .as_aura_seal()
-            .ok_or(Self::Error::HeaderVerification(IncorrectSeal))?;
-        let authorities = self
-            .get_aura_authorities(parent_number)
-            .map_err(|_| Self::Error::HeaderVerification(MissingAuthorityData))?;
-        // Aura: round robin
-        let idx = *slot % (authorities.len() as u64);
-        let author = authorities
-            .get(idx as usize)
-            .expect("idx < authorities.len()");
-        if !AuthorityPair::verify(&sig, header.hash().as_ref(), author) {
+
+        if !AuthorityPair::verify(&sig, pre_hash.as_ref(), author) {
             return Err(Self::Error::HeaderVerification(IncorrectAuthority));
         }
-        // push the seal back
-        header.digest_mut().push(seal);
+
         Ok(header)
+    }
+
+    fn check_for_equivocation(
+        &mut self,
+        header: &mut Header,
+        just_created: bool,
+    ) -> Result<Option<Self::EquivocationProof>, Self::Error> {
+        let (slot, _, _, author) = self
+            .parse_aura_header(header)
+            .map_err(Self::Error::HeaderVerification)?;
+        let author = author.clone();
+
+        match self.equivocation_cache.entry(slot.into()) {
+            Entry::Occupied(occupied) => {
+                let (cached_header, certainly_own) = occupied.into_mut();
+                if cached_header == header {
+                    return Ok(None);
+                }
+                Ok(Some(EquivocationProof {
+                    header_a: cached_header.clone(),
+                    header_b: header.clone(),
+                    are_we_equivocating: *certainly_own || just_created,
+                    author,
+                }))
+            }
+            Entry::Vacant(vacant) => {
+                vacant.insert((header.clone(), just_created));
+                Ok(None)
+            }
+        }
     }
 }
