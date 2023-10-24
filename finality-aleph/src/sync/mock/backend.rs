@@ -12,8 +12,9 @@ use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
         mock::{MockBlock, MockHeader, MockJustification, MockNotification},
-        Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier, FinalizationStatus,
-        Finalizer, Header, Justification as JustificationT, Verifier,
+        Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier,
+        EquivocationProof as EquivocationProofT, FinalizationStatus, Finalizer, Header,
+        Justification as JustificationT, Verifier,
     },
     BlockId,
 };
@@ -385,6 +386,20 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
     }
 }
 
+pub struct EquivocationProof;
+
+impl EquivocationProofT for EquivocationProof {
+    fn are_we_equivocating(&self) -> bool {
+        false
+    }
+}
+
+impl Display for EquivocationProof {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(f, "")
+    }
+}
+
 #[derive(Debug)]
 pub enum VerifierError {
     Justification,
@@ -399,6 +414,7 @@ impl Display for VerifierError {
 }
 
 impl Verifier<MockJustification> for Backend {
+    type EquivocationProof = EquivocationProof;
     type Error = VerifierError;
 
     fn verify_justification(
@@ -434,5 +450,13 @@ impl Verifier<MockJustification> for Backend {
             true => Ok(header),
             false => Err(Self::Error::Header),
         }
+    }
+
+    fn check_for_equivocation(
+        &mut self,
+        _header: &mut MockHeader,
+        _just_created: bool,
+    ) -> Result<Option<Self::EquivocationProof>, Self::Error> {
+        Ok(None)
     }
 }

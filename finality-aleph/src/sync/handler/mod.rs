@@ -2315,7 +2315,7 @@ mod tests {
             true,
         );
 
-        let result = handler.handle_own_block(block.clone());
+        let result = handler.handle_own_block(block.clone()).expect("correct");
         match result.get(0).expect("the header is there") {
             ResponseItem::Header(header) => assert_eq!(header, block.header()),
             other => panic!("expected header item, got {:?}", other),
@@ -2340,7 +2340,7 @@ mod tests {
             true,
         );
 
-        let broadcast = handler.handle_own_block(block.clone());
+        let broadcast = handler.handle_own_block(block.clone()).expect("correct");
         match handler.handle_request_response(broadcast, rand::random()) {
             (true, _) => panic!("block unexpectedly changed top finalized"),
             (false, Some(e)) => panic!("error handling block broadcast: {}", e),

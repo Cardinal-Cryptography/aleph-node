@@ -147,8 +147,8 @@ where
         header: &mut Header,
     ) -> Result<(Slot, AuraSignature, H256, &AuraId), HeaderVerificationError> {
         use HeaderVerificationError::*;
-        let slot = find_pre_digest::<Block, AuthoritySignature>(&header)
-            .map_err(|e| PreDigestLookupError(e))?;
+        let slot =
+            find_pre_digest::<Block, AuthoritySignature>(header).map_err(PreDigestLookupError)?;
 
         // pop the seal BEFORE hashing
         let seal = header.digest_mut().pop().ok_or(MissingSeal)?;
