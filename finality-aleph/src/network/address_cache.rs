@@ -98,10 +98,10 @@ impl<C: ValidatorIndexToAccountIdConverter> ValidatorAddressCacheUpdater
 pub mod test {
     use crate::{
         idx_to_account::MockConverter,
-        network::address_cache::{validator_address_cache_updater, ValidatorAddressCacheUpdater},
+        network::address_cache::{ValidatorAddressCacheUpdater, ValidatorAddressCacheUpdaterImpl},
     };
 
     pub fn noop_updater() -> impl ValidatorAddressCacheUpdater {
-        validator_address_cache_updater(None, MockConverter)
+        ValidatorAddressCacheUpdaterImpl::<MockConverter>::Noop
     }
 }
