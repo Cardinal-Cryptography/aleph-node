@@ -30,7 +30,7 @@ pub struct FullDeps<C, P, SO> {
     pub import_justification_tx: mpsc::UnboundedSender<Justification>,
     pub justification_translator: JustificationTranslator,
     pub sync_oracle: SO,
-    pub validator_address_cache: ValidatorAddressCache,
+    pub validator_address_cache: Option<ValidatorAddressCache>,
 }
 
 /// Instantiate all full RPC extensions.

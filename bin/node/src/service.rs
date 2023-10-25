@@ -255,7 +255,12 @@ fn setup(
         })?;
 
     let sync_oracle = SyncOracle::new();
-    let validator_address_cache = ValidatorAddressCache::new();
+
+    // Validator network info caching is enabled only for non-validator nodes with RPC enabled.
+    let validator_address_cache = match (&config.role, config.rpc_addr) {
+        (sc_network::config::Role::Full, Some(_)) => Some(ValidatorAddressCache::new()),
+        (_, _) => None,
+    };
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -298,7 +303,7 @@ fn setup(
         protocol_naming,
         network_starter,
         sync_oracle,
-        Some(validator_address_cache),
+        validator_address_cache,
     ))
 }
 
