@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use primitives::{AccountId, AlephSessionApi, AuraId, BlockHash, BlockNumber};
 use sc_client_api::Backend;
@@ -26,7 +26,6 @@ where
     client: Arc<C>,
     session_boundary_info: SessionBoundaryInfo,
     authority_provider: AuthorityProviderImpl<C, B, BE>,
-    _phantom: PhantomData<(B, BE)>,
 }
 
 impl<C, B, BE> ValidatorIndexToAccountIdConverterImpl<C, B, BE>
@@ -42,7 +41,6 @@ where
             client: client.clone(),
             session_boundary_info,
             authority_provider: AuthorityProviderImpl::new(client),
-            _phantom: PhantomData,
         }
     }
 }
