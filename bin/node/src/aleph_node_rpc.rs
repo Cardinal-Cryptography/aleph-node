@@ -6,7 +6,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use jsonrpsee::{
-    core::{async_trait, error::Error as JsonRpseeError, RpcResult},
+    core::{error::Error as JsonRpseeError, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
@@ -171,9 +171,7 @@ pub trait AlephNodeApi<BE> {
     fn ready(&self) -> RpcResult<bool>;
 
     #[method(name = "unstable_validatorNetworkInfo")]
-    async fn validator_network_info(
-        &self,
-    ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>>;
+    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>>;
 }
 
 /// Aleph Node API implementation
@@ -206,7 +204,6 @@ where
     }
 }
 
-#[async_trait]
 impl<Client, BE, SO> AlephNodeApiServer<BE> for AlephNode<Client, SO>
 where
     BE: sc_client_api::Backend<Block> + 'static,
@@ -271,9 +268,7 @@ where
         Ok(!self.sync_oracle.is_offline() && !self.sync_oracle.is_major_syncing())
     }
 
-    async fn validator_network_info(
-        &self,
-    ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
+    fn validator_network_info(&self) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
         self.validator_address_cache
             .as_ref()
             .map(|c| c.snapshot())

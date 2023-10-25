@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::{fmt::Debug, num::NonZeroUsize, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, num::NonZeroUsize, sync::Arc};
 
 use lru::LruCache;
 use parking_lot::Mutex;
