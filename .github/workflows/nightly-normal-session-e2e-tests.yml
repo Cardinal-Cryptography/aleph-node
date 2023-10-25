@@ -193,7 +193,7 @@ jobs:
   run-major-sync-test:
     needs: [build-production-node-and-runtime]
     name: Run major sync test
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, Linux, X64, medium]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
