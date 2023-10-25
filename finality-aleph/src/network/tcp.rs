@@ -213,6 +213,7 @@ pub async fn new_tcp_network<A: ToSocketAddrs>(
 
 #[cfg(test)]
 pub mod testing {
+
     use super::{AuthorityIdWrapper, SignedTcpAddressingInformation};
     use crate::{crypto::AuthorityPen, network::NetworkIdentity};
 

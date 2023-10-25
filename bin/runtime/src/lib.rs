@@ -1018,6 +1018,7 @@ impl_runtime_apis! {
 
         fn next_session_aura_authorities() -> Vec<AuraId> {
             let queued_keys = QueuedKeys::<Runtime>::get();
+
             queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect()
         }
 
