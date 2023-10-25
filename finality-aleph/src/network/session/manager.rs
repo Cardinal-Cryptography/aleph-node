@@ -212,15 +212,12 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
             node_id,
             pen,
         } = pre_session;
-
         self.validator_address_cache_updater.update(
-            session_id,
             node_id,
             ValidatorAddressingInfo {
-                network_level_address: address.lower_level_address(),
-                validator_network_peer_id: address.peer_id().to_string(),
                 session: session_id,
-                potential_p2p_network_additional_info: vec![],
+                network_level_address: address.address(),
+                validator_network_peer_id: address.peer_id().to_string(),
             },
         );
 
@@ -337,13 +334,11 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
                 let mut maybe_command = None;
                 if let Some(address) = maybe_address {
                     self.validator_address_cache_updater.update(
-                        session_id,
                         creator,
                         ValidatorAddressingInfo {
-                            network_level_address: address.lower_level_address(),
-                            validator_network_peer_id: address.peer_id().to_string(),
                             session: session_id,
-                            potential_p2p_network_additional_info: vec![],
+                            network_level_address: address.address(),
+                            validator_network_peer_id: address.peer_id().to_string(),
                         },
                     );
                     if handler.is_validator() {
@@ -352,7 +347,6 @@ impl<NI: NetworkIdentity, D: Data, VCU: ValidatorAddressCacheUpdater> Manager<NI
                         maybe_command = Some(ConnectionCommand::AddReserved([address].into()));
                     }
                 }
-
                 ManagerActions {
                     maybe_command,
                     maybe_message,
@@ -471,7 +465,8 @@ mod tests {
     };
     use crate::{
         network::{
-            mock::{crypto_basics, MockValidatorAddressCacheUpdater},
+            address_cache::{test::noop_updater, ValidatorAddressCacheUpdater},
+            mock::crypto_basics,
             session::data::DataInSession,
         },
         Recipient, SessionId,
@@ -480,12 +475,8 @@ mod tests {
     const NUM_NODES: usize = 7;
     const DISCOVERY_PERIOD: Duration = Duration::from_secs(60);
 
-    fn build() -> Manager<MockAddressingInformation, i32, MockValidatorAddressCacheUpdater> {
-        Manager::new(
-            random_address(),
-            MockValidatorAddressCacheUpdater,
-            DISCOVERY_PERIOD,
-        )
+    fn build() -> Manager<MockAddressingInformation, i32, impl ValidatorAddressCacheUpdater> {
+        Manager::new(random_address(), noop_updater(), DISCOVERY_PERIOD)
     }
 
     #[test]

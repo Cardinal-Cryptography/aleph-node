@@ -19,8 +19,9 @@ use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        address_cache::test::noop_updater,
         data::Network,
-        mock::{crypto_basics, MockData, MockValidatorAddressCacheUpdater},
+        mock::{crypto_basics, MockData},
         session::{
             authentication, ConnectionManager, ConnectionManagerConfig, DataInSession,
             ManagerError, SessionHandler, SessionManager, VersionedAuthentication,
@@ -110,7 +111,7 @@ async fn prepare_one_session_test_data() -> TestData {
         authorities[0].address(),
         validator_network.clone(),
         gossip_network,
-        MockValidatorAddressCacheUpdater,
+        noop_updater(),
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
     let session_manager = Box::new(session_manager);

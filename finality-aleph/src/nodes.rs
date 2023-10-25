@@ -7,14 +7,16 @@ use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHan
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
+use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::Block,
+    aleph_primitives::{AlephSessionApi, AuraId, Block},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
+    idx_to_account::ValidatorIndexToAccountIdConverterImpl,
     network::{
-        address_cache::{KeyOwnerInfoProviderImpl, ValidatorAddressCacheUpdaterImpl},
+        address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
@@ -34,7 +36,9 @@ use crate::{
 };
 
 // How many sessions we remember.
-pub const VERIFIER_CACHE_SIZE: usize = 2;
+// Keep in mind that Aura stores authority info in the parent block,
+// so the actual size probably needs to be increased by one.
+pub const VERIFIER_CACHE_SIZE: usize = 3;
 
 pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
@@ -47,7 +51,7 @@ pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
 pub async fn run_validator_node<C, BE, SC>(aleph_config: AlephConfig<C, SC>)
 where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
+    C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
 {
@@ -166,11 +170,9 @@ where
         };
     let sync_task = async move { sync_service.run().await };
 
-    let validator_address_cache_updater = ValidatorAddressCacheUpdaterImpl::new(
-        validator_address_cache.clone(),
-        KeyOwnerInfoProviderImpl::new(client.clone()),
-        AuthorityProviderImpl::new(client.clone()),
-        session_info.clone(),
+    let validator_address_cache_updater = validator_address_cache_updater(
+        validator_address_cache,
+        ValidatorIndexToAccountIdConverterImpl::new(client.clone(), session_info.clone()),
     );
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(

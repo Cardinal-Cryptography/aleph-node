@@ -1,10 +1,9 @@
-#![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_consensus_aura::sr25519::AuthorityId as AuraAuthorityId;
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
@@ -282,10 +281,11 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
-
-        fn next_session_aura_authorities() -> Vec<AuraAuthorityId>;
-        /// Allows to get owner's AccountId for an Aleph key used in the current session.
-        fn aleph_key_owner(key: AuthorityId) -> Option<AccountId>;
+        fn next_session_aura_authorities() -> Vec<AuraId>;
+        /// Returns owner (`AccountId`) corresponding to an AuthorityId (in some contexts referenced
+        /// also as `aleph_key` - consensus engine's part of session keys) in the current session
+        /// of AlephBFT (finalisation committee).
+        fn key_owner(key: AuthorityId) -> Option<AccountId>;
     }
 }
 

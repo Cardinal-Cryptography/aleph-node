@@ -8,9 +8,7 @@ use tokio::time::timeout;
 use crate::{
     aleph_primitives::KEY_TYPE,
     crypto::{AuthorityPen, AuthorityVerifier},
-    network::address_cache::ValidatorAddressCacheUpdater,
-    session::SessionId,
-    AuthorityId, NodeIndex, ValidatorAddressingInfo,
+    AuthorityId, NodeIndex,
 };
 
 #[derive(Hash, Debug, Clone, PartialEq, Eq)]
@@ -100,12 +98,6 @@ impl<T> Channel<T> {
         self.0.close_channel();
         self.try_next().await
     }
-}
-
-pub struct MockValidatorAddressCacheUpdater;
-
-impl ValidatorAddressCacheUpdater for MockValidatorAddressCacheUpdater {
-    fn update(&self, _: SessionId, _: NodeIndex, _: ValidatorAddressingInfo) {}
 }
 
 impl<T> Default for Channel<T> {

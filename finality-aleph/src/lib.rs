@@ -44,6 +44,7 @@ mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;
+mod idx_to_account;
 mod import;
 mod justification;
 mod metrics;
@@ -62,9 +63,7 @@ pub use crate::{
     justification::AlephJustification,
     metrics::TimingBlockMetrics,
     network::{
-        address_cache::{
-            AdditionalP2PAddressingInfo, ValidatorAddressCache, ValidatorAddressingInfo,
-        },
+        address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
         Protocol, ProtocolNaming,
     },
     nodes::run_validator_node,
@@ -293,5 +292,5 @@ pub struct AlephConfig<C, SC> {
     pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
-    pub validator_address_cache: ValidatorAddressCache,
+    pub validator_address_cache: Option<ValidatorAddressCache>,
 }
