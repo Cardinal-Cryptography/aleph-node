@@ -11,9 +11,8 @@ use jsonrpsee::{
     types::error::{CallError, ErrorObject},
 };
 use parity_scale_codec::Decode;
-use primitives::{AccountId, Block, BlockHash, BlockNumber, Hash, Signature};
+use primitives::{AccountId, Block, BlockHash, BlockNumber, Signature};
 use sc_client_api::StorageProvider;
-use sc_network::NetworkService;
 use sp_arithmetic::traits::Zero;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::SyncOracle;
@@ -174,7 +173,6 @@ pub struct AlephNode<Client, SO> {
     client: Arc<Client>,
     sync_oracle: SO,
     validator_address_cache: ValidatorAddressCache,
-    network: Arc<NetworkService<Block, Hash>>,
 }
 
 impl<Client, SO> AlephNode<Client, SO>
@@ -187,7 +185,6 @@ where
         client: Arc<Client>,
         sync_oracle: SO,
         validator_address_cache: ValidatorAddressCache,
-        network: Arc<NetworkService<Block, Hash>>,
     ) -> Self {
         AlephNode {
             import_justification_tx,
@@ -195,7 +192,6 @@ where
             client,
             sync_oracle,
             validator_address_cache,
-            network,
         }
     }
 }
@@ -268,8 +264,7 @@ where
     async fn validator_network_info(
         &self,
     ) -> RpcResult<HashMap<AccountId, ValidatorAddressingInfo>> {
-        todo!()
-        // self.validator_address_cache.read()
+        Ok(self.validator_address_cache.snapshot())
     }
 }
 

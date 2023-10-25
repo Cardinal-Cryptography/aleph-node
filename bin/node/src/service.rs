@@ -218,7 +218,7 @@ fn setup(
         ProtocolNaming,
         NetworkStarter,
         SyncOracle,
-        ValidatorAddressCache,
+        Option<ValidatorAddressCache>,
     ),
     ServiceError,
 > {
@@ -261,7 +261,6 @@ fn setup(
         let pool = transaction_pool.clone();
         let sync_oracle = sync_oracle.clone();
         let validator_address_cache = validator_address_cache.clone();
-        let network = network.clone();
         Box::new(move |deny_unsafe, _| {
             let deps = RpcFullDeps {
                 client: client.clone(),
@@ -271,7 +270,6 @@ fn setup(
                 justification_translator: JustificationTranslator::new(chain_status.clone()),
                 sync_oracle: sync_oracle.clone(),
                 validator_address_cache: validator_address_cache.clone(),
-                network: network.clone(),
             };
 
             Ok(create_full_rpc(deps)?)
@@ -300,7 +298,7 @@ fn setup(
         protocol_naming,
         network_starter,
         sync_oracle,
-        validator_address_cache,
+        Some(validator_address_cache),
     ))
 }
 
@@ -416,8 +414,6 @@ pub fn new_authority(
             .try_into()
             .unwrap_or(usize::MAX),
     };
-
-    let validator_address_cache = None;
 
     let aleph_config = AlephConfig {
         network,

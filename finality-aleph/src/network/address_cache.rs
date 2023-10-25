@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::{fmt::Debug, num::NonZeroUsize, sync::Arc};
 
 use lru::LruCache;
@@ -21,7 +22,7 @@ pub struct ValidatorAddressingInfo {
 }
 
 /// Stores most recent information about validator addresses.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ValidatorAddressCache {
     data: Arc<Mutex<LruCache<AccountId, ValidatorAddressingInfo>>>,
 }
@@ -40,6 +41,10 @@ impl ValidatorAddressCache {
 
     pub fn insert(&self, validator_stash: AccountId, info: ValidatorAddressingInfo) {
         self.data.lock().put(validator_stash, info);
+    }
+
+    pub fn snapshot(&self) -> HashMap<AccountId, ValidatorAddressingInfo> {
+        HashMap::from_iter(self.data.lock().iter().map(|(k, v)| (k.clone(), v.clone())))
     }
 }
 

@@ -11,9 +11,7 @@ use aleph_runtime::{opaque::Block, AccountId, Balance, Nonce};
 use finality_aleph::{Justification, JustificationTranslator, ValidatorAddressCache};
 use futures::channel::mpsc;
 use jsonrpsee::RpcModule;
-use primitives::Hash;
 use sc_client_api::StorageProvider;
-use sc_network::NetworkService;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -33,7 +31,6 @@ pub struct FullDeps<C, P, SO> {
     pub justification_translator: JustificationTranslator,
     pub sync_oracle: SO,
     pub validator_address_cache: ValidatorAddressCache,
-    pub network: Arc<NetworkService<Block, Hash>>,
 }
 
 /// Instantiate all full RPC extensions.
@@ -67,7 +64,6 @@ where
         justification_translator,
         sync_oracle,
         validator_address_cache,
-        network,
     } = deps;
 
     module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
@@ -82,7 +78,6 @@ where
             client,
             sync_oracle,
             validator_address_cache,
-            network,
         )
         .into_rpc(),
     )?;
