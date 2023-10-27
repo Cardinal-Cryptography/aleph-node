@@ -7,6 +7,8 @@ use sp_runtime::traits::{Block, Header};
 mod network;
 mod traits;
 
+pub use network::NetworkData;
+
 use super::common::sanity_check_round_delays;
 pub use crate::aleph_primitives::{BlockHash, BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use crate::{
@@ -24,8 +26,6 @@ use crate::{
     },
     CurrentNetworkData, Hasher, Keychain, NodeIndex, SessionId, SignatureSet, UnitCreationDelay,
 };
-
-pub use network::NetworkData;
 
 pub fn run_member<B, C, ADN>(
     subtask_common: TaskCommon,
