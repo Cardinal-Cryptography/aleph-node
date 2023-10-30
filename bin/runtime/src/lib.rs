@@ -34,7 +34,6 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
-use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
@@ -47,7 +46,6 @@ use primitives::{
 };
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Nonce, Signature};
 use sp_api::impl_runtime_apis;
-use sp_application_crypto::key_types::AURA;
 use sp_consensus_aura::SlotDuration;
 use sp_core::{crypto::KeyTypeId, ConstU128, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
@@ -1015,12 +1013,6 @@ impl_runtime_apis! {
             session: SessionIndex,
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
             CommitteeManagement::predict_session_committee_for_session(session)
-        }
-
-        fn next_session_aura_authorities() -> Vec<AuraId> {
-            let queued_keys = QueuedKeys::<Runtime>::get();
-
-            queued_keys.into_iter().filter_map(|(_, keys)| keys.get(AURA)).collect()
         }
 
          fn key_owner(key: AlephId) -> Option<AccountId> {
