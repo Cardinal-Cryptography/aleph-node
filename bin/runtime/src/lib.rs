@@ -721,11 +721,7 @@ impl pallet_contracts::Config for Runtime {
     type MaxStorageKeyLen = ConstU32<128>;
     type UnsafeUnstableInterface = ConstBool<false>;
     type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
-    type Migrations = (
-        pallet_contracts::migration::v10::Migration<Runtime>,
-        pallet_contracts::migration::v11::Migration<Runtime>,
-        pallet_contracts::migration::v12::Migration<Runtime>,
-    );
+    type Migrations = ();
 }
 
 parameter_types! {
@@ -834,21 +830,6 @@ pub type SignedExtra = (
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
-pub struct ZeroMaxGlobalCommission;
-impl Get<Perbill> for ZeroMaxGlobalCommission {
-    fn get() -> Perbill {
-        Perbill::from_percent(0)
-    }
-}
-
-/// All migrations that will run on the next runtime upgrade.
-///
-/// Should be cleared after every release.
-pub type Migrations = (
-    pallet_nomination_pools::migration::v4::MigrateV3ToV5<Runtime, ZeroMaxGlobalCommission>,
-    pallet_contracts::migration::Migration<Runtime>,
-);
-
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -861,7 +842,6 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    Migrations,
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
