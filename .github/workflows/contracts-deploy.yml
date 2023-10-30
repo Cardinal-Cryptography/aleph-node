@@ -97,7 +97,7 @@ jobs:
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
 
       - name: Install jq
         shell: bash
@@ -110,7 +110,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         env:
           AWS_REGION: us-east-1
         with:

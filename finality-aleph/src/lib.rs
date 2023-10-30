@@ -10,7 +10,7 @@ use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use parity_scale_codec::{Codec, Decode, Encode, Output};
+use parity_scale_codec::{Decode, Encode, Output};
 use primitives as aleph_primitives;
 use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Hash as AlephHash};
 use sc_client_api::{
@@ -44,6 +44,7 @@ mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;
+mod idx_to_account;
 mod import;
 mod justification;
 mod metrics;
@@ -53,20 +54,22 @@ mod party;
 mod session;
 mod session_map;
 mod sync;
+mod sync_oracle;
 #[cfg(test)]
 pub mod testing;
 
 pub use crate::{
-    import::{AlephBlockImport, TracingBlockImport},
+    import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
-    metrics::BlockMetrics,
-    network::{Protocol, ProtocolNaming},
+    metrics::TimingBlockMetrics,
+    network::{address_cache::ValidatorAddressCache, Protocol, ProtocolNaming},
     nodes::run_validator_node,
     session::SessionPeriod,
     sync::{
         substrate::{BlockImporter, Justification},
         JustificationTranslator, SubstrateChainStatus,
     },
+    sync_oracle::SyncOracle,
 };
 
 /// Constant defining how often components of finality-aleph should report their state
@@ -227,14 +230,9 @@ where
 {
 }
 
-/// The identifier of a block, the least amount of knowledge we can have about a block.
-pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
-    /// The block number, useful when reasoning about hopeless forks.
-    fn number(&self) -> BlockNumber;
-}
-
 type Hasher = abft::HashWrapper<BlakeTwo256>;
 
+/// The identifier of a block, the least amount of knowledge we can have about a block.
 #[derive(PartialEq, Eq, Clone, Debug, Encode, Decode, Hash)]
 pub struct BlockId {
     hash: BlockHash,
@@ -244,6 +242,10 @@ pub struct BlockId {
 impl BlockId {
     pub fn new(hash: BlockHash, number: BlockNumber) -> Self {
         BlockId { hash, number }
+    }
+
+    pub fn number(&self) -> BlockNumber {
+        self.number
     }
 }
 
@@ -256,12 +258,6 @@ impl From<(BlockHash, BlockNumber)> for BlockId {
 impl Display for BlockId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         write!(f, "#{} ({})", self.number, self.hash,)
-    }
-}
-
-impl BlockIdentifier for BlockId {
-    fn number(&self) -> BlockNumber {
-        self.number
     }
 }
 
@@ -281,7 +277,8 @@ pub struct AlephConfig<C, SC> {
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification>,
-    pub metrics: BlockMetrics,
+    pub block_rx: mpsc::UnboundedReceiver<AlephBlock>,
+    pub metrics: TimingBlockMetrics,
     pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
@@ -291,4 +288,6 @@ pub struct AlephConfig<C, SC> {
     pub validator_port: u16,
     pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
+    pub sync_oracle: SyncOracle,
+    pub validator_address_cache: Option<ValidatorAddressCache>,
 }

@@ -17,11 +17,11 @@ jobs:
       name: ${{ steps.get-argocd-featurenet-app-name.outputs.name }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get branch name and commit SHA
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
 
       - name: Get argocd featurenet app name
         id: get-argocd-featurenet-app-name
@@ -40,7 +40,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
     name: Delete featurenet
     needs: [get-featurenet-name]
-    uses: ./.github/workflows/delete-featurenet.yml
+    uses: ./.github/workflows/featurenet-delete.yml
     with:
       featurenet-name: ${{ needs.get-featurenet-name.outputs.name }}
     secrets: inherit

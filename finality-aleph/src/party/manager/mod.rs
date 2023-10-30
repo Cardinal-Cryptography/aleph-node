@@ -30,9 +30,9 @@ use crate::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
     },
     sync::{substrate::Justification, JustificationSubmissions, JustificationTranslator},
-    AuthorityId, BlockId, BlockMetrics, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData,
-    NodeIndex, SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod, UnitCreationDelay,
-    VersionedNetworkData,
+    AuthorityId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, NodeIndex,
+    SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod, TimingBlockMetrics,
+    UnitCreationDelay, VersionedNetworkData,
 };
 
 mod aggregator;
@@ -97,7 +97,7 @@ where
     C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<BlockId>,
+    RB: RequestBlocks,
     SM: SessionManager<VersionedNetworkData> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
@@ -108,7 +108,7 @@ where
     justifications_for_sync: JS,
     justification_translator: JustificationTranslator,
     block_requester: RB,
-    metrics: BlockMetrics,
+    metrics: TimingBlockMetrics,
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<dyn Keystore>,
@@ -123,7 +123,7 @@ where
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<BlockId>,
+    RB: RequestBlocks,
     SM: SessionManager<VersionedNetworkData>,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
 {
@@ -136,7 +136,7 @@ where
         justifications_for_sync: JS,
         justification_translator: JustificationTranslator,
         block_requester: RB,
-        metrics: BlockMetrics,
+        metrics: TimingBlockMetrics,
         spawn_handle: SpawnHandle,
         session_manager: SM,
         keystore: Arc<dyn Keystore>,
@@ -405,7 +405,7 @@ where
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<BlockId>,
+    RB: RequestBlocks,
     SM: SessionManager<VersionedNetworkData>,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
 {

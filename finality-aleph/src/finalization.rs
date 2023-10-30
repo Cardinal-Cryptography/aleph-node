@@ -12,11 +12,11 @@ use sp_runtime::{
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
     metrics::Checkpoint,
-    BlockId, BlockIdentifier, BlockMetrics,
+    BlockId, TimingBlockMetrics,
 };
 
-pub trait BlockFinalizer<BI: BlockIdentifier> {
-    fn finalize_block(&self, block: BI, justification: Justification) -> Result<(), Error>;
+pub trait BlockFinalizer {
+    fn finalize_block(&self, block: BlockId, justification: Justification) -> Result<(), Error>;
 }
 
 pub struct AlephFinalizer<B, BE, C>
@@ -26,7 +26,7 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    metrics: BlockMetrics,
+    metrics: TimingBlockMetrics,
     phantom: PhantomData<(B, BE)>,
 }
 
@@ -36,7 +36,7 @@ where
     BE: Backend<B>,
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
-    pub(crate) fn new(client: Arc<C>, metrics: BlockMetrics) -> Self {
+    pub(crate) fn new(client: Arc<C>, metrics: TimingBlockMetrics) -> Self {
         AlephFinalizer {
             client,
             metrics,
@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<B, BE, C> BlockFinalizer<BlockId> for AlephFinalizer<B, BE, C>
+impl<B, BE, C> BlockFinalizer for AlephFinalizer<B, BE, C>
 where
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,

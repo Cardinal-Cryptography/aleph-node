@@ -73,9 +73,9 @@ hex = { version = "0.4" }
 hex-literal = { version = "0.3" }
 ip_network = { version = "0.4" }
 jsonrpsee = { version = "0.16.3" }
-libp2p = { version = "0.50.1" }
+libp2p = { version = "0.51.3" }
 log = { version = "0.4" }
-lru = { version = "0.8" }
+lru = { version = "0.10" }
 parity-scale-codec = { version = "3.0", default-features = false }
 parking_lot = { version = "0.12" }
 paste = { version = "1.0.11" }
@@ -149,6 +149,7 @@ sp-blockchain = { git = "https://github.com/Cardinal-Cryptography/substrate.git"
 sp-block-builder = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
 sp-consensus = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
 sp-consensus-aura = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
+sp-consensus-slots = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
 sp-core = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
 sp-inherents = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }
 sp-io = { git = "https://github.com/Cardinal-Cryptography/substrate.git", branch = "aleph-v1.0.0", default-features = false }

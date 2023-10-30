@@ -1,12 +1,12 @@
 ---
-name: Nightly pipeline short session e2e tests
+name: Nightly pipeline e2e tests on featurenet
 on:
   workflow_dispatch:
   schedule:
     - cron: '00 23 * * *'
 
 concurrency:
-  group: "${{ github.ref }}-${{ github.workflow }}"
+  group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
           aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
 
-  push-featurnet-node-image-to-ecr:
+  push-featurenet-node-image-to-ecr:
     needs: [build-test-node-and-runtime]
     name: Build and push PR test docker image to ECR
     uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
@@ -92,7 +92,7 @@ jobs:
 
   runs-e2e-test-on-fe:
     needs:
-      - push-featurnet-node-image-to-ecr
+      - push-featurenet-node-image-to-ecr
       - build-e2e-client-image
       - store-test-node-and-runtime
       - get-e2e-test-case-names
@@ -109,7 +109,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
 
       - name: Get fe name
         id: get-final-featurenet-name
@@ -123,12 +123,13 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@v3
         id: create-featurenet
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
@@ -136,14 +137,7 @@ jobs:
           featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
-
-      - name: Wait for the aleph-node binary to accept some blocks
-        uses: Cardinal-Cryptography/github-actions/wait-for-finalized-heads@v1
-        with:
-          gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
-          # yamllint disable-line rule:line-length
-          json-rpc-endpoint: https://${{ steps.create-featurenet.outputs.ws-hostname }}
+          wait-for-finalized-heads: "true"
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -167,7 +161,7 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v1
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v3
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
@@ -175,6 +169,7 @@ jobs:
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
           repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
+          repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
           argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
           featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
@@ -185,7 +180,9 @@ jobs:
     name: Slack notification
     runs-on: ubuntu-20.04
     needs: [runs-e2e-test-on-fe]
-    if: ${{ !cancelled() }}
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -193,6 +190,6 @@ jobs:
       - name: Send Slack message
         uses: ./.github/actions/slack-notification
         with:
-          notify-on: "always"
+          notify-on: "failure"
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_NIGHTLY_PIPELINE }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

@@ -1,9 +1,9 @@
-#![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
@@ -261,15 +261,6 @@ pub struct VersionChange {
     pub session: SessionIndex,
 }
 
-/// Consensus log item for Aleph.
-#[cfg_attr(feature = "std", derive(Serialize))]
-#[derive(Decode, Encode, PartialEq, Eq, Clone, sp_runtime::RuntimeDebug)]
-pub enum ConsensusLog<N: sp_runtime::RuntimeAppPublic> {
-    /// Change of the authorities.
-    #[codec(index = 1)]
-    AlephAuthorityChange(Vec<N>),
-}
-
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi {
         fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
@@ -290,6 +281,11 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+        fn next_session_aura_authorities() -> Vec<AuraId>;
+        /// Returns owner (`AccountId`) corresponding to an AuthorityId (in some contexts referenced
+        /// also as `aleph_key` - consensus engine's part of session keys) in the current session
+        /// of AlephBFT (finalisation committee).
+        fn key_owner(key: AuthorityId) -> Option<AccountId>;
     }
 }
 

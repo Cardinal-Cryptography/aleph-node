@@ -9,28 +9,28 @@ use std::{
 use crate::{
     session::{SessionBoundaryInfo, SessionId},
     sync::{
-        data::{NetworkData, Request, State},
+        data::{BranchKnowledge, NetworkData, Request, State},
         forest::{
-            Error as ForestError, Forest, InitializationError as ForestInitializationError,
-            Interest,
+            Error as ForestError, ExtensionRequest, Forest,
+            InitializationError as ForestInitializationError, Interest,
         },
-        handler::request_handler::{RequestHandler, RequestHandlerError},
-        Block, BlockIdFor, BlockImport, ChainStatus, Finalizer, Header, Justification, PeerId,
-        Verifier,
+        handler::request_handler::RequestHandler,
+        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification, PeerId,
+        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, Verifier,
     },
-    BlockIdentifier, BlockNumber,
+    BlockId, BlockNumber, SyncOracle,
 };
 
 mod request_handler;
-pub use request_handler::Action;
+pub use request_handler::{block_to_response, Action, RequestHandlerError};
 
 use crate::sync::data::{ResponseItem, ResponseItems};
 
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -43,8 +43,8 @@ where
 
 impl<B, J, CS, F, BI> DatabaseIO<B, J, CS, F, BI>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
@@ -73,7 +73,7 @@ where
     I: PeerId,
     J: Justification,
 {
-    pub fn get(&self, id: &BlockIdFor<J>) -> Interest<I, J> {
+    pub fn get(&self, id: &BlockId) -> Interest<I> {
         self.forest.request_interest(id)
     }
 }
@@ -99,8 +99,8 @@ enum MissedImportData {
 
 enum TrySyncError<B, J, CS>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
 {
     ChainStatus(CS::Error),
@@ -118,8 +118,8 @@ impl MissedImportData {
         chain_status: &CS,
     ) -> Result<(), CS::Error>
     where
-        B: Block,
-        J: Justification<Header = B::Header>,
+        J: Justification,
+        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -141,9 +141,9 @@ impl MissedImportData {
         forest: &mut Forest<I, J>,
     ) -> Result<(), TrySyncError<B, J, CS>>
     where
-        B: Block,
+        J: Justification,
+        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         I: PeerId,
-        J: Justification<Header = B::Header>,
         CS: ChainStatus<B, J>,
     {
         use MissedImportData::*;
@@ -194,9 +194,9 @@ impl MissedImportData {
 /// Handler for data incoming from the network.
 pub struct Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -209,6 +209,7 @@ where
     session_info: SessionBoundaryInfo,
     block_importer: BI,
     missed_import_data: MissedImportData,
+    sync_oracle: SyncOracle,
     phantom: PhantomData<B>,
 }
 
@@ -216,21 +217,21 @@ where
 #[derive(Clone, Debug)]
 pub enum HandleStateAction<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     /// A response for the peer that sent us the data.
     Response(NetworkData<B, J>),
-    /// A request for the highest justified block that should be performed periodically.
-    HighestJustified(BlockIdFor<J>),
+    /// The state suggests we should try requesting a chain extension.
+    ExtendChain,
     /// Do nothing.
     Noop,
 }
 
 impl<B, J> HandleStateAction<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     fn response(justification: J::Unverified, other_justification: Option<J::Unverified>) -> Self {
         Self::Response(NetworkData::StateBroadcastResponse(
@@ -238,17 +239,11 @@ where
             other_justification,
         ))
     }
-}
 
-impl<B, J> From<Option<BlockIdFor<J>>> for HandleStateAction<B, J>
-where
-    B: Block,
-    J: Justification<Header = B::Header>,
-{
-    fn from(value: Option<BlockIdFor<J>>) -> Self {
-        match value {
-            Some(id) => Self::HighestJustified(id),
-            None => Self::Noop,
+    fn maybe_extend(new_info: bool) -> Self {
+        match new_info {
+            true => HandleStateAction::ExtendChain,
+            false => HandleStateAction::Noop,
         }
     }
 }
@@ -258,7 +253,7 @@ where
 pub enum Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -268,16 +263,17 @@ where
     Finalizer(F::Error),
     Forest(ForestError),
     ForestInitialization(ForestInitializationError<B, J, CS>),
-    RequestHandlerError(RequestHandlerError<J, CS::Error>),
+    RequestHandlerError(RequestHandlerError<CS::Error>),
     MissingJustification,
     BlockNotImportable,
     HeaderNotRequired,
+    MissingFavouriteBlock,
 }
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -299,6 +295,9 @@ where
                 write!(f, "cannot import a block that we do not consider required")
             }
             HeaderNotRequired => write!(f, "header was not required, but it should have been"),
+            MissingFavouriteBlock => {
+                write!(f, "the favourite block is not present in the database")
+            }
         }
     }
 }
@@ -306,7 +305,7 @@ where
 impl<B, J, CS, V, F> From<ForestError> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -319,7 +318,7 @@ where
 impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -333,24 +332,24 @@ where
     }
 }
 
-impl<B, J, CS, V, F> From<RequestHandlerError<J, CS::Error>> for Error<B, J, CS, V, F>
+impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
-    B: Block<Header = J::Header>,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
 {
-    fn from(e: RequestHandlerError<J, CS::Error>) -> Self {
+    fn from(e: RequestHandlerError<CS::Error>) -> Self {
         Error::RequestHandlerError(e)
     }
 }
 
 impl<B, I, J, CS, V, F, BI> HandlerTypes for Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -361,9 +360,9 @@ where
 
 impl<B, I, J, CS, V, F, BI> Handler<B, I, J, CS, V, F, BI>
 where
-    B: Block,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
-    J: Justification<Header = B::Header>,
     CS: ChainStatus<B, J>,
     V: Verifier<J>,
     F: Finalizer<J>,
@@ -373,6 +372,7 @@ where
     pub fn new(
         database_io: DatabaseIO<B, J, CS, F, BI>,
         verifier: V,
+        sync_oracle: SyncOracle,
         session_info: SessionBoundaryInfo,
     ) -> Result<Self, <Self as HandlerTypes>::Error> {
         let DatabaseIO {
@@ -390,6 +390,7 @@ where
             session_info,
             block_importer,
             missed_import_data: MissedImportData::new(),
+            sync_oracle,
             phantom: PhantomData,
         })
     }
@@ -468,40 +469,76 @@ where
         })
     }
 
+    /// Handle a chain extension request.
+    ///
+    /// First treats it as a request for our favourite block with their favourite block
+    /// as the top imported.
+    /// If that fails due to our favourite block not being a descendant of theirs,
+    /// it falls back to attempting to send any finalized blocks the requester doesn't have.
+    pub fn handle_chain_extension_request(
+        &mut self,
+        state: State<J>,
+    ) -> Result<Action<B, J>, <Self as HandlerTypes>::Error> {
+        let request = Request::new(
+            self.forest.favourite_block(),
+            BranchKnowledge::TopImported(state.favourite_block().id()),
+            state.clone(),
+        );
+        match self.handle_request(request) {
+            // Either we were trying to send too far in the future
+            // or our favourite is not a descendant of theirs.
+            // Either way, at least try sending some justifications.
+            Ok(Action::Noop)
+            | Err(Error::RequestHandlerError(RequestHandlerError::RootMismatch)) => {
+                let request = Request::new(
+                    state.top_justification().header().id(),
+                    BranchKnowledge::TopImported(state.top_justification().header().id()),
+                    state,
+                );
+                self.handle_request(request)
+            }
+            result => result,
+        }
+    }
+
     /// Handle a single unverified justification.
-    /// Return `Some(id)` if this justification was higher than the previously known highest justification.
+    /// Return whether this justification was higher than the previously known highest justification.
     fn handle_justification(
         &mut self,
         justification: J::Unverified,
         maybe_peer: Option<I>,
-    ) -> Result<Option<BlockIdFor<J>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<bool, <Self as HandlerTypes>::Error> {
         let justification = self
             .verifier
-            .verify(justification)
+            .verify_justification(justification)
             .map_err(Error::Verifier)?;
-        let id = justification.header().id();
-        let maybe_id = match self
+        let new_highest = self
             .forest
-            .update_justification(justification, maybe_peer)?
-        {
-            true => Some(id),
-            false => None,
-        };
+            .update_justification(justification, maybe_peer)?;
         self.try_finalize()?;
-        Ok(maybe_id)
+        self.sync_oracle
+            .update_behind(self.forest.behind_finalization());
+        Ok(new_highest)
     }
 
-    /// Handle a state response returning the id of the new highest justified block
-    /// if there is some.
+    /// Verify an unverified header.
+    fn verify_header(
+        &mut self,
+        header: UnverifiedHeaderFor<J>,
+    ) -> Result<J::Header, <Self as HandlerTypes>::Error> {
+        self.verifier.verify_header(header).map_err(Error::Verifier)
+    }
+
+    /// Handle a justification from the user, returning whether it became the new highest justification.
     pub fn handle_justification_from_user(
         &mut self,
         justification: J::Unverified,
-    ) -> Result<Option<BlockIdFor<J>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<bool, <Self as HandlerTypes>::Error> {
         self.handle_justification(justification, None)
     }
 
-    /// Handle a state response returning the id of the new highest justified block
-    /// if there is some, and possibly an error.
+    /// Handle a state response returning whether it resulted in a new highest justified block
+    /// and possibly an error.
     ///
     /// If no error is returned, it means that the whole state response was processed
     /// correctly. Otherwise, the response might have been processed partially, or
@@ -511,21 +548,21 @@ where
         justification: J::Unverified,
         maybe_justification: Option<J::Unverified>,
         peer: I,
-    ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        let mut maybe_id = None;
+    ) -> (bool, Option<<Self as HandlerTypes>::Error>) {
+        let mut new_highest = false;
 
         for justification in iter::once(justification).chain(maybe_justification) {
-            maybe_id = match self.handle_justification(justification, Some(peer.clone())) {
-                Ok(id) => id,
-                Err(e) => return (maybe_id, Some(e)),
-            };
+            new_highest = match self.handle_justification(justification, Some(peer.clone())) {
+                Ok(new_highest) => new_highest,
+                Err(e) => return (new_highest, Some(e)),
+            } || new_highest;
         }
 
-        (maybe_id, None)
+        (new_highest, None)
     }
 
-    /// Handle a request response returning the id of the new highest justified block
-    /// if there is some, and possibly an error.
+    /// Handle a request response returning whether it resulted in a new highest justified block
+    /// and possibly an error.
     ///
     /// If no error is returned, it means that the whole request response was processed
     /// correctly. Otherwise, the response might have been processed partially, or
@@ -538,41 +575,53 @@ where
         &mut self,
         response_items: ResponseItems<B, J>,
         peer: I,
-    ) -> (Option<BlockIdFor<J>>, Option<<Self as HandlerTypes>::Error>) {
-        let mut highest_justified = None;
+    ) -> (bool, Option<<Self as HandlerTypes>::Error>) {
+        let mut new_highest = false;
+        // Lets us import descendands of importable blocks, useful for favourite blocks.
+        let mut last_imported_block: Option<BlockId> = None;
         for item in response_items {
             match item {
                 ResponseItem::Justification(j) => {
                     match self.handle_justification(j, Some(peer.clone())) {
-                        Ok(Some(id)) => highest_justified = Some(id),
-                        Err(e) => return (highest_justified, Some(e)),
-                        _ => {}
+                        Ok(highest) => new_highest = new_highest || highest,
+                        Err(e) => return (new_highest, Some(e)),
                     }
                 }
                 ResponseItem::Header(h) => {
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    if !self.forest.importable(&h.id()) {
-                        return (highest_justified, Some(Error::HeaderNotRequired));
+                    let h = match self.verify_header(h) {
+                        Ok(h) => h,
+                        Err(e) => return (new_highest, Some(e)),
+                    };
+                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), false) {
+                        return (new_highest, Some(Error::Forest(e)));
                     }
-                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), true) {
-                        return (highest_justified, Some(Error::Forest(e)));
+                    if !self.forest.importable(&h.id()) {
+                        return (new_highest, Some(Error::HeaderNotRequired));
                     }
                 }
                 ResponseItem::Block(b) => {
                     if self.forest.skippable(&b.header().id()) {
                         continue;
                     }
-                    match self.forest.importable(&b.header().id()) {
-                        true => self.block_importer.import_block(b),
-                        false => return (highest_justified, Some(Error::BlockNotImportable)),
+                    match self.forest.importable(&b.header().id())
+                        || last_imported_block
+                            .map(|id| id == b.header().id())
+                            .unwrap_or(false)
+                    {
+                        true => {
+                            last_imported_block = Some(b.header().id());
+                            self.block_importer.import_block(b);
+                        }
+                        false => return (new_highest, Some(Error::BlockNotImportable)),
                     };
                 }
             }
         }
 
-        (highest_justified, None)
+        (new_highest, None)
     }
 
     fn last_justification_unverified(
@@ -596,7 +645,7 @@ where
         peer: I,
     ) -> Result<HandleStateAction<B, J>, <Self as HandlerTypes>::Error> {
         use Error::*;
-        let remote_top_number = state.top_justification().id().number();
+        let remote_top_number = state.top_justification().header().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
         let local_top_number = local_top.header().id().number();
         let remote_session = self
@@ -607,15 +656,23 @@ where
             .session_id_from_block_num(local_top_number);
         match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
-            None => Ok(self
-                .handle_justification(state.top_justification(), Some(peer))?
-                .into()),
+            None => {
+                let header = self.verify_header(state.favourite_block())?;
+                Ok(HandleStateAction::maybe_extend(
+                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                        || self.forest.update_header(&header, Some(peer), false)?,
+                ))
+            }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
-                true => Ok(self
-                    .handle_justification(state.top_justification(), Some(peer))?
-                    .into()),
+                true => {
+                    let header = self.verify_header(state.favourite_block())?;
+                    Ok(HandleStateAction::maybe_extend(
+                        self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                            || self.forest.update_header(&header, Some(peer), false)?,
+                    ))
+                }
                 // remote top justification lower than ours, we can send a response
                 false => Ok(HandleStateAction::response(
                     local_top.into_unverified(),
@@ -637,12 +694,22 @@ where
 
     /// The current state of our database.
     pub fn state(&self) -> Result<State<J>, <Self as HandlerTypes>::Error> {
+        use BlockStatus::*;
         let top_justification = self
             .chain_status
             .top_finalized()
             .map_err(Error::ChainStatus)?
             .into_unverified();
-        Ok(State::new(top_justification))
+        let favourite_block = match self
+            .chain_status
+            .status_of(self.forest.favourite_block())
+            .map_err(Error::ChainStatus)?
+        {
+            Justified(justification) => justification.header().clone().into_unverified(),
+            Present(header) => header.into_unverified(),
+            Unknown => return Err(Error::MissingFavouriteBlock),
+        };
+        Ok(State::new(top_justification, favourite_block))
     }
 
     /// A handle for requesting Interest.
@@ -656,11 +723,22 @@ where
     /// Returns `true` if this was the first time something indicated interest in this block.
     pub fn handle_internal_request(
         &mut self,
-        id: &BlockIdFor<J>,
+        id: &BlockId,
     ) -> Result<bool, <Self as HandlerTypes>::Error> {
         let should_request = self.forest.update_block_identifier(id, None, true)?;
 
         Ok(should_request)
+    }
+
+    /// Returns the extension request we could be making right now.
+    pub fn extension_request(&self) -> ExtensionRequest<I> {
+        self.forest.extension_request()
+    }
+
+    /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast.
+    pub fn handle_own_block(&mut self, block: B) -> Vec<ResponseItem<B, J>> {
+        self.block_importer.import_block(block.clone());
+        block_to_response(block)
     }
 }
 
@@ -668,19 +746,19 @@ where
 mod tests {
     use std::collections::HashSet;
 
-    use super::{DatabaseIO, HandleStateAction, HandleStateAction::*, Handler};
+    use super::{DatabaseIO, Error, HandleStateAction, HandleStateAction::*, Handler};
     use crate::{
         session::{SessionBoundaryInfo, SessionId},
         sync::{
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
-            forest::Interest,
+            forest::{ExtensionRequest, Interest},
             handler::Action,
-            mock::{Backend, MockBlock, MockHeader, MockIdentifier, MockJustification, MockPeerId},
+            mock::{Backend, MockBlock, MockHeader, MockJustification, MockPeerId},
             Block, BlockImport, ChainStatus,
             ChainStatusNotification::*,
             ChainStatusNotifier, Header, Justification,
         },
-        BlockIdentifier, BlockNumber, SessionPeriod,
+        BlockId, BlockNumber, SessionPeriod, SyncOracle,
     };
 
     type TestHandler =
@@ -693,13 +771,18 @@ mod tests {
         TestHandler,
         Backend,
         impl ChainStatusNotifier<MockHeader>,
-        MockIdentifier,
+        BlockId,
     ) {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
-        let handler =
-            Handler::new(database_io, verifier, SESSION_BOUNDARY_INFO).expect("mock backend works");
+        let handler = Handler::new(
+            database_io,
+            verifier,
+            SyncOracle::new(),
+            SESSION_BOUNDARY_INFO,
+        )
+        .expect("mock backend works");
         let genesis = backend.top_finalized().expect("genesis").header().id();
         (handler, backend, notifier, genesis)
     }
@@ -720,8 +803,8 @@ mod tests {
 
     fn assert_dangling_branch_required(
         handler: &TestHandler,
-        top: &MockIdentifier,
-        bottom: &MockIdentifier,
+        top: &BlockId,
+        bottom: &BlockId,
         know_most: HashSet<MockPeerId>,
     ) {
         assert_eq!(
@@ -741,7 +824,7 @@ mod tests {
 
     fn grow_light_branch_till(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         top: &BlockNumber,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -751,7 +834,7 @@ mod tests {
 
     fn grow_light_branch(
         handler: &mut TestHandler,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
@@ -771,7 +854,7 @@ mod tests {
             "should be required"
         );
 
-        let (maybe_id, maybe_error) = handler.handle_request_response(
+        let (new_highest_justified, maybe_error) = handler.handle_request_response(
             branch
                 .iter()
                 .cloned()
@@ -781,10 +864,7 @@ mod tests {
             peer_id,
         );
 
-        assert!(
-            maybe_id.is_none(),
-            "should not create new highest justified"
-        );
+        assert!(!new_highest_justified);
         assert!(maybe_error.is_none(), "should work");
 
         branch
@@ -795,8 +875,8 @@ mod tests {
         height: BlockNumber,
         length: usize,
         peer_id: MockPeerId,
-    ) -> (MockIdentifier, MockIdentifier) {
-        let bottom = MockIdentifier::new_random(height);
+    ) -> (BlockId, BlockId) {
+        let bottom = BlockId::new_random(height);
         let top = grow_light_branch(handler, &bottom, length, peer_id)
             .last()
             .expect("branch should not be empty")
@@ -841,9 +921,9 @@ mod tests {
         handler: &mut TestHandler,
         backend: &mut Backend,
         notifier: &mut impl ChainStatusNotifier<MockHeader>,
-        bottom: &MockIdentifier,
+        bottom: &BlockId,
         length: usize,
-    ) -> MockIdentifier {
+    ) -> BlockId {
         let branch: Vec<_> = bottom.random_branch().take(length).collect();
         let top = branch.last().expect("should not be empty").id();
         for header in branch.iter() {
@@ -918,12 +998,12 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response.clone(), 7);
-        assert!(maybe_id.is_some());
+        let (new_info, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        assert!(new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch).await;
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 8);
-        assert!(maybe_id.is_none());
+        let (new_info, maybe_error) = handler.handle_request_response(response, 8);
+        assert!(!new_info);
         assert!(maybe_error.is_none());
     }
 
@@ -940,8 +1020,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
-        assert!(maybe_id.is_none());
+        let (new_info, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
 
@@ -953,8 +1033,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
-        assert!(maybe_id.is_none());
+        let (new_info, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[15..].to_vec()).await;
     }
@@ -973,8 +1053,8 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(short_response, 2);
-        assert!(maybe_id.is_some());
+        let (new_info, maybe_error) = handler.handle_request_response(short_response, 2);
+        assert!(new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
         consume_branch_finalized_notifications(&mut notifier, &branch[..15].to_vec()).await;
@@ -988,8 +1068,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(mid_response, 3);
-        assert!(maybe_id.is_none());
+        let (new_info, maybe_error) = handler.handle_request_response(mid_response, 3);
+        assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[15..25].to_vec()).await;
 
@@ -1002,8 +1082,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(long_response_blocks_only, 2);
-        assert!(maybe_id.is_none());
+        let (new_info, maybe_error) = handler.handle_request_response(long_response_blocks_only, 2);
+        assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[25..].to_vec()).await;
 
@@ -1017,10 +1097,34 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
-        assert!(maybe_id.is_some());
+        let (new_info, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
+        assert!(new_info);
         assert!(maybe_error.is_none());
         consume_branch_finalized_notifications(&mut notifier, &branch[15..].to_vec()).await;
+    }
+
+    #[tokio::test]
+    async fn handles_response_with_incorrect_headers() {
+        let (mut handler, _backend, _notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        let mut response = branch_response(
+            branch,
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        for item in response.iter_mut() {
+            if let ResponseItem::Header(header) = item {
+                header.invalidate();
+            }
+        }
+        let (_, maybe_error) = handler.handle_request_response(response, 7);
+        match maybe_error {
+            Some(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
     }
 
     #[tokio::test]
@@ -1041,8 +1145,8 @@ mod tests {
                     justifications: false,
                 },
             );
-            let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-            assert!(maybe_id.is_none(), "should not import justification");
+            let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+            assert!(!new_info, "should not import justification");
             assert!(maybe_error.is_none(), "should work");
             mark_branch_imported(&mut handler, &mut notifier, &branch).await;
             // increasingly larger gaps
@@ -1058,8 +1162,8 @@ mod tests {
                     justifications: true,
                 },
             );
-            let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-            assert!(maybe_id.is_some(), "should import justification");
+            let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+            assert!(new_info);
             assert!(maybe_error.is_none(), "should work");
             // get notification about finalized end-of-session block
             match notifier.next().await {
@@ -1088,7 +1192,7 @@ mod tests {
             MockJustification::for_header(branch_low.last().expect("should not be empty").clone());
         let branch_high = grow_light_branch_till(
             &mut handler,
-            &finalizing_justification.id(),
+            &finalizing_justification.header().id(),
             &last_block_of_second_session,
             peer_id,
         );
@@ -1104,8 +1208,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response_items, peer_id);
-        assert!(maybe_id.is_none(), "should not import justification");
+        let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+        assert!(!new_info, "should not import justification");
         assert!(maybe_error.is_none(), "should work");
 
         mark_branch_imported(&mut handler, &mut notifier, &branch_low).await;
@@ -1127,13 +1231,9 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
+        let (new_info, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
         let highest = branch_high.last().expect("should not be empty").id();
-        assert_eq!(
-            Some(highest.clone()),
-            maybe_id,
-            "should import justifications"
-        );
+        assert!(new_info, "should import justifications");
         assert!(maybe_error.is_none(), "should work");
 
         assert_eq!(
@@ -1175,7 +1275,6 @@ mod tests {
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
-        let top_main = branch.last().expect("branch not empty").id();
 
         // grow the dangling branch that will be pruned
         let peer_id = 3;
@@ -1191,12 +1290,8 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
-        assert_eq!(
-            maybe_id,
-            Some(top_main),
-            "should create new highest justified"
-        );
+        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
 
         // check that still not finalized
@@ -1224,11 +1319,10 @@ mod tests {
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
-        let top_main = branch.last().expect("branch not empty").id();
 
         // grow the dangling branch that will be pruned
         let fork_peer = 6;
-        let fork_bottom = MockIdentifier::new_random(15);
+        let fork_bottom = BlockId::new_random(15);
         let fork_child = fork_bottom.random_child();
         let fork = grow_light_branch(&mut handler, &fork_child.id(), 10, fork_peer);
         let fork_top = fork.last().expect("fork not empty").id();
@@ -1242,12 +1336,8 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
-        assert_eq!(
-            maybe_id,
-            Some(top_main),
-            "should create new highest justified"
-        );
+        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
@@ -1279,12 +1369,12 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
-        assert!(
-            maybe_id.is_none(),
-            "should not create new highest justified"
-        );
-        assert!(maybe_error.is_none(), "should work");
+        let (new_info, maybe_error) = handler.handle_request_response(response, 12);
+        assert!(!new_info, "should not create new highest justified");
+        match maybe_error {
+            None => panic!("should fail when it reaches the top finalized"),
+            Some(_) => (),
+        }
 
         // check that the fork is pruned
         assert_eq!(
@@ -1300,7 +1390,6 @@ mod tests {
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
-        let top_main = branch.last().expect("branch not empty").id();
 
         // grow the branch that will be pruned in the first place
         let fork_bottom = branch[10].id();
@@ -1322,12 +1411,8 @@ mod tests {
                 justifications: true,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 7);
-        assert_eq!(
-            maybe_id,
-            Some(top_main),
-            "should create new highest justified"
-        );
+        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
         while let Ok(BlockImported(header)) = notifier.next().await {
@@ -1378,12 +1463,12 @@ mod tests {
                 justifications: false,
             },
         );
-        let (maybe_id, maybe_error) = handler.handle_request_response(response, 12);
-        assert!(
-            maybe_id.is_none(),
-            "should not create new highest justified"
-        );
-        assert!(maybe_error.is_none(), "should work");
+        let (new_info, maybe_error) = handler.handle_request_response(response, 12);
+        assert!(!new_info, "should not create new highest justified");
+        match maybe_error {
+            None => panic!("should fail when it reaches the top finalized"),
+            Some(_) => (),
+        }
 
         // check that the fork is pruned
         assert_eq!(
@@ -1410,7 +1495,7 @@ mod tests {
                 .expect("should create response")
             {
                 Response(data) => data,
-                HighestJustified(_) => panic!("should not request anything from the syncing peer"),
+                ExtendChain => panic!("should not request anything from the syncing peer"),
                 Noop => break,
             };
             let (justification, maybe_justification) = match response {
@@ -1425,22 +1510,20 @@ mod tests {
             if let Some(justification) = &maybe_justification {
                 target_id = justification.header().id();
             }
-            let (maybe_id, maybe_error) =
+            let (new_info, maybe_error) =
                 syncing_handler.handle_state_response(justification, maybe_justification, peer_id);
             assert!(maybe_error.is_none(), "should work");
-            match maybe_id {
-                Some(id) => assert_eq!(id, target_id, "should start requesting target_id"),
-                None => panic!("should request"),
-            };
-            let branch_knowledge = match syncing_handler.interest_provider().get(&target_id) {
-                Interest::HighestJustified {
-                    know_most,
+            assert!(new_info, "should want to request");
+            let branch_knowledge = match syncing_handler.extension_request() {
+                ExtensionRequest::HighestJustified {
+                    id,
                     branch_knowledge,
+                    ..
                 } => {
-                    assert!(know_most.contains(&peer_id), "should come from the peer");
+                    assert_eq!(id, target_id, "should want to request target_id");
                     branch_knowledge
                 }
-                _ => panic!("should be highly interested"),
+                _ => panic!("should want to extend"),
             };
             let state = syncing_handler.state().expect("should work");
             let request = Request::new(target_id.clone(), branch_knowledge, state);
@@ -1452,10 +1535,10 @@ mod tests {
             };
 
             // syncing peer processes the response
-            let (maybe_id, maybe_error) =
+            let (new_info, maybe_error) =
                 syncing_handler.handle_request_response(response_items.clone(), peer_id);
             assert!(maybe_error.is_none(), "should work");
-            assert!(maybe_id.is_none(), "should already know about target_id");
+            assert!(!new_info, "should already know about target_id");
 
             // syncing peer finalizes received blocks
             let response_headers: Vec<_> = response_items
@@ -1492,12 +1575,9 @@ mod tests {
             .expect("importing in order");
         let justification = MockJustification::for_header(header);
         let peer = rand::random();
-        assert_eq!(
-            handler
-                .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification"),
-            Some(justification.id())
-        );
+        assert!(handler
+            .handle_justification(justification.clone().into_unverified(), Some(peer))
+            .expect("correct justification"));
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
             justification
@@ -1509,18 +1589,15 @@ mod tests {
         let (mut handler, mut backend, _keep, _genesis) = setup();
         let peer = rand::random();
         // skip the first justification, now every next added justification
-        // should spawn a new task
+        // should make us want to request a chain extension
         for justification in import_branch(&mut backend, 5)
             .into_iter()
             .map(MockJustification::for_header)
             .skip(1)
         {
-            assert_eq!(
-                handler
-                    .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification"),
-                Some(justification.id())
-            );
+            assert!(handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification"));
         }
     }
 
@@ -1540,12 +1617,9 @@ mod tests {
         // skip the first justification, now every next added justification
         // should spawn a new task
         for justification in justifications.into_iter().skip(1) {
-            assert_eq!(
-                handler
-                    .handle_justification(justification.clone().into_unverified(), Some(peer))
-                    .expect("correct justification"),
-                Some(justification.id())
-            );
+            assert!(handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification"));
         }
     }
 
@@ -1559,17 +1633,15 @@ mod tests {
         let mut handler = Handler::new(
             database_io,
             verifier,
+            SyncOracle::new(),
             SessionBoundaryInfo::new(SessionPeriod(20)),
         )
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
         let peer: MockPeerId = rand::random();
-        assert_eq!(
-            handler
-                .handle_justification(justification.clone().into_unverified(), Some(peer))
-                .expect("correct justification"),
-            Some(justification.id())
-        );
+        assert!(handler
+            .handle_justification(justification.clone().into_unverified(), Some(peer))
+            .expect("correct justification"));
         // should be auto-finalized, if Forest knows about imported body
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -1583,13 +1655,9 @@ mod tests {
         let header = import_branch(&mut backend, 1)[0].clone();
         let justification = MockJustification::for_header(header.clone());
         let peer = rand::random();
-        match handler
+        assert!(handler
             .handle_justification(justification.clone().into_unverified(), Some(peer))
-            .expect("correct justification")
-        {
-            Some(id) => assert_eq!(id, header.id()),
-            None => panic!("expected an id, got nothing"),
-        }
+            .expect("correct justification"));
         handler.block_imported(header).expect("importing in order");
         assert_eq!(
             backend.top_finalized().expect("mock backend works"),
@@ -1698,6 +1766,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn handles_state_with_incorrect_headers() {
+        let (mut handler, backend, _keep, genesis) = setup();
+        let peer = rand::random();
+        let mut header = genesis.random_child();
+        header.invalidate();
+        let state = State::new(
+            MockJustification::for_header(
+                backend.top_finalized().expect("genesis").header().clone(),
+            ),
+            header,
+        );
+        match handler.handle_state(state, peer) {
+            Err(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
+        let mut header = MockHeader::random_parentless(1000).random_child();
+        header.invalidate();
+        let state = State::new(MockJustification::for_header(header.clone()), header);
+        match handler.handle_state(state, peer) {
+            Err(Error::Verifier(_)) => (),
+            e => panic!("should return Verifier error, {e:?}"),
+        };
+    }
+
     fn setup_request_tests(
         handler: &mut TestHandler,
         backend: &mut Backend,
@@ -1724,6 +1817,10 @@ mod tests {
                     .handle_justification(justification.clone().into_unverified(), Some(peer))
                     .expect("correct justification");
             }
+        }
+
+        for header in headers.clone().into_iter().skip(finalize_up_to - 1) {
+            handler.block_imported(header).expect("importing in order");
         }
 
         let blocks = headers
@@ -1768,7 +1865,7 @@ mod tests {
             response_items
                 .into_iter()
                 .map(|it| match it {
-                    ResponseItem::Justification(j) => Self::J(j.id().number()),
+                    ResponseItem::Justification(j) => Self::J(j.header().id().number()),
                     ResponseItem::Header(h) => Self::H(h.id().number()),
                     ResponseItem::Block(b) => Self::B(b.id().number()),
                 })
@@ -1865,11 +1962,10 @@ mod tests {
         let (mut handler, mut backend, _keep, _genesis) = setup();
         setup_request_tests(&mut handler, &mut backend, 100, 20);
 
-        let state = State::new(MockJustification::for_header(
-            MockHeader::random_parentless(105),
-        ));
-        let requested_id = MockIdentifier::new_random(120);
-        let lowest_id = MockIdentifier::new_random(110);
+        let header = MockHeader::random_parentless(105);
+        let state = State::new(MockJustification::for_header(header.clone()), header);
+        let requested_id = BlockId::new_random(120);
+        let lowest_id = BlockId::new_random(110);
 
         let request = Request::new(requested_id.clone(), LowestId(lowest_id), state);
 
@@ -1923,6 +2019,257 @@ mod tests {
     }
 
     #[test]
+    fn handles_chain_extension_request_for_just_blocks() {
+        use SimplifiedItem::*;
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+
+        let (justifications, blocks) = setup_request_tests(&mut handler, &mut backend, 30, 20);
+
+        let remote_favourite_block = blocks[24].header().clone();
+        // The justification hole means there is only 10 of 'em.
+        let remote_top_justification = justifications[9].clone().into_unverified();
+        let remote_state = State::new(remote_top_justification, remote_favourite_block);
+
+        let expected_response_items = vec![B(26), B(27), B(28), B(29), B(30)];
+
+        match handler
+            .handle_chain_extension_request(remote_state)
+            .expect("correct request")
+        {
+            Action::Response(response_items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
+            }
+            other_action => panic!("expected a response, got {other_action:?}"),
+        }
+    }
+
+    #[test]
+    fn handles_chain_extension_request_with_justifications() {
+        use SimplifiedItem::*;
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let remote_state = handler.state().expect("state should work");
+
+        setup_request_tests(&mut handler, &mut backend, 30, 20);
+
+        let expected_response_items = vec![
+            J(1),
+            B(1),
+            J(2),
+            B(2),
+            J(3),
+            B(3),
+            J(4),
+            B(4),
+            J(5),
+            B(5),
+            J(6),
+            B(6),
+            J(7),
+            B(7),
+            J(8),
+            B(8),
+            J(9),
+            B(9),
+            J(19),
+            B(10),
+            B(11),
+            B(12),
+            B(13),
+            B(14),
+            B(15),
+            B(16),
+            B(17),
+            B(18),
+            B(19),
+            B(20),
+            B(21),
+            B(22),
+            B(23),
+            B(24),
+            B(25),
+            B(26),
+            B(27),
+            B(28),
+            B(29),
+            B(30),
+        ];
+
+        match handler
+            .handle_chain_extension_request(remote_state)
+            .expect("correct request")
+        {
+            Action::Response(response_items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
+            }
+            other_action => panic!("expected a response, got {other_action:?}"),
+        }
+    }
+
+    #[test]
+    fn handles_forked_chain_extension_request() {
+        use SimplifiedItem::*;
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+
+        let (justifications, _) = setup_request_tests(&mut handler, &mut backend, 30, 20);
+
+        let remote_favourite_block = backend
+            .top_finalized()
+            .expect("backend works")
+            .header()
+            .random_branch()
+            .nth(7)
+            .expect("it's infinite");
+        let remote_top_justification = justifications[0].clone().into_unverified();
+        let remote_state = State::new(remote_top_justification, remote_favourite_block);
+
+        let expected_response_items = vec![
+            J(2),
+            B(2),
+            J(3),
+            B(3),
+            J(4),
+            B(4),
+            J(5),
+            B(5),
+            J(6),
+            B(6),
+            J(7),
+            B(7),
+            J(8),
+            B(8),
+            J(9),
+            B(9),
+            J(19),
+            B(10),
+            B(11),
+            B(12),
+            B(13),
+            B(14),
+            B(15),
+            B(16),
+            B(17),
+            B(18),
+            B(19),
+            B(20),
+            B(21),
+            B(22),
+            B(23),
+            B(24),
+            B(25),
+            B(26),
+            B(27),
+            B(28),
+            B(29),
+            B(30),
+        ];
+
+        match handler
+            .handle_chain_extension_request(remote_state)
+            .expect("correct request")
+        {
+            Action::Response(response_items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
+            }
+            other_action => panic!("expected a response, got {other_action:?}"),
+        }
+    }
+
+    #[test]
+    fn handles_ancient_chain_extension_request() {
+        use SimplifiedItem::*;
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+
+        let remote_state = handler.state().expect("state should work");
+
+        setup_request_tests(&mut handler, &mut backend, 60, 40);
+
+        let expected_response_items = vec![
+            J(1),
+            B(1),
+            J(2),
+            B(2),
+            J(3),
+            B(3),
+            J(4),
+            B(4),
+            J(5),
+            B(5),
+            J(6),
+            B(6),
+            J(7),
+            B(7),
+            J(8),
+            B(8),
+            J(9),
+            B(9),
+            J(19),
+            B(10),
+            B(11),
+            B(12),
+            B(13),
+            B(14),
+            B(15),
+            B(16),
+            B(17),
+            B(18),
+            B(19),
+            J(20),
+            B(20),
+            J(21),
+            B(21),
+            J(22),
+            B(22),
+            J(23),
+            B(23),
+            J(24),
+            B(24),
+            J(25),
+            B(25),
+            J(26),
+            B(26),
+            J(27),
+            B(27),
+            J(28),
+            B(28),
+            J(29),
+            B(29),
+            J(39),
+            B(30),
+            B(31),
+            B(32),
+            B(33),
+            B(34),
+            B(35),
+            B(36),
+            B(37),
+            B(38),
+            B(39),
+        ];
+
+        match handler
+            .handle_chain_extension_request(remote_state)
+            .expect("correct request")
+        {
+            Action::Response(response_items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(response_items),
+                    expected_response_items
+                )
+            }
+            other_action => panic!("expected a response, got {other_action:?}"),
+        }
+    }
+
+    #[test]
     fn handles_new_internal_request() {
         let (mut handler, mut backend, _keep, _genesis) = setup();
         let _ = handler.state().expect("state works");
@@ -1930,6 +2277,57 @@ mod tests {
 
         assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
         assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
+    }
+
+    #[test]
+    fn broadcasts_own_block() {
+        let (mut handler, backend, _keep, _genesis) = setup();
+        let block = MockBlock::new(
+            backend
+                .top_finalized()
+                .expect("mock backend works")
+                .header()
+                .random_branch()
+                .next()
+                .expect("branch creation succeeds"),
+            true,
+        );
+
+        let result = handler.handle_own_block(block.clone());
+        match result.get(0).expect("the header is there") {
+            ResponseItem::Header(header) => assert_eq!(header, block.header()),
+            other => panic!("expected header item, got {:?}", other),
+        }
+        match result.get(1).expect("the block is there") {
+            ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
+            other => panic!("expected block item, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn accepts_broadcast_block() {
+        let (mut handler, backend, mut notifier, _genesis) = setup();
+        let block = MockBlock::new(
+            backend
+                .top_finalized()
+                .expect("mock backend works")
+                .header()
+                .random_branch()
+                .next()
+                .expect("branch creation succeeds"),
+            true,
+        );
+
+        let broadcast = handler.handle_own_block(block.clone());
+        match handler.handle_request_response(broadcast, rand::random()) {
+            (true, _) => panic!("block unexpectedly changed top finalized"),
+            (false, Some(e)) => panic!("error handling block broadcast: {}", e),
+            (false, None) => (),
+        }
+        assert_eq!(
+            notifier.next().await.expect("should receive notification"),
+            BlockImported(block.header().clone())
+        );
     }
 
     //TODO(A0-2984): remove this after legacy sync is excised

@@ -13,11 +13,10 @@ use sc_cli::{
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_application_crypto::{key_types, Ss58Codec};
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::AuthorityId as AlephId,
+    aleph_primitives::{AuraId, AuthorityId as AlephId},
     chain_spec::{
         self, account_id_from_string, AuthorityKeys, ChainParams, ChainSpec, SerializablePeerId,
         DEFAULT_BACKUP_FOLDER,
@@ -82,16 +81,16 @@ fn p2p_key(node_key_path: &Path) -> SerializablePeerId {
     if node_key_path.exists() {
         let mut file_content =
             hex::decode(fs::read(node_key_path).unwrap()).expect("Failed to decode secret as hex");
-        let secret =
-            libp2p_ed25519::SecretKey::from_bytes(&mut file_content).expect("Bad node key file");
+        let secret = libp2p_ed25519::SecretKey::try_from_bytes(&mut file_content)
+            .expect("Bad node key file");
         let keypair = libp2p_ed25519::Keypair::from(secret);
-        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).to_peer_id())
+        SerializablePeerId::new(PublicKey::from(keypair.public()).to_peer_id())
     } else {
         let keypair = libp2p_ed25519::Keypair::generate();
         let secret = keypair.secret();
         let secret_hex = hex::encode(secret.as_ref());
         fs::write(node_key_path, secret_hex).expect("Could not write p2p secret");
-        SerializablePeerId::new(PublicKey::Ed25519(keypair.public()).to_peer_id())
+        SerializablePeerId::new(PublicKey::from(keypair.public()).to_peer_id())
     }
 }
 

@@ -8,27 +8,28 @@ use crate::{
     sync::{
         data::{BranchKnowledge, ResponseItem},
         handler::Request,
-        Block, BlockIdFor, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
+        Block, BlockStatus, ChainStatus, FinalizationStatus, Header, Justification,
+        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification,
     },
-    BlockIdentifier,
+    BlockId,
 };
 
 #[derive(Debug, Clone)]
-pub enum RequestHandlerError<J: Justification, T: Display> {
-    MissingBlock(BlockIdFor<J>),
-    MissingParent(BlockIdFor<J>),
+pub enum RequestHandlerError<T: Display> {
+    MissingBlock(BlockId),
+    MissingParent(BlockId),
     RootMismatch,
     LastBlockOfSessionNotJustified,
     ChainStatusError(T),
 }
 
-impl<J: Justification, T: Display> From<T> for RequestHandlerError<J, T> {
+impl<T: Display> From<T> for RequestHandlerError<T> {
     fn from(value: T) -> Self {
         RequestHandlerError::ChainStatusError(value)
     }
 }
 
-impl<J: Justification, T: Display> Display for RequestHandlerError<J, T> {
+impl<T: Display> Display for RequestHandlerError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             RequestHandlerError::RootMismatch => write!(
@@ -52,13 +53,7 @@ pub trait HandlerTypes {
     type ChainStatusError: Display;
 }
 
-type HandlerResult<T, HT> = Result<
-    T,
-    RequestHandlerError<
-        <HT as HandlerTypes>::Justification,
-        <HT as HandlerTypes>::ChainStatusError,
-    >,
->;
+type HandlerResult<T, HT> = Result<T, RequestHandlerError<<HT as HandlerTypes>::ChainStatusError>>;
 
 #[derive(Debug)]
 enum HeadOfChunk<J: Justification> {
@@ -67,14 +62,14 @@ enum HeadOfChunk<J: Justification> {
 }
 
 impl<J: Justification> HeadOfChunk<J> {
-    pub fn id(&self) -> BlockIdFor<J> {
+    pub fn id(&self) -> BlockId {
         match self {
             HeadOfChunk::Justification(j) => j.header().id(),
             HeadOfChunk::Header(h) => h.id(),
         }
     }
 
-    pub fn parent_id(&self) -> Option<BlockIdFor<J>> {
+    pub fn parent_id(&self) -> Option<BlockId> {
         match self {
             HeadOfChunk::Justification(j) => j.header().parent_id(),
             HeadOfChunk::Header(h) => h.parent_id(),
@@ -95,8 +90,8 @@ enum State {
 
 struct StepResult<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     pre_chunk: PreChunk<B, J>,
     state: State,
@@ -105,8 +100,8 @@ where
 
 impl<B, J> StepResult<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     fn new(head: HeadOfChunk<J>, state: State) -> Self {
         Self {
@@ -116,14 +111,14 @@ where
         }
     }
 
-    pub fn current_id(&self) -> BlockIdFor<J> {
+    pub fn current_id(&self) -> BlockId {
         self.head.id()
     }
 
     pub fn update<CS: ChainStatus<B, J>>(
         &mut self,
         chain_status: &CS,
-    ) -> Result<bool, RequestHandlerError<J, CS::Error>> {
+    ) -> Result<bool, RequestHandlerError<CS::Error>> {
         match self.state {
             State::EverythingButHeader => self.add_block(self.head.id(), chain_status)?,
             State::Everything if self.head.is_justification() => {
@@ -140,9 +135,9 @@ where
 
     fn add_block<CS: ChainStatus<B, J>>(
         &mut self,
-        id: BlockIdFor<J>,
+        id: BlockId,
         chain_status: &CS,
-    ) -> Result<(), RequestHandlerError<J, CS::Error>> {
+    ) -> Result<(), RequestHandlerError<CS::Error>> {
         let block = chain_status
             .block(id.clone())?
             .ok_or(RequestHandlerError::MissingBlock(id))?;
@@ -153,9 +148,9 @@ where
 
     fn add_block_and_header<CS: ChainStatus<B, J>>(
         &mut self,
-        id: BlockIdFor<J>,
+        id: BlockId,
         chain_status: &CS,
-    ) -> Result<(), RequestHandlerError<J, CS::Error>> {
+    ) -> Result<(), RequestHandlerError<CS::Error>> {
         let block = chain_status
             .block(id.clone())?
             .ok_or(RequestHandlerError::MissingBlock(id))?;
@@ -166,7 +161,7 @@ where
     fn next_head<CS: ChainStatus<B, J>>(
         &self,
         chain_status: &CS,
-    ) -> Result<HeadOfChunk<J>, RequestHandlerError<J, CS::Error>> {
+    ) -> Result<HeadOfChunk<J>, RequestHandlerError<CS::Error>> {
         let parent_id = self
             .head
             .parent_id()
@@ -199,20 +194,20 @@ where
 #[derive(Debug)]
 pub enum Action<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
-    RequestBlock(BlockIdFor<J>),
+    RequestBlock(BlockId),
     Response(Vec<ResponseItem<B, J>>),
     Noop,
 }
 
 impl<B, J> Action<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
-    fn request_block(id: BlockIdFor<J>) -> Self {
+    fn request_block(id: BlockId) -> Self {
         Action::RequestBlock(id)
     }
 
@@ -227,18 +222,18 @@ where
 #[derive(Default)]
 struct PreChunk<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     pub just: Option<J>,
     pub blocks: Vec<B>,
-    pub headers: Vec<J::Header>,
+    pub headers: Vec<UnverifiedHeaderFor<J>>,
 }
 
 impl<B, J> PreChunk<B, J>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
 {
     fn new(head: &HeadOfChunk<J>) -> Self {
         match head {
@@ -253,6 +248,12 @@ where
             blocks: vec![],
             headers: vec![],
         }
+    }
+
+    fn single_block(block: B) -> Self {
+        let mut result = Self::empty();
+        result.add_block_and_header(block);
+        result
     }
 
     fn from_just(justification: J) -> Self {
@@ -290,8 +291,8 @@ where
 
 pub struct RequestHandler<'a, B, J, CS>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
 {
     chain_status: &'a CS,
@@ -301,8 +302,8 @@ where
 
 impl<'a, B, J, CS> HandlerTypes for RequestHandler<'a, B, J, CS>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
 {
     type Justification = J;
@@ -311,8 +312,8 @@ where
 
 impl<'a, B, J, CS> RequestHandler<'a, B, J, CS>
 where
-    B: Block,
-    J: Justification<Header = B::Header>,
+    J: Justification,
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
 {
     pub fn new(chain_status: &'a CS, session_info: &'a SessionBoundaryInfo) -> Self {
@@ -323,7 +324,7 @@ where
         }
     }
 
-    fn upper_limit(&self, id: BlockIdFor<J>) -> BlockNumber {
+    fn upper_limit(&self, id: BlockId) -> BlockNumber {
         let session = self.session_info.session_id_from_block_num(id.number());
         self.session_info
             .last_block_of_session(SessionId(session.0 + 1))
@@ -332,8 +333,8 @@ where
     fn is_result_complete(
         &self,
         result: &mut StepResult<B, J>,
-        branch_knowledge: &BranchKnowledge<J>,
-        to: &BlockIdFor<J>,
+        branch_knowledge: &BranchKnowledge,
+        to: &BlockId,
     ) -> HandlerResult<bool, Self> {
         Ok(match branch_knowledge {
             _ if result.current_id() == *to => true,
@@ -356,8 +357,8 @@ where
         &self,
         state: State,
         from: HeadOfChunk<J>,
-        to: &BlockIdFor<J>,
-        branch_knowledge: &BranchKnowledge<J>,
+        to: &BlockId,
+        branch_knowledge: &BranchKnowledge,
     ) -> HandlerResult<Option<StepResult<B, J>>, Self> {
         if from.id() == *to {
             return Ok(None);
@@ -372,8 +373,8 @@ where
     fn response_items(
         self,
         mut head: HeadOfChunk<J>,
-        branch_knowledge: BranchKnowledge<J>,
-        to: BlockIdFor<J>,
+        branch_knowledge: BranchKnowledge,
+        to: BlockId,
     ) -> HandlerResult<Vec<ResponseItem<B, J>>, Self> {
         let mut response_items = vec![];
         let mut state = State::EverythingButHeader;
@@ -417,7 +418,7 @@ where
         let top_justification = request.state().top_justification();
         let target = request.target_id();
 
-        let upper_limit = self.upper_limit(top_justification.id());
+        let upper_limit = self.upper_limit(top_justification.header().id());
 
         // request too far into future
         if target.number() > upper_limit {
@@ -435,9 +436,17 @@ where
         let response_items = self.response_items(
             head,
             request.branch_knowledge().clone(),
-            top_justification.id(),
+            top_justification.header().id(),
         )?;
 
         Ok(Action::new(response_items))
     }
+}
+
+/// Create a pseudo-response from a single block that assumes the recipent has the parent block.
+/// Useful for broadcasting self-created blocks.
+pub fn block_to_response<J: Justification, B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>>(
+    block: B,
+) -> Vec<ResponseItem<B, J>> {
+    PreChunk::single_block(block).into_chunk()
 }

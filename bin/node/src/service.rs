@@ -7,9 +7,10 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, BlockMetrics, Justification,
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
     JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
-    SessionPeriod, SubstrateChainStatus, TracingBlockImport,
+    RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle, TimingBlockMetrics,
+    TracingBlockImport,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -88,11 +89,10 @@ pub fn new_partial(
         sc_consensus::DefaultImportQueue<Block, FullClient>,
         sc_transaction_pool::FullPool<Block, FullClient>,
         (
-            TracingBlockImport<Arc<FullClient>>,
             mpsc::UnboundedSender<Justification>,
             mpsc::UnboundedReceiver<Justification>,
             Option<Telemetry>,
-            BlockMetrics,
+            TimingBlockMetrics,
         ),
     >,
     ServiceError,
@@ -136,11 +136,11 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let metrics = match BlockMetrics::new(config.prometheus_registry()) {
+    let metrics = match TimingBlockMetrics::new(config.prometheus_registry()) {
         Ok(metrics) => metrics,
         Err(e) => {
             warn!("Failed to register Prometheus metrics: {:?}.", e);
-            BlockMetrics::noop()
+            TimingBlockMetrics::noop()
         }
     };
 
@@ -151,13 +151,16 @@ pub fn new_partial(
             .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?,
     );
     let aleph_block_import = AlephBlockImport::new(
-        tracing_block_import.clone(),
+        tracing_block_import,
         justification_tx.clone(),
         justification_translator,
     );
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
+    // DO NOT change Aura parameters without updating the finality-aleph sync accordingly,
+    // in particular the code responsible for verifying incoming Headers, as it is supposed
+    // to duplicate parts of Aura internal logic
     let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
         ImportQueueParams {
             block_import: aleph_block_import.clone(),
@@ -190,13 +193,7 @@ pub fn new_partial(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (
-            tracing_block_import,
-            justification_tx,
-            justification_rx,
-            telemetry,
-            metrics,
-        ),
+        other: (justification_tx, justification_rx, telemetry, metrics),
     })
 }
 
@@ -220,6 +217,7 @@ fn setup(
         Arc<SyncingService<Block>>,
         ProtocolNaming,
         NetworkStarter,
+        SyncOracle,
     ),
     ServiceError,
 > {
@@ -255,10 +253,11 @@ fn setup(
             warp_sync_params: None,
         })?;
 
-    let sync_oracle = sync_network.clone();
+    let sync_oracle = SyncOracle::new();
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
+        let sync_oracle = sync_oracle.clone();
         Box::new(move |deny_unsafe, _| {
             let deps = RpcFullDeps {
                 client: client.clone(),
@@ -294,6 +293,7 @@ fn setup(
         sync_network,
         protocol_naming,
         network_starter,
+        sync_oracle,
     ))
 }
 
@@ -310,8 +310,10 @@ pub fn new_authority(
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (block_import, justification_tx, justification_rx, mut telemetry, metrics),
+        other: (justification_tx, justification_rx, mut telemetry, metrics),
     } = new_partial(&config)?;
+
+    let (block_import, block_rx) = RedirectingBlockImport::new(client.clone());
 
     let backup_path = backup_path(&aleph_config, config.base_path.path());
 
@@ -326,22 +328,23 @@ pub fn new_authority(
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let import_queue_handle = BlockImporter(import_queue.service());
+    let import_queue_handle = BlockImporter::new(import_queue.service());
 
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
-    let (_rpc_handlers, network, sync_network, protocol_naming, network_starter) = setup(
-        config,
-        backend,
-        chain_status.clone(),
-        &keystore_container,
-        import_queue,
-        transaction_pool.clone(),
-        &mut task_manager,
-        client.clone(),
-        &mut telemetry,
-        justification_tx,
-    )?;
+    let (_rpc_handlers, network, sync_network, protocol_naming, network_starter, sync_oracle) =
+        setup(
+            config,
+            backend,
+            chain_status.clone(),
+            &keystore_container,
+            import_queue,
+            transaction_pool.clone(),
+            &mut task_manager,
+            client.clone(),
+            &mut telemetry,
+            justification_tx,
+        )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
         task_manager.spawn_handle(),
@@ -375,8 +378,8 @@ pub fn new_authority(
             force_authoring,
             backoff_authoring_blocks,
             keystore: keystore_container.keystore(),
-            sync_oracle: sync_network.clone(),
-            justification_sync_link: sync_network.clone(),
+            sync_oracle: sync_oracle.clone(),
+            justification_sync_link: (),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
             telemetry: telemetry.as_ref().map(|x| x.handle()),
@@ -399,6 +402,8 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
+    let validator_address_cache = None;
+
     let aleph_config = AlephConfig {
         network,
         sync_network,
@@ -411,6 +416,7 @@ pub fn new_authority(
         spawn_handle: task_manager.spawn_handle().into(),
         keystore: keystore_container.keystore(),
         justification_rx,
+        block_rx,
         metrics,
         registry: prometheus_registry,
         unit_creation_delay: aleph_config.unit_creation_delay(),
@@ -419,6 +425,8 @@ pub fn new_authority(
         validator_port: aleph_config.validator_port(),
         protocol_naming,
         rate_limiter_config,
+        sync_oracle,
+        validator_address_cache,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

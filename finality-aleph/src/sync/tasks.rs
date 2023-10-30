@@ -7,13 +7,8 @@ use std::{
 use rand::{thread_rng, Rng};
 
 use crate::{
-    sync::{
-        data::{BranchKnowledge, Request, State},
-        forest::Interest,
-        handler::InterestProvider,
-        BlockIdFor, Header, Justification, PeerId,
-    },
-    BlockIdentifier,
+    sync::{data::PreRequest, forest::Interest, handler::InterestProvider, Justification, PeerId},
+    BlockId,
 };
 
 const MIN_DELAY: Duration = Duration::from_millis(300);
@@ -28,125 +23,44 @@ fn delay_for_attempt(attempt: u32) -> Duration {
             .saturating_mul(attempt)
 }
 
-enum RequestKind {
-    HighestJustified,
-    Block,
-}
-
-impl Display for RequestKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        use RequestKind::*;
-        match self {
-            HighestJustified => write!(f, "highest justified"),
-            Block => write!(f, "block"),
-        }
-    }
-}
-
-impl RequestKind {
-    fn should_request<I: PeerId, J: Justification>(
-        &self,
-        interest: Interest<I, J>,
-    ) -> Option<(BranchKnowledge<J>, HashSet<I>)> {
-        use Interest::*;
-        match (interest, self) {
-            (
-                Required {
-                    know_most,
-                    branch_knowledge,
-                },
-                RequestKind::Block,
-            )
-            | (
-                HighestJustified {
-                    know_most,
-                    branch_knowledge,
-                },
-                RequestKind::HighestJustified,
-            ) => Some((branch_knowledge, know_most)),
-            _ => None,
-        }
-    }
-}
-
-/// A task for requesting blocks. Keeps track of how many times it was executed and what kind of
-/// request it is.
-pub struct RequestTask<BI: BlockIdentifier> {
-    id: BI,
-    kind: RequestKind,
+/// A task for requesting blocks. Keeps track of how many times it was executed.
+pub struct RequestTask {
+    id: BlockId,
     tries: u32,
 }
 
-impl<BI: BlockIdentifier> Display for RequestTask<BI> {
+impl Display for RequestTask {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(
-            f,
-            "{} request for {:?}, attempt {}",
-            self.kind, self.id, self.tries
-        )
+        write!(f, "block request for {:?}, attempt {}", self.id, self.tries)
     }
 }
 
-/// Data that can be used to generate a request given our state.
-pub struct PreRequest<I: PeerId, J: Justification> {
-    id: BlockIdFor<J>,
-    branch_knowledge: BranchKnowledge<J>,
-    know_most: HashSet<I>,
-}
-
-impl<I: PeerId, J: Justification> PreRequest<I, J> {
-    fn new(id: BlockIdFor<J>, branch_knowledge: BranchKnowledge<J>, know_most: HashSet<I>) -> Self {
-        PreRequest {
-            id,
-            branch_knowledge,
-            know_most,
-        }
-    }
-
-    /// Convert to a request and recipients given a state.
-    pub fn with_state(self, state: State<J>) -> (Request<J>, HashSet<I>) {
-        let PreRequest {
-            id,
-            branch_knowledge,
-            know_most,
-        } = self;
-        (Request::new(id, branch_knowledge, state), know_most)
-    }
-}
-
-type DelayedTask<BI> = (RequestTask<BI>, Duration);
+type DelayedTask = (RequestTask, Duration);
 
 /// What do to with the task, either ignore or perform a request and add a delayed task.
-pub enum Action<I: PeerId, J: Justification> {
+pub enum Action<I: PeerId> {
     Ignore,
-    Request(PreRequest<I, J>, DelayedTask<BlockIdFor<J>>),
+    Request(PreRequest<I>, DelayedTask),
 }
 
-impl<BI: BlockIdentifier> RequestTask<BI> {
-    fn new(id: BI, kind: RequestKind) -> Self {
-        RequestTask { id, kind, tries: 0 }
-    }
-
-    /// A new task for requesting highest justified block with the provided ID.
-    pub fn new_highest_justified(id: BI) -> Self {
-        RequestTask::new(id, RequestKind::HighestJustified)
-    }
-
+impl RequestTask {
     /// A new task for requesting block with the provided ID.
-    pub fn new_block(id: BI) -> Self {
-        RequestTask::new(id, RequestKind::Block)
+    pub fn new(id: BlockId) -> Self {
+        RequestTask { id, tries: 0 }
     }
 
     /// Process the task.
-    pub fn process<I, J>(self, interest_provider: InterestProvider<I, J>) -> Action<I, J>
+    pub fn process<I, J>(self, interest_provider: InterestProvider<I, J>) -> Action<I>
     where
         I: PeerId,
         J: Justification,
-        J::Header: Header<Identifier = BI>,
     {
-        let RequestTask { id, kind, tries } = self;
-        match kind.should_request(interest_provider.get(&id)) {
-            Some((branch_knowledge, know_most)) => {
+        let RequestTask { id, tries } = self;
+        match interest_provider.get(&id) {
+            Interest::Required {
+                branch_knowledge,
+                know_most,
+            } => {
                 // Every second time we request from a random peer rather than the one we expect to
                 // have it.
                 let know_most = match tries % 2 == 0 {
@@ -159,14 +73,13 @@ impl<BI: BlockIdentifier> RequestTask<BI> {
                     (
                         RequestTask {
                             id: id.clone(),
-                            kind,
                             tries,
                         },
                         delay_for_attempt(tries),
                     ),
                 )
             }
-            None => Action::Ignore,
+            Interest::Uninterested => Action::Ignore,
         }
     }
 }

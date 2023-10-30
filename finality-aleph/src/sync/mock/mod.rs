@@ -1,42 +1,35 @@
 use std::hash::Hash;
 
 use parity_scale_codec::{Decode, Encode};
-use sp_core::H256;
 
 use crate::{
-    sync::{Block, ChainStatusNotification, Header, Justification},
-    BlockIdentifier,
+    sync::{
+        Block, ChainStatusNotification, Header, Justification, UnverifiedHeader,
+        UnverifiedJustification,
+    },
+    BlockHash, BlockId, BlockNumber,
 };
 
 mod backend;
 mod status_notifier;
 
-type MockNumber = u32;
-type MockHash = H256;
-
 pub use backend::Backend;
 
 pub type MockPeerId = u32;
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
-pub struct MockIdentifier {
-    number: MockNumber,
-    hash: MockHash,
-}
-
-impl MockIdentifier {
-    fn new(number: MockNumber, hash: MockHash) -> Self {
-        MockIdentifier { number, hash }
-    }
-
-    pub fn new_random(number: MockNumber) -> Self {
-        MockIdentifier::new(number, MockHash::random())
+impl BlockId {
+    pub fn new_random(number: BlockNumber) -> Self {
+        Self::new(BlockHash::random(), number)
     }
 
     pub fn random_child(&self) -> MockHeader {
-        let id = MockIdentifier::new_random(self.number + 1);
+        let id = Self::new_random(self.number + 1);
         let parent = Some(self.clone());
-        MockHeader { id, parent }
+        MockHeader {
+            id,
+            parent,
+            valid: true,
+        }
     }
 
     pub fn random_branch(&self) -> impl Iterator<Item = MockHeader> {
@@ -46,32 +39,32 @@ impl MockIdentifier {
     }
 }
 
-impl BlockIdentifier for MockIdentifier {
-    fn number(&self) -> u32 {
-        self.number
-    }
-}
-
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub struct MockHeader {
-    id: MockIdentifier,
-    parent: Option<MockIdentifier>,
+    id: BlockId,
+    parent: Option<BlockId>,
+    valid: bool,
 }
 
 impl MockHeader {
     pub fn genesis() -> Self {
         MockHeader {
-            id: MockIdentifier {
+            id: BlockId {
                 number: 0,
-                hash: MockHash::zero(),
+                hash: BlockHash::zero(),
             },
             parent: None,
+            valid: true,
         }
     }
 
-    pub fn random_parentless(number: MockNumber) -> Self {
-        let id = MockIdentifier::new_random(number);
-        MockHeader { id, parent: None }
+    pub fn random_parentless(number: BlockNumber) -> Self {
+        let id = BlockId::new_random(number);
+        MockHeader {
+            id,
+            parent: None,
+            valid: true,
+        }
     }
 
     pub fn random_child(&self) -> Self {
@@ -81,10 +74,18 @@ impl MockHeader {
     pub fn random_branch(&self) -> impl Iterator<Item = Self> {
         self.id.random_branch()
     }
+
+    pub fn invalidate(&mut self) {
+        self.valid = false;
+    }
+
+    pub fn valid(&self) -> bool {
+        self.valid
+    }
 }
 
 struct RandomBranch {
-    parent: MockIdentifier,
+    parent: BlockId,
 }
 
 impl Iterator for RandomBranch {
@@ -92,20 +93,30 @@ impl Iterator for RandomBranch {
 
     fn next(&mut self) -> Option<Self::Item> {
         let result = self.parent.random_child();
-        self.parent = result.id();
+        self.parent = Header::id(&result);
         Some(result)
     }
 }
 
-impl Header for MockHeader {
-    type Identifier = MockIdentifier;
+impl UnverifiedHeader for MockHeader {
+    fn id(&self) -> BlockId {
+        self.id.clone()
+    }
+}
 
-    fn id(&self) -> Self::Identifier {
+impl Header for MockHeader {
+    type Unverified = Self;
+
+    fn id(&self) -> BlockId {
         self.id.clone()
     }
 
-    fn parent_id(&self) -> Option<Self::Identifier> {
+    fn parent_id(&self) -> Option<BlockId> {
         self.parent.clone()
+    }
+
+    fn into_unverified(self) -> Self::Unverified {
+        self
     }
 }
 
@@ -135,21 +146,25 @@ impl MockBlock {
 }
 
 impl Header for MockBlock {
-    type Identifier = MockIdentifier;
+    type Unverified = MockHeader;
 
-    fn id(&self) -> Self::Identifier {
-        self.header().id()
+    fn id(&self) -> BlockId {
+        Header::id(self.header())
     }
 
-    fn parent_id(&self) -> Option<Self::Identifier> {
-        self.header().parent_id()
+    fn parent_id(&self) -> Option<BlockId> {
+        Header::parent_id(self.header())
+    }
+
+    fn into_unverified(self) -> Self::Unverified {
+        self.header.into_unverified()
     }
 }
 
 impl Block for MockBlock {
-    type Header = MockHeader;
+    type UnverifiedHeader = MockHeader;
 
-    fn header(&self) -> &Self::Header {
+    fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
     }
 }
@@ -169,15 +184,11 @@ impl MockJustification {
     }
 }
 
-impl Header for MockJustification {
-    type Identifier = MockIdentifier;
+impl UnverifiedJustification for MockJustification {
+    type UnverifiedHeader = MockHeader;
 
-    fn id(&self) -> Self::Identifier {
-        self.header().id()
-    }
-
-    fn parent_id(&self) -> Option<Self::Identifier> {
-        self.header().parent_id()
+    fn header(&self) -> &Self::UnverifiedHeader {
+        &self.header
     }
 }
 
