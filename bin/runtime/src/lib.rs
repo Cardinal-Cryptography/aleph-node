@@ -21,7 +21,6 @@ pub use frame_support::{
     StorageValue,
 };
 use frame_support::{
-    pallet_prelude::Get,
     sp_runtime::Perquintill,
     traits::{
         ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, SortedMembers,
