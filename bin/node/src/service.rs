@@ -210,6 +210,7 @@ fn setup(
     client: Arc<FullClient>,
     telemetry: &mut Option<Telemetry>,
     import_justification_tx: mpsc::UnboundedSender<Justification>,
+    collect_extra_debugging_data: bool,
 ) -> Result<
     (
         RpcHandlers,
@@ -256,11 +257,11 @@ fn setup(
 
     let sync_oracle = SyncOracle::new();
 
-    // Validator network info caching is enabled only for nodes with telemetry and RPC enabled.
-    let validator_address_cache = match (&config.role, config.telemetry_endpoints.is_some()) {
-        (sc_network::config::Role::Full, true) => Some(ValidatorAddressCache::new()),
-        (_, _) => None,
+    let validator_address_cache = match collect_extra_debugging_data {
+        true => Some(ValidatorAddressCache::new()),
+        false => None,
     };
+
     let rpc_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -343,6 +344,8 @@ pub fn new_authority(
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
 
+    let collect_extra_debugging_data = aleph_config.collect_extra_debugging_data();
+
     let (
         _rpc_handlers,
         network,
@@ -362,6 +365,7 @@ pub fn new_authority(
         client.clone(),
         &mut telemetry,
         justification_tx,
+        collect_extra_debugging_data,
     )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
