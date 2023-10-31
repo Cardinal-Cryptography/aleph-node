@@ -64,6 +64,7 @@ impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized 
     }
 }
 
+/// This will not be needed after A0-2984 is done
 fn revert_unfinalized_blocks(client: &FullClient) {
     let last_finalized = client.info().finalized_number;
     let best_block = client.info().best_number;
@@ -75,7 +76,7 @@ fn revert_unfinalized_blocks(client: &FullClient) {
     debug!("Reverting {} not finalized blocks", blocks_count_to_revert);
     let new_best = client
         .revert(blocks_count_to_revert)
-        .expect("Error while reverting blocks:");
+        .expect("Error while reverting blocks: ");
     debug!("Reverted chain to block #{}", new_best);
 }
 
