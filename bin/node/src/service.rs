@@ -256,9 +256,9 @@ fn setup(
 
     let sync_oracle = SyncOracle::new();
 
-    // Validator network info caching is enabled only for non-validator nodes with RPC enabled.
-    let validator_address_cache = match (&config.role, config.rpc_addr) {
-        (sc_network::config::Role::Full, Some(_)) => Some(ValidatorAddressCache::new()),
+    // Validator network info caching is enabled only for nodes with telemetry and RPC enabled.
+    let validator_address_cache = match (&config.role, config.telemetry_endpoints.is_some()) {
+        (sc_network::config::Role::Full, true) => Some(ValidatorAddressCache::new()),
         (_, _) => None,
     };
     let rpc_builder = {
