@@ -12,7 +12,7 @@ use finality_aleph::{
     SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::{debug, warn};
+use log::{info, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -73,11 +73,19 @@ fn revert_unfinalized_blocks(client: &FullClient) {
 
     let blocks_count_to_revert = best_block.saturating_sub(last_finalized + REVERT_THRESHOLD);
 
-    debug!("Reverting {} not finalized blocks", blocks_count_to_revert);
-    let new_best = client
+    if blocks_count_to_revert == 0 {
+        return;
+    }
+
+    info!(
+        "Chain state: finalized #{}, best block #{}",
+        last_finalized, best_block
+    );
+    info!("Reverting {} not finalized blocks", blocks_count_to_revert);
+    let reverted_blocks = client
         .revert(blocks_count_to_revert)
         .expect("Error while reverting blocks: ");
-    debug!("Reverted chain to block #{}", new_best);
+    info!("Reverted {} blocks", reverted_blocks);
 }
 
 fn backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
