@@ -62,22 +62,25 @@ where
             .storage(at_block, &sc_client_api::StorageKey(storage_key))
         {
             Ok(Some(e)) => e,
-            _ => return Err(ApiError::NoStorage),
+            _ => return Err(ApiError::NoStorage(pallet.to_string(), item.to_string())),
         };
 
         D::decode(&mut encoded.0.as_ref()).map_err(|_| ApiError::DecodeError)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ApiError {
-    NoStorage,
+    NoStorage(String, String),
     DecodeError,
 }
 
 impl Display for ApiError {
-    fn fmt(&self, _: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            ApiError::NoStorage(pallet, item) => write!(f, "no storage under {}.{}", pallet, item),
+            ApiError::DecodeError => write!(f, "decode error"),
+        }
     }
 }
 
