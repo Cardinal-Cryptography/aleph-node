@@ -12,7 +12,7 @@ use finality_aleph::{
     SessionPeriod, SubstrateChainStatus, TracingBlockImport,
 };
 use futures::channel::mpsc;
-use log::warn;
+use log::{debug, warn};
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -62,6 +62,21 @@ impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized 
             false => false,
         }
     }
+}
+
+fn revert_unfinalized_blocks(client: &FullClient) {
+    let last_finalized = client.info().finalized_number;
+    let best_block = client.info().best_number;
+    // 20 so there are no problems with finality session
+    const REVERT_THRESHOLD: u32 = 20;
+
+    let blocks_count_to_revert = best_block.saturating_sub(last_finalized + REVERT_THRESHOLD);
+
+    debug!("Reverting {} not finalized blocks", blocks_count_to_revert);
+    let new_best = client
+        .revert(blocks_count_to_revert)
+        .expect("Error while reverting blocks:");
+    debug!("Reverted chain to block #{}", new_best);
 }
 
 fn backup_path(aleph_config: &AlephCli, base_path: &Path) -> Option<PathBuf> {
@@ -116,6 +131,8 @@ pub fn new_partial(
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
             executor,
         )?;
+
+    revert_unfinalized_blocks(&client);
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
         task_manager
