@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: aleph-zero-foundation/aleph-node
-          token: "${{ secrets.SYNCAZF }}"
+          token: ${{ secrets.SYNCAZF }}
           path: aleph-zero-foundation-aleph-node
           fetch-depth: 0
 

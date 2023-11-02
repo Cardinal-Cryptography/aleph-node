@@ -49,7 +49,7 @@ jobs:
         with:
           repository: Cardinal-Cryptography/${{ secrets.REPO_ARGOCD_APPS_NAME }}
           token: ${{ secrets.CI_GH_TOKEN }}
-          path: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
+          path: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
 
       - name: Init kustomize
         uses: imranismail/setup-kustomize@v2
@@ -138,7 +138,7 @@ jobs:
           author_email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           message: "Update Devnet docker image tag to: ${{ steps.vars.outputs.sha_short }}"
           add: "*.yaml"
-          cwd: "${{ secrets.REPO_ARGOCD_APPS_NAME }}"
+          cwd: ${{ secrets.REPO_ARGOCD_APPS_NAME }}
 
   slack:
     name: Slack notification
