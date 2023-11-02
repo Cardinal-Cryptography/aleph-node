@@ -41,15 +41,11 @@ pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
     NoopMetrics,
 >;
 
-pub type CurrentSignableBlockHash = current_aleph_aggregator::SignableHash<BlockHash>;
-pub type CurrentRmc<'a> =
-    current_aleph_bft_rmc::ReliableMulticast<'a, CurrentSignableBlockHash, Keychain>;
+pub type CurrentSignableBlockHash = BlockHash;
 pub type CurrentAggregator<'a, N> = current_aleph_aggregator::IO<
     BlockHash,
-    CurrentRmcNetworkData,
     NetworkWrapper<CurrentRmcNetworkData, N>,
-    SignatureSet<Signature>,
-    CurrentRmc<'a>,
+    Keychain,
 >;
 
 enum EitherAggregator<'a, CN, LN>
