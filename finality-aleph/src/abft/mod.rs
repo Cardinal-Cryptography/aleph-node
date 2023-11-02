@@ -84,7 +84,7 @@ impl<S: legacy_aleph_bft::Signature> legacy_aleph_bft::PartialMultisignature for
     }
 }
 
-impl<S: legacy_aleph_bft::Signature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
+impl<S: current_aleph_bft::Signature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
     fn add_signature(

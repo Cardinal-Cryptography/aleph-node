@@ -1,17 +1,23 @@
-use std::fmt::Debug;
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash as StdHash,
+};
 
-use aleph_bft_rmc::Message;
+use parity_scale_codec::{Codec, Encode};
+use aleph_bft_rmc::Message as RmcMessage;
 use aleph_bft_types::Recipient;
 
 mod aggregator;
-mod multicast;
 
 pub use crate::{
     aggregator::{BlockSignatureAggregator, IO},
-    multicast::SignableHash,
 };
 
-pub type RmcNetworkData<H, S, SS> = Message<SignableHash<H>, S, SS>;
+pub type RmcNetworkData<H, S, SS> = RmcMessage<H, S, SS>;
+
+/// A convenience trait for gathering all of the desired hash characteristics.
+pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync {}
+impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Display + Send + Sync> Hash for T {}
 
 #[derive(Debug)]
 pub enum NetworkError {

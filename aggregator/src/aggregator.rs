@@ -4,14 +4,11 @@ use std::{
     time::Instant,
 };
 
-use aleph_bft_rmc::{DoublingDelayScheduler, Message as RmcMessage, MultiKeychain, Multisigned, Service as RmcService};
+use aleph_bft_rmc::{DoublingDelayScheduler, MultiKeychain, Multisigned, Service as RmcService};
 use aleph_bft_types::Recipient;
 use log::{debug, error, info, trace, warn};
 
-use crate::{
-    multicast::Hash,
-    ProtocolSink,
-};
+use crate::{Hash, ProtocolSink, RmcNetworkData};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AggregatorError {
@@ -113,24 +110,24 @@ impl<H: Copy + Hash, PMS> BlockSignatureAggregator<H, PMS> {
 
 pub struct IO<
     H: Hash + Copy,
-    N: ProtocolSink<RmcMessage<H, MK::Signature, MK::PartialMultisignature>>,
+    N: ProtocolSink<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
     MK: MultiKeychain,
 > {
     network: N,
-    rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcMessage<H, MK::Signature, MK::PartialMultisignature>>>,
+    rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>>,
     aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     multisigned_events: VecDeque<Multisigned<H, MK>>,
 }
 
 impl<
         H: Copy + Hash,
-        N: ProtocolSink<RmcMessage<H, MK::Signature, MK::PartialMultisignature>>,
+        N: ProtocolSink<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
         MK: MultiKeychain
     > IO<H, N, MK>
 {
     pub fn new(
         network: N,
-        rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcMessage<H, MK::Signature, MK::PartialMultisignature>>>,
+        rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>>,
         aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     ) -> Self {
         IO {
