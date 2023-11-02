@@ -43,8 +43,8 @@ jobs:
         if: inputs.force != true
         shell: bash
         run: |
-          testnet_sha=${{ steps.get-testnet-node-commit-sha.outputs.sha }}
-          current_sha=${{ steps.get-ref-properties.outputs.sha }}
+          testnet_sha='${{ steps.get-testnet-node-commit-sha.outputs.sha }}'
+          current_sha='${{ steps.get-ref-properties.outputs.sha }}'
           if [[ "${testnet_sha}" != "${current_sha}" ]]; then
             echo "Error: Testnet RPC system.version sha ${testnet_sha} is different from the"
             echo "node you're trying to deploy: ${current_sha}. If you know what you're doing"

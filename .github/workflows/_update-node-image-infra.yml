@@ -18,8 +18,8 @@ jobs:
       - name: Validate action inputs
         shell: bash
         run: |
-          if [[ "${{ inputs.env }}" != 'testnet' && "${{ inputs.env }}" != 'mainnet' ]]; then
-            echo "Error: inputs.env should be either mainnet or testnet!"
+          if [[ '${{ inputs.env }}' != 'testnet' && '${{ inputs.env }}' != 'mainnet' ]]; then
+            echo 'Error: inputs.env should be either mainnet or testnet!'
             exit 1
           fi
 
