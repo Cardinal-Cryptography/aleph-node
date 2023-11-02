@@ -37,7 +37,7 @@ jobs:
       github.event.action == 'closed' &&
       !contains(github.event.pull_request.labels.*.name, 'state:deleted-featurenet') &&
       contains(github.event.pull_request.labels.*.name, 'state:created-featurenet')
-    name: Delete featurenet}}
+    name: Delete featurenet
     needs: [get-featurenet-name]
     uses: ./.github/workflows/featurenet-delete.yml
     with:
