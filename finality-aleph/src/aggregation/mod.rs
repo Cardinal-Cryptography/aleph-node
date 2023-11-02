@@ -107,11 +107,8 @@ where
         let rmc_handler = current_aleph_bft_rmc::Handler::new(multikeychain.clone());
         let rmc_service = current_aleph_bft_rmc::Service::new(scheduler, rmc_handler);
         let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new();
-        let aggregator_io = CurrentAggregator::<CN>::new(
-            NetworkWrapper::new(rmc_network),
-            rmc_service,
-            aggregator,
-        );
+        let aggregator_io =
+            CurrentAggregator::<CN>::new(NetworkWrapper::new(rmc_network), rmc_service, aggregator);
 
         Self {
             agg: EitherAggregator::Current(aggregator_io),
