@@ -149,11 +149,11 @@ dependencies = [
 
 [[package]]
 name = "aggregator"
-version = "0.2.1"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-v0.2.1#95a6b02ccd2295f9d4c21ece2b0721a4b99e1ee5"
+version = "0.4.0"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-12.0#1a00a8fd94e5b1a111e0a380d47bbec83b754b27"
 dependencies = [
- "aleph-bft-rmc 0.5.2",
- "aleph-bft-types 0.7.2",
+ "aleph-bft-rmc 0.6.1",
+ "aleph-bft-types 0.8.1",
  "async-trait",
  "futures",
  "log",
@@ -251,19 +251,6 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-crypto"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc63efe80dacbfe53bc008aab6a24e864142198355b1a9a4f31543246e3d63f"
-dependencies = [
- "async-trait",
- "bit-vec",
- "derive_more",
- "log",
- "parity-scale-codec",
-]
-
-[[package]]
-name = "aleph-bft-crypto"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ef65bb0b342d411e32789cdf722cbf163667e1656577ef356221c5aebf75c9"
@@ -306,20 +293,6 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-rmc"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38c317cd1a7c5b9208fd02c8f33ea7a89b55be1181ccc42da45e12dbefb66209"
-dependencies = [
- "aleph-bft-crypto 0.5.2",
- "async-trait",
- "futures",
- "futures-timer",
- "log",
- "parity-scale-codec",
-]
-
-[[package]]
-name = "aleph-bft-rmc"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1a34546c3d75df640c0224294be256fd0c17ed3f7191367124ece4d93753061"
@@ -344,18 +317,6 @@ dependencies = [
  "futures",
  "futures-timer",
  "log",
- "parity-scale-codec",
-]
-
-[[package]]
-name = "aleph-bft-types"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14c0995c7a6709cec7dc62ef8316426442ea4756b34182c21d6549a1c6bfb904"
-dependencies = [
- "aleph-bft-crypto 0.5.2",
- "async-trait",
- "futures",
  "parity-scale-codec",
 ]
 
@@ -2713,7 +2674,7 @@ dependencies = [
 name = "finality-aleph"
 version = "0.9.0"
 dependencies = [
- "aggregator 0.2.1",
+ "aggregator 0.4.0",
  "aggregator 0.5.0",
  "aleph-bft 0.20.5",
  "aleph-bft 0.33.0",
