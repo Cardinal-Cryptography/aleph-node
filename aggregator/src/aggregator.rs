@@ -114,7 +114,11 @@ pub struct IO<
     MK: MultiKeychain,
 > {
     network: N,
-    rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>>,
+    rmc_service: RmcService<
+        H,
+        MK,
+        DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
+    >,
     aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     multisigned_events: VecDeque<Multisigned<H, MK>>,
 }
@@ -122,12 +126,16 @@ pub struct IO<
 impl<
         H: Copy + Hash,
         N: ProtocolSink<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
-        MK: MultiKeychain
+        MK: MultiKeychain,
     > IO<H, N, MK>
 {
     pub fn new(
         network: N,
-        rmc_service: RmcService<H, MK, DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>>,
+        rmc_service: RmcService<
+            H,
+            MK,
+            DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
+        >,
         aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     ) -> Self {
         IO {
@@ -158,7 +166,8 @@ impl<
             if let Some(multisigned) = self.multisigned_events.pop_front() {
                 let unchecked = multisigned.into_unchecked();
                 let signature = unchecked.signature();
-                self.aggregator.on_multisigned_hash(unchecked.into_signable(), signature);
+                self.aggregator
+                    .on_multisigned_hash(unchecked.into_signable(), signature);
                 return Ok(());
             }
             tokio::select! {

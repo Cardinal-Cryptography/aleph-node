@@ -3,15 +3,13 @@ use std::{
     hash::Hash as StdHash,
 };
 
-use parity_scale_codec::{Codec, Encode};
 use aleph_bft_rmc::Message as RmcMessage;
 use aleph_bft_types::Recipient;
+use parity_scale_codec::{Codec};
 
 mod aggregator;
 
-pub use crate::{
-    aggregator::{BlockSignatureAggregator, IO},
-};
+pub use crate::aggregator::{BlockSignatureAggregator, IO};
 
 pub type RmcNetworkData<H, S, SS> = RmcMessage<H, S, SS>;
 

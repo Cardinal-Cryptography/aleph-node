@@ -1,5 +1,6 @@
 use std::time::Duration;
-use current_aleph_bft::{Config, LocalIO, Terminator, default_delay_config, create_config};
+
+use current_aleph_bft::{create_config, default_delay_config, Config, LocalIO, Terminator};
 use log::debug;
 use network_clique::SpawnHandleT;
 use sp_blockchain::HeaderBackend;
@@ -8,7 +9,7 @@ use sp_runtime::traits::{Block, Header};
 pub use crate::aleph_primitives::{BlockHash, BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use crate::{
     abft::{
-        common::{unit_creation_delay_fn, MAX_ROUNDS},
+        common::{unit_creation_delay_fn, MAX_ROUNDS, SESSION_LEN_LOWER_BOUND_MS},
         NetworkWrapper,
     },
     crypto::Signature,
@@ -21,7 +22,6 @@ use crate::{
     },
     CurrentNetworkData, Hasher, Keychain, NodeIndex, SessionId, SignatureSet, UnitCreationDelay,
 };
-use crate::abft::common::SESSION_LEN_LOWER_BOUND_MS;
 
 pub fn run_member<B, C, ADN>(
     subtask_common: SubtaskCommon,
