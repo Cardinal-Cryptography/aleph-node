@@ -1,6 +1,6 @@
 [package]
 name = "aggregator"
-version = "0.5.0"
+version = "0.5.1"
 license = "Apache 2.0"
 authors.workspace = true
 edition.workspace = true
@@ -8,8 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-aleph-bft-rmc = { workspace = true }
-aleph-bft-types = { workspace = true }
+aleph-bft-rmc = { version = "0.6" }
+aleph-bft-types = { version = "0.8" }
 async-trait = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
