@@ -61,6 +61,7 @@ runs:
         COMMIT_TAG: ${{ steps.get-ref-properties.outputs.tag }}
         ECR: ${{ inputs.ecr-repo }}
         DOCKERHUB: ${{ inputs.dockerhub-repo }}
+      # yamllint disable rule:line-length
       run: |
         echo 'ecr-rc-image=${{ env.ECR }}:${{ env.COMMIT_SHA }}' >> $GITHUB_OUTPUT
         echo 'ecr-deploy-image=${{ env.ECR }}:${{ env.COMMIT_TAG }}' >> $GITHUB_OUTPUT

@@ -37,6 +37,7 @@ jobs:
         env:
           RUST_TOOLCHAIN: ${{ steps.aleph-client-toolchain-channel.outputs.value }}
           RUST_CONTRACTS_TOOLCHAIN: ${{ steps.contracts-toolchain-channel.outputs.value }}
+        # yamllint disable rule:line-length
         run: |
           rustup toolchain install '${{ env.RUST_TOOLCHAIN }}'
           rustup toolchain install '${{ env.RUST_CONTRACTS_TOOLCHAIN }}'
@@ -56,6 +57,7 @@ jobs:
 
           cargo '+${{ env.RUST_TOOLCHAIN }}' \
             install aleph-zero-cargo-nono --locked
+        # yamllint enable rule:line-length
 
       - name: Check excluded packages
         env:

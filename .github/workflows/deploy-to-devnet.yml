@@ -113,8 +113,8 @@ jobs:
           kubectl delete pvc -l app=aleph-node-validator -n devnet --ignore-not-found=true
 
       - name: Start Devnet
+        # yamllint disable rule:line-length
         env:
-          # yamllint disable-line rule:line-length
           IMAGE_PLACEHOLDER: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ steps.vars.outputs.sha_short }}
         run: |
           #!/bin/bash
@@ -124,6 +124,7 @@ jobs:
           kustomize build . | kubectl apply -f -
           sleep 2
           kubectl rollout status --watch --timeout=3600s statefulset/aleph-node-validator -n devnet
+        # yamllint enable rule:line-length
 
       - name: Waiting 5 minutes for validators to boot
         run: |
