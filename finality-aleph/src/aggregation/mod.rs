@@ -86,7 +86,7 @@ where
             scheduler,
         );
         // For the compatibility with the legacy aggregator we need extra `Option` layer
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(None);
+        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(NoopMetrics);
         let aggregator_io = LegacyAggregator::<LN>::new(
             messages_for_rmc,
             messages_from_rmc,
@@ -101,24 +101,15 @@ where
     }
 
     pub fn new_current(multikeychain: &'a Keychain, rmc_network: CN) -> Self {
-        let (messages_for_rmc, messages_from_network) = mpsc::unbounded();
-        let (messages_for_network, messages_from_rmc) = mpsc::unbounded();
         let scheduler = current_aleph_bft_rmc::DoublingDelayScheduler::new(
             tokio::time::Duration::from_millis(500),
         );
-        let rmc = current_aleph_bft_rmc::ReliableMulticast::new(
-            messages_from_network,
-            messages_for_network,
-            multikeychain,
-            current_aleph_bft::Keychain::node_count(multikeychain),
-            scheduler,
-        );
+        let rmc_handler = current_aleph_bft_rmc::Handler::new(multikeychain.clone());
+        let rmc_service = current_aleph_bft_rmc::Service::new(scheduler, rmc_handler);
         let aggregator = current_aleph_aggregator::BlockSignatureAggregator::new();
         let aggregator_io = CurrentAggregator::<CN>::new(
-            messages_for_rmc,
-            messages_from_rmc,
             NetworkWrapper::new(rmc_network),
-            rmc,
+            rmc_service,
             aggregator,
         );
 

@@ -68,7 +68,7 @@ impl current_aleph_bft::Keychain for Keychain {
         Keychain::node_count(self).into()
     }
 
-    async fn sign(&self, msg: &[u8]) -> Signature {
+    fn sign(&self, msg: &[u8]) -> Signature {
         Keychain::sign(self, msg)
     }
 
