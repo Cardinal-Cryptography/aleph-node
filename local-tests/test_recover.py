@@ -8,6 +8,10 @@ from chainrunner import Chain, Seq, generate_keys
 def printt(s): print(ctime() + ' | ' + s)
 
 
+'''
+TODO: Include this test in pipelines only after upgrading the runtime AlephBFT version 
+'''
+
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important DON'T use short-session feature):
