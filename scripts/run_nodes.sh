@@ -32,7 +32,7 @@
 # You need to have installed following prerequisites in order to use that script:
 #   * jq
 #
-# This script also accepts env variables instead arguments, see --help for details. All arguments
+# This script also accepts env variables instead of arguments, see --help for details. All arguments
 # are optional.
 
 set -euo pipefail
@@ -46,6 +46,10 @@ NODE_RPC_PORT_RANGE_START=9944
 
 # ------------------------ argument parsing and usage -----------------------
 
+script_path="${BASH_SOURCE[0]}"
+script_dir=$(dirname "${script_path}")
+aleph_node_root_dir=$(realpath "${script_dir}/..")
+pushd "${aleph_node_root_dir}" > /dev/null
 source ./scripts/common.sh
 
 function usage(){
@@ -66,7 +70,7 @@ Usage:
     [--dont-delete-db]
       set to not delete database
     [--dont-remove-abtf-backups]
-      set to not delete AlephBFT backups; by default there are removed since
+      set to not delete AlephBFT backups; by default they are removed since
       this script is intended to bootstrap chain by default, in which case you do not want to have
       them in 99% of scenarios
 EOF
@@ -122,6 +126,24 @@ while [[ $# -gt 0 ]]; do
 done
 
 # -----------------------  functions --------------------------------------
+function get_backup_folders() {
+  base_path="${1}"
+  shift
+  accounts_ids=("$@")
+
+
+  declare -a backup_folders
+  non_empty_backups=$(find "${base_path}" -type d -name "backup-stash" -not -empty)
+  for account_id in "${accounts_ids[@]}"; do
+    maybe_backup_folder=$(echo "${non_empty_backups}" | grep "${account_id}")
+    if [[ -n "${maybe_backup_folder}" ]]; then
+      backup_folders+=("${maybe_backup_folder}")
+    fi
+  done
+
+  echo "${backup_folders[@]}"
+}
+
 function get_ss58_address_from_seed() {
   local seed="$1"
   local aleph_node_path="$2"
@@ -167,7 +189,7 @@ function run_node() {
     -laleph-metrics=debug
   )
 
-   ./target/release/aleph-node "${node_args[@]}"  2> "${node_name}.log" > /dev/null &
+   ./target/release/aleph-node "${node_args[@]}"  2> "${BASE_PATH}/${node_name}.log" > /dev/null &
 }
 
 # ------------------------- input checks ----------------------------------
@@ -176,9 +198,10 @@ if [[ "${VALIDATORS}" -lt 4 ]]; then
   error "Number of validators should be at least 4!"
 fi
 if [[ "${RPC_NODES}" -lt 1 ]]; then
-  error "Number of validators should be at least 1!"
+  error "Number of RPC nodes should be at least 1!"
 fi
 if [[ $(( VALIDATORS + RPC_NODES )) -gt 10 ]]; then
+  info "Current number of validators is ${VALIDATORS} and RPC nodes is ${RPC_NODES}"
   error "Total number of validators and rpc nodes should not be greater than 10!"
 fi
 if [[ -z "${DONT_BOOTSTRAP}" && "${DONT_DELETE_DB}" == "true" ]]; then
@@ -244,12 +267,13 @@ if [[ -z "${DONT_BOOTSTRAP}" ]]; then
   done
 
   if [[ "${DONT_REMOVE_ABFT_BACKUPS}" == "true" ]]; then
-    non_empty_backups=$(find "${BASE_PATH}" -type d -name "*backup-stash*" -not -empty)
+    all_account_ids=("${validator_account_ids[@]}" "${rpc_node_account_ids[@]}")
+    non_empty_backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
     if [[ -n "${non_empty_backups}" ]]; then
       warning "Found following non-empty ABFT backups in base path:"
       warning "${non_empty_backups}"
       warning "In 99% you want them to be removed when bootstraping chain"
-      warning "Re-run this script with without flag --dont-remove-abtf-backups if you want them to be removed."
+      warning "Re-run this script without flag --dont-remove-abtf-backups if you want them to be removed."
     fi
   fi
 fi
@@ -272,8 +296,10 @@ if [[ -z "${DONT_DELETE_DB}" ]] ; then
 fi
 
 if [[ -z "${DONT_REMOVE_ABFT_BACKUPS}" ]]; then
-  info "Removing AlephBFT backups."
-  find "${BASE_PATH}" -type d -name "backup-stash" | xargs rm -rf
+  all_account_ids=("${validator_account_ids[@]}" "${rpc_node_account_ids[@]}")
+  non_empty_backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
+  info "Removing AlephBFT backups: ${non_empty_backups[@]}"
+  echo "${non_empty_backups[@]}" | xargs rm -rf
 fi
 
 for i in $(seq 0 "$(( RPC_NODES - 1 ))"); do
@@ -286,4 +312,5 @@ for i in $(seq 0 "$(( VALIDATORS - 1 ))"); do
   run_node $(( i + RPC_NODES )) "${validator_account_id}" "${bootnode_multiaddress}"
 done
 
+popd > /dev/null
 exit 0
