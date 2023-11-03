@@ -211,6 +211,9 @@ where
         header: &mut Header,
         just_created: bool,
     ) -> Result<Option<EquivocationProof>, VerificationError> {
+        if header.number().is_zero() {
+            return Ok(None);
+        }
         let (slot, _, _, author) = self
             .parse_aura_header(header)
             .map_err(VerificationError::HeaderVerification)?;
