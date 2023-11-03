@@ -14,7 +14,7 @@ use crate::{
         mock::{MockBlock, MockHeader, MockJustification, MockNotification},
         Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier,
         EquivocationProof as EquivocationProofT, FinalizationStatus, Finalizer, Header,
-        Justification as JustificationT, Verifier,
+        Justification as JustificationT, VerifiedHeader, Verifier,
     },
     BlockId,
 };
@@ -386,6 +386,7 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
     }
 }
 
+#[derive(Debug)]
 pub struct EquivocationProof;
 
 impl EquivocationProofT for EquivocationProof {
@@ -445,18 +446,17 @@ impl Verifier<MockJustification> for Backend {
         }
     }
 
-    fn verify_header(&mut self, header: MockHeader) -> Result<MockHeader, Self::Error> {
+    fn verify_header(
+        &mut self,
+        header: MockHeader,
+        _just_created: bool,
+    ) -> Result<VerifiedHeader<MockJustification, Self::EquivocationProof>, Self::Error> {
         match header.valid() {
-            true => Ok(header),
+            true => Ok(VerifiedHeader {
+                header,
+                maybe_equivocation_proof: None,
+            }),
             false => Err(Self::Error::Header),
         }
-    }
-
-    fn check_for_equivocation(
-        &mut self,
-        _header: &mut MockHeader,
-        _just_created: bool,
-    ) -> Result<Option<Self::EquivocationProof>, Self::Error> {
-        Ok(None)
     }
 }

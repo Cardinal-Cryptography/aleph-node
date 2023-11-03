@@ -22,7 +22,7 @@ use crate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
             InnerJustification, Justification,
         },
-        EquivocationProof as EquivocationProofT, Header as HeaderT, Verifier,
+        EquivocationProof as EquivocationProofT, Header as HeaderT, VerifiedHeader, Verifier,
     },
 };
 
@@ -171,6 +171,71 @@ where
 
         Ok((slot, sig, pre_hash, author))
     }
+
+    // This function assumes that:
+    // 1. Headers are created by Aura.
+    // 2. Slot number is calculated using the current system time.
+    fn verify_aura_header(&mut self, mut header: Header) -> Result<Header, VerificationError> {
+        use HeaderVerificationError::*;
+        // compare genesis header directly to the one we know
+        if header.number().is_zero() {
+            return match &header == self.genesis_header() {
+                true => Ok(header),
+                false => Err(VerificationError::HeaderVerification(IncorrectGenesis)),
+            };
+        }
+
+        let (slot, sig, pre_hash, author) = self
+            .parse_aura_header(&mut header)
+            .map_err(VerificationError::HeaderVerification)?;
+
+        // Aura: slot number is calculated using the system time.
+        // This code duplicates one of the parameters that we pass to Aura when starting the node!
+        let slot_now = Slot::from_timestamp(
+            sp_timestamp::Timestamp::current(),
+            sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
+        );
+        if slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
+            return Err(VerificationError::HeaderVerification(HeaderTooNew(slot)));
+        }
+
+        if !AuthorityPair::verify(&sig, pre_hash.as_ref(), author) {
+            return Err(VerificationError::HeaderVerification(IncorrectAuthority));
+        }
+
+        Ok(header)
+    }
+
+    fn check_for_equivocation(
+        &mut self,
+        header: &mut Header,
+        just_created: bool,
+    ) -> Result<Option<EquivocationProof>, VerificationError> {
+        let (slot, _, _, author) = self
+            .parse_aura_header(header)
+            .map_err(VerificationError::HeaderVerification)?;
+        let author = author.clone();
+
+        match self.equivocation_cache.entry(slot.into()) {
+            Entry::Occupied(occupied) => {
+                let (cached_header, certainly_own) = occupied.into_mut();
+                if cached_header == header {
+                    *certainly_own |= just_created;
+                    return Ok(None);
+                }
+                Ok(Some(EquivocationProof {
+                    header_a: cached_header.clone(),
+                    header_b: header.clone(),
+                    are_we_equivocating: *certainly_own || just_created,
+                    author,
+                }))
+            }
+            Entry::Vacant(vacant) => {
+                vacant.insert((header.clone(), just_created));
+                Ok(None)
+            }
+        }
+    }
 }
 
 impl<AP, FS> Verifier<Justification> for VerifierCache<AP, FS, Header>
@@ -199,68 +264,16 @@ where
         }
     }
 
-    // This function assumes that:
-    // 1. Headers are created by Aura.
-    // 2. Slot number is calculated using the current system time.
-    fn verify_header(&mut self, mut header: Header) -> Result<Header, Self::Error> {
-        use HeaderVerificationError::*;
-        // compare genesis header directly to the one we know
-        if header.number().is_zero() {
-            return match &header == self.genesis_header() {
-                true => Ok(header),
-                false => Err(Self::Error::HeaderVerification(IncorrectGenesis)),
-            };
-        }
-
-        let (slot, sig, pre_hash, author) = self
-            .parse_aura_header(&mut header)
-            .map_err(Self::Error::HeaderVerification)?;
-
-        // Aura: slot number is calculated using the system time.
-        // This code duplicates one of the parameters that we pass to Aura when starting the node!
-        let slot_now = Slot::from_timestamp(
-            sp_timestamp::Timestamp::current(),
-            sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
-        );
-        if slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
-            return Err(Self::Error::HeaderVerification(HeaderTooNew(slot)));
-        }
-
-        if !AuthorityPair::verify(&sig, pre_hash.as_ref(), author) {
-            return Err(Self::Error::HeaderVerification(IncorrectAuthority));
-        }
-
-        Ok(header)
-    }
-
-    fn check_for_equivocation(
+    fn verify_header(
         &mut self,
-        header: &mut Header,
+        header: Header,
         just_created: bool,
-    ) -> Result<Option<Self::EquivocationProof>, Self::Error> {
-        let (slot, _, _, author) = self
-            .parse_aura_header(header)
-            .map_err(Self::Error::HeaderVerification)?;
-        let author = author.clone();
-
-        match self.equivocation_cache.entry(slot.into()) {
-            Entry::Occupied(occupied) => {
-                let (cached_header, certainly_own) = occupied.into_mut();
-                if cached_header == header {
-                    *certainly_own |= just_created;
-                    return Ok(None);
-                }
-                Ok(Some(EquivocationProof {
-                    header_a: cached_header.clone(),
-                    header_b: header.clone(),
-                    are_we_equivocating: *certainly_own || just_created,
-                    author,
-                }))
-            }
-            Entry::Vacant(vacant) => {
-                vacant.insert((header.clone(), just_created));
-                Ok(None)
-            }
-        }
+    ) -> Result<VerifiedHeader<Justification, Self::EquivocationProof>, Self::Error> {
+        let mut header = self.verify_aura_header(header)?;
+        let maybe_equivocation_proof = self.check_for_equivocation(&mut header, just_created)?;
+        Ok(VerifiedHeader {
+            header,
+            maybe_equivocation_proof,
+        })
     }
 }
