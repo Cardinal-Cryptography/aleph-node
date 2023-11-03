@@ -41,19 +41,16 @@ pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
     NoopMetrics,
 >;
 
-pub type CurrentSignableBlockHash = BlockHash;
-pub type CurrentAggregator<'a, N> = current_aleph_aggregator::IO<
-    CurrentSignableBlockHash,
-    NetworkWrapper<CurrentRmcNetworkData, N>,
-    Keychain,
->;
+pub type CurrentAggregator<N> =
+    current_aleph_aggregator::IO<BlockHash, NetworkWrapper<CurrentRmcNetworkData, N>, Keychain>;
 
+#[allow(clippy::large_enum_variant)]
 enum EitherAggregator<'a, CN, LN>
 where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    Current(CurrentAggregator<'a, CN>),
+    Current(CurrentAggregator<CN>),
     Legacy(LegacyAggregator<'a, LN>),
 }
 
