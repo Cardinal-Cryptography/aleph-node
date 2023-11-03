@@ -26,19 +26,12 @@ pub type LegacySignableBlockHash = legacy_aleph_aggregator::SignableHash<BlockHa
 pub type LegacyRmc<'a> =
     legacy_aleph_bft_rmc::ReliableMulticast<'a, LegacySignableBlockHash, Keychain>;
 
-pub struct NoopMetrics;
-
-impl legacy_aleph_aggregator::Metrics<BlockHash> for NoopMetrics {
-    fn report_aggregation_complete(&mut self, _: BlockHash) {}
-}
-
 pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
     BlockHash,
     LegacyRmcNetworkData,
     NetworkWrapper<LegacyRmcNetworkData, N>,
     SignatureSet<Signature>,
     LegacyRmc<'a>,
-    NoopMetrics,
 >;
 
 pub type CurrentAggregator<N> =
@@ -83,7 +76,7 @@ where
             scheduler,
         );
         // For the compatibility with the legacy aggregator we need extra `Option` layer
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new(NoopMetrics);
+        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new();
         let aggregator_io = LegacyAggregator::<LN>::new(
             messages_for_rmc,
             messages_from_rmc,
