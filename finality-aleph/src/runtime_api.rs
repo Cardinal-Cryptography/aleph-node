@@ -12,7 +12,7 @@ use sp_core::twox_128;
 use sp_runtime::traits::{Block, OpaqueKeys};
 
 use crate::{
-    aleph_primitives::{AccountId, AuraId},
+    aleph_primitives::{AccountId, AlephSessionApi, AuraId},
     BlockHash, ClientForAleph,
 };
 
@@ -29,6 +29,7 @@ type QueuedKeys = Vec<(AccountId, SessionKeys)>;
 pub struct RuntimeApiImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: AlephSessionApi<B>,
     B: Block<Hash = BlockHash>,
     BE: Backend<B> + 'static,
 {
@@ -39,6 +40,7 @@ where
 impl<C, B, BE> RuntimeApiImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: AlephSessionApi<B>,
     B: Block<Hash = BlockHash>,
     BE: Backend<B> + 'static,
 {
@@ -87,12 +89,17 @@ impl Display for ApiError {
 impl<C, B, BE> RuntimeApi for RuntimeApiImpl<C, B, BE>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: AlephSessionApi<B>,
     B: Block<Hash = BlockHash>,
     BE: Backend<B> + 'static,
 {
     type Error = ApiError;
 
     fn next_aura_authorities(&self, at: BlockHash) -> Result<Vec<AuraId>, Self::Error> {
+        if let Ok(authorities) = self.client.runtime_api().next_session_aura_authorities(at) {
+            return Ok(authorities);
+        }
+
         let queued_keys: QueuedKeys = self.read_storage("Session", "QueuedKeys", at)?;
 
         Ok(queued_keys
