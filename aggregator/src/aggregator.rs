@@ -22,6 +22,7 @@ pub enum IOError {
 
 pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
+type RmcScheduler<H, S, PMS> = DoublingDelayScheduler<RmcNetworkData<H, S, PMS>>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
 pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
@@ -114,11 +115,7 @@ pub struct IO<
     MK: MultiKeychain,
 > {
     network: N,
-    rmc_service: RmcService<
-        H,
-        MK,
-        DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
-    >,
+    rmc_service: RmcService<H, MK, RmcScheduler<H, MK::Signature, MK::PartialMultisignature>>,
     aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     multisigned_events: VecDeque<Multisigned<H, MK>>,
 }
@@ -131,11 +128,7 @@ impl<
 {
     pub fn new(
         network: N,
-        rmc_service: RmcService<
-            H,
-            MK,
-            DoublingDelayScheduler<RmcNetworkData<H, MK::Signature, MK::PartialMultisignature>>,
-        >,
+        rmc_service: RmcService<H, MK, RmcScheduler<H, MK::Signature, MK::PartialMultisignature>>,
         aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     ) -> Self {
         IO {

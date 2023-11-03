@@ -5,7 +5,7 @@ use std::{
 
 use aleph_bft_rmc::Message as RmcMessage;
 use aleph_bft_types::Recipient;
-use parity_scale_codec::{Codec};
+use parity_scale_codec::Codec;
 
 mod aggregator;
 

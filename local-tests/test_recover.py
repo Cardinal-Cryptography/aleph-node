@@ -47,7 +47,7 @@ chain.stop(nodes=range(8))
 
 sleep(10)
 
-printt('Starting the chain')
+printt('Starting all nodes except one')
 chain.start('aleph-recovered', nodes=range(7))  # restart all except the last
 
 f1 = chain.get_highest_finalized()
