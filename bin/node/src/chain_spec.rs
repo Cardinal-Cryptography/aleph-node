@@ -139,10 +139,6 @@ pub struct ChainParams {
     #[arg(long, value_parser = parse_account_id)]
     faucet_account_id: Option<AccountId>,
 
-    /// Minimum number of stakers before chain enters emergency state.
-    #[arg(long, default_value = "4")]
-    min_validator_count: u32,
-
     /// Finality version at chain inception.
     #[arg(long, default_value = LEGACY_FINALITY_VERSION.to_string())]
     finality_version: FinalityVersion,
@@ -179,10 +175,6 @@ impl ChainParams {
 
     pub fn faucet_account_id(&self) -> Option<AccountId> {
         self.faucet_account_id.clone()
-    }
-
-    pub fn min_validator_count(&self) -> u32 {
-        self.min_validator_count
     }
 
     pub fn finality_version(&self) -> FinalityVersion {
@@ -233,7 +225,6 @@ fn generate_chain_spec_config(
     let sudo_account = chain_params.sudo_account_id();
     let rich_accounts = chain_params.rich_account_ids();
     let faucet_account = chain_params.faucet_account_id();
-    let min_validator_count = chain_params.min_validator_count();
     let finality_version = chain_params.finality_version();
 
     Ok(ChainSpec::from_genesis(
@@ -250,7 +241,6 @@ fn generate_chain_spec_config(
                 rich_accounts.clone(), // Pre-funded accounts
                 faucet_account.clone(), // Pre-funded faucet account
                 controller_accounts.clone(), // Controller accounts for staking.
-                min_validator_count,
                 finality_version,
             )
         },
@@ -355,7 +345,6 @@ fn generate_genesis_config(
     rich_accounts: Option<Vec<AccountId>>,
     faucet_account: Option<AccountId>,
     controller_accounts: Vec<AccountId>,
-    min_validator_count: u32,
     finality_version: FinalityVersion,
 ) -> RuntimeGenesisConfig {
     let special_accounts = {
@@ -416,8 +405,7 @@ fn generate_genesis_config(
         staking: StakingConfig {
             force_era: Forcing::NotForcing,
             validator_count,
-            // to satisfy some e2e tests as this cannot be changed during runtime
-            minimum_validator_count: min_validator_count,
+            minimum_validator_count: 4,
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,

@@ -1,4 +1,4 @@
----
+ ---
 name: 'Send Slack notifiction'
 description: |
   Action used to send Slack notifications about workflow status in channel specified in

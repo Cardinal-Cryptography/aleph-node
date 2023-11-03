@@ -216,7 +216,7 @@ impl Config {
         .map(
             |(node_name, synthetic_network_url, ip_address, account)| -> anyhow::Result<_> {
                 Ok(NodeConfig::new(
-                    format!("ws://{node_name}:9943"),
+                    format!("ws://{node_name}:9944"),
                     node_name,
                     Url::parse(&synthetic_network_url)?,
                     ip_address,
