@@ -132,14 +132,14 @@ function get_backup_folders() {
   accounts_ids=("$@")
 
   declare -a backup_folders
-  for account_id in "${accounts_ids[@]}"; do
+  for account_id in ${accounts_ids[@]}; do
     maybe_backup_folder="${base_path}/${account_id}/backup-stash"
     if [[ -d "${maybe_backup_folder}" ]]; then
       backup_folders+=("${maybe_backup_folder}")
     fi
   done
 
-  echo "${backup_folders[@]}"
+  echo ${backup_folders[@]}
 }
 
 function get_ss58_address_from_seed() {
@@ -266,8 +266,8 @@ if [[ -z "${DONT_BOOTSTRAP}" ]]; then
   done
 
   if [[ "${DONT_REMOVE_ABFT_BACKUPS}" == "true" ]]; then
-    all_account_ids=("${validator_account_ids[@]}" "${rpc_node_account_ids[@]}")
-    non_empty_backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
+    all_account_ids=(${validator_account_ids[@]} ${rpc_node_account_ids[@]})
+    non_empty_backups=$(get_backup_folders "${BASE_PATH}" ${all_account_ids[@]})
     if [[ -n "${non_empty_backups}" ]]; then
       warning "Found following non-empty ABFT backups in base path:"
       warning "${non_empty_backups}"
@@ -295,8 +295,8 @@ if [[ -z "${DONT_DELETE_DB}" ]] ; then
 fi
 
 if [[ -z "${DONT_REMOVE_ABFT_BACKUPS}" ]]; then
-  all_account_ids=("${validator_account_ids[@]}" "${rpc_node_account_ids[@]}")
-  backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
+  all_account_ids=(${validator_account_ids[@]} ${rpc_node_account_ids[@]})
+  backups=$(get_backup_folders "${BASE_PATH}" ${all_account_ids[@]})
   if [[ "${backups[@]}" ]]; then
     info "Removing AlephBFT backups."
     echo "${backups[@]}" | xargs rm -rf
