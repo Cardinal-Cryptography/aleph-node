@@ -5,7 +5,7 @@ use std::{
 };
 
 use aleph_runtime::SessionKeys;
-use parity_scale_codec::Decode;
+use parity_scale_codec::{Decode, DecodeAll, Error as DecodeError};
 use sc_client_api::Backend;
 use sp_application_crypto::key_types::AURA;
 use sp_core::twox_128;
@@ -67,21 +67,21 @@ where
             _ => return Err(ApiError::NoStorage(pallet.to_string(), item.to_string())),
         };
 
-        D::decode(&mut encoded.0.as_ref()).map_err(|_| ApiError::DecodeError)
+        D::decode_all(&mut encoded.0.as_ref()).map_err(|e| ApiError::DecodeError(e))
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum ApiError {
     NoStorage(String, String),
-    DecodeError,
+    DecodeError(DecodeError),
 }
 
 impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             ApiError::NoStorage(pallet, item) => write!(f, "no storage under {}.{}", pallet, item),
-            ApiError::DecodeError => write!(f, "decode error"),
+            ApiError::DecodeError(error) => write!(f, "decode error: {:?}", error),
         }
     }
 }
