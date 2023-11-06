@@ -76,6 +76,6 @@ pub fn task<R: Runnable>(subtask_common: TaskCommon, runnable: R, name: &'static
         }
     };
 
-    let handle = spawn_handle.spawn_essential("aleph/consensus_session_{}", task);
+    let handle = spawn_handle.spawn_essential("aleph/consensus_session_task", task);
     Task::new(handle, stop)
 }
