@@ -8,7 +8,7 @@ use aleph_bft_rmc::{DoublingDelayScheduler, MultiKeychain, Multisigned, Service 
 use aleph_bft_types::Recipient;
 use log::{debug, error, info, trace, warn};
 
-use crate::{Hash, ProtocolSink, RmcNetworkData};
+use crate::{Hash, ProtocolSink, RmcNetworkData, SignableHash};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AggregatorError {
@@ -22,7 +22,8 @@ pub enum IOError {
 
 pub type AggregatorResult<R> = Result<R, AggregatorError>;
 pub type IOResult = Result<(), IOError>;
-type RmcScheduler<H, S, PMS> = DoublingDelayScheduler<RmcNetworkData<H, S, PMS>>;
+type Rmc<H, MK, S, PMS> =
+    RmcService<SignableHash<H>, MK, DoublingDelayScheduler<RmcNetworkData<H, S, PMS>>>;
 
 /// A wrapper around an `rmc::Multicast` returning the signed hashes in the order of the [`Multicast::start_multicast`] calls.
 pub struct BlockSignatureAggregator<H: Hash + Copy, PMS> {
@@ -115,9 +116,9 @@ pub struct IO<
     MK: MultiKeychain,
 > {
     network: N,
-    rmc_service: RmcService<H, MK, RmcScheduler<H, MK::Signature, MK::PartialMultisignature>>,
+    rmc_service: Rmc<H, MK, MK::Signature, MK::PartialMultisignature>,
     aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
-    multisigned_events: VecDeque<Multisigned<H, MK>>,
+    multisigned_events: VecDeque<Multisigned<SignableHash<H>, MK>>,
 }
 
 impl<
@@ -128,7 +129,7 @@ impl<
 {
     pub fn new(
         network: N,
-        rmc_service: RmcService<H, MK, RmcScheduler<H, MK::Signature, MK::PartialMultisignature>>,
+        rmc_service: Rmc<H, MK, MK::Signature, MK::PartialMultisignature>,
         aggregator: BlockSignatureAggregator<H, MK::PartialMultisignature>,
     ) -> Self {
         IO {
@@ -149,7 +150,7 @@ impl<
             debug!(target: "aleph-aggregator", "Aggregation already started for block hash {:?}, ignoring.", hash);
             return;
         }
-        if let Some(multisigned) = self.rmc_service.start_rmc(hash) {
+        if let Some(multisigned) = self.rmc_service.start_rmc(SignableHash::new(hash)) {
             self.multisigned_events.push_back(multisigned);
         }
     }
@@ -160,7 +161,7 @@ impl<
                 let unchecked = multisigned.into_unchecked();
                 let signature = unchecked.signature();
                 self.aggregator
-                    .on_multisigned_hash(unchecked.into_signable(), signature);
+                    .on_multisigned_hash(unchecked.into_signable().get_hash(), signature);
                 return Ok(());
             }
             tokio::select! {
