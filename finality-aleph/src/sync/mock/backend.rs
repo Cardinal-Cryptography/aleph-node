@@ -387,7 +387,7 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
 }
 
 #[derive(Debug)]
-pub struct EquivocationProof;
+pub struct EquivocationProof(pub MockHeader);
 
 impl EquivocationProofT for EquivocationProof {
     fn are_we_equivocating(&self) -> bool {
@@ -451,12 +451,16 @@ impl Verifier<MockJustification> for Backend {
         header: MockHeader,
         _just_created: bool,
     ) -> Result<VerifiedHeader<MockJustification, Self::EquivocationProof>, Self::Error> {
-        match header.valid() {
-            true => Ok(VerifiedHeader {
+        match (header.valid(), header.equivocated()) {
+            (true, false) => Ok(VerifiedHeader {
                 header,
                 maybe_equivocation_proof: None,
             }),
-            false => Err(Self::Error::Header),
+            (true, true) => Ok(VerifiedHeader {
+                header: header.clone(),
+                maybe_equivocation_proof: Some(EquivocationProof(header)),
+            }),
+            (false, _) => Err(Self::Error::Header),
         }
     }
 }

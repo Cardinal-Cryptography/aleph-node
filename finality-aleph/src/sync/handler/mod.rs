@@ -439,6 +439,27 @@ where
         }
     }
 
+    /// Check for equivocations and then send the block to the block importer.
+    /// It's important to pass every incoming block through this function, as the block importer
+    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
+    /// Also, this is the last place we know if we've authored the block, without having to
+    /// check it by hand.
+    fn import_block(
+        &mut self,
+        block: B,
+        own_block: bool,
+    ) -> Result<Option<<V as Verifier<J>>::EquivocationProof>, <Self as HandlerTypes>::Error> {
+        let VerifiedHeader {
+            maybe_equivocation_proof,
+            ..
+        } = self
+            .verifier
+            .verify_header(block.header().clone(), own_block)
+            .map_err(Error::Verifier)?;
+        self.block_importer.import_block(block);
+        Ok(maybe_equivocation_proof)
+    }
+
     /// Inform the handler that a block has been imported.
     pub fn block_imported(
         &mut self,
@@ -638,7 +659,11 @@ where
                     {
                         true => {
                             last_imported_block = Some(b.header().id());
-                            self.block_importer.import_block(b);
+                            match self.import_block(b, false) {
+                                Ok(Some(proof)) => equivocation_proofs.push(proof),
+                                Ok(None) => (),
+                                Err(e) => return (new_highest, equivocation_proofs, Some(e)),
+                            }
                         }
                         false => {
                             return (
@@ -771,14 +796,7 @@ where
         &mut self,
         block: B,
     ) -> Result<HandleOwnBlockOutput<B, J, V>, <Self as HandlerTypes>::Error> {
-        let VerifiedHeader {
-            maybe_equivocation_proof,
-            ..
-        } = self
-            .verifier
-            .verify_header(block.header().clone(), true)
-            .map_err(Error::Verifier)?;
-        self.block_importer.import_block(block.clone());
+        let maybe_equivocation_proof = self.import_block(block.clone(), true)?;
         Ok((block_to_response(block), maybe_equivocation_proof))
     }
 }
@@ -1167,6 +1185,34 @@ mod tests {
             Some(Error::Verifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
+    }
+
+    #[tokio::test]
+    async fn detects_equivocated_response() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let mut branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        for header in branch.iter_mut() {
+            header.make_equivocated();
+        }
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (new_info, proofs, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        assert!(new_info);
+        assert!(maybe_error.is_none());
+        // each header detected twice - as header, as block
+        assert_eq!(proofs.len(), 2 * branch.len());
+        mark_branch_imported(&mut handler, &mut notifier, &branch).await;
+        let (new_info, proofs, maybe_error) = handler.handle_request_response(response, 8);
+        assert!(!new_info);
+        assert!(maybe_error.is_none());
+        // blocks already imported, headers and blocks should therefore be skipped
+        assert_eq!(proofs.len(), 0);
     }
 
     #[tokio::test]
@@ -1839,6 +1885,45 @@ mod tests {
         };
     }
 
+    #[test]
+    fn detects_equivocated_state() {
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let initial_state = handler.state().expect("state works");
+        let top_justification = initial_state.top_justification();
+        let mut favourite_block = initial_state.favourite_block();
+        favourite_block.make_equivocated();
+        let initial_state = State::new(top_justification, favourite_block.clone());
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&mut backend, 43)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        let last_from_first_session = justifications[18].clone().into_unverified();
+        let last_from_second_session = justifications[38].clone().into_unverified();
+        for justification in justifications.into_iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+            handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification");
+        }
+        match handler
+            .handle_state(initial_state, peer)
+            .expect("correct justification")
+        {
+            (HandleStateAction::Response(NetworkData::StateBroadcastResponse(
+                justification,
+                maybe_justification,
+            )), Some(equivocation_proof)) => {
+                assert_eq!(justification, last_from_first_session);
+                assert_eq!(maybe_justification, Some(last_from_second_session));
+                assert_eq!(equivocation_proof.0, favourite_block);
+            }
+            other_action => panic!("expected a response with justifications and equivocation proof, got {other_action:?}"),
+        }
+    }
+
     fn setup_request_tests(
         handler: &mut TestHandler,
         backend: &mut Backend,
@@ -2350,6 +2435,26 @@ mod tests {
             ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
             other => panic!("expected block item, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn detects_equivocated_own_block() {
+        let (mut handler, backend, _keep, _genesis) = setup();
+        let mut header = backend
+            .top_finalized()
+            .expect("mock backend works")
+            .header()
+            .random_branch()
+            .next()
+            .expect("branch creation succeeds");
+        header.make_equivocated();
+        let block = MockBlock::new(header.clone(), true);
+        let proof = handler
+            .handle_own_block(block)
+            .expect("correct")
+            .1
+            .expect("should return proof");
+        assert_eq!(proof.0, header);
     }
 
     #[tokio::test]
