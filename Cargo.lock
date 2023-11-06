@@ -149,8 +149,8 @@ dependencies = [
 
 [[package]]
 name = "aggregator"
-version = "0.5.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-v0.5.0#20ae80ee848c4137514407425a4534c57ec2ebdc"
+version = "0.4.0"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-12.0#1a00a8fd94e5b1a111e0a380d47bbec83b754b27"
 dependencies = [
  "aleph-bft-rmc 0.6.1",
  "aleph-bft-types 0.8.1",
@@ -2674,7 +2674,7 @@ dependencies = [
 name = "finality-aleph"
 version = "0.9.0"
 dependencies = [
- "aggregator 0.5.0",
+ "aggregator 0.4.0",
  "aggregator 0.6.0",
  "aleph-bft 0.20.5",
  "aleph-bft 0.33.0",
