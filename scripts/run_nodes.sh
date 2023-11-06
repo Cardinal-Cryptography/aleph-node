@@ -131,12 +131,10 @@ function get_backup_folders() {
   shift
   accounts_ids=("$@")
 
-
   declare -a backup_folders
-  non_empty_backups=$(find "${base_path}" -type d -name "backup-stash" -not -empty)
   for account_id in "${accounts_ids[@]}"; do
-    maybe_backup_folder=$(echo "${non_empty_backups}" | grep "${account_id}")
-    if [[ -n "${maybe_backup_folder}" ]]; then
+    maybe_backup_folder="${base_path}/${account_id}/backup-stash"
+    if [[ -d "${maybe_backup_folder}" ]]; then
       backup_folders+=("${maybe_backup_folder}")
     fi
   done
@@ -189,7 +187,8 @@ function run_node() {
     -laleph-metrics=debug
   )
 
-   ./target/release/aleph-node "${node_args[@]}"  2> "${BASE_PATH}/${node_name}.log" > /dev/null &
+  info "Running node ${index}..."
+  ./target/release/aleph-node "${node_args[@]}"  2> "${BASE_PATH}/${node_name}.log" > /dev/null &
 }
 
 # ------------------------- input checks ----------------------------------
@@ -297,9 +296,11 @@ fi
 
 if [[ -z "${DONT_REMOVE_ABFT_BACKUPS}" ]]; then
   all_account_ids=("${validator_account_ids[@]}" "${rpc_node_account_ids[@]}")
-  non_empty_backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
-  info "Removing AlephBFT backups: ${non_empty_backups[@]}"
-  echo "${non_empty_backups[@]}" | xargs rm -rf
+  backups=$(get_backup_folders "${BASE_PATH}" "${all_account_ids[@]}")
+  if [[ "${backups[@]}" ]]; then
+    info "Removing AlephBFT backups."
+    echo "${backups[@]}" | xargs rm -rf
+  fi
 fi
 
 for i in $(seq 0 "$(( RPC_NODES - 1 ))"); do
