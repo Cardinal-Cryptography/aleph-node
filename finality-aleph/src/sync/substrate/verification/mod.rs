@@ -145,7 +145,7 @@ where
     fn parse_aura_header(
         &mut self,
         header: &mut Header,
-    ) -> Result<(Slot, AuraSignature, H256, &AuraId), HeaderVerificationError> {
+    ) -> Result<(Slot, AuraSignature, H256, AuraId), HeaderVerificationError> {
         use HeaderVerificationError::*;
         let slot =
             find_pre_digest::<Block, AuthoritySignature>(header).map_err(PreDigestLookupError)?;
@@ -167,58 +167,49 @@ where
         let idx = *slot % (authorities.len() as u64);
         let author = authorities
             .get(idx as usize)
-            .expect("idx < authorities.len()");
+            .expect("idx < authorities.len()")
+            .clone();
 
         Ok((slot, sig, pre_hash, author))
     }
 
     // This function assumes that:
-    // 1. Headers are created by Aura.
-    // 2. Slot number is calculated using the current system time.
-    fn verify_aura_header(&mut self, mut header: Header) -> Result<Header, VerificationError> {
+    // 1. This is not a genesis header
+    // 2. Headers are created by Aura.
+    // 3. Slot number is calculated using the current system time.
+    fn verify_aura_header(
+        &mut self,
+        slot: &Slot,
+        sig: &AuraSignature,
+        pre_hash: H256,
+        author: &AuraId,
+    ) -> Result<(), VerificationError> {
         use HeaderVerificationError::*;
-        // compare genesis header directly to the one we know
-        if header.number().is_zero() {
-            return match &header == self.genesis_header() {
-                true => Ok(header),
-                false => Err(VerificationError::HeaderVerification(IncorrectGenesis)),
-            };
-        }
-
-        let (slot, sig, pre_hash, author) = self
-            .parse_aura_header(&mut header)
-            .map_err(VerificationError::HeaderVerification)?;
-
         // Aura: slot number is calculated using the system time.
         // This code duplicates one of the parameters that we pass to Aura when starting the node!
         let slot_now = Slot::from_timestamp(
             sp_timestamp::Timestamp::current(),
             sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
         );
-        if slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
-            return Err(VerificationError::HeaderVerification(HeaderTooNew(slot)));
+        if *slot > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
+            return Err(VerificationError::HeaderVerification(HeaderTooNew(*slot)));
         }
-
-        if !AuthorityPair::verify(&sig, pre_hash.as_ref(), author) {
+        if !AuthorityPair::verify(sig, pre_hash.as_ref(), author) {
             return Err(VerificationError::HeaderVerification(IncorrectAuthority));
         }
-
-        Ok(header)
+        Ok(())
     }
 
+    // This function assumes that:
+    // 1. This is not a genesis header
+    // 2. Headers are created by Aura.
     fn check_for_equivocation(
         &mut self,
-        header: &mut Header,
+        header: &Header,
+        slot: Slot,
+        author: AuraId,
         just_created: bool,
     ) -> Result<Option<EquivocationProof>, VerificationError> {
-        if header.number().is_zero() {
-            return Ok(None);
-        }
-        let (slot, _, _, author) = self
-            .parse_aura_header(header)
-            .map_err(VerificationError::HeaderVerification)?;
-        let author = author.clone();
-
         match self.equivocation_cache.entry(slot.into()) {
             Entry::Occupied(occupied) => {
                 let (cached_header, certainly_own) = occupied.into_mut();
@@ -269,11 +260,27 @@ where
 
     fn verify_header(
         &mut self,
-        header: Header,
+        mut header: Header,
         just_created: bool,
     ) -> Result<VerifiedHeader<Justification, Self::EquivocationProof>, Self::Error> {
-        let mut header = self.verify_aura_header(header)?;
-        let maybe_equivocation_proof = self.check_for_equivocation(&mut header, just_created)?;
+        // compare genesis header directly to the one we know
+        if header.number().is_zero() {
+            return match &header == self.genesis_header() {
+                true => Ok(VerifiedHeader {
+                    header,
+                    maybe_equivocation_proof: None,
+                }),
+                false => Err(VerificationError::HeaderVerification(
+                    HeaderVerificationError::IncorrectGenesis,
+                )),
+            };
+        }
+        let (slot, sig, pre_hash, author) = self
+            .parse_aura_header(&mut header)
+            .map_err(VerificationError::HeaderVerification)?;
+        self.verify_aura_header(&slot, &sig, pre_hash, &author)?;
+        let maybe_equivocation_proof =
+            self.check_for_equivocation(&header, slot, author, just_created)?;
         Ok(VerifiedHeader {
             header,
             maybe_equivocation_proof,
