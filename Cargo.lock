@@ -2672,7 +2672,7 @@ dependencies = [
 
 [[package]]
 name = "finality-aleph"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "aggregator 0.4.0",
  "aggregator 0.6.0",
@@ -6602,7 +6602,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
