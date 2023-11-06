@@ -150,7 +150,7 @@ dependencies = [
 [[package]]
 name = "aggregator"
 version = "0.4.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-12.0#1a00a8fd94e5b1a111e0a380d47bbec83b754b27"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=aggregator-v0.4.0#1a00a8fd94e5b1a111e0a380d47bbec83b754b27"
 dependencies = [
  "aleph-bft-rmc 0.6.1",
  "aleph-bft-types 0.8.1",
