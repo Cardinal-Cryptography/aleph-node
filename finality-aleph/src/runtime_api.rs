@@ -67,7 +67,7 @@ where
             _ => return Err(ApiError::NoStorage(pallet.to_string(), item.to_string())),
         };
 
-        D::decode_all(&mut encoded.0.as_ref()).map_err(|e| ApiError::DecodeError(e))
+        D::decode_all(&mut encoded.0.as_ref()).map_err(ApiError::DecodeError)
     }
 }
 
