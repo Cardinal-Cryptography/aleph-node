@@ -6,7 +6,7 @@ use std::{
 use log::warn;
 use sc_client_api::{blockchain::HeaderBackend, Backend as _};
 use sc_service::TFullBackend;
-use sp_blockchain::{Backend as _, Error as BackendError, Info};
+use sp_blockchain::{Backend as _, Error as BackendError, HashAndNumber, Info};
 use sp_runtime::traits::{Block as SubstrateBlock, Header as SubstrateHeader};
 
 use crate::{
@@ -240,5 +240,18 @@ impl ChainStatus<Block, Justification> for SubstrateChainStatus {
             .into_iter()
             .flatten()
             .collect())
+    }
+
+    fn lowest_common_ancestor(
+        &self,
+        id_one: BlockId,
+        id_two: BlockId,
+    ) -> Result<BlockId, Self::Error> {
+        let HashAndNumber { hash, number } = sp_blockchain::lowest_common_ancestor(
+            self.backend.blockchain(),
+            id_one.hash,
+            id_two.hash,
+        )?;
+        Ok(BlockId { hash, number })
     }
 }

@@ -493,17 +493,19 @@ where
 
     fn handle_chain_event(&mut self, event: ChainStatusNotification<J::Header>) {
         use ChainStatusNotification::*;
+        let prev_state = self.handler.state().ok();
         match event {
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
                 self.metrics.report_event(Event::HandleBlockImported);
-                if let Err(e) = self.handler.block_imported(header) {
+                if let Err(e) = self.handler.block_imported(header.clone()) {
                     self.metrics.report_event_error(Event::HandleBlockImported);
                     error!(
                         target: LOG_TARGET,
                         "Error marking block as imported: {}.", e
                     )
                 }
+                self.handler.check_for_reorg(prev_state, header);
             }
             BlockFinalized(_) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");

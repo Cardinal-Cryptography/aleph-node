@@ -17,7 +17,7 @@ use crate::{
     },
     BlockId,
 };
-
+use std::cmp::max;
 #[derive(Clone, Debug)]
 struct BackendStorage {
     session_boundary_info: SessionBoundaryInfo,
@@ -382,6 +382,27 @@ impl ChainStatus<MockBlock, MockJustification> for Backend {
                 Ok(Vec::new())
             }
         }
+    }
+
+    fn lowest_common_ancestor(
+        &self,
+        id_one: BlockId,
+        id_two: BlockId,
+    ) -> Result<BlockId, Self::Error> {
+        let storage = self.inner.lock();
+        let mut ids = [id_one, id_two];
+        while ids[0] != ids[1] {
+            let higher = max((ids[0].number, 0), (ids[1].number(), 1)).1;
+            ids[higher] = storage
+                .blockchain
+                .get(&ids[higher])
+                .ok_or(StatusError)?
+                .header
+                .parent
+                .clone()
+                .ok_or(StatusError)?;
+        }
+        Ok(ids[0].clone())
     }
 }
 
