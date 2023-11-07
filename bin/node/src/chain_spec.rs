@@ -357,8 +357,7 @@ fn generate_genesis_config(
 
     let validator_count = authorities.len() as u32;
 
-    let accounts_config =
-        configure_chain_spec_fields(unique_accounts_balances, authorities);
+    let accounts_config = configure_chain_spec_fields(unique_accounts_balances, authorities);
 
     RuntimeGenesisConfig {
         system: SystemConfig {
