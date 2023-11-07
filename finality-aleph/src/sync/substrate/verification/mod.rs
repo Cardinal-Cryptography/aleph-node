@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
     sync::Arc,
 };
+use hex::ToHex;
 
 use parity_scale_codec::Encode;
 use sc_client_api::HeaderBackend;
@@ -100,7 +101,7 @@ impl Display for EquivocationProof {
         write!(
             f,
             "author: {}, first header: {}, second header {}",
-            self.author,
+            self.author.encode_hex::<String>(),
             self.header_a.id(),
             self.header_b.id()
         )
