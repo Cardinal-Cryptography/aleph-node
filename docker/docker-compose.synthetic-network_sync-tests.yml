@@ -41,22 +41,11 @@ services:
 
   Node5:
     extends:
-      file: docker-compose.base.yml
+      file: docker-compose.synthetic-network.yml
       service: Node5
-    image: aleph-node:syntheticnet
-    networks:
-      - synthetic-network
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-      - SYS_PTRACE
     environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node5:30348
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
       - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
       - RPC_PORT=9944
-    ports:
-      - 3005:80
 
   Node6:
     extends:
@@ -76,6 +65,25 @@ services:
       - RPC_PORT=9944
     ports:
       - 3006:80
+
+  Node7:
+    extends:
+      file: docker-compose.base.yml
+      service: Node7
+    image: aleph-node:syntheticnet
+    networks:
+      - synthetic-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+    environment:
+      - PUBLIC_VALIDATOR_ADDRESS=Node7:30350
+      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - CUSTOM_ARGS="--max-nonfinalized-blocks=128"
+      - RPC_PORT=9944
+    ports:
+      - 3007:80
 
 networks:
   synthetic-network:
