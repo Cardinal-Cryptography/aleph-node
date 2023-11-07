@@ -5,6 +5,7 @@ use aleph_client::{
 use crate::config::Config;
 
 pub fn get_validator_seed(seed: u32) -> String {
+    assert!(seed > 0, "//0 seed is reserved for RPC node!");
     format!("//{seed}")
 }
 

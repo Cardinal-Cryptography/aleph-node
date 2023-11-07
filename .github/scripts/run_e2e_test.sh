@@ -10,10 +10,8 @@ Usage:
       Test cases to run.
     -f
       Number of reserved seats available to validators, ignored if empty or `-n` is empty.
-      Cannot be used with `-r=true`.
     -n
       Number of non-reserved seats available to validators, ignored if empty or `-f` is empty.
-      Cannot be used with `-r=true`.
 EOF
   exit 0
 }

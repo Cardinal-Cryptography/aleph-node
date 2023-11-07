@@ -115,8 +115,9 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     Ok(())
 }
 
-/// gets ws address to `n-th` node
+/// gets ws address to `n-th` validator node, it starts from 9945 port as 9944 port is RPC node
 pub fn validator_address(index: u32) -> String {
+    assert!(index > 0, "index must be a positive value, as 0 index is reserved for RPC node!");
     const BASE: &str = "ws://127.0.0.1";
     const FIRST_PORT: u32 = 9944;
 
