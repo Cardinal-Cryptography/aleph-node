@@ -36,7 +36,7 @@ done
 # This is arbitrary.
 MAX_VALIDATOR_COUNT=20
 
-NODE_URL=${NODE_URL:-"ws://127.0.0.1:9943"}
+NODE_URL=${NODE_URL:-"ws://127.0.0.1:9944"}
 NETWORK=${NETWORK:-"container:Node0"}
 
 ARGS=(
