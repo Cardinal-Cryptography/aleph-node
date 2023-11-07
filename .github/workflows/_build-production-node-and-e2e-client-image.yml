@@ -99,6 +99,9 @@ jobs:
         shell: bash
         run: docker load -i aleph-node.tar
 
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Build release docker image
         id: build-image
         run: |
