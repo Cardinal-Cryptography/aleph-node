@@ -205,17 +205,12 @@ pub fn config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
-        .enumerate()
-        .map(|(index, _account)| account_id_from_string(format!("//{index}//Controller").as_str()))
-        .collect();
-    generate_chain_spec_config(chain_params, authorities, controller_accounts)
+    generate_chain_spec_config(chain_params, authorities)
 }
 
 fn generate_chain_spec_config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
-    controller_accounts: Vec<AccountId>,
 ) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
     let token_symbol = String::from(chain_params.token_symbol());
@@ -240,7 +235,6 @@ fn generate_chain_spec_config(
                 sudo_account.clone(), // Sudo account, will also be pre funded
                 rich_accounts.clone(), // Pre-funded accounts
                 faucet_account.clone(), // Pre-funded faucet account
-                controller_accounts.clone(), // Controller accounts for staking.
                 finality_version,
             )
         },
@@ -284,20 +278,9 @@ struct AccountsConfig {
 /// Provides accounts for RuntimeGenesisConfig setup based on distinct staking accounts.
 /// Assumes validator == stash, but controller is a distinct account
 fn configure_chain_spec_fields(
-    unique_accounts_balances: Vec<(AccountId, u128)>,
+    balances: Vec<(AccountId, u128)>,
     authorities: Vec<AuthorityKeys>,
-    controllers: Vec<AccountId>,
 ) -> AccountsConfig {
-    let balances = unique_accounts_balances
-        .into_iter()
-        .chain(
-            controllers
-                .clone()
-                .into_iter()
-                .map(|account| (account, TOKEN)),
-        )
-        .collect();
-
     let keys = authorities
         .iter()
         .map(|auth| {
@@ -314,12 +297,13 @@ fn configure_chain_spec_fields(
 
     let stakers = authorities
         .iter()
-        .zip(controllers)
         .enumerate()
-        .map(|(validator_idx, (validator, controller))| {
+        .map(|(validator_idx, validator)| {
             (
                 validator.account_id.clone(),
-                controller,
+                // this is controller account but in Substrate 1.0.0, it is omitted anyway,
+                // so it does not matter what we pass in the below line as always stash == controller
+                validator.account_id.clone(),
                 (validator_idx + 1) as u128 * MIN_VALIDATOR_BOND,
                 StakerStatus::Validator,
             )
@@ -344,7 +328,6 @@ fn generate_genesis_config(
     sudo_account: AccountId,
     rich_accounts: Option<Vec<AccountId>>,
     faucet_account: Option<AccountId>,
-    controller_accounts: Vec<AccountId>,
     finality_version: FinalityVersion,
 ) -> RuntimeGenesisConfig {
     let special_accounts = {
@@ -375,7 +358,7 @@ fn generate_genesis_config(
     let validator_count = authorities.len() as u32;
 
     let accounts_config =
-        configure_chain_spec_fields(unique_accounts_balances, authorities, controller_accounts);
+        configure_chain_spec_fields(unique_accounts_balances, authorities);
 
     RuntimeGenesisConfig {
         system: SystemConfig {
