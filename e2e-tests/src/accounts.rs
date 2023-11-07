@@ -8,11 +8,11 @@ pub fn get_validator_seed(seed: u32) -> String {
     format!("//{seed}")
 }
 
-// this should be extracted to common code
+// in default e2e setup, //0 is a RPC node and //1, //2, ... are validators
 pub fn get_validators_seeds(config: &Config) -> Vec<String> {
     match config.validators_seeds {
         Some(ref seeds) => seeds.clone(),
-        None => (0..config.validator_count)
+        None => (1..config.validator_count + 1)
             .map(get_validator_seed)
             .collect(),
     }
