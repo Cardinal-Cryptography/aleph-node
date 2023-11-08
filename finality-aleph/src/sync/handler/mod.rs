@@ -712,25 +712,6 @@ where
         Ok(State::new(top_justification, favourite_block))
     }
 
-    pub fn check_for_reorg(
-        &self,
-        prev_state: Option<State<J>>,
-        recently_imported_header: J::Header,
-    ) -> Option<u32> {
-        let prev_favourite = prev_state?.favourite_block();
-        if recently_imported_header.parent_id() == Some(prev_favourite.id()) {
-            // Quit early - in most cases we import some child of favourite block
-            return None;
-        }
-        let new_favorite = self.state().ok()?.favourite_block();
-        let lca = self
-            .chain_status
-            .lowest_common_ancestor(prev_favourite.id(), new_favorite.id())
-            .ok()?;
-        let reorg_len = prev_favourite.id().number() - lca.number();
-        return Some(reorg_len);
-    }
-
     /// A handle for requesting Interest.
     pub fn interest_provider(&self) -> InterestProvider<I, J> {
         InterestProvider {

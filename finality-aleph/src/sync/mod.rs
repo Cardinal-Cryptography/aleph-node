@@ -28,7 +28,7 @@ pub use substrate::{
     SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
 };
 
-const LOG_TARGET: &str = "aleph-block-sync";
+use crate::metrics::LOG_TARGET;
 
 /// The identifier of a connected peer.
 pub trait PeerId: Debug + Clone + Hash + Eq {}
@@ -190,14 +190,6 @@ where
 
     /// Children of the specified block.
     fn children(&self, id: BlockId) -> Result<Vec<J::Header>, Self::Error>;
-
-    /// Lowest common ancestor of two already imported blocks not belonging to a hopeless fork.
-    /// By assumptions it must have been imported before.
-    fn lowest_common_ancestor(
-        &self,
-        id_one: BlockId,
-        id_two: BlockId,
-    ) -> Result<BlockId, Self::Error>;
 }
 
 /// An interface for submitting additional justifications to the justification sync.
