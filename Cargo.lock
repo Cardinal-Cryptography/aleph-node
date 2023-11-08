@@ -5921,6 +5921,7 @@ dependencies = [
  "frame-support 4.0.0-dev (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.1.0)",
  "frame-system 4.0.0-dev (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.1.0)",
  "jf-plonk",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "sp-std 8.0.0",
