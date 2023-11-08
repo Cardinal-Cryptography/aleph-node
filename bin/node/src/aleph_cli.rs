@@ -52,7 +52,8 @@ pub struct AlephCli {
     #[clap(long, default_value_t = 64 * 1024)]
     alephbft_bit_rate_per_connection: u64,
 
-    /// Spend some extra time to collect more debugging data (e.g. validator network details).
+    /// Don't spend some extra time to collect more debugging data (e.g. validator network details).
+    /// By default collecting is enabled, as the impact on performance is negligible, if any.
     #[clap(long, default_value_t = false)]
     no_collection_of_extra_debugging_data: bool,
 }
