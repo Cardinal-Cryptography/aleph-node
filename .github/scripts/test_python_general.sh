@@ -31,10 +31,13 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      error "Unrecognized argument $1!"
+      echo "Unrecognized argument $1!"
       ;;
   esac
 done
+
+# relative paths should be improved in python scripts CI, as it matters that below line is
+pushd local-tests/ > /dev/null
 
 if [[ ! -f "${ALEPH_NODE_BINARY}" ]]; then
   echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}."
@@ -45,10 +48,8 @@ if [[ -z "${TESTCASE}" ]]; then
   exit 1
 fi
 
-pushd local-tests/ > /dev/null
-
 file_name_to_run="${TESTCASE}.py"
-if [[ -x "${file_name_to_run}" ]]; then
+if [[ ! -x "${file_name_to_run}" ]]; then
   echo "Error: testcase ${file_name_to_run} does not exist or it's not executable."
   popd > /dev/null
   exit 1
@@ -64,5 +65,5 @@ pip install -r requirements.txt
 # first buffered and that you can see the output of your application.
 export PYTHONUNBUFFERED=y
 
-eval "${file_name_to_run}"
+eval "./${file_name_to_run}"
 popd > /dev/null
