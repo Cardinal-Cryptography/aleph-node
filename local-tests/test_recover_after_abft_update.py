@@ -46,7 +46,8 @@ chain.start('aleph')
 
 chain.wait_for_finalization(10, catchup=True, catchup_delta=5)  # run normally for short time
 
-finality_version = chain.nodes[0].update_finality_version(session=3, sudo_phrase='//0')  # update will happen at block 90
+result = chain.nodes[0].update_finality_version(session=3, sudo_phrase='//0')  # update will happen at block 90
+assert result.is_success
 
 chain.wait_for_finalization(BLOCKS_PER_STAGE, catchup=True, catchup_delta=5)  # run normally for around 1 session after updating abft
 
