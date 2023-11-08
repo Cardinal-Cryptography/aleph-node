@@ -6,15 +6,11 @@ use network_clique::SpawnHandleT;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 
-<<<<<<< HEAD:finality-aleph/src/abft/current/mod.rs
 mod network;
 mod traits;
 
 pub use network::NetworkData;
 
-use super::common::sanity_check_round_delays;
-=======
->>>>>>> 848492b2 (adjust creating config):finality-aleph/src/abft/current.rs
 pub use crate::aleph_primitives::{BlockHash, BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use crate::{
     abft::{
