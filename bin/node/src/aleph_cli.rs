@@ -54,7 +54,7 @@ pub struct AlephCli {
 
     /// Spend some extra time to collect more debugging data (e.g. validator network details).
     #[clap(long, default_value_t = false)]
-    collect_extra_debugging_data: bool,
+    no_collection_of_extra_debugging_data: bool,
 }
 
 impl AlephCli {
@@ -97,7 +97,7 @@ impl AlephCli {
         self.alephbft_bit_rate_per_connection
     }
 
-    pub fn collect_extra_debugging_data(&self) -> bool {
-        self.collect_extra_debugging_data
+    pub fn no_collection_of_extra_debugging_data(&self) -> bool {
+        self.no_collection_of_extra_debugging_data
     }
 }

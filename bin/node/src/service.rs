@@ -344,7 +344,7 @@ pub fn new_authority(
     let chain_status = SubstrateChainStatus::new(backend.clone())
         .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
 
-    let collect_extra_debugging_data = aleph_config.collect_extra_debugging_data();
+    let collect_extra_debugging_data = !aleph_config.no_collection_of_extra_debugging_data();
 
     let (
         _rpc_handlers,
