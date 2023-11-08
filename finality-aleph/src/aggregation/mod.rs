@@ -43,7 +43,7 @@ pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
 
 pub type CurrentSignableBlockHash = BlockHash;
 pub type CurrentAggregator<'a, N> = current_aleph_aggregator::IO<
-    BlockHash,
+    CurrentSignableBlockHash,
     NetworkWrapper<CurrentRmcNetworkData, N>,
     Keychain,
 >;

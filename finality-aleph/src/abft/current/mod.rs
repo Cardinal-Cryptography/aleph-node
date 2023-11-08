@@ -1,15 +1,19 @@
-use current_aleph_bft::{default_config, Config, LocalIO, Terminator};
+use std::time::Duration;
+use current_aleph_bft::{Config, LocalIO, Terminator, default_delay_config, create_config};
 use log::debug;
 use network_clique::SpawnHandleT;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 
+<<<<<<< HEAD:finality-aleph/src/abft/current/mod.rs
 mod network;
 mod traits;
 
 pub use network::NetworkData;
 
 use super::common::sanity_check_round_delays;
+=======
+>>>>>>> 848492b2 (adjust creating config):finality-aleph/src/abft/current.rs
 pub use crate::aleph_primitives::{BlockHash, BlockNumber, CURRENT_FINALITY_VERSION as VERSION};
 use crate::{
     abft::{
@@ -26,6 +30,7 @@ use crate::{
     },
     CurrentNetworkData, Hasher, Keychain, NodeIndex, SessionId, SignatureSet, UnitCreationDelay,
 };
+use crate::abft::common::SESSION_LEN_LOWER_BOUND_MS;
 
 pub fn run_member<B, C, ADN>(
     subtask_common: TaskCommon,
@@ -45,12 +50,6 @@ where
     C: HeaderBackend<B> + Send + 'static,
     ADN: Network<CurrentNetworkData> + 'static,
 {
-    // Remove this check once we implement one on the AlephBFT side (A0-2583).
-    // Checks that the total time of a session is at least 7 days.
-    sanity_check_round_delays(
-        config.max_round,
-        config.delay_config.unit_creation_delay.clone(),
-    );
     let TaskCommon {
         spawn_handle,
         session_id,
@@ -86,9 +85,10 @@ pub fn create_aleph_config(
     session_id: SessionId,
     unit_creation_delay: UnitCreationDelay,
 ) -> Config {
-    let mut config = default_config(n_members.into(), node_id.into(), session_id.0 as u64);
-    config.delay_config.unit_creation_delay = unit_creation_delay_fn(unit_creation_delay);
-    config.max_round = MAX_ROUNDS;
-
-    config
+    let mut delay_config = default_delay_config();
+    delay_config.unit_creation_delay = unit_creation_delay_fn(unit_creation_delay);
+    match create_config(n_members.into(), node_id.into(), session_id.0 as u64, MAX_ROUNDS, delay_config, Duration::from_millis(SESSION_LEN_LOWER_BOUND_MS as u64)) {
+        Ok(config) => config,
+        Err(_) => panic!("Incorrect setting of delays. Make sure the total AlephBFT session time is at least {} ms.", SESSION_LEN_LOWER_BOUND_MS),
+    }
 }
