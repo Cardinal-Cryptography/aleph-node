@@ -9,12 +9,12 @@ def printt(s): print(ctime() + ' | ' + s)
 
 
 '''
-Make sure to complile the binary with --features short_session
+Make sure to compile the binary with --features short_session
 '''
 
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
-# Path to the aleph-node binary (important DON'T use short-session feature):
+# Path to the aleph-node binary.
 binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
 
 phrases = [f'//{i}' for i in range(8)]
