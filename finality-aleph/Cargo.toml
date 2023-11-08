@@ -11,10 +11,10 @@ repository.workspace = true
 # fixed version to 'freeze' some types used in abft, mainly `SignatureSet` used in justification and signature aggregation
 aleph-bft-crypto = { workspace = true }
 
-current-aleph-bft = { package = "aleph-bft", version = "0.20" }
-current-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.6" }
-legacy-aleph-bft = { package = "aleph-bft", version = "0.19" }
-legacy-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.5" }
+current-aleph-bft = { package = "aleph-bft", version = "0.33" }
+current-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.11" }
+legacy-aleph-bft = { package = "aleph-bft", version = "0.20" }
+legacy-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.6" }
 
 network-clique = { workspace = true }
 primitives = { workspace = true }

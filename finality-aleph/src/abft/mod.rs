@@ -44,7 +44,7 @@ impl<S: Clone> SignatureSet<S> {
     }
 
     pub fn with_size(len: NodeCount) -> Self {
-        SignatureSet(legacy_aleph_bft::SignatureSet::with_size(len.into()))
+        SignatureSet(aleph_bft_crypto::SignatureSet::with_size(len.into()))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (NodeIndex, &S)> {
