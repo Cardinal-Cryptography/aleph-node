@@ -9,7 +9,7 @@ def printt(s): print(ctime() + ' | ' + s)
 
 
 '''
-TODO: Include this test in pipelines only after upgrading the runtime AlephBFT version 
+Make sure to complile the binary with --features short_session
 '''
 
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
@@ -38,13 +38,17 @@ validator_addresses = [n.validator_address() for n in chain]
 chain.set_flags(bootnodes=addresses[1])
 chain.set_flags_validator(public_addr=addresses, public_validator_addresses=validator_addresses)
 
-BLOCKS_PER_STAGE = 100
+BLOCKS_PER_STAGE = 180
 chain.set_flags_validator('validator')
 
 printt('Starting the chain')
 chain.start('aleph')
 
-chain.wait_for_finalization(BLOCKS_PER_STAGE, catchup=True, catchup_delta=5)  # run normally for some time
+chain.wait_for_finalization(10, catchup=True, catchup_delta=5)  # run normally for short time
+
+finality_version = chain.nodes[0].update_finality_version(session=3, sudo_phrase='//0')  # update will happen at block 90
+
+chain.wait_for_finalization(BLOCKS_PER_STAGE, catchup=True, catchup_delta=5)  # run normally for around 1 session after updating abft
 
 printt('Stopping all nodes')
 chain.stop(nodes=range(8))
@@ -58,7 +62,7 @@ f1 = chain.get_highest_finalized()
 assert f1 >= BLOCKS_PER_STAGE
 
 chain.wait_for_finalization(2 * BLOCKS_PER_STAGE, catchup=True, catchup_delta=5, nodes=range(7))
-f2 = chain.get_highest_finalized()
+f2 = chain.get_highest_finalized(nodes=range(7))
 assert f2 >= 2 * BLOCKS_PER_STAGE
 
 print('Ok')
