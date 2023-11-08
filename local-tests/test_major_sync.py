@@ -1,15 +1,11 @@
 #!/bin/env python
-import os
-import sys
-from os.path import abspath, join
-from time import sleep, ctime
 
+import os
+from os.path import abspath, join
+import logging
 from chainrunner import Chain, Seq, generate_keys, check_finalized
 
-
-def printt(s): print(ctime() + ' | ' + s)
-
-
+logging.basicConfig(format='%(asctime)s %(message)s')
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 binary = abspath(os.getenv('ALEPH_NODE_BINARY', join(workdir, 'aleph-node')))
 
@@ -34,26 +30,24 @@ chain.set_flags_validator(public_addr=addresses,
 
 chain.set_flags_validator('validator')
 
-printt('Starting the chain')
+logging.info('Starting the chain')
 chain.start('aleph', nodes=[0, 1, 2, 3])
-
-# sleep 1 min so the nodes 0-3 have some time to start up
-sleep(60)
+check_finalized(chain)
+logging.info('Waiting for 2700 blocks to finalize (3 sessions)')
+chain.wait_for_finalization(old_finalized=0,
+                            finalized_delta=2700,
+                            catchup=True,
+                            catchup_delta=5,
+                            timeout=60 * 60)
+check_finalized(chain)
+logging.info('Starting 4th node')
 chain.start('aleph', nodes=[4])
-
-printt('Waiting around 10 mins')
-sleep(10 * 60)
-
-finalized = check_finalized(chain)
-
-catching_up_validator_finalized = finalized[4]
-normal_validator_finalized = finalized[3]
-
-if normal_validator_finalized < 3 * 1800:
-    printt(f'Not enough finalized blocks in the test time {normal_validator_finalized}')
-    sys.exit(1)
-
-# Check if the late node catched up to other validators
-if abs(catching_up_validator_finalized - normal_validator_finalized) > 5:
-    printt(f'Too small catch up for late node: got: {catching_up_validator_finalized} expected: {normal_validator_finalized}')
-    sys.exit(1)
+logging.info('Waiting for 4th node to catch up')
+chain.wait_for_finalization(old_finalized=0,
+                            nodes=[4],
+                            finalized_delta=2700,
+                            catchup=True,
+                            catchup_delta=5,
+                            timeout=10 * 60)
+check_finalized(chain)
+logging.info('OK')
