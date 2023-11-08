@@ -6,7 +6,7 @@ use std::{
 
 use aleph_bft_rmc::{DoublingDelayScheduler, MultiKeychain, Multisigned, Service as RmcService};
 use aleph_bft_types::Recipient;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 
 use crate::{Hash, ProtocolSink, RmcNetworkData, SignableHash};
 
@@ -168,7 +168,7 @@ impl<
                 message_from_rmc = self.rmc_service.next_message() => {
                     trace!(target: "aleph-aggregator", "Our rmc message {:?}.", message_from_rmc);
                     if let Err(e) = self.network.send(message_from_rmc, Recipient::Everyone) {
-                        error!(target: "aleph-aggregator", "error sending message from rmc.\n{:?}", e);
+                        warn!(target: "aleph-aggregator", "failed broadcasting a message from rmc: {:?}", e);
                     }
                 }
                 message_from_network = self.network.next() => match message_from_network {
