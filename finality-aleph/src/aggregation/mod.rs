@@ -44,13 +44,12 @@ pub type LegacyAggregator<'a, N> = legacy_aleph_aggregator::IO<
 pub type CurrentAggregator<N> =
     current_aleph_aggregator::IO<BlockHash, NetworkWrapper<CurrentRmcNetworkData, N>, Keychain>;
 
-#[allow(clippy::large_enum_variant)]
 enum EitherAggregator<'a, CN, LN>
 where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    Current(CurrentAggregator<CN>),
+    Current(Box<CurrentAggregator<CN>>),
     Legacy(LegacyAggregator<'a, LN>),
 }
 
@@ -108,7 +107,7 @@ where
             CurrentAggregator::<CN>::new(NetworkWrapper::new(rmc_network), rmc_service, aggregator);
 
         Self {
-            agg: EitherAggregator::Current(aggregator_io),
+            agg: EitherAggregator::Current(Box::new(aggregator_io)),
         }
     }
 
