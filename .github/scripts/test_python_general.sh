@@ -64,6 +64,7 @@ pip install -r requirements.txt
 # the stdout and stderr streams are sent straight to terminal (e.g. your container log) without being
 # first buffered and that you can see the output of your application.
 export PYTHONUNBUFFERED=y
-
+export ALEPH_NODE_BINARY
+export WORKDIR=$(mktemp -d)
 eval "./${file_name_to_run}"
 popd > /dev/null

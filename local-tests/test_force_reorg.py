@@ -5,8 +5,10 @@ from os.path import abspath, join
 from chainrunner import Chain, Seq, generate_keys
 import logging
 
-logging.basicConfig(format='%(asctime)s %(message)s')
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)-8s %(message)s',
+)
 # Path to working directory, where chainspec, logs and nodes' dbs are written:
 workdir = abspath(os.getenv('WORKDIR', '/tmp/workdir'))
 # Path to the aleph-node binary (important DON'T use short-session feature):
