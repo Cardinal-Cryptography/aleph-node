@@ -2402,6 +2402,7 @@ dependencies = [
  "jf-plonk",
  "jf-relation",
  "jf-utils",
+ "log",
  "once_cell",
  "pallet-balances",
  "parity-scale-codec",
