@@ -134,7 +134,7 @@ pub struct Config {
     /// WS endpoint address of the node to connect to
     pub node: String,
 
-    /// Number validators to run e2e tests on
+    /// Number of validators to run e2e tests on
     pub validator_count: u32,
 
     /// Seed values to create accounts

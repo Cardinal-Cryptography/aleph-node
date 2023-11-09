@@ -43,7 +43,7 @@ e2e-tests$ cd ..
 # run tests for the block sync component
 aleph-node$ VALIDATOR_COUNT=7 NETWORK="synthetic-network" NODE_URL="ws://Node0:9944" ./.github/scripts/run_e2e_test.sh -t test::sync -n 7
 # another example
-.github/scripts/run_e2e_test.sh -t high_out_latency_for_all
+aleph-node$ .github/scripts/run_e2e_test.sh -t high_out_latency_for_all
 ```
 
 There's a `OUT_LATENCY` env which control output latency in e2e tests. If not specified, there's 200ms

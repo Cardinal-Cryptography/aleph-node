@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
 # This script bootstraps and runs aleph-node consensus for e2e tests.
-# It is not intended to by used by end user, use [run_nodes.sh](../../scripts/run_nodes.sh) for
-# such case
+# It is not intended to by used by end user, use [run_nodes.sh](../../scripts/run_nodes.sh) instead.
 # This script has one output, which is BOOTNODE_PEER_ID environment variable - a p2p mulitaddress
 # of the bootnode
 # Known issues:
@@ -59,7 +58,7 @@ function generate_account_ids() {
   echo "Generating one RPC node and ${validators_count} validators accounts ids..." >&2
   local account_ids=()
   for node_index in $(seq 0 "${validators_count}"); do
-    echo "Generating account if ${node_index} from key //${node_index}" >&2
+    echo "Generating account ${node_index} from key //${node_index}" >&2
     account_ids+=($(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" "${NODE_IMAGE}" \
        -c "aleph-node key inspect //$node_index | grep \"SS58 Address:\" | awk \"{print \\\$3;}\""))
   done
