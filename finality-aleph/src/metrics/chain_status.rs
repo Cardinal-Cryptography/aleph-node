@@ -120,8 +120,8 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
                         // Sometimes finalization can also cause best block update. However,
                         // RPC best block subscription won't notify about that immediately, so
                         // we also don't update there. Also in that case, substrate sets best_block to
-                        // the newly finalized block, so best block will be updated after
-                        // importing anything on the newly finalized branch.
+                        // the newly finalized block (see test), so the best block will be updated
+                        // after importing anything on the newly finalized branch.
                         metrics.update_top_finalized_block(*block.header.number());
                     }
                     None => {
