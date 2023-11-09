@@ -10,12 +10,12 @@ use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
-use crate::metrics::{start_chain_state_metrics_job_in_current_thread, ChainStatusMetrics};
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
+    metrics::{start_chain_state_metrics_job_in_current_thread, ChainStatusMetrics},
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},

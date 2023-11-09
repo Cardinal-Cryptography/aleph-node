@@ -3,6 +3,10 @@ use log::warn;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
 use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
+use sp_runtime::{
+    traits::{SaturatedConversion, Zero},
+    Saturating,
+};
 use substrate_prometheus_endpoint::{
     register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
@@ -80,7 +84,7 @@ impl ChainStatusMetrics {
 }
 
 pub async fn start_chain_state_metrics_job_in_current_thread<
-    HE: HeaderT<Number = u32, Hash = B::Hash>,
+    HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
     B: BlockT<Header = HE>,
     BE: HeaderMetadata<B>,
 >(
@@ -94,21 +98,18 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
         .filter(|notification| future::ready(notification.is_new_best));
     let mut finality_notifications = finality_notifications.fuse();
 
-    let mut previous_best: Option<B::Hash> = None;
+    let mut previous_best: Option<HE> = None;
     loop {
         select! {
             maybe_block = best_block_notifications.next() => {
                 match maybe_block {
                     Some(block) => {
-                        // If best block was changed in the meantime by finalization, then we will
-                        // update best block to correct value and detect reorg (of the same length)
-                        // only now.
-                        let number: <<B as BlockT>::Header as HeaderT>::Number = *block.header.number();
+                        let number = (*block.header.number()).saturated_into::<BlockNumber>();
                         metrics.update_best_block(number);
                         if let Some(reorg_len) = detect_reorgs(backend, previous_best, block.header.clone()) {
                             metrics.report_reorg(reorg_len);
                         }
-                        previous_best = Some(block.hash);
+                        previous_best = Some(block.header);
                     }
                     None => {
                         warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
@@ -120,11 +121,10 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
                     Some(block) => {
                         // Sometimes finalization can also cause best block update. However,
                         // RPC best block subscription won't notify about that immediately, so
-                        // we also don't update there. Best block will only be updated after
-                        // importing something on the newly finalized branch.
-                        // metrics.update_top_finalized();
-                        let number: <<B as BlockT>::Header as HeaderT>::Number = *block.header.number();
-                        metrics.update_top_finalized_block(number);
+                        // we also don't update there. Also in that case, substrate sets best_block to
+                        // the newly finalized block, so best block will be updated after
+                        // importing anything on the newly finalized branch.
+                        metrics.update_top_finalized_block(*block.header.number());
                     }
                     None => {
                         warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
@@ -134,24 +134,108 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
         }
     }
 }
-
-fn detect_reorgs<
-    HE: HeaderT<Number = u32, Hash = B::Hash>,
-    B: BlockT<Header = HE>,
-    BE: HeaderMetadata<B>,
->(
+fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: HeaderMetadata<B>>(
     backend: &BE,
-    previous_best_hash: Option<B::Hash>,
+    prev_best: Option<HE>,
     best: HE,
 ) -> Option<HE::Number> {
-    let previous_best_hash = previous_best_hash?;
-    if *best.parent_hash() == previous_best_hash || best.hash() == previous_best_hash {
-        // Quit early when no change or a child
+    let prev_best = prev_best?;
+    if best.hash() == prev_best.hash() || *best.parent_hash() == prev_best.hash() {
+        // Quit early when no change or the best is a child of the previous best.
         return None;
     }
-    let lca = lowest_common_ancestor(backend, best.hash(), previous_best_hash).ok()?;
-    match best.number() - lca.number {
-        0 => None,
-        len => Some(len),
+    let lca = lowest_common_ancestor(backend, best.hash(), prev_best.hash()).ok()?;
+    let len = prev_best
+        .number()
+        .saturating_sub(lca.number)
+        .saturated_into::<HE::Number>();
+    if len == HE::Number::zero() {
+        return None;
+    }
+    Some(len)
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use sp_api::BlockT;
+
+    use super::detect_reorgs;
+    use crate::testing::{
+        client_chain_builder::ClientChainBuilder,
+        mocks::{TestClientBuilder, TestClientBuilderExt},
+    };
+
+    #[tokio::test]
+    async fn when_finalizing_with_reorg_best_block_is_set_to_that_finalized_block() {
+        let client = Arc::new(TestClientBuilder::new().build());
+        let client_builder = Arc::new(TestClientBuilder::new().build());
+        let mut chain_builder = ClientChainBuilder::new(client.clone(), client_builder);
+
+        let chain_a = chain_builder
+            .build_and_import_branch_above(&chain_builder.genesis_hash(), 5)
+            .await;
+
+        // (G) - A1 - A2 - A3 - A4 - A5;
+
+        assert_eq!(
+            client.chain_info().finalized_hash,
+            chain_builder.genesis_hash()
+        );
+        assert_eq!(client.chain_info().best_number, 5);
+
+        let chain_b = chain_builder
+            .build_and_import_branch_above(&chain_a[0].header.hash(), 3)
+            .await;
+        chain_builder.finalize_block(&chain_b[0].header.hash());
+
+        // (G) - (A1) - A2 - A3 - A4 - A5
+        //         \
+        //          (B2) - B3 - B4
+
+        assert_eq!(client.chain_info().best_number, 2);
+        assert_eq!(client.chain_info().finalized_hash, chain_b[0].header.hash());
+    }
+
+    #[tokio::test]
+    async fn test_reorg_detection() {
+        let client = Arc::new(TestClientBuilder::new().build());
+        let client_builder = Arc::new(TestClientBuilder::new().build());
+        let mut chain_builder = ClientChainBuilder::new(client.clone(), client_builder);
+
+        let a = chain_builder
+            .build_and_import_branch_above(&chain_builder.genesis_hash(), 5)
+            .await;
+        let b = chain_builder
+            .build_and_import_branch_above(&a[0].header.hash(), 3)
+            .await;
+        let c = chain_builder
+            .build_and_import_branch_above(&a[2].header.hash(), 2)
+            .await;
+
+        //                  - C0 - C1
+        //                /
+        // G - A0 - A1 - A2 - A3 - A4
+        //      \
+        //        - B0 - B1 - B2
+
+        for (prev, new_best, expected) in [
+            (&a[1], &a[2], None),
+            (&a[1], &a[4], None),
+            (&a[1], &a[1], None),
+            (&a[2], &b[0], Some(2)),
+            (&b[0], &a[2], Some(1)),
+            (&c[1], &b[2], Some(4)),
+        ] {
+            assert_eq!(
+                detect_reorgs(
+                    client.as_ref(),
+                    Some(prev.header().clone()),
+                    new_best.header().clone()
+                ),
+                expected,
+            );
+        }
     }
 }
