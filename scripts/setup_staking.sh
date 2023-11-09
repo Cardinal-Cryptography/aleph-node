@@ -62,34 +62,7 @@ EOF
   exit 0
 }
 
-NORMAL=$(tput sgr0)
-GREEN=$(tput setaf 2; tput bold)
-YELLOW=$(tput setaf 3)
-RED=$(tput setaf 1)
-
-function get_timestamp() {
-  echo "$(date +'%Y-%m-%d %T:%3N')"
-}
-
-function error() {
-    echo -e "$(get_timestamp) $RED$*$NORMAL"
-    exit 1
-}
-
-function info() {
-    echo -e "$(get_timestamp) $GREEN$*$NORMAL"
-}
-
-function warning() {
-    echo -e "$(get_timestamp) $YELLOW$*$NORMAL"
-}
-
-function sigint_trap()
-{
-   echo
-   info "Ctrl+C pressed, exiting cleanly."
-   exit 0
-}
+source ./scripts/common.sh
 
 trap sigint_trap SIGINT
 
@@ -172,7 +145,7 @@ function transfer_tokens() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-     --node 127.0.0.1:9943
+     --node 127.0.0.1:9944
      --seed "${signer_account_seed}"
       transfer
         --amount-in-tokens "${tokens}"
@@ -192,7 +165,7 @@ function bond() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
       --seed "${signer_account_seed}"
         bond
           --controller-account "${controller_account}"
@@ -210,7 +183,7 @@ function rotate_keys() {
 
    cmd_on_pod=(
       "${CLIAIN_PATH_ON_POD}"
-       --node 127.0.0.1:9943
+       --node 127.0.0.1:9944
        --seed "${validator_seed}"
         rotate-keys
    )
@@ -229,7 +202,7 @@ function set_keys() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
       --seed "${validator_seed}"
         set-keys
           --new-keys "${new_keys}"
@@ -247,7 +220,7 @@ function validate() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
        --seed "${validator_controller_seed}"
         validate
            --commission-percentage "${commission}"
@@ -265,7 +238,7 @@ function nominate() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
        --seed "${nominator_seed}"
         nominate
            --nominee "${nominee}"
@@ -291,7 +264,7 @@ max validators count ${max_validators_count}"
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
         set-staking-limits
          --minimal-nominator-stake "${minimal_nominator_bond}"
          --minimal-validator-stake "${minimal_validator_bond}"
@@ -317,7 +290,7 @@ function change_validators() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
         change-validators
           --validators "${new_members}"
     )
@@ -337,7 +310,7 @@ function force_new_era() {
 
   cmd_on_pod=(
     "${CLIAIN_PATH_ON_POD}"
-      --node 127.0.0.1:9943
+      --node 127.0.0.1:9944
         force-new-era
     )
   # workaround for cliain expecting root account seed from stdin

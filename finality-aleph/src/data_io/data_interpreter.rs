@@ -6,6 +6,7 @@ use log::{debug, error, warn};
 use crate::{
     data_io::{
         chain_info::{AuxFinalizationChainInfoProvider, CachedChainInfoProvider},
+        proposal::ProposalStatus,
         status_provider::get_proposal_status,
         AlephData, ChainInfoProvider,
     },
@@ -99,7 +100,7 @@ where
         // WARNING: If we ever enable block pruning, this code (and the code in Data Store) must be carefully
         // analyzed for possible safety violations.
 
-        use crate::data_io::proposal::ProposalStatus::*;
+        use ProposalStatus::*;
         let status = get_proposal_status(&mut self.chain_info_provider, &proposal, None);
         match status {
             Finalize(blocks) => blocks,

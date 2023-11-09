@@ -14,6 +14,7 @@ use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::Checkpoint,
+    party::manager::Runnable,
     BlockId, SessionBoundaries, TimingBlockMetrics,
 };
 
@@ -288,6 +289,19 @@ where
                 }
             }
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl<B, SC, C> Runnable for ChainTracker<B, SC, C>
+where
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber>,
+    C: HeaderBackend<B> + 'static,
+    SC: SelectChain<B> + 'static,
+{
+    async fn run(mut self, exit: oneshot::Receiver<()>) {
+        ChainTracker::run(self, exit).await
     }
 }
 

@@ -26,6 +26,7 @@ use crate::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
         ConsensusPartyParams,
     },
+    runtime_api::RuntimeApiImpl,
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{
@@ -125,7 +126,7 @@ where
     let gossip_network_task = async move { gossip_network_service.run().await };
 
     let map_updater = SessionMapUpdater::new(
-        AuthorityProviderImpl::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
         FinalityNotifierImpl::new(client.clone()),
         session_period,
     );
@@ -162,7 +163,7 @@ where
     let verifier = VerifierCache::new(
         session_info.clone(),
         SubstrateFinalizationInfo::new(client.clone()),
-        AuthorityProviderImpl::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
@@ -185,7 +186,11 @@ where
 
     let validator_address_cache_updater = validator_address_cache_updater(
         validator_address_cache,
-        ValidatorIndexToAccountIdConverterImpl::new(client.clone(), session_info.clone()),
+        ValidatorIndexToAccountIdConverterImpl::new(
+            client.clone(),
+            session_info.clone(),
+            RuntimeApiImpl::new(client.clone()),
+        ),
     );
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(

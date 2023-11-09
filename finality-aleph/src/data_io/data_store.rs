@@ -24,7 +24,7 @@ use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
     data_io::{
         chain_info::{CachedChainInfoProvider, ChainInfoProvider, SubstrateChainInfoProvider},
-        proposal::{AlephProposal, ProposalStatus},
+        proposal::{AlephProposal, PendingProposalStatus, ProposalStatus},
         status_provider::get_proposal_status,
         AlephNetworkMessage,
     },
@@ -32,6 +32,7 @@ use crate::{
         component::{Network as ComponentNetwork, Receiver, SimpleNetwork},
         Network as DataNetwork,
     },
+    party::manager::Runnable,
     sync::RequestBlocks,
     BlockId, SessionBoundaries,
 };
@@ -414,7 +415,8 @@ where
         let new_status = self.check_proposal_availability(proposal, Some(&old_status));
         self.pending_proposals.get_mut(proposal).unwrap().status = new_status.clone();
 
-        use crate::data_io::proposal::{PendingProposalStatus::*, ProposalStatus::*};
+        use PendingProposalStatus::*;
+        use ProposalStatus::*;
         match new_status {
             Pending(PendingTopBlock) => {
                 // We register only a finality trigger, since a block import trigger has been already registered
@@ -475,7 +477,8 @@ where
         id: MessageId,
     ) {
         if !self.pending_proposals.contains_key(proposal) {
-            use crate::data_io::proposal::{PendingProposalStatus::*, ProposalStatus::*};
+            use PendingProposalStatus::*;
+            use ProposalStatus::*;
             let status = self.check_proposal_availability(proposal, None);
             match &status {
                 Pending(PendingTopBlock) => {
@@ -628,5 +631,26 @@ where
         } else {
             self.pending_messages.insert(message_id, message_info);
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl<B, C, RB, Message, R> Runnable for DataStore<B, C, RB, Message, R>
+where
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber>,
+    C: HeaderBackend<B> + BlockchainEvents<B> + Send + Sync + 'static,
+    RB: RequestBlocks + 'static,
+    Message: AlephNetworkMessage
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + Clone
+        + parity_scale_codec::Codec
+        + 'static,
+    R: Receiver<Message> + 'static,
+{
+    async fn run(mut self, exit: oneshot::Receiver<()>) {
+        DataStore::run(&mut self, exit).await
     }
 }

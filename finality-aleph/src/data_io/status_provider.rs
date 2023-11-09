@@ -5,7 +5,7 @@ use crate::{
     aleph_primitives::BlockNumber,
     data_io::{
         chain_info::ChainInfoProvider,
-        proposal::{AlephProposal, ProposalStatus},
+        proposal::{AlephProposal, PendingProposalStatus, ProposalStatus},
     },
 };
 
@@ -17,7 +17,8 @@ pub fn get_proposal_status<CIP>(
 where
     CIP: ChainInfoProvider,
 {
-    use crate::data_io::proposal::{PendingProposalStatus::*, ProposalStatus::*};
+    use PendingProposalStatus::*;
+    use ProposalStatus::*;
 
     let current_highest_finalized = chain_info_provider.get_highest_finalized().number;
 
