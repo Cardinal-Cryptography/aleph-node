@@ -1,5 +1,3 @@
-use std::hash::Hash;
-
 use futures::{future, StreamExt};
 use log::warn;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
@@ -44,6 +42,16 @@ impl ChainStatusMetrics {
         })
     }
 
+    pub fn try_new_of_default_with_warning_logged(registry: Option<Registry>) -> Self {
+        match Self::new(registry) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
+                Self::noop()
+            }
+        }
+    }
+
     pub fn noop() -> Self {
         ChainStatusMetrics::Noop
     }
@@ -76,7 +84,7 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
     B: BlockT<Header = HE>,
     BE: HeaderMetadata<B>,
 >(
-    backend: BE,
+    backend: &BE,
     import_notifications: ImportNotifications<B>,
     finality_notifications: FinalityNotifications<B>,
     metrics: ChainStatusMetrics,
@@ -97,7 +105,7 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
                         // only now.
                         let number: <<B as BlockT>::Header as HeaderT>::Number = *block.header.number();
                         metrics.update_best_block(number);
-                        if let Some(reorg_len) = detect_reorgs(&backend, previous_best, block.header.clone()) {
+                        if let Some(reorg_len) = detect_reorgs(backend, previous_best, block.header.clone()) {
                             metrics.report_reorg(reorg_len);
                         }
                         previous_best = Some(block.hash);

@@ -10,6 +10,7 @@ use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
+use crate::metrics::{start_chain_state_metrics_job_in_current_thread, ChainStatusMetrics};
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
     crypto::AuthorityPen,
@@ -138,6 +139,20 @@ where
         client.finality_notification_stream(),
         client.every_import_notification_stream(),
     );
+
+    let chain_metrics =
+        ChainStatusMetrics::try_new_of_default_with_warning_logged(registry.clone());
+
+    let client_for_slo_metrics = client.clone();
+    spawn_handle.spawn("aleph/slo-metrics", async move {
+        start_chain_state_metrics_job_in_current_thread(
+            client_for_slo_metrics.as_ref(),
+            client_for_slo_metrics.every_import_notification_stream(),
+            client_for_slo_metrics.finality_notification_stream(),
+            chain_metrics,
+        )
+        .await;
+    });
 
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
