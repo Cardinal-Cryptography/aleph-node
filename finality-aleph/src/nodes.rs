@@ -15,7 +15,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
-    metrics::{start_chain_state_metrics_job_in_current_thread, ChainStatusMetrics},
+    metrics::start_chain_state_metrics_job_in_current_thread,
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
@@ -140,16 +140,14 @@ where
         client.every_import_notification_stream(),
     );
 
-    let chain_metrics =
-        ChainStatusMetrics::try_new_of_default_with_warning_logged(registry.clone());
-
     let client_for_slo_metrics = client.clone();
+    let registry_for_slo_metrics = registry.clone();
     spawn_handle.spawn("aleph/slo-metrics", async move {
         start_chain_state_metrics_job_in_current_thread(
             client_for_slo_metrics.as_ref(),
             client_for_slo_metrics.every_import_notification_stream(),
             client_for_slo_metrics.finality_notification_stream(),
-            chain_metrics,
+            registry_for_slo_metrics,
         )
         .await;
     });

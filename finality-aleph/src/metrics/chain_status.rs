@@ -14,7 +14,7 @@ use tokio::select;
 
 use crate::{metrics::LOG_TARGET, BlockNumber};
 
-pub enum ChainStatusMetrics {
+enum ChainStatusMetrics {
     Prometheus {
         top_finalized_block: Gauge<U64>,
         best_block: Gauge<U64>,
@@ -24,7 +24,7 @@ pub enum ChainStatusMetrics {
 }
 
 impl ChainStatusMetrics {
-    pub fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
+    fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
         let registry = match registry {
             Some(registry) => registry,
             None => return Ok(ChainStatusMetrics::Noop),
@@ -46,27 +46,17 @@ impl ChainStatusMetrics {
         })
     }
 
-    pub fn try_new_of_default_with_warning_logged(registry: Option<Registry>) -> Self {
-        match Self::new(registry) {
-            Ok(metrics) => metrics,
-            Err(e) => {
-                warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
-                Self::noop()
-            }
-        }
-    }
-
-    pub fn noop() -> Self {
+    fn noop() -> Self {
         ChainStatusMetrics::Noop
     }
 
-    pub fn update_best_block(&self, number: BlockNumber) {
+    fn update_best_block(&self, number: BlockNumber) {
         if let ChainStatusMetrics::Prometheus { best_block, .. } = self {
             best_block.set(number as u64)
         }
     }
 
-    pub fn update_top_finalized_block(&self, number: BlockNumber) {
+    fn update_top_finalized_block(&self, number: BlockNumber) {
         if let ChainStatusMetrics::Prometheus {
             top_finalized_block,
             ..
@@ -76,7 +66,7 @@ impl ChainStatusMetrics {
         }
     }
 
-    pub fn report_reorg(&self, length: BlockNumber) {
+    fn report_reorg(&self, length: BlockNumber) {
         if let ChainStatusMetrics::Prometheus { reorgs, .. } = self {
             reorgs.observe(length as f64);
         }
@@ -91,8 +81,16 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
     backend: &BE,
     import_notifications: ImportNotifications<B>,
     finality_notifications: FinalityNotifications<B>,
-    metrics: ChainStatusMetrics,
+    registry: Option<Registry>,
 ) {
+    let metrics = match ChainStatusMetrics::new(registry) {
+        Ok(metrics) => metrics,
+        Err(e) => {
+            warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
+            ChainStatusMetrics::noop()
+        }
+    };
+
     let mut best_block_notifications = import_notifications
         .fuse()
         .filter(|notification| future::ready(notification.is_new_best));
