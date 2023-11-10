@@ -1023,7 +1023,7 @@ impl_runtime_apis! {
             queued_keys.into_iter().filter_map(|(account_id, keys)| keys.get(AURA).map(|key| (account_id, key))).collect()
         }
 
-         fn key_owner(key: AlephId) -> Option<AccountId> {
+        fn key_owner(key: AlephId) -> Option<AccountId> {
             Session::key_owner(primitives::KEY_TYPE, key.as_ref())
         }
     }
