@@ -6,7 +6,7 @@ use std::{
 use sp_runtime::SaturatedConversion;
 
 use crate::{
-    aleph_primitives::{AuraId, BlockNumber},
+    aleph_primitives::{AccountId, AuraId, BlockNumber},
     session::{SessionBoundaryInfo, SessionId},
     session_map::AuthorityProvider,
     sync::{
@@ -61,7 +61,7 @@ impl Display for CacheError {
 
 struct CachedData {
     session_verifier: SessionVerifier,
-    aura_authorities: Vec<AuraId>,
+    aura_authorities: Vec<(Option<AccountId>, AuraId)>,
 }
 
 /// Cache storing SessionVerifier structs and Aura authorities for multiple sessions.
@@ -129,7 +129,10 @@ fn download_data<AP: AuthorityProvider>(
                 .into(),
             aura_authorities: authority_provider
                 .aura_authorities(0)
-                .ok_or(CacheError::UnknownAuraAuthorities(session_id))?,
+                .ok_or(CacheError::UnknownAuraAuthorities(session_id))?
+                .into_iter()
+                .map(|auth| (None, auth))
+                .collect(),
         },
         SessionId(id) => {
             let prev_first = session_info.first_block_of_session(SessionId(id - 1));
@@ -140,7 +143,10 @@ fn download_data<AP: AuthorityProvider>(
                     .into(),
                 aura_authorities: authority_provider
                     .next_aura_authorities(prev_first)
-                    .ok_or(CacheError::UnknownAuraAuthorities(session_id))?,
+                    .ok_or(CacheError::UnknownAuraAuthorities(session_id))?
+                    .into_iter()
+                    .map(|(acc, auth)| (Some(acc), auth))
+                    .collect(),
             }
         }
     })
@@ -215,7 +221,7 @@ where
     pub fn get_aura_authorities(
         &mut self,
         number: BlockNumber,
-    ) -> Result<&Vec<AuraId>, CacheError> {
+    ) -> Result<&Vec<(Option<AccountId>, AuraId)>, CacheError> {
         Ok(&self.get_data(number)?.aura_authorities)
     }
 
@@ -230,12 +236,11 @@ where
 mod tests {
     use std::{cell::Cell, collections::HashMap};
 
-    use sp_consensus_aura::sr25519::AuthorityId as AuraId;
     use sp_runtime::testing::UintAuthorityId;
 
     use super::{
-        AuthorityProvider, BlockNumber, CacheError, FinalizationInfo, SessionVerifier,
-        VerifierCache,
+        AccountId, AuraId, AuthorityProvider, BlockNumber, CacheError, FinalizationInfo,
+        SessionVerifier, VerifierCache,
     };
     use crate::{
         aleph_primitives::SessionAuthorityData,
@@ -313,12 +318,21 @@ mod tests {
                 .cloned()
         }
 
-        fn next_aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>> {
+        fn next_aura_authorities(
+            &self,
+            block_number: BlockNumber,
+        ) -> Option<Vec<(AccountId, AuraId)>> {
+            let placeholder_id = AccountId::new([0; 32]);
             self.aura_authority_map
                 .get(&SessionId(
                     self.session_info.session_id_from_block_num(block_number).0 + 1,
                 ))
                 .cloned()
+                .map(|v| {
+                    v.into_iter()
+                        .map(|aura_id| (placeholder_id.clone(), aura_id))
+                        .collect()
+                })
         }
     }
 

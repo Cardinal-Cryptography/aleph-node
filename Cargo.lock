@@ -2686,6 +2686,7 @@ dependencies = [
  "futures",
  "futures-timer",
  "hash-db 0.16.0",
+ "hex",
  "ip_network",
  "log",
  "lru",

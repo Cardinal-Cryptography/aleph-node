@@ -3,8 +3,8 @@ use std::{
     fmt::{Debug, Display, Error as FmtError, Formatter},
     sync::Arc,
 };
-use hex::ToHex;
 
+use hex::ToHex;
 use parity_scale_codec::Encode;
 use sc_client_api::HeaderBackend;
 use sc_consensus_aura::{find_pre_digest, standalone::PreDigestLookupError, CompatibleDigestItem};
@@ -15,7 +15,7 @@ use sp_runtime::traits::{Header as SubstrateHeader, Zero};
 
 use crate::{
     aleph_primitives::{
-        AuraId, AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK,
+        AccountId, AuraId, AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK,
     },
     session_map::AuthorityProvider,
     sync::{
@@ -87,6 +87,7 @@ pub struct EquivocationProof {
     header_a: Header,
     header_b: Header,
     author: AuraId,
+    account_id: Option<AccountId>,
     are_we_equivocating: bool,
 }
 
@@ -98,13 +99,23 @@ impl EquivocationProofT for EquivocationProof {
 
 impl Display for EquivocationProof {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(
-            f,
-            "author: {}, first header: {}, second header {}",
-            self.author.encode_hex::<String>(),
-            self.header_a.id(),
-            self.header_b.id()
-        )
+        match &self.account_id {
+            Some(account_id) => write!(
+                f,
+                "account ID: {}, author: {}, first header: {}, second header {}",
+                account_id,
+                self.author.encode_hex::<String>(),
+                self.header_a.id(),
+                self.header_b.id()
+            ),
+            None => write!(
+                f,
+                "author: {}, first header: {}, second header {}; check the account ID by hand",
+                self.author.encode_hex::<String>(),
+                self.header_a.id(),
+                self.header_b.id()
+            ),
+        }
     }
 }
 
@@ -146,7 +157,8 @@ where
     fn parse_aura_header(
         &mut self,
         header: &mut Header,
-    ) -> Result<(Slot, AuraSignature, H256, AuraId), HeaderVerificationError> {
+    ) -> Result<(Slot, AuraSignature, H256, AuraId, Option<AccountId>), HeaderVerificationError>
+    {
         use HeaderVerificationError::*;
         let slot =
             find_pre_digest::<Block, AuthoritySignature>(header).map_err(PreDigestLookupError)?;
@@ -166,12 +178,12 @@ where
             .map_err(|_| MissingAuthorityData)?;
         // Aura: round robin
         let idx = *slot % (authorities.len() as u64);
-        let author = authorities
+        let (maybe_account_id, author) = authorities
             .get(idx as usize)
             .expect("idx < authorities.len()")
             .clone();
 
-        Ok((slot, sig, pre_hash, author))
+        Ok((slot, sig, pre_hash, author, maybe_account_id))
     }
 
     // This function assumes that:
@@ -209,6 +221,7 @@ where
         header: &Header,
         slot: Slot,
         author: AuraId,
+        maybe_account_id: Option<AccountId>,
         just_created: bool,
     ) -> Result<Option<EquivocationProof>, VerificationError> {
         match self.equivocation_cache.entry(slot.into()) {
@@ -222,6 +235,7 @@ where
                     header_a: cached_header.clone(),
                     header_b: header.clone(),
                     are_we_equivocating: *certainly_own || just_created,
+                    account_id: maybe_account_id,
                     author,
                 }))
             }
@@ -276,12 +290,12 @@ where
                 )),
             };
         }
-        let (slot, sig, pre_hash, author) = self
-            .parse_aura_header(&mut header)
-            .map_err(VerificationError::HeaderVerification)?;
+        let (slot, sig, pre_hash, author, maybe_account_id) =
+            self.parse_aura_header(&mut header)
+                .map_err(VerificationError::HeaderVerification)?;
         self.verify_aura_header(&slot, &sig, pre_hash, &author)?;
         let maybe_equivocation_proof =
-            self.check_for_equivocation(&header, slot, author, just_created)?;
+            self.check_for_equivocation(&header, slot, author, maybe_account_id, just_created)?;
         Ok(VerifiedHeader {
             header,
             maybe_equivocation_proof,
