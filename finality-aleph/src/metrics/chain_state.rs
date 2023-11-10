@@ -14,7 +14,7 @@ use tokio::select;
 
 use crate::{metrics::LOG_TARGET, BlockNumber};
 
-enum ChainStatusMetrics {
+enum ChainStateMetrics {
     Prometheus {
         top_finalized_block: Gauge<U64>,
         best_block: Gauge<U64>,
@@ -23,14 +23,14 @@ enum ChainStatusMetrics {
     Noop,
 }
 
-impl ChainStatusMetrics {
+impl ChainStateMetrics {
     fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
         let registry = match registry {
             Some(registry) => registry,
-            None => return Ok(ChainStatusMetrics::Noop),
+            None => return Ok(ChainStateMetrics::Noop),
         };
 
-        Ok(ChainStatusMetrics::Prometheus {
+        Ok(ChainStateMetrics::Prometheus {
             top_finalized_block: register(
                 Gauge::new("aleph_top_finalized_block", "no help")?,
                 &registry,
@@ -47,17 +47,17 @@ impl ChainStatusMetrics {
     }
 
     fn noop() -> Self {
-        ChainStatusMetrics::Noop
+        ChainStateMetrics::Noop
     }
 
     fn update_best_block(&self, number: BlockNumber) {
-        if let ChainStatusMetrics::Prometheus { best_block, .. } = self {
+        if let ChainStateMetrics::Prometheus { best_block, .. } = self {
             best_block.set(number as u64)
         }
     }
 
     fn update_top_finalized_block(&self, number: BlockNumber) {
-        if let ChainStatusMetrics::Prometheus {
+        if let ChainStateMetrics::Prometheus {
             top_finalized_block,
             ..
         } = self
@@ -67,13 +67,13 @@ impl ChainStatusMetrics {
     }
 
     fn report_reorg(&self, length: BlockNumber) {
-        if let ChainStatusMetrics::Prometheus { reorgs, .. } = self {
+        if let ChainStateMetrics::Prometheus { reorgs, .. } = self {
             reorgs.observe(length as f64);
         }
     }
 }
 
-pub async fn start_chain_state_metrics_job_in_current_thread<
+pub async fn run_chain_state_metrics<
     HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
     B: BlockT<Header = HE>,
     BE: HeaderMetadata<B>,
@@ -83,11 +83,11 @@ pub async fn start_chain_state_metrics_job_in_current_thread<
     finality_notifications: FinalityNotifications<B>,
     registry: Option<Registry>,
 ) {
-    let metrics = match ChainStatusMetrics::new(registry) {
+    let metrics = match ChainStateMetrics::new(registry) {
         Ok(metrics) => metrics,
         Err(e) => {
             warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
-            ChainStatusMetrics::noop()
+            ChainStateMetrics::noop()
         }
     };
 

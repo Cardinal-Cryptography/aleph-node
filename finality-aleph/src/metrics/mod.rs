@@ -1,6 +1,6 @@
-mod chain_status;
+mod chain_state;
 mod timing;
 
-pub use chain_status::start_chain_state_metrics_job_in_current_thread;
+pub use chain_state::run_chain_state_metrics;
 pub use timing::{Checkpoint, TimingBlockMetrics};
-pub(crate) const LOG_TARGET: &str = "aleph-metrics";
+const LOG_TARGET: &str = "aleph-metrics";

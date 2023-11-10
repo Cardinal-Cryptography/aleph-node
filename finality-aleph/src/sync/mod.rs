@@ -28,7 +28,7 @@ pub use substrate::{
     SubstrateChainStatus, SubstrateChainStatusNotifier, SubstrateFinalizationInfo, VerifierCache,
 };
 
-use crate::metrics::LOG_TARGET;
+const LOG_TARGET: &str = "aleph-block-sync";
 
 /// The identifier of a connected peer.
 pub trait PeerId: Debug + Clone + Hash + Eq {}
