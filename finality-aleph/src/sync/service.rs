@@ -5,6 +5,10 @@ use log::{debug, error, trace, warn};
 use substrate_prometheus_endpoint::Registry;
 
 use crate::{
+    block::{
+        Block, BlockImport, ChainStatus, ChainStatusNotification, ChainStatusNotifier, Finalizer,
+        Justification, UnverifiedHeader, UnverifiedHeaderFor, Verifier,
+    },
     network::GossipNetwork,
     session::SessionBoundaryInfo,
     sync::{
@@ -19,9 +23,7 @@ use crate::{
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
-        Block, BlockId, BlockImport, ChainStatus, ChainStatusNotification, ChainStatusNotifier,
-        Finalizer, Justification, JustificationSubmissions, RequestBlocks, UnverifiedHeader,
-        UnverifiedHeaderFor, Verifier, LOG_TARGET,
+        BlockId, JustificationSubmissions, RequestBlocks, LOG_TARGET,
     },
     SyncOracle,
 };

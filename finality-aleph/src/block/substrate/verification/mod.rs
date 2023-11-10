@@ -13,14 +13,14 @@ use sp_runtime::traits::{Header as SubstrateHeader, Zero};
 
 use crate::{
     aleph_primitives::{AuthoritySignature, Block, BlockNumber, Header, MILLISECS_PER_BLOCK},
-    session_map::AuthorityProvider,
-    sync::{
+    block::{
         substrate::{
             verification::{cache::CacheError, verifier::SessionVerificationError},
             InnerJustification, Justification,
         },
         Verifier,
     },
+    session_map::AuthorityProvider,
 };
 
 mod cache;

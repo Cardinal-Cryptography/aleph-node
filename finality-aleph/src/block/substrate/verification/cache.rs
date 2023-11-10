@@ -7,12 +7,12 @@ use sp_runtime::SaturatedConversion;
 
 use crate::{
     aleph_primitives::{AuraId, BlockNumber},
-    session::{SessionBoundaryInfo, SessionId},
-    session_map::AuthorityProvider,
-    sync::{
+    block::{
         substrate::verification::{verifier::SessionVerifier, FinalizationInfo},
         Header,
     },
+    session::{SessionBoundaryInfo, SessionId},
+    session_map::AuthorityProvider,
 };
 
 /// Ways in which a justification can fail verification.
@@ -231,8 +231,8 @@ mod tests {
     };
     use crate::{
         aleph_primitives::SessionAuthorityData,
+        block::mock::MockHeader,
         session::{testing::authority_data, SessionBoundaryInfo, SessionId},
-        sync::mock::MockHeader,
         SessionPeriod,
     };
 
