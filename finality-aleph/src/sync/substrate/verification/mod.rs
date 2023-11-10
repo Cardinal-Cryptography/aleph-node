@@ -102,7 +102,7 @@ impl Display for EquivocationProof {
         match &self.account_id {
             Some(account_id) => write!(
                 f,
-                "account ID: {}, author: {}, first header: {}, second header {}",
+                "account ID: {}, author: 0x{}, first header: {}, second header {}",
                 account_id,
                 self.author.encode_hex::<String>(),
                 self.header_a.id(),
@@ -110,7 +110,7 @@ impl Display for EquivocationProof {
             ),
             None => write!(
                 f,
-                "author: {}, first header: {}, second header {}; check the account ID by hand",
+                "author: 0x{}, first header: {}, second header {}; check the account ID by hand",
                 self.author.encode_hex::<String>(),
                 self.header_a.id(),
                 self.header_b.id()
