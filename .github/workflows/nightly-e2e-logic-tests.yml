@@ -29,7 +29,7 @@ jobs:
 
   run-recover-after-abft-update-test:
     needs: [build-test-node-and-runtime]
-    name: Run force reorgs test
+    name: Run recovery test after abft update
     runs-on: [self-hosted, Linux, X64, medium]
     steps:
       - name: Checkout source code
