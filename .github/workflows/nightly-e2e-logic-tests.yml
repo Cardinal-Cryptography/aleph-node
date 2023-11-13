@@ -35,12 +35,6 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Download release artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: aleph-production-node
-          path: target/release/
-
       - name: Run test
         timeout-minutes: 15
         run: |
