@@ -7,7 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use log::{debug, warn};
+use log::debug;
 
 const BACKUP_FILE_EXTENSION: &str = ".abfts";
 
@@ -126,19 +126,14 @@ pub fn rotate(
 /// Any filesystem errors are logged and dropped.
 ///
 /// This should be done after the end of the session.
-pub fn remove(path: Option<PathBuf>, session_id: u32) {
-    let path = match path {
-        Some(path) => path.join(session_id.to_string()),
-        None => return,
-    };
-    match fs::remove_dir_all(path) {
-        Ok(()) => {
-            debug!(target: "aleph-party", "Removed backup for session {}", session_id);
-        }
-        Err(err) => {
-            if err.kind() != io::ErrorKind::NotFound {
-                warn!(target: "aleph-party", "Error cleaning up backup for session {}: {}", session_id, err);
+pub fn remove_old_backups(path: Option<PathBuf>, current_session: u32) -> io::Result<()> {
+    if let Some(path) = path {
+        for read_dir in fs::read_dir(path.clone())? {
+            let item = read_dir?;
+            if item.path() != path.join(current_session.to_string()) {
+                fs::remove_dir_all(item.path())?;
             }
         }
     }
+    Ok(())
 }
