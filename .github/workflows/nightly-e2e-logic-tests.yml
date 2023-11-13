@@ -30,7 +30,7 @@ jobs:
   run-recover-after-abft-update-test:
     needs: [build-test-node-and-runtime]
     name: Run force reorgs test
-    runs-on: [ self-hosted, Linux, X64, medium ]
+    runs-on: [self-hosted, Linux, X64, medium]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
