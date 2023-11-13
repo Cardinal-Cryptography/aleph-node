@@ -9,7 +9,7 @@ use std::{
 use crate::{
     block::{
         Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification,
-        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, Verifier,
+        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, VerifiedHeader, Verifier,
     },
     session::{SessionBoundaryInfo, SessionId},
     sync::{
@@ -231,6 +231,15 @@ where
     Noop,
 }
 
+type HandleStateOutput<B, J, V> = (
+    HandleStateAction<B, J>,
+    Option<<V as Verifier<J>>::EquivocationProof>,
+);
+type HandleOwnBlockOutput<B, J, V> = (
+    Vec<ResponseItem<B, J>>,
+    Option<<V as Verifier<J>>::EquivocationProof>,
+);
+
 impl<B, J> HandleStateAction<B, J>
 where
     J: Justification,
@@ -447,6 +456,27 @@ where
         }
     }
 
+    /// Check for equivocations and then send the block to the block importer.
+    /// It's important to pass every incoming block through this function, as the block importer
+    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
+    /// Also, this is the last place we know if we've authored the block, without having to
+    /// check it by hand.
+    fn import_block(
+        &mut self,
+        block: B,
+        own_block: bool,
+    ) -> Result<Option<<V as Verifier<J>>::EquivocationProof>, <Self as HandlerTypes>::Error> {
+        let VerifiedHeader {
+            maybe_equivocation_proof,
+            ..
+        } = self
+            .verifier
+            .verify_header(block.header().clone(), own_block)
+            .map_err(Error::Verifier)?;
+        self.block_importer.import_block(block);
+        Ok(maybe_equivocation_proof)
+    }
+
     /// Inform the handler that a block has been imported.
     pub fn block_imported(
         &mut self,
@@ -538,14 +568,6 @@ where
         Ok(new_highest)
     }
 
-    /// Verify an unverified header.
-    fn verify_header(
-        &mut self,
-        header: UnverifiedHeaderFor<J>,
-    ) -> Result<J::Header, <Self as HandlerTypes>::Error> {
-        self.verifier.verify_header(header).map_err(Error::Verifier)
-    }
-
     /// Handle a justification from the user, returning whether it became the new highest justification.
     pub fn handle_justification_from_user(
         &mut self,
@@ -578,12 +600,13 @@ where
         (new_highest, None)
     }
 
-    /// Handle a request response returning whether it resulted in a new highest justified block
-    /// and possibly an error.
+    /// Handle a request response returning whether it resulted in a new highest justified block,
+    /// a list of detected equivocations, and possibly an error.
     ///
     /// If no error is returned, it means that the whole request response was processed
     /// correctly. Otherwise, the response might have been processed partially, or
-    /// dropped. In any case, the Handler finishes in a sane state.
+    /// dropped. Equivocated headers are processed in the same way as the ordinary ones.
+    /// In any case, the Handler finishes in a sane state.
     ///
     /// Note that this method does not verify nor import blocks. The received blocks
     /// are stored in a buffer, and might be silently discarded in the future
@@ -592,7 +615,12 @@ where
         &mut self,
         response_items: ResponseItems<B, J>,
         peer: I,
-    ) -> (bool, Option<<Self as HandlerTypes>::Error>) {
+    ) -> (
+        bool,
+        Vec<V::EquivocationProof>,
+        Option<<Self as HandlerTypes>::Error>,
+    ) {
+        let mut equivocation_proofs = vec![];
         let mut new_highest = false;
         // Lets us import descendands of importable blocks, useful for favourite blocks.
         let mut last_imported_block: Option<BlockId> = None;
@@ -601,22 +629,40 @@ where
                 ResponseItem::Justification(j) => {
                     match self.handle_justification(j, Some(peer.clone())) {
                         Ok(highest) => new_highest = new_highest || highest,
-                        Err(e) => return (new_highest, Some(e)),
+                        Err(e) => return (new_highest, equivocation_proofs, Some(e)),
                     }
                 }
                 ResponseItem::Header(h) => {
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    let h = match self.verify_header(h) {
-                        Ok(h) => h,
-                        Err(e) => return (new_highest, Some(e)),
+                    let h = match self
+                        .verifier
+                        .verify_header(h, false)
+                        .map_err(Error::Verifier)
+                    {
+                        Ok(VerifiedHeader {
+                            header: h,
+                            maybe_equivocation_proof: Some(proof),
+                        }) => {
+                            equivocation_proofs.push(proof);
+                            h
+                        }
+                        Ok(VerifiedHeader {
+                            header: h,
+                            maybe_equivocation_proof: None,
+                        }) => h,
+                        Err(e) => return (new_highest, equivocation_proofs, Some(e)),
                     };
                     if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), false) {
-                        return (new_highest, Some(Error::Forest(e)));
+                        return (new_highest, equivocation_proofs, Some(Error::Forest(e)));
                     }
                     if !self.forest.importable(&h.id()) {
-                        return (new_highest, Some(Error::HeaderNotRequired));
+                        return (
+                            new_highest,
+                            equivocation_proofs,
+                            Some(Error::HeaderNotRequired),
+                        );
                     }
                 }
                 ResponseItem::Block(b) => {
@@ -630,15 +676,25 @@ where
                     {
                         true => {
                             last_imported_block = Some(b.header().id());
-                            self.block_importer.import_block(b);
+                            match self.import_block(b, false) {
+                                Ok(Some(proof)) => equivocation_proofs.push(proof),
+                                Ok(None) => (),
+                                Err(e) => return (new_highest, equivocation_proofs, Some(e)),
+                            }
                         }
-                        false => return (new_highest, Some(Error::BlockNotImportable)),
+                        false => {
+                            return (
+                                new_highest,
+                                equivocation_proofs,
+                                Some(Error::BlockNotImportable),
+                            )
+                        }
                     };
                 }
             }
         }
 
-        (new_highest, None)
+        (new_highest, equivocation_proofs, None)
     }
 
     fn last_justification_unverified(
@@ -655,12 +711,13 @@ where
             .into_unverified())
     }
 
-    /// Handle a state broadcast returning the actions we should take in response.
+    /// Handle a state broadcast returning the actions we should take in response, and possibly
+    /// an equivocation proof.
     pub fn handle_state(
         &mut self,
         state: State<J>,
         peer: I,
-    ) -> Result<HandleStateAction<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<HandleStateOutput<B, J, V>, <Self as HandlerTypes>::Error> {
         use Error::*;
         let remote_top_number = state.top_justification().header().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
@@ -671,42 +728,41 @@ where
         let local_session = self
             .session_info
             .session_id_from_block_num(local_top_number);
-        match local_session.0.checked_sub(remote_session.0) {
+        let VerifiedHeader {
+            header,
+            maybe_equivocation_proof: maybe_proof,
+        } = self
+            .verifier
+            .verify_header(state.favourite_block(), false)
+            .map_err(Error::Verifier)?;
+        let action = match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
-            None => {
-                let header = self.verify_header(state.favourite_block())?;
-                Ok(HandleStateAction::maybe_extend(
-                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                        || self.forest.update_header(&header, Some(peer), false)?,
-                ))
-            }
+            None => HandleStateAction::maybe_extend(
+                self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                    || self.forest.update_header(&header, Some(peer), false)?,
+            ),
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
-                true => {
-                    let header = self.verify_header(state.favourite_block())?;
-                    Ok(HandleStateAction::maybe_extend(
-                        self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                            || self.forest.update_header(&header, Some(peer), false)?,
-                    ))
-                }
+                true => HandleStateAction::maybe_extend(
+                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                        || self.forest.update_header(&header, Some(peer), false)?,
+                ),
                 // remote top justification lower than ours, we can send a response
-                false => Ok(HandleStateAction::response(
-                    local_top.into_unverified(),
-                    None,
-                )),
+                false => HandleStateAction::response(local_top.into_unverified(), None),
             },
             // remote lags one session behind
-            Some(1) => Ok(HandleStateAction::response(
+            Some(1) => HandleStateAction::response(
                 self.last_justification_unverified(remote_session)?,
                 Some(local_top.into_unverified()),
-            )),
+            ),
             // remote lags multiple sessions behind
-            Some(2..) => Ok(HandleStateAction::response(
+            Some(2..) => HandleStateAction::response(
                 self.last_justification_unverified(remote_session)?,
                 Some(self.last_justification_unverified(SessionId(remote_session.0 + 1))?),
-            )),
-        }
+            ),
+        };
+        Ok((action, maybe_proof))
     }
 
     /// The current state of our database.
@@ -752,10 +808,13 @@ where
         self.forest.extension_request()
     }
 
-    /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast.
-    pub fn handle_own_block(&mut self, block: B) -> Vec<ResponseItem<B, J>> {
-        self.block_importer.import_block(block.clone());
-        block_to_response(block)
+    /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast, and possibly an equivocation proof.
+    pub fn handle_own_block(
+        &mut self,
+        block: B,
+    ) -> Result<HandleOwnBlockOutput<B, J, V>, <Self as HandlerTypes>::Error> {
+        let maybe_equivocation_proof = self.import_block(block.clone(), true)?;
+        Ok((block_to_response(block), maybe_equivocation_proof))
     }
 }
 
@@ -874,7 +933,7 @@ mod tests {
             "should be required"
         );
 
-        let (new_highest_justified, maybe_error) = handler.handle_request_response(
+        let (new_highest_justified, _, maybe_error) = handler.handle_request_response(
             branch
                 .iter()
                 .cloned()
@@ -1018,11 +1077,11 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response.clone(), 7);
         assert!(new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch).await;
-        let (new_info, maybe_error) = handler.handle_request_response(response, 8);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 8);
         assert!(!new_info);
         assert!(maybe_error.is_none());
     }
@@ -1040,7 +1099,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(short_response, 2);
+        let (new_info, _, maybe_error) = handler.handle_request_response(short_response, 2);
         assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
@@ -1053,7 +1112,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(mid_response, 3);
+        let (new_info, _, maybe_error) = handler.handle_request_response(mid_response, 3);
         assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[15..].to_vec()).await;
@@ -1073,7 +1132,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(short_response, 2);
+        let (new_info, _, maybe_error) = handler.handle_request_response(short_response, 2);
         assert!(new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[..15].to_vec()).await;
@@ -1088,7 +1147,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(mid_response, 3);
+        let (new_info, _, maybe_error) = handler.handle_request_response(mid_response, 3);
         assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[15..25].to_vec()).await;
@@ -1102,7 +1161,8 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(long_response_blocks_only, 2);
+        let (new_info, _, maybe_error) =
+            handler.handle_request_response(long_response_blocks_only, 2);
         assert!(!new_info);
         assert!(maybe_error.is_none());
         mark_branch_imported(&mut handler, &mut notifier, &branch[25..].to_vec()).await;
@@ -1117,7 +1177,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
+        let (new_info, _, maybe_error) = handler.handle_request_response(full_response.clone(), 2);
         assert!(new_info);
         assert!(maybe_error.is_none());
         consume_branch_finalized_notifications(&mut notifier, &branch[15..].to_vec()).await;
@@ -1140,11 +1200,39 @@ mod tests {
                 header.invalidate();
             }
         }
-        let (_, maybe_error) = handler.handle_request_response(response, 7);
+        let (_, _, maybe_error) = handler.handle_request_response(response, 7);
         match maybe_error {
             Some(Error::Verifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
+    }
+
+    #[tokio::test]
+    async fn detects_equivocated_response() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let mut branch = grow_light_branch(&mut handler, &genesis, 15, 4);
+        for header in branch.iter_mut() {
+            header.make_equivocated();
+        }
+        let response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: true,
+                blocks: true,
+                justifications: true,
+            },
+        );
+        let (new_info, proofs, maybe_error) = handler.handle_request_response(response.clone(), 7);
+        assert!(new_info);
+        assert!(maybe_error.is_none());
+        // each header detected twice - as header, as block
+        assert_eq!(proofs.len(), 2 * branch.len());
+        mark_branch_imported(&mut handler, &mut notifier, &branch).await;
+        let (new_info, proofs, maybe_error) = handler.handle_request_response(response, 8);
+        assert!(!new_info);
+        assert!(maybe_error.is_none());
+        // blocks already imported, headers and blocks should therefore be skipped
+        assert_eq!(proofs.len(), 0);
     }
 
     #[tokio::test]
@@ -1165,7 +1253,8 @@ mod tests {
                     justifications: false,
                 },
             );
-            let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+            let (new_info, _, maybe_error) =
+                handler.handle_request_response(response_items, peer_id);
             assert!(!new_info, "should not import justification");
             assert!(maybe_error.is_none(), "should work");
             mark_branch_imported(&mut handler, &mut notifier, &branch).await;
@@ -1182,7 +1271,8 @@ mod tests {
                     justifications: true,
                 },
             );
-            let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+            let (new_info, _, maybe_error) =
+                handler.handle_request_response(response_items, peer_id);
             assert!(new_info);
             assert!(maybe_error.is_none(), "should work");
             // get notification about finalized end-of-session block
@@ -1228,7 +1318,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response_items, peer_id);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response_items, peer_id);
         assert!(!new_info, "should not import justification");
         assert!(maybe_error.is_none(), "should work");
 
@@ -1251,7 +1341,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
+        let (new_info, _, maybe_error) = handler.handle_request_response(all_but_two, peer_id);
         let highest = branch_high.last().expect("should not be empty").id();
         assert!(new_info, "should import justifications");
         assert!(maybe_error.is_none(), "should work");
@@ -1310,7 +1400,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 7);
         assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
 
@@ -1356,7 +1446,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 7);
         assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
@@ -1389,7 +1479,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response, 12);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
         match maybe_error {
             None => panic!("should fail when it reaches the top finalized"),
@@ -1431,7 +1521,7 @@ mod tests {
                 justifications: true,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response, 7);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 7);
         assert!(new_info, "should create new highest justified");
         assert!(maybe_error.is_none(), "should work");
         let mut idx = 0;
@@ -1483,7 +1573,7 @@ mod tests {
                 justifications: false,
             },
         );
-        let (new_info, maybe_error) = handler.handle_request_response(response, 12);
+        let (new_info, _, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
         match maybe_error {
             None => panic!("should fail when it reaches the top finalized"),
@@ -1513,6 +1603,7 @@ mod tests {
             let response = match handler
                 .handle_state(state, syncing_peer_id)
                 .expect("should create response")
+                .0
             {
                 Response(data) => data,
                 ExtendChain => panic!("should not request anything from the syncing peer"),
@@ -1555,7 +1646,7 @@ mod tests {
             };
 
             // syncing peer processes the response
-            let (new_info, maybe_error) =
+            let (new_info, _, maybe_error) =
                 syncing_handler.handle_request_response(response_items.clone(), peer_id);
             assert!(maybe_error.is_none(), "should work");
             assert!(!new_info, "should already know about target_id");
@@ -1707,6 +1798,7 @@ mod tests {
         match handler
             .handle_state(initial_state, peer)
             .expect("correct justification")
+            .0
         {
             HandleStateAction::Response(NetworkData::StateBroadcastResponse(
                 justification,
@@ -1741,6 +1833,7 @@ mod tests {
         match handler
             .handle_state(initial_state, peer)
             .expect("correct justification")
+            .0
         {
             HandleStateAction::Response(NetworkData::StateBroadcastResponse(
                 justification,
@@ -1774,6 +1867,7 @@ mod tests {
         match handler
             .handle_state(initial_state, peer)
             .expect("correct justification")
+            .0
         {
             HandleStateAction::Response(NetworkData::StateBroadcastResponse(
                 justification,
@@ -1809,6 +1903,45 @@ mod tests {
             Err(Error::Verifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
+    }
+
+    #[test]
+    fn detects_equivocated_state() {
+        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let initial_state = handler.state().expect("state works");
+        let top_justification = initial_state.top_justification();
+        let mut favourite_block = initial_state.favourite_block();
+        favourite_block.make_equivocated();
+        let initial_state = State::new(top_justification, favourite_block.clone());
+        let peer = rand::random();
+        let justifications: Vec<MockJustification> = import_branch(&mut backend, 43)
+            .into_iter()
+            .map(MockJustification::for_header)
+            .collect();
+        let last_from_first_session = justifications[18].clone().into_unverified();
+        let last_from_second_session = justifications[38].clone().into_unverified();
+        for justification in justifications.into_iter() {
+            handler
+                .block_imported(justification.header().clone())
+                .expect("importing in order");
+            handler
+                .handle_justification(justification.clone().into_unverified(), Some(peer))
+                .expect("correct justification");
+        }
+        match handler
+            .handle_state(initial_state, peer)
+            .expect("correct justification")
+        {
+            (HandleStateAction::Response(NetworkData::StateBroadcastResponse(
+                justification,
+                maybe_justification,
+            )), Some(equivocation_proof)) => {
+                assert_eq!(justification, last_from_first_session);
+                assert_eq!(maybe_justification, Some(last_from_second_session));
+                assert_eq!(equivocation_proof.0, favourite_block);
+            }
+            other_action => panic!("expected a response with justifications and equivocation proof, got {other_action:?}"),
+        }
     }
 
     fn setup_request_tests(
@@ -2313,7 +2446,7 @@ mod tests {
             true,
         );
 
-        let result = handler.handle_own_block(block.clone());
+        let result = handler.handle_own_block(block.clone()).expect("correct").0;
         match result.get(0).expect("the header is there") {
             ResponseItem::Header(header) => assert_eq!(header, block.header()),
             other => panic!("expected header item, got {:?}", other),
@@ -2322,6 +2455,26 @@ mod tests {
             ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
             other => panic!("expected block item, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn detects_equivocated_own_block() {
+        let (mut handler, backend, _keep, _genesis) = setup();
+        let mut header = backend
+            .top_finalized()
+            .expect("mock backend works")
+            .header()
+            .random_branch()
+            .next()
+            .expect("branch creation succeeds");
+        header.make_equivocated();
+        let block = MockBlock::new(header.clone(), true);
+        let proof = handler
+            .handle_own_block(block)
+            .expect("correct")
+            .1
+            .expect("should return proof");
+        assert_eq!(proof.0, header);
     }
 
     #[tokio::test]
@@ -2338,11 +2491,11 @@ mod tests {
             true,
         );
 
-        let broadcast = handler.handle_own_block(block.clone());
+        let broadcast = handler.handle_own_block(block.clone()).expect("correct").0;
         match handler.handle_request_response(broadcast, rand::random()) {
-            (true, _) => panic!("block unexpectedly changed top finalized"),
-            (false, Some(e)) => panic!("error handling block broadcast: {}", e),
-            (false, None) => (),
+            (true, _, _) => panic!("block unexpectedly changed top finalized"),
+            (false, _, Some(e)) => panic!("error handling block broadcast: {}", e),
+            (false, _, None) => (),
         }
         assert_eq!(
             notifier.next().await.expect("should receive notification"),
