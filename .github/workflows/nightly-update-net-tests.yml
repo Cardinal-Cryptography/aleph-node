@@ -135,7 +135,7 @@ jobs:
   slack-notification:
     name: Slack notification
     runs-on: ubuntu-20.04
-    needs: [runs-e2e-test-on-fe]
+    needs: [delete-featurnet-from-testnet, delete-featurnet-from-mainnet]
     if: >
       !cancelled() &&
       github.event_name != 'workflow_dispatch'
