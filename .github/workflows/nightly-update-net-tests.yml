@@ -94,24 +94,24 @@ jobs:
 
   update-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-testnet]
-    name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.update-hash }}
+    name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
-      destination: ${{ needs.get-aleph-node-main-sha.outputs.update-hash }}
+      destination: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
       rolling-update-partition: '0'
       replicas: '7'
       internal: true
 
   update-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-mainnet]
-    name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.update-hash }}
+    name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
-      destination: ${{ needs.get-aleph-node-main-sha.outputs.update-hash }}
+      destination: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
       rolling-update-partition: '0'
       replicas: '7'
       internal: true
