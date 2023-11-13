@@ -27,6 +27,27 @@ jobs:
     needs: [build-test-node-image-and-e2e-client-image]
     uses: ./.github/workflows/_run-e2e-tests.yml
 
+  run-recover-after-abft-update-test:
+    needs: [ build-test-node-and-runtime ]
+    name: Run force reorgs test
+    runs-on: [ self-hosted, Linux, X64, medium ]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download release artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: aleph-production-node
+          path: target/release/
+
+      - name: Run test
+        timeout-minutes: 15
+        run: |
+          ./.github/scripts/test_python_general.sh \
+            --aleph-node ../target/release/aleph-node \
+            --testcase test_recover_after_abft_update
+
   check-e2e-test-suite-completion:
     needs: [run-e2e-tests]
     name: Check e2e test suite completion
