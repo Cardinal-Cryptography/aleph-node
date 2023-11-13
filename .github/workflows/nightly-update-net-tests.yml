@@ -55,7 +55,7 @@ jobs:
   delete-ops-testnet-featurenet:
     needs: [get-aleph-node-main-sha, check-vars-and-secrets]
     name: Delete existing ops-updatenet-testnet featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
@@ -63,7 +63,7 @@ jobs:
   delete-ops-mainnet-featurenet:
     needs: [get-aleph-node-main-sha, check-vars-and-secrets]
     name: Delete existing ops-updatenet-mainnet featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
@@ -71,7 +71,7 @@ jobs:
   create-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, delete-ops-testnet-featurenet]
     name: Create featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-net.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-net.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
@@ -83,7 +83,7 @@ jobs:
   create-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, delete-ops-mainnet-featurenet]
     name: Create featurenet from mainnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-net.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-net.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
@@ -95,7 +95,7 @@ jobs:
   update-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-testnet]
     name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
@@ -107,7 +107,7 @@ jobs:
   update-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-mainnet]
     name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
@@ -119,7 +119,7 @@ jobs:
   delete-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, update-featurenet-from-testnet]
     name: Delete featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
@@ -127,7 +127,7 @@ jobs:
   delete-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, update-featurenet-from-mainnet]
     name: Delete featurenet from mainnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v3
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@A0-3225
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
