@@ -118,14 +118,14 @@ pub fn rotate(
     Ok((backup_saver, backup_loader))
 }
 
-/// Removes the backup directory for a session.
+/// Removes the backup directory for all sessions except the current session.
 ///
 /// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
 /// If it is `None`, nothing is done.
 ///
-/// Any filesystem errors are logged and dropped.
+/// Any filesystem errors are returned.
 ///
-/// This should be done after the end of the session.
+/// This should be done at the beginning of the new session.
 pub fn remove_old_backups(path: Option<PathBuf>, current_session: u32) -> io::Result<()> {
     if let Some(path) = path {
         for read_dir in fs::read_dir(path.clone())? {
