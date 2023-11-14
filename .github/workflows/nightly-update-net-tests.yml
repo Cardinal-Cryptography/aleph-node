@@ -1,5 +1,6 @@
 ---
-# This workflow performs two updates: from Testnet to the latest main and from Mainnet to the latest main
+# This workflow performs two updates: from Testnet to the latest main and
+# from Mainnet to the latest main
 name: Nightly update net tests
 on:
   workflow_dispatch:
@@ -90,6 +91,7 @@ jobs:
 
   update-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-testnet]
+    # yamllint disable-line rule:line-length
     name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
     secrets: inherit
@@ -102,6 +104,7 @@ jobs:
 
   update-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-mainnet]
+    # yamllint disable-line rule:line-length
     name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v3
     secrets: inherit
