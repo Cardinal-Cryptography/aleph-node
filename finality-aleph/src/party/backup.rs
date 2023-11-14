@@ -9,6 +9,7 @@ use std::{
 
 use log::debug;
 
+
 const BACKUP_FILE_EXTENSION: &str = ".abfts";
 
 #[derive(Debug)]
@@ -118,7 +119,7 @@ pub fn rotate(
     Ok((backup_saver, backup_loader))
 }
 
-/// Removes the backup directory for all sessions except the current session.
+/// Removes the backup directory for all old sessions except the current session.
 ///
 /// `backup_path` is the path to the backup directory (i.e. the argument to `--backup-saving-path`).
 /// If it is `None`, nothing is done.
@@ -128,11 +129,21 @@ pub fn rotate(
 /// This should be done at the beginning of the new session.
 pub fn remove_old_backups(path: Option<PathBuf>, current_session: u32) -> io::Result<()> {
     if let Some(path) = path {
-        for read_dir in fs::read_dir(path.clone())? {
+        for read_dir in fs::read_dir(path)? {
             let item = read_dir?;
-            if item.path() != path.join(current_session.to_string()) {
-                fs::remove_dir_all(item.path())?;
-            }
+            match item.file_name().to_str() {
+                Some(name) => match name.parse::<u32>() {
+                    Ok(session_id) => {
+                        if session_id < current_session {
+                            fs::remove_dir_all(item.path())?;
+                        }
+                    }
+                    Err(_) => {
+                        debug!(target: "aleph-party", "backup directory contains unexpected data.")
+                    }
+                },
+                None => debug!(target: "aleph-party", "backup directory contains unexpected data."),
+            };
         }
     }
     Ok(())
