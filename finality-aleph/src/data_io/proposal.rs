@@ -214,7 +214,6 @@ pub enum ProposalStatus {
 #[cfg(test)]
 mod tests {
     use super::{UnvalidatedAlephProposal, ValidationError::*};
-
     use crate::{
         block::{mock::MockHeader, Header},
         data_io::MAX_DATA_BRANCH_LEN,
