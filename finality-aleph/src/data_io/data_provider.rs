@@ -93,8 +93,7 @@ where
             Ok(Some(header)) => header,
             _ => return Err(MissingHeader),
         };
-        let mut tail: Vec<_> = branch.collect();
-        tail.reverse();
+        let tail: Vec<_> = branch.rev().collect();
         Ok(Some(AlephData {
             head_proposal: UnvalidatedAlephProposal::new(head, tail),
         }))
