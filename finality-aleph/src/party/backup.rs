@@ -9,7 +9,6 @@ use std::{
 
 use log::debug;
 
-
 const BACKUP_FILE_EXTENSION: &str = ".abfts";
 
 #[derive(Debug)]
