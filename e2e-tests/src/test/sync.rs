@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Context};
 use log::info;
+use synthetic_link::PortRange;
 
 use crate::{
     config::{setup_test, NodeConfig},
     synthetic_network::{
         await_finalized_blocks, await_new_blocks, execute_synthetic_network_test,
-        NodesConnectivityConfiguration,
+        ConnectivityConfiguration, NodesConnectivityConfiguration,
     },
 };
 
@@ -254,6 +255,54 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
         reconnect_configuration,
         NUMBER_OF_BLOCKS_TO_WAIT,
         NUMBER_OF_BLOCKS_TO_WAIT,
+    )
+    .await
+}
+
+/// Checks if nodes are able to proceed after a large finalization stall.
+/// Main motiviation of this test is to check whether database pruning does not remove too much of the state data
+/// so the finalization can continue in case of a big best-finalized gap.
+#[tokio::test]
+pub async fn large_finalization_stall() -> anyhow::Result<()> {
+    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 2 * 4096;
+    const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 30;
+    const VALIDATOR_NETWORK_PORT: u16 = 30343;
+
+    let config = setup_test();
+    if config.validator_count < 4 {
+        return Err(anyhow!(
+            "provided test-network is to small ({0}), should be >= 7",
+            config.validator_count,
+        ));
+    }
+
+    let nodes_configs = config
+        .nodes_configs()
+        .context("unable to build configuration for test nodes")?;
+
+    let mut disconnect_configuration = NodesConnectivityConfiguration::new();
+    for node in nodes_configs.as_slice() {
+        let mut node_configuration = ConnectivityConfiguration::new();
+        node_configuration.disconnect_with_ports(nodes_configs.as_slice().iter().map(|node| {
+            (
+                node.ip_address().clone(),
+                PortRange::from(VALIDATOR_NETWORK_PORT),
+            )
+        }));
+
+        disconnect_configuration.set_config(node, node_configuration);
+    }
+
+    let reconnect_configuration = disconnect_configuration.clone().reconnect();
+
+    perform_test(
+        nodes_configs.as_slice(),
+        nodes_configs.as_slice(),
+        nodes_configs.as_slice(),
+        disconnect_configuration,
+        reconnect_configuration,
+        NUMBER_OF_BLOCKS_TO_WAIT,
+        NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT,
     )
     .await
 }
