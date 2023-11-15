@@ -10,10 +10,8 @@ use static_assertions::const_assert;
 
 use crate::{
     aleph_primitives::DEFAULT_SESSION_PERIOD,
-    sync::{
-        data::BranchKnowledge, Block, BlockId, ChainStatus, Header, Justification, PeerId,
-        UnverifiedHeaderFor,
-    },
+    block::{Block, ChainStatus, Header, Justification, UnverifiedHeaderFor},
+    sync::{data::BranchKnowledge, BlockId, PeerId},
     BlockNumber,
 };
 
@@ -173,7 +171,9 @@ where
     I: PeerId,
     J: Justification,
 {
-    pub fn new<B, CS>(chain_status: &CS) -> Result<Self, InitializationError<B, J, CS>>
+    /// Creates a new forest and returns whether we have too many nonfinalized blocks in the DB.
+    //TODO(A0-2984): the latter part of the result should be removed after legacy sync is excised
+    pub fn new<B, CS>(chain_status: &CS) -> Result<(Self, bool), InitializationError<B, J, CS>>
     where
         B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
@@ -201,14 +201,17 @@ where
                 .children(id)
                 .map_err(InitializationError::ChainStatus)?;
             for header in children.iter() {
-                forest
-                    .update_body(header)
-                    .map_err(InitializationError::Error)?;
+                if let Err(e) = forest.update_body(header) {
+                    match e {
+                        Error::TooNew => return Ok((forest, true)),
+                        e => return Err(InitializationError::Error(e)),
+                    }
+                }
             }
             deque.extend(children.into_iter().map(|header| header.id()));
         }
 
-        Ok(forest)
+        Ok((forest, false))
     }
 
     fn special_state(&self, id: &BlockId) -> Option<SpecialState> {
@@ -671,12 +674,12 @@ mod tests {
 
     use super::{Error, ExtensionRequest::*, Forest, Interest::*, MAX_DEPTH};
     use crate::{
-        session::SessionBoundaryInfo,
-        sync::{
-            data::BranchKnowledge::*,
-            mock::{Backend, MockHeader, MockJustification, MockPeerId},
-            ChainStatus, Header, Justification,
+        block::{
+            mock::{Backend, MockHeader, MockJustification},
+            ChainStatus, Header,
         },
+        session::SessionBoundaryInfo,
+        sync::{data::BranchKnowledge::*, Justification, MockPeerId},
         BlockNumber, SessionPeriod,
     };
 
@@ -691,7 +694,8 @@ mod tests {
             .expect("should return genesis")
             .header()
             .clone();
-        let forest = Forest::new(&backend).expect("should initialize");
+        let (forest, too_many_nonfinalized) = Forest::new(&backend).expect("should initialize");
+        assert!(!too_many_nonfinalized);
         (header, forest)
     }
 
