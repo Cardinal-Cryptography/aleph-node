@@ -570,3 +570,50 @@ jobs:
           follow-up-finalization-check: true
           node-count: 7
         timeout-minutes: 20
+
+  run-e2e-any-proxy:
+    name: Run any proxy test
+    needs: [run-e2e-finalization-test]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: any_proxy_works
+          follow-up-finalization-check: true
+        timeout-minutes: 5
+
+
+  run-e2e-staking-proxy:
+    name: Run staking proxy test
+    needs: [run-e2e-finalization-test]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: staking_proxy_works
+          follow-up-finalization-check: true
+        timeout-minutes: 5
+
+
+  run-e2e-non-transfer-proxy:
+    name: Run non-transfer proxy test
+    needs: [run-e2e-finalization-test]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: non_transfer_proxy_works
+          follow-up-finalization-check: true
+        timeout-minutes: 5
