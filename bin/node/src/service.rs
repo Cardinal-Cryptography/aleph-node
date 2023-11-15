@@ -1,5 +1,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+use crate::metrics::run_metrics;
+use sc_transaction_pool_api::TransactionPool;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -14,6 +16,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
+use sc_client_api::BlockchainEvents;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -371,7 +374,7 @@ pub fn new_authority(
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
         task_manager.spawn_handle(),
         client.clone(),
-        transaction_pool,
+        transaction_pool.clone(),
         prometheus_registry.as_ref(),
         None,
     );
@@ -423,6 +426,19 @@ pub fn new_authority(
             .try_into()
             .unwrap_or(usize::MAX),
     };
+
+    let client_txn = client.clone();
+    task_manager
+        .spawn_handle()
+        .spawn("aleph-txn-metrics", None, async move {
+            run_metrics(
+                transaction_pool.import_notification_stream(),
+                client_txn.every_import_notification_stream(),
+                client_txn.as_ref(),
+                transaction_pool.api(),
+            )
+            .await;
+        });
 
     let aleph_config = AlephConfig {
         network,
