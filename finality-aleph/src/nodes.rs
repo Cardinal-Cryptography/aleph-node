@@ -12,9 +12,17 @@ use sp_keystore::Keystore;
 
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
+    block::{
+        substrate::{
+            JustificationTranslator, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+            VerifierCache,
+        },
+        ChainStatus, FinalizationStatus, Justification,
+    },
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
+    metrics::run_chain_state_metrics,
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
@@ -28,11 +36,7 @@ use crate::{
     runtime_api::RuntimeApiImpl,
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
-    sync::{
-        ChainStatus, DatabaseIO as SyncDatabaseIO, FinalizationStatus, Justification,
-        JustificationTranslator, Service as SyncService, SubstrateChainStatusNotifier,
-        SubstrateFinalizationInfo, VerifierCache, IO as SyncIO,
-    },
+    sync::{DatabaseIO as SyncDatabaseIO, Service as SyncService, IO as SyncIO},
     AlephConfig,
 };
 
@@ -139,6 +143,18 @@ where
         client.finality_notification_stream(),
         client.every_import_notification_stream(),
     );
+
+    let client_for_slo_metrics = client.clone();
+    let registry_for_slo_metrics = registry.clone();
+    spawn_handle.spawn("aleph/slo-metrics", async move {
+        run_chain_state_metrics(
+            client_for_slo_metrics.as_ref(),
+            client_for_slo_metrics.every_import_notification_stream(),
+            client_for_slo_metrics.finality_notification_stream(),
+            registry_for_slo_metrics,
+        )
+        .await;
+    });
 
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
