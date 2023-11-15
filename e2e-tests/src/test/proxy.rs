@@ -100,12 +100,10 @@ async fn perform_and_check_calls(
                     panic!("Result of the call should be ok, {:?} {:?}", res, call);
                 }
 
-                let bi = match events.find_first::<BatchInterrupted>() {
-                    Ok(Some(bi)) => bi,
-                    _ => return,
+                match events.find_first::<BatchInterrupted>() {
+                    Ok(Some(bi)) => panic!("No batch interrupted event should be present {:?}", bi),
+                    _ => {}
                 };
-
-                panic!("No batch interrupted event should be present {:?}", bi);
             }
             Failure => {
                 if res.result.is_err() {
@@ -113,7 +111,7 @@ async fn perform_and_check_calls(
                 }
 
                 match events.find_first::<BatchInterrupted>() {
-                    Ok(Some(_)) => return,
+                    Ok(Some(_)) => {}
                     _ => panic!("Batch interrupted event should be present"),
                 };
             }

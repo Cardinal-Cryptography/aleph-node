@@ -6,7 +6,7 @@ pub mod api {
     mod root_mod {
         pub use super::*;
     }
-    pub static PALLETS: [&str; 23usize] = [
+    pub static PALLETS: [&str; 24usize] = [
         "System",
         "RandomnessCollectiveFlip",
         "Scheduler",
@@ -29,6 +29,7 @@ pub mod api {
         "NominationPools",
         "Identity",
         "CommitteeManagement",
+        "BabyLiminal",
         "Proxy",
     ];
     pub static RUNTIME_APIS: [&str; 12usize] = [
@@ -1480,9 +1481,9 @@ pub mod api {
                             input_data,
                         },
                         [
-                            76u8, 238u8, 62u8, 56u8, 116u8, 167u8, 48u8, 187u8, 37u8, 15u8, 240u8,
-                            106u8, 26u8, 4u8, 157u8, 221u8, 13u8, 67u8, 138u8, 194u8, 114u8, 168u8,
-                            27u8, 19u8, 148u8, 198u8, 220u8, 19u8, 180u8, 166u8, 212u8, 108u8,
+                            98u8, 210u8, 7u8, 152u8, 34u8, 137u8, 178u8, 234u8, 67u8, 185u8, 65u8,
+                            112u8, 4u8, 51u8, 202u8, 18u8, 71u8, 124u8, 143u8, 1u8, 108u8, 108u8,
+                            152u8, 62u8, 114u8, 222u8, 167u8, 81u8, 95u8, 233u8, 63u8, 89u8,
                         ],
                     )
                 }
@@ -1527,9 +1528,10 @@ pub mod api {
                             salt,
                         },
                         [
-                            102u8, 85u8, 181u8, 58u8, 200u8, 106u8, 234u8, 92u8, 22u8, 0u8, 163u8,
-                            154u8, 186u8, 109u8, 156u8, 114u8, 60u8, 237u8, 56u8, 125u8, 16u8,
-                            171u8, 41u8, 8u8, 255u8, 63u8, 140u8, 1u8, 175u8, 60u8, 246u8, 209u8,
+                            166u8, 183u8, 196u8, 115u8, 4u8, 23u8, 42u8, 32u8, 70u8, 251u8, 190u8,
+                            193u8, 221u8, 95u8, 110u8, 3u8, 117u8, 191u8, 126u8, 205u8, 147u8,
+                            242u8, 153u8, 214u8, 48u8, 170u8, 158u8, 174u8, 166u8, 215u8, 98u8,
+                            213u8,
                         ],
                     )
                 }
@@ -1732,6 +1734,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::constants::ConstantsApi {
             committee_management::constants::ConstantsApi
         }
+        pub fn baby_liminal(&self) -> baby_liminal::constants::ConstantsApi {
+            baby_liminal::constants::ConstantsApi
+        }
         pub fn proxy(&self) -> proxy::constants::ConstantsApi {
             proxy::constants::ConstantsApi
         }
@@ -1803,6 +1808,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::storage::StorageApi {
             committee_management::storage::StorageApi
         }
+        pub fn baby_liminal(&self) -> baby_liminal::storage::StorageApi {
+            baby_liminal::storage::StorageApi
+        }
         pub fn proxy(&self) -> proxy::storage::StorageApi {
             proxy::storage::StorageApi
         }
@@ -1860,6 +1868,9 @@ pub mod api {
         pub fn committee_management(&self) -> committee_management::calls::TransactionApi {
             committee_management::calls::TransactionApi
         }
+        pub fn baby_liminal(&self) -> baby_liminal::calls::TransactionApi {
+            baby_liminal::calls::TransactionApi
+        }
         pub fn proxy(&self) -> proxy::calls::TransactionApi {
             proxy::calls::TransactionApi
         }
@@ -1873,9 +1884,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                233u8, 177u8, 161u8, 10u8, 42u8, 10u8, 16u8, 225u8, 57u8, 23u8, 155u8, 252u8,
-                208u8, 198u8, 91u8, 23u8, 218u8, 63u8, 114u8, 146u8, 159u8, 71u8, 196u8, 73u8,
-                100u8, 3u8, 80u8, 183u8, 97u8, 208u8, 167u8, 132u8,
+                236u8, 8u8, 111u8, 104u8, 199u8, 218u8, 93u8, 97u8, 32u8, 114u8, 158u8, 243u8, 0u8,
+                172u8, 133u8, 63u8, 83u8, 102u8, 139u8, 89u8, 147u8, 151u8, 86u8, 48u8, 54u8,
+                136u8, 91u8, 65u8, 212u8, 77u8, 95u8, 37u8,
             ]
     }
     pub mod system {
@@ -2633,10 +2644,9 @@ pub mod api {
                         "Events",
                         vec![],
                         [
-                            215u8, 139u8, 96u8, 53u8, 33u8, 255u8, 94u8, 145u8, 175u8, 81u8, 68u8,
-                            115u8, 184u8, 55u8, 60u8, 76u8, 168u8, 131u8, 111u8, 241u8, 71u8,
-                            184u8, 102u8, 244u8, 190u8, 71u8, 191u8, 87u8, 211u8, 167u8, 180u8,
-                            44u8,
+                            200u8, 82u8, 56u8, 105u8, 248u8, 234u8, 168u8, 130u8, 73u8, 82u8, 12u8,
+                            247u8, 85u8, 138u8, 209u8, 176u8, 246u8, 78u8, 46u8, 90u8, 123u8, 89u8,
+                            253u8, 238u8, 18u8, 133u8, 250u8, 103u8, 59u8, 87u8, 36u8, 34u8,
                         ],
                     )
                 }
@@ -3122,9 +3132,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            202u8, 240u8, 161u8, 94u8, 6u8, 95u8, 175u8, 218u8, 232u8, 165u8,
-                            125u8, 39u8, 72u8, 133u8, 251u8, 120u8, 35u8, 74u8, 181u8, 137u8, 87u8,
-                            225u8, 4u8, 180u8, 136u8, 230u8, 24u8, 57u8, 138u8, 97u8, 169u8, 246u8,
+                            2u8, 187u8, 3u8, 72u8, 7u8, 42u8, 51u8, 15u8, 66u8, 184u8, 34u8, 119u8,
+                            163u8, 194u8, 87u8, 216u8, 196u8, 252u8, 57u8, 113u8, 7u8, 17u8, 113u8,
+                            189u8, 168u8, 239u8, 198u8, 115u8, 88u8, 42u8, 111u8, 219u8,
                         ],
                     )
                 }
@@ -3169,10 +3179,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            251u8, 235u8, 12u8, 136u8, 127u8, 183u8, 130u8, 231u8, 216u8, 141u8,
-                            58u8, 100u8, 150u8, 45u8, 44u8, 127u8, 176u8, 174u8, 69u8, 2u8, 231u8,
-                            133u8, 13u8, 166u8, 139u8, 135u8, 200u8, 190u8, 173u8, 65u8, 169u8,
-                            161u8,
+                            120u8, 129u8, 88u8, 78u8, 182u8, 134u8, 70u8, 173u8, 172u8, 111u8,
+                            221u8, 8u8, 12u8, 136u8, 111u8, 207u8, 81u8, 174u8, 110u8, 216u8,
+                            173u8, 200u8, 108u8, 225u8, 112u8, 27u8, 137u8, 172u8, 118u8, 188u8,
+                            93u8, 179u8,
                         ],
                     )
                 }
@@ -3213,10 +3223,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            206u8, 168u8, 61u8, 8u8, 86u8, 92u8, 132u8, 46u8, 152u8, 221u8, 15u8,
-                            172u8, 132u8, 205u8, 106u8, 49u8, 42u8, 110u8, 215u8, 216u8, 14u8,
-                            16u8, 250u8, 150u8, 213u8, 132u8, 196u8, 198u8, 74u8, 118u8, 79u8,
-                            18u8,
+                            102u8, 228u8, 92u8, 11u8, 162u8, 122u8, 91u8, 126u8, 236u8, 50u8, 52u8,
+                            189u8, 59u8, 60u8, 98u8, 11u8, 225u8, 225u8, 77u8, 92u8, 78u8, 82u8,
+                            170u8, 115u8, 18u8, 127u8, 85u8, 200u8, 0u8, 224u8, 170u8, 73u8,
                         ],
                     )
                 }
@@ -3243,9 +3252,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            152u8, 154u8, 14u8, 77u8, 176u8, 157u8, 151u8, 31u8, 53u8, 51u8, 51u8,
-                            10u8, 92u8, 16u8, 9u8, 235u8, 79u8, 115u8, 147u8, 0u8, 222u8, 200u8,
-                            172u8, 19u8, 240u8, 195u8, 166u8, 63u8, 44u8, 187u8, 33u8, 39u8,
+                            214u8, 253u8, 93u8, 148u8, 153u8, 118u8, 13u8, 202u8, 84u8, 71u8,
+                            208u8, 193u8, 135u8, 213u8, 24u8, 86u8, 173u8, 36u8, 112u8, 42u8, 57u8,
+                            94u8, 86u8, 243u8, 86u8, 232u8, 64u8, 239u8, 212u8, 240u8, 178u8, 59u8,
                         ],
                     )
                 }
@@ -8821,10 +8830,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            108u8, 101u8, 159u8, 50u8, 107u8, 153u8, 119u8, 103u8, 5u8, 212u8,
-                            70u8, 241u8, 233u8, 0u8, 137u8, 2u8, 2u8, 84u8, 100u8, 123u8, 115u8,
-                            170u8, 218u8, 237u8, 82u8, 234u8, 68u8, 120u8, 83u8, 187u8, 139u8,
-                            33u8,
+                            190u8, 243u8, 109u8, 253u8, 179u8, 200u8, 77u8, 231u8, 235u8, 182u8,
+                            231u8, 253u8, 30u8, 148u8, 250u8, 23u8, 28u8, 8u8, 104u8, 174u8, 154u8,
+                            188u8, 214u8, 171u8, 116u8, 244u8, 251u8, 0u8, 149u8, 148u8, 126u8,
+                            152u8,
                         ],
                     )
                 }
@@ -10499,10 +10508,9 @@ pub mod api {
                         "batch",
                         types::Batch { calls },
                         [
-                            201u8, 226u8, 140u8, 4u8, 254u8, 41u8, 155u8, 199u8, 89u8, 30u8, 165u8,
-                            177u8, 122u8, 134u8, 144u8, 97u8, 114u8, 102u8, 74u8, 246u8, 233u8,
-                            202u8, 112u8, 98u8, 218u8, 213u8, 196u8, 101u8, 245u8, 203u8, 100u8,
-                            72u8,
+                            81u8, 225u8, 47u8, 93u8, 157u8, 112u8, 253u8, 71u8, 7u8, 219u8, 231u8,
+                            30u8, 166u8, 77u8, 118u8, 247u8, 253u8, 5u8, 224u8, 120u8, 67u8, 186u8,
+                            132u8, 201u8, 197u8, 186u8, 117u8, 121u8, 17u8, 209u8, 175u8, 106u8,
                         ],
                     )
                 }
@@ -10520,9 +10528,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            51u8, 29u8, 139u8, 6u8, 31u8, 195u8, 244u8, 199u8, 131u8, 166u8, 92u8,
-                            7u8, 3u8, 65u8, 183u8, 60u8, 53u8, 163u8, 182u8, 163u8, 202u8, 156u8,
-                            86u8, 103u8, 133u8, 198u8, 243u8, 177u8, 15u8, 2u8, 9u8, 17u8,
+                            159u8, 9u8, 49u8, 222u8, 230u8, 55u8, 93u8, 208u8, 48u8, 102u8, 174u8,
+                            143u8, 118u8, 1u8, 225u8, 1u8, 126u8, 70u8, 111u8, 24u8, 52u8, 121u8,
+                            153u8, 160u8, 72u8, 144u8, 1u8, 90u8, 148u8, 163u8, 232u8, 220u8,
                         ],
                     )
                 }
@@ -10536,10 +10544,10 @@ pub mod api {
                         "batch_all",
                         types::BatchAll { calls },
                         [
-                            141u8, 211u8, 250u8, 153u8, 184u8, 38u8, 47u8, 222u8, 13u8, 42u8,
-                            147u8, 11u8, 108u8, 16u8, 103u8, 201u8, 157u8, 104u8, 161u8, 148u8,
-                            43u8, 94u8, 169u8, 253u8, 209u8, 12u8, 166u8, 152u8, 230u8, 253u8, 5u8,
-                            196u8,
+                            142u8, 42u8, 120u8, 184u8, 224u8, 173u8, 140u8, 94u8, 40u8, 30u8,
+                            119u8, 189u8, 37u8, 10u8, 11u8, 119u8, 121u8, 78u8, 74u8, 218u8, 25u8,
+                            108u8, 159u8, 93u8, 170u8, 87u8, 12u8, 173u8, 168u8, 248u8, 145u8,
+                            139u8,
                         ],
                     )
                 }
@@ -10557,10 +10565,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            45u8, 219u8, 41u8, 240u8, 253u8, 84u8, 102u8, 76u8, 6u8, 77u8, 219u8,
-                            230u8, 57u8, 100u8, 139u8, 140u8, 248u8, 115u8, 188u8, 124u8, 46u8,
-                            212u8, 174u8, 219u8, 233u8, 207u8, 155u8, 175u8, 251u8, 91u8, 96u8,
-                            246u8,
+                            111u8, 159u8, 211u8, 249u8, 153u8, 34u8, 190u8, 82u8, 8u8, 193u8,
+                            168u8, 14u8, 96u8, 191u8, 41u8, 162u8, 111u8, 138u8, 92u8, 187u8, 96u8,
+                            52u8, 17u8, 192u8, 131u8, 185u8, 12u8, 202u8, 159u8, 9u8, 75u8, 61u8,
                         ],
                     )
                 }
@@ -10574,10 +10581,10 @@ pub mod api {
                         "force_batch",
                         types::ForceBatch { calls },
                         [
-                            122u8, 50u8, 201u8, 45u8, 194u8, 214u8, 247u8, 129u8, 224u8, 62u8,
-                            28u8, 87u8, 198u8, 212u8, 134u8, 137u8, 128u8, 224u8, 128u8, 0u8,
-                            147u8, 234u8, 120u8, 85u8, 172u8, 94u8, 148u8, 149u8, 192u8, 5u8,
-                            117u8, 17u8,
+                            205u8, 245u8, 117u8, 185u8, 232u8, 106u8, 111u8, 182u8, 83u8, 141u8,
+                            67u8, 88u8, 143u8, 64u8, 203u8, 104u8, 25u8, 169u8, 31u8, 198u8, 205u8,
+                            242u8, 165u8, 71u8, 207u8, 87u8, 166u8, 206u8, 166u8, 242u8, 21u8,
+                            73u8,
                         ],
                     )
                 }
@@ -10595,10 +10602,9 @@ pub mod api {
                             weight,
                         },
                         [
-                            160u8, 140u8, 169u8, 72u8, 72u8, 165u8, 158u8, 228u8, 15u8, 121u8,
-                            108u8, 24u8, 208u8, 19u8, 67u8, 10u8, 6u8, 150u8, 130u8, 93u8, 184u8,
-                            203u8, 230u8, 100u8, 22u8, 168u8, 225u8, 207u8, 250u8, 133u8, 25u8,
-                            173u8,
+                            100u8, 163u8, 66u8, 88u8, 22u8, 79u8, 60u8, 209u8, 159u8, 62u8, 71u8,
+                            56u8, 117u8, 63u8, 129u8, 122u8, 4u8, 157u8, 84u8, 148u8, 62u8, 117u8,
+                            60u8, 7u8, 168u8, 41u8, 65u8, 163u8, 245u8, 115u8, 4u8, 225u8,
                         ],
                     )
                 }
@@ -10888,10 +10894,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            118u8, 137u8, 151u8, 97u8, 162u8, 149u8, 112u8, 131u8, 193u8, 108u8,
-                            155u8, 100u8, 180u8, 95u8, 26u8, 216u8, 227u8, 196u8, 200u8, 249u8,
-                            66u8, 108u8, 244u8, 6u8, 240u8, 29u8, 52u8, 250u8, 145u8, 169u8, 212u8,
-                            217u8,
+                            216u8, 218u8, 60u8, 25u8, 82u8, 92u8, 59u8, 4u8, 214u8, 197u8, 143u8,
+                            40u8, 188u8, 190u8, 57u8, 142u8, 186u8, 17u8, 92u8, 145u8, 110u8, 65u8,
+                            196u8, 224u8, 108u8, 8u8, 22u8, 28u8, 176u8, 118u8, 189u8, 125u8,
                         ],
                     )
                 }
@@ -10919,9 +10924,10 @@ pub mod api {
                             max_weight,
                         },
                         [
-                            172u8, 138u8, 82u8, 97u8, 124u8, 208u8, 61u8, 227u8, 122u8, 246u8,
-                            207u8, 50u8, 229u8, 18u8, 161u8, 233u8, 144u8, 120u8, 61u8, 10u8, 80u8,
-                            138u8, 233u8, 17u8, 15u8, 6u8, 158u8, 222u8, 14u8, 218u8, 240u8, 164u8,
+                            151u8, 142u8, 252u8, 211u8, 159u8, 31u8, 7u8, 91u8, 179u8, 186u8,
+                            144u8, 51u8, 222u8, 131u8, 182u8, 80u8, 77u8, 22u8, 3u8, 76u8, 204u8,
+                            118u8, 103u8, 164u8, 218u8, 235u8, 49u8, 140u8, 115u8, 217u8, 121u8,
+                            248u8,
                         ],
                     )
                 }
@@ -11316,10 +11322,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            81u8, 17u8, 73u8, 139u8, 209u8, 112u8, 232u8, 103u8, 185u8, 219u8,
-                            227u8, 166u8, 104u8, 201u8, 87u8, 191u8, 70u8, 16u8, 123u8, 217u8,
-                            45u8, 137u8, 141u8, 45u8, 241u8, 14u8, 232u8, 92u8, 75u8, 205u8, 94u8,
-                            107u8,
+                            112u8, 183u8, 206u8, 59u8, 147u8, 54u8, 227u8, 103u8, 107u8, 17u8,
+                            54u8, 29u8, 160u8, 169u8, 22u8, 213u8, 69u8, 86u8, 211u8, 193u8, 130u8,
+                            188u8, 6u8, 88u8, 12u8, 76u8, 19u8, 116u8, 213u8, 58u8, 36u8, 104u8,
                         ],
                     )
                 }
@@ -11337,9 +11342,9 @@ pub mod api {
                             weight,
                         },
                         [
-                            217u8, 82u8, 250u8, 45u8, 53u8, 79u8, 207u8, 66u8, 39u8, 241u8, 40u8,
-                            90u8, 202u8, 32u8, 60u8, 0u8, 0u8, 167u8, 182u8, 130u8, 2u8, 153u8,
-                            26u8, 71u8, 174u8, 7u8, 27u8, 35u8, 69u8, 133u8, 206u8, 66u8,
+                            70u8, 90u8, 63u8, 32u8, 84u8, 237u8, 64u8, 167u8, 134u8, 226u8, 84u8,
+                            8u8, 85u8, 148u8, 34u8, 209u8, 78u8, 184u8, 237u8, 45u8, 96u8, 243u8,
+                            175u8, 186u8, 19u8, 99u8, 241u8, 55u8, 155u8, 69u8, 231u8, 172u8,
                         ],
                     )
                 }
@@ -11379,10 +11384,9 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            38u8, 121u8, 189u8, 104u8, 247u8, 186u8, 215u8, 43u8, 55u8, 161u8,
-                            100u8, 98u8, 114u8, 16u8, 160u8, 231u8, 188u8, 50u8, 19u8, 201u8, 74u8,
-                            100u8, 80u8, 179u8, 248u8, 105u8, 237u8, 105u8, 22u8, 51u8, 186u8,
-                            88u8,
+                            115u8, 91u8, 1u8, 126u8, 95u8, 115u8, 148u8, 166u8, 49u8, 18u8, 165u8,
+                            83u8, 54u8, 65u8, 60u8, 6u8, 223u8, 162u8, 86u8, 241u8, 116u8, 200u8,
+                            228u8, 127u8, 11u8, 81u8, 235u8, 6u8, 120u8, 135u8, 155u8, 109u8,
                         ],
                     )
                 }
@@ -16386,6 +16390,475 @@ pub mod api {
             }
         }
     }
+    pub mod baby_liminal {
+        use super::{root_mod, runtime_types};
+        #[doc = "The `Error` enum of this pallet."]
+        pub type Error = runtime_types::pallet_baby_liminal::pallet::Error;
+        #[doc = "Contains a variant per dispatchable extrinsic that this pallet has."]
+        pub type Call = runtime_types::pallet_baby_liminal::pallet::Call;
+        pub mod calls {
+            use super::{root_mod, runtime_types};
+            type DispatchError = runtime_types::sp_runtime::DispatchError;
+            pub mod types {
+                use super::runtime_types;
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct StoreKey {
+                    pub identifier: [::core::primitive::u8; 8usize],
+                    pub key: ::std::vec::Vec<::core::primitive::u8>,
+                }
+                impl ::subxt::blocks::StaticExtrinsic for StoreKey {
+                    const PALLET: &'static str = "BabyLiminal";
+                    const CALL: &'static str = "store_key";
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct DeleteKey {
+                    pub identifier: [::core::primitive::u8; 8usize],
+                }
+                impl ::subxt::blocks::StaticExtrinsic for DeleteKey {
+                    const PALLET: &'static str = "BabyLiminal";
+                    const CALL: &'static str = "delete_key";
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct OverwriteKey {
+                    pub identifier: [::core::primitive::u8; 8usize],
+                    pub key: ::std::vec::Vec<::core::primitive::u8>,
+                }
+                impl ::subxt::blocks::StaticExtrinsic for OverwriteKey {
+                    const PALLET: &'static str = "BabyLiminal";
+                    const CALL: &'static str = "overwrite_key";
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct Verify {
+                    pub verification_key_identifier: [::core::primitive::u8; 8usize],
+                    pub proof: ::std::vec::Vec<::core::primitive::u8>,
+                    pub public_input: ::std::vec::Vec<::core::primitive::u8>,
+                }
+                impl ::subxt::blocks::StaticExtrinsic for Verify {
+                    const PALLET: &'static str = "BabyLiminal";
+                    const CALL: &'static str = "verify";
+                }
+            }
+            pub struct TransactionApi;
+            impl TransactionApi {
+                #[doc = "See [`Pallet::store_key`]."]
+                pub fn store_key(
+                    &self,
+                    identifier: [::core::primitive::u8; 8usize],
+                    key: ::std::vec::Vec<::core::primitive::u8>,
+                ) -> ::subxt::tx::Payload<types::StoreKey> {
+                    ::subxt::tx::Payload::new_static(
+                        "BabyLiminal",
+                        "store_key",
+                        types::StoreKey { identifier, key },
+                        [
+                            226u8, 173u8, 42u8, 12u8, 111u8, 201u8, 89u8, 185u8, 242u8, 28u8, 64u8,
+                            177u8, 83u8, 126u8, 68u8, 173u8, 212u8, 60u8, 115u8, 67u8, 39u8, 213u8,
+                            24u8, 69u8, 152u8, 150u8, 16u8, 80u8, 99u8, 1u8, 67u8, 162u8,
+                        ],
+                    )
+                }
+                #[doc = "See [`Pallet::delete_key`]."]
+                pub fn delete_key(
+                    &self,
+                    identifier: [::core::primitive::u8; 8usize],
+                ) -> ::subxt::tx::Payload<types::DeleteKey> {
+                    ::subxt::tx::Payload::new_static(
+                        "BabyLiminal",
+                        "delete_key",
+                        types::DeleteKey { identifier },
+                        [
+                            227u8, 37u8, 33u8, 159u8, 222u8, 112u8, 176u8, 21u8, 72u8, 204u8,
+                            202u8, 203u8, 183u8, 217u8, 118u8, 233u8, 135u8, 46u8, 169u8, 32u8,
+                            176u8, 143u8, 13u8, 208u8, 138u8, 149u8, 122u8, 139u8, 72u8, 188u8,
+                            141u8, 165u8,
+                        ],
+                    )
+                }
+                #[doc = "See [`Pallet::overwrite_key`]."]
+                pub fn overwrite_key(
+                    &self,
+                    identifier: [::core::primitive::u8; 8usize],
+                    key: ::std::vec::Vec<::core::primitive::u8>,
+                ) -> ::subxt::tx::Payload<types::OverwriteKey> {
+                    ::subxt::tx::Payload::new_static(
+                        "BabyLiminal",
+                        "overwrite_key",
+                        types::OverwriteKey { identifier, key },
+                        [
+                            81u8, 75u8, 3u8, 90u8, 146u8, 125u8, 177u8, 71u8, 229u8, 119u8, 242u8,
+                            86u8, 154u8, 92u8, 11u8, 164u8, 191u8, 137u8, 176u8, 149u8, 23u8,
+                            242u8, 183u8, 189u8, 183u8, 82u8, 19u8, 68u8, 129u8, 17u8, 20u8, 55u8,
+                        ],
+                    )
+                }
+                #[doc = "See [`Pallet::verify`]."]
+                pub fn verify(
+                    &self,
+                    verification_key_identifier: [::core::primitive::u8; 8usize],
+                    proof: ::std::vec::Vec<::core::primitive::u8>,
+                    public_input: ::std::vec::Vec<::core::primitive::u8>,
+                ) -> ::subxt::tx::Payload<types::Verify> {
+                    ::subxt::tx::Payload::new_static(
+                        "BabyLiminal",
+                        "verify",
+                        types::Verify {
+                            verification_key_identifier,
+                            proof,
+                            public_input,
+                        },
+                        [
+                            207u8, 205u8, 93u8, 214u8, 65u8, 56u8, 45u8, 187u8, 118u8, 253u8, 98u8,
+                            52u8, 136u8, 52u8, 102u8, 241u8, 219u8, 16u8, 128u8, 191u8, 74u8, 36u8,
+                            212u8, 227u8, 118u8, 40u8, 210u8, 252u8, 48u8, 250u8, 19u8, 200u8,
+                        ],
+                    )
+                }
+            }
+        }
+        #[doc = "The `Event` enum of this pallet"]
+        pub type Event = runtime_types::pallet_baby_liminal::pallet::Event;
+        pub mod events {
+            use super::runtime_types;
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                :: subxt :: ext :: scale_decode :: DecodeAsType,
+                :: subxt :: ext :: scale_encode :: EncodeAsType,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            # [codec (crate = :: subxt :: ext :: codec)]
+            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+            #[doc = "Verification key has been successfully stored."]
+            #[doc = ""]
+            #[doc = "\\[ account_id, identifier \\]"]
+            pub struct VerificationKeyStored(
+                pub ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub [::core::primitive::u8; 8usize],
+            );
+            impl ::subxt::events::StaticEvent for VerificationKeyStored {
+                const PALLET: &'static str = "BabyLiminal";
+                const EVENT: &'static str = "VerificationKeyStored";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                :: subxt :: ext :: scale_decode :: DecodeAsType,
+                :: subxt :: ext :: scale_encode :: EncodeAsType,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            # [codec (crate = :: subxt :: ext :: codec)]
+            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+            #[doc = "Verification key has been successfully deleted."]
+            #[doc = ""]
+            #[doc = "\\[ identifier \\]"]
+            pub struct VerificationKeyDeleted(
+                pub ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                pub [::core::primitive::u8; 8usize],
+            );
+            impl ::subxt::events::StaticEvent for VerificationKeyDeleted {
+                const PALLET: &'static str = "BabyLiminal";
+                const EVENT: &'static str = "VerificationKeyDeleted";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                :: subxt :: ext :: scale_decode :: DecodeAsType,
+                :: subxt :: ext :: scale_encode :: EncodeAsType,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            # [codec (crate = :: subxt :: ext :: codec)]
+            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+            #[doc = "Verification key has been successfully overwritten."]
+            #[doc = ""]
+            #[doc = "\\[ identifier \\]"]
+            pub struct VerificationKeyOverwritten(pub [::core::primitive::u8; 8usize]);
+            impl ::subxt::events::StaticEvent for VerificationKeyOverwritten {
+                const PALLET: &'static str = "BabyLiminal";
+                const EVENT: &'static str = "VerificationKeyOverwritten";
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                :: subxt :: ext :: scale_decode :: DecodeAsType,
+                :: subxt :: ext :: scale_encode :: EncodeAsType,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            # [codec (crate = :: subxt :: ext :: codec)]
+            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+            #[doc = "Proof has been successfully verified."]
+            #[doc = ""]
+            #[doc = "\\[ identifier \\]"]
+            pub struct VerificationSucceeded(pub [::core::primitive::u8; 8usize]);
+            impl ::subxt::events::StaticEvent for VerificationSucceeded {
+                const PALLET: &'static str = "BabyLiminal";
+                const EVENT: &'static str = "VerificationSucceeded";
+            }
+        }
+        pub mod storage {
+            use super::runtime_types;
+            pub struct StorageApi;
+            impl StorageApi {
+                pub fn verification_keys(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    runtime_types::bounded_collections::bounded_vec::BoundedVec<
+                        ::core::primitive::u8,
+                    >,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeys",
+                        vec![::subxt::storage::address::make_static_storage_map_key(
+                            _0.borrow(),
+                        )],
+                        [
+                            248u8, 224u8, 91u8, 23u8, 168u8, 32u8, 15u8, 174u8, 143u8, 143u8,
+                            154u8, 59u8, 165u8, 89u8, 38u8, 154u8, 230u8, 41u8, 188u8, 79u8, 153u8,
+                            252u8, 114u8, 90u8, 97u8, 81u8, 15u8, 87u8, 127u8, 147u8, 253u8, 177u8,
+                        ],
+                    )
+                }
+                pub fn verification_keys_root(
+                    &self,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    runtime_types::bounded_collections::bounded_vec::BoundedVec<
+                        ::core::primitive::u8,
+                    >,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeys",
+                        Vec::new(),
+                        [
+                            248u8, 224u8, 91u8, 23u8, 168u8, 32u8, 15u8, 174u8, 143u8, 143u8,
+                            154u8, 59u8, 165u8, 89u8, 38u8, 154u8, 230u8, 41u8, 188u8, 79u8, 153u8,
+                            252u8, 114u8, 90u8, 97u8, 81u8, 15u8, 87u8, 127u8, 147u8, 253u8, 177u8,
+                        ],
+                    )
+                }
+                pub fn verification_key_owners(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeyOwners",
+                        vec![::subxt::storage::address::make_static_storage_map_key(
+                            _0.borrow(),
+                        )],
+                        [
+                            241u8, 20u8, 150u8, 166u8, 238u8, 78u8, 141u8, 182u8, 184u8, 253u8,
+                            109u8, 153u8, 167u8, 157u8, 91u8, 41u8, 171u8, 152u8, 37u8, 177u8,
+                            173u8, 155u8, 206u8, 168u8, 237u8, 28u8, 181u8, 4u8, 172u8, 36u8,
+                            227u8, 198u8,
+                        ],
+                    )
+                }
+                pub fn verification_key_owners_root(
+                    &self,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeyOwners",
+                        Vec::new(),
+                        [
+                            241u8, 20u8, 150u8, 166u8, 238u8, 78u8, 141u8, 182u8, 184u8, 253u8,
+                            109u8, 153u8, 167u8, 157u8, 91u8, 41u8, 171u8, 152u8, 37u8, 177u8,
+                            173u8, 155u8, 206u8, 168u8, 237u8, 28u8, 181u8, 4u8, 172u8, 36u8,
+                            227u8, 198u8,
+                        ],
+                    )
+                }
+                pub fn verification_key_deposits(
+                    &self,
+                    _0: impl ::std::borrow::Borrow<
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                    >,
+                    _1: impl ::std::borrow::Borrow<[::core::primitive::u8; 8usize]>,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::core::primitive::u128,
+                    ::subxt::storage::address::Yes,
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeyDeposits",
+                        vec![
+                            ::subxt::storage::address::make_static_storage_map_key(_0.borrow()),
+                            ::subxt::storage::address::make_static_storage_map_key(_1.borrow()),
+                        ],
+                        [
+                            82u8, 177u8, 45u8, 211u8, 7u8, 60u8, 94u8, 246u8, 219u8, 97u8, 138u8,
+                            44u8, 18u8, 104u8, 222u8, 56u8, 81u8, 139u8, 59u8, 212u8, 121u8, 208u8,
+                            20u8, 119u8, 114u8, 246u8, 143u8, 234u8, 36u8, 101u8, 192u8, 13u8,
+                        ],
+                    )
+                }
+                pub fn verification_key_deposits_root(
+                    &self,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::core::primitive::u128,
+                    (),
+                    (),
+                    ::subxt::storage::address::Yes,
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeyDeposits",
+                        Vec::new(),
+                        [
+                            82u8, 177u8, 45u8, 211u8, 7u8, 60u8, 94u8, 246u8, 219u8, 97u8, 138u8,
+                            44u8, 18u8, 104u8, 222u8, 56u8, 81u8, 139u8, 59u8, 212u8, 121u8, 208u8,
+                            20u8, 119u8, 114u8, 246u8, 143u8, 234u8, 36u8, 101u8, 192u8, 13u8,
+                        ],
+                    )
+                }
+            }
+        }
+        pub mod constants {
+            use super::runtime_types;
+            pub struct ConstantsApi;
+            impl ConstantsApi {
+                #[doc = " Limits how many bytes verification key can have."]
+                #[doc = ""]
+                #[doc = " Verification keys are stored, therefore this is separated from the limits on proof or"]
+                #[doc = " public input."]
+                pub fn maximum_verification_key_length(
+                    &self,
+                ) -> ::subxt::constants::Address<::core::primitive::u32> {
+                    ::subxt::constants::Address::new_static(
+                        "BabyLiminal",
+                        "MaximumVerificationKeyLength",
+                        [
+                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
+                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
+                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
+                            145u8,
+                        ],
+                    )
+                }
+                #[doc = " Limits how many bytes proof or public input can have."]
+                pub fn maximum_data_length(
+                    &self,
+                ) -> ::subxt::constants::Address<::core::primitive::u32> {
+                    ::subxt::constants::Address::new_static(
+                        "BabyLiminal",
+                        "MaximumDataLength",
+                        [
+                            98u8, 252u8, 116u8, 72u8, 26u8, 180u8, 225u8, 83u8, 200u8, 157u8,
+                            125u8, 151u8, 53u8, 76u8, 168u8, 26u8, 10u8, 9u8, 98u8, 68u8, 9u8,
+                            178u8, 197u8, 113u8, 31u8, 79u8, 200u8, 90u8, 203u8, 100u8, 41u8,
+                            145u8,
+                        ],
+                    )
+                }
+                #[doc = " Deposit amount for storing a verification key"]
+                #[doc = ""]
+                #[doc = " Will get locked and returned upon deleting the key by the owner"]
+                pub fn verification_key_deposit_per_byte(
+                    &self,
+                ) -> ::subxt::constants::Address<::core::primitive::u128> {
+                    ::subxt::constants::Address::new_static(
+                        "BabyLiminal",
+                        "VerificationKeyDepositPerByte",
+                        [
+                            84u8, 157u8, 140u8, 4u8, 93u8, 57u8, 29u8, 133u8, 105u8, 200u8, 214u8,
+                            27u8, 144u8, 208u8, 218u8, 160u8, 130u8, 109u8, 101u8, 54u8, 210u8,
+                            136u8, 71u8, 63u8, 49u8, 237u8, 234u8, 15u8, 178u8, 98u8, 148u8, 156u8,
+                        ],
+                    )
+                }
+            }
+        }
+    }
     pub mod proxy {
         use super::{root_mod, runtime_types};
         #[doc = "The `Error` enum of this pallet."]
@@ -16668,9 +17141,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            216u8, 22u8, 64u8, 165u8, 179u8, 200u8, 22u8, 77u8, 57u8, 222u8, 178u8,
-                            162u8, 224u8, 216u8, 86u8, 180u8, 183u8, 13u8, 3u8, 43u8, 187u8, 96u8,
-                            208u8, 212u8, 104u8, 176u8, 72u8, 15u8, 137u8, 181u8, 197u8, 211u8,
+                            181u8, 28u8, 103u8, 38u8, 83u8, 176u8, 164u8, 13u8, 115u8, 234u8, 61u8,
+                            15u8, 212u8, 182u8, 178u8, 152u8, 57u8, 160u8, 15u8, 95u8, 119u8,
+                            165u8, 208u8, 14u8, 107u8, 193u8, 181u8, 154u8, 199u8, 171u8, 236u8,
+                            34u8,
                         ],
                     )
                 }
@@ -16881,9 +17355,10 @@ pub mod api {
                             call: ::std::boxed::Box::new(call),
                         },
                         [
-                            2u8, 1u8, 69u8, 137u8, 214u8, 61u8, 103u8, 130u8, 125u8, 244u8, 187u8,
-                            84u8, 38u8, 37u8, 39u8, 219u8, 147u8, 73u8, 223u8, 239u8, 200u8, 30u8,
-                            236u8, 168u8, 254u8, 129u8, 229u8, 64u8, 223u8, 167u8, 48u8, 80u8,
+                            129u8, 230u8, 163u8, 95u8, 86u8, 175u8, 125u8, 255u8, 235u8, 43u8,
+                            55u8, 158u8, 121u8, 77u8, 59u8, 52u8, 45u8, 175u8, 172u8, 102u8, 190u8,
+                            120u8, 118u8, 176u8, 245u8, 50u8, 82u8, 137u8, 108u8, 124u8, 4u8,
+                            214u8,
                         ],
                     )
                 }
@@ -17366,6 +17841,8 @@ pub mod api {
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
                 #[codec(index = 22)]
+                BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Call),
+                #[codec(index = 23)]
                 Proxy(runtime_types::pallet_proxy::pallet::Call),
             }
             #[derive(
@@ -17413,6 +17890,8 @@ pub mod api {
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Error),
                 #[codec(index = 22)]
+                BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Error),
+                #[codec(index = 23)]
                 Proxy(runtime_types::pallet_proxy::pallet::Error),
             }
             #[derive(
@@ -17464,6 +17943,8 @@ pub mod api {
                 #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
                 #[codec(index = 22)]
+                BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Event),
+                #[codec(index = 23)]
                 Proxy(runtime_types::pallet_proxy::pallet::Event),
             }
             #[derive(
@@ -18193,6 +18674,146 @@ pub mod api {
                     ScheduleFinalityVersionChange(runtime_types::primitives::VersionChange),
                     #[codec(index = 2)]
                     FinalityVersionChange(runtime_types::primitives::VersionChange),
+                }
+            }
+        }
+        pub mod pallet_baby_liminal {
+            use super::runtime_types;
+            pub mod pallet {
+                use super::runtime_types;
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                #[doc = "Contains a variant per dispatchable extrinsic that this pallet has."]
+                pub enum Call {
+                    #[codec(index = 0)]
+                    #[doc = "See [`Pallet::store_key`]."]
+                    store_key {
+                        identifier: [::core::primitive::u8; 8usize],
+                        key: ::std::vec::Vec<::core::primitive::u8>,
+                    },
+                    #[codec(index = 1)]
+                    #[doc = "See [`Pallet::delete_key`]."]
+                    delete_key {
+                        identifier: [::core::primitive::u8; 8usize],
+                    },
+                    #[codec(index = 2)]
+                    #[doc = "See [`Pallet::overwrite_key`]."]
+                    overwrite_key {
+                        identifier: [::core::primitive::u8; 8usize],
+                        key: ::std::vec::Vec<::core::primitive::u8>,
+                    },
+                    #[codec(index = 3)]
+                    #[doc = "See [`Pallet::verify`]."]
+                    verify {
+                        verification_key_identifier: [::core::primitive::u8; 8usize],
+                        proof: ::std::vec::Vec<::core::primitive::u8>,
+                        public_input: ::std::vec::Vec<::core::primitive::u8>,
+                    },
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                #[doc = "The `Error` enum of this pallet."]
+                pub enum Error {
+                    #[codec(index = 0)]
+                    #[doc = "This verification key identifier is already taken."]
+                    IdentifierAlreadyInUse,
+                    #[codec(index = 1)]
+                    #[doc = "There is no verification key available under this identifier."]
+                    UnknownVerificationKeyIdentifier,
+                    #[codec(index = 2)]
+                    #[doc = "Provided verification key is longer than `MaximumVerificationKeyLength` limit."]
+                    VerificationKeyTooLong,
+                    #[codec(index = 3)]
+                    #[doc = "Either proof or public input is longer than `MaximumDataLength` limit."]
+                    DataTooLong,
+                    #[codec(index = 4)]
+                    #[doc = "Couldn't deserialize proof."]
+                    DeserializingProofFailed,
+                    #[codec(index = 5)]
+                    #[doc = "Couldn't deserialize public input."]
+                    DeserializingPublicInputFailed,
+                    #[codec(index = 6)]
+                    #[doc = "Couldn't deserialize verification key from storage."]
+                    DeserializingVerificationKeyFailed,
+                    #[codec(index = 7)]
+                    #[doc = "Verification procedure has failed. Proof still can be correct."]
+                    VerificationFailed,
+                    #[codec(index = 8)]
+                    #[doc = "Proof has been found as incorrect."]
+                    IncorrectProof,
+                    #[codec(index = 9)]
+                    #[doc = "Unsigned request"]
+                    BadOrigin,
+                    #[codec(index = 10)]
+                    #[doc = "User has insufficient funds to lock the deposit for storing verification key"]
+                    CannotAffordDeposit,
+                    #[codec(index = 11)]
+                    #[doc = "Caller is not the owner of the key"]
+                    NotOwner,
+                }
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                #[doc = "The `Event` enum of this pallet"]
+                pub enum Event {
+                    #[codec(index = 0)]
+                    #[doc = "Verification key has been successfully stored."]
+                    #[doc = ""]
+                    #[doc = "\\[ account_id, identifier \\]"]
+                    VerificationKeyStored(
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        [::core::primitive::u8; 8usize],
+                    ),
+                    #[codec(index = 1)]
+                    #[doc = "Verification key has been successfully deleted."]
+                    #[doc = ""]
+                    #[doc = "\\[ identifier \\]"]
+                    VerificationKeyDeleted(
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        [::core::primitive::u8; 8usize],
+                    ),
+                    #[codec(index = 2)]
+                    #[doc = "Verification key has been successfully overwritten."]
+                    #[doc = ""]
+                    #[doc = "\\[ identifier \\]"]
+                    VerificationKeyOverwritten([::core::primitive::u8; 8usize]),
+                    #[codec(index = 3)]
+                    #[doc = "Proof has been successfully verified."]
+                    #[doc = ""]
+                    #[doc = "\\[ identifier \\]"]
+                    VerificationSucceeded([::core::primitive::u8; 8usize]),
                 }
             }
         }
