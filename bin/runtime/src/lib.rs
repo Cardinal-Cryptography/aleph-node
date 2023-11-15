@@ -775,10 +775,9 @@ parameter_types! {
     scale_info::TypeInfo,
 )]
 pub enum ProxyType {
-    Any,
-    NonTransfer,
-    Governance,
-    Staking,
+    Any = 0,
+    NonTransfer = 1,
+    Staking = 2,
 }
 impl Default for ProxyType {
     fn default() -> Self {
@@ -794,11 +793,14 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
                 RuntimeCall::Balances(..)
                     | RuntimeCall::Vesting(pallet_vesting::Call::vested_transfer { .. })
             ),
-            ProxyType::Governance => {
-                matches!(c, RuntimeCall::Elections(..) | RuntimeCall::Treasury(..))
-            }
             ProxyType::Staking => {
-                matches!(c, RuntimeCall::Staking(..))
+                matches!(
+                    c,
+                    RuntimeCall::Staking(..)
+                        | RuntimeCall::Session(..)
+                        | RuntimeCall::Utility(..)
+                        | RuntimeCall::NominationPools(..)
+                )
             }
         }
     }
