@@ -11,7 +11,7 @@
 #   consensus size.
 
 
-set -euox pipefail
+set -euo pipefail
 
 # ------------------------ constants --------------------------------------
 
