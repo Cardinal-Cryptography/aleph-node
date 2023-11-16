@@ -545,7 +545,7 @@ impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
     type MaxNominators = ConstU32<1000>;
 }
 
-const NOMINATIONS_QUOTA: u32 = 1;
+const MAX_NOMINATORS: u32 = 1;
 
 impl pallet_staking::Config for Runtime {
     // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
@@ -554,7 +554,7 @@ impl pallet_staking::Config for Runtime {
     type CurrencyToVote = U128CurrencyToVote;
     type ElectionProvider = Elections;
     type GenesisElectionProvider = Elections;
-    type NominationsQuota = pallet_staking::FixedNominationsQuota<NOMINATIONS_QUOTA>;
+    type NominationsQuota = pallet_staking::FixedNominationsQuota<MAX_NOMINATORS>;
     type RewardRemainder = Treasury;
     type RuntimeEvent = RuntimeEvent;
     type Slash = Treasury;
