@@ -83,6 +83,7 @@ runs:
       id: run-single-e2e-test
       if: inputs.test-case != ''
       shell: bash
+      timeout-minutes: 20
       run: |
         ARGS=(
           -t '${{ inputs.test-case }}'
