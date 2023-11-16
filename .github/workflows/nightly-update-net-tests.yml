@@ -41,7 +41,7 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
           fetch-depth: 0
 
-      - name: Get last two commit hashes
+      - name: Get main commit hash
         shell: bash
         id: get-update-hashes
         run: |
