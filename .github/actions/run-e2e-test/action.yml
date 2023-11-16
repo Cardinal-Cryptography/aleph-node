@@ -131,7 +131,7 @@ runs:
       shell: bash
       run: |
         test_case_escaped=$(echo ${{ inputs.test-case }} | sed 's/::/-/g')
-        echo "name=${test_case_escaped} >> $GITHUB_OUTPUT
+        echo "name=${test_case_escaped}" >> $GITHUB_OUTPUT
 
     - name: Archive logs from failed e2e test
       # if: ${{ failure() }}
