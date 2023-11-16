@@ -130,7 +130,7 @@ runs:
       shell: bash
       run: |
         ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
-          --archive 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
+          --archive-logs 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
 
     - name: Upload logs from failed e2e test
       # if: ${{ failure() }}
