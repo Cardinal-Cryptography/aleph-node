@@ -1,18 +1,21 @@
+use std::{future, num::NonZeroUsize, time::Instant};
+
 use futures::StreamExt;
 use lru::LruCache;
 use sc_client_api::{BlockBackend, ImportNotifications};
 use sc_transaction_pool::{BasicPool, ChainApi};
-use sc_transaction_pool_api::error::{Error, IntoPoolError};
-use sc_transaction_pool_api::{ImportNotificationStream, TransactionPool};
+use sc_transaction_pool_api::{
+    error::{Error, IntoPoolError},
+    ImportNotificationStream, TransactionPool,
+};
 use sp_api::BlockT;
 use sp_runtime::traits;
-use std::future;
-use std::num::NonZeroUsize;
-use std::time::Instant;
 use tokio::select;
 
-const MAX_TRANSACTIONS_PER_CHECKPOINT: usize = 100000;
 const LOG_TARGET: &str = "aleph-metrics";
+
+// Size of transaction cache: 32B (Hash) + 16B (Instant) * `100_000` is approximately 4.8MB
+const TRANSACTION_CACHE_SIZE: usize = 100_000;
 
 pub type ExtrinsicHash<A> = <<A as ChainApi>::Block as traits::Block>::Hash;
 
@@ -32,7 +35,7 @@ pub async fn run_metrics<A, B, BE>(
     let mut transaction_notifications = transaction_notifications.fuse();
 
     let mut cache: LruCache<ExtrinsicHash<A>, Instant> = LruCache::new(
-        NonZeroUsize::new(MAX_TRANSACTIONS_PER_CHECKPOINT).expect("LRU cache has non zero size"),
+        NonZeroUsize::new(TRANSACTION_CACHE_SIZE).expect("the cache size is a non-zero constant"),
     );
 
     loop {
@@ -44,7 +47,7 @@ pub async fn run_metrics<A, B, BE>(
                             let hash = pool.hash_of(xt);
                             if let Some(insert_time) = cache.pop(&hash) {
                                 let elapsed = insert_time.elapsed();
-                                log::info!(target: LOG_TARGET, "[transaction_pool_metrics] extrinsic {hash:?} included in {elapsed:?}, lru size = {:?}", cache.len());
+                                log::trace!(target: LOG_TARGET, "[transaction_pool_metrics] extrinsic {hash:?} included after {elapsed:?}, lru size = {:?}", cache.len());
                             }
                         }
                     }
@@ -56,8 +59,11 @@ pub async fn run_metrics<A, B, BE>(
             maybe_transaction = transaction_notifications.next() => {
                 match maybe_transaction {
                     Some(hash) => {
-                        cache.put(hash, Instant::now());
-                        log::info!(target: LOG_TARGET, "[transaction_pool_metrics] insert extrinsic {hash:?}, lru size = {:?}", cache.len());
+                        let maybe_popped = cache.put(hash, Instant::now());
+                        log::trace!(target: LOG_TARGET, "[transaction_pool_metrics] inserted extrinsic {hash:?}, lru size = {:?}", cache.len());
+                        if let Some(_insert_time) = maybe_popped {
+                            // TODO: check if still in validated pool and maybe report
+                        }
                     }
                     None => {
                         log::warn!(target: LOG_TARGET, "Tx stream ended unexpectedly");
@@ -66,7 +72,7 @@ pub async fn run_metrics<A, B, BE>(
             },
         }
         let mut popped_transactions = 0;
-        while let Some((&hash, insert_time)) = cache.peek_lru() {
+        while let Some((&hash, _)) = cache.peek_lru() {
             match pool
                 .pool()
                 .validated_pool()
@@ -76,13 +82,13 @@ pub async fn run_metrics<A, B, BE>(
                 Err(Ok(Error::AlreadyImported(_))) => break,
                 Ok(()) | Err(Ok(Error::TemporarilyBanned)) => {
                     cache.pop_lru();
-                    log::info!(
-                        "[transaction_pool_metrics] no longer valid {hash:?}, lru size = {:?}",
+                    log::trace!(
+                        "[transaction_pool_metrics] Extrinsic {hash:?} is no longer valid, removing, lru size = {:?}",
                         cache.len()
                     );
                 }
                 _ => {
-                    log::info!("Unknown error in from transaction pool check_is_known");
+                    log::trace!("Unknown error in from transaction pool check_is_known");
                     break;
                 }
             };

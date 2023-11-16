@@ -1,7 +1,5 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use crate::metrics::run_metrics;
-use sc_transaction_pool_api::TransactionPool;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -16,8 +14,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::BlockchainEvents;
-use sc_client_api::{BlockBackend, HeaderBackend};
+use sc_client_api::{BlockBackend, BlockchainEvents, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
@@ -28,6 +25,7 @@ use sc_service::{
     TFullClient, TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
+use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
@@ -37,6 +35,7 @@ use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, MAX_BLOCK_SIZE},
     chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::AlephExecutor,
+    metrics::run_metrics,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
 };
 
