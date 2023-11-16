@@ -68,10 +68,6 @@ runs:
       shell: bash
       run: sleep 60
 
-    - name: Display bootnode logs
-      shell: bash
-      run: docker logs Node0 --follow &
-
     - name: Download artifact with the test suite image
       if: inputs.test-case != ''
       uses: actions/download-artifact@v3
@@ -136,7 +132,7 @@ runs:
         fi
 
     - name: Upload logs from failed e2e test
-      if: steps.run-single-e2e-test.outputs.e2e-test-status == 'failure'
+      if: ${{ failure() || steps.run-single-e2e-test.outputs.e2e-test-status == 'failure' }}
       uses: actions/upload-artifact@v3
       with:
         path: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
