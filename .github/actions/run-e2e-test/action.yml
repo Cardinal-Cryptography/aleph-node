@@ -124,21 +124,31 @@ runs:
           contracts/scripts/clean.sh
         fi
 
+    - name: Get log tarball file name
+      # if: ${{ failure() }}
+      if: ${{ always() }}
+      id: get-log-tarball-file-name
+      shell: bash
+      run: |
+        test_case_escaped=$(echo ${{ inputs.test-case }} | sed 's/::/-/g')
+        echo "name=${test_case_escaped} >> $GITHUB_OUTPUT
+
     - name: Archive logs from failed e2e test
       # if: ${{ failure() }}
       if: ${{ always() }}
       shell: bash
       run: |
         ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
-          --archive-logs 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
+          --archive-logs \
+          "aleph-node-${{ steps.get-log-tarball-file-name.outputs.name }}-e2e-failure.tgz"
 
     - name: Upload logs from failed e2e test
       # if: ${{ failure() }}
       if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
-        path: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
-        name: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
+        path: aleph-node-${{ steps.get-log-tarball-file-name.outputs.name }}-e2e-failure.tgz
+        name: aleph-node-${{ steps.get-log-tarball-file-name.outputs.name }}-e2e-failure.tgz
         if-no-files-found: error
         retention-days: 7
 
