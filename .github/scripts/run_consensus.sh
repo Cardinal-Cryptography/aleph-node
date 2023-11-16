@@ -11,7 +11,7 @@
 #   consensus size.
 
 
-set -euo pipefail
+set -euox pipefail
 
 # ------------------------ constants --------------------------------------
 
@@ -131,11 +131,13 @@ function archive_logs() {
   local docker_compose_file="${3}"
   local override_file="${4}"
 
+  local compose_file_list=$(get_compose_file_list "${docker_compose_file}" "${override_file}")
+
   echo "Archiving all logs from ${node_count} nodes to a file ${tarball_output}..."
   pushd $(mktemp -d) > /dev/null
   for index in $(seq 0 "${node_count}"); do
     echo "Archiving "Node${index}" logs..."
-    docker-compose  $(get_compose_file_list "${docker_compose_file}" "${override_file}") logs --no-color --no-log-prefix "Node${index}" > "Node${index}.log"
+    docker-compose ${compose_file_list} logs --no-color --no-log-prefix "Node${index}" > "Node${index}.log"
   done
   tar -czf "${tarball_output}" Node*
   popd > /dev/null
