@@ -125,14 +125,16 @@ runs:
         fi
 
     - name: Archive logs from failed e2e test
-      if: ${{ failure() }}
+      # if: ${{ failure() }}
+      if: ${{ always() }}
       shell: bash
       run: |
         ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
           --archive 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
 
     - name: Upload logs from failed e2e test
-      if: ${{ failure() }}
+      # if: ${{ failure() }}
+      if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
         path: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
