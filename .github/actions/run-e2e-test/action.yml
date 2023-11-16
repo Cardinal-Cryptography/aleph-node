@@ -116,13 +116,6 @@ runs:
         fi
 
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
-        # TODO archive logs only when above failed
-        if [[ $? == 0 ]]; then
-          DOCKER_COMPOSE='${{ inputs.compose-file }}' \
-          ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
-          --archive 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
-          echo "e2e-test-status=failure" >> $GITHUB_OUTPUT
-        fi
 
         CLEAN_BUTTON='${{ inputs.clean-button }}'
 
@@ -131,8 +124,15 @@ runs:
           contracts/scripts/clean.sh
         fi
 
+    - name: Archive logs from failed e2e test
+      if: ${{ failure() }}
+      shell: bash
+      run: |
+        ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
+          --archive 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
+
     - name: Upload logs from failed e2e test
-      if: ${{ failure() || steps.run-single-e2e-test.outputs.e2e-test-status == 'failure' }}
+      if: ${{ failure() }}
       uses: actions/upload-artifact@v3
       with:
         path: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
