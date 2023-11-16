@@ -84,6 +84,7 @@ runs:
       run: docker load -i aleph-e2e-client.tar
 
     - name: Run single e2e test
+      id: run-single-e2e-test
       if: inputs.test-case != ''
       shell: bash
       run: |
@@ -119,6 +120,13 @@ runs:
         fi
 
         ./.github/scripts/run_e2e_test.sh "${ARGS[@]}"
+        # TODO archive logs only when above failed
+        if [[ $? == 0 ]]; then
+          DOCKER_COMPOSE='${{ inputs.compose-file }}' \
+          ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}' \
+          --archive 'aleph-node-${{ inputs.test-case }}-e2e-failure.tgz'
+          echo "e2e-test-status=failure" >> $GITHUB_OUTPUT
+        fi
 
         CLEAN_BUTTON='${{ inputs.clean-button }}'
 
@@ -126,6 +134,15 @@ runs:
           source contracts/env/dev
           contracts/scripts/clean.sh
         fi
+
+    - name: Upload logs from failed e2e test
+      if: steps.run-single-e2e-test.outputs.e2e-test-status == 'failure'
+      uses: actions/upload-artifact@v3
+      with:
+        path: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
+        name: aleph-node-${{ inputs.test-case }}-e2e-failure.tgz
+        if-no-files-found: error
+        retention-days: 7
 
     - name: Run finalization e2e test
       if: inputs.follow-up-finalization-check == 'true'
