@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display, Error as FmtError, Formatter},
+    fmt::{Debug, Display},
     hash::Hash,
     path::PathBuf,
     sync::Arc,
@@ -40,6 +40,7 @@ use crate::{
 
 mod abft;
 mod aggregation;
+mod block;
 mod compatibility;
 mod crypto;
 mod data_io;
@@ -60,6 +61,10 @@ mod sync_oracle;
 pub mod testing;
 
 pub use crate::{
+    block::{
+        substrate::{BlockImporter, Justification, JustificationTranslator, SubstrateChainStatus},
+        BlockId,
+    },
     import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
     metrics::TimingBlockMetrics,
@@ -69,10 +74,6 @@ pub use crate::{
     },
     nodes::run_validator_node,
     session::SessionPeriod,
-    sync::{
-        substrate::{BlockImporter, Justification},
-        JustificationTranslator, SubstrateChainStatus,
-    },
     sync_oracle::SyncOracle,
 };
 
@@ -237,35 +238,6 @@ where
 }
 
 type Hasher = abft::HashWrapper<BlakeTwo256>;
-
-/// The identifier of a block, the least amount of knowledge we can have about a block.
-#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode, Hash)]
-pub struct BlockId {
-    hash: BlockHash,
-    number: BlockNumber,
-}
-
-impl BlockId {
-    pub fn new(hash: BlockHash, number: BlockNumber) -> Self {
-        BlockId { hash, number }
-    }
-
-    pub fn number(&self) -> BlockNumber {
-        self.number
-    }
-}
-
-impl From<(BlockHash, BlockNumber)> for BlockId {
-    fn from(pair: (BlockHash, BlockNumber)) -> Self {
-        BlockId::new(pair.0, pair.1)
-    }
-}
-
-impl Display for BlockId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(f, "#{} ({})", self.number, self.hash,)
-    }
-}
 
 #[derive(Clone)]
 pub struct RateLimiterConfig {
