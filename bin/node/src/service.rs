@@ -435,7 +435,7 @@ pub fn new_authority(
                 transaction_pool.import_notification_stream(),
                 client_txn.every_import_notification_stream(),
                 client_txn.as_ref(),
-                transaction_pool.api(),
+                transaction_pool.as_ref(),
             )
             .await;
         });
