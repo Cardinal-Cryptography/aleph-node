@@ -237,7 +237,7 @@ impl Checkpoint {
 
 /// Create `count_below` + 1 + `count_above` buckets, where (`count_below` + 1)th bucket
 /// has an upper bound `start`. The buckets are exponentially distributed with a factor `factor`.
-fn exponential_buckets_two_sided(
+pub fn exponential_buckets_two_sided(
     start: f64,
     factor: f64,
     count_below: usize,

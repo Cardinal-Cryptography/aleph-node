@@ -1,5 +1,6 @@
 use std::{future, num::NonZeroUsize, time::Instant};
 
+use finality_aleph::metrics::exponential_buckets_two_sided;
 use futures::StreamExt;
 use lru::LruCache;
 use sc_client_api::{BlockBackend, ImportNotifications};
@@ -10,6 +11,9 @@ use sc_transaction_pool_api::{
 };
 use sp_api::BlockT;
 use sp_runtime::traits;
+use substrate_prometheus_endpoint::{
+    register, Histogram, HistogramOpts, PrometheusError, Registry,
+};
 use tokio::select;
 
 const LOG_TARGET: &str = "aleph-metrics";
@@ -21,16 +25,69 @@ const MAX_RECHECKED_TRANSACTIONS: usize = 4;
 
 pub type ExtrinsicHash<A> = <<A as ChainApi>::Block as traits::Block>::Hash;
 
+const BUCKETS_FACTOR: f64 = 1.4;
+
+enum Metrics {
+    Prometheus {
+        time_till_block_inclusion: Histogram,
+    },
+    Noop,
+}
+
+impl Metrics {
+    fn new(registry: Option<Registry>) -> Result<Self, PrometheusError> {
+        let registry = match registry {
+            Some(registry) => registry,
+            None => return Ok(Metrics::Noop),
+        };
+
+        Ok(Metrics::Prometheus {
+            time_till_block_inclusion: register(
+                Histogram::with_opts(
+                    HistogramOpts::new("aleph_transaction_to_block_time", "no help")
+                        .buckets(exponential_buckets_two_sided(2000.0, BUCKETS_FACTOR, 2, 8)?),
+                )?,
+                &registry,
+            )?,
+        })
+    }
+
+    fn noop() -> Self {
+        Metrics::Noop
+    }
+
+    fn observe(&self, elapsed: std::time::Duration) {
+        if let Metrics::Prometheus {
+            time_till_block_inclusion,
+        } = self
+        {
+            time_till_block_inclusion.observe(elapsed.as_secs_f64() * 1000.);
+        }
+    }
+}
+
 pub async fn run_metrics<A, B, BE>(
     transaction_notifications: ImportNotificationStream<ExtrinsicHash<A>>,
     import_notifications: ImportNotifications<B>,
     backend: &BE,
     pool: &BasicPool<A, B>,
+    registry: Option<Registry>,
 ) where
     B: BlockT,
     A: ChainApi<Block = B> + 'static,
     BE: BlockBackend<B>,
 {
+    let metrics = match Metrics::new(registry) {
+        Ok(metrics) => metrics,
+        Err(e) => {
+            log::warn!(
+                target: LOG_TARGET,
+                "Failed to create transaction pool metrics: {e}."
+            );
+            Metrics::noop()
+        }
+    };
+
     let mut best_block_notifications = import_notifications
         .fuse()
         .filter(|notification| future::ready(notification.is_new_best));
@@ -50,7 +107,7 @@ pub async fn run_metrics<A, B, BE>(
                                 let hash = pool.hash_of(&xt);
                                 if let Some(insert_time) = cache.pop(&hash) {
                                     let elapsed = insert_time.elapsed();
-                                    log::trace!(target: LOG_TARGET, "[transaction_pool_metrics] extrinsic {hash:?} included after {elapsed:?}, lru size = {:?}", cache.len());
+                                    metrics.observe(elapsed);
                                 }
                             }
                         }

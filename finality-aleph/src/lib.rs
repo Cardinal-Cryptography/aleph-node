@@ -49,7 +49,7 @@ mod finalization;
 mod idx_to_account;
 mod import;
 mod justification;
-mod metrics;
+pub mod metrics;
 mod network;
 mod nodes;
 mod party;

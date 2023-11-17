@@ -7,9 +7,9 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
-    JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
-    RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle, TimingBlockMetrics,
+    metrics::TimingBlockMetrics, run_validator_node, AlephBlockImport, AlephConfig, BlockImporter,
+    Justification, JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming,
+    RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle,
     TracingBlockImport, ValidatorAddressCache,
 };
 use futures::channel::mpsc;
@@ -426,15 +426,17 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
-    let client_txn = client.clone();
+    let client_for_metrics = client.clone();
+    let registry_for_metrics = prometheus_registry.clone();
     task_manager
         .spawn_handle()
         .spawn("aleph-txn-metrics", None, async move {
             run_metrics(
                 transaction_pool.import_notification_stream(),
-                client_txn.every_import_notification_stream(),
-                client_txn.as_ref(),
+                client_for_metrics.every_import_notification_stream(),
+                client_for_metrics.as_ref(),
                 transaction_pool.as_ref(),
+                registry_for_metrics.clone(),
             )
             .await;
         });
