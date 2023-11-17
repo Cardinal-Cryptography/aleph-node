@@ -97,7 +97,10 @@ fi
 if [[ -n "${OUT_LATENCY:-}" ]]; then
     ARGS+=(-e OUT_LATENCY)
 fi
-
-docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" "${ARGS[@]}" aleph-e2e-client:latest
+# a hack to set global timeout 20 minutes on a e2e testcase run
+# we can't do that on GH yaml level due to https://github.com/actions/runner/issues/1979
+timeout --preserve-status 20m \
+  docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" "${ARGS[@]}" \
+    aleph-e2e-client:latest
 
 exit $?
