@@ -135,10 +135,10 @@ pub async fn fail_changing_validators() -> anyhow::Result<()> {
         .wait_for_event(
             |e: &Sudid| {
                 info!("Got event: {:?}", e);
-                // index 11 & error [4,0,0,0] denotes `NonReservedFinalitySeatsLargerThanNonReservedSeats` error from elections pallet.
+                // index 12 & error [4,0,0,0] denotes `NonReservedFinalitySeatsLargerThanNonReservedSeats` error from elections pallet.
                 e.sudo_result
                     == Err(DispatchError::Module(ModuleError {
-                        index: 11,
+                        index: 12,
                         error: [4, 0, 0, 0],
                     }))
             },

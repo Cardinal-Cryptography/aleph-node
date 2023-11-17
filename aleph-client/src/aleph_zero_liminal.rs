@@ -2,16 +2,11 @@
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
 pub mod api {
-<<<<<<< HEAD
-    use super::api as root_mod;
-    pub static PALLETS: [&str; 22usize] = [
-=======
     #[allow(unused_imports)]
     mod root_mod {
         pub use super::*;
     }
-    pub static PALLETS: [&str; 23usize] = [
->>>>>>> origin
+    pub static PALLETS: [&str; 22usize] = [
         "System",
         "Scheduler",
         "Aura",
@@ -35,53 +30,6 @@ pub mod api {
         "CommitteeManagement",
         "BabyLiminal",
     ];
-<<<<<<< HEAD
-    #[derive(
-        :: subxt :: ext :: codec :: Decode,
-        :: subxt :: ext :: codec :: Encode,
-        Clone,
-        Debug,
-        Eq,
-        PartialEq,
-    )]
-    pub enum Event {
-        #[codec(index = 0)]
-        System(system::Event),
-        #[codec(index = 1)]
-        Scheduler(scheduler::Event),
-        #[codec(index = 4)]
-        Balances(balances::Event),
-        #[codec(index = 5)]
-        TransactionPayment(transaction_payment::Event),
-        #[codec(index = 7)]
-        Staking(staking::Event),
-        #[codec(index = 9)]
-        Session(session::Event),
-        #[codec(index = 10)]
-        Aleph(aleph::Event),
-        #[codec(index = 11)]
-        Elections(elections::Event),
-        #[codec(index = 12)]
-        Treasury(treasury::Event),
-        #[codec(index = 13)]
-        Vesting(vesting::Event),
-        #[codec(index = 14)]
-        Utility(utility::Event),
-        #[codec(index = 15)]
-        Multisig(multisig::Event),
-        #[codec(index = 16)]
-        Sudo(sudo::Event),
-        #[codec(index = 17)]
-        Contracts(contracts::Event),
-        #[codec(index = 18)]
-        NominationPools(nomination_pools::Event),
-        #[codec(index = 19)]
-        Identity(identity::Event),
-        #[codec(index = 20)]
-        CommitteeManagement(committee_management::Event),
-        #[codec(index = 21)]
-        BabyLiminal(baby_liminal::Event),
-=======
     pub static RUNTIME_APIS: [&str; 12usize] = [
         "Core",
         "Metadata",
@@ -1174,16 +1122,19 @@ pub mod api {
                     &self,
                 ) -> ::subxt::runtime_api::Payload<
                     types::NextSessionAuraAuthorities,
-                    ::std::vec::Vec<runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public>,
+                    ::std::vec::Vec<(
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public,
+                    )>,
                 > {
                     ::subxt::runtime_api::Payload::new_static(
                         "AlephSessionApi",
                         "next_session_aura_authorities",
                         types::NextSessionAuraAuthorities {},
                         [
-                            144u8, 15u8, 188u8, 117u8, 66u8, 85u8, 8u8, 194u8, 120u8, 121u8, 78u8,
-                            164u8, 143u8, 207u8, 216u8, 59u8, 100u8, 242u8, 169u8, 81u8, 126u8,
-                            73u8, 69u8, 191u8, 76u8, 228u8, 242u8, 24u8, 78u8, 59u8, 221u8, 213u8,
+                            47u8, 107u8, 191u8, 143u8, 148u8, 5u8, 53u8, 209u8, 145u8, 52u8, 115u8,
+                            201u8, 195u8, 62u8, 201u8, 160u8, 32u8, 72u8, 94u8, 43u8, 149u8, 29u8,
+                            136u8, 214u8, 49u8, 145u8, 173u8, 216u8, 237u8, 120u8, 175u8, 228u8,
                         ],
                     )
                 }
@@ -1793,11 +1744,6 @@ pub mod api {
         pub fn system(&self) -> system::storage::StorageApi {
             system::storage::StorageApi
         }
-        pub fn randomness_collective_flip(
-            &self,
-        ) -> randomness_collective_flip::storage::StorageApi {
-            randomness_collective_flip::storage::StorageApi
-        }
         pub fn scheduler(&self) -> scheduler::storage::StorageApi {
             scheduler::storage::StorageApi
         }
@@ -1925,11 +1871,10 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                220u8, 197u8, 173u8, 180u8, 203u8, 60u8, 215u8, 204u8, 158u8, 238u8, 123u8, 250u8,
-                84u8, 25u8, 213u8, 47u8, 29u8, 19u8, 242u8, 178u8, 103u8, 218u8, 119u8, 87u8,
-                217u8, 75u8, 46u8, 136u8, 175u8, 0u8, 233u8, 187u8,
+                148u8, 190u8, 200u8, 150u8, 203u8, 228u8, 90u8, 163u8, 7u8, 188u8, 190u8, 218u8,
+                152u8, 130u8, 105u8, 120u8, 242u8, 218u8, 203u8, 83u8, 31u8, 8u8, 255u8, 248u8,
+                80u8, 114u8, 72u8, 0u8, 104u8, 255u8, 217u8, 0u8,
             ]
->>>>>>> origin
     }
     pub mod system {
         use super::{root_mod, runtime_types};
@@ -2965,44 +2910,6 @@ pub mod api {
             }
         }
     }
-<<<<<<< HEAD
-=======
-    pub mod randomness_collective_flip {
-        use super::{root_mod, runtime_types};
-        pub mod storage {
-            use super::runtime_types;
-            pub struct StorageApi;
-            impl StorageApi {
-                #[doc = " Series of block headers from the last 81 blocks that acts as random seed material. This"]
-                #[doc = " is arranged as a ring buffer with `block_number % 81` being the index into the `Vec` of"]
-                #[doc = " the oldest hash."]
-                pub fn random_material(
-                    &self,
-                ) -> ::subxt::storage::address::Address<
-                    ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                        ::subxt::utils::H256,
-                    >,
-                    ::subxt::storage::address::Yes,
-                    ::subxt::storage::address::Yes,
-                    (),
-                > {
-                    ::subxt::storage::address::Address::new_static(
-                        "RandomnessCollectiveFlip",
-                        "RandomMaterial",
-                        vec![],
-                        [
-                            195u8, 232u8, 244u8, 162u8, 110u8, 137u8, 66u8, 57u8, 51u8, 221u8,
-                            143u8, 38u8, 51u8, 183u8, 105u8, 245u8, 175u8, 13u8, 33u8, 192u8, 53u8,
-                            16u8, 161u8, 76u8, 219u8, 177u8, 144u8, 192u8, 96u8, 166u8, 117u8,
-                            247u8,
-                        ],
-                    )
-                }
-            }
-        }
-    }
->>>>>>> origin
     pub mod scheduler {
         use super::{root_mod, runtime_types};
         #[doc = "The `Error` enum of this pallet."]
@@ -8905,16 +8812,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-<<<<<<< HEAD
-                            43u8, 224u8, 44u8, 231u8, 191u8, 130u8, 211u8, 48u8, 204u8, 255u8,
-                            254u8, 205u8, 80u8, 173u8, 226u8, 222u8, 134u8, 104u8, 193u8, 24u8,
-                            127u8, 203u8, 75u8, 164u8, 173u8, 51u8, 53u8, 239u8, 30u8, 155u8, 22u8,
-                            182u8,
-=======
-                            31u8, 115u8, 232u8, 160u8, 131u8, 153u8, 226u8, 102u8, 201u8, 92u8,
-                            138u8, 30u8, 138u8, 46u8, 72u8, 110u8, 10u8, 119u8, 210u8, 153u8, 57u8,
-                            170u8, 223u8, 127u8, 247u8, 210u8, 64u8, 8u8, 62u8, 100u8, 9u8, 237u8,
->>>>>>> origin
+                            135u8, 167u8, 174u8, 250u8, 159u8, 174u8, 148u8, 238u8, 174u8, 73u8,
+                            94u8, 82u8, 156u8, 147u8, 51u8, 18u8, 69u8, 21u8, 102u8, 57u8, 242u8,
+                            253u8, 144u8, 53u8, 194u8, 10u8, 247u8, 242u8, 169u8, 157u8, 133u8,
+                            77u8,
                         ],
                     )
                 }
@@ -17100,39 +17001,39 @@ pub mod api {
             pub enum RuntimeCall {
                 #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Call),
-                #[codec(index = 1)]
+                #[codec(index = 2)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Call),
-                #[codec(index = 3)]
-                Timestamp(runtime_types::pallet_timestamp::pallet::Call),
                 #[codec(index = 4)]
+                Timestamp(runtime_types::pallet_timestamp::pallet::Call),
+                #[codec(index = 5)]
                 Balances(runtime_types::pallet_balances::pallet::Call),
-                #[codec(index = 7)]
+                #[codec(index = 8)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Call),
-                #[codec(index = 9)]
-                Session(runtime_types::pallet_session::pallet::Call),
                 #[codec(index = 10)]
-                Aleph(runtime_types::pallet_aleph::pallet::Call),
+                Session(runtime_types::pallet_session::pallet::Call),
                 #[codec(index = 11)]
-                Elections(runtime_types::pallet_elections::pallet::Call),
+                Aleph(runtime_types::pallet_aleph::pallet::Call),
                 #[codec(index = 12)]
-                Treasury(runtime_types::pallet_treasury::pallet::Call),
+                Elections(runtime_types::pallet_elections::pallet::Call),
                 #[codec(index = 13)]
-                Vesting(runtime_types::pallet_vesting::pallet::Call),
+                Treasury(runtime_types::pallet_treasury::pallet::Call),
                 #[codec(index = 14)]
-                Utility(runtime_types::pallet_utility::pallet::Call),
+                Vesting(runtime_types::pallet_vesting::pallet::Call),
                 #[codec(index = 15)]
-                Multisig(runtime_types::pallet_multisig::pallet::Call),
+                Utility(runtime_types::pallet_utility::pallet::Call),
                 #[codec(index = 16)]
-                Sudo(runtime_types::pallet_sudo::pallet::Call),
+                Multisig(runtime_types::pallet_multisig::pallet::Call),
                 #[codec(index = 17)]
-                Contracts(runtime_types::pallet_contracts::pallet::Call),
+                Sudo(runtime_types::pallet_sudo::pallet::Call),
                 #[codec(index = 18)]
-                NominationPools(runtime_types::pallet_nomination_pools::pallet::Call),
+                Contracts(runtime_types::pallet_contracts::pallet::Call),
                 #[codec(index = 19)]
-                Identity(runtime_types::pallet_identity::pallet::Call),
+                NominationPools(runtime_types::pallet_nomination_pools::pallet::Call),
                 #[codec(index = 20)]
-                CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
+                Identity(runtime_types::pallet_identity::pallet::Call),
                 #[codec(index = 21)]
+                CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
+                #[codec(index = 22)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Call),
             }
             #[derive(
@@ -17198,39 +17099,39 @@ pub mod api {
             pub enum RuntimeEvent {
                 #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Event),
-                #[codec(index = 1)]
+                #[codec(index = 2)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Event),
-                #[codec(index = 4)]
-                Balances(runtime_types::pallet_balances::pallet::Event),
                 #[codec(index = 5)]
+                Balances(runtime_types::pallet_balances::pallet::Event),
+                #[codec(index = 6)]
                 TransactionPayment(runtime_types::pallet_transaction_payment::pallet::Event),
-                #[codec(index = 7)]
+                #[codec(index = 8)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Event),
-                #[codec(index = 9)]
-                Session(runtime_types::pallet_session::pallet::Event),
                 #[codec(index = 10)]
-                Aleph(runtime_types::pallet_aleph::pallet::Event),
+                Session(runtime_types::pallet_session::pallet::Event),
                 #[codec(index = 11)]
-                Elections(runtime_types::pallet_elections::pallet::Event),
+                Aleph(runtime_types::pallet_aleph::pallet::Event),
                 #[codec(index = 12)]
-                Treasury(runtime_types::pallet_treasury::pallet::Event),
+                Elections(runtime_types::pallet_elections::pallet::Event),
                 #[codec(index = 13)]
-                Vesting(runtime_types::pallet_vesting::pallet::Event),
+                Treasury(runtime_types::pallet_treasury::pallet::Event),
                 #[codec(index = 14)]
-                Utility(runtime_types::pallet_utility::pallet::Event),
+                Vesting(runtime_types::pallet_vesting::pallet::Event),
                 #[codec(index = 15)]
-                Multisig(runtime_types::pallet_multisig::pallet::Event),
+                Utility(runtime_types::pallet_utility::pallet::Event),
                 #[codec(index = 16)]
-                Sudo(runtime_types::pallet_sudo::pallet::Event),
+                Multisig(runtime_types::pallet_multisig::pallet::Event),
                 #[codec(index = 17)]
-                Contracts(runtime_types::pallet_contracts::pallet::Event),
+                Sudo(runtime_types::pallet_sudo::pallet::Event),
                 #[codec(index = 18)]
-                NominationPools(runtime_types::pallet_nomination_pools::pallet::Event),
+                Contracts(runtime_types::pallet_contracts::pallet::Event),
                 #[codec(index = 19)]
-                Identity(runtime_types::pallet_identity::pallet::Event),
+                NominationPools(runtime_types::pallet_nomination_pools::pallet::Event),
                 #[codec(index = 20)]
-                CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
+                Identity(runtime_types::pallet_identity::pallet::Event),
                 #[codec(index = 21)]
+                CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
+                #[codec(index = 22)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Event),
             }
             #[derive(
@@ -24320,210 +24221,4 @@ pub mod api {
             }
         }
     }
-<<<<<<< HEAD
-    #[doc = r" The default error type returned when there is a runtime issue,"]
-    #[doc = r" exposed here for ease of use."]
-    pub type DispatchError = runtime_types::sp_runtime::DispatchError;
-    pub fn constants() -> ConstantsApi {
-        ConstantsApi
-    }
-    pub fn storage() -> StorageApi {
-        StorageApi
-    }
-    pub fn tx() -> TransactionApi {
-        TransactionApi
-    }
-    pub struct ConstantsApi;
-    impl ConstantsApi {
-        pub fn system(&self) -> system::constants::ConstantsApi {
-            system::constants::ConstantsApi
-        }
-        pub fn scheduler(&self) -> scheduler::constants::ConstantsApi {
-            scheduler::constants::ConstantsApi
-        }
-        pub fn timestamp(&self) -> timestamp::constants::ConstantsApi {
-            timestamp::constants::ConstantsApi
-        }
-        pub fn balances(&self) -> balances::constants::ConstantsApi {
-            balances::constants::ConstantsApi
-        }
-        pub fn transaction_payment(&self) -> transaction_payment::constants::ConstantsApi {
-            transaction_payment::constants::ConstantsApi
-        }
-        pub fn staking(&self) -> staking::constants::ConstantsApi {
-            staking::constants::ConstantsApi
-        }
-        pub fn elections(&self) -> elections::constants::ConstantsApi {
-            elections::constants::ConstantsApi
-        }
-        pub fn treasury(&self) -> treasury::constants::ConstantsApi {
-            treasury::constants::ConstantsApi
-        }
-        pub fn vesting(&self) -> vesting::constants::ConstantsApi {
-            vesting::constants::ConstantsApi
-        }
-        pub fn utility(&self) -> utility::constants::ConstantsApi {
-            utility::constants::ConstantsApi
-        }
-        pub fn multisig(&self) -> multisig::constants::ConstantsApi {
-            multisig::constants::ConstantsApi
-        }
-        pub fn contracts(&self) -> contracts::constants::ConstantsApi {
-            contracts::constants::ConstantsApi
-        }
-        pub fn nomination_pools(&self) -> nomination_pools::constants::ConstantsApi {
-            nomination_pools::constants::ConstantsApi
-        }
-        pub fn identity(&self) -> identity::constants::ConstantsApi {
-            identity::constants::ConstantsApi
-        }
-        pub fn committee_management(&self) -> committee_management::constants::ConstantsApi {
-            committee_management::constants::ConstantsApi
-        }
-        pub fn baby_liminal(&self) -> baby_liminal::constants::ConstantsApi {
-            baby_liminal::constants::ConstantsApi
-        }
-    }
-    pub struct StorageApi;
-    impl StorageApi {
-        pub fn system(&self) -> system::storage::StorageApi {
-            system::storage::StorageApi
-        }
-        pub fn scheduler(&self) -> scheduler::storage::StorageApi {
-            scheduler::storage::StorageApi
-        }
-        pub fn aura(&self) -> aura::storage::StorageApi {
-            aura::storage::StorageApi
-        }
-        pub fn timestamp(&self) -> timestamp::storage::StorageApi {
-            timestamp::storage::StorageApi
-        }
-        pub fn balances(&self) -> balances::storage::StorageApi {
-            balances::storage::StorageApi
-        }
-        pub fn transaction_payment(&self) -> transaction_payment::storage::StorageApi {
-            transaction_payment::storage::StorageApi
-        }
-        pub fn authorship(&self) -> authorship::storage::StorageApi {
-            authorship::storage::StorageApi
-        }
-        pub fn staking(&self) -> staking::storage::StorageApi {
-            staking::storage::StorageApi
-        }
-        pub fn history(&self) -> history::storage::StorageApi {
-            history::storage::StorageApi
-        }
-        pub fn session(&self) -> session::storage::StorageApi {
-            session::storage::StorageApi
-        }
-        pub fn aleph(&self) -> aleph::storage::StorageApi {
-            aleph::storage::StorageApi
-        }
-        pub fn elections(&self) -> elections::storage::StorageApi {
-            elections::storage::StorageApi
-        }
-        pub fn treasury(&self) -> treasury::storage::StorageApi {
-            treasury::storage::StorageApi
-        }
-        pub fn vesting(&self) -> vesting::storage::StorageApi {
-            vesting::storage::StorageApi
-        }
-        pub fn multisig(&self) -> multisig::storage::StorageApi {
-            multisig::storage::StorageApi
-        }
-        pub fn sudo(&self) -> sudo::storage::StorageApi {
-            sudo::storage::StorageApi
-        }
-        pub fn contracts(&self) -> contracts::storage::StorageApi {
-            contracts::storage::StorageApi
-        }
-        pub fn nomination_pools(&self) -> nomination_pools::storage::StorageApi {
-            nomination_pools::storage::StorageApi
-        }
-        pub fn identity(&self) -> identity::storage::StorageApi {
-            identity::storage::StorageApi
-        }
-        pub fn committee_management(&self) -> committee_management::storage::StorageApi {
-            committee_management::storage::StorageApi
-        }
-        pub fn baby_liminal(&self) -> baby_liminal::storage::StorageApi {
-            baby_liminal::storage::StorageApi
-        }
-    }
-    pub struct TransactionApi;
-    impl TransactionApi {
-        pub fn system(&self) -> system::calls::TransactionApi {
-            system::calls::TransactionApi
-        }
-        pub fn scheduler(&self) -> scheduler::calls::TransactionApi {
-            scheduler::calls::TransactionApi
-        }
-        pub fn timestamp(&self) -> timestamp::calls::TransactionApi {
-            timestamp::calls::TransactionApi
-        }
-        pub fn balances(&self) -> balances::calls::TransactionApi {
-            balances::calls::TransactionApi
-        }
-        pub fn staking(&self) -> staking::calls::TransactionApi {
-            staking::calls::TransactionApi
-        }
-        pub fn session(&self) -> session::calls::TransactionApi {
-            session::calls::TransactionApi
-        }
-        pub fn aleph(&self) -> aleph::calls::TransactionApi {
-            aleph::calls::TransactionApi
-        }
-        pub fn elections(&self) -> elections::calls::TransactionApi {
-            elections::calls::TransactionApi
-        }
-        pub fn treasury(&self) -> treasury::calls::TransactionApi {
-            treasury::calls::TransactionApi
-        }
-        pub fn vesting(&self) -> vesting::calls::TransactionApi {
-            vesting::calls::TransactionApi
-        }
-        pub fn utility(&self) -> utility::calls::TransactionApi {
-            utility::calls::TransactionApi
-        }
-        pub fn multisig(&self) -> multisig::calls::TransactionApi {
-            multisig::calls::TransactionApi
-        }
-        pub fn sudo(&self) -> sudo::calls::TransactionApi {
-            sudo::calls::TransactionApi
-        }
-        pub fn contracts(&self) -> contracts::calls::TransactionApi {
-            contracts::calls::TransactionApi
-        }
-        pub fn nomination_pools(&self) -> nomination_pools::calls::TransactionApi {
-            nomination_pools::calls::TransactionApi
-        }
-        pub fn identity(&self) -> identity::calls::TransactionApi {
-            identity::calls::TransactionApi
-        }
-        pub fn committee_management(&self) -> committee_management::calls::TransactionApi {
-            committee_management::calls::TransactionApi
-        }
-        pub fn baby_liminal(&self) -> baby_liminal::calls::TransactionApi {
-            baby_liminal::calls::TransactionApi
-        }
-    }
-    #[doc = r" check whether the Client you are using is aligned with the statically generated codegen."]
-    pub fn validate_codegen<T: ::subxt::Config, C: ::subxt::client::OfflineClientT<T>>(
-        client: &C,
-    ) -> Result<(), ::subxt::error::MetadataError> {
-        let runtime_metadata_hash = client.metadata().metadata_hash(&PALLETS);
-        if runtime_metadata_hash
-            != [
-                85u8, 67u8, 223u8, 72u8, 8u8, 124u8, 45u8, 38u8, 86u8, 220u8, 75u8, 220u8, 44u8,
-                147u8, 87u8, 180u8, 136u8, 188u8, 209u8, 250u8, 60u8, 88u8, 82u8, 239u8, 108u8,
-                72u8, 68u8, 115u8, 101u8, 223u8, 152u8, 216u8,
-            ]
-        {
-            Err(::subxt::error::MetadataError::IncompatibleMetadata)
-        } else {
-            Ok(())
-        }
-    }
-=======
->>>>>>> origin
 }
