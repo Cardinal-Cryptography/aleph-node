@@ -97,11 +97,21 @@ fi
 if [[ -n "${OUT_LATENCY:-}" ]]; then
     ARGS+=(-e OUT_LATENCY)
 fi
-# a hack to set global timeout 20 minutes on a e2e testcase run
+timeout_duration="15m"
+echo "Running test, logs will be shown when tests finishes or after ${timeout_duration} timeout."
+# a hack to set global timeout on a e2e testcase run
 # we can't do that on GH yaml level due to https://github.com/actions/runner/issues/1979
 docker_service=$(docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" -d "${ARGS[@]}" \
     aleph-e2e-client:latest)
-# TODO change to 15m before merge
-timeout --preserve-status 30s docker wait "${docker_service}"
-
-exit $?
+set +e
+timeout_output=$(timeout "${timeout_duration}" docker wait "${docker_service}")
+docker_exit_code=$?
+# timeout returns 124 exit code if command times out
+# otherwise, docker wait finishes and it prints docker service exit code on stdout
+if [[ "${docker_exit_code}" != 124 ]]; then
+  docker_exit_code="${timeout_output}"
+fi
+echo "Test exited with exit code ${docker_exit_code}"
+echo "Logs from test:"
+docker logs "${docker_service}"
+exit "${docker_exit_code}"
