@@ -7,7 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub use frame_support::{
-    construct_runtime, log, parameter_types,
+    construct_runtime, parameter_types,
     traits::{
         Currency, EstimateNextNewSession, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
         OnUnbalanced, Randomness, ValidatorSet,
@@ -24,7 +24,7 @@ use frame_support::{
     sp_runtime::Perquintill,
     traits::{
         ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, SortedMembers,
-        U128CurrencyToVote, WithdrawReasons,
+        WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
@@ -34,19 +34,21 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
+use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuthorityId as AlephId, Block as AlephBlock, BlockId as AlephBlockId,
+    AuraId, AuthorityId as AlephId, Block as AlephBlock, BlockId as AlephBlockId,
     BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData, SessionCommittee,
     SessionIndex, SessionInfoProvider, SessionValidatorError, Version as FinalityVersion,
     ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
     DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
-pub use primitives::{AccountId, AccountIndex, Balance, Hash, Index, Signature};
+pub use primitives::{AccountId, AccountIndex, Balance, Hash, Nonce, Signature};
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
+use sp_application_crypto::key_types::AURA;
+use sp_consensus_aura::SlotDuration;
 use sp_core::{crypto::KeyTypeId, ConstU128, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -59,7 +61,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, FixedU128,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
-use sp_staking::EraIndex;
+use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -89,14 +91,15 @@ pub mod opaque {
     }
 }
 
+#[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 56,
+    spec_version: 67,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 14,
+    transaction_version: 17,
     state_version: 0,
 };
 
@@ -154,16 +157,14 @@ impl frame_system::Config for Runtime {
     type RuntimeCall = RuntimeCall;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = AccountIdLookup<AccountId, ()>;
-    /// The index type for storing how many extrinsics an account has signed.
-    type Index = Index;
-    /// The index type for blocks.
-    type BlockNumber = AlephBlockNumber;
+    /// The type for storing how many extrinsics an account has signed.
+    type Nonce = Nonce;
+    /// The block type.
+    type Block = Block;
     /// The type for hashing blocks and tries.
     type Hash = Hash;
     /// The hashing algorithm used.
     type Hashing = BlakeTwo256;
-    /// The header type.
-    type Header = AlephHeader;
     /// The ubiquitous event type.
     type RuntimeEvent = RuntimeEvent;
     /// The ubiquitous origin type.
@@ -201,6 +202,7 @@ impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
+    type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 parameter_types! {
@@ -229,10 +231,10 @@ impl pallet_balances::Config for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-    type HoldIdentifier = ();
     type FreezeIdentifier = ();
     type MaxHolds = ConstU32<0>;
     type MaxFreezes = ConstU32<0>;
+    type RuntimeHoldReason = RuntimeHoldReason;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -302,6 +304,7 @@ impl pallet_scheduler::Config for Runtime {
 impl pallet_sudo::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
+    type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
 pub struct SessionInfoImpl;
@@ -540,6 +543,8 @@ impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
     type MaxNominators = ConstU32<1000>;
 }
 
+const MAX_NOMINATORS: u32 = 1;
+
 impl pallet_staking::Config for Runtime {
     // Do not change this!!! It guarantees that we have DPoS instead of NPoS.
     type Currency = Balances;
@@ -547,7 +552,7 @@ impl pallet_staking::Config for Runtime {
     type CurrencyToVote = U128CurrencyToVote;
     type ElectionProvider = Elections;
     type GenesisElectionProvider = Elections;
-    type MaxNominations = ConstU32<1>;
+    type NominationsQuota = pallet_staking::FixedNominationsQuota<MAX_NOMINATORS>;
     type RewardRemainder = Treasury;
     type RuntimeEvent = RuntimeEvent;
     type Slash = Treasury;
@@ -565,10 +570,10 @@ impl pallet_staking::Config for Runtime {
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
     type CurrencyBalance = Balance;
-    type OnStakerSlash = NominationPools;
     type HistoryDepth = HistoryDepth;
     type TargetList = pallet_staking::UseValidatorsMap<Self>;
     type AdminOrigin = EnsureRoot<AccountId>;
+    type EventListeners = NominationPools;
 }
 
 parameter_types! {
@@ -684,9 +689,6 @@ impl pallet_utility::Config for Runtime {
     type PalletsOrigin = OriginCaller;
 }
 
-// Prints debug output of the `contracts` pallet to stdout if the node is started with `-lruntime::contracts=debug`.
-const CONTRACTS_DEBUG_OUTPUT: bool = true;
-
 parameter_types! {
     // Refundable deposit per storage item
     pub const DepositPerItem: Balance = 32 * CONTRACT_DEPOSIT_PER_BYTE;
@@ -697,6 +699,7 @@ parameter_types! {
     // Maximum size of the lazy deletion queue of terminated contracts.
     pub const DeletionQueueDepth: u32 = 128;
     pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
+    pub CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
 }
 
 pub struct ZeroRandomness;
@@ -728,6 +731,12 @@ impl pallet_contracts::Config for Runtime {
     type MaxStorageKeyLen = ConstU32<128>;
     type UnsafeUnstableInterface = ConstBool<false>;
     type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type Migrations = ();
+    type MaxDelegateDependencies = ConstU32<32>;
+    type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
+    type Debug = ();
+    type Environment = ();
 }
 
 parameter_types! {
@@ -759,11 +768,7 @@ impl pallet_identity::Config for Runtime {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(not(feature = "liminal"))]
 construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = opaque::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
+    pub struct Runtime {
         System: frame_system,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
@@ -790,11 +795,7 @@ construct_runtime!(
 
 #[cfg(feature = "liminal")]
 construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = opaque::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
+    pub struct Runtime {
         System: frame_system,
         Scheduler: pallet_scheduler,
         Aura: pallet_aura,
@@ -841,6 +842,7 @@ pub type SignedExtra = (
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
+
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -862,6 +864,8 @@ mod benches {
     #[cfg(not(feature = "liminal"))]
     frame_benchmarking::define_benchmarks!([]);
 }
+
+type EventRecord = frame_system::EventRecord<RuntimeEvent, Hash>;
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
@@ -951,8 +955,8 @@ impl_runtime_apis! {
         }
     }
 
-    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-        fn account_nonce(account: AccountId) -> Index {
+    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+        fn account_nonce(account: AccountId) -> Nonce {
             System::account_nonce(account)
         }
     }
@@ -1024,6 +1028,16 @@ impl_runtime_apis! {
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError> {
             CommitteeManagement::predict_session_committee_for_session(session)
         }
+
+        fn next_session_aura_authorities() -> Vec<(AccountId, AuraId)> {
+            let queued_keys = QueuedKeys::<Runtime>::get();
+
+            queued_keys.into_iter().filter_map(|(account_id, keys)| keys.get(AURA).map(|key| (account_id, key))).collect()
+        }
+
+        fn key_owner(key: AlephId) -> Option<AccountId> {
+            Session::key_owner(primitives::KEY_TYPE, key.as_ref())
+        }
     }
 
     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
@@ -1040,7 +1054,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl pallet_contracts::ContractsApi<Block, AccountId, Balance, AlephBlockNumber, Hash>
+    impl pallet_contracts::ContractsApi<Block, AccountId, Balance, AlephBlockNumber, Hash, EventRecord>
         for Runtime
     {
         fn call(
@@ -1050,7 +1064,7 @@ impl_runtime_apis! {
             gas_limit: Option<Weight>,
             storage_deposit_limit: Option<Balance>,
             input_data: Vec<u8>,
-        ) -> pallet_contracts_primitives::ContractExecResult<Balance> {
+        ) -> pallet_contracts_primitives::ContractExecResult<Balance, EventRecord> {
             let gas_limit = gas_limit.unwrap_or(BlockWeights::get().max_block);
             Contracts::bare_call(
                 origin,
@@ -1059,7 +1073,8 @@ impl_runtime_apis! {
                 gas_limit,
                 storage_deposit_limit,
                 input_data,
-                CONTRACTS_DEBUG_OUTPUT,
+                pallet_contracts::DebugInfo::UnsafeDebug,
+                pallet_contracts::CollectEvents::UnsafeCollect,
                 pallet_contracts::Determinism::Enforced,
             )
         }
@@ -1072,7 +1087,7 @@ impl_runtime_apis! {
             code: pallet_contracts_primitives::Code<Hash>,
             data: Vec<u8>,
             salt: Vec<u8>,
-        ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId, Balance>
+        ) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId, Balance, EventRecord>
         {
             let gas_limit = gas_limit.unwrap_or(BlockWeights::get().max_block);
             Contracts::bare_instantiate(
@@ -1083,7 +1098,8 @@ impl_runtime_apis! {
                 code,
                 data,
                 salt,
-                CONTRACTS_DEBUG_OUTPUT
+                pallet_contracts::DebugInfo::UnsafeDebug,
+                pallet_contracts::CollectEvents::UnsafeCollect,
             )
         }
 

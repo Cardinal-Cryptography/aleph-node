@@ -1,8 +1,8 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{future::Future, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use futures::{
     channel::{
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender},
         oneshot,
     },
     StreamExt,
@@ -16,41 +16,43 @@ use crate::{
     data_io::{AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, MAX_DATA_BRANCH_LEN},
     network::{
         data::{component::Network as ComponentNetwork, Network as DataNetwork},
-        Data, RequestBlocks,
+        Data,
     },
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod},
+    sync::RequestBlocks,
     testing::{
         client_chain_builder::ClientChainBuilder,
         mocks::{
             aleph_data_from_blocks, aleph_data_from_headers, TBlock, THeader, TestClientBuilder,
-            TestClientBuilderExt,
+            TestClientBuilderExt, TestVerifier,
         },
     },
-    IdentifierFor, Recipient,
+    BlockId, Recipient,
 };
 
 #[derive(Clone)]
 struct TestBlockRequester {
-    blocks: UnboundedSender<IdentifierFor<TBlock>>,
+    blocks: UnboundedSender<BlockId>,
 }
 
 impl TestBlockRequester {
-    fn new() -> (Self, UnboundedReceiver<IdentifierFor<TBlock>>) {
+    fn new() -> (Self, UnboundedReceiver<BlockId>) {
         let (blocks_tx, blocks_rx) = mpsc::unbounded();
         (TestBlockRequester { blocks: blocks_tx }, blocks_rx)
     }
 }
 
-impl RequestBlocks<IdentifierFor<TBlock>> for TestBlockRequester {
-    fn request_stale_block(&self, block_id: IdentifierFor<TBlock>) {
-        self.blocks.unbounded_send(block_id).unwrap();
+impl RequestBlocks for TestBlockRequester {
+    type Error = TrySendError<BlockId>;
+    fn request_block(&self, block_id: BlockId) -> Result<(), Self::Error> {
+        self.blocks.unbounded_send(block_id)
     }
 }
 
-type TestData = Vec<AlephData<TBlock>>;
+type TestData = Vec<AlephData<THeader>>;
 
-impl AlephNetworkMessage<TBlock> for TestData {
-    fn included_data(&self) -> Vec<AlephData<TBlock>> {
+impl AlephNetworkMessage<THeader> for TestData {
+    fn included_data(&self) -> Vec<AlephData<THeader>> {
         self.clone()
     }
 }
@@ -71,7 +73,7 @@ impl<D: Data> ComponentNetwork<D> for TestComponentNetwork<D, D> {
 
 struct TestHandler {
     chain_builder: ClientChainBuilder,
-    block_requests_rx: UnboundedReceiver<IdentifierFor<TBlock>>,
+    block_requests_rx: UnboundedReceiver<BlockId>,
     network_tx: UnboundedSender<TestData>,
     network: Box<dyn DataNetwork<TestData>>,
 }
@@ -122,13 +124,13 @@ impl TestHandler {
     }
 
     /// Receive next block request from Data Store
-    async fn next_block_request(&mut self) -> IdentifierFor<TBlock> {
+    async fn next_block_request(&mut self) -> BlockId {
         self.block_requests_rx.next().await.unwrap()
     }
 
     async fn assert_no_message_out(&mut self, err_message: &'static str) {
         let res = timeout(TIMEOUT_FAIL, self.network.next()).await;
-        assert!(res.is_err(), "{} (message out: {:?})", err_message, res);
+        assert!(res.is_err(), "{err_message} (message out: {res:?})");
     }
 
     async fn assert_message_out(&mut self, err_message: &'static str) -> TestData {
@@ -155,7 +157,7 @@ fn prepare_data_store(
         max_triggers_pending: 80_000,
         max_proposals_pending: 80_000,
         max_messages_pending: 40_000,
-        available_proposals_cache_capacity: 8000,
+        available_proposals_cache_capacity: NonZeroUsize::new(8000).unwrap(),
         periodic_maintenance_interval: Duration::from_millis(20),
         request_block_after: Duration::from_millis(30),
     };
@@ -168,6 +170,7 @@ fn prepare_data_store(
     let (mut data_store, network) = DataStore::new(
         session_boundaries,
         client.clone(),
+        TestVerifier,
         block_requester,
         data_store_config,
         test_network,
@@ -428,7 +431,7 @@ async fn sends_block_request_on_missing_block() {
         let requested_block = timeout(TIMEOUT_SUCC, test_handler.next_block_request())
             .await
             .expect("Did not receive block request from Data Store");
-        assert_eq!(requested_block.hash, blocks[0].hash());
+        assert_eq!(requested_block.hash(), blocks[0].hash());
 
         test_handler.import_branch(blocks).await;
 
@@ -468,7 +471,6 @@ async fn message_with_genesis_block_does_not_get_through() {
         for i in 1..MAX_DATA_BRANCH_LEN {
             let test_data: TestData = vec![aleph_data_from_headers(
                 (0..i)
-                    .into_iter()
                     .map(|num| test_handler.get_header_at(num as BlockNumber))
                     .collect(),
             )];

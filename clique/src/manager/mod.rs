@@ -5,7 +5,7 @@ use std::{
 
 use futures::channel::mpsc;
 
-use crate::{Data, PeerId, PublicKey};
+use crate::{metrics::Metrics, Data, PeerId, PublicKey};
 
 mod direction;
 use direction::DirectedPeers;
@@ -40,7 +40,7 @@ pub enum AddResult {
     Replaced,
 }
 
-struct ManagerStatus<PK: PublicKey + PeerId> {
+pub struct ManagerStatus<PK: PublicKey + PeerId> {
     outgoing_peers: HashSet<PK>,
     missing_outgoing: HashSet<PK>,
     incoming_peers: HashSet<PK>,
@@ -101,7 +101,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
         match wanted_incoming {
             0 => write!(f, "not expecting any incoming connections; ")?,
             _ => {
-                write!(f, "expecting {:?} incoming connections; ", wanted_incoming)?;
+                write!(f, "expecting {wanted_incoming:?} incoming connections; ")?;
                 match self.incoming_peers.is_empty() {
                     // We warn about the lack of incoming connections, because this is relatively
                     // likely to be a common misconfiguration; much less the case for outgoing.
@@ -127,7 +127,7 @@ impl<PK: PublicKey + PeerId> Display for ManagerStatus<PK> {
         match wanted_outgoing {
             0 => write!(f, "not attempting any outgoing connections; ")?,
             _ => {
-                write!(f, "attempting {:?} outgoing connections; ", wanted_outgoing)?;
+                write!(f, "attempting {wanted_outgoing:?} outgoing connections; ")?;
                 if !self.outgoing_peers.is_empty() {
                     write!(
                         f,
@@ -163,9 +163,9 @@ pub struct Manager<PK: PublicKey + PeerId, A: Data, D: Data> {
 
 impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
     /// Create a new Manager with empty list of peers.
-    pub fn new(own_id: PK) -> Self {
+    pub fn new(own_id: PK, metrics: Metrics) -> Self {
         Manager {
-            wanted: DirectedPeers::new(own_id),
+            wanted: DirectedPeers::new(own_id, metrics),
             have: HashMap::new(),
         }
     }
@@ -226,7 +226,7 @@ impl<PK: PublicKey + PeerId, A: Data, D: Data> Manager<PK, A, D> {
     }
 
     /// A status of the manager, to be displayed somewhere.
-    pub fn status_report(&self) -> impl Display {
+    pub fn status_report(&self) -> ManagerStatus<PK> {
         ManagerStatus::new(self)
     }
 
@@ -240,7 +240,10 @@ mod tests {
     use futures::{channel::mpsc, StreamExt};
 
     use super::{AddResult::*, Manager, SendError};
-    use crate::mock::{key, MockPublicKey};
+    use crate::{
+        metrics::Metrics,
+        mock::{key, MockPublicKey},
+    };
 
     type Data = String;
     type Address = String;
@@ -248,7 +251,7 @@ mod tests {
     #[test]
     fn add_remove() {
         let (own_id, _) = key();
-        let mut manager = Manager::<MockPublicKey, Address, Data>::new(own_id);
+        let mut manager = Manager::<MockPublicKey, Address, Data>::new(own_id, Metrics::noop());
         let (peer_id, _) = key();
         let (peer_id_b, _) = key();
         let address = String::from("43.43.43.43:43000");
@@ -277,10 +280,10 @@ mod tests {
     async fn send_receive() {
         let (mut connecting_id, _) = key();
         let mut connecting_manager =
-            Manager::<MockPublicKey, Address, Data>::new(connecting_id.clone());
+            Manager::<MockPublicKey, Address, Data>::new(connecting_id.clone(), Metrics::noop());
         let (mut listening_id, _) = key();
         let mut listening_manager =
-            Manager::<MockPublicKey, Address, Data>::new(listening_id.clone());
+            Manager::<MockPublicKey, Address, Data>::new(listening_id.clone(), Metrics::noop());
         let data = String::from("DATA");
         let address = String::from("43.43.43.43:43000");
         let (tx, _rx) = mpsc::unbounded();

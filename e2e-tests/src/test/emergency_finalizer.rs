@@ -93,16 +93,16 @@ async fn setup() -> anyhow::Result<AlephKeyPair> {
             TxStatus::InBlock,
         )
         .await?;
-    disable_validators(&[0, 1]).await?;
+    disable_validators(&[1, 2]).await?;
 
     Ok(finalizer)
 }
 
-/// Tests emergency finalizer. Runs on 6 nodes 0-5.
+/// Tests emergency finalizer. Runs on 6 nodes 1-6.
 /// * Setup finalizer
-/// * setup 0-3 to be validators in the next era
-/// * setup 2-5 to be validators in the next next era
-/// * disable 0-1.
+/// * setup 1-4 to be validators in the next era
+/// * setup 5-6 to be validators in the next next era
+/// * disable 1-2.
 /// * wait for next era
 /// * check if finalization stopped
 /// * use finalizer to advance into next-next era
@@ -128,13 +128,7 @@ async fn chain_dead_scenario() -> anyhow::Result<()> {
     while current_era == connection.get_active_era(Some(last_finalized)).await {
         let last_best_block = connection.get_best_block().await?.unwrap();
         let last_best_block = connection.get_block_hash(last_best_block).await?.unwrap();
-        finalize_from_to(
-            &connection,
-            last_finalized,
-            last_best_block,
-            finalizer.clone(),
-        )
-        .await?;
+        finalize_from_to(&connection, last_finalized, last_best_block, finalizer).await?;
         sleep(Duration::from_secs(40));
 
         last_finalized = connection.get_finalized_block_hash().await?;

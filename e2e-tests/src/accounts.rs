@@ -5,14 +5,15 @@ use aleph_client::{
 use crate::config::Config;
 
 pub fn get_validator_seed(seed: u32) -> String {
-    format!("//{}", seed)
+    assert!(seed > 0, "//0 seed is reserved for RPC node!");
+    format!("//{seed}")
 }
 
-// this should be extracted to common code
+// in default e2e setup, //0 is a RPC node and //1, //2, ... are validators
 pub fn get_validators_seeds(config: &Config) -> Vec<String> {
     match config.validators_seeds {
         Some(ref seeds) => seeds.clone(),
-        None => (0..config.validator_count)
+        None => (1..config.validator_count + 1)
             .map(get_validator_seed)
             .collect(),
     }
@@ -46,20 +47,14 @@ pub fn get_sudo_key(config: &Config) -> KeyPair {
 
 pub struct NodeKeys {
     pub validator: KeyPair,
-    pub controller: KeyPair,
 }
 
 impl From<String> for NodeKeys {
     fn from(seed: String) -> Self {
         Self {
             validator: keypair_from_string(&seed),
-            controller: keypair_from_string(&get_validators_controller_seed(&seed)),
         }
     }
-}
-
-fn get_validators_controller_seed(seed: &str) -> String {
-    format!("{}//Controller", seed)
 }
 
 pub fn account_ids_from_keys(keys: &[KeyPair]) -> Vec<AccountId> {

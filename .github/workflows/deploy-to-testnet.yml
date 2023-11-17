@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get docker image names
         id: get-docker-image-names
@@ -44,8 +44,8 @@ jobs:
           target-image: ${{ steps.get-docker-image-names.outputs.dockerhub-testnet-image }}
           additional-image:
             ${{ steps.get-docker-image-names.outputs.dockerhub-testnet-latest-image }}
-          dockerhub-username: "${{ secrets.DOCKERHUB_USERNAME }}"
-          dockerhub-password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
   slack:
     name: Slack notification
@@ -54,7 +54,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification

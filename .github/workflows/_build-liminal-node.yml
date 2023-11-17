@@ -14,16 +14,16 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout aleph-node source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v3
         with:
           targets: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
         run: |
-          cargo build --release -p aleph-node --features "liminal"
+          cargo build --release -p aleph-node --features 'liminal'
 
       - name: Upload test binary to GH Artifacts
         uses: actions/upload-artifact@v2

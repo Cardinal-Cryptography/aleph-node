@@ -2,41 +2,21 @@ use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::stream::{Stream, StreamExt};
-use log::{error, trace};
+use log::{error, trace, warn};
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
-    NetworkSyncForkRequest, NotificationSenderT, PeerId, ProtocolName,
+    NotificationSenderT, PeerId, ProtocolName,
 };
 use sc_network_common::{
     sync::{SyncEvent, SyncEventStream},
     ExHashT,
 };
 use sc_network_sync::SyncingService;
-use sp_runtime::traits::{Block, Header};
+use sp_runtime::traits::Block;
 use tokio::select;
 
-use crate::{
-    aleph_primitives::BlockNumber,
-    network::{
-        gossip::{Event, EventStream, NetworkSender, Protocol, RawNetwork},
-        RequestBlocks,
-    },
-    IdentifierFor,
-};
-
-impl<B: Block> RequestBlocks<IdentifierFor<B>> for Arc<SyncingService<B>>
-where
-    B::Header: Header<Number = BlockNumber>,
-{
-    fn request_stale_block(&self, block_id: IdentifierFor<B>) {
-        // The below comment is adapted from substrate:
-        // Notifies the sync service to try and sync the given block from the given peers. If the given vector
-        // of peers is empty (as in our case) then the underlying implementation should make a best effort to fetch
-        // the block from any peers it is connected to.
-        SyncingService::set_sync_fork_request(self, Vec::new(), block_id.hash, block_id.number)
-    }
-}
+use crate::network::gossip::{Event, EventStream, NetworkSender, Protocol, RawNetwork};
 
 /// Name of the network protocol used by Aleph Zero to disseminate validator
 /// authentications.
@@ -62,7 +42,7 @@ impl ProtocolNaming {
     /// Create a new protocol naming scheme with the given chain prefix.
     pub fn new(chain_prefix: String) -> Self {
         let authentication_name: ProtocolName =
-            format!("{}{}", chain_prefix, AUTHENTICATION_PROTOCOL_NAME).into();
+            format!("{chain_prefix}{AUTHENTICATION_PROTOCOL_NAME}").into();
         let mut protocols_by_name = HashMap::new();
         protocols_by_name.insert(authentication_name.clone(), Protocol::Authentication);
         let authentication_fallback_names: Vec<ProtocolName> =
@@ -71,7 +51,7 @@ impl ProtocolNaming {
             protocols_by_name.insert(protocol_name.clone(), Protocol::Authentication);
         }
         let block_sync_name: ProtocolName =
-            format!("{}{}", chain_prefix, BLOCK_SYNC_PROTOCOL_NAME).into();
+            format!("{chain_prefix}{BLOCK_SYNC_PROTOCOL_NAME}").into();
         protocols_by_name.insert(block_sync_name.clone(), Protocol::BlockSync);
         ProtocolNaming {
             authentication_name,
@@ -118,22 +98,19 @@ impl fmt::Display for SenderError {
             SenderError::CannotCreateSender(peer_id, protocol) => {
                 write!(
                     f,
-                    "Can not create sender to peer {:?} with protocol {:?}",
-                    peer_id, protocol
+                    "Can not create sender to peer {peer_id:?} with protocol {protocol:?}"
                 )
             }
             SenderError::LostConnectionToPeer(peer_id) => {
                 write!(
                     f,
-                    "Lost connection to peer {:?} while preparing sender",
-                    peer_id
+                    "Lost connection to peer {peer_id:?} while preparing sender"
                 )
             }
             SenderError::LostConnectionToPeerReady(peer_id) => {
                 write!(
                     f,
-                    "Lost connection to peer {:?} after sender was ready",
-                    peer_id
+                    "Lost connection to peer {peer_id:?} after sender was ready"
                 )
             }
         }
@@ -232,14 +209,18 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                         PeerDisconnected(remote) => {
                             trace!(target: "aleph-network", "Disconnected event for peer {:?}", remote);
                             let addresses: Vec<_> = iter::once(remote).collect();
-                            self.network.remove_peers_from_reserved_set(
+                            if let Err(e) = self.network.remove_peers_from_reserved_set(
                                 self.naming.protocol_name(&Protocol::Authentication),
                                 addresses.clone(),
-                            );
-                            self.network.remove_peers_from_reserved_set(
+                            ) {
+                                warn!(target: "aleph-network", "Error while removing peer from Protocol::Authentication reserved set: {}", e)
+                            }
+                            if let Err(e) = self.network.remove_peers_from_reserved_set(
                                 self.naming.protocol_name(&Protocol::BlockSync),
                                 addresses,
-                            );
+                            ) {
+                                warn!(target: "aleph-network", "Error while removing peer from Protocol::BlockSync reserved set: {}", e)
+                            }
                             continue;
                         }
                     }

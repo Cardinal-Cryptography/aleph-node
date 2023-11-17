@@ -1,30 +1,30 @@
-use log::debug;
-use sp_runtime::{
-    traits::{Block as BlockT, Header as HeaderT},
-    SaturatedConversion,
-};
+use log::{debug, warn};
+use sp_runtime::SaturatedConversion;
 
 use crate::{
     aleph_primitives::BlockNumber,
+    block::{Header, HeaderVerifier, UnverifiedHeader},
     data_io::{
         chain_info::ChainInfoProvider,
-        proposal::{AlephProposal, ProposalStatus},
+        proposal::{AlephProposal, PendingProposalStatus, ProposalStatus},
     },
 };
 
-pub fn get_proposal_status<B, CIP>(
+pub fn get_proposal_status<CIP, H, V>(
     chain_info_provider: &mut CIP,
-    proposal: &AlephProposal<B>,
-    old_status: Option<&ProposalStatus<B>>,
-) -> ProposalStatus<B>
+    header_verifier: &mut V,
+    proposal: &AlephProposal<H::Unverified>,
+    old_status: Option<&ProposalStatus>,
+) -> ProposalStatus
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    CIP: ChainInfoProvider<B>,
+    CIP: ChainInfoProvider,
+    H: Header,
+    V: HeaderVerifier<H>,
 {
-    use crate::data_io::proposal::{PendingProposalStatus::*, ProposalStatus::*};
+    use PendingProposalStatus::*;
+    use ProposalStatus::*;
 
-    let current_highest_finalized = chain_info_provider.get_highest_finalized().number;
+    let current_highest_finalized = chain_info_provider.get_highest_finalized().number();
 
     if current_highest_finalized >= proposal.number_top_block() {
         return Ignore;
@@ -37,7 +37,17 @@ where
 
     let old_status = match old_status {
         Some(status) => status,
-        None => &Pending(PendingTopBlock),
+        None => {
+            // Verify header here, so it happens at most once. Incorrect headers are equivalent to a broken branch,
+            // since we cannot depend on the blocks represented by them being ever acquired.
+            match header_verifier.verify_header(proposal.top_block_header(), false) {
+                Ok(_) => &Pending(PendingTopBlock),
+                Err(e) => {
+                    warn!(target: "aleph-finality", "Invalid header in proposal: {}", e);
+                    &Pending(TopBlockImportedButIncorrectBranch)
+                }
+            }
+        }
     };
     match old_status {
         Pending(PendingTopBlock) => {
@@ -86,18 +96,17 @@ where
     }
 }
 
-fn is_hopeless_fork<B, CIP>(chain_info_provider: &mut CIP, proposal: &AlephProposal<B>) -> bool
+fn is_hopeless_fork<CIP, UH>(chain_info_provider: &mut CIP, proposal: &AlephProposal<UH>) -> bool
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    CIP: ChainInfoProvider<B>,
+    CIP: ChainInfoProvider,
+    UH: UnverifiedHeader,
 {
     let bottom_num = proposal.number_bottom_block();
-    for i in 0..proposal.len() {
+    for (i, id) in proposal.blocks_from_num(bottom_num).enumerate() {
         if let Ok(finalized_block) =
             chain_info_provider.get_finalized_at(bottom_num + <BlockNumber>::saturated_from(i))
         {
-            if finalized_block.hash != proposal[i] {
+            if finalized_block.hash() != id.hash() {
                 return true;
             }
         } else {
@@ -108,11 +117,13 @@ where
     false
 }
 
-fn is_ancestor_finalized<B, CIP>(chain_info_provider: &mut CIP, proposal: &AlephProposal<B>) -> bool
+fn is_ancestor_finalized<CIP, UH>(
+    chain_info_provider: &mut CIP,
+    proposal: &AlephProposal<UH>,
+) -> bool
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    CIP: ChainInfoProvider<B>,
+    CIP: ChainInfoProvider,
+    UH: UnverifiedHeader,
 {
     let bottom = proposal.bottom_block();
     let parent_hash = if let Ok(hash) = chain_info_provider.get_parent_hash(&bottom) {
@@ -126,26 +137,26 @@ where
         } else {
             return false;
         };
-    parent_hash == finalized.hash
+    parent_hash == finalized.hash()
 }
 
 // Checks that the subsequent blocks in the branch are in the parent-child relation, as required.
-fn is_branch_ancestry_correct<B, CIP>(
+fn is_branch_ancestry_correct<CIP, UH>(
     chain_info_provider: &mut CIP,
-    proposal: &AlephProposal<B>,
+    proposal: &AlephProposal<UH>,
 ) -> bool
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    CIP: ChainInfoProvider<B>,
+    CIP: ChainInfoProvider,
+    UH: UnverifiedHeader,
 {
     let bottom_num = proposal.number_bottom_block();
-    for i in 1..proposal.len() {
-        let curr_num = bottom_num + <BlockNumber>::saturated_from(i);
-        let curr_block = proposal.block_at_num(curr_num).expect("is within bounds");
-        match chain_info_provider.get_parent_hash(&curr_block) {
+    for (parent, current) in proposal
+        .blocks_from_num(bottom_num)
+        .zip(proposal.blocks_from_num(bottom_num + 1))
+    {
+        match chain_info_provider.get_parent_hash(&current) {
             Ok(parent_hash) => {
-                if parent_hash != proposal[i - 1] {
+                if parent_hash != parent.hash() {
                     return false;
                 }
             }
@@ -159,13 +170,16 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{num::NonZeroUsize, sync::Arc};
 
     use sp_runtime::traits::Block as BlockT;
 
     use crate::{
         data_io::{
-            chain_info::{AuxFinalizationChainInfoProvider, CachedChainInfoProvider},
+            chain_info::{
+                AuxFinalizationChainInfoProvider, CachedChainInfoProvider,
+                SubstrateChainInfoProvider,
+            },
             proposal::{
                 AlephProposal,
                 PendingProposalStatus::*,
@@ -178,7 +192,7 @@ mod tests {
             client_chain_builder::ClientChainBuilder,
             mocks::{
                 unvalidated_proposal_from_headers, TBlock, THeader, TestClient, TestClientBuilder,
-                TestClientBuilderExt,
+                TestClientBuilderExt, TestVerifier,
             },
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
@@ -187,34 +201,39 @@ mod tests {
     // A large number only for the purpose of creating `AlephProposal`s
     const DUMMY_SESSION_LEN: u32 = 1_000_000;
 
-    fn proposal_from_headers(headers: Vec<THeader>) -> AlephProposal<TBlock> {
+    fn proposal_from_headers(headers: Vec<THeader>) -> AlephProposal<THeader> {
         let unvalidated = unvalidated_proposal_from_headers(headers);
         let session_boundaries = SessionBoundaryInfo::new(SessionPeriod(DUMMY_SESSION_LEN))
             .boundaries_for_session(SessionId(0));
         unvalidated.validate_bounds(&session_boundaries).unwrap()
     }
 
-    fn proposal_from_blocks(blocks: Vec<TBlock>) -> AlephProposal<TBlock> {
+    fn proposal_from_blocks(blocks: Vec<TBlock>) -> AlephProposal<THeader> {
         let headers = blocks.into_iter().map(|b| b.header().clone()).collect();
         proposal_from_headers(headers)
     }
 
-    type TestCachedChainInfo = CachedChainInfoProvider<TBlock, Arc<TestClient>>;
-    type TestAuxChainInfo = AuxFinalizationChainInfoProvider<TBlock, Arc<TestClient>>;
+    type TestCachedChainInfo =
+        CachedChainInfoProvider<SubstrateChainInfoProvider<TBlock, TestClient>>;
+    type TestAuxChainInfo =
+        AuxFinalizationChainInfoProvider<SubstrateChainInfoProvider<TBlock, TestClient>>;
 
     fn prepare_proposal_test() -> (ClientChainBuilder, TestCachedChainInfo, TestAuxChainInfo) {
         let client = Arc::new(TestClientBuilder::new().build());
 
         let config = ChainInfoCacheConfig {
-            block_cache_capacity: 2,
+            block_cache_capacity: NonZeroUsize::new(2).unwrap(),
         };
-        let cached_chain_info_provider = CachedChainInfoProvider::new(client.clone(), config);
+        let cached_chain_info_provider =
+            CachedChainInfoProvider::new(SubstrateChainInfoProvider::new(client.clone()), config);
 
         let chain_builder =
             ClientChainBuilder::new(client.clone(), Arc::new(TestClientBuilder::new().build()));
 
-        let aux_chain_info_provider =
-            AuxFinalizationChainInfoProvider::new(client, chain_builder.genesis_hash_num());
+        let aux_chain_info_provider = AuxFinalizationChainInfoProvider::new(
+            SubstrateChainInfoProvider::new(client),
+            chain_builder.genesis_id(),
+        );
 
         (
             chain_builder,
@@ -226,20 +245,18 @@ mod tests {
     fn verify_proposal_status(
         cached_cip: &mut TestCachedChainInfo,
         aux_cip: &mut TestAuxChainInfo,
-        proposal: &AlephProposal<TBlock>,
-        correct_status: ProposalStatus<TBlock>,
+        proposal: &AlephProposal<THeader>,
+        correct_status: ProposalStatus,
     ) {
-        let status_a = get_proposal_status(aux_cip, proposal, None);
+        let status_a = get_proposal_status(aux_cip, &mut TestVerifier, proposal, None);
         assert_eq!(
             status_a, correct_status,
-            "Aux chain info gives wrong status for proposal {:?}",
-            proposal
+            "Aux chain info gives wrong status for proposal {proposal:?}"
         );
-        let status_c = get_proposal_status(cached_cip, proposal, None);
+        let status_c = get_proposal_status(cached_cip, &mut TestVerifier, proposal, None);
         assert_eq!(
             status_c, correct_status,
-            "Cached chain info gives wrong status for proposal {:?}",
-            proposal
+            "Cached chain info gives wrong status for proposal {proposal:?}"
         );
     }
 

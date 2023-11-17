@@ -1,6 +1,10 @@
-use std::{fmt::Debug, time::Instant};
+use std::{
+    error::Error,
+    fmt::{Debug, Display, Error as FmtError, Formatter},
+    time::Instant,
+};
 
-use futures::channel::mpsc::{TrySendError, UnboundedSender};
+use futures::channel::mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender};
 use log::{debug, warn};
 use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
@@ -9,10 +13,10 @@ use sp_consensus::Error as ConsensusError;
 use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
 use crate::{
-    aleph_primitives::{Block, BlockHash, BlockNumber, Header, ALEPH_ENGINE_ID},
+    aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
+    block::substrate::{Justification, JustificationTranslator, TranslateError},
     justification::{backwards_compatible_decode, DecodeError},
-    metrics::{Checkpoint, Metrics},
-    sync::substrate::{Justification, JustificationTranslator, TranslateError},
+    metrics::{Checkpoint, TimingBlockMetrics},
     BlockId,
 };
 
@@ -24,14 +28,14 @@ where
     I: BlockImport<Block> + Send + Sync,
 {
     inner: I,
-    metrics: Metrics<BlockHash>,
+    metrics: TimingBlockMetrics,
 }
 
 impl<I> TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
 {
-    pub fn new(inner: I, metrics: Metrics<BlockHash>) -> Self {
+    pub fn new(inner: I, metrics: TimingBlockMetrics) -> Self {
         TracingBlockImport { inner, metrics }
     }
 }
@@ -41,7 +45,6 @@ where
     I: BlockImport<Block> + Send + Sync,
 {
     type Error = I::Error;
-    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
@@ -52,11 +55,13 @@ where
 
     async fn import_block(
         &mut self,
-        block: BlockImportParams<Block, Self::Transaction>,
+        block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
+        // Self-created blocks are imported without using the import queue,
+        // so we need to report them here.
         self.metrics
-            .report_block(post_hash, Instant::now(), Checkpoint::Importing);
+            .report_block_if_not_present(post_hash, Instant::now(), Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 
@@ -112,7 +117,7 @@ where
 
     fn send_justification(
         &mut self,
-        block_id: BlockId<Header>,
+        block_id: BlockId,
         justification: SubstrateJustification,
     ) -> Result<(), SendJustificationError<TranslateError>> {
         debug!(target: "aleph-justification", "Importing justification for block {}.", block_id);
@@ -140,7 +145,6 @@ where
     I: BlockImport<Block> + Clone + Send,
 {
     type Error = I::Error;
-    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
@@ -151,7 +155,7 @@ where
 
     async fn import_block(
         &mut self,
-        mut block: BlockImportParams<Block, Self::Transaction>,
+        mut block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
         let post_hash = block.post_hash();
@@ -207,13 +211,92 @@ where
                 )),
                 Consensus(e) => *e,
                 Decode(e) => ConsensusError::ClientImport(format!(
-                    "Justification for block {:?} decoded incorrectly: {}",
-                    number, e
+                    "Justification for block {number:?} decoded incorrectly: {e}"
                 )),
-                Translate(e) => ConsensusError::ClientImport(format!(
-                    "Could not translate justification: {}",
-                    e
-                )),
+                Translate(e) => {
+                    ConsensusError::ClientImport(format!("Could not translate justification: {e}"))
+                }
             })
+    }
+}
+
+/// A wrapper around a block import that actually sends all the blocks elsewhere through a channel.
+/// Very barebones, e.g. does not work with justifications, but sufficient for passing to Aura.
+#[derive(Clone)]
+pub struct RedirectingBlockImport<I>
+where
+    I: BlockImport<Block> + Clone + Send,
+{
+    inner: I,
+    blocks_tx: UnboundedSender<Block>,
+}
+
+impl<I> RedirectingBlockImport<I>
+where
+    I: BlockImport<Block> + Clone + Send,
+{
+    pub fn new(inner: I) -> (Self, UnboundedReceiver<Block>) {
+        let (blocks_tx, blocks_rx) = mpsc::unbounded();
+        (Self { inner, blocks_tx }, blocks_rx)
+    }
+}
+
+/// What can go wrong when redirecting a block import.
+#[derive(Debug)]
+pub enum RedirectingImportError<E> {
+    Inner(E),
+    MissingBody,
+    ChannelClosed,
+}
+
+impl<E: Display> Display for RedirectingImportError<E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        use RedirectingImportError::*;
+        match self {
+            Inner(e) => write!(f, "{}", e),
+            MissingBody => write!(
+                f,
+                "redirecting block import does not support importing blocks without a body"
+            ),
+            ChannelClosed => write!(f, "channel closed, cannot redirect import"),
+        }
+    }
+}
+
+impl<E: Display + Debug> Error for RedirectingImportError<E> {}
+
+#[async_trait::async_trait]
+impl<I> BlockImport<Block> for RedirectingBlockImport<I>
+where
+    I: BlockImport<Block> + Clone + Send,
+{
+    type Error = RedirectingImportError<I::Error>;
+
+    async fn check_block(
+        &mut self,
+        block: BlockCheckParams<Block>,
+    ) -> Result<ImportResult, Self::Error> {
+        self.inner
+            .check_block(block)
+            .await
+            .map_err(RedirectingImportError::Inner)
+    }
+
+    async fn import_block(
+        &mut self,
+        block: BlockImportParams<Block>,
+    ) -> Result<ImportResult, Self::Error> {
+        let header = block.post_header();
+        let BlockImportParams { body, .. } = block;
+
+        let extrinsics = body.ok_or(RedirectingImportError::MissingBody)?;
+
+        self.blocks_tx
+            .unbounded_send(Block { header, extrinsics })
+            .map_err(|_| RedirectingImportError::ChannelClosed)?;
+
+        // We claim it was successfully imported and no further action is necessary.
+        // This is likely inaccurate, but again, should be enough for Aura.
+        Ok(ImportResult::Imported(Default::default()))
     }
 }

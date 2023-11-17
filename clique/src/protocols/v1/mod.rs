@@ -11,6 +11,7 @@ use tokio::{
 
 use crate::{
     io::{receive_data, send_data},
+    metrics::{Event, Metrics},
     protocols::{
         handshake::{v0_handshake_incoming, v0_handshake_outgoing},
         ProtocolError, ResultForService,
@@ -54,7 +55,12 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
             },
             _ => Heartbeat,
         };
-        sender = send_data(sender, to_send).await?;
+        sender = timeout(
+            MAX_MISSED_HEARTBEATS * HEARTBEAT_TIMEOUT,
+            send_data(sender, to_send),
+        )
+        .await
+        .map_err(|_| ProtocolError::SendTimeout)??;
     }
 }
 
@@ -107,7 +113,9 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     public_key: SK::PublicKey,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
+    metrics: Metrics,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
+    use Event::*;
     trace!(target: LOG_TARGET, "Extending hand to {}.", public_key);
     let (sender, receiver) = v0_handshake_outgoing(stream, secret_key, public_key.clone()).await?;
     info!(
@@ -118,12 +126,15 @@ pub async fn outgoing<SK: SecretKey, D: Data, S: Splittable>(
     result_for_parent
         .unbounded_send((public_key.clone(), Some(data_for_network)))
         .map_err(|_| ProtocolError::NoParentConnection)?;
+    metrics.report_event(ConnectedOutgoing);
 
     debug!(
         target: LOG_TARGET,
         "Starting worker for communicating with {}.", public_key
     );
-    manage_connection(sender, receiver, data_from_user, data_for_user).await
+    let result = manage_connection(sender, receiver, data_from_user, data_for_user).await;
+    metrics.report_event(DisconnectedOutgoing);
+    result
 }
 
 /// Performs the incoming handshake, and then manages a connection sending and receiving data.
@@ -135,7 +146,9 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     authorization_requests_sender: mpsc::UnboundedSender<(SK::PublicKey, oneshot::Sender<bool>)>,
     result_for_parent: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
     data_for_user: mpsc::UnboundedSender<D>,
+    metrics: Metrics,
 ) -> Result<(), ProtocolError<SK::PublicKey>> {
+    use Event::*;
     trace!(target: LOG_TARGET, "Waiting for extended hand...");
     let (sender, receiver, public_key) = v0_handshake_incoming(stream, secret_key).await?;
     info!(
@@ -151,11 +164,14 @@ pub async fn incoming<SK: SecretKey, D: Data, S: Splittable>(
     result_for_parent
         .unbounded_send((public_key.clone(), Some(data_for_network)))
         .map_err(|_| ProtocolError::NoParentConnection)?;
+    metrics.report_event(ConnectedIncoming);
     debug!(
         target: LOG_TARGET,
         "Starting worker for communicating with {}.", public_key
     );
-    manage_connection(sender, receiver, data_from_user, data_for_user).await
+    let result = manage_connection(sender, receiver, data_from_user, data_for_user).await;
+    metrics.report_event(DisconnectedIncoming);
+    result
 }
 
 #[cfg(test)]
@@ -166,6 +182,7 @@ mod tests {
     };
 
     use crate::{
+        metrics::Metrics,
         mock::{key, MockPrelims, MockSplittable},
         protocols::{
             v1::{incoming, outgoing},
@@ -190,6 +207,7 @@ mod tests {
             authorization_requests_sender,
             incoming_result_for_service,
             incoming_data_for_user,
+            Metrics::noop(),
         ));
         let outgoing_handle = Box::pin(outgoing(
             stream_outgoing,
@@ -197,6 +215,7 @@ mod tests {
             id_incoming.clone(),
             outgoing_result_for_service,
             outgoing_data_for_user,
+            Metrics::noop(),
         ));
         MockPrelims {
             id_incoming,
@@ -377,7 +396,7 @@ mod tests {
         tokio::select! {
             e = &mut incoming_handle => match e {
                 Err(ProtocolError::NoParentConnection) => (),
-                Err(e) => panic!("unexpected error: {}", e),
+                Err(e) => panic!("unexpected error: {e}"),
                 Ok(_) => panic!("successfully finished when parent dead"),
             },
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
@@ -417,7 +436,7 @@ mod tests {
         tokio::select! {
             e = &mut incoming_handle => match e {
                 Err(ProtocolError::NoUserConnection) => (),
-                Err(e) => panic!("unexpected error: {}", e),
+                Err(e) => panic!("unexpected error: {e}"),
                 Ok(_) => panic!("successfully finished when user dead"),
             },
             _ = &mut outgoing_handle => panic!("outgoing process unexpectedly finished"),
@@ -440,7 +459,7 @@ mod tests {
         std::mem::drop(outgoing_handle);
         match incoming_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
-            Err(e) => panic!("unexpected error: {}", e),
+            Err(e) => panic!("unexpected error: {e}"),
             Ok(_) => panic!("successfully finished when connection dead"),
         };
     }
@@ -468,7 +487,7 @@ mod tests {
         // outgoing_handle got consumed by tokio::select!, the sender is dead
         match incoming_handle.await {
             Err(ProtocolError::ReceiveError(_)) => (),
-            Err(e) => panic!("unexpected error: {}", e),
+            Err(e) => panic!("unexpected error: {e}"),
             Ok(_) => panic!("successfully finished when connection dead"),
         };
     }
@@ -489,7 +508,7 @@ mod tests {
         std::mem::drop(incoming_handle);
         match outgoing_handle.await {
             Err(ProtocolError::HandshakeError(_)) => (),
-            Err(e) => panic!("unexpected error: {}", e),
+            Err(e) => panic!("unexpected error: {e}"),
             Ok(_) => panic!("successfully finished when connection dead"),
         };
     }

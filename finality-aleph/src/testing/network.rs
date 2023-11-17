@@ -19,6 +19,7 @@ use tokio::{runtime::Handle, task::JoinHandle, time::timeout};
 use crate::{
     crypto::{AuthorityPen, AuthorityVerifier},
     network::{
+        address_cache::test::noop_updater,
         data::Network,
         mock::{crypto_basics, MockData},
         session::{
@@ -100,13 +101,17 @@ async fn prepare_one_session_test_data() -> TestData {
     let network = MockRawNetwork::new(event_stream_tx);
     let validator_network = MockCliqueNetwork::new();
 
-    let (gossip_service, gossip_network, sync_network) =
-        GossipService::<_, _, MockData>::new(network.clone(), task_manager.spawn_handle().into());
+    let (gossip_service, gossip_network, sync_network) = GossipService::<_, _, MockData>::new(
+        network.clone(),
+        task_manager.spawn_handle().into(),
+        None,
+    );
 
     let (connection_manager_service, session_manager) = ConnectionManager::new(
         authorities[0].address(),
         validator_network.clone(),
         gossip_network,
+        noop_updater(),
         ConnectionManagerConfig::with_session_period(&SESSION_PERIOD, &MILLISECS_PER_BLOCK),
     );
     let session_manager = Box::new(session_manager);
@@ -167,7 +172,7 @@ impl TestData {
             .await
         {
             Ok(network) => network,
-            Err(e) => panic!("Failed to start validator session: {}", e),
+            Err(e) => panic!("Failed to start validator session: {e}"),
         }
     }
 
@@ -178,7 +183,7 @@ impl TestData {
             NodeIndex(node_id),
             self.authorities[node_id].pen(),
         ) {
-            panic!("Failed to start validator session: {}", e);
+            panic!("Failed to start validator session: {e}");
         }
     }
 

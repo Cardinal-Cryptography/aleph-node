@@ -15,6 +15,10 @@ configuration of the launched nodes, see the documentation for a particular test
 
 Additional options are passed to the tests via env variables. See `src/config.rs` for docs on available options.
 
+## Running e2e-tests that depend on synthetic-network, e.g. `sync`, `high_latency`
+
+See [readme](../scripts/synthetic-network/README.md).
+
 ## Running on devnet (or other-net)
 
 You can also run the tests on some other network. For example, to run the contract test for the `adder` contract on
@@ -37,10 +41,15 @@ e2e-tests$ RUST_BACKTRACE=1 SUDO_SEED="$THE_SEED" NODE_URL=wss://ws.dev.azero.de
 ## Running on feature net
 
 Run a feature net by adding an appropriate label to a pull request, ie `trigger:create-featurenet`
-or `trigger:create-hotfix-featurenet`, then after its started run
+, then after its started run
 
 ```bash
-e2e-tests$ NODE_URL=wss://ws-fe-a0-1564.dev.azero.dev:443 cargo test finalization
+e2e-tests$ RUST_LOG=info NODE_URL=wss://ws-fe-a0-29025887979136.dev.azero.dev:443 cargo test --release finalization::finalization -- --nocapture
 ```
 
 where you can find your feature env address in https://github.com/Cardinal-Cryptography/aleph-node/deployments
+
+In you have docker image of `e2e-client`, you can run above test with command
+```bash
+docker run --network host -e NODE_URL="wss://ws-fe-a0-29025887979136.dev.azero.dev:443" -e TEST_CASES="finalization::finalization" -e RUST_LOG=info  aleph-e2e-client:latest
+```

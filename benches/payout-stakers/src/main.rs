@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     let validators = match validators_seed_file {
         Some(validators_seed_file) => {
             let validators_seeds = std::fs::read_to_string(&validators_seed_file)
-                .unwrap_or_else(|_| panic!("Failed to read file {}", validators_seed_file));
+                .unwrap_or_else(|_| panic!("Failed to read file {validators_seed_file}"));
             validators_seeds
                 .split('\n')
                 .filter(|seed| !seed.is_empty())
@@ -94,10 +94,6 @@ async fn main() -> anyhow::Result<()> {
     bond_validators_funds_and_choose_controllers(
         &address,
         controllers
-            .iter()
-            .map(|k| KeyPair::new(k.signer().clone()))
-            .collect(),
-        validators
             .iter()
             .map(|k| KeyPair::new(k.signer().clone()))
             .collect(),
@@ -127,7 +123,7 @@ fn get_sudoer_keypair(root_seed_file: Option<String>) -> KeyPair {
     match root_seed_file {
         Some(root_seed_file) => {
             let root_seed = std::fs::read_to_string(&root_seed_file)
-                .unwrap_or_else(|_| panic!("Failed to read file {}", root_seed_file));
+                .unwrap_or_else(|_| panic!("Failed to read file {root_seed_file}"));
             keypair_from_string(root_seed.trim())
         }
         None => keypair_from_string(&AccountKeyring::Alice.to_seed()),
@@ -137,7 +133,7 @@ fn get_sudoer_keypair(root_seed_file: Option<String>) -> KeyPair {
 /// For a given set of validators, generates key pairs for the corresponding controllers.
 fn generate_controllers_for_validators(validator_count: u32) -> Vec<KeyPair> {
     (0..validator_count)
-        .map(|seed| keypair_from_string(&format!("//{}//Controller", seed)))
+        .map(|seed| keypair_from_string(&format!("//{seed}//Controller")))
         .collect::<Vec<_>>()
 }
 
@@ -150,18 +146,16 @@ async fn setup_test_validators_and_nominator_stashes(
     let mut validators_stashes = vec![];
     let validators_len = validators.len();
     for (validator_index, validator) in validators.into_iter().enumerate() {
-        let (nominator_controller_accounts, nominator_stash_accounts) =
-            generate_nominator_accounts_with_minimal_bond(
-                connection,
-                validator_index as u32,
-                validators_len as u32,
-            )
-            .await;
+        let nominator_stash_accounts = generate_nominator_accounts_with_minimal_bond(
+            connection,
+            validator_index as u32,
+            validators_len as u32,
+        )
+        .await;
         let nominee_account = validator.account_id().clone();
         info!("Nominating validator {}", nominee_account);
         nominate_validator(
             connection,
-            nominator_controller_accounts,
             nominator_stash_accounts.clone(),
             nominee_account,
         )
@@ -177,7 +171,7 @@ async fn setup_test_validators_and_nominator_stashes(
 
 pub fn derive_user_account_from_numeric_seed(seed: u32) -> KeyPair {
     trace!("Generating account from numeric seed {}", seed);
-    keypair_from_string(&format!("//{}", seed))
+    keypair_from_string(&format!("//{seed}"))
 }
 
 /// For a given number of eras, in each era check whether stash balances of a validator are locked.
@@ -220,18 +214,12 @@ async fn wait_for_successive_eras<C: ConnectionApi + WaitingExt + StakingApi>(
 /// Nominates a specific validator based on the nominator controller and stash accounts.
 async fn nominate_validator(
     connection: &RootConnection,
-    nominator_controller_accounts: Vec<AccountId>,
     nominator_stash_accounts: Vec<AccountId>,
     nominee_account: AccountId,
 ) {
-    let stash_controller_accounts = nominator_stash_accounts
-        .iter()
-        .cloned()
-        .zip(nominator_controller_accounts.iter().cloned())
-        .collect::<Vec<_>>();
-
     let mut rng = thread_rng();
-    for chunk in stash_controller_accounts
+    for chunk in nominator_stash_accounts
+        .clone()
         .chunks(BOND_CALL_BATCH_LIMIT)
         .map(|c| c.to_vec())
     {
@@ -242,7 +230,7 @@ async fn nominate_validator(
             .unwrap();
     }
 
-    let nominator_nominee_accounts = nominator_controller_accounts
+    let nominator_nominee_accounts = nominator_stash_accounts
         .iter()
         .cloned()
         .zip(iter::repeat(&nominee_account).cloned())
@@ -258,19 +246,14 @@ async fn nominate_validator(
 /// Bonds the funds of the validators.
 /// Chooses controller accounts for the corresponding validators.
 /// We assume stash == validator != controller.
-async fn bond_validators_funds_and_choose_controllers(
-    address: &str,
-    controllers: Vec<KeyPair>,
-    validators: Vec<KeyPair>,
-) {
+async fn bond_validators_funds_and_choose_controllers(address: &str, validators: Vec<KeyPair>) {
     let mut handles = vec![];
-    for (controller, validator) in controllers.into_iter().zip(validators) {
+    for validator in validators {
         let validator_address = address.to_string();
         handles.push(tokio::spawn(async move {
             let connection = SignedConnection::new(&validator_address, validator).await;
-            let controller_account_id = controller.account_id().clone();
             connection
-                .bond(MIN_VALIDATOR_BOND, controller_account_id, TxStatus::InBlock)
+                .bond(MIN_VALIDATOR_BOND, TxStatus::InBlock)
                 .await
                 .unwrap();
         }));
@@ -298,31 +281,22 @@ async fn send_validate_txs(address: &str, controllers: Vec<KeyPair>) {
 }
 
 /// For a specific validator given by index, generates a predetermined number of nominator accounts.
-/// Nominator accounts are produced as (controller, stash) tuples with initial endowments.
+/// Nominator accounts are produced as stashes with initial endowments.
 async fn generate_nominator_accounts_with_minimal_bond<S: SignedConnectionApi>(
     connection: &S,
     validator_number: u32,
     validators_count: u32,
-) -> (Vec<AccountId>, Vec<AccountId>) {
+) -> Vec<AccountId> {
     info!(
         "Generating nominator accounts for validator {}",
         validator_number
     );
-    let mut controller_accounts = vec![];
     let mut stash_accounts = vec![];
     (0..NOMINATOR_COUNT).for_each(|nominator_number| {
         let idx = validators_count + nominator_number + NOMINATOR_COUNT * validator_number;
-        let controller = keypair_from_string(&format!("//{}//Controller", idx));
-        let stash = keypair_from_string(&format!("//{}//Stash", idx));
-        controller_accounts.push(controller.account_id().clone());
+        let stash = keypair_from_string(&format!("//{idx}//Stash"));
         stash_accounts.push(stash.account_id().clone());
     });
-    for chunk in controller_accounts.chunks(TRANSFER_CALL_BATCH_LIMIT) {
-        connection
-            .batch_transfer(chunk, TOKEN, TxStatus::InBlock)
-            .await
-            .unwrap();
-    }
     for chunk in stash_accounts.chunks(TRANSFER_CALL_BATCH_LIMIT) {
         // potentially change to + 1
         connection
@@ -331,7 +305,7 @@ async fn generate_nominator_accounts_with_minimal_bond<S: SignedConnectionApi>(
             .unwrap();
     }
 
-    (controller_accounts, stash_accounts)
+    stash_accounts
 }
 
 async fn payout_stakers_and_assert_locked_balance(

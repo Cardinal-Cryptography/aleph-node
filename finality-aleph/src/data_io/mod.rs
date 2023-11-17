@@ -1,10 +1,12 @@
 use std::{
     fmt::Debug,
     hash::{Hash, Hasher},
+    num::NonZeroUsize,
 };
 
 use parity_scale_codec::{Decode, Encode};
-use sp_runtime::traits::Block as BlockT;
+
+use crate::block::UnverifiedHeader;
 
 mod chain_info;
 mod data_interpreter;
@@ -13,7 +15,10 @@ mod data_store;
 mod proposal;
 mod status_provider;
 
-pub use chain_info::ChainInfoProvider;
+/// TODO(A0-3461): This is only temporary so we can change the proposal type once. Should be removed after that is done, and only the current version should be used.
+pub mod legacy;
+
+pub use chain_info::{ChainInfoProvider, SubstrateChainInfoProvider};
 pub use data_interpreter::OrderedDataInterpreter;
 pub use data_provider::{ChainTracker, DataProvider};
 pub use data_store::{DataStore, DataStoreConfig};
@@ -23,42 +28,32 @@ pub use proposal::UnvalidatedAlephProposal;
 pub const MAX_DATA_BRANCH_LEN: usize = 7;
 
 /// The data ordered by the Aleph consensus.
-#[derive(Clone, Debug, Encode, Decode)]
-pub struct AlephData<B: BlockT> {
-    pub head_proposal: UnvalidatedAlephProposal<B>,
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+pub struct AlephData<UH: UnverifiedHeader> {
+    pub head_proposal: UnvalidatedAlephProposal<UH>,
 }
 
-// Need to be implemented manually, as deriving does not work (`BlockT` is not `Hash`).
-impl<B: BlockT> Hash for AlephData<B> {
+impl<UH: UnverifiedHeader> Hash for AlephData<UH> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.head_proposal.hash(state);
     }
 }
 
-// Clippy does not allow deriving PartialEq when implementing Hash manually
-impl<B: BlockT> PartialEq for AlephData<B> {
-    fn eq(&self, other: &Self) -> bool {
-        self.head_proposal.eq(&other.head_proposal)
-    }
-}
-
-impl<B: BlockT> Eq for AlephData<B> {}
-
 /// A trait allowing to check the data contained in an AlephBFT network message, for the purpose of
 /// data availability checks.
-pub trait AlephNetworkMessage<B: BlockT>: Clone + Debug {
-    fn included_data(&self) -> Vec<AlephData<B>>;
+pub trait AlephNetworkMessage<UH: UnverifiedHeader>: Clone + Debug {
+    fn included_data(&self) -> Vec<AlephData<UH>>;
 }
 
 #[derive(Clone, Debug)]
 pub struct ChainInfoCacheConfig {
-    pub block_cache_capacity: usize,
+    pub block_cache_capacity: NonZeroUsize,
 }
 
 impl Default for ChainInfoCacheConfig {
     fn default() -> ChainInfoCacheConfig {
         ChainInfoCacheConfig {
-            block_cache_capacity: 2000,
+            block_cache_capacity: NonZeroUsize::new(2000).unwrap(),
         }
     }
 }

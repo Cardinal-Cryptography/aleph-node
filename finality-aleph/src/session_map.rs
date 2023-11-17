@@ -1,9 +1,10 @@
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
 
 use futures::StreamExt;
 use log::{debug, error, trace};
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
+use sp_consensus_aura::AuraApi;
 use sp_runtime::traits::{Block, Header};
 use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
@@ -11,53 +12,77 @@ use tokio::sync::{
 };
 
 use crate::{
-    aleph_primitives::{AlephSessionApi, BlockNumber, SessionAuthorityData},
+    aleph_primitives::{
+        AccountId, AlephSessionApi, AuraId, BlockHash, BlockNumber, SessionAuthorityData,
+    },
+    runtime_api::RuntimeApi,
     session::SessionBoundaryInfo,
     ClientForAleph, SessionId, SessionPeriod,
 };
-
 const PRUNING_THRESHOLD: u32 = 10;
 const LOG_TARGET: &str = "aleph-session-updater";
 type SessionMap = HashMap<SessionId, SessionAuthorityData>;
 type SessionSubscribers = HashMap<SessionId, Vec<OneShotSender<SessionAuthorityData>>>;
 
-pub trait AuthorityProvider {
+pub trait AuthorityProvider: Clone + Send + Sync + 'static {
     /// returns authority data for block
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
     /// returns next session authority data where current session is for block
     fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData>;
+    /// returns list of Aura authorities for a given block number
+    fn aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>>;
+    /// returns list of next session Aura authorities for a given block number
+    fn next_aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<(AccountId, AuraId)>>;
 }
 
 /// Default implementation of authority provider trait.
 /// If state pruning is on and set to `n`, will no longer be able to
 /// answer for `num < finalized_number - n`.
-pub struct AuthorityProviderImpl<C, B, BE>
+pub struct AuthorityProviderImpl<C, B, BE, RA>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B> + AuraApi<B, AuraId>,
+    B: Block<Hash = BlockHash>,
     BE: Backend<B> + 'static,
+    RA: RuntimeApi,
 {
     client: Arc<C>,
+    api: RA,
     _phantom: PhantomData<(B, BE)>,
 }
 
-impl<C, B, BE> AuthorityProviderImpl<C, B, BE>
+impl<C, B, BE, RA> Clone for AuthorityProviderImpl<C, B, BE, RA>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B> + AuraApi<B, AuraId>,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
+    RA: RuntimeApi,
 {
-    pub fn new(client: Arc<C>) -> Self {
+    fn clone(&self) -> Self {
+        AuthorityProviderImpl::new(self.client.clone(), self.api.clone())
+    }
+}
+
+impl<C, B, BE, RA> AuthorityProviderImpl<C, B, BE, RA>
+where
+    C: ClientForAleph<B, BE> + Send + Sync + 'static,
+    C::Api: crate::aleph_primitives::AlephSessionApi<B> + AuraApi<B, AuraId>,
+    B: Block<Hash = BlockHash>,
+    B::Header: Header<Number = BlockNumber>,
+    BE: Backend<B> + 'static,
+    RA: RuntimeApi,
+{
+    pub fn new(client: Arc<C>, api: RA) -> Self {
         Self {
             client,
+            api,
             _phantom: PhantomData,
         }
     }
 
-    fn block_hash(&self, block: BlockNumber) -> Option<B::Hash> {
+    fn block_hash(&self, block: BlockNumber) -> Option<BlockHash> {
         match self.client.block_hash(block) {
             Ok(r) => r,
             Err(e) => {
@@ -71,22 +96,34 @@ where
     }
 }
 
-impl<C, B, BE> AuthorityProvider for AuthorityProviderImpl<C, B, BE>
+impl<C, B, BE, RA> AuthorityProvider for AuthorityProviderImpl<C, B, BE, RA>
 where
     C: ClientForAleph<B, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<B>,
-    B: Block,
+    C::Api: AlephSessionApi<B> + AuraApi<B, AuraId>,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B> + 'static,
+    RA: RuntimeApi,
 {
+    fn aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<AuraId>> {
+        AuraApi::authorities(
+            self.client.runtime_api().deref(),
+            self.block_hash(block_number)?,
+        )
+        .ok()
+    }
+
+    fn next_aura_authorities(&self, block_number: BlockNumber) -> Option<Vec<(AccountId, AuraId)>> {
+        self.api
+            .next_aura_authorities(self.block_hash(block_number)?)
+            .ok()
+    }
+
     fn authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
         let block_hash = self.block_hash(block_number)?;
         match self.client.runtime_api().authority_data(block_hash) {
             Ok(data) => Some(data),
-            Err(_) => self
-                .client
-                .runtime_api()
-                .authorities(block_hash)
+            Err(_) => AlephSessionApi::authorities(self.client.runtime_api().deref(), block_hash)
                 .map(|authorities| SessionAuthorityData::new(authorities, None))
                 .ok(),
         }
@@ -403,6 +440,7 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
     struct MockProvider {
         pub session_map: HashMap<BlockNumber, SessionAuthorityData>,
         pub next_session_map: HashMap<BlockNumber, SessionAuthorityData>,
@@ -430,6 +468,17 @@ mod tests {
 
         fn next_authority_data(&self, block_number: BlockNumber) -> Option<SessionAuthorityData> {
             self.next_session_map.get(&block_number).cloned()
+        }
+
+        fn aura_authorities(&self, _block_number: BlockNumber) -> Option<Vec<AuraId>> {
+            None
+        }
+
+        fn next_aura_authorities(
+            &self,
+            _block_number: BlockNumber,
+        ) -> Option<Vec<(AccountId, AuraId)>> {
+            None
         }
     }
 
@@ -590,16 +639,14 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {:?} should be pruned",
-                i
+                "Session {i:?} should be pruned"
             );
         }
         for i in FIRST_THRESHOLD..SECOND_THRESHOLD {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {:?} should not be pruned",
-                i
+                "Session {i:?} should not be pruned"
             );
         }
     }
@@ -625,8 +672,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {:?} should not be available",
-                i
+                "Session {i:?} should not be available"
             );
         }
 
@@ -666,8 +712,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {:?} should be available",
-                i
+                "Session {i:?} should be available"
             );
         }
 
@@ -675,8 +720,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {:?} should not be avalable yet",
-                i
+                "Session {i:?} should not be avalable yet"
             );
         }
 
@@ -690,8 +734,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {:?} should be pruned",
-                i
+                "Session {i:?} should be pruned"
             );
         }
 
@@ -699,8 +742,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 Some(authority_data_for_session(i)),
-                "Session {:?} should be avalable",
-                i
+                "Session {i:?} should be avalable"
             );
         }
     }

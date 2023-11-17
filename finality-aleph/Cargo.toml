@@ -1,6 +1,6 @@
 [package]
 name = "finality-aleph"
-version = "0.7.0"
+version = "0.10.0"
 license = "Apache 2.0"
 authors.workspace = true
 edition.workspace = true
@@ -11,14 +11,14 @@ repository.workspace = true
 # fixed version to 'freeze' some types used in abft, mainly `SignatureSet` used in justification and signature aggregation
 aleph-bft-crypto = { workspace = true }
 
-current-aleph-bft = { package = "aleph-bft", version = "0.20" }
-current-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.6" }
-legacy-aleph-bft = { package = "aleph-bft", version = "0.19" }
-legacy-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.5" }
+current-aleph-bft = { package = "aleph-bft", version = "0.33" }
+current-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.11" }
+legacy-aleph-bft = { package = "aleph-bft", version = "0.20" }
+legacy-aleph-bft-rmc = { package = "aleph-bft-rmc", version = "0.6" }
 
 network-clique = { workspace = true }
 primitives = { workspace = true }
-legacy-aleph-aggregator = { package = "aggregator", git = "https://github.com/Cardinal-Cryptography/aleph-node.git", tag = "aggregator-v0.2.1" }
+legacy-aleph-aggregator = { package = "aggregator", git = "https://github.com/Cardinal-Cryptography/aleph-node.git", tag = "r-12.1" }
 current-aleph-aggregator = { path = "../aggregator", package = "aggregator" }
 rate-limiter = { package = "rate-limiter", path = "../rate-limiter" }
 
@@ -29,6 +29,7 @@ env_logger = { workspace = true }
 futures = { workspace = true }
 futures-timer = { workspace = true }
 hash-db = { workspace = true }
+hex = { workspace = true }
 ip_network = { workspace = true }
 log = { workspace = true }
 lru = { workspace = true }
@@ -36,6 +37,7 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 parking_lot = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
+static_assertions = { workspace = true }
 tiny-bip39 = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros", "time", "rt-multi-thread"] }
 
@@ -43,6 +45,7 @@ substrate-prometheus-endpoint = { workspace = true }
 
 sc-client-api = { workspace = true }
 sc-consensus = { workspace = true }
+sc-consensus-aura = { workspace = true }
 sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
@@ -54,19 +57,22 @@ sp-api = { workspace = true }
 sp-application-crypto = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-consensus = { workspace = true }
+sp-consensus-aura = { workspace = true }
+sp-consensus-slots = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-keystore = { workspace = true }
 sp-runtime = { workspace = true }
 sp-state-machine = { workspace = true }
+sp-timestamp = { workspace = true }
 sp-trie = { workspace = true }
+aleph-runtime = { workspace = true }
 
 [dev-dependencies]
 substrate-test-runtime-client = { workspace = true }
 substrate-test-runtime = { workspace = true }
 substrate-test-client = { workspace = true }
 sc-block-builder = { workspace = true }
-aleph-runtime = { workspace = true }
 
 [features]
 only_legacy = []

@@ -1,33 +1,24 @@
 ---
-name: Builds unit test binary and run unit tests, runs static rust code analysis and code formatting
+name: Builds unit test binary and run unit tests, runs static rust code analysis
 
 on:
   workflow_call:
 
 jobs:
-  main:
-    name: Run check, test and lints
+  clippy:
+    name: Run static checks (clippy)
     runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout Source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust Toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
-        with:
-          targets: wasm32-unknown-unknown
-          components: clippy rustfmt
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v3
 
-      - name: Run Format Checks
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all
-
-      - name: Run Linter
+      - name: Run clippy
         uses: actions-rs/cargo@v1
         env:
           # https://github.com/mozilla/sccache/issues/966
@@ -37,8 +28,21 @@ jobs:
           command: clippy
           args: --all-targets -- --no-deps -D warnings
 
+  unit-tests:
+    name: Run unit tests
+    runs-on: [self-hosted, Linux, X64, large]
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v3
+
       - name: Run Unit Test Suite
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features "liminal-try-runtime liminal-runtime-benchmarks"
+          args: -- --skip clique_network

@@ -4,13 +4,14 @@ use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::HeaderBackend;
 use sp_consensus::BlockOrigin;
 use sp_core::hash::H256;
-use sp_runtime::{traits::Block as BlockT, Digest};
+use sp_runtime::{traits::Block as BlockT, DigestItem};
+use substrate_test_runtime::ExtrinsicBuilder;
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
 use crate::{
     aleph_primitives::BlockNumber,
     testing::mocks::{TBlock, THeader, TestClient},
-    IdentifierFor,
+    BlockId,
 };
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
@@ -56,12 +57,12 @@ impl ClientChainBuilder {
         self.client.finalize_block(*hash, None).unwrap();
     }
 
-    pub fn genesis_hash_num(&self) -> IdentifierFor<TBlock> {
-        IdentifierFor::<TBlock>::new(self.client.info().genesis_hash, 0)
+    pub fn genesis_id(&self) -> BlockId {
+        BlockId::new(self.client.info().genesis_hash, 0)
     }
 
     pub fn genesis_hash(&self) -> H256 {
-        self.genesis_hash_num().hash
+        self.genesis_id().hash()
     }
 
     pub fn get_unique_bytes(&mut self) -> Vec<u8> {
@@ -71,15 +72,17 @@ impl ClientChainBuilder {
 
     pub async fn build_block_above(&mut self, parent: &H256) -> TBlock {
         let unique_bytes: Vec<u8> = self.get_unique_bytes();
-        let mut digest = Digest::default();
-        digest.push(sp_runtime::generic::DigestItem::Other(unique_bytes));
-        let block = self
+        let mut builder = self
             .client_builder
-            .new_block_at(*parent, digest, false)
-            .unwrap()
-            .build()
-            .unwrap()
-            .block;
+            .new_block_at(*parent, Default::default(), false)
+            .unwrap();
+        builder
+            .push(
+                ExtrinsicBuilder::new_deposit_log_digest_item(DigestItem::Other(unique_bytes))
+                    .build(),
+            )
+            .unwrap();
+        let block = builder.build().unwrap().block;
 
         self.client_builder
             .import(BlockOrigin::Own, block.clone())
@@ -97,6 +100,7 @@ impl ClientChainBuilder {
             prev_hash = block.hash();
             blocks.push(block);
         }
+
         blocks
     }
 

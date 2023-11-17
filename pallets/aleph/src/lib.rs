@@ -1,20 +1,5 @@
-//! This pallet is the runtime companion of the Aleph finality gadget.
-//!
-//! Currently, it only provides support for changing sessions but in the future
-//! it will allow reporting equivocation in AlephBFT.
-//!
-//! This pallet relies on an extension of the `AlephSessionApi` Runtime API to handle the finality
-//! version. The scheduled version change is persisted as `FinalityScheduledVersionChange`. This
-//! value stores the information about a scheduled finality version change, where `version_incoming`
-//! is the version to be set and `session` is the session on which the new version will be set.
-//! A `pallet_session::Session_Manager` checks whether a scheduled version change has moved into
-//! the past and, if so, records it as the current version represented as `FinalityVersion`,
-//! and clears `FinalityScheduledVersionChange`.
-//! It is always possible to reschedule a version change. In order to cancel a scheduled version
-//! change rather than reschedule it, a new version change should be scheduled with
-//! `version_incoming` set to the current value of `FinalityVersion`.
-
 #![cfg_attr(not(feature = "std"), no_std)]
+#![doc = include_str!("../README.md")]
 
 #[cfg(test)]
 mod mock;
@@ -25,16 +10,12 @@ mod impls;
 mod traits;
 
 use frame_support::{
-    log,
-    sp_runtime::{BoundToRuntimeAppPublic, DigestItem},
+    sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
-#[cfg(feature = "std")]
-use primitives::LEGACY_FINALITY_VERSION;
 use primitives::{
-    ConsensusLog::AlephAuthorityChange, SessionIndex, Version, VersionChange, ALEPH_ENGINE_ID,
-    DEFAULT_FINALITY_VERSION,
+    SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
 };
 use sp_std::prelude::*;
 
@@ -43,6 +24,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
 #[frame_support::pallet]
+#[pallet_doc("../README.md")]
 pub mod pallet {
     use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
     use frame_system::{
@@ -62,7 +44,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        type SessionInfoProvider: SessionInfoProvider<<Self as frame_system::Config>::BlockNumber>;
+        type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
     }
@@ -82,7 +64,7 @@ pub mod pallet {
 
     /// Default finality version. Relevant for sessions before the first version change occurs.
     #[pallet::type_value]
-    pub(crate) fn DefaultFinalityVersion<T: Config>() -> Version {
+    pub(crate) fn DefaultFinalityVersion() -> Version {
         DEFAULT_FINALITY_VERSION
     }
 
@@ -121,30 +103,13 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn finality_version)]
     pub(super) type FinalityVersion<T: Config> =
-        StorageValue<_, Version, ValueQuery, DefaultFinalityVersion<T>>;
+        StorageValue<_, Version, ValueQuery, DefaultFinalityVersion>;
 
     /// Scheduled finality version change.
     #[pallet::storage]
     #[pallet::getter(fn finality_version_change)]
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
-
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_finalize(block_number: T::BlockNumber) {
-            if let Some(session_change_block) =
-                T::SessionInfoProvider::next_session_block_number(block_number)
-            {
-                if session_change_block == block_number + 1u32.into() {
-                    <frame_system::Pallet<T>>::deposit_log(DigestItem::Consensus(
-                        ALEPH_ENGINE_ID,
-                        AlephAuthorityChange::<T::AuthorityId>(<NextAuthorities<T>>::get())
-                            .encode(),
-                    ));
-                }
-            }
-        }
-    }
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
@@ -338,8 +303,7 @@ pub mod pallet {
         pub _marker: PhantomData<T>,
     }
 
-    #[cfg(feature = "std")]
-    impl<T: Config> Default for GenesisConfig<T> {
+    impl<T: Config> core::default::Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
                 finality_version: LEGACY_FINALITY_VERSION as u32,
@@ -349,9 +313,9 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
-            <FinalityVersion<T>>::put(&self.finality_version);
+            <FinalityVersion<T>>::put(self.finality_version);
         }
     }
 }

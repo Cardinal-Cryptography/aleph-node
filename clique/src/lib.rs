@@ -13,6 +13,7 @@ mod crypto;
 mod incoming;
 mod io;
 mod manager;
+pub mod metrics;
 pub mod mock;
 mod outgoing;
 mod protocols;
@@ -35,7 +36,7 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 pub trait PeerId: PartialEq + Eq + Clone + Debug + Display + Hash + Codec + Send {
     /// This function is used for logging. It implements a shorter version of `to_string` for ids implementing display.
     fn to_short_string(&self) -> String {
-        let id = format!("{}", self);
+        let id = format!("{self}");
         if id.len() <= 12 {
             return id;
         }
@@ -57,6 +58,9 @@ pub trait AddressingInformation: Debug + Hash + Codec + Clone + Eq + Send + Sync
 
     /// Verify the information.
     fn verify(&self) -> bool;
+
+    // Address, *only* for debugging purposes.
+    fn address(&self) -> String;
 }
 
 /// Abstraction for requesting own network addressing information.
@@ -140,7 +144,7 @@ impl ConnectionInfo for TcpStream {
     fn peer_address_info(&self) -> String {
         match self.peer_addr() {
             Ok(addr) => addr.to_string(),
-            Err(e) => format!("unknown address: {}", e),
+            Err(e) => format!("unknown address: {e}"),
         }
     }
 }

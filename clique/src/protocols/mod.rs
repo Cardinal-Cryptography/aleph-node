@@ -4,6 +4,7 @@ use futures::channel::{mpsc, oneshot};
 
 use crate::{
     io::{ReceiveError, SendError},
+    metrics::Metrics,
     Data, PublicKey, SecretKey, Splittable,
 };
 
@@ -46,19 +47,22 @@ pub enum ProtocolError<PK: PublicKey> {
     NoUserConnection,
     /// Authorization error.
     NotAuthorized,
+    /// Send operation took too long
+    SendTimeout,
 }
 
 impl<PK: PublicKey> Display for ProtocolError<PK> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use ProtocolError::*;
         match self {
-            HandshakeError(e) => write!(f, "handshake error: {}", e),
-            SendError(e) => write!(f, "send error: {}", e),
-            ReceiveError(e) => write!(f, "receive error: {}", e),
+            HandshakeError(e) => write!(f, "handshake error: {e}"),
+            SendError(e) => write!(f, "send error: {e}"),
+            ReceiveError(e) => write!(f, "receive error: {e}"),
             CardiacArrest => write!(f, "heartbeat stopped"),
             NoParentConnection => write!(f, "cannot send result to service"),
             NoUserConnection => write!(f, "cannot send data to user"),
             NotAuthorized => write!(f, "peer not authorized"),
+            SendTimeout => write!(f, "send timed out"),
         }
     }
 }
@@ -99,6 +103,7 @@ impl Protocol {
             SK::PublicKey,
             oneshot::Sender<bool>,
         )>,
+        metrics: Metrics,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
@@ -109,6 +114,7 @@ impl Protocol {
                     authorization_requests_sender,
                     result_for_parent,
                     data_for_user,
+                    metrics,
                 )
                 .await
             }
@@ -123,6 +129,7 @@ impl Protocol {
         public_key: SK::PublicKey,
         result_for_service: mpsc::UnboundedSender<ResultForService<SK::PublicKey, D>>,
         data_for_user: mpsc::UnboundedSender<D>,
+        metrics: Metrics,
     ) -> Result<(), ProtocolError<SK::PublicKey>> {
         use Protocol::*;
         match self {
@@ -133,6 +140,7 @@ impl Protocol {
                     public_key,
                     result_for_service,
                     data_for_user,
+                    metrics,
                 )
                 .await
             }

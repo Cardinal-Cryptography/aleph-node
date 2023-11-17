@@ -17,52 +17,36 @@ jobs:
     name: Check excluded packages
     uses: ./.github/workflows/_check-excluded-packages.yml
 
+  code-formatting:
+    name: Check code formatting
+    uses: ./.github/workflows/_check-code-formatting.yml
+
   unit-tests-and-static-checks:
     name: Unit tests and clippy
     uses: ./.github/workflows/_unit-tests-and-static-checks.yml
 
-  build-production-node-and-runtime:
-    name: Build production node and runtime
-    uses: ./.github/workflows/_build-production-node-and-runtime.yml
-
-  store-production-node-and-runtime:
-    needs: [build-production-node-and-runtime]
-    name: Store production node and runtime artifacts
-    uses: ./.github/workflows/_store-production-node-and-runtime.yml
-    secrets: inherit
-
-  check-runtime-determinism:
-    needs: [build-production-node-and-runtime]
-    uses: ./.github/workflows/_check-runtime-determimism.yml
+  check-production-node-and-runtime:
+    name: Check production node and runtime
+    uses: ./.github/workflows/_check-production-node-and-runtime.yml
 
   build-test-node-and-runtime:
     name: Build test node and runtime
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
-    secrets: inherit
-
-  store-test-node-and-runtime:
-    needs: [build-test-node-and-runtime]
-    name: Store test node and runtime
-    uses: ./.github/workflows/_store-test-node-and-runtime.yml
-    secrets: inherit
 
   build-test-node-image-and-e2e-client-image:
     needs: [build-test-node-and-runtime]
     uses: ./.github/workflows/_build-test-node-and-e2e-client-image.yml
 
-  run-e2e-tests:
-    name: Run e2e tests
+  run-e2e-finalization-test:
+    name: Run e2e finalization test
     needs: [build-test-node-image-and-e2e-client-image]
-    uses: ./.github/workflows/_run_e2e_tests.yml
-
-  check-e2e-test-suite-completion:
-    needs: [run-e2e-tests]
-    name: Check e2e test suite completion
-    if: always()
     runs-on: ubuntu-20.04
     steps:
-      - name: All e2e tests completed
-        run: |
-          # due to the fact GitHub treats skipped jobs as success, and when any of dependant
-          # jobs fail, this check will be skipped, we need to check status manually
-          jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        with:
+          test-case: finalization::finalization
+        timeout-minutes: 3

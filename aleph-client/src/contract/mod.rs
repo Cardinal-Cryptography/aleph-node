@@ -56,7 +56,7 @@ use pallet_contracts_primitives::ContractExecResult;
 use crate::{
     connections::TxInfo,
     contract_transcode::Value,
-    pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi},
+    pallets::contract::{ContractCallArgs, ContractRpc, ContractsUserApi, EventRecord},
     sp_weights::weight_v2::Weight,
     AccountId, Balance, ConnectionApi, SignedConnectionApi, TxStatus,
 };
@@ -143,7 +143,7 @@ impl ContractInstance {
         sender: AccountId,
     ) -> Result<T> {
         let result = self
-            .dry_run(conn, message, args, sender)
+            .dry_run(conn, message, args, sender, 0)
             .await?
             .result
             .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
@@ -192,7 +192,7 @@ impl ContractInstance {
         value: Balance,
     ) -> Result<TxInfo> {
         let dry_run_result = self
-            .dry_run(conn, message, args, conn.account_id().clone())
+            .dry_run(conn, message, args, conn.account_id().clone(), value)
             .await?;
 
         let data = self.encode(message, args)?;
@@ -224,12 +224,13 @@ impl ContractInstance {
         message: &str,
         args: &[S],
         sender: AccountId,
-    ) -> Result<ContractExecResult<Balance>> {
+        value: Balance,
+    ) -> Result<ContractExecResult<Balance, EventRecord>> {
         let payload = self.encode(message, args)?;
         let args = ContractCallArgs {
             origin: sender,
             dest: self.address.clone(),
-            value: 0,
+            value,
             gas_limit: None,
             input_data: payload,
             storage_deposit_limit: None,
@@ -256,7 +257,10 @@ impl ContractInstance {
         // and we have to inspect flags manually.
         if let Ok(res) = &contract_read_result.result {
             if res.did_revert() {
-                return Err(anyhow!("Dry-run call reverted"));
+                return Err(anyhow!(
+                    "Dry-run call reverted, decoded result: {:?}",
+                    self.decode(message, res.data.clone())
+                ));
             }
         }
 

@@ -5,11 +5,13 @@ use futures::{
     Future, StreamExt,
 };
 use log::{info, trace, warn};
+use substrate_prometheus_endpoint::Registry;
 use tokio::time;
 
 use crate::{
     incoming::incoming,
     manager::{AddResult, Manager},
+    metrics::Metrics,
     outgoing::outgoing,
     protocols::ResultForService,
     Data, Dialer, Listener, Network, PeerId, PublicKey, SecretKey, LOG_TARGET,
@@ -95,6 +97,7 @@ where
     listener: NL,
     spawn_handle: SH,
     secret_key: SK,
+    metrics: Metrics,
 }
 
 impl<SK: SecretKey, D: Data, A: Data + Debug, ND: Dialer<A>, NL: Listener, SH: SpawnHandleT>
@@ -108,20 +111,29 @@ where
         listener: NL,
         secret_key: SK,
         spawn_handle: SH,
+        metrics_registry: Option<Registry>,
     ) -> (Self, impl Network<SK::PublicKey, A, D>) {
         // Channel for sending commands between the service and interface
         let (commands_for_service, commands_from_interface) = mpsc::unbounded();
         // Channel for receiving data from the network
         let (next_to_interface, next_from_service) = mpsc::unbounded();
+        let metrics = match Metrics::new(metrics_registry) {
+            Ok(metrics) => metrics,
+            Err(e) => {
+                warn!(target: LOG_TARGET, "Failed to create metrics: {}", e);
+                Metrics::noop()
+            }
+        };
         (
             Self {
                 commands_from_interface,
                 next_to_interface,
-                manager: Manager::new(secret_key.public_key()),
+                manager: Manager::new(secret_key.public_key(), metrics.clone()),
                 dialer,
                 listener,
                 spawn_handle,
                 secret_key,
+                metrics,
             },
             ServiceInterface {
                 commands_for_service,
@@ -139,6 +151,7 @@ where
         let secret_key = self.secret_key.clone();
         let dialer = self.dialer.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
             .spawn("aleph/clique_network_outgoing", async move {
                 outgoing(
@@ -148,6 +161,7 @@ where
                     address,
                     result_for_parent,
                     next_to_interface,
+                    metrics,
                 )
                 .await;
             });
@@ -164,6 +178,7 @@ where
     ) {
         let secret_key = self.secret_key.clone();
         let next_to_interface = self.next_to_interface.clone();
+        let metrics = self.metrics.clone();
         self.spawn_handle
             .spawn("aleph/clique_network_incoming", async move {
                 incoming(
@@ -172,6 +187,7 @@ where
                     result_for_parent,
                     next_to_interface,
                     authorization_requests_sender,
+                    metrics,
                 )
                 .await;
             });

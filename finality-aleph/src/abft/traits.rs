@@ -6,55 +6,12 @@ use futures::{channel::oneshot, Future, TryFutureExt};
 use network_clique::SpawnHandleT;
 use parity_scale_codec::{Codec, Decode, Encode};
 use sc_service::SpawnTaskHandle;
-use sp_api::{BlockT, HeaderT};
-use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Hash as SpHash;
-
-use crate::{
-    aleph_primitives::BlockNumber,
-    data_io::{AlephData, DataProvider, OrderedDataInterpreter},
-};
 
 /// A convenience trait for gathering all of the desired hash characteristics.
 pub trait Hash: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync {}
 
 impl<T: AsRef<[u8]> + StdHash + Eq + Clone + Codec + Debug + Send + Sync> Hash for T {}
-
-#[async_trait::async_trait]
-impl<B: BlockT> current_aleph_bft::DataProvider<AlephData<B>> for DataProvider<B> {
-    async fn get_data(&mut self) -> Option<AlephData<B>> {
-        DataProvider::get_data(self).await
-    }
-}
-
-#[async_trait::async_trait]
-impl<B: BlockT> legacy_aleph_bft::DataProvider<AlephData<B>> for DataProvider<B> {
-    async fn get_data(&mut self) -> Option<AlephData<B>> {
-        DataProvider::get_data(self).await
-    }
-}
-
-impl<B, C> current_aleph_bft::FinalizationHandler<AlephData<B>> for OrderedDataInterpreter<B, C>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B> + Send + 'static,
-{
-    fn data_finalized(&mut self, data: AlephData<B>) {
-        OrderedDataInterpreter::data_finalized(self, data)
-    }
-}
-
-impl<B, C> legacy_aleph_bft::FinalizationHandler<AlephData<B>> for OrderedDataInterpreter<B, C>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B> + Send + 'static,
-{
-    fn data_finalized(&mut self, data: AlephData<B>) {
-        OrderedDataInterpreter::data_finalized(self, data)
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Wrapper<H: SpHash> {

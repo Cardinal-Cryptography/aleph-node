@@ -9,22 +9,30 @@ on:
         required: false
         type: boolean
         default: false
+      build-production-node:
+        description: Set to 'true' to build production node
+        required: false
+        type: boolean
+        default: false
+      build-e2e-client:
+        description: Set to 'true' to build e2e-client
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  build-production-node-image-and-e2e-client-image:
-    name: Build production node docker image and e2e client image
-    runs-on: [self-hosted, Linux, X64, large]
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
+  build-production-node-image:
+    if: inputs.build-production-node != false
+    name: Build production node docker image
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout Source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download release artifact
         uses: actions/download-artifact@v3
         with:
-          name: aleph-release-node
+          name: aleph-production-node
           path: target/release/
 
       - name: Build release docker image
@@ -42,8 +50,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build-e2e-client-image:
+    if: inputs.build-e2e-client != false
+    name: Build e2e client image
+    runs-on: [self-hosted, Linux, X64, large]
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v4
+
       - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v1
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v3
 
       - name: Build binary and docker image
         run: |
@@ -64,12 +83,12 @@ jobs:
 
   build-synthetic-network-docker:
     if: inputs.build-synthetic-network-docker != false
-    needs: [build-production-node-image-and-e2e-client-image]
-    name: Build docker image with the production node artifact and support for synthetic-network
+    needs: [build-production-node-image]
+    name: Build synthetic-network image
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download artifact with docker image for aleph-node
         uses: actions/download-artifact@v3
@@ -82,7 +101,9 @@ jobs:
 
       - name: Build release docker image
         id: build-image
+        shell: bash
         run: |
+          export TERM=xterm-256color
           scripts/synthetic-network/build_synthetic-network.sh
           docker save -o aleph-node.tar aleph-node:syntheticnet
 

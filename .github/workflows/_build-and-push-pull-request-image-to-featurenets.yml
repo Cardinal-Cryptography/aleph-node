@@ -1,6 +1,7 @@
 ---
 #  This workflow builds aleph-node docker image from pull request commit
-#  and pushes it to featurenet registry.
+#  and pushes it to featurenet registry. Test binary is used, and it is wrapped in registry
+#  separated from production builds
 name: Build and push PR image to featurenets
 on:
   workflow_call:
@@ -11,33 +12,31 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
 
-      - name: Download artifact with built aleph-node binary from PR
+      - name: Download test aleph-node artifact
         uses: actions/download-artifact@v3
         with:
-          name: aleph-release-node
+          name: aleph-test-node
           path: target/release/
 
       - name: Build docker image with PR aleph-node binary
         env:
-          # yamllint disable-line rule:line-length
           IMAGE_TAG: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}
         run: |
           chmod +x target/release/aleph-node
           ls -alh target/release/
           ls -alh ./docker/
           docker build \
-            --tag ${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${{ env.IMAGE_TAG }} \
+            --tag '${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${{ env.IMAGE_TAG }}' \
             -f ./docker/Dockerfile .
 
       - name: Login to ECR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -48,4 +47,4 @@ jobs:
           # yamllint disable-line rule:line-length
           IMAGE_TAG: fe-${{ steps.get-ref-properties.outputs.branch-name-for-argo-with-sha }}
         run: |
-          docker push ${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${{ env.IMAGE_TAG }}
+          docker push '${{ vars.ECR_PUBLIC_REGISTRY }}feature-env-aleph-node:${{ env.IMAGE_TAG }}'

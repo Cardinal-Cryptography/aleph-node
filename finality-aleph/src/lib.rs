@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display, Error as FmtError, Formatter},
+    fmt::{Debug, Display},
     hash::Hash,
     path::PathBuf,
     sync::Arc,
@@ -10,11 +10,11 @@ use futures::{
     channel::{mpsc, oneshot},
     Future,
 };
-use parity_scale_codec::{Codec, Decode, Encode, Output};
+use parity_scale_codec::{Decode, Encode, Output};
 use primitives as aleph_primitives;
-use primitives::{AuthorityId, Block as AlephBlock, BlockNumber, Hash as AlephHash};
+use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Hash as AlephHash};
 use sc_client_api::{
-    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, TransactionFor,
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, StorageProvider,
 };
 use sc_consensus::BlockImport;
 use sc_network::NetworkService;
@@ -22,7 +22,8 @@ use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::Keystore;
-use sp_runtime::traits::{BlakeTwo256, Block, Header};
+use sp_runtime::traits::{BlakeTwo256, Block};
+use substrate_prometheus_endpoint::Registry;
 use tokio::time::Duration;
 
 use crate::{
@@ -31,6 +32,7 @@ use crate::{
         SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
     },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
+    block::UnverifiedHeader,
     compatibility::{Version, Versioned},
     network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
@@ -39,33 +41,41 @@ use crate::{
 
 mod abft;
 mod aggregation;
+mod block;
 mod compatibility;
 mod crypto;
 mod data_io;
 mod finalization;
+mod idx_to_account;
 mod import;
 mod justification;
 mod metrics;
 mod network;
 mod nodes;
 mod party;
+mod runtime_api;
 mod session;
 mod session_map;
 mod sync;
+mod sync_oracle;
 #[cfg(test)]
 pub mod testing;
 
 pub use crate::{
-    import::{AlephBlockImport, TracingBlockImport},
+    block::{
+        substrate::{BlockImporter, Justification, JustificationTranslator, SubstrateChainStatus},
+        BlockId,
+    },
+    import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
-    metrics::Metrics,
-    network::{Protocol, ProtocolNaming},
+    metrics::TimingBlockMetrics,
+    network::{
+        address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
+        Protocol, ProtocolNaming,
+    },
     nodes::run_validator_node,
     session::SessionPeriod,
-    sync::{
-        substrate::{BlockImporter, Justification},
-        JustificationTranslator, SubstrateChainStatus,
-    },
+    sync_oracle::SyncOracle,
 };
 
 /// Constant defining how often components of finality-aleph should report their state
@@ -96,14 +106,14 @@ pub struct MillisecsPerBlock(pub u64);
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct UnitCreationDelay(pub u64);
 
-type LegacySplitData<B> = Split<LegacyNetworkData<B>, LegacyRmcNetworkData<B>>;
-type CurrentSplitData<B> = Split<CurrentNetworkData<B>, CurrentRmcNetworkData<B>>;
+type LegacySplitData = Split<LegacyNetworkData, LegacyRmcNetworkData>;
+type CurrentSplitData<UH> = Split<CurrentNetworkData<UH>, CurrentRmcNetworkData>;
 
-impl<B: Block> Versioned for LegacyNetworkData<B> {
+impl Versioned for LegacyNetworkData {
     const VERSION: Version = Version(LEGACY_VERSION);
 }
 
-impl<B: Block> Versioned for CurrentNetworkData<B> {
+impl<UH: UnverifiedHeader> Versioned for CurrentNetworkData<UH> {
     const VERSION: Version = Version(CURRENT_VERSION);
 }
 
@@ -155,7 +165,7 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-type VersionedNetworkData<B> = VersionedEitherMessage<LegacySplitData<B>, CurrentSplitData<B>>;
+type VersionedNetworkData<UH> = VersionedEitherMessage<LegacySplitData, CurrentSplitData<UH>>;
 
 #[derive(Debug, Display, Clone)]
 pub enum VersionedTryFromError {
@@ -163,20 +173,20 @@ pub enum VersionedTryFromError {
     ExpectedOldGotNew,
 }
 
-impl<B: Block> TryFrom<VersionedNetworkData<B>> for LegacySplitData<B> {
+impl<UH: UnverifiedHeader> TryFrom<VersionedNetworkData<UH>> for LegacySplitData {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData<B>) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData<UH>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(data) => data,
             VersionedEitherMessage::Right(_) => return Err(ExpectedOldGotNew),
         })
     }
 }
-impl<B: Block> TryFrom<VersionedNetworkData<B>> for CurrentSplitData<B> {
+impl<UH: UnverifiedHeader> TryFrom<VersionedNetworkData<UH>> for CurrentSplitData<UH> {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData<B>) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData<UH>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(_) => return Err(ExpectedNewGotOld),
             VersionedEitherMessage::Right(data) => data,
@@ -184,14 +194,14 @@ impl<B: Block> TryFrom<VersionedNetworkData<B>> for CurrentSplitData<B> {
     }
 }
 
-impl<B: Block> From<LegacySplitData<B>> for VersionedNetworkData<B> {
-    fn from(data: LegacySplitData<B>) -> Self {
+impl<UH: UnverifiedHeader> From<LegacySplitData> for VersionedNetworkData<UH> {
+    fn from(data: LegacySplitData) -> Self {
         VersionedEitherMessage::Left(data)
     }
 }
 
-impl<B: Block> From<CurrentSplitData<B>> for VersionedNetworkData<B> {
-    fn from(data: CurrentSplitData<B>) -> Self {
+impl<UH: UnverifiedHeader> From<CurrentSplitData<UH>> for VersionedNetworkData<UH> {
+    fn from(data: CurrentSplitData<UH>) -> Self {
         VersionedEitherMessage::Right(data)
     }
 }
@@ -200,11 +210,12 @@ pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>
     + Finalizer<B, BE>
     + ProvideRuntimeApi<B>
-    + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+    + BlockImport<B, Error = sp_consensus::Error>
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
     + BlockBackend<B>
+    + StorageProvider<B, BE>
 where
     BE: Backend<B>,
     B: Block,
@@ -221,60 +232,13 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
-        + BlockBackend<B>,
+        + BlockImport<B, Error = sp_consensus::Error>
+        + BlockBackend<B>
+        + StorageProvider<B, BE>,
 {
 }
 
-/// The identifier of a block, the least amount of knowledge we can have about a block.
-pub trait BlockIdentifier: Clone + Hash + Debug + Eq + Codec + Send + Sync + 'static {
-    /// The block number, useful when reasoning about hopeless forks.
-    fn number(&self) -> BlockNumber;
-}
-
 type Hasher = abft::HashWrapper<BlakeTwo256>;
-
-#[derive(PartialEq, Eq, Clone, Debug, Encode, Decode)]
-pub struct BlockId<H: Header<Number = BlockNumber>> {
-    hash: H::Hash,
-    number: H::Number,
-}
-
-impl<H: Header<Number = BlockNumber>> BlockId<H> {
-    pub fn new(hash: H::Hash, number: BlockNumber) -> Self {
-        BlockId { hash, number }
-    }
-}
-
-impl<H: Header<Number = BlockNumber>> From<(H::Hash, BlockNumber)> for BlockId<H> {
-    fn from(pair: (H::Hash, BlockNumber)) -> Self {
-        BlockId::new(pair.0, pair.1)
-    }
-}
-
-impl<SH: Header<Number = BlockNumber>> Hash for BlockId<SH> {
-    fn hash<H>(&self, state: &mut H)
-    where
-        H: std::hash::Hasher,
-    {
-        self.hash.hash(state);
-        self.number.hash(state);
-    }
-}
-
-impl<H: Header<Number = BlockNumber>> Display for BlockId<H> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(f, "#{} ({})", self.number, self.hash,)
-    }
-}
-
-type IdentifierFor<B> = BlockId<<B as Block>::Header>;
-
-impl<H: Header<Number = BlockNumber>> BlockIdentifier for BlockId<H> {
-    fn number(&self) -> BlockNumber {
-        self.number
-    }
-}
 
 #[derive(Clone)]
 pub struct RateLimiterConfig {
@@ -292,7 +256,9 @@ pub struct AlephConfig<C, SC> {
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification>,
-    pub metrics: Metrics<AlephHash>,
+    pub block_rx: mpsc::UnboundedReceiver<AlephBlock>,
+    pub metrics: TimingBlockMetrics,
+    pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
     pub unit_creation_delay: UnitCreationDelay,
@@ -301,4 +267,6 @@ pub struct AlephConfig<C, SC> {
     pub validator_port: u16,
     pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
+    pub sync_oracle: SyncOracle,
+    pub validator_address_cache: Option<ValidatorAddressCache>,
 }

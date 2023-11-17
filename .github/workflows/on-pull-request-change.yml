@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: GIT | Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: VALIDATE | Check PR title
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/check-pr-title@v1
+        uses: Cardinal-Cryptography/github-actions/check-pr-title@v3
         with:
           pr-title: ${{ github.event.pull_request.title }}

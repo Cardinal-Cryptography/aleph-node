@@ -15,7 +15,7 @@ use primitives::EraIndex;
 
 use crate::{
     config::setup_test,
-    validators::{get_controller_connections_to_nodes, prepare_validators, setup_accounts},
+    validators::{prepare_validators, setup_accounts},
 };
 
 /// Verify that `pallet_staking::ErasStakers` contains all target validators.
@@ -36,8 +36,7 @@ async fn assert_validators_are_elected_stakers<C: StakingRawApi>(
 
     assert_eq!(
         expected_validators_as_keys, stakers_tree,
-        "Expected another set of staking validators.\n\tExpected: {:?}\n\tActual: {:?}",
-        expected_validators_as_keys, stakers_tree
+        "Expected another set of staking validators.\n\tExpected: {expected_validators_as_keys:?}\n\tActual: {stakers_tree:?}"
     );
 
     Ok(())
@@ -82,8 +81,7 @@ async fn assert_validators_are_used_as_authorities<C: SessionApi + WaitingExt>(
 
     assert_eq!(
         *expected_authorities, authorities,
-        "Expected another set of authorities.\n\tExpected: {:?}\n\tActual: {:?}",
-        expected_authorities, authorities
+        "Expected another set of authorities.\n\tExpected: {expected_authorities:?}\n\tActual: {authorities:?}"
     );
 }
 
@@ -91,9 +89,7 @@ async fn assert_enough_validators<C: ConnectionApi>(connection: &C, min_validato
     let current_validator_count = connection.get_validators(None).await.len() as u32;
     assert!(
         current_validator_count >= min_validator_count,
-        "{} validators present. Staking enforces a minimum of {} validators.",
-        current_validator_count,
-        min_validator_count
+        "{current_validator_count} validators present. Staking enforces a minimum of {min_validator_count} validators."
     );
 }
 
@@ -118,9 +114,7 @@ fn assert_enough_validators_left_after_chilling(
     let validators_after_chill_count = reserved_after_chill_count + non_reserved_after_chill_count;
     assert!(
         validators_after_chill_count >= min_validator_count,
-        "{} validators will be left after chilling. Staking enforces a minimum of {} validators.",
-        validators_after_chill_count,
-        min_validator_count
+        "{validators_after_chill_count} validators will be left after chilling. Staking enforces a minimum of {min_validator_count} validators."
     );
 }
 
@@ -139,16 +133,13 @@ async fn chill_validators(node: &str, chilling: Vec<KeyPair>) {
 /// 4. Verify only staking validators are in force.
 ///
 /// Note:
-///  - `pallet_staking` has `MinimumValidatorCount` (usually set to 4 in chain spec) and this cannot be
+///  - `pallet_staking` has `MinimumValidatorCount` (hardcoded to 4 in chain spec) and this cannot be
 /// changed on a running chain.
 ///  - our e2e tests run with 5 validators by default.
 /// Thus, running on default settings and chilling 2 validators (1 reserved and 1 non reserved) is
 /// a no go: `pallet_staking` will protest and won't proceed with a new committee.
 /// To mitigate this, our e2e pipeline accepts a `node-count` parameter to specify the desired
-/// number of nodes to run in consensus. Additionally, there is a `min-validator-count`
-/// parameter to set `MinimumValidatorCount` in the chain spec as the chain is set up.
-/// For this specific test case, we use `node-count = 6` and `min-validator-count = 4`, which
-/// satisfies the outlined conditions.
+/// number of nodes to run in consensus. 
 #[tokio::test]
 pub async fn authorities_are_staking() -> anyhow::Result<()> {
     let config = setup_test();
@@ -179,30 +170,25 @@ pub async fn authorities_are_staking() -> anyhow::Result<()> {
 
     let desired_validator_count = reserved_seats + non_reserved_seats;
     let accounts = setup_accounts(desired_validator_count);
-    let controller_connections =
-        get_controller_connections_to_nodes(node, accounts.get_controller_raw_keys().clone())
-            .await?;
-    prepare_validators(&root_connection, node, &accounts, controller_connections).await?;
+    prepare_validators(&root_connection, node, &accounts).await?;
     info!("New validators are set up");
 
     let reserved_validators = accounts.get_stash_accounts()[..reserved_seats as usize].to_vec();
-    let chilling_reserved = KeyPair::new(accounts.get_controller_raw_keys()[0].clone()); // first reserved validator
+    let chilling_reserved = KeyPair::new(accounts.get_stash_raw_keys()[0].clone()); // first reserved validator
     let non_reserved_validators = accounts.get_stash_accounts()[reserved_seats as usize..].to_vec();
     let chilling_non_reserved =
-        KeyPair::new(accounts.get_controller_raw_keys()[reserved_seats as usize].clone()); // first non-reserved validator
+        KeyPair::new(accounts.get_stash_raw_keys()[reserved_seats as usize].clone()); // first non-reserved validator
 
     let reserved_count = reserved_validators.len() as u32;
     let non_reserved_count = non_reserved_validators.len() as u32;
 
     assert_eq!(
         reserved_seats, reserved_count,
-        "Desired {} reserved seats, got {}!",
-        reserved_seats, reserved_count
+        "Desired {reserved_seats} reserved seats, got {reserved_count}!"
     );
     assert_eq!(
         non_reserved_seats, non_reserved_count,
-        "Desired {} non-reserved seats, got {}!",
-        non_reserved_seats, non_reserved_count
+        "Desired {non_reserved_seats} non-reserved seats, got {non_reserved_count}!"
     );
 
     assert_enough_validators_left_after_chilling(

@@ -27,12 +27,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v1
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
 
       - name: Download node production binary from artifacts
         uses: actions/download-artifact@v2
@@ -48,7 +48,7 @@ jobs:
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_PUBLIC_HOST }}
           username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
@@ -62,10 +62,10 @@ jobs:
           ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node-liminal
           COMMIT_SHA: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
-          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}
-          docker push ${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}
-          docker tag ${{ env.CURRENT_IMAGE }} ${{ env.ECR_PUSH_IMAGE }}:latest
-          docker push ${{ env.ECR_PUSH_IMAGE }}:latest
+          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
+          docker push '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
+          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:latest'
+          docker push '${{ env.ECR_PUSH_IMAGE }}:latest'
 
   send-slack-notification:
     name: Send Slack notification about workflow status
@@ -74,7 +74,7 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Send Slack message
         uses: ./.github/actions/slack-notification

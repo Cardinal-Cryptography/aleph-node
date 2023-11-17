@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{marker::PhantomData, sync::Arc, time::Duration};
 
 use futures::channel::oneshot;
 use log::{debug, warn};
@@ -11,10 +11,12 @@ use sp_runtime::{
 };
 
 use crate::{
-    aleph_primitives::BlockNumber,
+    aleph_primitives::{BlockHash, BlockNumber},
+    block::UnverifiedHeader,
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::Checkpoint,
-    IdentifierFor, Metrics, SessionBoundaries,
+    party::manager::Runnable,
+    BlockId, SessionBoundaries, TimingBlockMetrics,
 };
 
 // Reduce block header to the level given by num, by traversing down via parents.
@@ -26,9 +28,7 @@ where
 {
     assert!(
         header.number() >= &num,
-        "Cannot reduce {:?} to number {:?}",
-        header,
-        num
+        "Cannot reduce {header:?} to number {num:?}"
     );
     let mut curr_header = header;
     while curr_header.number() > &num {
@@ -40,55 +40,68 @@ where
     curr_header
 }
 
-pub fn get_parent<B, C>(client: &C, block: &IdentifierFor<B>) -> Option<IdentifierFor<B>>
+pub fn get_parent<B, C>(client: &C, block: &BlockId) -> Option<BlockId>
 where
-    B: BlockT,
+    B: BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber>,
     C: HeaderBackend<B>,
 {
-    if block.number.is_zero() {
+    if block.number().is_zero() {
         return None;
     }
-    if let Some(header) = client.header(block.hash).expect("client must respond") {
-        Some((*header.parent_hash(), block.number - 1).into())
+    if let Some(header) = client.header(block.hash()).expect("client must respond") {
+        Some((*header.parent_hash(), block.number() - 1).into())
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);
         None
     }
 }
 
+pub enum ProposalPreparationError {
+    MissingHeader,
+    BestContradictsFinalized,
+}
+
 pub fn get_proposal<B, C>(
     client: &C,
-    best_block: IdentifierFor<B>,
-    finalized_block: IdentifierFor<B>,
-) -> Result<AlephData<B>, ()>
+    best_block: BlockId,
+    finalized_block: BlockId,
+) -> Result<Option<AlephData<B::Header>>, ProposalPreparationError>
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
     C: HeaderBackend<B>,
 {
+    use ProposalPreparationError::*;
     let mut curr_block = best_block;
-    let mut branch: Vec<B::Hash> = Vec::new();
-    while curr_block.number > finalized_block.number {
-        if curr_block.number - finalized_block.number
+    let mut branch = Vec::new();
+    while curr_block.number() > finalized_block.number() {
+        if curr_block.number() - finalized_block.number()
             <= <BlockNumber>::saturated_from(MAX_DATA_BRANCH_LEN)
         {
-            branch.push(curr_block.hash);
+            branch.push(curr_block.hash());
         }
         curr_block = get_parent(client, &curr_block).expect("block of num >= 1 must have a parent")
     }
-    if curr_block.hash == finalized_block.hash {
-        let num_last = finalized_block.number + <BlockNumber>::saturated_from(branch.len());
-        // The hashes in `branch` are ordered from top to bottom -- need to reverse.
-        branch.reverse();
-        Ok(AlephData {
-            head_proposal: UnvalidatedAlephProposal::new(branch, num_last),
-        })
+    if curr_block.hash() == finalized_block.hash() {
+        let mut branch = branch.into_iter();
+        let head_hash = match branch.next() {
+            Some(hash) => hash,
+            None => return Ok(None),
+        };
+        let head = match client.header(head_hash) {
+            Ok(Some(header)) => header,
+            _ => return Err(MissingHeader),
+        };
+        let tail: Vec<_> = branch.rev().collect();
+        Ok(Some(AlephData {
+            head_proposal: UnvalidatedAlephProposal::new(head, tail),
+        }))
     } else {
         // By backtracking from the best block we reached a block conflicting with best finalized.
         // This is most likely a bug, or some extremely unlikely synchronization issue of the client.
         warn!(target: "aleph-data-store", "Error computing proposal. Conflicting blocks: {:?}, finalized {:?}", curr_block, finalized_block);
-        Err(())
+        Err(BestContradictsFinalized)
     }
 }
 
@@ -107,13 +120,9 @@ impl Default for ChainTrackerConfig {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-struct ChainInfo<B>
-where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-{
-    best_block_in_session: IdentifierFor<B>,
-    highest_finalized: IdentifierFor<B>,
+struct ChainInfo {
+    best_block_in_session: BlockId,
+    highest_finalized: BlockId,
 }
 
 /// ChainTracker keeps track of the best_block in a given session and allows to generate `AlephData`.
@@ -122,23 +131,24 @@ where
 /// `get_data` is called.
 pub struct ChainTracker<B, SC, C>
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
     select_chain: SC,
     client: Arc<C>,
-    data_to_propose: Arc<Mutex<Option<AlephData<B>>>>,
+    data_to_propose: Arc<Mutex<Option<AlephData<B::Header>>>>,
     session_boundaries: SessionBoundaries,
-    prev_chain_info: Option<ChainInfo<B>>,
+    prev_chain_info: Option<ChainInfo>,
     config: ChainTrackerConfig,
+    _phantom: PhantomData<B>,
 }
 
 impl<B, SC, C> ChainTracker<B, SC, C>
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
     C: HeaderBackend<B> + 'static,
     SC: SelectChain<B> + 'static,
 {
@@ -147,8 +157,8 @@ where
         client: Arc<C>,
         session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
-        metrics: Metrics<<B::Header as HeaderT>::Hash>,
-    ) -> (Self, DataProvider<B>) {
+        metrics: TimingBlockMetrics,
+    ) -> (Self, DataProvider<B::Header>) {
         let data_to_propose = Arc::new(Mutex::new(None));
         (
             ChainTracker {
@@ -158,6 +168,7 @@ where
                 session_boundaries,
                 prev_chain_info: None,
                 config,
+                _phantom: PhantomData,
             },
             DataProvider {
                 data_to_propose,
@@ -166,17 +177,17 @@ where
         )
     }
 
-    fn update_data(&mut self, best_block_in_session: &IdentifierFor<B>) {
+    fn update_data(&mut self, best_block_in_session: &BlockId) {
         // We use best_block_in_session argument and the highest_finalized block from the client and compute
         // the corresponding `AlephData<B>` in `data_to_propose` for AlephBFT. To not recompute this many
         // times we remember these "inputs" in `prev_chain_info` and upon match we leave the old value
         // of `data_to_propose` unaffected.
 
         let client_info = self.client.info();
-        let finalized_block: IdentifierFor<B> =
+        let finalized_block: BlockId =
             (client_info.finalized_hash, client_info.finalized_number).into();
 
-        if finalized_block.number >= self.session_boundaries.last_block() {
+        if finalized_block.number() >= self.session_boundaries.last_block() {
             // This session is already finished, but this instance of ChainTracker has not been terminated yet.
             // We go with the default -- empty proposal, this does not have any significance.
             *self.data_to_propose.lock() = None;
@@ -198,12 +209,7 @@ where
             highest_finalized: finalized_block.clone(),
         });
 
-        if best_block_in_session.number == finalized_block.number {
-            // We don't have anything to propose, we go ahead with an empty proposal.
-            *self.data_to_propose.lock() = None;
-            return;
-        }
-        if best_block_in_session.number < finalized_block.number {
+        if best_block_in_session.number() < finalized_block.number() {
             // Because of the client synchronization, in extremely rare cases this could happen.
             warn!(target: "aleph-data-store", "Error updating data. best_block {:?} is lower than finalized {:?}.", best_block_in_session, finalized_block);
             return;
@@ -214,7 +220,7 @@ where
             best_block_in_session.clone(),
             finalized_block,
         ) {
-            *self.data_to_propose.lock() = Some(proposal);
+            *self.data_to_propose.lock() = proposal;
         }
     }
 
@@ -224,10 +230,7 @@ where
 
     // Returns the highest ancestor of best_block that fits in session_boundaries (typically the best block itself).
     // In case the best block has number less than the first block of session, returns None.
-    async fn get_best_block_in_session(
-        &self,
-        prev_best_block: Option<IdentifierFor<B>>,
-    ) -> Option<IdentifierFor<B>> {
+    async fn get_best_block_in_session(&self, prev_best_block: Option<BlockId>) -> Option<BlockId> {
         // We employ an optimization here: once the `best_block_in_session` reaches the height of `last_block`
         // (i.e., highest block in session), and the just queried `best_block` is a `descendant` of `prev_best_block`
         // then we don't need to recompute `best_block_in_session`, as `prev_best_block` is already correct.
@@ -249,7 +252,7 @@ where
                     Some((reduced_header.hash(), *reduced_header.number()).into())
                 }
                 Some(prev) => {
-                    if prev.number < last_block {
+                    if prev.number() < last_block {
                         // The previous best block was below the sessioun boundary, we cannot really optimize
                         // but must compute the new best_block_in_session naively.
                         let reduced_header =
@@ -260,9 +263,9 @@ where
                         let reduced_header = reduce_header_to_num(
                             &*self.client,
                             new_best_header.clone(),
-                            prev.number,
+                            prev.number(),
                         );
-                        if reduced_header.hash() != prev.hash {
+                        if reduced_header.hash() != prev.hash() {
                             // The new_best_block is not a descendant of `prev`, we need to update.
                             // In the opposite case we do nothing, as the `prev` is already correct.
                             let reduced_header =
@@ -278,7 +281,7 @@ where
     }
 
     pub async fn run(mut self, mut exit: oneshot::Receiver<()>) {
-        let mut best_block_in_session: Option<IdentifierFor<B>> = None;
+        let mut best_block_in_session: Option<BlockId> = None;
         loop {
             let delay = futures_timer::Delay::new(self.config.refresh_interval);
             tokio::select! {
@@ -298,11 +301,24 @@ where
     }
 }
 
+#[async_trait::async_trait]
+impl<B, SC, C> Runnable for ChainTracker<B, SC, C>
+where
+    B: BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
+    C: HeaderBackend<B> + 'static,
+    SC: SelectChain<B> + 'static,
+{
+    async fn run(mut self, exit: oneshot::Receiver<()>) {
+        ChainTracker::run(self, exit).await
+    }
+}
+
 /// Provides data to AlephBFT for ordering.
 #[derive(Clone)]
-pub struct DataProvider<B: BlockT> {
-    data_to_propose: Arc<Mutex<Option<AlephData<B>>>>,
-    metrics: Metrics<<B::Header as HeaderT>::Hash>,
+pub struct DataProvider<UH: UnverifiedHeader> {
+    data_to_propose: Arc<Mutex<Option<AlephData<UH>>>>,
+    metrics: TimingBlockMetrics,
 }
 
 // Honest nodes propose data in session `k` as follows:
@@ -313,15 +329,15 @@ pub struct DataProvider<B: BlockT> {
 //    then the node proposes `Empty`, otherwise the node proposes a branch extending from one block above
 //    last finalized till `best_block` with the restriction that the branch must be truncated to length
 //    at most MAX_DATA_BRANCH_LEN.
-impl<B: BlockT> DataProvider<B> {
-    pub async fn get_data(&mut self) -> Option<AlephData<B>> {
+impl<UH: UnverifiedHeader> DataProvider<UH> {
+    pub async fn get_data(&mut self) -> Option<AlephData<UH>> {
         let data_to_propose = (*self.data_to_propose.lock()).take();
 
         if let Some(data) = &data_to_propose {
-            self.metrics.report_block(
-                *data.head_proposal.branch.last().unwrap(),
+            self.metrics.report_block_if_not_present(
+                data.head_proposal.top_block().hash(),
                 std::time::Instant::now(),
-                Checkpoint::Ordering,
+                Checkpoint::Proposed,
             );
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
@@ -344,9 +360,9 @@ mod tests {
         },
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{aleph_data_from_blocks, TBlock, TestClientBuilder, TestClientBuilderExt},
+            mocks::{aleph_data_from_blocks, THeader, TestClientBuilder, TestClientBuilderExt},
         },
-        Metrics, SessionBoundaryInfo, SessionId, SessionPeriod,
+        SessionBoundaryInfo, SessionId, SessionPeriod, TimingBlockMetrics,
     };
 
     const SESSION_LEN: u32 = 100;
@@ -358,7 +374,7 @@ mod tests {
         impl Future<Output = ()>,
         oneshot::Sender<()>,
         ClientChainBuilder,
-        DataProvider<TBlock>,
+        DataProvider<THeader>,
     ) {
         let (client, select_chain) = TestClientBuilder::new().build_with_longest_chain();
         let client = Arc::new(client);
@@ -377,7 +393,7 @@ mod tests {
             client,
             session_boundaries,
             config,
-            Metrics::noop(),
+            TimingBlockMetrics::noop(),
         );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
@@ -399,7 +415,7 @@ mod tests {
     async fn run_test<F, S>(scenario: S)
     where
         F: Future,
-        S: FnOnce(ClientChainBuilder, DataProvider<TBlock>) -> F,
+        S: FnOnce(ClientChainBuilder, DataProvider<THeader>) -> F,
     {
         let (task_handle, exit, chain_builder, data_provider) = prepare_chain_tracker_test();
         let chain_tracker_handle = tokio::spawn(task_handle);

@@ -33,9 +33,9 @@ use crate::{
 const SESSIONS_TO_CHECK: SessionCount = 5;
 
 const VALIDATOR_TO_DISABLE_NON_RESERVED_INDEX: u32 = 0;
-const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 2;
-// Address for //2 (Node2). Depends on the infrastructure setup.
-const NODE_TO_DISABLE_ADDRESS: &str = "ws://127.0.0.1:9945";
+const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 3;
+// Address for //3 (Node3). Depends on the infrastructure setup.
+const NODE_TO_DISABLE_ADDRESS: &str = "ws://127.0.0.1:9947";
 const SESSIONS_TO_MEET_BAN_THRESHOLD: SessionCount = 4;
 
 const VALIDATOR_TO_MANUALLY_BAN_NON_RESERVED_INDEX: u32 = 1;
@@ -44,21 +44,18 @@ const MIN_EXPECTED_PERFORMANCE: u8 = 100;
 
 async fn disable_validator(validator_address: &str, validator_seed: u32) -> anyhow::Result<()> {
     let validator_seed = get_validator_seed(validator_seed);
-    let stash_controller = NodeKeys::from(validator_seed);
-    let controller_key_to_disable = stash_controller.controller;
+    let stash_controller = NodeKeys::from(validator_seed).validator;
 
     // This connection has to be set up with the controller key.
-    let connection_to_disable =
-        SignedConnection::new(validator_address, controller_key_to_disable).await;
+    let connection_to_disable = SignedConnection::new(validator_address, stash_controller).await;
 
     set_invalid_keys_for_validator(vec![connection_to_disable]).await
 }
 
-async fn signed_connection_for_disabled_controller() -> SignedConnection {
+async fn signed_connection_for_disabled_account() -> SignedConnection {
     let validator_seed = get_validator_seed(VALIDATOR_TO_DISABLE_OVERALL_INDEX);
-    let stash_controller = NodeKeys::from(validator_seed);
-    let controller_key_to_disable = stash_controller.controller;
-    SignedConnection::new(NODE_TO_DISABLE_ADDRESS, controller_key_to_disable).await
+    let stash = NodeKeys::from(validator_seed).validator;
+    SignedConnection::new(NODE_TO_DISABLE_ADDRESS, stash).await
 }
 
 /// Runs a chain, sets up a committee and validators. Sets an incorrect key for one of the
@@ -303,7 +300,7 @@ pub async fn permissionless_ban() -> anyhow::Result<()> {
     );
     assert_eq!(without_banned, non_reserved);
 
-    let signed_connection = signed_connection_for_disabled_controller().await;
+    let signed_connection = signed_connection_for_disabled_account().await;
     // validate again
     signed_connection.validate(0, TxStatus::InBlock).await?;
     root_connection

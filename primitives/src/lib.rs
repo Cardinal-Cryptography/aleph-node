@@ -1,10 +1,9 @@
-#![allow(clippy::too_many_arguments, clippy::unnecessary_mut_passed)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
@@ -57,7 +56,7 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 pub type AccountIndex = u32;
 
 /// Index of a transaction in the chain.
-pub type Index = u32;
+pub type Nonce = u32;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
@@ -102,7 +101,7 @@ pub const DEFAULT_FINALITY_VERSION: Version = 0;
 /// Current version of abft.
 pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
 /// Legacy version of abft.
-pub const LEGACY_FINALITY_VERSION: u16 = 1;
+pub const LEGACY_FINALITY_VERSION: u16 = 2;
 pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 /// Hold set of validators that produce blocks and set of validators that participate in finality
@@ -121,8 +120,7 @@ pub enum ElectionOpenness {
 }
 
 /// Represent desirable size of a committee in a session
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommitteeSeats {
     /// Size of reserved validators in a session
     pub reserved_seats: u32,
@@ -155,8 +153,7 @@ pub trait FinalityCommitteeManager<T> {
 }
 
 /// Configurable parameters for ban validator mechanism
-#[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BanConfig {
     /// performance ratio threshold in a session
     /// calculated as ratio of number of blocks produced to expected number of blocks for a single validator
@@ -264,15 +261,6 @@ pub struct VersionChange {
     pub session: SessionIndex,
 }
 
-/// Consensus log item for Aleph.
-#[cfg_attr(feature = "std", derive(Serialize))]
-#[derive(Decode, Encode, PartialEq, Eq, Clone, sp_runtime::RuntimeDebug)]
-pub enum ConsensusLog<N: sp_runtime::RuntimeAppPublic> {
-    /// Change of the authorities.
-    #[codec(index = 1)]
-    AlephAuthorityChange(Vec<N>),
-}
-
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi {
         fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
@@ -293,6 +281,11 @@ sp_api::decl_runtime_apis! {
         fn predict_session_committee(
             session: SessionIndex
         ) -> Result<SessionCommittee<AccountId>, SessionValidatorError>;
+        fn next_session_aura_authorities() -> Vec<(AccountId, AuraId)>;
+        /// Returns owner (`AccountId`) corresponding to an AuthorityId (in some contexts referenced
+        /// also as `aleph_key` - consensus engine's part of session keys) in the current session
+        /// of AlephBFT (finalisation committee).
+        fn key_owner(key: AuthorityId) -> Option<AccountId>;
     }
 }
 
@@ -310,8 +303,7 @@ pub trait ValidatorProvider {
     fn current_era_committee_size() -> CommitteeSeats;
 }
 
-#[derive(Decode, Encode, TypeInfo, Clone)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Clone, Serialize, Deserialize)]
 pub struct SessionValidators<T> {
     pub committee: Vec<T>,
     pub non_committee: Vec<T>,

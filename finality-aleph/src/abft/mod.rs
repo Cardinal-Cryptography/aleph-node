@@ -20,13 +20,13 @@ use aleph_bft_crypto::{PartialMultisignature, Signature};
 pub use crypto::Keychain;
 pub use current::{
     create_aleph_config as current_create_aleph_config, run_member as run_current_member,
-    VERSION as CURRENT_VERSION,
+    NetworkData as CurrentNetworkData, VERSION as CURRENT_VERSION,
 };
 pub use legacy::{
     create_aleph_config as legacy_create_aleph_config, run_member as run_legacy_member,
-    VERSION as LEGACY_VERSION,
+    NetworkData as LegacyNetworkData, VERSION as LEGACY_VERSION,
 };
-pub use network::{CurrentNetworkData, LegacyNetworkData, NetworkWrapper};
+pub use network::NetworkWrapper;
 use parity_scale_codec::{Decode, Encode};
 pub use traits::{Hash, SpawnHandle, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
@@ -44,7 +44,7 @@ impl<S: Clone> SignatureSet<S> {
     }
 
     pub fn with_size(len: NodeCount) -> Self {
-        SignatureSet(legacy_aleph_bft::SignatureSet::with_size(len.into()))
+        SignatureSet(aleph_bft_crypto::SignatureSet::with_size(len.into()))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (NodeIndex, &S)> {
@@ -72,7 +72,7 @@ impl<S: 'static> IntoIterator for SignatureSet<S> {
     }
 }
 
-impl<S: legacy_aleph_bft::Signature> legacy_aleph_bft::PartialMultisignature for SignatureSet<S> {
+impl<S: Signature> legacy_aleph_bft::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
     fn add_signature(
@@ -84,7 +84,7 @@ impl<S: legacy_aleph_bft::Signature> legacy_aleph_bft::PartialMultisignature for
     }
 }
 
-impl<S: legacy_aleph_bft::Signature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
+impl<S: Signature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
     fn add_signature(

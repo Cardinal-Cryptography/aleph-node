@@ -7,13 +7,24 @@ use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHan
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sp_consensus::SelectChain;
+use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
 use crate::{
-    aleph_primitives::Block,
+    aleph_primitives::{AlephSessionApi, AuraId, Block},
+    block::{
+        substrate::{
+            JustificationTranslator, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
+            VerifierCache,
+        },
+        ChainStatus, FinalizationStatus, Justification,
+    },
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
+    idx_to_account::ValidatorIndexToAccountIdConverterImpl,
+    metrics::run_chain_state_metrics,
     network::{
+        address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
         GossipService, SubstrateNetwork,
@@ -22,18 +33,17 @@ use crate::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
         ConsensusPartyParams,
     },
+    runtime_api::RuntimeApiImpl,
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
-    sync::{
-        ChainStatus, DatabaseIO as SyncDatabaseIO, Justification, JustificationTranslator,
-        Service as SyncService, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
-        VerifierCache,
-    },
+    sync::{DatabaseIO as SyncDatabaseIO, Service as SyncService, IO as SyncIO},
     AlephConfig,
 };
 
 // How many sessions we remember.
-const VERIFIER_CACHE_SIZE: usize = 2;
+// Keep in mind that Aura stores authority info in the parent block,
+// so the actual size probably needs to be increased by one.
+pub const VERIFIER_CACHE_SIZE: usize = 3;
 
 pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
@@ -46,7 +56,7 @@ pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
 pub async fn run_validator_node<C, BE, SC>(aleph_config: AlephConfig<C, SC>)
 where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
-    C::Api: crate::aleph_primitives::AlephSessionApi<Block>,
+    C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
 {
@@ -55,20 +65,24 @@ where
         sync_network,
         client,
         chain_status,
-        import_queue_handle,
+        mut import_queue_handle,
         select_chain,
         spawn_handle,
         keystore,
         metrics,
+        registry,
         unit_creation_delay,
         session_period,
         millisecs_per_block,
         justification_rx,
+        block_rx,
         backup_saving_path,
         external_addresses,
         validator_port,
         protocol_naming,
         rate_limiter_config,
+        sync_oracle,
+        validator_address_cache,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -99,6 +113,7 @@ where
         listener,
         network_authority_pen,
         spawn_handle.clone(),
+        registry.clone(),
     );
     let (_validator_network_exit, exit) = oneshot::channel();
     spawn_handle.spawn("aleph/validator_network", async move {
@@ -109,13 +124,12 @@ where
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
         SubstrateNetwork::new(network.clone(), sync_network.clone(), protocol_naming),
         spawn_handle.clone(),
+        registry.clone(),
     );
     let gossip_network_task = async move { gossip_network_service.run().await };
 
-    let block_requester = sync_network.clone();
-
     let map_updater = SessionMapUpdater::new(
-        AuthorityProviderImpl::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
         FinalityNotifierImpl::new(client.clone()),
         session_period,
     );
@@ -130,43 +144,73 @@ where
         client.every_import_notification_stream(),
     );
 
+    let client_for_slo_metrics = client.clone();
+    let registry_for_slo_metrics = registry.clone();
+    spawn_handle.spawn("aleph/slo-metrics", async move {
+        run_chain_state_metrics(
+            client_for_slo_metrics.as_ref(),
+            client_for_slo_metrics.every_import_notification_stream(),
+            client_for_slo_metrics.finality_notification_stream(),
+            registry_for_slo_metrics,
+        )
+        .await;
+    });
+
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
-        Ok(Some(justification)) => justification.header().clone(),
+        Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
+            justification.header().clone()
+        }
         _ => panic!("the genesis block should be finalized"),
     };
     let verifier = VerifierCache::new(
         session_info.clone(),
         SubstrateFinalizationInfo::new(client.clone()),
-        AuthorityProviderImpl::new(client.clone()),
+        AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
         VERIFIER_CACHE_SIZE,
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone(), metrics.clone());
-    let database_io = SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle);
-    let (sync_service, justifications_for_sync, _request_block) = match SyncService::new(
+    import_queue_handle.attach_metrics(metrics.clone());
+    let sync_io = SyncIO::new(
+        SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle),
         block_sync_network,
         chain_events,
-        verifier,
-        database_io,
-        session_info.clone(),
+        sync_oracle.clone(),
         justification_rx,
+        block_rx,
+    );
+    let (sync_service, justifications_for_sync, request_block) = match SyncService::new(
+        verifier.clone(),
+        session_info.clone(),
+        sync_io,
+        registry.clone(),
     ) {
         Ok(x) => x,
-        Err(e) => panic!("Failed to initialize Sync service: {}", e),
+        Err(e) => panic!("Failed to initialize Sync service: {e}"),
     };
     let sync_task = async move { sync_service.run().await };
+
+    let validator_address_cache_updater = validator_address_cache_updater(
+        validator_address_cache,
+        ValidatorIndexToAccountIdConverterImpl::new(
+            client.clone(),
+            session_info.clone(),
+            RuntimeApiImpl::new(client.clone()),
+        ),
+    );
 
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
         network_identity,
         validator_network,
         authentication_network,
+        validator_address_cache_updater,
         ConnectionManagerConfig::with_session_period(&session_period, &millisecs_per_block),
     );
 
     let connection_manager_task = async move {
         if let Err(e) = connection_manager_service.run().await {
-            panic!("Failed to run connection manager: {}", e);
+            panic!("Failed to run connection manager: {e}");
         }
     };
 
@@ -179,7 +223,7 @@ where
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
-        sync_state: block_requester.clone(),
+        sync_oracle,
         backup_saving_path,
         chain_state: ChainStateImpl {
             client: client.clone(),
@@ -188,11 +232,12 @@ where
         session_manager: NodeSessionManagerImpl::new(
             client,
             select_chain,
+            verifier,
             session_period,
             unit_creation_delay,
             justifications_for_sync,
             JustificationTranslator::new(chain_status.clone()),
-            block_requester,
+            request_block,
             metrics,
             spawn_handle,
             connection_manager,

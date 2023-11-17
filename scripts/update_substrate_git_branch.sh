@@ -19,13 +19,13 @@ if [[ -z "${BRANCH}" ]]; then
 fi
 
 # Find all `Cargo.toml` files outside any `target` directory.
-paths=$(find . -mindepth 2 -type f -name "Cargo.toml" -not -path "*/target/*") || echo "Problems with finding Cargo.toml files"
+paths=$(find .  -type f -name "Cargo.toml" -not -path "*/target/*") || echo "Problems with finding Cargo.toml files"
 
 for path in ${paths[@]}; do
     echo "Upgrading ${path}"
-    # 1. Filter out lines not containing `https://github.com/Cardinal-Cryptography/substrate[.git]"`.
+    # 1. Filter out lines not containing `https://github.com/Cardinal-Cryptography/polkadot-sdk[.git]"`.
     # 2. Substitute `###` in `branch = "###"` with $BRANCH.
-    sed -e '/https:\/\/github.com\/Cardinal-Cryptography\/substrate\(.git\)\{0,1\}"/s/\(branch\s*=\s*"\)[^"]*"\([^,}]*\)/\1'"${BRANCH//\//\\/}"'"\2/' < $path > x
+    sed -e '/https:\/\/github.com\/Cardinal-Cryptography\/polkadot-sdk\(.git\)\{0,1\}"/s/\(branch\s*=\s*"\)[^"]*"\([^,}]*\)/\1'"${BRANCH//\//\\/}"'"\2/' < $path > x
     mv x "${path}"
 
     cargo update --manifest-path "${path}"

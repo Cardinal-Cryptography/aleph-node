@@ -10,12 +10,13 @@ use sp_runtime::{
 };
 
 use crate::{
-    aleph_primitives::BlockNumber, metrics::Checkpoint, BlockId, BlockIdentifier, IdentifierFor,
-    Metrics,
+    aleph_primitives::{BlockHash, BlockNumber},
+    metrics::Checkpoint,
+    BlockId, TimingBlockMetrics,
 };
 
-pub trait BlockFinalizer<BI: BlockIdentifier> {
-    fn finalize_block(&self, block: BI, justification: Justification) -> Result<(), Error>;
+pub trait BlockFinalizer {
+    fn finalize_block(&self, block: BlockId, justification: Justification) -> Result<(), Error>;
 }
 
 pub struct AlephFinalizer<B, BE, C>
@@ -25,8 +26,8 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    metrics: Metrics<B::Hash>,
-    phantom: PhantomData<BE>,
+    metrics: TimingBlockMetrics,
+    phantom: PhantomData<(B, BE)>,
 }
 
 impl<B, BE, C> AlephFinalizer<B, BE, C>
@@ -35,7 +36,7 @@ where
     BE: Backend<B>,
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
-    pub(crate) fn new(client: Arc<C>, metrics: Metrics<B::Hash>) -> Self {
+    pub(crate) fn new(client: Arc<C>, metrics: TimingBlockMetrics) -> Self {
         AlephFinalizer {
             client,
             metrics,
@@ -44,19 +45,16 @@ where
     }
 }
 
-impl<B, BE, C> BlockFinalizer<IdentifierFor<B>> for AlephFinalizer<B, BE, C>
+impl<B, BE, C> BlockFinalizer for AlephFinalizer<B, BE, C>
 where
-    B: Block,
+    B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
     BE: Backend<B>,
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
-    fn finalize_block(
-        &self,
-        block: IdentifierFor<B>,
-        justification: Justification,
-    ) -> Result<(), Error> {
-        let BlockId { number, hash } = block;
+    fn finalize_block(&self, block: BlockId, justification: Justification) -> Result<(), Error> {
+        let number = block.number();
+        let hash = block.hash();
 
         let status = self.client.info();
         if status.finalized_number >= number {
@@ -75,12 +73,12 @@ where
         let status = self.client.info();
         match &update_res {
             Ok(_) => {
-                debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number);
+                debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.best_number);
                 self.metrics
                     .report_block(hash, Instant::now(), Checkpoint::Finalized);
             }
             Err(_) => {
-                debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.finalized_number)
+                debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.best_number)
             }
         }
 

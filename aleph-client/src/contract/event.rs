@@ -18,7 +18,7 @@ use subxt::{events::EventDetails, ext::sp_core::H256};
 
 use crate::{
     api::contracts::events::ContractEmitted, connections::TxInfo, contract::ContractInstance,
-    utility::BlocksApi, AccountId, Connection,
+    utility::BlocksApi, AccountId, AlephConfig, Connection,
 };
 
 /// Represents details about the block contianing the event.
@@ -152,9 +152,9 @@ pub async fn listen_contract_events(
 }
 
 /// Try to convert `events` to `ContractEvent` using matching contract from `contracts`.
-fn translate_events<
+pub fn translate_events<
     Err: Error + Into<anyhow::Error> + Send + Sync + 'static,
-    E: Iterator<Item = Result<EventDetails, Err>>,
+    E: Iterator<Item = Result<EventDetails<AlephConfig>, Err>>,
 >(
     events: E,
     contracts: &[&ContractInstance],
@@ -181,7 +181,7 @@ fn translate_event(
 ) -> Result<ContractEvent> {
     let matching_contract = contracts
         .iter()
-        .find(|contract| contract.address() == &event.contract)
+        .find(|contract| contract.address() == &event.contract.0)
         .ok_or_else(|| anyhow!("The event wasn't emitted by any of the provided contracts"))?;
 
     let data = zero_prefixed(&event.data);

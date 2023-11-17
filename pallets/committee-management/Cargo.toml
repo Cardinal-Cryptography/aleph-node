@@ -1,6 +1,6 @@
 [package]
 name = "pallet-committee-management"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -11,6 +11,7 @@ parity-scale-codec = { workspace = true, features = ["derive"] }
 rand = { workspace = true }
 rand_pcg = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
+log = { workspace = true }
 
 frame-support = { workspace = true }
 frame-system = { workspace = true }
@@ -31,6 +32,7 @@ std = [
     "parity-scale-codec/std",
     "rand/std",
     "scale-info/std",
+    "log/std",
 
     "frame-support/std",
     "frame-system/std",
@@ -42,6 +44,7 @@ std = [
     "sp-staking/std",
     "sp-std/std",
     "primitives/std",
+    "pallets-support/std",
 ]
 
 try-runtime = [

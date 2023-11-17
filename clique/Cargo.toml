@@ -1,6 +1,6 @@
 [package]
 name = "network-clique"
-version = "0.4.0"
+version = "0.6.0"
 license = "Apache 2.0"
 authors.workspace = true
 edition.workspace = true
@@ -21,9 +21,9 @@ hash-db = { workspace = true }
 ip_network = { workspace = true }
 log = { workspace = true }
 lru = { workspace = true }
-parking_lot = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
+substrate-prometheus-endpoint = { workspace = true }
 tiny-bip39 = { workspace = true }
 tokio = { workspace = true, features = [
     "sync",

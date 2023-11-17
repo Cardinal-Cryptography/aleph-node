@@ -2,8 +2,8 @@ use std::{collections::HashSet, str::FromStr, string::ToString};
 
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, CommitteeManagementConfig, ElectionsConfig,
-    GenesisConfig, Perbill, SessionConfig, SessionKeys, StakingConfig, SudoConfig, SystemConfig,
-    VestingConfig, WASM_BINARY,
+    Perbill, RuntimeGenesisConfig, SessionConfig, SessionKeys, StakingConfig, SudoConfig,
+    SystemConfig, VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
@@ -15,13 +15,12 @@ use sc_service::ChainType;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair};
 
 use crate::aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AuthorityId as AlephId, SessionValidators, Version as FinalityVersion, ADDRESSES_ENCODING,
-    LEGACY_FINALITY_VERSION, TOKEN, TOKEN_DECIMALS,
+    AuraId, AuthorityId as AlephId, SessionValidators, Version as FinalityVersion,
+    ADDRESSES_ENCODING, LEGACY_FINALITY_VERSION, TOKEN_DECIMALS,
 };
 
 pub const CHAINTYPE_DEV: &str = "dev";
@@ -36,7 +35,7 @@ pub const DEFAULT_SUDO_ACCOUNT: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcN
 pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig>;
 
 #[derive(Clone)]
 pub struct SerializablePeerId {
@@ -66,7 +65,7 @@ impl<'de> Deserialize<'de> for SerializablePeerId {
     {
         let s = String::deserialize(deserializer)?;
         let inner = PeerId::from_str(&s)
-            .map_err(|_| D::Error::custom(format!("Could not deserialize as PeerId: {}", s)))?;
+            .map_err(|_| D::Error::custom(format!("Could not deserialize as PeerId: {s}")))?;
         Ok(SerializablePeerId { inner })
     }
 }
@@ -90,7 +89,7 @@ fn parse_chaintype(s: &str) -> Result<ChainType, CliError> {
         CHAINTYPE_DEV => ChainType::Development,
         CHAINTYPE_LOCAL => ChainType::Local,
         CHAINTYPE_LIVE => ChainType::Live,
-        s => panic!("Wrong chain type {} Possible values: dev local live", s),
+        s => panic!("Wrong chain type {s} Possible values: dev local live"),
     })
 }
 
@@ -140,10 +139,6 @@ pub struct ChainParams {
     #[arg(long, value_parser = parse_account_id)]
     faucet_account_id: Option<AccountId>,
 
-    /// Minimum number of stakers before chain enters emergency state.
-    #[arg(long, default_value = "4")]
-    min_validator_count: u32,
-
     /// Finality version at chain inception.
     #[arg(long, default_value = LEGACY_FINALITY_VERSION.to_string())]
     finality_version: FinalityVersion,
@@ -182,10 +177,6 @@ impl ChainParams {
         self.faucet_account_id.clone()
     }
 
-    pub fn min_validator_count(&self) -> u32 {
-        self.min_validator_count
-    }
-
     pub fn finality_version(&self) -> FinalityVersion {
         self.finality_version
     }
@@ -214,20 +205,12 @@ pub fn config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
 ) -> Result<ChainSpec, String> {
-    let controller_accounts: Vec<AccountId> = to_account_ids(&authorities)
-        .into_iter()
-        .enumerate()
-        .map(|(index, _account)| {
-            account_id_from_string(format!("//{}//Controller", index).as_str())
-        })
-        .collect();
-    generate_chain_spec_config(chain_params, authorities, controller_accounts)
+    generate_chain_spec_config(chain_params, authorities)
 }
 
 fn generate_chain_spec_config(
     chain_params: ChainParams,
     authorities: Vec<AuthorityKeys>,
-    controller_accounts: Vec<AccountId>,
 ) -> Result<ChainSpec, String> {
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
     let token_symbol = String::from(chain_params.token_symbol());
@@ -237,7 +220,6 @@ fn generate_chain_spec_config(
     let sudo_account = chain_params.sudo_account_id();
     let rich_accounts = chain_params.rich_account_ids();
     let faucet_account = chain_params.faucet_account_id();
-    let min_validator_count = chain_params.min_validator_count();
     let finality_version = chain_params.finality_version();
 
     Ok(ChainSpec::from_genesis(
@@ -253,8 +235,6 @@ fn generate_chain_spec_config(
                 sudo_account.clone(), // Sudo account, will also be pre funded
                 rich_accounts.clone(), // Pre-funded accounts
                 faucet_account.clone(), // Pre-funded faucet account
-                controller_accounts.clone(), // Controller accounts for staking.
-                min_validator_count,
                 finality_version,
             )
         },
@@ -295,23 +275,12 @@ struct AccountsConfig {
     stakers: Vec<(AccountId, AccountId, u128, StakerStatus<AccountId>)>,
 }
 
-/// Provides accounts for GenesisConfig setup based on distinct staking accounts.
+/// Provides accounts for RuntimeGenesisConfig setup based on distinct staking accounts.
 /// Assumes validator == stash, but controller is a distinct account
 fn configure_chain_spec_fields(
-    unique_accounts_balances: Vec<(AccountId, u128)>,
+    balances: Vec<(AccountId, u128)>,
     authorities: Vec<AuthorityKeys>,
-    controllers: Vec<AccountId>,
 ) -> AccountsConfig {
-    let balances = unique_accounts_balances
-        .into_iter()
-        .chain(
-            controllers
-                .clone()
-                .into_iter()
-                .map(|account| (account, TOKEN)),
-        )
-        .collect();
-
     let keys = authorities
         .iter()
         .map(|auth| {
@@ -328,12 +297,13 @@ fn configure_chain_spec_fields(
 
     let stakers = authorities
         .iter()
-        .zip(controllers)
         .enumerate()
-        .map(|(validator_idx, (validator, controller))| {
+        .map(|(validator_idx, validator)| {
             (
                 validator.account_id.clone(),
-                controller,
+                // this is controller account but in Substrate 1.0.0, it is omitted anyway,
+                // so it does not matter what we pass in the below line as always stash == controller
+                validator.account_id.clone(),
                 (validator_idx + 1) as u128 * MIN_VALIDATOR_BOND,
                 StakerStatus::Validator,
             )
@@ -358,10 +328,8 @@ fn generate_genesis_config(
     sudo_account: AccountId,
     rich_accounts: Option<Vec<AccountId>>,
     faucet_account: Option<AccountId>,
-    controller_accounts: Vec<AccountId>,
-    min_validator_count: u32,
     finality_version: FinalityVersion,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
     let special_accounts = {
         let mut all = rich_accounts.unwrap_or_default();
         all.push(sudo_account.clone());
@@ -389,13 +357,13 @@ fn generate_genesis_config(
 
     let validator_count = authorities.len() as u32;
 
-    let accounts_config =
-        configure_chain_spec_fields(unique_accounts_balances, authorities, controller_accounts);
+    let accounts_config = configure_chain_spec_fields(unique_accounts_balances, authorities);
 
-    GenesisConfig {
+    RuntimeGenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
             code: wasm_binary.to_vec(),
+            ..Default::default()
         },
         balances: BalancesConfig {
             // Configure endowed accounts with an initial, significant balance
@@ -419,8 +387,7 @@ fn generate_genesis_config(
         staking: StakingConfig {
             force_era: Forcing::NotForcing,
             validator_count,
-            // to satisfy some e2e tests as this cannot be changed during runtime
-            minimum_validator_count: min_validator_count,
+            minimum_validator_count: 4,
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
             min_validator_bond: MIN_VALIDATOR_BOND,
