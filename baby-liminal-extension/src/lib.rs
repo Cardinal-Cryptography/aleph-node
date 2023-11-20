@@ -11,10 +11,10 @@
 #[cfg(all(feature = "ink", feature = "runtime"))]
 compile_error!("Features `ink` and `runtime` are mutually exclusive and cannot be used together");
 
-pub mod error_codes;
 pub mod extension_ids;
 #[cfg(feature = "ink")]
 pub mod frontend;
+pub mod status_codes;
 
 #[cfg(feature = "ink")]
 pub use frontend::{BabyLiminalError, BabyLiminalExtension, Environment};

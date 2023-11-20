@@ -35,7 +35,7 @@ mod test_contract {
             }
 
             fn call(&mut self, _: &[u8], _: &mut Vec<u8>) -> u32 {
-                baby_liminal_extension::error_codes::BABY_LIMINAL_STORE_KEY_SUCCESS
+                baby_liminal_extension::status_codes::STORE_KEY_SUCCESS
             }
         }
 

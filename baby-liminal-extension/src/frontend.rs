@@ -41,29 +41,25 @@ impl From<scale::Error> for BabyLiminalError {
 
 impl ink::env::chain_extension::FromStatusCode for BabyLiminalError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
-        use crate::error_codes::*;
+        use crate::status_codes::*;
 
         match status_code {
             // Success codes
-            BABY_LIMINAL_STORE_KEY_SUCCESS | BABY_LIMINAL_VERIFY_SUCCESS => Ok(()),
+            STORE_KEY_SUCCESS | VERIFY_SUCCESS => Ok(()),
 
             // `pallet_baby_liminal::store_key` errors
-            BABY_LIMINAL_STORE_KEY_TOO_LONG_KEY => Err(Self::VerificationKeyTooLong),
-            BABY_LIMINAL_STORE_KEY_IDENTIFIER_IN_USE => Err(Self::IdentifierAlreadyInUse),
-            BABY_LIMINAL_STORE_KEY_ERROR_UNKNOWN => Err(Self::StoreKeyErrorUnknown),
+            STORE_KEY_TOO_LONG_KEY => Err(Self::VerificationKeyTooLong),
+            STORE_KEY_IDENTIFIER_IN_USE => Err(Self::IdentifierAlreadyInUse),
+            STORE_KEY_ERROR_UNKNOWN => Err(Self::StoreKeyErrorUnknown),
 
             // `pallet_baby_liminal::verify` errors
-            BABY_LIMINAL_VERIFY_DESERIALIZING_PROOF_FAIL => Err(Self::DeserializingProofFailed),
-            BABY_LIMINAL_VERIFY_DESERIALIZING_INPUT_FAIL => {
-                Err(Self::DeserializingPublicInputFailed)
-            }
-            BABY_LIMINAL_VERIFY_UNKNOWN_IDENTIFIER => Err(Self::UnknownVerificationKeyIdentifier),
-            BABY_LIMINAL_VERIFY_DESERIALIZING_KEY_FAIL => {
-                Err(Self::DeserializingVerificationKeyFailed)
-            }
-            BABY_LIMINAL_VERIFY_VERIFICATION_FAIL => Err(Self::VerificationFailed),
-            BABY_LIMINAL_VERIFY_INCORRECT_PROOF => Err(Self::IncorrectProof),
-            BABY_LIMINAL_VERIFY_ERROR_UNKNOWN => Err(Self::VerifyErrorUnknown),
+            VERIFY_DESERIALIZING_PROOF_FAIL => Err(Self::DeserializingProofFailed),
+            VERIFY_DESERIALIZING_INPUT_FAIL => Err(Self::DeserializingPublicInputFailed),
+            VERIFY_UNKNOWN_IDENTIFIER => Err(Self::UnknownVerificationKeyIdentifier),
+            VERIFY_DESERIALIZING_KEY_FAIL => Err(Self::DeserializingVerificationKeyFailed),
+            VERIFY_VERIFICATION_FAIL => Err(Self::VerificationFailed),
+            VERIFY_INCORRECT_PROOF => Err(Self::IncorrectProof),
+            VERIFY_ERROR_UNKNOWN => Err(Self::VerifyErrorUnknown),
 
             unexpected => Err(Self::UnknownError(unexpected)),
         }
