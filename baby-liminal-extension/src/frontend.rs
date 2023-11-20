@@ -1,3 +1,5 @@
+//! This is the frontend of the chain extension, i.e., the part exposed to the smart contracts.
+
 use ink::{
     env::{DefaultEnvironment, Environment as EnvironmentT},
     prelude::vec::Vec,
@@ -8,6 +10,7 @@ use crate::VerificationKeyIdentifier;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[allow(missing_docs)] // Error variants are self-descriptive.
 /// Chain extension errors enumeration.
 pub enum BabyLiminalError {
     // `pallet_baby_liminal::store_key` errors
@@ -24,8 +27,10 @@ pub enum BabyLiminalError {
     IncorrectProof,
     VerifyErrorUnknown,
 
+    /// Couldn't serialize or deserialize data.
     ScaleError,
-    UnknownError,
+    /// Unexpected error code has been returned.
+    UnknownError(u32),
 }
 
 impl From<scale::Error> for BabyLiminalError {
@@ -60,7 +65,7 @@ impl ink::env::chain_extension::FromStatusCode for BabyLiminalError {
             BABY_LIMINAL_VERIFY_INCORRECT_PROOF => Err(Self::IncorrectProof),
             BABY_LIMINAL_VERIFY_ERROR_UNKNOWN => Err(Self::VerifyErrorUnknown),
 
-            _ => Err(Self::UnknownError),
+            unexpected => Err(Self::UnknownError(unexpected)),
         }
     }
 }
@@ -87,6 +92,7 @@ pub trait BabyLiminalExtension {
     ) -> Result<(), BabyLiminalError>;
 }
 
+/// Default ink environment with `BabyLiminalExtension` included.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum Environment {}
