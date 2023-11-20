@@ -5,13 +5,13 @@ compile_error!(
     "Features `ink` and `runtime` are mutually exclusive and cannot be enabled together"
 );
 
-#[cfg(feature = "ink")]
-pub mod api;
 pub mod error_codes;
 pub mod extension_ids;
+#[cfg(feature = "ink")]
+pub mod frontend;
 
 #[cfg(feature = "ink")]
-pub use api::{BabyLiminalError, BabyLiminalExtension, Environment};
+pub use frontend::{BabyLiminalError, BabyLiminalExtension, Environment};
 
 /// Copied from `pallet_baby_liminal`.
 pub type VerificationKeyIdentifier = [u8; 8];
