@@ -77,8 +77,11 @@ impl BlockImporter {
 }
 
 impl BlockImport<Block> for BlockImporter {
-    fn import_block(&mut self, block: Block) {
-        let origin = BlockOrigin::NetworkBroadcast;
+    fn import_block(&mut self, block: Block, own: bool) {
+        let origin = match own {
+            true => BlockOrigin::Own,
+            false => BlockOrigin::NetworkBroadcast,
+        };
         let hash = block.header.hash();
         let incoming_block = IncomingBlock::<Block> {
             hash,

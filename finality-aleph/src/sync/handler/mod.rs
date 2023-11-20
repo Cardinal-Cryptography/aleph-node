@@ -483,7 +483,7 @@ where
             .verifier
             .verify_header(block.header().clone(), own_block)
             .map_err(Error::HeaderVerifier)?;
-        self.block_importer.import_block(block);
+        self.block_importer.import_block(block, own_block);
         Ok(maybe_equivocation_proof)
     }
 
@@ -913,7 +913,7 @@ mod tests {
             .take(branch_length)
             .collect();
         for header in &result {
-            backend.import_block(MockBlock::new(header.clone(), true));
+            backend.import_block(MockBlock::new(header.clone(), true), false);
         }
         result
     }
@@ -1061,7 +1061,7 @@ mod tests {
             handler
                 .handle_justification_from_user(justification)
                 .expect("should work");
-            backend.import_block(block);
+            backend.import_block(block, false);
             match notifier.next().await {
                 Ok(BlockImported(header)) => {
                     handler.block_imported(header).expect("should work");
@@ -2605,7 +2605,7 @@ mod tests {
         let branch: Vec<_> = genesis.random_branch().take(2137).collect();
         for header in branch.iter() {
             let block = MockBlock::new(header.clone(), true);
-            backend.import_block(block);
+            backend.import_block(block, false);
             match notifier.next().await {
                 Ok(BlockImported(header)) => {
                     // we ignore failures, as we expect some

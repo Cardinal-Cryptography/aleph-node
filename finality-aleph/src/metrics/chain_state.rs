@@ -1,14 +1,17 @@
+use std::collections::HashMap;
+
 use futures::{future, StreamExt};
 use log::warn;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
 use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
+use sp_consensus::BlockOrigin;
 use sp_runtime::{
     traits::{SaturatedConversion, Zero},
     Saturating,
 };
 use substrate_prometheus_endpoint::{
-    register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
+    register, Counter, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 use tokio::select;
 
@@ -16,6 +19,8 @@ use crate::{metrics::LOG_TARGET, BlockNumber};
 
 enum ChainStateMetrics {
     Prometheus {
+        own_finalized_blocks: Counter<U64>,
+        own_hopeless_blocks: Counter<U64>,
         top_finalized_block: Gauge<U64>,
         best_block: Gauge<U64>,
         reorgs: Histogram,
@@ -31,6 +36,14 @@ impl ChainStateMetrics {
         };
 
         Ok(ChainStateMetrics::Prometheus {
+            own_finalized_blocks: register(
+                Counter::new("aleph_own_finalized_blocks", "no help")?,
+                &registry,
+            )?,
+            own_hopeless_blocks: register(
+                Counter::new("aleph_own_hopeless_blocks", "no help")?,
+                &registry,
+            )?,
             top_finalized_block: register(
                 Gauge::new("aleph_top_finalized_block", "no help")?,
                 &registry,
@@ -48,6 +61,26 @@ impl ChainStateMetrics {
 
     fn noop() -> Self {
         ChainStateMetrics::Noop
+    }
+
+    fn increment_own_finalized_blocks(&self) {
+        if let ChainStateMetrics::Prometheus {
+            own_finalized_blocks,
+            ..
+        } = self
+        {
+            own_finalized_blocks.inc();
+        }
+    }
+
+    fn increase_own_hopeless_blocks(&self, value: u64) {
+        if let ChainStateMetrics::Prometheus {
+            own_hopeless_blocks,
+            ..
+        } = self
+        {
+            own_hopeless_blocks.inc_by(value);
+        }
     }
 
     fn update_best_block(&self, number: BlockNumber) {
@@ -91,23 +124,34 @@ pub async fn run_chain_state_metrics<
         }
     };
 
-    let mut best_block_notifications = import_notifications
-        .fuse()
-        .filter(|notification| future::ready(notification.is_new_best));
+    let mut interesting_block_notifications = import_notifications.fuse().filter(|notification| {
+        future::ready(notification.is_new_best || notification.origin == BlockOrigin::Own)
+    });
     let mut finality_notifications = finality_notifications.fuse();
-
     let mut previous_best: Option<HE> = None;
+    let mut own_imported_by_level: HashMap<_, Vec<_>> = HashMap::new();
+
     loop {
         select! {
-            maybe_block = best_block_notifications.next() => {
+            maybe_block = interesting_block_notifications.next() => {
                 match maybe_block {
                     Some(block) => {
-                        let number = (*block.header.number()).saturated_into::<BlockNumber>();
-                        metrics.update_best_block(number);
-                        if let Some(reorg_len) = detect_reorgs(backend, previous_best, block.header.clone()) {
-                            metrics.report_reorg(reorg_len);
+                        if block.origin == BlockOrigin::Own {
+                            match own_imported_by_level.get_mut(block.header.number()) {
+                                Some(hashes) => hashes.push(block.header.hash()),
+                                None => {
+                                    own_imported_by_level.insert(*block.header.number(), vec![block.header.hash()]);
+                                },
+                            }
                         }
-                        previous_best = Some(block.header);
+                        if block.is_new_best {
+                            let number = (*block.header.number()).saturated_into::<BlockNumber>();
+                            metrics.update_best_block(number);
+                            if let Some(reorg_len) = detect_reorgs(backend, previous_best, block.header.clone()) {
+                                metrics.report_reorg(reorg_len);
+                            }
+                            previous_best = Some(block.header);
+                        }
                     }
                     None => {
                         warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
@@ -123,6 +167,17 @@ pub async fn run_chain_state_metrics<
                         // the newly finalized block (see test), so the best block will be updated
                         // after importing anything on the newly finalized branch.
                         metrics.update_top_finalized_block(*block.header.number());
+                        if let Some(hashes) = own_imported_by_level.get(block.header.number()) {
+                            let num_hopeless = hashes.iter().filter(|h| {
+                                if **h == block.header.hash() {
+                                    metrics.increment_own_finalized_blocks();
+                                    return false
+                                }
+                                true
+                            }).count();
+                            metrics.increase_own_hopeless_blocks(num_hopeless as u64);
+                            own_imported_by_level.remove(block.header.number());
+                        }
                     }
                     None => {
                         warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
