@@ -76,6 +76,8 @@ pub trait BabyLiminalExtension {
     type ErrorCode = BabyLiminalError;
 
     /// Directly call `pallet_baby_liminal::store_key`.
+    // IMPORTANT: this must match the extension ID in `extension_ids.rs`! However, because constants
+    // are not inlined before macro processing, we can't use an identifier from another module here.
     #[ink(extension = 41)]
     fn store_key(
         origin: AccountId,
@@ -84,6 +86,8 @@ pub trait BabyLiminalExtension {
     ) -> Result<(), BabyLiminalError>;
 
     /// Directly call `pallet_baby_liminal::verify`.
+    // IMPORTANT: this must match the extension ID in `extension_ids.rs`! However, because constants
+    // are not inlined before macro processing, we can't use an identifier from another module here.
     #[ink(extension = 42)]
     fn verify(
         identifier: VerificationKeyIdentifier,
