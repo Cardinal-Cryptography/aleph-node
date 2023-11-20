@@ -4,10 +4,10 @@ mod chain_spec;
 mod cli;
 mod commands;
 mod executor;
-mod metrics;
 mod resources;
 mod rpc;
 mod service;
+mod transaction_pool;
 
 pub use cli::{Cli, Subcommand};
 pub use executor::ExecutorDispatch;

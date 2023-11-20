@@ -246,7 +246,7 @@ pub struct RateLimiterConfig {
     pub alephbft_bit_rate_per_connection: usize,
 }
 
-pub struct AlephConfig<C, SC> {
+pub struct AlephConfig<C, SC, T> {
     pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
     pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
@@ -269,4 +269,5 @@ pub struct AlephConfig<C, SC> {
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
     pub validator_address_cache: Option<ValidatorAddressCache>,
+    pub transaction_pool_info_provider: T,
 }

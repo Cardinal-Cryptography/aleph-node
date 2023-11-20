@@ -9,6 +9,7 @@ use sc_client_api::Backend;
 use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
+use sp_runtime::OpaqueExtrinsic;
 
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
@@ -22,6 +23,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
+    metrics,
     metrics::run_chain_state_metrics,
     network::{
         address_cache::validator_address_cache_updater,
@@ -53,12 +55,13 @@ pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
         .expect("we just generated this key so everything should work")
 }
 
-pub async fn run_validator_node<C, BE, SC>(aleph_config: AlephConfig<C, SC>)
+pub async fn run_validator_node<C, BE, SC, TP>(aleph_config: AlephConfig<C, SC, TP>)
 where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
+    TP: metrics::TransactionPoolInfoProvider<Extrinsic = OpaqueExtrinsic> + Send + 'static,
 {
     let AlephConfig {
         network,
@@ -83,6 +86,7 @@ where
         rate_limiter_config,
         sync_oracle,
         validator_address_cache,
+        transaction_pool_info_provider,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -152,6 +156,7 @@ where
             client_for_slo_metrics.every_import_notification_stream(),
             client_for_slo_metrics.finality_notification_stream(),
             registry_for_slo_metrics,
+            transaction_pool_info_provider,
         )
         .await;
     });

@@ -25,10 +25,7 @@ hex = { workspace = true }
 hex-literal = { workspace = true }
 libp2p = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync", "macros", "time", "rt-multi-thread"] }
-lru = { workspace = true }
-
-substrate-prometheus-endpoint = { workspace = true }
+async-trait = { workspace = true }
 
 sc-basic-authorship = { workspace = true }
 sc-block-builder = { workspace = true }

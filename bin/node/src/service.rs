@@ -14,7 +14,7 @@ use finality_aleph::{
 };
 use futures::channel::mpsc;
 use log::warn;
-use sc_client_api::{BlockBackend, BlockchainEvents, HeaderBackend};
+use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
@@ -25,7 +25,6 @@ use sc_service::{
     TFullClient, TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
@@ -35,8 +34,8 @@ use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, MAX_BLOCK_SIZE},
     chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::AlephExecutor,
-    metrics::run_metrics,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
+    transaction_pool::TransactionPoolWrapper,
 };
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
@@ -426,20 +425,7 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
-    let client_for_metrics = client.clone();
-    let registry_for_metrics = prometheus_registry.clone();
-    task_manager
-        .spawn_handle()
-        .spawn("aleph-txn-metrics", None, async move {
-            run_metrics(
-                transaction_pool.import_notification_stream(),
-                client_for_metrics.every_import_notification_stream(),
-                client_for_metrics.as_ref(),
-                transaction_pool.as_ref(),
-                registry_for_metrics.clone(),
-            )
-            .await;
-        });
+    let transaction_pool_info_provider = TransactionPoolWrapper::new(transaction_pool.clone());
 
     let aleph_config = AlephConfig {
         network,
@@ -464,6 +450,7 @@ pub fn new_authority(
         rate_limiter_config,
         sync_oracle,
         validator_address_cache,
+        transaction_pool_info_provider,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(
