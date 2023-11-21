@@ -8,12 +8,13 @@ use std::{
 
 use crate::{
     block::{
-        Block, BlockImport, BlockStatus, ChainStatus, Finalizer, Header, Justification,
-        UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification, VerifiedHeader, Verifier,
+        Block, BlockImport, ChainStatus, Finalizer, Header, HeaderVerifier, Justification,
+        JustificationVerifier, UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification,
+        VerifiedHeader,
     },
     session::{SessionBoundaryInfo, SessionId},
     sync::{
-        data::{BranchKnowledge, NetworkData, Request, State},
+        data::{BranchKnowledge, MaybeHeader, NetworkData, Request, State},
         forest::{
             Error as ForestError, ExtensionRequest, Forest,
             InitializationError as ForestInitializationError, Interest,
@@ -76,7 +77,7 @@ where
     I: PeerId,
     J: Justification,
 {
-    pub fn get(&self, id: &BlockId) -> Interest<I> {
+    pub fn get(&self, id: &BlockId) -> Interest<UnverifiedHeaderFor<J>, I> {
         self.forest.request_interest(id)
     }
 }
@@ -201,7 +202,7 @@ where
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
 {
@@ -233,11 +234,19 @@ where
 
 type HandleStateOutput<B, J, V> = (
     HandleStateAction<B, J>,
-    Option<<V as Verifier<J>>::EquivocationProof>,
+    Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
 );
 type HandleOwnBlockOutput<B, J, V> = (
     Vec<ResponseItem<B, J>>,
-    Option<<V as Verifier<J>>::EquivocationProof>,
+    Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
+);
+type HandleRequestOutput<B, J, V> = (
+    Action<B, J>,
+    Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
+);
+type HandleInternalRequestOutput<J, V> = (
+    bool,
+    Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
 );
 
 impl<B, J> HandleStateAction<B, J>
@@ -261,16 +270,17 @@ where
 }
 
 /// What can go wrong when handling a piece of data.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Error<B, J, CS, V, F>
 where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
 {
-    Verifier(V::Error),
+    JustificationVerifier(<V as JustificationVerifier<J>>::Error),
+    HeaderVerifier(<V as HeaderVerifier<J::Header>>::Error),
     ChainStatus(CS::Error),
     Finalizer(F::Error),
     Forest(ForestError),
@@ -279,7 +289,6 @@ where
     MissingJustification,
     BlockNotImportable,
     HeaderNotRequired,
-    MissingFavouriteBlock,
 }
 
 impl<B, J, CS, V, F> Display for Error<B, J, CS, V, F>
@@ -287,13 +296,14 @@ where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         use Error::*;
         match self {
-            Verifier(e) => write!(f, "verifier error: {e}"),
+            JustificationVerifier(e) => write!(f, "justification verifier error: {e}"),
+            HeaderVerifier(e) => write!(f, "header verifier error: {e}"),
             ChainStatus(e) => write!(f, "chain status error: {e}"),
             Finalizer(e) => write!(f, "finalized error: {e}"),
             Forest(e) => write!(f, "forest error: {e}"),
@@ -307,9 +317,6 @@ where
                 write!(f, "cannot import a block that we do not consider required")
             }
             HeaderNotRequired => write!(f, "header was not required, but it should have been"),
-            MissingFavouriteBlock => {
-                write!(f, "the favourite block is not present in the database")
-            }
         }
     }
 }
@@ -319,7 +326,7 @@ where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
 {
     fn from(e: ForestError) -> Self {
@@ -332,7 +339,7 @@ where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
 {
     fn from(e: TrySyncError<B, J, CS>) -> Self {
@@ -349,7 +356,7 @@ where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
 {
     fn from(e: RequestHandlerError<CS::Error>) -> Self {
@@ -363,7 +370,7 @@ where
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
 {
@@ -376,7 +383,7 @@ where
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
     I: PeerId,
     CS: ChainStatus<B, J>,
-    V: Verifier<J>,
+    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
     F: Finalizer<J>,
     BI: BlockImport<B>,
 {
@@ -465,14 +472,17 @@ where
         &mut self,
         block: B,
         own_block: bool,
-    ) -> Result<Option<<V as Verifier<J>>::EquivocationProof>, <Self as HandlerTypes>::Error> {
+    ) -> Result<
+        Option<<V as HeaderVerifier<J::Header>>::EquivocationProof>,
+        <Self as HandlerTypes>::Error,
+    > {
         let VerifiedHeader {
             maybe_equivocation_proof,
             ..
         } = self
             .verifier
             .verify_header(block.header().clone(), own_block)
-            .map_err(Error::Verifier)?;
+            .map_err(Error::HeaderVerifier)?;
         self.block_importer.import_block(block);
         Ok(maybe_equivocation_proof)
     }
@@ -503,16 +513,30 @@ where
     pub fn handle_request(
         &mut self,
         request: Request<J>,
-    ) -> Result<Action<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<HandleRequestOutput<B, J, V>, <Self as HandlerTypes>::Error> {
         let request_handler = RequestHandler::new(&self.chain_status, &self.session_info);
+        let mut equivocation_proof = None;
 
         Ok(match request_handler.action(request)? {
-            Action::RequestBlock(id)
-                if !self.forest.update_block_identifier(&id, None, true)? =>
+            Action::RequestBlock(maybe_header)
+                if match &maybe_header {
+                    MaybeHeader::Header(header) => {
+                        let VerifiedHeader {
+                            header,
+                            maybe_equivocation_proof,
+                        } = self
+                            .verifier
+                            .verify_header(header.clone(), false)
+                            .map_err(Error::HeaderVerifier)?;
+                        equivocation_proof = maybe_equivocation_proof;
+                        !self.forest.update_header(&header, None, true)?
+                    }
+                    MaybeHeader::Id(id) => !self.forest.update_block_identifier(id, None, true)?,
+                } =>
             {
-                Action::Noop
+                (Action::Noop, equivocation_proof)
             }
-            action => action,
+            action => (action, equivocation_proof),
         })
     }
 
@@ -527,24 +551,25 @@ where
         state: State<J>,
     ) -> Result<Action<B, J>, <Self as HandlerTypes>::Error> {
         let request = Request::new(
-            self.forest.favourite_block(),
+            MaybeHeader::Header(self.forest.favourite_block().into_unverified()),
             BranchKnowledge::TopImported(state.favourite_block().id()),
             state.clone(),
         );
+        // No need to check for equivocations, as this is a header we already checked.
         match self.handle_request(request) {
             // Either we were trying to send too far in the future
             // or our favourite is not a descendant of theirs.
             // Either way, at least try sending some justifications.
-            Ok(Action::Noop)
+            Ok((Action::Noop, _))
             | Err(Error::RequestHandlerError(RequestHandlerError::RootMismatch)) => {
                 let request = Request::new(
-                    state.top_justification().header().id(),
+                    MaybeHeader::Header(state.top_justification().header().clone()),
                     BranchKnowledge::TopImported(state.top_justification().header().id()),
                     state,
                 );
-                self.handle_request(request)
+                self.handle_request(request).map(|(action, _)| action)
             }
-            result => result,
+            result => result.map(|(action, _)| action),
         }
     }
 
@@ -558,7 +583,7 @@ where
         let justification = self
             .verifier
             .verify_justification(justification)
-            .map_err(Error::Verifier)?;
+            .map_err(Error::JustificationVerifier)?;
         let new_highest = self
             .forest
             .update_justification(justification, maybe_peer)?;
@@ -639,7 +664,7 @@ where
                     let h = match self
                         .verifier
                         .verify_header(h, false)
-                        .map_err(Error::Verifier)
+                        .map_err(Error::HeaderVerifier)
                     {
                         Ok(VerifiedHeader {
                             header: h,
@@ -734,7 +759,7 @@ where
         } = self
             .verifier
             .verify_header(state.favourite_block(), false)
-            .map_err(Error::Verifier)?;
+            .map_err(Error::HeaderVerifier)?;
         let action = match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
             None => HandleStateAction::maybe_extend(
@@ -767,21 +792,12 @@ where
 
     /// The current state of our database.
     pub fn state(&self) -> Result<State<J>, <Self as HandlerTypes>::Error> {
-        use BlockStatus::*;
         let top_justification = self
             .chain_status
             .top_finalized()
             .map_err(Error::ChainStatus)?
             .into_unverified();
-        let favourite_block = match self
-            .chain_status
-            .status_of(self.forest.favourite_block())
-            .map_err(Error::ChainStatus)?
-        {
-            Justified(justification) => justification.header().clone().into_unverified(),
-            Present(header) => header.into_unverified(),
-            Unknown => return Err(Error::MissingFavouriteBlock),
-        };
+        let favourite_block = self.forest.favourite_block().into_unverified();
         Ok(State::new(top_justification, favourite_block))
     }
 
@@ -794,7 +810,8 @@ where
 
     /// Handle an internal block request.
     /// Returns `true` if this was the first time something indicated interest in this block.
-    pub fn handle_internal_request(
+    // TODO(A0-3494): Only needed for compatibility.
+    pub fn handle_legacy_internal_request(
         &mut self,
         id: &BlockId,
     ) -> Result<bool, <Self as HandlerTypes>::Error> {
@@ -803,8 +820,26 @@ where
         Ok(should_request)
     }
 
+    /// Handle an internal block request.
+    /// Returns `true` if this was the first time something indicated interest in this block.
+    pub fn handle_internal_request(
+        &mut self,
+        header: B::UnverifiedHeader,
+    ) -> Result<HandleInternalRequestOutput<J, V>, <Self as HandlerTypes>::Error> {
+        let VerifiedHeader {
+            header,
+            maybe_equivocation_proof,
+        } = self
+            .verifier
+            .verify_header(header, false)
+            .map_err(Error::HeaderVerifier)?;
+        let should_request = self.forest.update_header(&header, None, true)?;
+
+        Ok((should_request, maybe_equivocation_proof))
+    }
+
     /// Returns the extension request we could be making right now.
-    pub fn extension_request(&self) -> ExtensionRequest<I> {
+    pub fn extension_request(&self) -> ExtensionRequest<J::Header, I> {
         self.forest.extension_request()
     }
 
@@ -832,7 +867,10 @@ mod tests {
         },
         session::{SessionBoundaryInfo, SessionId},
         sync::{
-            data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
+            data::{
+                BranchKnowledge::*, MaybeHeader, NetworkData, Request, ResponseItem, ResponseItems,
+                State,
+            },
             forest::{ExtensionRequest, Interest},
             handler::Action,
             Justification, MockPeerId,
@@ -884,21 +922,26 @@ mod tests {
         handler: &TestHandler,
         top: &BlockId,
         bottom: &BlockId,
-        know_most: HashSet<MockPeerId>,
+        expected_know_most: HashSet<MockPeerId>,
     ) {
-        assert_eq!(
-            handler.interest_provider().get(bottom),
-            Interest::Uninterested,
+        assert!(
+            matches!(
+                handler.interest_provider().get(bottom),
+                Interest::Uninterested
+            ),
             "should not be interested in the bottom"
         );
-        assert_eq!(
-            handler.interest_provider().get(top),
+        match handler.interest_provider().get(top) {
             Interest::Required {
+                header: _,
                 know_most,
-                branch_knowledge: LowestId(bottom.clone()),
-            },
-            "should require the top"
-        );
+                branch_knowledge,
+            } => {
+                assert_eq!(branch_knowledge, LowestId(bottom.clone()));
+                assert_eq!(know_most, expected_know_most);
+            }
+            interest => panic!("expected top to be required, got {:?}", interest),
+        }
     }
 
     fn grow_light_branch_till(
@@ -918,20 +961,27 @@ mod tests {
         peer_id: MockPeerId,
     ) -> Vec<MockHeader> {
         let branch: Vec<_> = bottom.random_branch().take(length).collect();
-        let top = branch.last().expect("branch should not be empty").id();
+        let top = branch.last().expect("branch should not be empty");
 
-        assert!(
-            handler.handle_internal_request(&top).expect("should work"),
-            "should be newly required"
-        );
-        assert_eq!(
-            handler.interest_provider().get(&top),
+        let (newly_required, equivocation) = handler
+            .handle_internal_request(top.clone())
+            .expect("should work");
+        assert!(equivocation.is_none());
+        assert!(newly_required, "should be newly required");
+        match handler.interest_provider().get(&top.id()) {
             Interest::Required {
-                know_most: HashSet::new(),
-                branch_knowledge: LowestId(top.clone()),
-            },
-            "should be required"
-        );
+                header: _,
+                know_most,
+                branch_knowledge,
+            } => {
+                assert_eq!(
+                    branch_knowledge,
+                    LowestId(top.parent_id().expect("there was a header"))
+                );
+                assert!(know_most.is_empty());
+            }
+            interest => panic!("expected top to be required, got {:?}", interest),
+        }
 
         let (new_highest_justified, _, maybe_error) = handler.handle_request_response(
             branch
@@ -1202,7 +1252,7 @@ mod tests {
         }
         let (_, _, maybe_error) = handler.handle_request_response(response, 7);
         match maybe_error {
-            Some(Error::Verifier(_)) => (),
+            Some(Error::HeaderVerifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
     }
@@ -1406,7 +1456,10 @@ mod tests {
 
         // check that still not finalized
         assert!(
-            handler.interest_provider().get(&top) != Interest::Uninterested,
+            !matches!(
+                handler.interest_provider().get(&top),
+                Interest::Uninterested
+            ),
             "should still be interested"
         );
 
@@ -1416,9 +1469,11 @@ mod tests {
         }
 
         // check if dangling branch was pruned
-        assert_eq!(
-            handler.interest_provider().get(&top),
-            Interest::Uninterested,
+        assert!(
+            matches!(
+                handler.interest_provider().get(&top),
+                Interest::Uninterested
+            ),
             "should be uninterested"
         );
     }
@@ -1460,14 +1515,17 @@ mod tests {
         }
 
         // check that the fork is still interesting
-        assert_eq!(
-            handler.interest_provider().get(&fork_top),
+        match handler.interest_provider().get(&fork_top) {
             Interest::Required {
-                know_most: HashSet::from_iter(vec![fork_peer]),
-                branch_knowledge: LowestId(fork_child.id()),
-            },
-            "should be required"
-        );
+                header: _,
+                know_most,
+                branch_knowledge,
+            } => {
+                assert_eq!(branch_knowledge, LowestId(fork_child.id()));
+                assert_eq!(know_most, HashSet::from_iter(vec![fork_peer]));
+            }
+            interest => panic!("expected fork top to be required, got {:?}", interest),
+        }
 
         // import fork_child that connects the fork to fork_bottom,
         // which is at the same height as an already finalized block
@@ -1487,9 +1545,11 @@ mod tests {
         }
 
         // check that the fork is pruned
-        assert_eq!(
-            handler.interest_provider().get(&fork_top),
-            Interest::Uninterested,
+        assert!(
+            matches!(
+                handler.interest_provider().get(&fork_top),
+                Interest::Uninterested
+            ),
             "should be uninterested"
         );
     }
@@ -1535,21 +1595,26 @@ mod tests {
         }
 
         // check if the bottom part of the fork was pruned
-        assert_eq!(
-            handler.interest_provider().get(&further_fork_bottom),
-            Interest::Uninterested,
+        assert!(
+            matches!(
+                handler.interest_provider().get(&further_fork_bottom),
+                Interest::Uninterested
+            ),
             "should be uninterested"
         );
 
         // check that the fork is still interesting
-        assert_eq!(
-            handler.interest_provider().get(&fork_top),
+        match handler.interest_provider().get(&fork_top) {
             Interest::Required {
-                know_most: HashSet::from_iter(vec![fork_peer]),
-                branch_knowledge: LowestId(further_fork_child.id()),
-            },
-            "should be required"
-        );
+                header: _,
+                know_most,
+                branch_knowledge,
+            } => {
+                assert_eq!(branch_knowledge, LowestId(further_fork_child.id()));
+                assert_eq!(know_most, HashSet::from_iter(vec![fork_peer]));
+            }
+            interest => panic!("expected fork top to be required, got {:?}", interest),
+        }
 
         // check that further_fork_child is higher than top finalized
         assert!(
@@ -1581,9 +1646,11 @@ mod tests {
         }
 
         // check that the fork is pruned
-        assert_eq!(
-            handler.interest_provider().get(&fork_top),
-            Interest::Uninterested,
+        assert!(
+            matches!(
+                handler.interest_provider().get(&fork_top),
+                Interest::Uninterested
+            ),
             "should be uninterested"
         );
     }
@@ -1625,23 +1692,23 @@ mod tests {
                 syncing_handler.handle_state_response(justification, maybe_justification, peer_id);
             assert!(maybe_error.is_none(), "should work");
             assert!(new_info, "should want to request");
-            let branch_knowledge = match syncing_handler.extension_request() {
+            let (header, branch_knowledge) = match syncing_handler.extension_request() {
                 ExtensionRequest::HighestJustified {
-                    id,
+                    header,
                     branch_knowledge,
                     ..
                 } => {
-                    assert_eq!(id, target_id, "should want to request target_id");
-                    branch_knowledge
+                    assert_eq!(header.id(), target_id, "should want to request target_id");
+                    (header, branch_knowledge)
                 }
                 _ => panic!("should want to extend"),
             };
             let state = syncing_handler.state().expect("should work");
-            let request = Request::new(target_id.clone(), branch_knowledge, state);
+            let request = Request::new(MaybeHeader::Header(header), branch_knowledge, state);
 
             // peer responds
             let response_items = match handler.handle_request(request).expect("should work") {
-                Action::Response(items) => items,
+                (Action::Response(items), None) => items,
                 _ => panic!("should prepare response"),
             };
 
@@ -1893,14 +1960,14 @@ mod tests {
             header,
         );
         match handler.handle_state(state, peer) {
-            Err(Error::Verifier(_)) => (),
+            Err(Error::HeaderVerifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
         let mut header = MockHeader::random_parentless(1000).random_child();
         header.invalidate();
         let state = State::new(MockJustification::for_header(header.clone()), header);
         match handler.handle_state(state, peer) {
-            Err(Error::Verifier(_)) => (),
+            Err(Error::HeaderVerifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
     }
@@ -1997,11 +2064,15 @@ mod tests {
 
         let (justifications, _) = setup_request_tests(&mut handler, &mut backend, 100, 100);
 
-        let requested_id = justifications.last().unwrap().header().id();
-        let request = Request::new(requested_id.clone(), LowestId(requested_id), initial_state);
+        let requested_header = justifications.last().unwrap().header();
+        let request = Request::new(
+            MaybeHeader::Header(requested_header.clone()),
+            LowestId(requested_header.id()),
+            initial_state,
+        );
 
         match handler.handle_request(request).expect("correct request") {
-            Action::Noop => {}
+            (Action::Noop, None) => {}
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
@@ -2034,11 +2105,15 @@ mod tests {
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
 
-        let requested_id = blocks[30].clone().id();
+        let requested_header = blocks[30].header().clone();
         let lowest_id = blocks[25].clone().id();
 
         // request block #31, with the last known header equal to block #26
-        let request = Request::new(requested_id, LowestId(lowest_id), initial_state);
+        let request = Request::new(
+            MaybeHeader::Header(requested_header),
+            LowestId(lowest_id),
+            initial_state,
+        );
 
         let expected_response_items = vec![
             J(1),
@@ -2100,7 +2175,7 @@ mod tests {
             B(31),
         ];
         match handler.handle_request(request).expect("correct request") {
-            Action::Response(response_items) => {
+            (Action::Response(response_items), None) => {
                 assert_eq!(
                     SimplifiedItem::from_response_items(response_items),
                     expected_response_items
@@ -2111,19 +2186,25 @@ mod tests {
     }
 
     #[test]
-    fn handles_request_with_unknown_id() {
+    fn handles_request_with_unknown_header() {
         let (mut handler, mut backend, _keep, _genesis) = setup();
         setup_request_tests(&mut handler, &mut backend, 100, 20);
 
         let header = MockHeader::random_parentless(105);
         let state = State::new(MockJustification::for_header(header.clone()), header);
-        let requested_id = BlockId::new_random(120);
+        let requested_header = BlockId::new_random(119).random_child();
         let lowest_id = BlockId::new_random(110);
 
-        let request = Request::new(requested_id.clone(), LowestId(lowest_id), state);
+        let request = Request::new(
+            MaybeHeader::Header(requested_header.clone()),
+            LowestId(lowest_id),
+            state,
+        );
 
         match handler.handle_request(request).expect("correct request") {
-            Action::RequestBlock(id) => assert_eq!(id, requested_id),
+            (Action::RequestBlock(MaybeHeader::Header(header)), None) => {
+                assert_eq!(header, requested_header)
+            }
             other_action => panic!("expected a response with justifications, got {other_action:?}"),
         }
     }
@@ -2136,11 +2217,15 @@ mod tests {
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
 
-        let requested_id = blocks[30].clone().id();
+        let requested_header = blocks[30].header().clone();
         let top_imported = blocks[25].clone().id();
 
         // request block #31, with the top imported block equal to block #26
-        let request = Request::new(requested_id, TopImported(top_imported), initial_state);
+        let request = Request::new(
+            MaybeHeader::Header(requested_header),
+            TopImported(top_imported),
+            initial_state,
+        );
 
         let expected_response_items = vec![
             J(1),
@@ -2161,7 +2246,7 @@ mod tests {
         ];
 
         match handler.handle_request(request).expect("correct request") {
-            Action::Response(response_items) => {
+            (Action::Response(response_items), None) => {
                 assert_eq!(
                     SimplifiedItem::from_response_items(response_items),
                     expected_response_items
@@ -2428,8 +2513,18 @@ mod tests {
         let _ = handler.state().expect("state works");
         let headers = import_branch(&mut backend, 2);
 
-        assert!(handler.handle_internal_request(&headers[1].id()).unwrap());
-        assert!(!handler.handle_internal_request(&headers[1].id()).unwrap());
+        assert!(
+            handler
+                .handle_internal_request(headers[1].clone())
+                .unwrap()
+                .0
+        );
+        assert!(
+            !handler
+                .handle_internal_request(headers[1].clone())
+                .unwrap()
+                .0
+        );
     }
 
     #[test]

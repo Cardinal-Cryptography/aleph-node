@@ -82,7 +82,7 @@ pub async fn prepare_validators<S: SignedConnectionApi + AuthorRpc>(
     accounts: &Accounts,
 ) -> anyhow::Result<()> {
     connection
-        .batch_transfer(
+        .batch_transfer_keep_alive(
             &accounts.stash_accounts,
             MIN_VALIDATOR_BOND + TOKEN,
             TxStatus::Finalized,
