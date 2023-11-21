@@ -1,10 +1,9 @@
 use frame_support::{pallet_prelude::Weight, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
-use pallet_baby_liminal::{
-    Config as PalletConfig, Error as PalletError, Pallet, VerificationKeyIdentifier,
-};
+use pallet_baby_liminal::{Config as PalletConfig, Error as PalletError, Pallet};
 use pallet_contracts::Config as ContractsConfig;
-use sp_std::vec::Vec;
+
+use crate::args::{StoreKeyArgs, VerifyArgs};
 
 /// Generalized pallet executor, that can be mocked for testing purposes.
 pub trait BackendExecutor {
@@ -13,16 +12,10 @@ pub trait BackendExecutor {
     /// context it will be enough to instantiate it with `()`.
     type ErrorGenericType;
 
-    fn store_key(
-        depositor: AccountId32,
-        identifier: VerificationKeyIdentifier,
-        key: Vec<u8>,
-    ) -> Result<(), PalletError<Self::ErrorGenericType>>;
+    fn store_key(args: StoreKeyArgs) -> Result<(), PalletError<Self::ErrorGenericType>>;
 
     fn verify(
-        verification_key_identifier: VerificationKeyIdentifier,
-        proof: Vec<u8>,
-        public_input: Vec<u8>,
+        args: VerifyArgs,
     ) -> Result<(), (PalletError<Self::ErrorGenericType>, Option<Weight>)>;
 }
 
@@ -33,19 +26,17 @@ where
 {
     type ErrorGenericType = Runtime;
 
-    fn store_key(
-        depositor: AccountId32,
-        identifier: VerificationKeyIdentifier,
-        key: Vec<u8>,
-    ) -> Result<(), PalletError<Self::ErrorGenericType>> {
-        Pallet::<Runtime>::bare_store_key(Some(depositor).into(), identifier, key)
+    fn store_key(args: StoreKeyArgs) -> Result<(), PalletError<Self::ErrorGenericType>> {
+        Pallet::<Runtime>::bare_store_key(Some(args.depositor).into(), args.identifier, args.key)
     }
 
     fn verify(
-        verification_key_identifier: VerificationKeyIdentifier,
-        proof: Vec<u8>,
-        public_input: Vec<u8>,
+        args: VerifyArgs,
     ) -> Result<(), (PalletError<Self::ErrorGenericType>, Option<Weight>)> {
-        Pallet::<Runtime>::bare_verify(verification_key_identifier, proof, public_input)
+        Pallet::<Runtime>::bare_verify(
+            args.verification_key_identifier,
+            args.proof,
+            args.public_input,
+        )
     }
 }

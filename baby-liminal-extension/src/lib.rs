@@ -13,6 +13,7 @@ compile_error!("Features `ink` and `runtime` are mutually exclusive and cannot b
 
 // ------ Common stuff -----------------------------------------------------------------------------
 
+pub mod args;
 pub mod extension_ids;
 pub mod status_codes;
 

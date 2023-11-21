@@ -8,10 +8,12 @@ repository = "https://github.com/aleph-zero-foundation/aleph-node"
 license = "Apache-2.0"
 
 [dependencies]
+# Common dependencies:
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+
 # Frontend dependencies:
 
 ink = { version = "4.3.0", default-features = false, optional = true }
-scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"], optional = true }
 scale-info = { version = "2.6", default-features = false, features = ["derive"], optional = true }
 
 # Backend dependencies:
@@ -41,6 +43,7 @@ runtime = [
 runtime-std = [
     "runtime",
     "std",
+    "scale/std",
     "frame-support/std",
     "frame-system/std",
     "pallet-contracts/std",
@@ -52,7 +55,6 @@ runtime-std = [
 # the extension.
 ink = [
     "dep:ink",
-    "scale",
 ]
 ink-std = [
     "ink",
