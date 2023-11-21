@@ -14,7 +14,10 @@ use crate::{
     status_codes::{STORE_KEY_SUCCESS, VERIFY_SUCCESS},
 };
 
+mod environment;
 mod executor;
+
+type ByteCount = u32;
 
 /// The actual implementation of the chain extension. This is the code on the runtime side that will
 /// be executed when the chain extension is called.
