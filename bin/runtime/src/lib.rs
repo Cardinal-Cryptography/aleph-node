@@ -798,24 +798,16 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
             ProxyType::Any => true,
             ProxyType::NonTransfer => matches!(
                 c,
-                RuntimeCall::System(..)
-                    | RuntimeCall::Scheduler(..)
-                    | RuntimeCall::Timestamp(..)
-                    | RuntimeCall::Staking(..)
+                RuntimeCall::Staking(..)
                     | RuntimeCall::Session(..)
-                    | RuntimeCall::Aleph(..)
-                    | RuntimeCall::Elections(..)
                     | RuntimeCall::Treasury(..)
                     | RuntimeCall::Vesting(pallet_vesting::Call::vest { .. })
                     | RuntimeCall::Vesting(pallet_vesting::Call::vest_other { .. })
                     | RuntimeCall::Vesting(pallet_vesting::Call::merge_schedules { .. })
                     | RuntimeCall::Utility(..)
                     | RuntimeCall::Multisig(..)
-                    | RuntimeCall::Sudo(..)
-                    | RuntimeCall::Contracts(..)
                     | RuntimeCall::NominationPools(..)
                     | RuntimeCall::Identity(..)
-                    | RuntimeCall::CommitteeManagement(..)
                     | RuntimeCall::Proxy(..)
             ),
             ProxyType::Staking => {
