@@ -7,6 +7,7 @@ use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
     Result as ChainExtensionResult, RetVal,
 };
+use sp_std::marker::PhantomData;
 
 use crate::{
     backend::executor::MinimalRuntime,
@@ -22,7 +23,15 @@ type ByteCount = u32;
 /// The actual implementation of the chain extension. This is the code on the runtime side that will
 /// be executed when the chain extension is called.
 pub struct BabyLiminalChainExtension<Runtime> {
-    _config: std::marker::PhantomData<Runtime>,
+    _config: PhantomData<Runtime>,
+}
+
+impl<Runtime> Default for BabyLiminalChainExtension<Runtime> {
+    fn default() -> Self {
+        Self {
+            _config: PhantomData,
+        }
+    }
 }
 
 impl<Runtime: MinimalRuntime> ChainExtension<Runtime> for BabyLiminalChainExtension<Runtime>
