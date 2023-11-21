@@ -1,12 +1,8 @@
-use frame_support::{
-    sp_runtime::{app_crypto::UncheckedFrom, DispatchError},
-    weights::Weight,
-};
-use frame_system::Config as SystemConfig;
+use frame_support::{sp_runtime::DispatchError, weights::Weight};
 use pallet_contracts::chain_extension::{
     BufInBufOutState, ChargedAmount, Environment as SubstrateEnvironment, Ext,
 };
-use scale::{Decode, MaxEncodedLen};
+use scale::Decode;
 use sp_std::vec::Vec;
 
 use super::ByteCount;
@@ -26,7 +22,7 @@ pub trait Environment {
     fn in_len(&self) -> ByteCount;
     fn read(&self, max_len: u32) -> Result<Vec<u8>, DispatchError>;
     // It has to be `mut`, because there's a leftover in pallet contracts.
-    fn read_as<T: Decode + MaxEncodedLen>(&mut self) -> Result<T, DispatchError>;
+    fn read_as_unbounded<T: Decode>(&mut self, len: u32) -> Result<T, DispatchError>;
     // It has to be `mut`, because there's a leftover in pallet contracts.
     fn write(
         &mut self,
@@ -40,10 +36,7 @@ pub trait Environment {
 }
 
 /// Transparent delegation.
-impl<E: Ext> Environment for SubstrateEnvironment<'_, '_, E, BufInBufOutState>
-where
-    <E::T as SystemConfig>::AccountId: UncheckedFrom<<E::T as SystemConfig>::Hash> + AsRef<[u8]>,
-{
+impl<E: Ext> Environment for SubstrateEnvironment<'_, '_, E, BufInBufOutState> {
     type ChargedAmount = ChargedAmount;
 
     fn in_len(&self) -> ByteCount {
@@ -54,8 +47,8 @@ where
         self.read(max_len)
     }
 
-    fn read_as<T: Decode + MaxEncodedLen>(&mut self) -> Result<T, DispatchError> {
-        self.read_as()
+    fn read_as_unbounded<T: Decode>(&mut self, len: u32) -> Result<T, DispatchError> {
+        self.read_as_unbounded(len)
     }
 
     fn write(

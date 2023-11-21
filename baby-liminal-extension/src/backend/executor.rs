@@ -1,9 +1,13 @@
 use frame_support::{pallet_prelude::Weight, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
-use pallet_baby_liminal::{Config as PalletConfig, Error as PalletError, Pallet};
+use pallet_baby_liminal::{Config as BabyLiminalConfig, Error as PalletError, Pallet};
 use pallet_contracts::Config as ContractsConfig;
 
 use crate::args::{StoreKeyArgs, VerifyArgs};
+
+/// Minimal runtime configuration required by the chain extension executor.
+pub trait MinimalRuntime: SystemConfig + BabyLiminalConfig + ContractsConfig {}
+impl<R: SystemConfig + BabyLiminalConfig + ContractsConfig> MinimalRuntime for R {}
 
 /// Generalized pallet executor, that can be mocked for testing purposes.
 pub trait BackendExecutor {
@@ -20,7 +24,7 @@ pub trait BackendExecutor {
 }
 
 /// Default implementation for the chain extension mechanics.
-impl<Runtime: SystemConfig + PalletConfig + ContractsConfig> BackendExecutor for Runtime
+impl<Runtime: MinimalRuntime> BackendExecutor for Runtime
 where
     <Runtime as SystemConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {

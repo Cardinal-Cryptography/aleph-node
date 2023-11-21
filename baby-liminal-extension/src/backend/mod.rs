@@ -1,15 +1,15 @@
+use environment::Environment as EnvironmentT;
 use executor::BackendExecutor as BackendExecutorT;
-use frame_support::pallet_prelude::DispatchError;
+use frame_support::{pallet_prelude::DispatchError, sp_runtime::AccountId32};
+use frame_system::Config as SystemConfig;
 use log::error;
-use pallet_contracts::{
-    chain_extension::{
-        BufInBufOutState, ChainExtension, Environment, Ext, InitState,
-        Result as ChainExtensionResult, RetVal,
-    },
-    Config as ContractsConfig,
+use pallet_contracts::chain_extension::{
+    ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
+    Result as ChainExtensionResult, RetVal,
 };
 
 use crate::{
+    backend::executor::MinimalRuntime,
     extension_ids::{STORE_KEY_EXT_ID, VERIFY_EXT_ID},
     status_codes::{STORE_KEY_SUCCESS, VERIFY_SUCCESS},
 };
@@ -21,22 +21,23 @@ type ByteCount = u32;
 
 /// The actual implementation of the chain extension. This is the code on the runtime side that will
 /// be executed when the chain extension is called.
-pub struct BabyLiminalChainExtension<Runtime, BackendExecutor> {
-    _config: std::marker::PhantomData<(Runtime, BackendExecutor)>,
+pub struct BabyLiminalChainExtension<Runtime> {
+    _config: std::marker::PhantomData<Runtime>,
 }
 
-impl<Runtime: ContractsConfig, BackendExecutor: BackendExecutorT> ChainExtension<Runtime>
-    for BabyLiminalChainExtension<Runtime, BackendExecutor>
+impl<Runtime: MinimalRuntime> ChainExtension<Runtime> for BabyLiminalChainExtension<Runtime>
+where
+    <Runtime as SystemConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
     fn call<E: Ext<T = Runtime>>(
         &mut self,
-        env: Environment<E, InitState>,
+        env: SubstrateEnvironment<E, InitState>,
     ) -> ChainExtensionResult<RetVal> {
         let func_id = env.func_id() as u32;
 
         match func_id {
-            STORE_KEY_EXT_ID => Self::store_key(env.buf_in_buf_out()),
-            VERIFY_EXT_ID => Self::verify(env.buf_in_buf_out()),
+            STORE_KEY_EXT_ID => Self::store_key::<Runtime, _>(env.buf_in_buf_out()),
+            VERIFY_EXT_ID => Self::verify::<Runtime, _>(env.buf_in_buf_out()),
             _ => {
                 error!("Called an unregistered `func_id`: {func_id}");
                 Err(DispatchError::Other("Called an unregistered `func_id`"))
@@ -45,12 +46,13 @@ impl<Runtime: ContractsConfig, BackendExecutor: BackendExecutorT> ChainExtension
     }
 }
 
-impl<Runtime: ContractsConfig, BackendExecutor: BackendExecutorT>
-    BabyLiminalChainExtension<Runtime, BackendExecutor>
+impl<Runtime: MinimalRuntime> BabyLiminalChainExtension<Runtime>
+where
+    <Runtime as SystemConfig>::RuntimeOrigin: From<Option<AccountId32>>,
 {
     /// Handle `store_key` chain extension call.
-    pub fn store_key(
-        mut env: Environment<impl Ext<T = Runtime>, BufInBufOutState>,
+    pub fn store_key<BackendExecutor: BackendExecutorT, Environment: EnvironmentT>(
+        mut env: Environment,
     ) -> ChainExtensionResult<RetVal> {
         // todo: charge weight, validate args, handle errors
         let args = env.read_as_unbounded(env.in_len())?;
@@ -61,8 +63,8 @@ impl<Runtime: ContractsConfig, BackendExecutor: BackendExecutorT>
     }
 
     /// Handle `verify` chain extension call.
-    pub fn verify(
-        mut env: Environment<impl Ext<T = Runtime>, BufInBufOutState>,
+    pub fn verify<BackendExecutor: BackendExecutorT, Environment: EnvironmentT>(
+        mut env: Environment,
     ) -> ChainExtensionResult<RetVal> {
         // todo: charge weight, validate args, handle errors
         let args = env.read_as_unbounded(env.in_len())?;
