@@ -6,9 +6,8 @@ pub mod api {
     mod root_mod {
         pub use super::*;
     }
-    pub static PALLETS: [&str; 23usize] = [
+    pub static PALLETS: [&str; 22usize] = [
         "System",
-        "RandomnessCollectiveFlip",
         "Scheduler",
         "Aura",
         "Timestamp",
@@ -1123,16 +1122,19 @@ pub mod api {
                     &self,
                 ) -> ::subxt::runtime_api::Payload<
                     types::NextSessionAuraAuthorities,
-                    ::std::vec::Vec<runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public>,
+                    ::std::vec::Vec<(
+                        ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
+                        runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public,
+                    )>,
                 > {
                     ::subxt::runtime_api::Payload::new_static(
                         "AlephSessionApi",
                         "next_session_aura_authorities",
                         types::NextSessionAuraAuthorities {},
                         [
-                            144u8, 15u8, 188u8, 117u8, 66u8, 85u8, 8u8, 194u8, 120u8, 121u8, 78u8,
-                            164u8, 143u8, 207u8, 216u8, 59u8, 100u8, 242u8, 169u8, 81u8, 126u8,
-                            73u8, 69u8, 191u8, 76u8, 228u8, 242u8, 24u8, 78u8, 59u8, 221u8, 213u8,
+                            47u8, 107u8, 191u8, 143u8, 148u8, 5u8, 53u8, 209u8, 145u8, 52u8, 115u8,
+                            201u8, 195u8, 62u8, 201u8, 160u8, 32u8, 72u8, 94u8, 43u8, 149u8, 29u8,
+                            136u8, 214u8, 49u8, 145u8, 173u8, 216u8, 237u8, 120u8, 175u8, 228u8,
                         ],
                     )
                 }
@@ -1742,11 +1744,6 @@ pub mod api {
         pub fn system(&self) -> system::storage::StorageApi {
             system::storage::StorageApi
         }
-        pub fn randomness_collective_flip(
-            &self,
-        ) -> randomness_collective_flip::storage::StorageApi {
-            randomness_collective_flip::storage::StorageApi
-        }
         pub fn scheduler(&self) -> scheduler::storage::StorageApi {
             scheduler::storage::StorageApi
         }
@@ -1874,9 +1871,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                220u8, 197u8, 173u8, 180u8, 203u8, 60u8, 215u8, 204u8, 158u8, 238u8, 123u8, 250u8,
-                84u8, 25u8, 213u8, 47u8, 29u8, 19u8, 242u8, 178u8, 103u8, 218u8, 119u8, 87u8,
-                217u8, 75u8, 46u8, 136u8, 175u8, 0u8, 233u8, 187u8,
+                148u8, 190u8, 200u8, 150u8, 203u8, 228u8, 90u8, 163u8, 7u8, 188u8, 190u8, 218u8,
+                152u8, 130u8, 105u8, 120u8, 242u8, 218u8, 203u8, 83u8, 31u8, 8u8, 255u8, 248u8,
+                80u8, 114u8, 72u8, 0u8, 104u8, 255u8, 217u8, 0u8,
             ]
     }
     pub mod system {
@@ -2907,41 +2904,6 @@ pub mod api {
                             116u8, 33u8, 2u8, 170u8, 181u8, 147u8, 171u8, 169u8, 167u8, 227u8,
                             41u8, 144u8, 11u8, 236u8, 82u8, 100u8, 74u8, 60u8, 184u8, 72u8, 169u8,
                             90u8, 208u8, 135u8, 15u8, 117u8, 10u8, 123u8, 128u8, 193u8, 29u8, 70u8,
-                        ],
-                    )
-                }
-            }
-        }
-    }
-    pub mod randomness_collective_flip {
-        use super::{root_mod, runtime_types};
-        pub mod storage {
-            use super::runtime_types;
-            pub struct StorageApi;
-            impl StorageApi {
-                #[doc = " Series of block headers from the last 81 blocks that acts as random seed material. This"]
-                #[doc = " is arranged as a ring buffer with `block_number % 81` being the index into the `Vec` of"]
-                #[doc = " the oldest hash."]
-                pub fn random_material(
-                    &self,
-                ) -> ::subxt::storage::address::Address<
-                    ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::bounded_collections::bounded_vec::BoundedVec<
-                        ::subxt::utils::H256,
-                    >,
-                    ::subxt::storage::address::Yes,
-                    ::subxt::storage::address::Yes,
-                    (),
-                > {
-                    ::subxt::storage::address::Address::new_static(
-                        "RandomnessCollectiveFlip",
-                        "RandomMaterial",
-                        vec![],
-                        [
-                            195u8, 232u8, 244u8, 162u8, 110u8, 137u8, 66u8, 57u8, 51u8, 221u8,
-                            143u8, 38u8, 51u8, 183u8, 105u8, 245u8, 175u8, 13u8, 33u8, 192u8, 53u8,
-                            16u8, 161u8, 76u8, 219u8, 177u8, 144u8, 192u8, 96u8, 166u8, 117u8,
-                            247u8,
                         ],
                     )
                 }
@@ -8850,9 +8812,10 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            31u8, 115u8, 232u8, 160u8, 131u8, 153u8, 226u8, 102u8, 201u8, 92u8,
-                            138u8, 30u8, 138u8, 46u8, 72u8, 110u8, 10u8, 119u8, 210u8, 153u8, 57u8,
-                            170u8, 223u8, 127u8, 247u8, 210u8, 64u8, 8u8, 62u8, 100u8, 9u8, 237u8,
+                            135u8, 167u8, 174u8, 250u8, 159u8, 174u8, 148u8, 238u8, 174u8, 73u8,
+                            94u8, 82u8, 156u8, 147u8, 51u8, 18u8, 69u8, 21u8, 102u8, 57u8, 242u8,
+                            253u8, 144u8, 53u8, 194u8, 10u8, 247u8, 242u8, 169u8, 157u8, 133u8,
+                            77u8,
                         ],
                     )
                 }
