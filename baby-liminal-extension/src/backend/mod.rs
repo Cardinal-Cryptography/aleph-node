@@ -1,3 +1,4 @@
+use executor::BackendExecutor as BackendExecutorT;
 use frame_support::pallet_prelude::DispatchError;
 use log::error;
 use pallet_contracts::{
@@ -9,10 +10,11 @@ use pallet_contracts::{
 };
 
 use crate::{
-    backend_executor::BackendExecutor as BackendExecutorT,
     extension_ids::{STORE_KEY_EXT_ID, VERIFY_EXT_ID},
     status_codes::{STORE_KEY_SUCCESS, VERIFY_SUCCESS},
 };
+
+mod executor;
 
 /// The actual implementation of the chain extension. This is the code on the runtime side that will
 /// be executed when the chain extension is called.

@@ -1046,6 +1046,7 @@ dependencies = [
  "log",
  "pallet-baby-liminal",
  "pallet-contracts",
+ "parity-scale-codec",
  "sp-std",
 ]
 

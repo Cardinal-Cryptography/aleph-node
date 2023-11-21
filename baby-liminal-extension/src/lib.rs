@@ -33,8 +33,6 @@ pub type VerificationKeyIdentifier = [u8; 8];
 
 #[cfg(feature = "runtime")]
 mod backend;
-#[cfg(feature = "runtime")]
-mod backend_executor;
 
 #[cfg(feature = "runtime")]
 pub use backend::BabyLiminalChainExtension;
