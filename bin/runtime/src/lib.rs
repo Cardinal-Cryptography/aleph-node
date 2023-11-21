@@ -796,18 +796,35 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
     fn filter(&self, c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::NonTransfer => !matches!(
+            ProxyType::NonTransfer => matches!(
                 c,
-                RuntimeCall::Balances(..)
-                    | RuntimeCall::Vesting(pallet_vesting::Call::vested_transfer { .. })
+                 RuntimeCall::System(..)
+                    |  RuntimeCall::Scheduler(..)
+                    |  RuntimeCall::Timestamp(..)
+                    |  RuntimeCall::Staking(..)
+                    |  RuntimeCall::Session(..)
+                    |  RuntimeCall::Aleph(..)
+                    |  RuntimeCall::Elections(..)
+                    |  RuntimeCall::Treasury(..)
+                    |  RuntimeCall::Vesting(pallet_vesting::Call::vest { .. })
+                    |  RuntimeCall::Vesting(pallet_vesting::Call::vest_other { .. })
+                    |  RuntimeCall::Vesting(pallet_vesting::Call::merge_schedules { .. })
+                    |  RuntimeCall::Utility(..)
+                    |  RuntimeCall::Multisig(..)
+                    |  RuntimeCall::Sudo(..)
+                    |  RuntimeCall::Contracts(..)
+                    |  RuntimeCall::NominationPools(..)
+                    |  RuntimeCall::Identity(..)
+                    |  RuntimeCall::CommitteeManagement(..)
+                    |  RuntimeCall::Proxy(..)
             ),
             ProxyType::Staking => {
                 matches!(
                     c,
-                    RuntimeCall::Staking(..)
-                        | RuntimeCall::Session(..)
-                        | RuntimeCall::Utility(..)
-                        | RuntimeCall::NominationPools(..)
+                     RuntimeCall::Staking(..)
+                        |  RuntimeCall::Session(..)
+                        |  RuntimeCall::Utility(..)
+                        |  RuntimeCall::NominationPools(..)
                 )
             }
         }
