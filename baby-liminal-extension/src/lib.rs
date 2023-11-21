@@ -13,7 +13,7 @@ compile_error!("Features `ink` and `runtime` are mutually exclusive and cannot b
 
 pub mod extension_ids;
 #[cfg(feature = "ink")]
-pub mod frontend;
+mod frontend;
 pub mod status_codes;
 
 #[cfg(feature = "ink")]
