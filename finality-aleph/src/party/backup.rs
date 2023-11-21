@@ -128,21 +128,23 @@ pub fn rotate(
 /// This should be done at the beginning of the new session.
 pub fn remove_old_backups(path: Option<PathBuf>, current_session: u32) -> io::Result<()> {
     if let Some(path) = path {
-        for read_dir in fs::read_dir(path)? {
-            let item = read_dir?;
-            match item.file_name().to_str() {
-                Some(name) => match name.parse::<u32>() {
-                    Ok(session_id) => {
-                        if session_id < current_session {
-                            fs::remove_dir_all(item.path())?;
+        if let Ok(contents) = fs::read_dir(path) {
+            for read_dir in contents {
+                let item = read_dir?;
+                match item.file_name().to_str() {
+                    Some(name) => match name.parse::<u32>() {
+                        Ok(session_id) => {
+                            if session_id < current_session {
+                                fs::remove_dir_all(item.path())?;
+                            }
                         }
-                    }
-                    Err(_) => {
-                        debug!(target: "aleph-party", "backup directory contains unexpected data.")
-                    }
-                },
-                None => debug!(target: "aleph-party", "backup directory contains unexpected data."),
-            };
+                        Err(_) => {
+                            debug!(target: "aleph-party", "backup directory contains unexpected data.")
+                        }
+                    },
+                    None => debug!(target: "aleph-party", "backup directory contains unexpected data."),
+                };
+            }
         }
     }
     Ok(())
