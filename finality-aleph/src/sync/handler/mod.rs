@@ -744,6 +744,7 @@ where
         peer: I,
     ) -> Result<HandleStateOutput<B, J, V>, <Self as HandlerTypes>::Error> {
         use Error::*;
+        let mut maybe_proof = None;
         let remote_top_number = state.top_justification().header().id().number();
         let local_top = self.chain_status.top_finalized().map_err(ChainStatus)?;
         let local_top_number = local_top.header().id().number();
@@ -753,26 +754,39 @@ where
         let local_session = self
             .session_info
             .session_id_from_block_num(local_top_number);
-        let VerifiedHeader {
-            header,
-            maybe_equivocation_proof: maybe_proof,
-        } = self
-            .verifier
-            .verify_header(state.favourite_block(), false)
-            .map_err(Error::HeaderVerifier)?;
         let action = match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
-            None => HandleStateAction::maybe_extend(
-                self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                    || self.forest.update_header(&header, Some(peer), false)?,
-            ),
+            None => {
+                let VerifiedHeader {
+                    header,
+                    maybe_equivocation_proof,
+                } = self
+                    .verifier
+                    .verify_header(state.favourite_block(), false)
+                    .map_err(Error::HeaderVerifier)?;
+                maybe_proof = maybe_equivocation_proof;
+                HandleStateAction::maybe_extend(
+                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                        || self.forest.update_header(&header, Some(peer), false)?,
+                )
+            }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
                 // remote top justification higher than ours, we can import the justification
-                true => HandleStateAction::maybe_extend(
-                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                        || self.forest.update_header(&header, Some(peer), false)?,
-                ),
+                true => {
+                    let VerifiedHeader {
+                        header,
+                        maybe_equivocation_proof,
+                    } = self
+                        .verifier
+                        .verify_header(state.favourite_block(), false)
+                        .map_err(Error::HeaderVerifier)?;
+                    maybe_proof = maybe_equivocation_proof;
+                    HandleStateAction::maybe_extend(
+                        self.handle_justification(state.top_justification(), Some(peer.clone()))?
+                            || self.forest.update_header(&header, Some(peer), false)?,
+                    )
+                }
                 // remote top justification lower than ours, we can send a response
                 false => HandleStateAction::response(local_top.into_unverified(), None),
             },
