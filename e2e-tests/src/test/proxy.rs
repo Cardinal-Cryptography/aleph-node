@@ -37,7 +37,7 @@ async fn setup_proxy(connection: RootConnection, proxy_type: ProxyType) -> Proxy
 
     connection
         .as_signed()
-        .transfer(
+        .transfer_keep_alive(
             account.account_id().clone(),
             10_000 * TOKEN,
             TxStatus::Finalized,
@@ -46,7 +46,7 @@ async fn setup_proxy(connection: RootConnection, proxy_type: ProxyType) -> Proxy
         .expect("transfer should succeed");
     connection
         .as_signed()
-        .transfer(
+        .transfer_keep_alive(
             proxy.account_id().clone(),
             1000 * TOKEN,
             TxStatus::Finalized,
