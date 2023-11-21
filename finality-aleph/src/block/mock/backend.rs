@@ -462,7 +462,7 @@ impl HeaderVerifier<MockHeader> for Backend {
         header: MockHeader,
         _just_created: bool,
     ) -> Result<VerifiedHeader<MockHeader, Self::EquivocationProof>, Self::Error> {
-        self.cached(header.id().number-1)?;
+        self.cached(header.id().number - 1)?;
         match (header.valid(), header.equivocated()) {
             (true, false) => Ok(VerifiedHeader {
                 header,

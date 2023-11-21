@@ -1988,12 +1988,11 @@ mod tests {
 
     #[test]
     fn detects_equivocated_state() {
-
         fn equivocated_state(state: &State<MockJustification>) -> State<MockJustification> {
             let top_justification = state.top_justification();
             let mut favourite_block = state.favourite_block();
             favourite_block.make_equivocated();
-            return State::new(top_justification, favourite_block.clone())
+            State::new(top_justification, favourite_block.clone())
         }
 
         let (mut handler_a, mut backend_a, _keep, _genesis) = setup();
@@ -2029,7 +2028,6 @@ mod tests {
                 .handle_justification(justification.clone().into_unverified(), Some(peer))
                 .expect("correct justification");
         }
-
 
         match handler_b
             .handle_state(equivocated_state(&states[10]), peer)
@@ -2078,7 +2076,10 @@ mod tests {
             .expect("correct justification")
         {
             (HandleStateAction::Noop, Some(equivocation_proof)) => {
-                assert_eq!(equivocation_proof.0, equivocated_state(&states[49]).favourite_block());
+                assert_eq!(
+                    equivocation_proof.0,
+                    equivocated_state(&states[49]).favourite_block()
+                );
             }
             other_action => panic!("expected Noop with equivocation proof, got {other_action:?}"),
         };
@@ -2088,9 +2089,14 @@ mod tests {
             .expect("correct justification")
         {
             (HandleStateAction::ExtendChain, Some(equivocation_proof)) => {
-                assert_eq!(equivocation_proof.0, equivocated_state(&states[50]).favourite_block());
+                assert_eq!(
+                    equivocation_proof.0,
+                    equivocated_state(&states[50]).favourite_block()
+                );
             }
-            other_action => panic!("expected ExtendChain with equivocation proof, got {other_action:?}"),
+            other_action => {
+                panic!("expected ExtendChain with equivocation proof, got {other_action:?}")
+            }
         };
 
         match handler_b
@@ -2098,9 +2104,14 @@ mod tests {
             .expect("correct justification")
         {
             (HandleStateAction::ExtendChain, Some(equivocation_proof)) => {
-                assert_eq!(equivocation_proof.0, equivocated_state(&states[65]).favourite_block());
+                assert_eq!(
+                    equivocation_proof.0,
+                    equivocated_state(&states[65]).favourite_block()
+                );
             }
-            other_action => panic!("expected ExtendChain with equivocation proof, got {other_action:?}"),
+            other_action => {
+                panic!("expected ExtendChain with equivocation proof, got {other_action:?}")
+            }
         };
     }
 
