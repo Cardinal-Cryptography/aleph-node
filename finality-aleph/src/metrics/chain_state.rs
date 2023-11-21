@@ -211,8 +211,14 @@ fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: Header
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
+    use parking_lot::RwLock;
 
     use sp_api::BlockT;
+    use sp_blockchain::CachedHeaderMetadata;
+    use sc_utils::mpsc::tracing_unbounded;
+    use substrate_prometheus_endpoint::Registry;
+    use crate::AlephConfig;
+    use crate::metrics::run_chain_state_metrics;
 
     use super::detect_reorgs;
     use crate::testing::{
@@ -289,6 +295,23 @@ mod test {
                 ),
                 expected,
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn random_test() {
+        let client = Arc::new(TestClientBuilder::new().build());
+        let client_builder = Arc::new(TestClientBuilder::new().build());
+        let mut chain_builder = ClientChainBuilder::new(client.clone(), client_builder);
+        let registry = Registry::new();
+
+        let (import_tx, import_rx) = tracing_unbounded("test", 1000);
+        let (finality_tx, finality_rx) = tracing_unbounded("test", 1000);
+
+        run_chain_state_metrics(client.as_ref(), import_rx, finality_rx, Some(registry));
+
+        unsafe {
+            registry.gather();
         }
     }
 }
