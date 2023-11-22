@@ -27,9 +27,10 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Build test binary and runtime
-        # yamllint disable-line rule:line-length
         run: |
-          cargo build --release -p aleph-node --features "short_session enable_treasury_proposals only_legacy"
+          cargo build --release -p aleph-node \
+            --features "short_session enable_treasury_proposals only_legacy"
+          # yamllint disable-line rule:line-length
           nm --demangle=rust target/release/aleph-node | grep -q liminal && { echo "Liminal symbols are present"; exit 1; }
 
       - name: Upload test binary to GH Artifacts

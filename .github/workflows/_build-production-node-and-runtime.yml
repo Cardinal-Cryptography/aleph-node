@@ -27,9 +27,9 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Build production binary and runtime
-        # yamllint disable-line rule:line-length
         run: |
           cargo build --profile production -p aleph-node
+          # yamllint disable-line rule:line-length
           nm --demangle=rust target/release/aleph-node | grep -q liminal && { echo "Liminal symbols are present"; exit 1; }
 
       - name: Upload release binary to GH artifacts
