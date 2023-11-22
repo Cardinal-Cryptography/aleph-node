@@ -27,10 +27,13 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Build production binary and runtime
+        run: cargo build --profile production -p aleph-node
+
+      - name: Ensure liminal symbols are not present
         run: |
-          cargo build --profile production -p aleph-node
-          nm --demangle=rust target/production/aleph-node | \
-            grep -q liminal && { echo "Liminal symbols are present"; exit 1; }
+          nm --demangle=rust target/production/aleph-node | grep -q liminal \
+            && { echo "Liminal symbols are present"; exit 1; } \
+            || echo "Liminal symbols are not present"
 
       - name: Upload release binary to GH artifacts
         uses: actions/upload-artifact@v3
