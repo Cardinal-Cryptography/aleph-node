@@ -22,7 +22,6 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
-    metrics::run_chain_state_metrics,
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
@@ -39,6 +38,7 @@ use crate::{
     sync::{DatabaseIO as SyncDatabaseIO, Service as SyncService, IO as SyncIO},
     AlephConfig,
 };
+use crate::metrics::ChainStateMetricsRunner;
 
 // How many sessions we remember.
 // Keep in mind that Aura stores authority info in the parent block,
@@ -147,11 +147,11 @@ where
     let client_for_slo_metrics = client.clone();
     let registry_for_slo_metrics = registry.clone();
     spawn_handle.spawn("aleph/slo-metrics", async move {
-        run_chain_state_metrics(
+        let chain_state_metrics_runner = ChainStateMetricsRunner::new(registry_for_slo_metrics);
+        chain_state_metrics_runner.run_chain_state_metrics(
             client_for_slo_metrics.as_ref(),
             client_for_slo_metrics.every_import_notification_stream(),
             client_for_slo_metrics.finality_notification_stream(),
-            registry_for_slo_metrics,
         )
         .await;
     });

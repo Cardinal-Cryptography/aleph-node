@@ -69,6 +69,7 @@ sp-trie = { workspace = true }
 aleph-runtime = { workspace = true }
 
 [dev-dependencies]
+mockall = "0.11.4"
 substrate-test-runtime-client = { workspace = true }
 substrate-test-runtime = { workspace = true }
 substrate-test-client = { workspace = true }
