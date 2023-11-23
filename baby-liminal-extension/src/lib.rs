@@ -11,6 +11,9 @@
 #[cfg(all(feature = "ink", feature = "runtime"))]
 compile_error!("Features `ink` and `runtime` are mutually exclusive and cannot be used together");
 
+#[cfg(not(any(feature = "ink", feature = "runtime")))]
+compile_error!("Either `ink` or `runtime` feature must be enabled (or their `-std` extensions)");
+
 // ------ Common stuff -----------------------------------------------------------------------------
 
 pub mod args;
