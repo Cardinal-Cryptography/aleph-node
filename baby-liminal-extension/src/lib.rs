@@ -5,6 +5,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs)]
+// For testing purposes, we need to enable some unstable features.
+#![cfg_attr(test, allow(incomplete_features))]
+#![cfg_attr(test, feature(adt_const_params))]
+#![cfg_attr(test, feature(generic_const_exprs))]
 
 // Rust features are additive, so this is the only way we can ensure that only one of these is
 // enabled.

@@ -17,6 +17,8 @@ use crate::{
 
 mod environment;
 mod executor;
+#[cfg(test)]
+mod tests;
 
 type ByteCount = u32;
 
