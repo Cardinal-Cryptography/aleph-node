@@ -1,5 +1,6 @@
 mod arguments;
 mod environment;
+mod executor;
 
 use aleph_runtime::Runtime as AlephRuntime;
 use pallet_contracts::chain_extension::{ChainExtension, RetVal};
@@ -10,8 +11,10 @@ use crate::{
         tests::{
             arguments::store_key_args,
             environment::{MockedEnvironment, StandardMode, StoreKeyMode},
+            executor::StoreKeyOkayer,
         },
     },
+    status_codes::STORE_KEY_SUCCESS,
     BabyLiminalChainExtension,
 };
 
@@ -28,5 +31,5 @@ fn extension_is_enabled() {
 
 #[test]
 fn store_key__positive_scenario() {
-    // simulate_store_key::<StoreKeyOkayer>(SNARCOS_STORE_KEY_OK)
+    simulate_store_key::<StoreKeyOkayer>(STORE_KEY_SUCCESS)
 }

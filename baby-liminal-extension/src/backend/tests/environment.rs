@@ -101,7 +101,7 @@ where
 
     fn read_as_unbounded<T: Decode>(&mut self, len: u32) -> Result<T, DispatchError> {
         self._read(len)
-            .and_then(|bytes| Decode::decode(&mut &bytes[..]).expect("Decoding should succeed"))
+            .map(|bytes| Decode::decode(&mut &bytes[..]).expect("Decoding should succeed"))
     }
 
     fn write(&mut self, _: &[u8], _: bool, _: Option<Weight>) -> Result<(), DispatchError> {
