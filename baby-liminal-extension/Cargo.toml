@@ -29,7 +29,7 @@ sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", br
 pallet-baby-liminal = { path = "../pallets/baby-liminal", default-features = false, optional = true }
 
 [dev-dependencies]
-aleph-runtime = { path = "../bin/runtime" }
+aleph-runtime = { path = "../bin/runtime", features = ["liminal"] }
 
 [features]
 # This is an artificial feature that is used by 3rd party crates in macro expansions.

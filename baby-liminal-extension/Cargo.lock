@@ -83,6 +83,7 @@ dependencies = [
 name = "aleph-runtime"
 version = "0.13.0+dev"
 dependencies = [
+ "baby-liminal-extension",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -91,6 +92,7 @@ dependencies = [
  "pallet-aleph",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-baby-liminal",
  "pallet-balances",
  "pallet-committee-management",
  "pallet-contracts",
