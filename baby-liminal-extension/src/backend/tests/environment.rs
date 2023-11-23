@@ -112,5 +112,5 @@ where
         Ok(amount)
     }
 
-    fn adjust_weight(&mut self, charged: Weight, actual_weight: Weight) {}
+    fn adjust_weight(&mut self, _: Weight, _: Weight) {}
 }
