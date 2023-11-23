@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::marker::PhantomData;
 
 use frame_support::{pallet_prelude::Weight, sp_runtime::DispatchError};
