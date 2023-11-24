@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::{HashMap, HashSet}, marker::PhantomData};
 
 use futures::{future, StreamExt};
 use log::warn;
@@ -13,12 +13,13 @@ use substrate_prometheus_endpoint::{
     register, Counter, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 use tokio::select;
+use mockall;
 
 use crate::{metrics::LOG_TARGET, BlockNumber};
 
+#[mockall::automock]
 trait ChainStateMeasure {
-    fn increment_own_finalized_blocks(&self);
-    fn increase_own_hopeless_blocks(&self, value: u64);
+    fn increment_own_hopeless_blocks(&self);
     fn update_best_block(&self, number: BlockNumber);
     fn update_top_finalized_block(&self, number: BlockNumber);
     fn report_reorg(&self, length: BlockNumber);
@@ -72,23 +73,13 @@ impl ChainStateMetrics {
 }
 
 impl ChainStateMeasure for ChainStateMetrics {
-    fn increment_own_finalized_blocks(&self) {
-        if let ChainStateMetrics::Prometheus {
-            own_finalized_blocks,
-            ..
-        } = self
-        {
-            own_finalized_blocks.inc();
-        }
-    }
-
-    fn increase_own_hopeless_blocks(&self, value: u64) {
+    fn increment_own_hopeless_blocks(&self) {
         if let ChainStateMetrics::Prometheus {
             own_hopeless_blocks,
             ..
         } = self
         {
-            own_hopeless_blocks.inc_by(value);
+            own_hopeless_blocks.inc();
         }
     }
 
@@ -101,10 +92,12 @@ impl ChainStateMeasure for ChainStateMetrics {
     fn update_top_finalized_block(&self, number: BlockNumber) {
         if let ChainStateMetrics::Prometheus {
             top_finalized_block,
+            own_finalized_blocks,
             ..
         } = self
         {
             top_finalized_block.set(number as u64);
+            own_finalized_blocks.inc();
         }
     }
 
@@ -122,6 +115,8 @@ where
     BE: HeaderMetadata<B>,
 {
     metrics: Box<dyn ChainStateMeasure + Send>,
+    waiting_for_finality: HashMap<HE::Number, HE::Hash>,
+    waiting_for_import: HashSet<HE::Hash>,
     _phantom: PhantomData<(HE, B, BE)>,
 }
 
@@ -140,13 +135,8 @@ where
                     ChainStateMetrics::noop()
                 }
             }),
-            _phantom: PhantomData,
-        }
-    }
-
-    fn from_metrics(metrics: Box<dyn ChainStateMeasure + Send>) -> Self {
-        ChainStateMetricsRunner {
-            metrics,
+            waiting_for_finality: HashMap::new(),
+            waiting_for_import: HashSet::new(),
             _phantom: PhantomData,
         }
     }
@@ -168,6 +158,7 @@ where
         loop {
             select! {
                 maybe_block = interesting_block_notifications.next() => {
+                    println!("IMPORT");
                     match maybe_block {
                         Some(block) => {
                             if block.origin == BlockOrigin::Own {
@@ -189,10 +180,12 @@ where
                         }
                         None => {
                             warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
+                            break;
                         }
                     }
                 },
                 maybe_block = finality_notifications.next() => {
+                    println!("FINALITY");
                     match maybe_block {
                         Some(block) => {
                             // Sometimes finalization can also cause best block update. However,
@@ -201,20 +194,15 @@ where
                             // the newly finalized block (see test), so the best block will be updated
                             // after importing anything on the newly finalized branch.
                             self.metrics.update_top_finalized_block(*block.header.number());
-                            if let Some(hashes) = own_imported_by_level.get(block.header.number()) {
-                                let num_hopeless = hashes.iter().filter(|h| {
-                                    if **h == block.header.hash() {
-                                        self.metrics.increment_own_finalized_blocks();
-                                        return false
-                                    }
-                                    true
-                                }).count();
-                                self.metrics.increase_own_hopeless_blocks(num_hopeless as u64);
-                                own_imported_by_level.remove(block.header.number());
+                            if let Some(hashes) = own_imported_by_level.remove(block.header.number()) {
+                                for _ in hashes.iter().filter(|h| **h != block.header.hash()) {
+                                    self.metrics.increment_own_hopeless_blocks();
+                                }
                             }
                         }
                         None => {
                             warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
+                            break;
                         }
                     }
                 },
@@ -247,25 +235,32 @@ where
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
-    use mockall;
-    use parking_lot::RwLock;
-    use sc_utils::mpsc::tracing_unbounded;
+    use futures::channel::oneshot;
+    use sc_client_api::BlockchainEvents;
     use sp_api::BlockT;
-    use sp_blockchain::CachedHeaderMetadata;
-    use substrate_prometheus_endpoint::Registry;
 
     use crate::{
         testing::{
             client_chain_builder::ClientChainBuilder,
             mocks::{TestClientBuilder, TestClientBuilderExt},
         },
-        AlephConfig,
     };
     use crate::metrics::ChainStateMetricsRunner;
+    use super::*;
 
-    mock! {
-        Measure {}
-        impl ChainStateMeasure for Measure {
+    impl<HE, B, BE> ChainStateMetricsRunner<HE, B, BE>
+    where
+        HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
+        B: BlockT<Header = HE>,
+        BE: HeaderMetadata<B>,
+    {
+        fn from_metrics(metrics: Box<dyn ChainStateMeasure + Send>) -> ChainStateMetricsRunner<HE, B, BE> {
+            ChainStateMetricsRunner {
+                metrics,
+                waiting_for_finality: HashMap::new(),
+                waiting_for_import: HashSet::new(),
+                _phantom: PhantomData,
+            }
         }
     }
 
@@ -347,26 +342,16 @@ mod test {
         let client_builder = Arc::new(TestClientBuilder::new().build());
         let mut chain_builder = ClientChainBuilder::new(client.clone(), client_builder);
 
-        let registry_for_thread = registry.clone();
-        let mut import_stream = chain_builder.client.import_notification_stream();
-        let mut finality_stream = chain_builder.client.finality_notification_stream();
-
-        let handle = tokio::spawn(async move {
-            run_chain_state_metrics(
-                client.as_ref(),
-                import_stream,
-                finality_stream,
-                Some(registry_for_thread),
-            ).await;
-        });
+        let import_stream = chain_builder.client.import_notification_stream();
+        let finality_stream = chain_builder.client.finality_notification_stream();
 
         let a = chain_builder
             .build_and_import_branch_above(&chain_builder.genesis_hash(), 5)
             .await;
-        let b = chain_builder
+        chain_builder
             .build_and_import_branch_above(&a[0].header.hash(), 3)
             .await;
-        let c = chain_builder
+        chain_builder
             .build_and_import_branch_above(&a[2].header.hash(), 2)
             .await;
 
@@ -379,14 +364,31 @@ mod test {
 
         for i in 0..5 {
             chain_builder.finalize_block(&a[i].header().hash());
-            // let metric_families = registry.gather();
-            // for metric_family in metric_families {
-            //     println!("METRIC FAMILY NAME {}", metric_family.get_name());
-            //     let metrics = metric_family.get_metric();
-            //     for metric in metrics {
-            //
-            //     }
-            // }
         }
+
+        for sink in &*chain_builder.client.import_notification_sinks().lock() {
+            sink.close();
+        }
+        for sink in &*chain_builder.client.finality_notification_sinks().lock() {
+            sink.close();
+        }
+
+        let mut mock_metrics = MockChainStateMeasure::new();
+
+        for i in 0..5 {
+            mock_metrics.expect_update_best_block().with(mockall::predicate::eq(a[i].header.number)).times(1).return_const(());
+            mock_metrics.expect_update_top_finalized_block().with(mockall::predicate::eq(a[i].header.number)).times(1).return_const(());
+        }
+
+        mock_metrics.expect_increment_own_hopeless_blocks().times(5).return_const(());
+
+        let handle = tokio::spawn(async move {
+            let chain_state_metrics_runner = ChainStateMetricsRunner::from_metrics(Box::new(mock_metrics));
+            chain_state_metrics_runner.run_chain_state_metrics(
+                client.as_ref(),
+                import_stream,
+                finality_stream,
+            ).await;
+        });
     }
 }
