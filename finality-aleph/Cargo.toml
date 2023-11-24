@@ -33,7 +33,6 @@ hex = { workspace = true }
 ip_network = { workspace = true }
 log = { workspace = true }
 lru = { workspace = true }
-mockall = { workspace = true }
 parity-scale-codec = { workspace = true, features = ["derive"] }
 parking_lot = { workspace = true }
 rand = { workspace = true }

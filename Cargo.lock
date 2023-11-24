@@ -2809,7 +2809,6 @@ dependencies = [
  "ip_network",
  "log",
  "lru",
- "mockall",
  "network-clique",
  "parity-scale-codec",
  "parking_lot 0.12.1",
