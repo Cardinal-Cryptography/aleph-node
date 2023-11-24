@@ -6,17 +6,44 @@ on:
   schedule:
     - cron: '00 23 * * *'
   pull_request:
-    types: [labeled]
+    types: [ labeled ]
   push:
-    branches: ['main']
+    branches: [ 'main' ]
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  chain-extension--clippy:
-    if: ${{ github.event_name != 'push' }}
+  # --------------------- FILTERING TRIGGERS ------------------------------------------------------
+
+  on_demand_or_pr:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.label.name == 'liminal-CI'
+      )
+    name: On request or PR
+    runs-on: ubuntu-20.04
+
+  always:
+    name: Always
+    runs-on: ubuntu-20.04
+    steps:
+      - run: |
+          if [[ \
+            '${{ github.event_name }}' == 'pull_request' && \
+            '${{ github.event.label.name }}' != 'liminal-CI' \
+          ]]; then
+             exit 1
+          fi
+
+  # --------------------- CHAIN EXTENSION ---------------------------------------------------------
+
+  chain-extension__clippy:
+    needs: [ on_demand_or_pr ]
     name: Run clippy for the chain extension
     runs-on: [ self-hosted, Linux, X64, large ]
     env:
@@ -36,8 +63,8 @@ jobs:
         working-directory: baby-liminal-extension
         run: make clippy
 
-  chain-extension--unit-tests:
-    if: ${{ github.event_name != 'push' }}
+  chain-extension__unit-tests:
+    needs: [ on_demand_or_pr ]
     name: Run unit tests for the chain extension
     runs-on: [ self-hosted, Linux, X64, large ]
     env:
@@ -53,3 +80,109 @@ jobs:
       - name: Run tests for baby liminal chain extension
         working-directory: baby-liminal-extension
         run: make test-frontend
+
+  # --------------------- CLIAIN --------------------------------------------------------------------
+
+  cliain__build-and-push:
+    needs: [ always ]
+    name: Build and push cliain docker image
+    uses: ./.github/workflows/_build-and-push-cliain.yml
+    with:
+      runtime: 'liminal'
+
+  # --------------------- E2E TESTS ----------------------------------------------------------------
+
+  node__tests:
+    if: github.event_name == 'schedule'
+    name: Run all unit and integration workspace tests (including liminal features)
+    runs-on: [ self-hosted, Linux, X64, large ]
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
+
+      - name: Run Test Suite
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features "liminal-try-runtime liminal-runtime-benchmarks"
+
+  # --------------------- NODE ----------------------------------------------------------------------
+
+  node-build__check-vars-and-secrets:
+    needs: [ always ]
+    name: Check vars and secrets
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  node-build__build-node:
+    needs: [ check-vars-and-secrets ]
+    name: Build liminal node
+    uses: ./.github/workflows/_build-liminal-node.yml
+
+  node-build__push-image-to-ecr:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    name: Push liminal node docker image to the ECR
+    needs: [ build-liminal-node ]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout aleph-node sources
+        uses: actions/checkout@v4
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+
+      - name: Download node production binary from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: aleph-node-liminal
+          path: target/release/
+
+      - name: Build production docker node image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node-liminal:latest -f ./docker/Dockerfile .
+
+      - name: Login to Public Amazon ECR
+        id: login-public-ecr
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Push aleph-node-liminal image to ECR
+        env:
+          CURRENT_IMAGE: aleph-node-liminal
+          ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node-liminal
+          COMMIT_SHA: ${{ steps.get-ref-properties.outputs.sha }}
+        run: |
+          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
+          docker push '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
+          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:latest'
+          docker push '${{ env.ECR_PUSH_IMAGE }}:latest'
+
+  node-build__send-slack-notification:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    needs: [ push-liminal-node-image-to-ecr ]
+    if: always()
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
