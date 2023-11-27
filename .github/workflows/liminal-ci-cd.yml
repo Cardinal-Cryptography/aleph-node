@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # --------------------- FILTERING TRIGGERS ------------------------------------------------------
+  # --------------------- FILTERING TRIGGERS -----------------------------------
 
   on_demand_or_pr:
     if: >
@@ -36,11 +36,11 @@ jobs:
           if [[\
             '${{ github.event_name }}' == 'pull_request' && \
             '${{ github.event.label.name }}' != 'liminal-CI' \
-         ]]; then
+          ]]; then
              exit 1
           fi
 
-  # --------------------- CHAIN EXTENSION ---------------------------------------------------------
+  # --------------------- CHAIN EXTENSION --------------------------------------
 
   chain-extension__clippy:
     needs: [on_demand_or_pr]
@@ -84,7 +84,7 @@ jobs:
         working-directory: baby-liminal-extension
         run: make test
 
-  # --------------------- CLIAIN -------------------------------------------------------------------
+  # --------------------- CLIAIN -----------------------------------------------
 
   cliain__build-and-push:
     needs: [always]
@@ -93,11 +93,11 @@ jobs:
     with:
       runtime: 'liminal'
 
-  # --------------------- E2E TESTS ----------------------------------------------------------------
+  # --------------------- E2E TESTS --------------------------------------------
 
   node__tests:
     if: github.event_name == 'schedule'
-    name: Run all unit and integration workspace tests (including liminal features)
+    name: Run integration tests
     runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
@@ -115,7 +115,7 @@ jobs:
           command: test
           args: --features "liminal-try-runtime liminal-runtime-benchmarks"
 
-  # --------------------- NODE ---------------------------------------------------------------------
+  # --------------------- NODE -------------------------------------------------
 
   node-build__check-vars-and-secrets:
     needs: [always]
@@ -169,9 +169,11 @@ jobs:
           ECR_PUSH_IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node-liminal
           COMMIT_SHA: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
-          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
+          docker tag '${{ env.CURRENT_IMAGE }}' \
+            '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
           docker push '${{ env.ECR_PUSH_IMAGE }}:${{ env.COMMIT_SHA }}'
-          docker tag '${{ env.CURRENT_IMAGE }}' '${{ env.ECR_PUSH_IMAGE }}:latest'
+          docker tag '${{ env.CURRENT_IMAGE }}' \
+            '${{ env.ECR_PUSH_IMAGE }}:latest'
           docker push '${{ env.ECR_PUSH_IMAGE }}:latest'
 
   node-build__send-slack-notification:
