@@ -136,8 +136,7 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let timing_metrics = match TimingBlockMetrics::new(config.prometheus_registry(), DefaultClock)
-    {
+    let timing_metrics = match TimingBlockMetrics::new(config.prometheus_registry(), DefaultClock) {
         Ok(timing_metrics) => timing_metrics,
         Err(e) => {
             warn!(
