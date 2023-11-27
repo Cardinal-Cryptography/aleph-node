@@ -46,9 +46,7 @@ pub enum TimingBlockMetrics<C: Clock> {
 }
 
 impl<C: Clock> TimingBlockMetrics<C> {
-    pub fn new(
-        registry: Option<&Registry>,
-    ) -> Result<TimingBlockMetrics<DefaultClock>, PrometheusError> {
+    pub fn new(registry: Option<&Registry>, clock: C) -> Result<Self, PrometheusError> {
         use Checkpoint::*;
         let keys = [Importing, Imported, Proposed, Ordered, Finalized];
         let target_time_since_prev_checkpoint = HashMap::from([
@@ -111,11 +109,11 @@ impl<C: Clock> TimingBlockMetrics<C> {
                     })
                     .collect(),
             )),
-            clock: DefaultClock,
+            clock,
         })
     }
 
-    pub fn noop() -> TimingBlockMetrics<DefaultClock> {
+    pub fn noop() -> Self {
         TimingBlockMetrics::Noop
     }
 
@@ -300,30 +298,6 @@ mod tests {
         }
     }
 
-    impl<C: Clock> TimingBlockMetrics<C> {
-        fn from_test_clock(test_clock: TestClock) -> TimingBlockMetrics<TestClock> {
-            let metrics = register_prometheus_metrics_with_dummy_registry();
-            match metrics {
-                TimingBlockMetrics::Prometheus {
-                    time_since_prev_checkpoint,
-                    imported_to_finalized,
-                    starts,
-                    ..
-                } => TimingBlockMetrics::Prometheus {
-                    time_since_prev_checkpoint,
-                    imported_to_finalized,
-                    starts,
-                    clock: test_clock,
-                },
-                _ => panic!("Should be Prometheus"),
-            }
-        }
-    }
-
-    fn register_prometheus_metrics_with_dummy_registry() -> TimingBlockMetrics<DefaultClock> {
-        TimingBlockMetrics::<DefaultClock>::new(Some(&Registry::new())).unwrap()
-    }
-
     fn starts_for<C: Clock>(m: &TimingBlockMetrics<C>, c: Checkpoint) -> usize {
         match &m {
             TimingBlockMetrics::Prometheus { starts, .. } => starts.lock().get(&c).unwrap().len(),
@@ -353,13 +327,13 @@ mod tests {
 
     #[test]
     fn should_keep_entries_up_to_defined_limit() {
-        let m = register_prometheus_metrics_with_dummy_registry();
+        let m = TimingBlockMetrics::new(Some(&Registry::new()), DefaultClock).unwrap();
         check_reporting_with_memory_excess(&m, Ordered);
     }
 
     #[test]
     fn should_manage_space_for_checkpoints_independently() {
-        let m = register_prometheus_metrics_with_dummy_registry();
+        let m = TimingBlockMetrics::new(Some(&Registry::new()), DefaultClock).unwrap();
         check_reporting_with_memory_excess(&m, Ordered);
         check_reporting_with_memory_excess(&m, Imported);
     }
@@ -370,7 +344,7 @@ mod tests {
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let timestamps = vec![later_timestamp, earlier_timestamp];
         let test_clock = TestClock::from_times(timestamps);
-        let metrics = TimingBlockMetrics::<TestClock>::from_test_clock(test_clock);
+        let metrics = TimingBlockMetrics::new(Some(&Registry::new()), test_clock).unwrap();
 
         let hash = BlockHash::random();
         metrics.report_block(hash, Proposed);
@@ -383,7 +357,7 @@ mod tests {
         let later_timestamp = earlier_timestamp + Duration::new(0, 5);
         let timestamps = vec![earlier_timestamp, later_timestamp];
         let test_clock = TestClock::from_times(timestamps);
-        let metrics = TimingBlockMetrics::<TestClock>::from_test_clock(test_clock);
+        let metrics = TimingBlockMetrics::new(Some(&Registry::new()), test_clock).unwrap();
 
         let hash = BlockHash::random();
         metrics.report_block(hash, Proposed);

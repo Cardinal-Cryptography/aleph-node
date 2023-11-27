@@ -349,7 +349,7 @@ mod tests {
             test::aleph_data_from_blocks,
             DataProvider, MAX_DATA_BRANCH_LEN,
         },
-        metrics::{AllBlockMetrics, DefaultClock},
+        metrics::AllBlockMetrics,
         testing::{
             client_chain_builder::ClientChainBuilder,
             mocks::{TestClientBuilder, TestClientBuilderExt},
@@ -385,7 +385,7 @@ mod tests {
             client,
             session_boundaries,
             config,
-            AllBlockMetrics::new(TimingBlockMetrics::<DefaultClock>::noop()),
+            AllBlockMetrics::new(TimingBlockMetrics::noop()),
         );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();

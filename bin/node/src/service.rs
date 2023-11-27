@@ -136,7 +136,7 @@ pub fn new_partial(
         client.clone(),
     );
 
-    let timing_metrics = match TimingBlockMetrics::<DefaultClock>::new(config.prometheus_registry())
+    let timing_metrics = match TimingBlockMetrics::new(config.prometheus_registry(), DefaultClock)
     {
         Ok(timing_metrics) => timing_metrics,
         Err(e) => {
@@ -144,7 +144,7 @@ pub fn new_partial(
                 "Failed to register Prometheus block timing metrics: {:?}.",
                 e
             );
-            TimingBlockMetrics::<DefaultClock>::noop()
+            TimingBlockMetrics::noop()
         }
     };
     let metrics = AllBlockMetrics::new(timing_metrics);
