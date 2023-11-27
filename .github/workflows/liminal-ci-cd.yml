@@ -6,9 +6,9 @@ on:
   schedule:
     - cron: '00 23 * * *'
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   push:
-    branches: [ 'main' ]
+    branches: ['main']
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -33,19 +33,19 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if [[ \
+          if [[\
             '${{ github.event_name }}' == 'pull_request' && \
             '${{ github.event.label.name }}' != 'liminal-CI' \
-          ]]; then
+         ]]; then
              exit 1
           fi
 
   # --------------------- CHAIN EXTENSION ---------------------------------------------------------
 
   chain-extension__clippy:
-    needs: [ on_demand_or_pr ]
+    needs: [on_demand_or_pr]
     name: Run clippy for the chain extension
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
@@ -64,9 +64,9 @@ jobs:
         run: make clippy
 
   chain-extension__unit-tests:
-    needs: [ on_demand_or_pr ]
+    needs: [on_demand_or_pr]
     name: Run unit tests for the chain extension
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
@@ -74,17 +74,20 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v4
 
-      - name: Install Rust Toolchain
+      - name: Install Nightly Rust Toolchain (for unstable features in tests)
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
+        with:
+          channel: nightly-2023-05-22-unknown-linux-gnu
+          targets: wasm32-unknown-unknown
 
       - name: Run tests for baby liminal chain extension
         working-directory: baby-liminal-extension
-        run: make test-frontend
+        run: make test
 
-  # --------------------- CLIAIN --------------------------------------------------------------------
+  # --------------------- CLIAIN -------------------------------------------------------------------
 
   cliain__build-and-push:
-    needs: [ always ]
+    needs: [always]
     name: Build and push cliain docker image
     uses: ./.github/workflows/_build-and-push-cliain.yml
     with:
@@ -95,7 +98,7 @@ jobs:
   node__tests:
     if: github.event_name == 'schedule'
     name: Run all unit and integration workspace tests (including liminal features)
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
@@ -112,23 +115,23 @@ jobs:
           command: test
           args: --features "liminal-try-runtime liminal-runtime-benchmarks"
 
-  # --------------------- NODE ----------------------------------------------------------------------
+  # --------------------- NODE ---------------------------------------------------------------------
 
   node-build__check-vars-and-secrets:
-    needs: [ always ]
+    needs: [always]
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
   node-build__build-node:
-    needs: [ check-vars-and-secrets ]
+    needs: [node-build__check-vars-and-secrets]
     name: Build liminal node
     uses: ./.github/workflows/_build-liminal-node.yml
 
   node-build__push-image-to-ecr:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     name: Push liminal node docker image to the ECR
-    needs: [ build-liminal-node ]
+    needs: [node-build__build-node]
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node sources
@@ -174,7 +177,7 @@ jobs:
   node-build__send-slack-notification:
     name: Send Slack notification about workflow status
     runs-on: ubuntu-20.04
-    needs: [ push-liminal-node-image-to-ecr ]
+    needs: [node-build__push-image-to-ecr]
     if: always()
     steps:
       - name: Checkout repository
