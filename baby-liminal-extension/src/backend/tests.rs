@@ -21,7 +21,7 @@ use crate::{
 
 fn simulate_store_key<Exc: BackendExecutor>(expected_ret_val: u32) {
     let env = MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args());
-    let result = BabyLiminalChainExtension::<AlephRuntime>::store_key::<Exc, _>(env);
+    let result = BabyLiminalChainExtension::<AlephRuntime>::store_key::<Exc, _, ()>(env);
     assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
 }
 
