@@ -208,4 +208,8 @@ impl BenchmarkInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
+
+	fn verify() -> Weight {
+		Weight::zero()
+	}
 }
