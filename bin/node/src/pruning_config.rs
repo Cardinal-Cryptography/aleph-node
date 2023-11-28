@@ -115,7 +115,7 @@ impl PruningConfigValidator {
             Switching to `archive-canonical`",
             );
         }
-        if let Err(_) = self.invalid_database_backend {
+        if self.invalid_database_backend.is_err() {
             warn!(
                 "Pruning was enabled but the selected database backend \
             is not supported with pruning. Switching to `paritydb`.",
