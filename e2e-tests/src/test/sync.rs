@@ -264,14 +264,14 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 /// so the finalization can continue in case of a big best-finalized gap.
 #[tokio::test]
 pub async fn large_finalization_stall() -> anyhow::Result<()> {
-    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 2 * 4096;
-    const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 30;
+    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 4096 + 1;
+    const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 901;
     const VALIDATOR_NETWORK_PORT: u16 = 30343;
 
     let config = setup_test();
     if config.validator_count < 4 {
         return Err(anyhow!(
-            "provided test-network is to small ({0}), should be >= 7",
+            "provided test-network is to small ({0}), should be >= 4",
             config.validator_count,
         ));
     }
