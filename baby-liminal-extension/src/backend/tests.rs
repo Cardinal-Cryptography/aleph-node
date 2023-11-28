@@ -27,7 +27,7 @@ fn simulate_store_key<Exc: BackendExecutor>(expected_ret_val: u32) {
 
 fn simulate_verify<Exc: BackendExecutor>(expected_ret_val: u32) {
     let env = MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
-    let result = BabyLiminalChainExtension::<AlephRuntime>::verify::<Exc, _>(env);
+    let result = BabyLiminalChainExtension::<AlephRuntime>::verify::<Exc, _, ()>(env);
     assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
 }
 
