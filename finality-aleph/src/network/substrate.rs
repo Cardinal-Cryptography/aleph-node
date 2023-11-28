@@ -6,12 +6,9 @@ use log::{error, trace, warn};
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
-    NotificationSenderT, PeerId, ProtocolName,
+    NotificationSenderT, PeerId, ProtocolName, SyncEventStream,
 };
-use sc_network_common::{
-    sync::{SyncEvent, SyncEventStream},
-    ExHashT,
-};
+use sc_network_common::{sync::SyncEvent, ExHashT};
 use sc_network_sync::SyncingService;
 use sp_runtime::traits::Block;
 use tokio::select;
@@ -237,6 +234,15 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
             naming,
         }
     }
+
+    pub fn event_stream(&self) -> NetworkEventStream<B, H> {
+        NetworkEventStream {
+            stream: Box::pin(self.network.event_stream("aleph-network")),
+            sync_stream: Box::pin(self.sync_network.event_stream("aleph-blocksync-network")),
+            naming: self.naming.clone(),
+            network: self.network.clone(),
+        }
+    }
 }
 
 impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
@@ -246,16 +252,7 @@ impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
     type EventStream = NetworkEventStream<B, H>;
 
     fn event_stream(&self) -> Self::EventStream {
-        NetworkEventStream {
-            stream: Box::pin(self.network.as_ref().event_stream("aleph-network")),
-            sync_stream: Box::pin(
-                self.sync_network
-                    .as_ref()
-                    .event_stream("aleph-syncing-network"),
-            ),
-            naming: self.naming.clone(),
-            network: self.network.clone(),
-        }
+        self.event_stream()
     }
 
     fn sender(

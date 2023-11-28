@@ -74,13 +74,7 @@ impl RawNetwork for MockRawNetwork {
     type EventStream = MockEventStream;
 
     fn event_stream(&self) -> Self::EventStream {
-        let (tx, rx) = mpsc::unbounded();
-        self.event_sinks.lock().push(tx);
-        // Necessary for tests to detect when service takes event_stream
-        if let Some(tx) = self.event_stream_taken_oneshot.lock().take() {
-            tx.send(()).unwrap();
-        }
-        MockEventStream(rx)
+        self.event_stream()
     }
 
     fn sender(
@@ -111,6 +105,16 @@ impl MockRawNetwork {
             create_sender_errors: Arc::new(Mutex::new(VecDeque::new())),
             send_errors: Arc::new(Mutex::new(VecDeque::new())),
         }
+    }
+
+    pub fn event_stream(&self) -> MockEventStream {
+        let (tx, rx) = mpsc::unbounded();
+        self.event_sinks.lock().push(tx);
+        // Necessary for tests to detect when service takes event_stream
+        if let Some(tx) = self.event_stream_taken_oneshot.lock().take() {
+            tx.send(()).unwrap();
+        }
+        MockEventStream(rx)
     }
 
     pub fn emit_event(&mut self, event: MockEvent) {

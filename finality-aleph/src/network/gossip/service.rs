@@ -500,9 +500,7 @@ impl<N: RawNetwork, AD: Data, BSD: Data> Service<N, AD, BSD> {
         info!(target: LOG_TARGET, "{}", status);
     }
 
-    pub async fn run(mut self) {
-        let mut events_from_network = self.network.event_stream();
-
+    pub async fn run(mut self, mut events_from_network: N::EventStream) {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {

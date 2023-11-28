@@ -123,10 +123,11 @@ async fn prepare_one_session_test_data() -> TestData {
             _ = network_manager_exit_rx => { },
         };
     };
+    let network_event_stream = network.event_stream();
 
     let gossip_service_task = async move {
         tokio::select! {
-            _ = gossip_service.run() => { },
+            _ = gossip_service.run(network_event_stream) => { },
             _ = gossip_service_exit_rx => { },
         };
     };
