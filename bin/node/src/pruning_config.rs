@@ -128,9 +128,8 @@ impl PruningConfigValidator {
 mod tests {
     use sc_service::{BlocksPruning, PruningMode};
 
-    use crate::pruning_config::{DEFAULT_BLOCKS_PRUNING, DEFAULT_STATE_PRUNING};
-
     use super::PruningParams;
+    use crate::pruning_config::{DEFAULT_BLOCKS_PRUNING, DEFAULT_STATE_PRUNING};
 
     #[test]
     fn pruning_sanity_check() {
