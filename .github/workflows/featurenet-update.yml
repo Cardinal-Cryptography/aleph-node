@@ -8,7 +8,7 @@ on:
         description: Name of featurenet
         required: true
         type: string
-      destination:
+      aleph-node-image:
         description: Node image tag, ie 7-byte SHA of some existing ECR aleph-node image tag
         required: true
         type: string
@@ -36,7 +36,7 @@ on:
         description: Name of featurenet
         required: true
         type: string
-      destination:
+      aleph-node-image:
         description: Node image tag, ie 7-byte SHA of some existing ECR aleph-node image tag
         required: true
         type: string
@@ -69,11 +69,12 @@ jobs:
     needs: [check-vars-and-secrets]
     name: Update featurenet
     # yamllint disable-line rule:line-length
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v4
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
-      destination: ${{ inputs.destination }}
+      aleph-node-image: ${{ inputs.destination }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
+      delete-first: false
