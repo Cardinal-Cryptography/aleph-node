@@ -3,10 +3,9 @@ name: Liminal CI/CD
 
 on:
   workflow_dispatch:
+  workflow_call:
   schedule:
     - cron: '00 23 * * *'
-  pull_request:
-    types: [labeled]
   push:
     branches: ['main']
 
@@ -17,35 +16,20 @@ concurrency:
 jobs:
   # --------------------- FILTERING TRIGGERS -----------------------------------
 
-  on_demand_or_pr:
+  on_demand:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      (
-        github.event_name == 'pull_request' &&
-        github.event.label.name == 'liminal-CI'
-      )
-    name: On request or PR
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'schedule'
+    name: Filter on-demand triggers
     runs-on: ubuntu-20.04
     steps:
       - run: echo "Triggered by ${{ github.event_name }}"
 
-  always:
-    name: Always
-    runs-on: ubuntu-20.04
-    steps:
-      - run: |
-          if [[\
-            '${{ github.event_name }}' == 'pull_request' && \
-            '${{ github.event.label.name }}' != 'liminal-CI' \
-          ]]; then
-             exit 1
-          fi
-
   # --------------------- CHAIN EXTENSION --------------------------------------
 
   chain-extension__clippy:
-    needs: [on_demand_or_pr]
+    needs: [on_demand]
     name: Run clippy for the chain extension
     runs-on: [self-hosted, Linux, X64, large]
     env:
@@ -66,7 +50,7 @@ jobs:
         run: make clippy
 
   chain-extension__unit-tests:
-    needs: [on_demand_or_pr]
+    needs: [on_demand]
     name: Run unit tests for the chain extension
     runs-on: [self-hosted, Linux, X64, large]
     env:
@@ -89,7 +73,6 @@ jobs:
   # --------------------- CLIAIN -----------------------------------------------
 
   cliain__build-and-push:
-    needs: [always]
     name: Build and push cliain docker image
     uses: ./.github/workflows/_build-and-push-cliain.yml
     with:
@@ -120,7 +103,6 @@ jobs:
   # --------------------- NODE -------------------------------------------------
 
   node-build__check-vars-and-secrets:
-    needs: [always]
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit

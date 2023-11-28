@@ -63,3 +63,9 @@ jobs:
     with:
       deploy: false
     secrets: inherit
+
+  run-liminal-ci-cd:
+    if: github.event.label.name == 'liminal-CI'
+    name: Run liminal CI/CD
+    uses: ./.github/workflows/liminal-ci-cd.yml
+    secrets: inherit
