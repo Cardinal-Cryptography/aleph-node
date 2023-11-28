@@ -31,7 +31,7 @@ pub trait WeightInfo {
     fn overwrite_equal_key(key_length: u32) -> Weight;
     fn overwrite_key(key_length: u32) -> Weight;
     fn delete_key(key_length: u32) -> Weight;
-	fn verify() -> Weight;
+    fn verify() -> Weight;
 }
 
 impl<I: BenchmarkInfo> WeightInfo for I {
@@ -51,18 +51,18 @@ impl<I: BenchmarkInfo> WeightInfo for I {
         <I as BenchmarkInfo>::delete_key(key_length)
     }
 
-	fn verify() -> Weight {
-		<I as BenchmarkInfo>::verify()
-	}
+    fn verify() -> Weight {
+        <I as BenchmarkInfo>::verify() 
+    }
 }
 
 /// Benchmark results for pallet_baby_liminal.
 trait BenchmarkInfo {
-	fn store_key(l: u32, ) -> Weight;
-	fn overwrite_equal_key(l: u32, ) -> Weight;
-	fn overwrite_key(l: u32, ) -> Weight;
-	fn delete_key(l: u32, ) -> Weight;
-	fn verify() -> Weight;
+    fn store_key(l: u32, ) -> Weight;
+    fn overwrite_equal_key(l: u32, ) -> Weight;
+    fn overwrite_key(l: u32, ) -> Weight;
+    fn delete_key(l: u32, ) -> Weight;
+    fn verify() -> Weight;
 }
 
 /// Weights for pallet_baby_liminal using the Substrate node and recommended hardware.
