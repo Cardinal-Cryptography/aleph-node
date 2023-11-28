@@ -66,7 +66,6 @@ where
     pub fn store_key<BackendExecutor: BackendExecutorT, Environment: EnvironmentT>(
         mut env: Environment,
     ) -> ChainExtensionResult<RetVal> {
-        // todo: charge weight, validate args
         let args = env.read_as_unbounded(env.in_len())?;
         let status = match BackendExecutor::store_key(args) {
             Ok(()) => STORE_KEY_SUCCESS,
@@ -90,8 +89,9 @@ where
 
         // ------- Read the arguments. -------------------------------------------------------------
         //
-        // TODO (piomiko): charge additional weight for the args size (spam protection);
+        // TODO: charge additional weight for the args size (spam protection);
         // this requires some benchmarking (maybe possible here, instead of polluting pallet's code)
+        // JIRA: https://cardinal-cryptography.atlassian.net/browse/A0-3578
         let args = env.read_as_unbounded(env.in_len())?;
 
         // ------- Forward the call. ---------------------------------------------------------------
