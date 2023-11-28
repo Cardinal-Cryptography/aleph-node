@@ -27,6 +27,8 @@ jobs:
       )
     name: On request or PR
     runs-on: ubuntu-20.04
+    steps:
+      - run: echo "Triggered by ${{ github.event_name }}"
 
   always:
     name: Always
