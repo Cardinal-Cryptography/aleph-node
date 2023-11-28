@@ -61,7 +61,7 @@ where
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
-    TP: metrics::TransactionPoolInfoProvider<Extrinsic = OpaqueExtrinsic> + Send + 'static,
+    TP: metrics::TransactionPoolInfoProvider<Extrinsic = OpaqueExtrinsic> + Send + Sync + 'static,
 {
     let AlephConfig {
         network,

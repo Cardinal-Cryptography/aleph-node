@@ -13,12 +13,12 @@ pub type TestClientBuilder<E, B> =
 pub type ExecutorDispatch = sc_executor::NativeElseWasmExecutor<LocalExecutorDispatch>;
 
 /// Default backend type.
-pub type Backend = sc_client_db::Backend<TBlock>;
+pub type TestBackend = sc_client_db::Backend<TBlock>;
 
 /// Test client type.
 pub type TestClient = client::Client<
-    Backend,
-    client::LocalCallExecutor<TBlock, Backend, ExecutorDispatch>,
+    TestBackend,
+    client::LocalCallExecutor<TBlock, TestBackend, ExecutorDispatch>,
     TBlock,
     aleph_runtime::RuntimeApi,
 >;
@@ -32,17 +32,19 @@ pub trait TestClientBuilderExt: Sized {
     fn build(self) -> TestClient;
 
     /// Build the test client and longest chain selector.
-    fn build_with_longest_chain(self) -> (TestClient, sc_consensus::LongestChain<Backend, TBlock>);
+    fn build_with_longest_chain(
+        self,
+    ) -> (TestClient, sc_consensus::LongestChain<TestBackend, TBlock>);
 
     /// Build the test client and the backend.
-    fn build_with_backend(self) -> (TestClient, Arc<Backend>);
+    fn build_with_backend(self) -> (TestClient, Arc<TestBackend>);
 }
 
 impl TestClientBuilderExt
     for substrate_test_client::TestClientBuilder<
         TBlock,
-        client::LocalCallExecutor<TBlock, Backend, ExecutorDispatch>,
-        Backend,
+        client::LocalCallExecutor<TBlock, TestBackend, ExecutorDispatch>,
+        TestBackend,
         GenesisParameters,
     >
 {
@@ -54,11 +56,13 @@ impl TestClientBuilderExt
         self.build_with_native_executor(None).0
     }
 
-    fn build_with_longest_chain(self) -> (TestClient, sc_consensus::LongestChain<Backend, TBlock>) {
+    fn build_with_longest_chain(
+        self,
+    ) -> (TestClient, sc_consensus::LongestChain<TestBackend, TBlock>) {
         self.build_with_native_executor(None)
     }
 
-    fn build_with_backend(self) -> (TestClient, Arc<Backend>) {
+    fn build_with_backend(self) -> (TestClient, Arc<TestBackend>) {
         let backend = self.backend();
         (self.build_with_native_executor(None).0, backend)
     }

@@ -7,10 +7,11 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    metrics::TimingBlockMetrics, run_validator_node, AlephBlockImport, AlephConfig, BlockImporter,
-    Justification, JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming,
-    RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle,
-    TracingBlockImport, ValidatorAddressCache,
+    metrics::{transaction_pool::TransactionPoolWrapper, TimingBlockMetrics},
+    run_validator_node, AlephBlockImport, AlephConfig, BlockImporter, Justification,
+    JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig,
+    RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle, TracingBlockImport,
+    ValidatorAddressCache,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -35,7 +36,6 @@ use crate::{
     chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::AlephExecutor,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
-    transaction_pool::TransactionPoolWrapper,
 };
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
@@ -425,7 +425,7 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
-    let transaction_pool_info_provider = TransactionPoolWrapper::new(transaction_pool.clone());
+    let transaction_pool_info_provider = TransactionPoolWrapper::new(transaction_pool);
 
     let aleph_config = AlephConfig {
         network,

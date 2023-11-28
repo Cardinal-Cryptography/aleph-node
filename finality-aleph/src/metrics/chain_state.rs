@@ -1,9 +1,12 @@
 use std::{num::NonZeroUsize, time::Instant};
 
-use futures::{future, StreamExt};
+use futures::{future, Stream, StreamExt};
 use log::warn;
 use lru::LruCache;
-use sc_client_api::{BlockBackend, FinalityNotifications, ImportNotifications};
+use sc_client_api::{
+    BlockBackend, BlockImportNotification, FinalityNotification, FinalityNotifications,
+    ImportNotifications,
+};
 use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
 use sp_runtime::{
@@ -114,7 +117,7 @@ pub async fn run_chain_state_metrics<
     import_notifications: ImportNotifications<B>,
     finality_notifications: FinalityNotifications<B>,
     registry: Option<Registry>,
-    transaction_pool_info_provider: TP,
+    mut transaction_pool_info_provider: TP,
 ) {
     let metrics = match ChainStateMetrics::new(registry) {
         Ok(metrics) => metrics,
@@ -124,78 +127,107 @@ pub async fn run_chain_state_metrics<
         }
     };
 
-    let mut best_block_notifications = import_notifications
-        .fuse()
-        .filter(|notification| future::ready(notification.is_new_best));
-    let mut finality_notifications = finality_notifications.fuse();
-
     let mut cache: LruCache<TP::TxHash, Instant> = LruCache::new(
         NonZeroUsize::new(TRANSACTION_CACHE_SIZE).expect("the cache size is a non-zero constant"),
     );
 
+    let mut best_block_notifications = import_notifications
+        .fuse()
+        .filter(|notification| future::ready(notification.is_new_best));
+    let mut finality_notifications = finality_notifications.fuse();
     let mut previous_best: Option<HE> = None;
-    loop {
-        select! {
-            maybe_block = best_block_notifications.next() => {
-                match maybe_block {
-                    Some(block) => {
-                        let number = (*block.header.number()).saturated_into::<BlockNumber>();
-                        metrics.update_best_block(number);
-                        if let Some(reorg_len) = detect_reorgs(backend, previous_best, block.header.clone()) {
-                            metrics.report_reorg(reorg_len);
-                        }
-                        if let Ok(Some(body)) = backend.block_body(block.hash) {
-                            report_extrinsics_included_in_block(&transaction_pool_info_provider, &body, &metrics, &mut cache);
-                        }
-                        previous_best = Some(block.header);
-                    }
-                    None => {
-                        warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
-                    }
-                }
-            },
-            maybe_block = finality_notifications.next() => {
-                match maybe_block {
-                    Some(block) => {
-                        // Sometimes finalization can also cause best block update. However,
-                        // RPC best block subscription won't notify about that immediately, so
-                        // we also don't update there. Also in that case, substrate sets best_block to
-                        // the newly finalized block (see test), so the best block will be updated
-                        // after importing anything on the newly finalized branch.
-                        metrics.update_top_finalized_block(*block.header.number());
-                    }
-                    None => {
-                        warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
-                    }
-                }
-            },
-            maybe_transaction = transaction_pool_info_provider.next_transaction() => {
-                match maybe_transaction {
-                    Some(hash) => {
-                        // Putting new transaction can evict the oldest one. However, even if the
-                        // removed transaction was actually still in the pool, we don't have
-                        // any guarantees that it could be included in the block. Therefore, we
-                        // we ignore such transaction.
-                        cache.put(hash, Instant::now());
-                    }
-                    None => {
-                        warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
-                    }
-                }
-            },
-        }
 
-        let mut rechecked_transactions = 0;
-        while let Some((hash, instant)) = cache.pop_lru() {
-            if !transaction_pool_info_provider.pool_contains(&hash) {
-                cache.pop_lru();
-            } else {
-                cache.put(hash, instant);
+    loop {
+        iteration(
+            backend,
+            &mut best_block_notifications,
+            &mut finality_notifications,
+            &metrics,
+            &mut transaction_pool_info_provider,
+            &mut cache,
+            &mut previous_best,
+        )
+        .await;
+    }
+}
+
+async fn iteration<
+    XT,
+    HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
+    B: BlockT<Header = HE, Extrinsic = XT>,
+    BE: HeaderMetadata<B> + BlockBackend<B>,
+    TP: TransactionPoolInfoProvider<Extrinsic = XT>,
+    BBN: Stream<Item = BlockImportNotification<B>> + Unpin,
+    FN: Stream<Item = FinalityNotification<B>> + Unpin,
+>(
+    backend: &BE,
+    best_block_notifications: &mut BBN,
+    finality_notifications: &mut FN,
+    metrics: &ChainStateMetrics,
+    transaction_pool_info_provider: &mut TP,
+    cache: &mut LruCache<TP::TxHash, Instant>,
+    previous_best: &mut Option<HE>,
+) {
+    select! {
+        maybe_block = best_block_notifications.next() => {
+            match maybe_block {
+                Some(block) => {
+                    let number = (*block.header.number()).saturated_into::<BlockNumber>();
+                    metrics.update_best_block(number);
+                    if let Some(reorg_len) = detect_reorgs(backend, previous_best.clone(), block.header.clone()) {
+                        metrics.report_reorg(reorg_len);
+                    }
+                    if let Ok(Some(body)) = backend.block_body(block.hash) {
+                        report_extrinsics_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
+                    }
+                    *previous_best = Some(block.header);
+                }
+                None => {
+                    warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
+                }
             }
-            rechecked_transactions += 1;
-            if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
-                break;
+        },
+        maybe_block = finality_notifications.next() => {
+            match maybe_block {
+                Some(block) => {
+                    // Sometimes finalization can also cause best block update. However,
+                    // RPC best block subscription won't notify about that immediately, so
+                    // we also don't update there. Also in that case, substrate sets best_block to
+                    // the newly finalized block (see test), so the best block will be updated
+                    // after importing anything on the newly finalized branch.
+                    metrics.update_top_finalized_block(*block.header.number());
+                }
+                None => {
+                    warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
+                }
             }
+        },
+        maybe_transaction = transaction_pool_info_provider.next_transaction() => {
+            match maybe_transaction {
+                Some(hash) => {
+                    // Putting new transaction can evict the oldest one. However, even if the
+                    // removed transaction was actually still in the pool, we don't have
+                    // any guarantees that it could be included in the block. Therefore, we
+                    // we ignore such transaction.
+                    cache.put(hash, Instant::now());
+                }
+                None => {
+                    warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
+                }
+            }
+        },
+    }
+
+    let mut rechecked_transactions = 0;
+    while let Some((hash, instant)) = cache.pop_lru() {
+        if !transaction_pool_info_provider.pool_contains(&hash) {
+            cache.pop_lru();
+        } else {
+            cache.put(hash, instant);
+        }
+        rechecked_transactions += 1;
+        if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
+            break;
         }
     }
 }
@@ -244,14 +276,29 @@ fn report_extrinsics_included_in_block<
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
 
+    use futures::{FutureExt, StreamExt};
+    use sc_basic_authorship::ProposerFactory;
+    use sc_client_api::{BlockchainEvents, HeaderBackend};
+    use sc_transaction_pool::{BasicPool, FullChainApi};
+    use sc_transaction_pool_api::TransactionPool;
     use sp_api::BlockT;
+    use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
+    use sp_runtime::{generic, transaction_validity::TransactionSource};
+    use substrate_prometheus_endpoint::Registry;
+    use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
+    use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
-    use super::detect_reorgs;
-    use crate::testing::{
-        client_chain_builder::ClientChainBuilder,
-        mocks::{TestClientBuilder, TestClientBuilderExt},
+    use super::*;
+    use crate::{
+        metrics::transaction_pool::TransactionPoolWrapper,
+        testing::{
+            client_chain_builder::ClientChainBuilder,
+            mocks::{
+                TBlock, THash, TestBackend, TestClient, TestClientBuilder, TestClientBuilderExt,
+            },
+        },
     };
 
     #[tokio::test]
@@ -324,5 +371,244 @@ mod test {
                 expected,
             );
         }
+    }
+
+    type TChainApi = FullChainApi<TestClient, TBlock>;
+
+    type FullTransactionPool = BasicPool<TChainApi, TBlock>;
+    type TProposerFactory =
+        ProposerFactory<FullTransactionPool, TestBackend, TestClient, DisableProofRecording>;
+
+    struct TestSetup {
+        pub client: Arc<TestClient>,
+        pub pool: Arc<FullTransactionPool>,
+        pub proposer_factory: TProposerFactory,
+        pub transaction_pool_info_provider: TransactionPoolWrapper<TChainApi, TBlock>,
+        pub metrics: ChainStateMetrics,
+        pub cache: LruCache<THash, Instant>,
+        pub best_block_notifications:
+            Box<dyn Stream<Item = BlockImportNotification<TBlock>> + Unpin>,
+        pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
+    }
+
+    impl TestSetup {
+        fn new() -> Self {
+            let client = Arc::new(TestClientBuilder::new().build());
+            let spawner = sp_core::testing::TaskExecutor::new();
+            let pool = BasicPool::new_full(
+                Default::default(),
+                true.into(),
+                None,
+                spawner.clone(),
+                client.clone(),
+            );
+
+            let proposer_factory =
+                ProposerFactory::new(spawner, client.clone(), pool.clone(), None, None);
+
+            let transaction_pool_info_provider = TransactionPoolWrapper::new(pool.clone());
+            let registry = Registry::new();
+            let metrics = ChainStateMetrics::new(Some(registry)).expect("metrics");
+            let cache = LruCache::new(NonZeroUsize::new(10).expect("cache"));
+
+            let best_block_notifications = Box::new(
+                client
+                    .every_import_notification_stream()
+                    .fuse()
+                    .filter(|notification| future::ready(notification.is_new_best)),
+            );
+
+            let finality_notifications = Box::new(client.finality_notification_stream().fuse());
+
+            TestSetup {
+                client,
+                pool,
+                proposer_factory,
+                transaction_pool_info_provider,
+                metrics,
+                cache,
+                best_block_notifications,
+                finality_notifications,
+            }
+        }
+
+        async fn run_one_metrics_loop_iteration(&mut self) {
+            iteration(
+                self.client.as_ref(),
+                &mut self.best_block_notifications,
+                &mut self.finality_notifications,
+                &self.metrics,
+                &mut self.transaction_pool_info_provider,
+                &mut self.cache,
+                &mut None,
+            )
+            .await
+        }
+
+        async fn new_block(&mut self, at: THash, weight_limit: Option<usize>) -> TBlock {
+            let proposer = self
+                .proposer_factory
+                .init(&self.client.expect_header(at).unwrap())
+                .await
+                .unwrap();
+
+            let block = proposer
+                .propose(
+                    Default::default(),
+                    Default::default(),
+                    Duration::from_secs(30),
+                    weight_limit,
+                )
+                .await
+                .unwrap();
+
+            let block = block.block;
+            self.client
+                .import(BlockOrigin::Own, block.clone())
+                .await
+                .unwrap();
+
+            block
+        }
+
+        fn transactions_histogram(&self) -> &Histogram {
+            match &self.metrics {
+                ChainStateMetrics::Prometheus {
+                    time_till_block_inclusion,
+                    ..
+                } => time_till_block_inclusion,
+                _ => panic!("metrics"),
+            }
+        }
+    }
+
+    fn transfer(sender: AccountKeyring, nonce: u64) -> Extrinsic {
+        let tx = Transfer {
+            amount: Default::default(),
+            nonce,
+            from: sender.into(),
+            to: AccountKeyring::Bob.into(),
+        };
+        ExtrinsicBuilder::new_transfer(tx).build()
+    }
+
+    #[tokio::test]
+    async fn transactions_get_reported() {
+        let mut setup = TestSetup::new();
+        let genesis = setup.client.info().genesis_hash;
+        let xt = transfer(AccountKeyring::Alice, 0);
+
+        let time_before_submit = Instant::now();
+        setup
+            .pool
+            .submit_one(
+                &generic::BlockId::<TBlock>::number(0),
+                TransactionSource::External,
+                xt,
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            setup
+                .run_one_metrics_loop_iteration()
+                .now_or_never()
+                .is_some(),
+            "Transaction in pool notification wasn't sent"
+        );
+        let time_after_submit = Instant::now();
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        let time_before_import = Instant::now();
+        let _block_1 = setup.new_block(genesis, None).await;
+        let pre_count = setup.transactions_histogram().get_sample_count();
+
+        assert!(
+            setup
+                .run_one_metrics_loop_iteration()
+                .now_or_never()
+                .is_some(),
+            "Block import notification wasn't sent"
+        );
+        let time_after_import = Instant::now();
+
+        let duration =
+            Duration::from_secs_f64(setup.transactions_histogram().get_sample_sum() / 1000.);
+        let eps = Duration::from_nanos(1);
+
+        assert_eq!(pre_count, 0);
+        assert_eq!(setup.transactions_histogram().get_sample_count(), 1);
+        assert!(duration >= time_before_import - time_after_submit - eps);
+        assert!(duration <= time_after_import - time_before_submit + eps);
+    }
+
+    #[tokio::test]
+    async fn transactions_are_reported_only_if_ready_when_added_to_the_pool() {
+        // The behavoiur of this test might be surprising, and in fact whether (and when)
+        // we will report tx1 is not so important, but we should know what's the behaviour.
+        // If implementation of tx pool notifications was changed in the future, we might
+        // consider updating this test accordingly instead of fixing the metrics code.
+        let mut setup = TestSetup::new();
+        let genesis = setup.client.info().genesis_hash;
+
+        let tx0 = transfer(AccountKeyring::Alice, 0);
+        let tx1 = transfer(AccountKeyring::Alice, 1);
+        let tx2 = transfer(AccountKeyring::Alice, 2);
+
+        setup
+            .pool
+            .submit_one(
+                &generic::BlockId::<TBlock>::number(0),
+                TransactionSource::External,
+                tx1.clone(),
+            )
+            .await
+            .unwrap();
+
+        // No notificatation for tx1 as it is not ready
+        assert_eq!(setup.run_one_metrics_loop_iteration().now_or_never(), None);
+
+        setup
+            .pool
+            .submit_one(
+                &generic::BlockId::<TBlock>::number(0),
+                TransactionSource::External,
+                tx0.clone(),
+            )
+            .await
+            .unwrap();
+
+        setup
+            .pool
+            .submit_one(
+                &generic::BlockId::<TBlock>::number(0),
+                TransactionSource::External,
+                tx2.clone(),
+            )
+            .await
+            .unwrap();
+
+        // Both notificatation for tx0 and tx2
+        assert_eq!(
+            setup.run_one_metrics_loop_iteration().now_or_never(),
+            Some(())
+        );
+        assert_eq!(
+            setup.run_one_metrics_loop_iteration().now_or_never(),
+            Some(())
+        );
+        assert_eq!(setup.run_one_metrics_loop_iteration().now_or_never(), None);
+
+        let block_1 = setup.new_block(genesis, None).await;
+
+        // Block import notification. Tx1 notification never appears
+        assert!(setup
+            .run_one_metrics_loop_iteration()
+            .now_or_never()
+            .is_some());
+        assert_eq!(setup.run_one_metrics_loop_iteration().now_or_never(), None);
+        // All 3 extrisincs are included in a block
+        assert_eq!(block_1.extrinsics.len(), 3);
     }
 }

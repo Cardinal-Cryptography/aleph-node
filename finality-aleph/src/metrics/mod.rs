@@ -1,5 +1,6 @@
 mod chain_state;
 mod timing;
+pub mod transaction_pool;
 
 pub use chain_state::run_chain_state_metrics;
 use sp_runtime::traits::Member;
@@ -10,7 +11,7 @@ const LOG_TARGET: &str = "aleph-metrics";
 pub trait TransactionPoolInfoProvider {
     type TxHash: Member + std::hash::Hash;
     type Extrinsic;
-    async fn next_transaction(&self) -> Option<Self::TxHash>;
+    async fn next_transaction(&mut self) -> Option<Self::TxHash>;
 
     fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash;
 
