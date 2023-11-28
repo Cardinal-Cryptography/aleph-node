@@ -766,15 +766,15 @@ where
             None => {
                 // let's start with the justification,
                 // as the header might be too far in the future
-                let mut new_info =
+                let higher_justification =
                     self.handle_justification(state.top_justification(), Some(peer.clone()))?;
                 let VerifiedHeader {
                     header,
                     maybe_equivocation_proof,
                 } = self.verify_header(state.favourite_block(), false)?;
                 maybe_proof = maybe_equivocation_proof;
-                new_info |= self.forest.update_header(&header, Some(peer), false)?;
-                HandleStateAction::maybe_extend(new_info)
+                let new_descendant = self.forest.update_header(&header, Some(peer), false)?;
+                HandleStateAction::maybe_extend(higher_justification || new_descendant)
             }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
@@ -785,10 +785,10 @@ where
                         maybe_equivocation_proof,
                     } = self.verify_header(state.favourite_block(), false)?;
                     maybe_proof = maybe_equivocation_proof;
-                    HandleStateAction::maybe_extend(
-                        self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                            || self.forest.update_header(&header, Some(peer), false)?,
-                    )
+                    let higher_justification =
+                        self.handle_justification(state.top_justification(), Some(peer.clone()))?;
+                    let new_descendant = self.forest.update_header(&header, Some(peer), false)?;
+                    HandleStateAction::maybe_extend(higher_justification || new_descendant)
                 }
                 // remote top justification lower than ours, we can send a response
                 false => HandleStateAction::response(local_top.into_unverified(), None),
