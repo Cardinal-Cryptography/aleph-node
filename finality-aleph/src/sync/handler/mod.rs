@@ -6,11 +6,13 @@ use std::{
     iter,
 };
 
+use log::info;
+
 use crate::{
     block::{
-        Block, BlockImport, ChainStatus, Finalizer, Header, HeaderVerifier, Justification,
-        JustificationVerifier, UnverifiedHeader, UnverifiedHeaderFor, UnverifiedJustification,
-        VerifiedHeader,
+        Block, BlockImport, ChainStatus, FinalizationStatus, Finalizer, Header, HeaderVerifier,
+        Justification, JustificationVerifier, UnverifiedHeader, UnverifiedHeaderFor,
+        UnverifiedJustification, VerifiedHeader,
     },
     session::{SessionBoundaryInfo, SessionId},
     sync::{
@@ -415,6 +417,30 @@ where
                 )
                 .map_err(Error::ChainStatus)?;
         }
+
+        // this was the most convenient place, at least for me
+        info!("REPORT BLOCK SIZES");
+        for thousands in 0..50000 {
+            let mut counter = 0;
+            for rem in 0..1000 {
+                let number = 1000 * thousands + rem;
+                let block_id = match chain_status.finalized_at(number) {
+                    Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
+                        justification.header().id()
+                    }
+                    Ok(FinalizationStatus::FinalizedByDescendant(header)) => header.id(),
+                    _ => break,
+                };
+                let block = match chain_status.block(block_id) {
+                    Ok(Some(block)) => block,
+                    _ => break,
+                };
+                counter += block.encode().len();
+            }
+            info!("{}k {}", thousands, counter);
+        }
+        panic!("REPORT BLOCK SIZES: FINISHED");
+
         Ok(Handler {
             chain_status,
             verifier,
