@@ -479,12 +479,20 @@ where
         let VerifiedHeader {
             maybe_equivocation_proof,
             ..
-        } = self
-            .verifier
-            .verify_header(block.header().clone(), own_block)
-            .map_err(Error::HeaderVerifier)?;
+        } = self.verify_header(block.header().clone(), own_block)?;
         self.block_importer.import_block(block);
         Ok(maybe_equivocation_proof)
+    }
+
+    fn verify_header(
+        &mut self,
+        header: UnverifiedHeaderFor<J>,
+        just_created: bool,
+    ) -> Result<VerifiedHeader<J::Header, V::EquivocationProof>, <Self as HandlerTypes>::Error>
+    {
+        self.verifier
+            .verify_header(header, just_created)
+            .map_err(Error::HeaderVerifier)
     }
 
     /// Inform the handler that a block has been imported.
@@ -524,10 +532,7 @@ where
                         let VerifiedHeader {
                             header,
                             maybe_equivocation_proof,
-                        } = self
-                            .verifier
-                            .verify_header(header.clone(), false)
-                            .map_err(Error::HeaderVerifier)?;
+                        } = self.verify_header(header.clone(), false)?;
                         equivocation_proof = maybe_equivocation_proof;
                         !self.forest.update_header(&header, None, true)?
                     }
@@ -661,11 +666,7 @@ where
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    let h = match self
-                        .verifier
-                        .verify_header(h, false)
-                        .map_err(Error::HeaderVerifier)
-                    {
+                    let h = match self.verify_header(h, false) {
                         Ok(VerifiedHeader {
                             header: h,
                             maybe_equivocation_proof: Some(proof),
@@ -757,18 +758,17 @@ where
         let action = match local_session.0.checked_sub(remote_session.0) {
             // remote session number larger than ours, we can try to import the justification
             None => {
+                // let's start with the justification,
+                // as the header might be too far in the future
+                let mut new_info =
+                    self.handle_justification(state.top_justification(), Some(peer.clone()))?;
                 let VerifiedHeader {
                     header,
                     maybe_equivocation_proof,
-                } = self
-                    .verifier
-                    .verify_header(state.favourite_block(), false)
-                    .map_err(Error::HeaderVerifier)?;
+                } = self.verify_header(state.favourite_block(), false)?;
                 maybe_proof = maybe_equivocation_proof;
-                HandleStateAction::maybe_extend(
-                    self.handle_justification(state.top_justification(), Some(peer.clone()))?
-                        || self.forest.update_header(&header, Some(peer), false)?,
-                )
+                new_info |= self.forest.update_header(&header, Some(peer), false)?;
+                HandleStateAction::maybe_extend(new_info)
             }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
@@ -777,10 +777,7 @@ where
                     let VerifiedHeader {
                         header,
                         maybe_equivocation_proof,
-                    } = self
-                        .verifier
-                        .verify_header(state.favourite_block(), false)
-                        .map_err(Error::HeaderVerifier)?;
+                    } = self.verify_header(state.favourite_block(), false)?;
                     maybe_proof = maybe_equivocation_proof;
                     HandleStateAction::maybe_extend(
                         self.handle_justification(state.top_justification(), Some(peer.clone()))?
@@ -843,10 +840,7 @@ where
         let VerifiedHeader {
             header,
             maybe_equivocation_proof,
-        } = self
-            .verifier
-            .verify_header(header, false)
-            .map_err(Error::HeaderVerifier)?;
+        } = self.verify_header(header, false)?;
         let should_request = self.forest.update_header(&header, None, true)?;
 
         Ok((should_request, maybe_equivocation_proof))
@@ -1981,7 +1975,7 @@ mod tests {
         header.invalidate();
         let state = State::new(MockJustification::for_header(header.clone()), header);
         match handler.handle_state(state, peer) {
-            Err(Error::HeaderVerifier(_)) => (),
+            Err(Error::JustificationVerifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
     }
