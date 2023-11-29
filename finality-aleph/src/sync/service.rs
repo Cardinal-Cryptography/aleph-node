@@ -402,17 +402,21 @@ where
         match maybe_error {
             Some(HandlerError::JustificationVerifier(e)) => debug!(
                 target: LOG_TARGET,
-                "Could not verify justification in sync state from {:?}: {}.", peer, e
+                "Could not verify justification in sync state response from {:?}: {}.", peer, e
             ),
             Some(HandlerError::HeaderVerifier(e)) => debug!(
                 target: LOG_TARGET,
-                "Could not verify header in sync state from {:?}: {}.", peer, e
+                "Could not verify header in sync state response from {:?}: {}.", peer, e
             ),
             Some(e) => warn!(
                 target: LOG_TARGET,
                 "Failed to handle sync state response from {:?}: {}.", peer, e
             ),
-            _ => {}
+            None => trace!(
+                target: LOG_TARGET,
+                "Handled state response from {:?}.",
+                peer
+            ),
         }
         if new_info {
             self.try_request_chain_extension();
@@ -479,7 +483,11 @@ where
                 target: LOG_TARGET,
                 "Failed to handle sync request response from {:?}: {}.", peer, e
             ),
-            _ => {}
+            None => trace!(
+                target: LOG_TARGET,
+                "Handled sync request response from {:?}.",
+                peer,
+            ),
         }
         self.process_equivocation_proofs(equivocation_proofs);
         if new_info {
@@ -522,7 +530,11 @@ where
                         }
                     }
                     Action::RequestBlock(header) => self.request_block(header.id()),
-                    _ => {}
+                    Action::Noop => trace!(
+                        target: LOG_TARGET,
+                        "Doing nothing in response to a request from {:?}.",
+                        peer,
+                    ),
                 }
             }
             Err(e) => {
