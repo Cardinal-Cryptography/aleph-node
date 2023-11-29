@@ -1,13 +1,13 @@
 use std::collections::{hash_map::Entry, HashMap};
 
 use primitives::{BlockHash, BlockNumber};
-use substrate_prometheus_endpoint::{prometheus::Counter, register, PrometheusError, Registry};
+use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
 #[derive(Clone)]
 pub enum FinalityRateMetrics {
     Prometheus {
-        own_finalized: Counter,
-        own_hopeless: Counter,
+        own_finalized: Counter<U64>,
+        own_hopeless: Counter<U64>,
         imported_cache: HashMap<BlockNumber, Vec<BlockHash>>,
     },
     Noop,
@@ -33,6 +33,7 @@ impl FinalityRateMetrics {
         })
     }
 
+    /// Stores the imported block's hash. Assumes that the imported block is own.
     pub fn report_own_imported(&mut self, hash: BlockHash, number: BlockNumber) {
         let imported_cache = match self {
             FinalityRateMetrics::Prometheus { imported_cache, .. } => imported_cache,
@@ -47,6 +48,9 @@ impl FinalityRateMetrics {
         }
     }
 
+    /// Counts the blocks at the level of `number` different than the passed block
+    /// and reports them as hopeless. If `hash` is a hash of own block it will be found
+    /// in `imported_cache` and reported as finalized.
     pub fn report_finalized(&mut self, hash: BlockHash, number: BlockNumber) {
         let (own_finalized, own_hopeless, imported_cache) = match self {
             FinalityRateMetrics::Prometheus {
@@ -69,11 +73,90 @@ impl FinalityRateMetrics {
                             }
                             **h != hash
                         })
-                        .count() as f64,
+                        .count() as u64,
                 );
                 entry.remove();
             }
             Entry::Vacant(_) => (),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use primitives::{BlockHash, BlockNumber};
+    use substrate_prometheus_endpoint::{Counter, Registry, U64};
+
+    use crate::FinalityRateMetrics;
+
+    fn extract_internals(
+        metrics: FinalityRateMetrics,
+    ) -> (
+        Counter<U64>,
+        Counter<U64>,
+        HashMap<BlockNumber, Vec<BlockHash>>,
+    ) {
+        match metrics {
+            FinalityRateMetrics::Prometheus {
+                own_finalized,
+                own_hopeless,
+                imported_cache,
+            } => (own_finalized, own_hopeless, imported_cache),
+            FinalityRateMetrics::Noop => panic!("metrics should have been initialized properly"),
+        }
+    }
+
+    fn verify_state(
+        metrics: &FinalityRateMetrics,
+        expected_finalized: u64,
+        expected_hopeless: u64,
+        expected_cache: HashMap<BlockNumber, Vec<BlockHash>>,
+    ) {
+        let (finalized, hopeless, cache) = extract_internals(metrics.clone());
+        assert_eq!(finalized.get(), expected_finalized);
+        assert_eq!(hopeless.get(), expected_hopeless);
+        assert_eq!(cache, expected_cache);
+    }
+
+    #[test]
+    fn imported_cache_behaves_properly() {
+        let mut metrics = FinalityRateMetrics::new(Some(&Registry::new())).unwrap();
+
+        verify_state(&metrics, 0, 0, HashMap::new());
+
+        let hash0 = BlockHash::random();
+        metrics.report_own_imported(hash0, 0);
+
+        verify_state(&metrics, 0, 0, HashMap::from([(0, vec![hash0])]));
+
+        let hash1 = BlockHash::random();
+        metrics.report_own_imported(hash1, 1);
+
+        verify_state(
+            &metrics,
+            0,
+            0,
+            HashMap::from([(0, vec![hash0]), (1, vec![hash1])]),
+        );
+
+        let hash2 = BlockHash::random();
+        metrics.report_own_imported(hash2, 1);
+
+        verify_state(
+            &metrics,
+            0,
+            0,
+            HashMap::from([(0, vec![hash0]), (1, vec![hash1, hash2])]),
+        );
+
+        metrics.report_finalized(hash0, 0);
+
+        verify_state(&metrics, 1, 0, HashMap::from([(1, vec![hash1, hash2])]));
+
+        metrics.report_finalized(BlockHash::random(), 1);
+
+        verify_state(&metrics, 1, 2, HashMap::new());
     }
 }
