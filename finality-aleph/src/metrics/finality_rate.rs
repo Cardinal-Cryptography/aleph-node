@@ -35,13 +35,12 @@ impl FinalityRateMetrics {
         })
     }
 
-
     pub fn report_block(
         &mut self,
         block_hash: BlockHash,
         checkpoint: Checkpoint,
         block_number: Option<BlockNumber>,
-        own: Option<bool>
+        own: Option<bool>,
     ) {
         if let Some(number) = block_number {
             match checkpoint {
@@ -55,7 +54,6 @@ impl FinalityRateMetrics {
             }
         }
     }
-
 
     /// Stores the imported block's hash. Assumes that the imported block is own.
     fn report_own_imported(&mut self, hash: BlockHash, number: BlockNumber) {
@@ -83,7 +81,6 @@ impl FinalityRateMetrics {
 
         match imported_cache.entry(number) {
             Entry::Occupied(entry) => {
-
                 let hashes = entry.get();
                 let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
                 own_hopeless.inc_by(new_hopeless_count as u64);
@@ -103,7 +100,7 @@ impl FinalityRateMetrics {
                 );
                 entry.remove();
             }
-            _ => {},
+            _ => {}
         }
     }
 }

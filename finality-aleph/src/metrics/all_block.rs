@@ -49,6 +49,7 @@ impl AllBlockMetrics {
         own: Option<bool>,
     ) {
         self.timing_metrics.report_block(block_hash, checkpoint);
-        self.finality_rate_metrics.report_block(block_hash, checkpoint, block_number, own);
+        self.finality_rate_metrics
+            .report_block(block_hash, checkpoint, block_number, own);
     }
 }
