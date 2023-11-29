@@ -79,28 +79,12 @@ impl FinalityRateMetrics {
             FinalityRateMetrics::Noop => return,
         };
 
-        match imported_cache.entry(number) {
-            Entry::Occupied(entry) => {
-                let hashes = entry.get();
-                let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
-                own_hopeless.inc_by(new_hopeless_count as u64);
-                own_finalized.inc_by((hashes.len() - new_hopeless_count) as u64);
-
-                own_hopeless.inc_by(
-                    entry
-                        .get()
-                        .iter()
-                        .filter(|h| {
-                            if **h == hash {
-                                own_finalized.inc();
-                            }
-                            **h != hash
-                        })
-                        .count() as u64,
-                );
-                entry.remove();
-            }
-            _ => {}
+        if let Entry::Occupied(entry) = imported_cache.entry(number) {
+            let hashes = entry.get();
+            let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
+            own_hopeless.inc_by(new_hopeless_count as u64);
+            own_finalized.inc_by((hashes.len() - new_hopeless_count) as u64);
+            entry.remove();
         }
     }
 }
