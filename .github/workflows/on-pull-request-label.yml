@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       name: ${{ steps.get-argocd-featurenet-app-name.outputs.name }}
+      sha: ${{ steps.get-ref-properties.outputs.sha }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -36,9 +37,10 @@ jobs:
     if: github.event.label.name == 'trigger:create-featurenet'
     needs: [get-featurenet-name]
     name: Create featurenet
-    uses: ./.github/workflows/featurenet-create-from-branch.yml
+    uses: ./.github/workflows/featurenet-create.yml
     with:
       featurenet-name: ${{ needs.get-featurenet-name.outputs.name }}
+      ref: ${{ needs.get-featurenet-name.outputs.sha }}
     secrets: inherit
 
   delete-featurenet:

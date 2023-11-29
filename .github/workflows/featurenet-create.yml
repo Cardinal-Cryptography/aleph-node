@@ -8,10 +8,10 @@ on:
         description: 'Name of featurenet'
         type: string
         required: true
-      aleph-node-image:
-        description: "aleph-node image tag or 'mainnet' or 'testnet'"
-        required: true
+      ref:
+        description: "git ref: hash, branch, tag - or 'mainnet' or 'testnet'"
         type: string
+        required: true
       expiration:
         description: 'Time after which featurenet will be removed'
         required: true
@@ -40,10 +40,10 @@ on:
         description: 'Name of featurenet'
         type: string
         required: true
-      aleph-node-image:
-        description: "aleph-node image tag or 'mainnet' or 'testnet'"
-        required: true
+      ref:
+        description: "git ref: hash, branch, tag - or 'mainnet' or 'testnet'"
         type: string
+        required: true
       expiration:
         description: 'Time after which featurenet will be removed'
         required: false
@@ -73,8 +73,8 @@ jobs:
             echo '!!! Invalid featurenet name'
             exit 1
           fi
-          if [[ ! '${{ inputs.aleph-node-image }}' =~ ^[a-z0-9][a-z0-9\.]{1,48}$ ]]; then
-            echo "!!! Invalid aleph-node image"
+          if [[ ! '${{ inputs.ref }}' =~ ^[a-z0-9][a-z0-9\.\-_]{1,48}$ ]]; then
+            echo "!!! Invalid ref"
             exit 1
           fi
         # yamllint enable rule:line-length
@@ -85,42 +85,26 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  # TODO: how do we deal with non-existing images
-  # TODO: how do we want to run this workflow?
-
   build-test-node-and-runtime:
-    if: ${{ inputs.aleph-node-image != 'mainnet' && inputs.aleph-node-image != 'testnet' }}
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
     name: Build test node and runtime
     needs: [check-vars-and-secrets]
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    with:
+      ref: ${{ inputs.ref }}
     secrets: inherit
 
-  store-test-node-and-runtime:
-    if: ${{ inputs.aleph-node-image != 'mainnet' && inputs.aleph-node-image != 'testnet' }}
-    name: Store test node and runtime in Devnet bucket
-    runs-on: ubuntu-20.04
+  push-featurenet-test-node-image-to-ecr:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
     needs: [build-test-node-and-runtime]
-    steps:
-      - name: Checkout aleph-node source code
-        uses: actions/checkout@v4
-
-      - name: Store test node and runtime
-        uses: ./.github/actions/store-node-and-runtime
-        with:
-          profile: test
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
-
-  push-featurenet-node-image-to-ecr:
-    if: ${{ inputs.aleph-node-image != 'mainnet' && inputs.aleph-node-image != 'testnet' }}
-    needs: [store-test-node-and-runtime]
     name: Build and push PR tesdocker image to ECR
-    uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
+    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
+    with:
+      ref: ${{ inputs.ref }}
     secrets: inherit
 
   create-featurenet:
-    needs: [push-featurnet-node-image-to-ecr]
+    needs: [push-featurenet-test-node-image-to-ecr]
     name: Create featurenet based on the PR
     # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create-from-branch.yml@v4
@@ -130,5 +114,6 @@ jobs:
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
-      aleph-node-image: ${{ inputs.aleph-node-image }}
+      aleph-node-image: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && inputs.ref || needs.push-featurenet-node-image-to-ecr.outputs.image-tag }}
+      featurenet-ecr-repo: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && false || true }}
       delete-first: true
