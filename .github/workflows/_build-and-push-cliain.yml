@@ -34,7 +34,7 @@ jobs:
           cd ./bin/cliain && cargo ${{ env.CARGO_COMMAND }} --release ${{ env.FEATURES }}
 
       - name: Test SNARK relations
-        if: ${{ inputs.liminal-runtime }}
+        if: ${{ inputs.liminal-runtime && inputs.check-only != true }}
         run: ./.github/scripts/test_cliain_snark_relations.sh
 
       - name: Upload cliain binary to GH artifacts
