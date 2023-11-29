@@ -103,7 +103,8 @@ jobs:
       ref: ${{ inputs.ref }}
     secrets: inherit
 
-  create-featurenet:
+  create-featurenet-from-branch:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
     needs: [push-featurenet-test-node-image-to-ecr]
     name: Create featurenet based on the PR
     # yamllint disable-line rule:line-length
@@ -114,8 +115,22 @@ jobs:
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
-      # yamllint disable rule:line-length
-      aleph-node-image: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && inputs.ref || needs.push-featurenet-node-image-to-ecr.outputs.image-tag }}
-      featurenet-ecr-repo: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && false || true }}
-      # yamllint enable rule:line-length
+      aleph-node-image: ${{ needs.push-featurenet-node-image-to-ecr.outputs.image-tag }}
+      featurenet-ecr-repo: true
+      delete-first: true
+
+  create-featurenet-from-net:
+    if: ${{ inputs.ref == 'mainnet' || inputs.ref == 'testnet' }}
+    needs: [check-vars-and-secrets]
+    name: Create featurenet based on the PR
+    # yamllint disable-line rule:line-length
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
+    secrets: inherit
+    with:
+      expiration: ${{ inputs.expiration }}
+      replicas: ${{ inputs.replicas }}
+      internal: ${{ inputs.internal && true || false }}
+      featurenet-name: ${{ inputs.featurenet-name }}
+      aleph-node-image: ${{ inputs.ref }}
+      featurenet-ecr-repo: false
       delete-first: true
