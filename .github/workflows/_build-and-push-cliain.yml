@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: cliain
-          path: target/release/cliain
+          path: bin/cliain/target/release/cliain
           if-no-files-found: error
           retention-days: 7
 
