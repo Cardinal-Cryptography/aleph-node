@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'release-*'
+      - A0-3549-liminal-pipelines
 
 jobs:
   check-vars-and-secrets:
