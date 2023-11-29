@@ -16,7 +16,7 @@ jobs:
   run-liminal-ci-cd:
     if: contains(github.event.pull_request.labels.*.name, 'liminal-CI')
     name: Run liminal checks on PR
-    uses: ./.github/workflows/_liminal-checks-on-PR.yml
+    uses: ./.github/workflows/_liminal-checks-on-pr.yml
     secrets: inherit
 
   check-cliain-build:

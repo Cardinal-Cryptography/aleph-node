@@ -16,7 +16,7 @@ on:
         default: false
 
 jobs:
-  build-or-check-cliain:
+  main:
     name: Build or check cliain binary
     runs-on: [self-hosted, Linux, X64, large]
     env:
@@ -61,7 +61,7 @@ jobs:
           REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
         run: |
           registry='${{ env.REGISTRY }}'
-          image_and_tag='${{ env.IMAGE_NAME }}:${{ env.TAG }}'
+          image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
           docker build -t ${image_and_tag} -f ./bin/cliain/Dockerfile ./bin/cliain
           docker push ${registry}${image_and_tag}
           if [[ '${{ env.TAG }}' -eq 'main' ]]; then
