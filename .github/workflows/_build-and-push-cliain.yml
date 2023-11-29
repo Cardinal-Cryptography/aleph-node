@@ -65,6 +65,12 @@ jobs:
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
 
+      - name: Download cliain from GH artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: cliain
+          path: bin/cliain/target/release/cliain
+
       - name: Login to Public Amazon ECR
         uses: docker/login-action@v3
         with:
@@ -73,7 +79,6 @@ jobs:
           password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
 
       - name: Build and push latest docker image
-        if: ${{ inputs.check-only != true }}
         env:
           IMAGE: ${{ inputs.liminal-runtime && 'cliain-liminal' || 'cliain' }}
           TAG: ${{ steps.get-ref-properties.outputs.sha }}
