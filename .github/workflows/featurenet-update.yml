@@ -44,7 +44,7 @@ jobs:
             echo '!!! Invalid featurenet name'
             exit 1
           fi
-          if [[ ! '${{ inputs.ref }}' =~ ^[a-z0-9][a-z0-9\.\-_]{1,48}$ ]]; then
+          if [[ ! '${{ inputs.ref }}' =~ ^[a-z0-9][a-z0-9\._\-]{1,48}$ ]]; then
             echo "!!! Invalid ref"
             exit 1
           fi
