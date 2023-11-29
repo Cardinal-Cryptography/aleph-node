@@ -97,7 +97,7 @@ jobs:
   push-featurenet-test-node-image-to-ecr:
     if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
     needs: [build-test-node-and-runtime]
-    name: Build and push PR tesdocker image to ECR
+    name: Build and push PR test docker image to ECR
     uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
     with:
       ref: ${{ inputs.ref }}
