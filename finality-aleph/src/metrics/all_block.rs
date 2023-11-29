@@ -49,19 +49,6 @@ impl AllBlockMetrics {
         own: Option<bool>,
     ) {
         self.timing_metrics.report_block(block_hash, checkpoint);
-        if let Some(number) = block_number {
-            match checkpoint {
-                Checkpoint::Imported => {
-                    if let Some(true) = own {
-                        self.finality_rate_metrics
-                            .report_own_imported(block_hash, number);
-                    }
-                }
-                Checkpoint::Finalized => self
-                    .finality_rate_metrics
-                    .report_finalized(block_hash, number),
-                _ => {}
-            }
-        }
+        self.finality_rate_metrics.report_block(block_hash, checkpoint, block_number, own);
     }
 }

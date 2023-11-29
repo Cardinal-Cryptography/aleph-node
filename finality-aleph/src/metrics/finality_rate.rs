@@ -3,6 +3,8 @@ use std::collections::{hash_map::Entry, HashMap};
 use primitives::{BlockHash, BlockNumber};
 use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
+use super::Checkpoint;
+
 #[derive(Clone)]
 pub enum FinalityRateMetrics {
     Prometheus {
@@ -33,25 +35,43 @@ impl FinalityRateMetrics {
         })
     }
 
+
+    pub fn report_block(
+        &mut self,
+        block_hash: BlockHash,
+        checkpoint: Checkpoint,
+        block_number: Option<BlockNumber>,
+        own: Option<bool>
+    ) {
+        if let Some(number) = block_number {
+            match checkpoint {
+                Checkpoint::Imported => {
+                    if let Some(true) = own {
+                        self.report_own_imported(block_hash, number);
+                    }
+                }
+                Checkpoint::Finalized => self.report_finalized(block_hash, number),
+                _ => {}
+            }
+        }
+    }
+
+
     /// Stores the imported block's hash. Assumes that the imported block is own.
-    pub fn report_own_imported(&mut self, hash: BlockHash, number: BlockNumber) {
+    fn report_own_imported(&mut self, hash: BlockHash, number: BlockNumber) {
         let imported_cache = match self {
             FinalityRateMetrics::Prometheus { imported_cache, .. } => imported_cache,
             FinalityRateMetrics::Noop => return,
         };
 
-        match imported_cache.entry(number) {
-            Entry::Occupied(mut entry) => entry.get_mut().push(hash),
-            Entry::Vacant(entry) => {
-                entry.insert(vec![hash]);
-            }
-        }
+        let entry = imported_cache.entry(number).or_default();
+        entry.push(hash)
     }
 
     /// Counts the blocks at the level of `number` different than the passed block
     /// and reports them as hopeless. If `hash` is a hash of own block it will be found
     /// in `imported_cache` and reported as finalized.
-    pub fn report_finalized(&mut self, hash: BlockHash, number: BlockNumber) {
+    fn report_finalized(&mut self, hash: BlockHash, number: BlockNumber) {
         let (own_finalized, own_hopeless, imported_cache) = match self {
             FinalityRateMetrics::Prometheus {
                 own_finalized,
@@ -63,6 +83,12 @@ impl FinalityRateMetrics {
 
         match imported_cache.entry(number) {
             Entry::Occupied(entry) => {
+
+                let hashes = entry.get();
+                let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
+                own_hopeless.inc_by(new_hopeless_count as u64);
+                own_finalized.inc_by((hashes.len() - new_hopeless_count) as u64);
+
                 own_hopeless.inc_by(
                     entry
                         .get()
@@ -77,7 +103,7 @@ impl FinalityRateMetrics {
                 );
                 entry.remove();
             }
-            Entry::Vacant(_) => (),
+            _ => {},
         }
     }
 }
