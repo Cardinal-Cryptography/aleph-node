@@ -808,7 +808,6 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
                     | RuntimeCall::Multisig(..)
                     | RuntimeCall::NominationPools(..)
                     | RuntimeCall::Identity(..)
-                    | RuntimeCall::Proxy(..)
             ),
             ProxyType::Staking => {
                 matches!(
@@ -822,12 +821,14 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
         }
     }
     fn is_superset(&self, o: &Self) -> bool {
+        // ProxyType::Staking ⊆ ProxyType::NonTransfer ⊆ ProxyType::Any
         match (self, o) {
-            (x, y) if x == y => true,
             (ProxyType::Any, _) => true,
             (_, ProxyType::Any) => false,
-            (ProxyType::NonTransfer, _) => true,
-            _ => false,
+            (ProxyType::NonTransfer, ProxyType::Staking) => true,
+            (ProxyType::Staking, ProxyType::NonTransfer) => false,
+            (ProxyType::Staking, ProxyType::Staking) => true,
+            (ProxyType::NonTransfer, ProxyType::NonTransfer) => true,
         }
     }
 }
