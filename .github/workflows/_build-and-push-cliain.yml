@@ -16,16 +16,11 @@ on:
         default: false
 
 jobs:
-  main:
+  build-or-check-cliain:
     name: Build or check cliain binary
     runs-on: [self-hosted, Linux, X64, large]
     env:
-      ECR_PUBLIC_HOST: ${{ vars.ECR_PUBLIC_HOST }}
-      ECR_PUBLIC_REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
-      AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-      AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-      CI_DEVNET_S3BUCKET_NAME: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
-      CARGO_COMMAND: ${{ inputs.check-only && 'build' || 'check' }}
+      CARGO_COMMAND: ${{ inputs.check-only && 'check' || 'build' }}
       FEATURES: ${{ inputs.liminal-runtime && '--features liminal' || '' }}
     steps:
       - name: Checkout source code
@@ -42,6 +37,27 @@ jobs:
         if: ${{ inputs.liminal-runtime }}
         run: ./.github/scripts/test_cliain_snark_relations.sh
 
+      - name: Upload cliain binary to GH artifacts
+        if: ${{ inputs.check-only != true }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: cliain
+          path: target/release/cliain
+          if-no-files-found: error
+          retention-days: 7
+
+  push-cliain-to-ecr:
+    name: Build and push cliain docker image to ecr
+    needs: [build-or-check-cliain]
+    if: ${{ inputs.check-only != true }}
+    runs-on: ubuntu-20.04
+    env:
+      ECR_PUBLIC_HOST: ${{ vars.ECR_PUBLIC_HOST }}
+      ECR_PUBLIC_REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
+      AWS_MAINNET_ACCESS_KEY_ID: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+      AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+      CI_DEVNET_S3BUCKET_NAME: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
+    steps:
       - name: Call action get-ref-properties
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4

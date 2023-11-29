@@ -18,7 +18,7 @@ jobs:
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
-      CARGO_COMMAND: ${{ inputs.check-only && 'build' || 'check' }}
+      CARGO_COMMAND: ${{ inputs.check-only && 'check' || 'build' }}
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
