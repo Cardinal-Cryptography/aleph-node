@@ -19,8 +19,7 @@ fn enforce_heap_pages(config: &mut Configuration) {
 fn main() -> sc_cli::Result<()> {
     let mut cli = Cli::parse();
 
-    let pruning_config_validation_result =
-        PruningConfigValidator::validate_and_fix_pruning_options(&mut cli);
+    let pruning_config_validation_result = PruningConfigValidator::process(&mut cli);
 
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
@@ -136,7 +135,7 @@ fn main() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&cli.run)?;
 
-            pruning_config_validation_result.report_pruning_validation_result();
+            pruning_config_validation_result.report();
 
             let mut aleph_cli_config = cli.aleph;
             runner.run_node_until_exit(|mut config| async move {

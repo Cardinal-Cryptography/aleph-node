@@ -33,7 +33,7 @@ impl PruningConfigValidator {
         state_pruning_changed || blocks_pruning_changed
     }
 
-    pub fn validate_and_fix_pruning_options(cli: &mut Cli) -> Self {
+    pub fn process(cli: &mut Cli) -> Self {
         let overwritten_pruning = Self::pruning_changed(&cli.run.import_params.pruning_params);
         let pruning_enabled = cli.aleph.enable_pruning();
 
@@ -53,47 +53,14 @@ impl PruningConfigValidator {
             return result;
         }
 
-        match cli
-            .run
-            .import_params
-            .pruning_params
-            .state_pruning
-            .get_or_insert(DatabasePruningMode::Custom(MINIMAL_STATE_PRUNING))
-        {
-            DatabasePruningMode::Archive | DatabasePruningMode::ArchiveCanonical => {}
-            DatabasePruningMode::Custom(max_blocks) => {
-                if *max_blocks < MINIMAL_STATE_PRUNING {
-                    result.invalid_state_pruning_setting = Err(*max_blocks);
-                    *max_blocks = MINIMAL_STATE_PRUNING;
-                }
-            }
-        }
+        result.process_state_pruning(cli);
+        result.process_blocks_pruning(cli);
+        result.process_database(cli);
 
-        match cli.run.import_params.pruning_params.blocks_pruning {
-            DatabasePruningMode::Archive | DatabasePruningMode::ArchiveCanonical => {}
-            DatabasePruningMode::Custom(blocks_pruning) => {
-                result.invalid_blocks_pruning_setting = Err(blocks_pruning);
-                cli.run.import_params.pruning_params.blocks_pruning = DEFAULT_BLOCKS_PRUNING;
-            }
-        }
-
-        match cli
-            .run
-            .import_params
-            .database_params
-            .database
-            .get_or_insert(DEFAULT_DATABASE_FOR_PRUNING)
-        {
-            Database::ParityDb => {}
-            db @ (Database::RocksDb | Database::Auto | Database::ParityDbDeprecated) => {
-                result.invalid_database_backend = Err(());
-                *db = DEFAULT_DATABASE_FOR_PRUNING;
-            }
-        }
         result
     }
 
-    pub fn report_pruning_validation_result(self) {
+    pub fn report(self) {
         if !self.pruning_enabled {
             if self.overwritten_pruning {
                 warn!("Pruning not enabled. Switching to keeping all block bodies and states.");
@@ -120,6 +87,50 @@ impl PruningConfigValidator {
                 "Pruning was enabled but the selected database backend \
             is not supported with pruning. Switching to `paritydb`.",
             );
+        }
+    }
+
+    fn process_database(&mut self, cli: &mut Cli) {
+        match cli
+            .run
+            .import_params
+            .database_params
+            .database
+            .get_or_insert(DEFAULT_DATABASE_FOR_PRUNING)
+        {
+            Database::ParityDb => {}
+            db @ (Database::RocksDb | Database::Auto | Database::ParityDbDeprecated) => {
+                self.invalid_database_backend = Err(());
+                *db = DEFAULT_DATABASE_FOR_PRUNING;
+            }
+        }
+    }
+
+    fn process_blocks_pruning(&mut self, cli: &mut Cli) {
+        match cli.run.import_params.pruning_params.blocks_pruning {
+            DatabasePruningMode::Archive | DatabasePruningMode::ArchiveCanonical => {}
+            DatabasePruningMode::Custom(blocks_pruning) => {
+                self.invalid_blocks_pruning_setting = Err(blocks_pruning);
+                cli.run.import_params.pruning_params.blocks_pruning = DEFAULT_BLOCKS_PRUNING;
+            }
+        }
+    }
+
+    fn process_state_pruning(&mut self, cli: &mut Cli) {
+        match cli
+            .run
+            .import_params
+            .pruning_params
+            .state_pruning
+            .get_or_insert(DatabasePruningMode::Custom(MINIMAL_STATE_PRUNING))
+        {
+            DatabasePruningMode::Archive | DatabasePruningMode::ArchiveCanonical => {}
+            DatabasePruningMode::Custom(max_blocks) => {
+                if *max_blocks < MINIMAL_STATE_PRUNING {
+                    self.invalid_state_pruning_setting = Err(*max_blocks);
+                    *max_blocks = MINIMAL_STATE_PRUNING;
+                }
+            }
         }
     }
 }
