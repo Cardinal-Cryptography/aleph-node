@@ -67,7 +67,7 @@ pub use crate::{
     },
     import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
-    metrics::TimingBlockMetrics,
+    metrics::{AllBlockMetrics, DefaultClock, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
         Protocol, ProtocolNaming, SubstrateNetwork, SubstrateNetworkEventStream,
@@ -259,7 +259,7 @@ pub struct AlephConfig<C, SC> {
     pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification>,
     pub block_rx: mpsc::UnboundedReceiver<AlephBlock>,
-    pub metrics: TimingBlockMetrics,
+    pub metrics: AllBlockMetrics,
     pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
