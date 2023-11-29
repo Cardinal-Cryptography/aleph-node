@@ -58,6 +58,9 @@ jobs:
       AWS_MAINNET_SECRET_ACCESS_KEY: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
       CI_DEVNET_S3BUCKET_NAME: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Call action get-ref-properties
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
