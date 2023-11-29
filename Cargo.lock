@@ -1041,6 +1041,15 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "baby-liminal-extension"
 version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-baby-liminal",
+ "pallet-contracts",
+ "parity-scale-codec",
+ "sp-std",
+]
 
 [[package]]
 name = "backtrace"
