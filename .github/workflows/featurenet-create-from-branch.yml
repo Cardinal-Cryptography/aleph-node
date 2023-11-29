@@ -106,7 +106,7 @@ jobs:
   create-featurenet-from-branch:
     if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
     needs: [push-featurenet-test-node-image-to-ecr]
-    name: Create featurenet based on the PR
+    name: Create featurenet from branch
     # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
     secrets: inherit
@@ -115,14 +115,14 @@ jobs:
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
-      aleph-node-image: ${{ needs.push-featurenet-node-image-to-ecr.outputs.image-tag }}
+      aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
       featurenet-ecr-repo: true
       delete-first: true
 
   create-featurenet-from-net:
     if: ${{ inputs.ref == 'mainnet' || inputs.ref == 'testnet' }}
     needs: [check-vars-and-secrets]
-    name: Create featurenet based on the PR
+    name: Create featurenet from net
     # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
     secrets: inherit
