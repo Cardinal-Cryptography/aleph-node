@@ -114,6 +114,8 @@ jobs:
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
+      # yamllint disable rule:line-length
       aleph-node-image: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && inputs.ref || needs.push-featurenet-node-image-to-ecr.outputs.image-tag }}
       featurenet-ecr-repo: ${{ (inputs.ref == 'mainnet' || inputs.ref == 'testnet') && false || true }}
+      # yamllint enable rule:line-length
       delete-first: true
