@@ -85,28 +85,27 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-#  build-test-node-and-runtime:
-#    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
-#    name: Build test node and runtime
-#    needs: [check-vars-and-secrets]
-#    uses: ./.github/workflows/_build-test-node-and-runtime.yml
-#    with:
-#      ref: ${{ inputs.ref }}
-#    secrets: inherit
-#
-#  push-featurenet-test-node-image-to-ecr:
-#    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
-#    needs: [build-test-node-and-runtime]
-#    name: Build and push PR test docker image to ECR
-#    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
-#    with:
-#      ref: ${{ inputs.ref }}
-#    secrets: inherit
+  build-test-node-and-runtime:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
+    name: Build test node and runtime
+    needs: [check-vars-and-secrets]
+    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
+
+  push-featurenet-test-node-image-to-ecr:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
+    needs: [build-test-node-and-runtime]
+    name: Build and push PR test docker image to ECR
+    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
 
   create-featurenet-from-branch:
     if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
-    # needs: [push-featurenet-test-node-image-to-ecr]
-    needs: [check-vars-and-secrets]
+    needs: [push-featurenet-test-node-image-to-ecr]
     name: Create featurenet from branch
     # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
@@ -116,8 +115,7 @@ jobs:
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
-      # aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
-      aleph-node-image: 'fe-a0-3467-unify-featurenet-creation_496599b6'
+      aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
       featurenet-ecr-repo: true
       delete-first: true
 
