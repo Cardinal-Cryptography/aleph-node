@@ -53,6 +53,7 @@ jobs:
     with:
       liminal-runtime: true
       check-only: false
+      push: false
 
   check-liminal-node-build:
     name: Check build liminal node

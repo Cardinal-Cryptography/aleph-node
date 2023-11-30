@@ -20,6 +20,7 @@ jobs:
     with:
       liminal-runtime: true
       check-only: false
+      push: true
 
   build-liminal-node:
     needs: [check-vars-and-secrets]

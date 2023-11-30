@@ -14,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      push:
+        description: 'Set to true to push cliain image to ECR'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-or-check-cliain:
@@ -49,7 +54,7 @@ jobs:
   push-cliain-to-ecr:
     name: Build and push cliain docker image to ecr
     needs: [build-or-check-cliain]
-    if: ${{ inputs.check-only != true }}
+    if: ${{ inputs.check-only != true && inputs.push == true }}
     runs-on: ubuntu-20.04
     env:
       ECR_PUBLIC_HOST: ${{ vars.ECR_PUBLIC_HOST }}
