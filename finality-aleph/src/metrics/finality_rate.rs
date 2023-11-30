@@ -1,5 +1,6 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::{num::NonZeroUsize};
 
+use lru::LruCache;
 use parking_lot::Mutex;
 use primitives::{BlockHash, BlockNumber};
 use sc_service::Arc;
@@ -7,12 +8,15 @@ use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry
 
 use super::Checkpoint;
 
+const MAX_CACHE_SIZE: usize = 1800;
+const MAX_INNER_SIZE: usize = 64;
+
 #[derive(Clone)]
 pub enum FinalityRateMetrics {
     Prometheus {
         own_finalized: Counter<U64>,
         own_hopeless: Counter<U64>,
-        imported_cache: Arc<Mutex<HashMap<BlockNumber, Vec<BlockHash>>>>,
+        imported_cache: Arc<Mutex<LruCache<BlockNumber, LruCache<BlockHash, ()>>>>,
     },
     Noop,
 }
@@ -33,7 +37,9 @@ impl FinalityRateMetrics {
                 Counter::new("aleph_own_hopeless_blocks", "no help")?,
                 registry,
             )?,
-            imported_cache: Arc::new(Mutex::new(HashMap::new())),
+            imported_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(MAX_CACHE_SIZE).unwrap(),
+            ))),
         })
     }
 
@@ -64,8 +70,10 @@ impl FinalityRateMetrics {
             FinalityRateMetrics::Noop => return,
         };
 
-        let entry = imported_cache.entry(number).or_default();
-        entry.push(hash)
+        let entry = imported_cache.get_or_insert_mut(number, || {
+            LruCache::new(NonZeroUsize::new(MAX_INNER_SIZE).unwrap())
+        });
+        entry.put(hash, ());
     }
 
     /// Counts the blocks at the level of `number` different than the passed block
@@ -81,13 +89,13 @@ impl FinalityRateMetrics {
             FinalityRateMetrics::Noop => return,
         };
 
-        if let Entry::Occupied(entry) = imported_cache.lock().entry(number) {
-            let hashes = entry.get();
-            let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
+        let mut imported_cache = imported_cache.lock();
+        if let Some(hashes) = imported_cache.get_mut(&number) {
+            let new_hopeless_count = hashes.iter().filter(|(h, _)| **h != hash).count();
             own_hopeless.inc_by(new_hopeless_count as u64);
             own_finalized.inc_by((hashes.len() - new_hopeless_count) as u64);
-            entry.remove();
         }
+        imported_cache.pop(&number);
     }
 }
 
@@ -95,6 +103,7 @@ impl FinalityRateMetrics {
 mod tests {
     use std::collections::HashMap;
 
+    use lru::LruCache;
     use parking_lot::Mutex;
     use primitives::{BlockHash, BlockNumber};
     use sc_service::Arc;
@@ -105,7 +114,7 @@ mod tests {
     type FinalityRateMetricsInternals = (
         Counter<U64>,
         Counter<U64>,
-        Arc<Mutex<HashMap<BlockNumber, Vec<BlockHash>>>>,
+        Arc<Mutex<LruCache<BlockNumber, LruCache<BlockHash, ()>>>>,
     );
 
     fn extract_internals(metrics: FinalityRateMetrics) -> FinalityRateMetricsInternals {
@@ -126,9 +135,20 @@ mod tests {
         expected_cache: HashMap<BlockNumber, Vec<BlockHash>>,
     ) {
         let (finalized, hopeless, cache) = extract_internals(metrics.clone());
+        let cache = cache.lock();
         assert_eq!(finalized.get(), expected_finalized);
         assert_eq!(hopeless.get(), expected_hopeless);
-        assert_eq!(cache.lock().to_owned(), expected_cache);
+
+        // verify caches are equal
+        assert_eq!(expected_cache.len(), cache.len());
+        for (level, expected_hashes) in expected_cache {
+            assert!(cache.contains(&level));
+            let hashes = cache.peek(&level).unwrap();
+            assert_eq!(expected_hashes.len(), hashes.len());
+            for hash in expected_hashes {
+                assert!(hashes.contains(&hash));
+            }
+        }
     }
 
     #[test]
