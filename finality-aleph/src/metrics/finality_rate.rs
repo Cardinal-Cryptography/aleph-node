@@ -1,6 +1,8 @@
 use std::collections::{hash_map::Entry, HashMap};
 
+use parking_lot::Mutex;
 use primitives::{BlockHash, BlockNumber};
+use sc_service::Arc;
 use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
 use super::Checkpoint;
@@ -10,7 +12,7 @@ pub enum FinalityRateMetrics {
     Prometheus {
         own_finalized: Counter<U64>,
         own_hopeless: Counter<U64>,
-        imported_cache: HashMap<BlockNumber, Vec<BlockHash>>,
+        imported_cache: Arc<Mutex<HashMap<BlockNumber, Vec<BlockHash>>>>,
     },
     Noop,
 }
@@ -31,12 +33,12 @@ impl FinalityRateMetrics {
                 Counter::new("aleph_own_hopeless_blocks", "no help")?,
                 registry,
             )?,
-            imported_cache: HashMap::new(),
+            imported_cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
     pub fn report_block(
-        &mut self,
+        &self,
         block_hash: BlockHash,
         checkpoint: Checkpoint,
         block_number: Option<BlockNumber>,
@@ -56,9 +58,9 @@ impl FinalityRateMetrics {
     }
 
     /// Stores the imported block's hash. Assumes that the imported block is own.
-    fn report_own_imported(&mut self, hash: BlockHash, number: BlockNumber) {
-        let imported_cache = match self {
-            FinalityRateMetrics::Prometheus { imported_cache, .. } => imported_cache,
+    fn report_own_imported(&self, hash: BlockHash, number: BlockNumber) {
+        let mut imported_cache = match self {
+            FinalityRateMetrics::Prometheus { imported_cache, .. } => imported_cache.lock(),
             FinalityRateMetrics::Noop => return,
         };
 
@@ -69,7 +71,7 @@ impl FinalityRateMetrics {
     /// Counts the blocks at the level of `number` different than the passed block
     /// and reports them as hopeless. If `hash` is a hash of own block it will be found
     /// in `imported_cache` and reported as finalized.
-    fn report_finalized(&mut self, hash: BlockHash, number: BlockNumber) {
+    fn report_finalized(&self, hash: BlockHash, number: BlockNumber) {
         let (own_finalized, own_hopeless, imported_cache) = match self {
             FinalityRateMetrics::Prometheus {
                 own_finalized,
@@ -79,7 +81,7 @@ impl FinalityRateMetrics {
             FinalityRateMetrics::Noop => return,
         };
 
-        if let Entry::Occupied(entry) = imported_cache.entry(number) {
+        if let Entry::Occupied(entry) = imported_cache.lock().entry(number) {
             let hashes = entry.get();
             let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
             own_hopeless.inc_by(new_hopeless_count as u64);
@@ -93,18 +95,20 @@ impl FinalityRateMetrics {
 mod tests {
     use std::collections::HashMap;
 
+    use parking_lot::Mutex;
     use primitives::{BlockHash, BlockNumber};
+    use sc_service::Arc;
     use substrate_prometheus_endpoint::{Counter, Registry, U64};
 
     use crate::FinalityRateMetrics;
 
-    fn extract_internals(
-        metrics: FinalityRateMetrics,
-    ) -> (
+    type FinalityRateMetricsInternals = (
         Counter<U64>,
         Counter<U64>,
-        HashMap<BlockNumber, Vec<BlockHash>>,
-    ) {
+        Arc<Mutex<HashMap<BlockNumber, Vec<BlockHash>>>>,
+    );
+
+    fn extract_internals(metrics: FinalityRateMetrics) -> FinalityRateMetricsInternals {
         match metrics {
             FinalityRateMetrics::Prometheus {
                 own_finalized,
@@ -124,12 +128,12 @@ mod tests {
         let (finalized, hopeless, cache) = extract_internals(metrics.clone());
         assert_eq!(finalized.get(), expected_finalized);
         assert_eq!(hopeless.get(), expected_hopeless);
-        assert_eq!(cache, expected_cache);
+        assert_eq!(cache.lock().to_owned(), expected_cache);
     }
 
     #[test]
     fn imported_cache_behaves_properly() {
-        let mut metrics = FinalityRateMetrics::new(Some(&Registry::new())).unwrap();
+        let metrics = FinalityRateMetrics::new(Some(&Registry::new())).unwrap();
 
         verify_state(&metrics, 0, 0, HashMap::new());
 

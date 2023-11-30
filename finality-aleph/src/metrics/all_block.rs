@@ -42,7 +42,7 @@ impl AllBlockMetrics {
 
     /// Triggers all contained block metrics.
     pub fn report_block(
-        &mut self,
+        &self,
         block_hash: BlockHash,
         checkpoint: Checkpoint,
         block_number: Option<BlockNumber>,
