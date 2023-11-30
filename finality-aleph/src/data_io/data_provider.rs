@@ -335,12 +335,8 @@ impl<UH: UnverifiedHeader> DataProvider<UH> {
 
         if let Some(data) = &data_to_propose {
             let top_block = data.head_proposal.top_block();
-            self.metrics.report_block(
-                top_block.hash(),
-                Checkpoint::Proposed,
-                Some(top_block.number()),
-                None,
-            );
+            self.metrics
+                .report_block(top_block, Checkpoint::Proposed, None);
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
 

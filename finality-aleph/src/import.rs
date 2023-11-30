@@ -62,14 +62,20 @@ where
         let is_own = block.origin == BlockOrigin::Own;
         // Self-created blocks are imported without using the import queue,
         // so we need to report them here.
-        self.metrics
-            .report_block(post_hash, Checkpoint::Importing, Some(number), Some(is_own));
+        self.metrics.report_block(
+            BlockId::new(post_hash, number),
+            Checkpoint::Importing,
+            Some(is_own),
+        );
 
         let result = self.inner.import_block(block).await;
 
         if let Ok(ImportResult::Imported(_)) = &result {
-            self.metrics
-                .report_block(post_hash, Checkpoint::Imported, Some(number), Some(is_own));
+            self.metrics.report_block(
+                BlockId::new(post_hash, number),
+                Checkpoint::Imported,
+                Some(is_own),
+            );
         }
         result
     }

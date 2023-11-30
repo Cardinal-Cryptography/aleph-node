@@ -325,12 +325,10 @@ impl DataProvider {
         let data_to_propose = (*self.data_to_propose.lock()).take();
 
         if let Some(data) = &data_to_propose {
-            self.metrics.report_block(
-                *data.head_proposal.branch.last().unwrap(),
-                Checkpoint::Proposed,
-                None,
-                None,
-            );
+            let number = data.head_proposal.number;
+            let hash = *data.head_proposal.branch.last().unwrap();
+            self.metrics
+                .report_block(BlockId::new(hash, number), Checkpoint::Proposed, None);
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
 

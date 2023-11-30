@@ -1,9 +1,8 @@
 use log::warn;
-use primitives::{BlockHash, BlockNumber};
 use substrate_prometheus_endpoint::Registry;
 
 use super::{finality_rate::FinalityRateMetrics, timing::DefaultClock, Checkpoint};
-use crate::{metrics::LOG_TARGET, TimingBlockMetrics};
+use crate::{metrics::LOG_TARGET, BlockId, TimingBlockMetrics};
 
 /// Wrapper around various block-related metrics.
 #[derive(Clone)]
@@ -41,15 +40,14 @@ impl AllBlockMetrics {
     }
 
     /// Triggers all contained block metrics.
-    pub fn report_block(
-        &self,
-        block_hash: BlockHash,
-        checkpoint: Checkpoint,
-        block_number: Option<BlockNumber>,
-        own: Option<bool>,
-    ) {
-        self.timing_metrics.report_block(block_hash, checkpoint);
-        self.finality_rate_metrics
-            .report_block(block_hash, checkpoint, block_number, own);
+    pub fn report_block(&self, block_id: BlockId, checkpoint: Checkpoint, own: Option<bool>) {
+        self.timing_metrics
+            .report_block(block_id.hash(), checkpoint);
+        self.finality_rate_metrics.report_block(
+            block_id.hash(),
+            block_id.number(),
+            checkpoint,
+            own,
+        );
     }
 }

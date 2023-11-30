@@ -46,14 +46,10 @@ async fn process_new_block_data<CN, LN>(
     LN: Network<LegacyRmcNetworkData>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    metrics.report_block(
-        block.hash(),
-        Checkpoint::Ordered,
-        Some(block.number()),
-        None,
-    );
+    let hash = block.hash();
+    metrics.report_block(block, Checkpoint::Ordered, None);
 
-    aggregator.start_aggregation(block.hash()).await;
+    aggregator.start_aggregation(hash).await;
 }
 
 fn process_hash<B, C, JS>(

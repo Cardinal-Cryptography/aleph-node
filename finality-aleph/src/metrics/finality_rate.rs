@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize};
+use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -46,20 +46,18 @@ impl FinalityRateMetrics {
     pub fn report_block(
         &self,
         block_hash: BlockHash,
+        block_number: BlockNumber,
         checkpoint: Checkpoint,
-        block_number: Option<BlockNumber>,
         own: Option<bool>,
     ) {
-        if let Some(number) = block_number {
-            match checkpoint {
-                Checkpoint::Imported => {
-                    if let Some(true) = own {
-                        self.report_own_imported(block_hash, number);
-                    }
+        match checkpoint {
+            Checkpoint::Imported => {
+                if let Some(true) = own {
+                    self.report_own_imported(block_hash, block_number);
                 }
-                Checkpoint::Finalized => self.report_finalized(block_hash, number),
-                _ => {}
             }
+            Checkpoint::Finalized => self.report_finalized(block_hash, block_number),
+            _ => {}
         }
     }
 
