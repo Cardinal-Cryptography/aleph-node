@@ -418,7 +418,7 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
-    // Network event stream needs to be created befor starting the network,
+    // Network event stream needs to be created before starting the network,
     // otherwise some events might be missed.
     let network_event_stream = substrate_network.event_stream();
 
