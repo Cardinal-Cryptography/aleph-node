@@ -63,7 +63,7 @@ impl PruningConfigValidator {
     pub fn report(self) {
         if !self.pruning_enabled {
             if self.overwritten_pruning {
-                warn!("Pruning not enabled. Switching to keeping all block bodies and states.");
+                warn!("Pruning not enabled. Switching to keeping all block bodies and states. Please use `--enable-pruning` flag.");
             }
             return;
         }

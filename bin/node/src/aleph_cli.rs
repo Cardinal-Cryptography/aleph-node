@@ -42,8 +42,9 @@ pub struct AlephCli {
     #[clap(long, default_value_t = 20)]
     max_nonfinalized_blocks: u32,
 
-    /// Enable database pruning
-    /// Note that we only support pruning with ParityDB.
+    /// Enable database pruning. It removes older entries in the state-database. Pruning of blocks is not supported.
+    /// Note that we only support pruning with ParityDB database backend.
+    /// See also `--state-pruning` option for more details.
     #[clap(long, default_value_t = false)]
     enable_pruning: bool,
 
