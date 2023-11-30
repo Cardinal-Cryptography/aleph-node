@@ -71,11 +71,6 @@ impl RawNetwork for MockRawNetwork {
     type SenderError = MockSenderError;
     type NetworkSender = MockNetworkSender;
     type PeerId = MockPublicKey;
-    type EventStream = MockEventStream;
-
-    fn event_stream(&self) -> Self::EventStream {
-        self.event_stream()
-    }
 
     fn sender(
         &self,

@@ -418,9 +418,13 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
+    // Network event stream needs to be created befor starting the network,
+    // otherwise some events might be missed.
+    let network_event_stream = substrate_network.event_stream();
+
     let aleph_config = AlephConfig {
-        network: substrate_network.clone(),
-        network_event_stream: substrate_network.event_stream(),
+        network: substrate_network,
+        network_event_stream,
         client,
         chain_status,
         import_queue_handle,

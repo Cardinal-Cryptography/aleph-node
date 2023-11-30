@@ -120,9 +120,13 @@ where
         validator_network_service.run(exit).await
     });
 
-    let (gossip_network_service, authentication_network, block_sync_network) =
-        GossipService::new(network, spawn_handle.clone(), registry.clone());
-    let gossip_network_task = async move { gossip_network_service.run(network_event_stream).await };
+    let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
+        network,
+        network_event_stream,
+        spawn_handle.clone(),
+        registry.clone(),
+    );
+    let gossip_network_task = async move { gossip_network_service.run().await };
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),

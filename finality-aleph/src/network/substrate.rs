@@ -249,11 +249,6 @@ impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
     type SenderError = SenderError;
     type NetworkSender = SubstrateNetworkSender;
     type PeerId = PeerId;
-    type EventStream = NetworkEventStream<B, H>;
-
-    fn event_stream(&self) -> Self::EventStream {
-        self.event_stream()
-    }
 
     fn sender(
         &self,
