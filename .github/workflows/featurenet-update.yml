@@ -54,16 +54,32 @@ jobs:
     needs: [validate-inputs]
     name: Check if node image tag exists
     runs-on: ubuntu-20.04
+    outputs:
+      image-tag: ${{ steps.check-image-exists.outputs.image-tag }}
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+
       - name: Check if node image tag exists
+        id: check-image-exists
         shell: bash
-        env:
-          IMAGE: ${{ vars.ECR_PUBLIC_REGISTRY }}aleph-node:${{ inputs.ref }}
         run: |
-          if ! docker manifest inspect '${{ env.IMAGE }}'; then
-           echo "!! Image ${{ env.IMAGE }} does not exist.";
+          image_tag='${{ inputs.ref }}'
+          # if input ref is not a commit hash, it is a branch name or tag name
+          if [[ ! '${{ inputs.ref }}' =~ ^[a-f][a-f0-9]{4,40}$ ]]; then
+            # we read commit sha from branch name or tag name
+            image_tag='${{ steps.get-ref-properties.outputs.sha }}'
+          fi
+          image='${{ vars.ECR_PUBLIC_REGISTRY }}'aleph-node:${image_tag}
+          if ! docker manifest inspect ${image}; then
+           echo "!! Image ${image} does not exist.";
            exit 1;
           fi
+          echo "image-tag=${image_tag}" >> $GITHOUB_OUTPUT
 
   check-vars-and-secrets:
     needs: [check-image-existence]
@@ -72,14 +88,14 @@ jobs:
     secrets: inherit
 
   update-featurenet:
-    needs: [check-vars-and-secrets]
+    needs: [check-vars-and-secrets, check-image-existence]
     name: Update featurenet
     # yamllint disable-line rule:line-length
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3467-unify-featurenet-creation
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
-      aleph-node-image: ${{ inputs.ref }}
+      aleph-node-image: ${{ needs.check-image-existence.outputs.image-tag }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
       replicas: ${{ inputs.replicas }}
       internal: ${{ inputs.internal && true || false }}
