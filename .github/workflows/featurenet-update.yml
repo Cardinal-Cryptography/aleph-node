@@ -70,13 +70,13 @@ jobs:
         id: check-image-exists
         shell: bash
         run: |
-          image_tag=$(echo '${{ steps.get-ref-properties.outputs.sha }}' | cut -b -7)
+          image_tag='${{ steps.get-ref-properties.outputs.sha }}'
           image='${{ vars.ECR_PUBLIC_REGISTRY }}'aleph-node:${image_tag}
           if ! docker manifest inspect ${image}; then
            echo "!! Image ${image} does not exist.";
            exit 1;
           fi
-          echo "image-tag=${image_tag}" >> $GITHOUB_OUTPUT
+          echo "image-tag=${image_tag}" >> $GITHUB_OUTPUT
 
   check-vars-and-secrets:
     needs: [check-image-existence]
