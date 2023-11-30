@@ -47,12 +47,12 @@ jobs:
         working-directory: baby-liminal-extension
         run: make test
 
-  check-cliain-build:
-    name: Check cliain build
+  liminal-cliain-build:
+    name: Liminal cliain build
     uses: ./.github/workflows/_build-and-push-cliain.yml
     with:
       liminal-runtime: true
-      check-only: true
+      check-only: false
 
   check-liminal-node-build:
     name: Check build liminal node
