@@ -76,6 +76,8 @@ impl BlockImporter {
 
 impl BlockImport<Block> for BlockImporter {
     fn import_block(&mut self, block: Block, own: bool) {
+        // We only need to distinguish between blocks produced by us and blocks incoming from the network
+        // for the purpose of running `FinalityRateMetrics`. We use `BlockOrigin` to make this distinction.
         let origin = match own {
             true => BlockOrigin::Own,
             false => BlockOrigin::NetworkBroadcast,
