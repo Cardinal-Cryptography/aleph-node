@@ -75,7 +75,7 @@ jobs:
           # if input ref is not a commit hash, it is a branch name or tag name
           if [[ ! '${{ inputs.ref }}' =~ ^[a-f][a-f0-9]{4,40}$ ]]; then
             # we read commit sha from branch name or tag name
-            image_tag='${{ steps.get-ref-properties.outputs.sha }}'
+            image_tag=$(echo '${{ steps.get-ref-properties.outputs.sha }}' | cur -b -7)
           fi
           image='${{ vars.ECR_PUBLIC_REGISTRY }}'aleph-node:${image_tag}
           if ! docker manifest inspect ${image}; then
