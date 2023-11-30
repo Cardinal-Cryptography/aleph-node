@@ -89,7 +89,9 @@ jobs:
   push-featurenet-node-image-to-ecr:
     needs: [build-test-node-and-runtime]
     name: Build and push PR test docker image to ECR
-    uses: ./.github/workflows/_build-and-push-pull-request-image-to-featurenets.yml
+    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
+    with:
+      ref: ${{ github.ref }}
     secrets: inherit
 
   runs-e2e-test-on-fe:
@@ -125,21 +127,21 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@v4
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3467-unify-featurenet-creation
         id: create-featurenet
         with:
+          gh-ci-user: ${{ secrets.CI_GH_USER }}
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
-          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
+          featurenet-aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
+          featurenet-ecr-repo: true
           expiration: '3h'
           featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           wait-for-finalized-heads: "true"
+          delete-first: true
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
@@ -164,17 +166,14 @@ jobs:
 
       - name: Delete old featurenet app and data
         if: always()
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v4
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3467-unify-featurenet-creation
         with:
+          gh-ci-user: ${{ secrets.CI_GH_USER }}
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
-          repo-featurenets-name: ${{ secrets.REPO_OPS_FEATURENETS_NAME }}
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
-          argo-host: ${{ secrets.ARGOCD_DEVNET_HOST }}
-          featurenet-keys-s3bucket-name: ${{ secrets.FEATURENET_KEYS_S3BUCKET_NAME }}
           featurenet-name: ${{ steps.get-final-featurenet-name.outputs.final-featurenet-name }}
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
