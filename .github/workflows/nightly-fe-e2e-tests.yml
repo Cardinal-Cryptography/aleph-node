@@ -161,6 +161,7 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
+        if: always()
         uses: Cardinal-Cryptography/github-actions/delete-featurenet@v4
         with:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
