@@ -3,8 +3,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node0
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
@@ -13,8 +11,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node1
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
@@ -23,8 +19,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node2
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
@@ -33,8 +27,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node3
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
@@ -43,8 +35,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node4
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
@@ -53,8 +43,6 @@ services:
     extends:
       file: docker-compose.synthetic-network.yml
       service: Node5
-    networks:
-      - synthetic-network
     environment:
       - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
       - RPC_PORT=9944
