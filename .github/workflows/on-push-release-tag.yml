@@ -35,7 +35,7 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           # cut release candidate part of the tag
-          tag=$(echo '${{ steps.get-ref-properties.outputs.tag }}' | sed 's/-rc.*$//g')
+          tag=$(echo '${{ steps.get-ref-properties.outputs.tag }}' | sed 's/-rc[0-9]*$//g')
           # cut major version from Cargo.toml
           expected_tag=r-$(echo '${{ steps.read-node-version.outputs.value }}' | sed -e 's/^[0-9]\+\.//g')
           if [[ ${tag} != ${expected_tag} ]]; then
