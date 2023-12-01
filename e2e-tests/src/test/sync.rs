@@ -264,7 +264,9 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 /// so the finalization can continue in case of a big best-finalized gap.
 #[tokio::test]
 pub async fn large_finalization_stall() -> anyhow::Result<()> {
-    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 4096 + 1;
+    // Two sessions minus some small initial finalization gap.
+    // By default we stop producing new blocks if best-finalized > 20.
+    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 1800 - 20;
     const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 901;
     const VALIDATOR_NETWORK_PORT: u16 = 30343;
 
