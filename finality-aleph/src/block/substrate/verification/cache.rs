@@ -403,6 +403,16 @@ where
             maybe_equivocation_proof,
         })
     }
+
+    fn own_block(&self, header: &Header) -> bool {
+        // on average: ~2000 elements in the cache, one check per second
+        for (cached_header, certainly_own) in self.equivocation_cache.values() {
+            if *certainly_own && header == cached_header {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 #[cfg(test)]
