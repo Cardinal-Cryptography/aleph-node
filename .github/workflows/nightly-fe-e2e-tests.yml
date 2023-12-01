@@ -141,7 +141,6 @@ jobs:
           git-commit-author: ${{ secrets.AUTOCOMMIT_AUTHOR }}
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           wait-for-finalized-heads: "true"
-          delete-first: true
 
       - name: Download artifact with the test suite image
         uses: actions/download-artifact@v2
