@@ -1,22 +1,28 @@
 use std::num::NonZeroUsize;
 
+use log::warn;
 use lru::LruCache;
 use parking_lot::Mutex;
 use primitives::{BlockHash, BlockNumber};
 use sc_service::Arc;
+use sp_core::{bounded_vec::BoundedVec, ConstU32};
 use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
 use super::Checkpoint;
+use crate::metrics::LOG_TARGET;
 
 const MAX_CACHE_SIZE: usize = 1800;
-const MAX_INNER_SIZE: usize = 64;
+const MAX_INNER_SIZE: u32 = 64;
+
+type ImportedHashesCache =
+    Arc<Mutex<LruCache<BlockNumber, BoundedVec<BlockHash, ConstU32<MAX_INNER_SIZE>>>>>;
 
 #[derive(Clone)]
 pub enum FinalityRateMetrics {
     Prometheus {
         own_finalized: Counter<U64>,
         own_hopeless: Counter<U64>,
-        imported_cache: Arc<Mutex<LruCache<BlockNumber, LruCache<BlockHash, ()>>>>,
+        imported_cache: ImportedHashesCache,
     },
     Noop,
 }
@@ -68,10 +74,16 @@ impl FinalityRateMetrics {
             FinalityRateMetrics::Noop => return,
         };
 
-        let entry = imported_cache.get_or_insert_mut(number, || {
-            LruCache::new(NonZeroUsize::new(MAX_INNER_SIZE).unwrap())
-        });
-        entry.put(hash, ());
+        let entry = imported_cache
+            .get_or_insert_mut(number, BoundedVec::<_, ConstU32<MAX_INNER_SIZE>>::new);
+
+        if entry.try_push(hash).is_err() {
+            warn!(
+                target: LOG_TARGET,
+                "Finality Rate Metrics encountered too many own imported blocks at level {}",
+                number
+            );
+        }
     }
 
     /// Counts the blocks at the level of `number` different than the passed block
@@ -89,7 +101,7 @@ impl FinalityRateMetrics {
 
         let mut imported_cache = imported_cache.lock();
         if let Some(hashes) = imported_cache.get_mut(&number) {
-            let new_hopeless_count = hashes.iter().filter(|(h, _)| **h != hash).count();
+            let new_hopeless_count = hashes.iter().filter(|h| **h != hash).count();
             own_hopeless.inc_by(new_hopeless_count as u64);
             own_finalized.inc_by((hashes.len() - new_hopeless_count) as u64);
         }
@@ -105,6 +117,8 @@ mod tests {
     use parking_lot::Mutex;
     use primitives::{BlockHash, BlockNumber};
     use sc_service::Arc;
+    use sp_core::ConstU32;
+    use sp_runtime::BoundedVec;
     use substrate_prometheus_endpoint::{Counter, Registry, U64};
 
     use crate::FinalityRateMetrics;
@@ -112,7 +126,7 @@ mod tests {
     type FinalityRateMetricsInternals = (
         Counter<U64>,
         Counter<U64>,
-        Arc<Mutex<LruCache<BlockNumber, LruCache<BlockHash, ()>>>>,
+        Arc<Mutex<LruCache<BlockNumber, BoundedVec<BlockHash, ConstU32<64>>>>>,
     );
 
     fn extract_internals(metrics: FinalityRateMetrics) -> FinalityRateMetricsInternals {
@@ -142,10 +156,7 @@ mod tests {
         for (level, expected_hashes) in expected_cache {
             assert!(cache.contains(&level));
             let hashes = cache.peek(&level).unwrap();
-            assert_eq!(expected_hashes.len(), hashes.len());
-            for hash in expected_hashes {
-                assert!(hashes.contains(&hash));
-            }
+            assert_eq!(expected_hashes, hashes.clone().into_inner());
         }
     }
 
