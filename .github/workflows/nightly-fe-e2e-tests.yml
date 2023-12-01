@@ -134,6 +134,7 @@ jobs:
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
           argo-sync-user-token: ${{ secrets.ARGO_SYNC_USER_TOKEN }}
           repo-featurenet-template-name: ${{ secrets.REPO_FEATURENET_TEMPLATE_NAME }}
+          # yamllint disable-line rule:line-length
           featurenet-aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
           featurenet-ecr-repo: true
           expiration: '3h'
