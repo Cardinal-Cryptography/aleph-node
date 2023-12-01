@@ -127,7 +127,7 @@ jobs:
         # yamllint enable rule:line-length
 
       - name: Create featurenet from scratch
-        uses: Cardinal-Cryptography/github-actions/create-featurenet@A0-3467-unify-featurenet-creation
+        uses: Cardinal-Cryptography/github-actions/create-featurenet@v5
         id: create-featurenet
         with:
           gh-ci-user: ${{ secrets.CI_GH_USER }}
@@ -165,7 +165,7 @@ jobs:
 
       - name: Delete old featurenet app and data
         if: always()
-        uses: Cardinal-Cryptography/github-actions/delete-featurenet@A0-3467-unify-featurenet-creation
+        uses: Cardinal-Cryptography/github-actions/delete-featurenet@v5
         with:
           gh-ci-user: ${{ secrets.CI_GH_USER }}
           gh-ci-token: ${{ secrets.CI_GH_TOKEN }}
