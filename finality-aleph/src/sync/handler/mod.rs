@@ -472,8 +472,7 @@ where
     /// Check for equivocations and then send the block to the block importer.
     /// It's important to pass every incoming block through this function, as the block importer
     /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
-    /// Also, this is the last place we know if we've authored the block, without having to
-    /// check it by hand.
+    /// The knowledge of authorship of the block is passed further to the block importer.
     fn import_block(
         &mut self,
         block: B,
