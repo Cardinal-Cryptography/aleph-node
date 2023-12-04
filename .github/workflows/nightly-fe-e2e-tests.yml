@@ -41,16 +41,13 @@ jobs:
     steps:
       - name: Pull aleph-e2e-client image
         shell: bash
-
         run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:latest'
 
       - name: Get testcases
         shell: bash
         id: get-testcases
-        env:
-          TAG: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
-          testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:${{ env.TAG }} \
+          testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:latest \
             `# basically cargo test --list under the hood` \
             --list | \
             `# filter by testcases (not benches)` \
@@ -131,7 +128,7 @@ jobs:
             -e NODE_URL='wss://${{ steps.create-featurenet.outputs.ws-hostname }}:443' \
             -e TEST_CASES='${{ matrix.testcase }}' \
             -e RUST_LOG=info \
-            aleph-e2e-client:${{ env.TAG }}
+            aleph-e2e-client:latest
         timeout-minutes: 15
 
       - name: Delete old featurenet app and data
