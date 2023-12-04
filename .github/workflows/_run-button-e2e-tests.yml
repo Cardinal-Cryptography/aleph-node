@@ -42,7 +42,7 @@ jobs:
           aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
 
   run-e2e-button-contracts-tests:
-    needs: [build-test-node-and-runtime:]
+    needs: [build-test-node-and-runtime]
     name: Run e2e button game contract tests
     runs-on: [self-hosted, Linux, X64, large]
     steps:

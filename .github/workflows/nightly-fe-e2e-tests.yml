@@ -41,9 +41,8 @@ jobs:
     steps:
       - name: Pull aleph-e2e-client image
         shell: bash
-        env:
-          TAG: ${{ steps.get-ref-properties.outputs.sha }}
-        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:${{ env.TAG }}'
+
+        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:latest'
 
       - name: Get testcases
         shell: bash
@@ -121,9 +120,7 @@ jobs:
 
       - name: Pull aleph-e2e-client image
         shell: bash
-        env:
-          TAG: ${{ steps.get-ref-properties.outputs.sha }}
-        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:${{ env.TAG }}'
+        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:latest'
 
       - name: Run ${{ matrix.testcase }} e2e test
         shell: bash
