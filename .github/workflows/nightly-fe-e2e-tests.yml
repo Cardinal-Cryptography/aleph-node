@@ -100,7 +100,8 @@ jobs:
           echo "final-featurenet-name=$(printf $final_featurename_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
-      # TODO this should be called via action Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml
+      # TODO this should be called via action
+      # Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml
       - name: Create featurenet from scratch
         uses: Cardinal-Cryptography/github-actions/create-featurenet@v5
         id: create-featurenet
