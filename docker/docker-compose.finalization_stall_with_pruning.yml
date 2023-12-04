@@ -4,7 +4,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node0
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
   Node1:
@@ -12,7 +12,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node1
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
   Node2:
@@ -20,7 +20,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node2
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
   Node3:
@@ -28,7 +28,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node3
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
   Node4:
@@ -36,7 +36,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node4
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
   Node5:
@@ -44,7 +44,7 @@ services:
       file: docker-compose.synthetic-network.yml
       service: Node5
     environment:
-      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --experimental-pruning --state-pruning 2048
+      - CUSTOM_ARGS=--max-nonfinalized-blocks=16384 --database paritydb --enable-pruning --state-pruning 2048
       - RPC_PORT=9944
 
 networks:
