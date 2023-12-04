@@ -60,8 +60,8 @@ impl SyntheticNetworkConfigurator {
         let label = format!("{}", node_int);
 
         info!(
-            "creating a synthetic-network flow with label {} for node {} with bit-rate of {}",
-            &label, &node, bits_per_second
+            "creating a synthetic-network flow with label {} for node {}:{}-{} with bit-rate of {}",
+            &label, &node, port_range.as_ref().start(), port_range.as_ref().end(), bits_per_second
         );
 
         let flow = self

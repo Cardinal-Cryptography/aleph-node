@@ -1,4 +1,10 @@
+use std::cmp::max;
+
+use aleph_client::{
+    pallets::session::SessionApi, utility::BlocksApi, waiting::AlephWaiting, DEFAULT_SESSION_PERIOD,
+};
 use anyhow::{anyhow, Context};
+use futures::future::join_all;
 use log::info;
 use synthetic_link::PortRange;
 
@@ -264,9 +270,6 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 /// so the finalization can continue in case of a big best-finalized gap.
 #[tokio::test]
 pub async fn large_finalization_stall() -> anyhow::Result<()> {
-    // Two sessions minus some small initial finalization gap.
-    // By default we stop producing new blocks if best-finalized > 20.
-    const NUMBER_OF_BLOCKS_TO_WAIT: u32 = 1800 - 20;
     const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 901;
     const VALIDATOR_NETWORK_PORT: u16 = 30343;
 
@@ -281,6 +284,19 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
     let nodes_configs = config
         .nodes_configs()
         .context("unable to build configuration for test nodes")?;
+
+    let connections = join_all(
+        nodes_configs
+            .as_slice()
+            .into_iter()
+            .map(|config| async move {
+                (
+                    config.node_name().to_owned(),
+                    config.create_signed_connection().await,
+                )
+            }),
+    )
+    .await;
 
     let mut disconnect_configuration = NodesConnectivityConfiguration::new();
     for node in nodes_configs.as_slice() {
@@ -297,15 +313,58 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
 
     let reconnect_configuration = disconnect_configuration.clone().reconnect();
 
-    perform_test(
-        nodes_configs.as_slice(),
-        nodes_configs.as_slice(),
-        nodes_configs.as_slice(),
-        disconnect_configuration,
-        reconnect_configuration,
-        NUMBER_OF_BLOCKS_TO_WAIT,
-        NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT,
-    )
+    execute_synthetic_network_test(nodes_configs.clone().as_slice(), async move {
+        disconnect_configuration.commit().await?;
+
+        let mut wait_block = u32::MAX;
+        let mut highest_session = 0;
+        for (node_name, connection) in connections.iter() {
+            let finalized = connection.get_finalized_block_hash().await?;
+
+            let session = connection.get_session(Some(finalized)).await;
+            if session > highest_session {
+                highest_session = session;
+            } else {
+                continue;
+            }
+            let first_block_of_session = connection
+                .first_block_of_session(session)
+                .await?
+                .context(format!(
+                    "unable to retrieve first block of session {session} at node {node_name}"
+                ))
+                .unwrap();
+            let first_block_of_session = connection
+                .get_block_number(first_block_of_session)
+                .await?
+                .ok_or(anyhow::anyhow!(
+                    "Failed to retrieve block number for hash {finalized:?} at node {node_name}"
+                ))?;
+
+            let last_block_to_produce = first_block_of_session + 2 * DEFAULT_SESSION_PERIOD;
+            wait_block = max(wait_block, last_block_to_produce);
+        }
+
+        info!("awaiting {wait_block} block");
+        for (node_name, connection) in connections.iter() {
+            info!("awaiting {wait_block} block at node {node_name}");
+            connection
+                .wait_for_block(
+                    |block| block >= wait_block,
+                    aleph_client::waiting::BlockStatus::Best,
+                )
+                .await;
+        }
+
+        reconnect_configuration.commit().await?;
+
+        await_finalized_blocks(
+            nodes_configs.as_slice(),
+            wait_block,
+            NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT,
+        )
+        .await
+    })
     .await
 }
 
