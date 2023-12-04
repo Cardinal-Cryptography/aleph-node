@@ -12,11 +12,11 @@ use crate::{
         mock::{MockBlock, MockHeader, MockJustification, MockNotification},
         Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier,
         EquivocationProof as EquivocationProofT, FinalizationStatus, Finalizer, Header,
-        Justification as JustificationT, VerifiedHeader, Verifier,
+        HeaderVerifier, Justification as JustificationT, JustificationVerifier, VerifiedHeader,
     },
     nodes::VERIFIER_CACHE_SIZE,
     session::{SessionBoundaryInfo, SessionId},
-    BlockId,
+    BlockId, BlockNumber,
 };
 
 #[derive(Clone, Debug)]
@@ -414,14 +414,8 @@ impl Display for VerifierError {
     }
 }
 
-impl Verifier<MockJustification> for Backend {
-    type EquivocationProof = EquivocationProof;
-    type Error = VerifierError;
-
-    fn verify_justification(
-        &mut self,
-        justification: MockJustification,
-    ) -> Result<MockJustification, Self::Error> {
+impl Backend {
+    fn cached(&self, block_number: BlockNumber) -> Result<(), VerifierError> {
         let top_number = self
             .top_finalized()
             .expect("should be at least genesis")
@@ -434,23 +428,41 @@ impl Verifier<MockJustification> for Backend {
             .session_id_from_block_num(top_number);
         let justification_session = storage
             .session_boundary_info
-            .session_id_from_block_num(justification.header().id().number);
-        if justification_session.0 > current_session.0 + 1
+            .session_id_from_block_num(block_number);
+        match justification_session.0 > current_session.0 + 1
             || current_session.0 + 1 - justification_session.0 >= VERIFIER_CACHE_SIZE as u32
         {
-            return Err(Self::Error::Session);
+            true => Err(VerifierError::Session),
+            false => Ok(()),
         }
+    }
+}
+
+impl JustificationVerifier<MockJustification> for Backend {
+    type Error = VerifierError;
+
+    fn verify_justification(
+        &mut self,
+        justification: MockJustification,
+    ) -> Result<MockJustification, Self::Error> {
+        self.cached(justification.header().id().number)?;
         match justification.is_correct {
             true => Ok(justification),
             false => Err(Self::Error::Justification),
         }
     }
+}
+
+impl HeaderVerifier<MockHeader> for Backend {
+    type EquivocationProof = EquivocationProof;
+    type Error = VerifierError;
 
     fn verify_header(
         &mut self,
         header: MockHeader,
         _just_created: bool,
-    ) -> Result<VerifiedHeader<MockJustification, Self::EquivocationProof>, Self::Error> {
+    ) -> Result<VerifiedHeader<MockHeader, Self::EquivocationProof>, Self::Error> {
+        self.cached(header.id().number - 1)?;
         match (header.valid(), header.equivocated()) {
             (true, false) => Ok(VerifiedHeader {
                 header,

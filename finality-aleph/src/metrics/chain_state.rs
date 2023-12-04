@@ -285,10 +285,10 @@ mod test {
     use sc_transaction_pool_api::TransactionPool;
     use sp_api::BlockT;
     use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
-    use sp_runtime::{generic, transaction_validity::TransactionSource};
+    use sp_runtime::transaction_validity::TransactionSource;
     use substrate_prometheus_endpoint::Registry;
     use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
-    use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
+    use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt};
 
     use super::*;
     use crate::{
@@ -501,11 +501,7 @@ mod test {
         let time_before_submit = Instant::now();
         setup
             .pool
-            .submit_one(
-                &generic::BlockId::<TBlock>::number(0),
-                TransactionSource::External,
-                xt,
-            )
+            .submit_one(genesis, TransactionSource::External, xt)
             .await
             .unwrap();
 
@@ -558,11 +554,7 @@ mod test {
 
         setup
             .pool
-            .submit_one(
-                &generic::BlockId::<TBlock>::number(0),
-                TransactionSource::External,
-                tx1.clone(),
-            )
+            .submit_one(genesis, TransactionSource::External, tx1.clone())
             .await
             .unwrap();
 
@@ -571,21 +563,13 @@ mod test {
 
         setup
             .pool
-            .submit_one(
-                &generic::BlockId::<TBlock>::number(0),
-                TransactionSource::External,
-                tx0.clone(),
-            )
+            .submit_one(genesis, TransactionSource::External, tx0.clone())
             .await
             .unwrap();
 
         setup
             .pool
-            .submit_one(
-                &generic::BlockId::<TBlock>::number(0),
-                TransactionSource::External,
-                tx2.clone(),
-            )
+            .submit_one(genesis, TransactionSource::External, tx2.clone())
             .await
             .unwrap();
 

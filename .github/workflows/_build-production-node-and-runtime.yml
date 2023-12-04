@@ -19,15 +19,21 @@ jobs:
       - name: Call action get-ref-properties
         id: get-ref-properties
         # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v3
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
 
       - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v3
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
         with:
           targets: wasm32-unknown-unknown
 
       - name: Build production binary and runtime
         run: cargo build --profile production -p aleph-node
+
+      - name: Ensure liminal symbols are not present
+        run: |
+          nm --demangle=rust target/production/aleph-node | grep -q liminal \
+            && { echo "Liminal symbols are present"; exit 1; } \
+            || echo "Liminal symbols are not present"
 
       - name: Upload release binary to GH artifacts
         uses: actions/upload-artifact@v3

@@ -1,10 +1,13 @@
+mod all_block;
 mod chain_state;
 mod timing;
 pub mod transaction_pool;
 
+pub use all_block::AllBlockMetrics;
 pub use chain_state::run_chain_state_metrics;
 use sp_runtime::traits::Member;
-pub use timing::{exponential_buckets_two_sided, Checkpoint, TimingBlockMetrics};
+pub use timing::{exponential_buckets_two_sided, Checkpoint, DefaultClock, TimingBlockMetrics};
+
 const LOG_TARGET: &str = "aleph-metrics";
 
 #[async_trait::async_trait]

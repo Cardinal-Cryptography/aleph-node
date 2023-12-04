@@ -4,7 +4,10 @@ use std::{
     marker::Send,
 };
 
-use crate::{block::Justification, BlockId};
+use crate::{
+    block::{Justification, UnverifiedHeader},
+    BlockId,
+};
 
 mod data;
 mod forest;
@@ -16,6 +19,7 @@ mod task_queue;
 mod tasks;
 mod ticker;
 
+pub use data::MAX_MESSAGE_SIZE;
 pub use handler::DatabaseIO;
 pub use service::{Service, IO};
 
@@ -39,7 +43,17 @@ pub trait JustificationSubmissions<J: Justification>: Clone + Send + 'static {
 
 /// An interface for requesting specific blocks from the block sync.
 /// Required by the data availability mechanism in ABFT.
-pub trait RequestBlocks: Clone + Send + Sync + 'static {
+pub trait RequestBlocks<UH: UnverifiedHeader>: Clone + Send + Sync + 'static {
+    type Error: Display;
+
+    /// Request the given block.
+    fn request_block(&self, header: UH) -> Result<(), Self::Error>;
+}
+
+/// An interface for requesting specific blocks from the block sync.
+/// Required by the data availability mechanism in ABFT.
+// TODO(A0-3494): Remove this after support for headerless proposals gets dropped.
+pub trait LegacyRequestBlocks: Clone + Send + Sync + 'static {
     type Error: Display;
 
     /// Request the given block.

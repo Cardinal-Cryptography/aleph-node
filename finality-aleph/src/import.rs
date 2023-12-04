@@ -1,7 +1,6 @@
 use std::{
     error::Error,
     fmt::{Debug, Display, Error as FmtError, Formatter},
-    time::Instant,
 };
 
 use futures::channel::mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender};
@@ -16,7 +15,7 @@ use crate::{
     aleph_primitives::{Block, BlockHash, BlockNumber, ALEPH_ENGINE_ID},
     block::substrate::{Justification, JustificationTranslator, TranslateError},
     justification::{backwards_compatible_decode, DecodeError},
-    metrics::{Checkpoint, TimingBlockMetrics},
+    metrics::{AllBlockMetrics, Checkpoint},
     BlockId,
 };
 
@@ -28,24 +27,24 @@ where
     I: BlockImport<Block> + Send + Sync,
 {
     inner: I,
-    metrics: TimingBlockMetrics,
+    metrics: AllBlockMetrics,
 }
 
 impl<I> TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
 {
-    pub fn new(inner: I, metrics: TimingBlockMetrics) -> Self {
+    pub fn new(inner: I, metrics: AllBlockMetrics) -> Self {
         TracingBlockImport { inner, metrics }
     }
 }
+
 #[async_trait::async_trait]
 impl<I> BlockImport<Block> for TracingBlockImport<I>
 where
     I: BlockImport<Block> + Send + Sync,
 {
     type Error = I::Error;
-    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
@@ -56,19 +55,17 @@ where
 
     async fn import_block(
         &mut self,
-        block: BlockImportParams<Block, Self::Transaction>,
+        block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         let post_hash = block.post_hash();
         // Self-created blocks are imported without using the import queue,
         // so we need to report them here.
-        self.metrics
-            .report_block_if_not_present(post_hash, Instant::now(), Checkpoint::Importing);
+        self.metrics.report_block(post_hash, Checkpoint::Importing);
 
         let result = self.inner.import_block(block).await;
 
         if let Ok(ImportResult::Imported(_)) = &result {
-            self.metrics
-                .report_block(post_hash, Instant::now(), Checkpoint::Imported);
+            self.metrics.report_block(post_hash, Checkpoint::Imported);
         }
         result
     }
@@ -146,7 +143,6 @@ where
     I: BlockImport<Block> + Clone + Send,
 {
     type Error = I::Error;
-    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
@@ -157,7 +153,7 @@ where
 
     async fn import_block(
         &mut self,
-        mut block: BlockImportParams<Block, Self::Transaction>,
+        mut block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         let number = *block.header.number();
         let post_hash = block.post_hash();
@@ -273,7 +269,6 @@ where
     I: BlockImport<Block> + Clone + Send,
 {
     type Error = RedirectingImportError<I::Error>;
-    type Transaction = I::Transaction;
 
     async fn check_block(
         &mut self,
@@ -287,7 +282,7 @@ where
 
     async fn import_block(
         &mut self,
-        block: BlockImportParams<Block, Self::Transaction>,
+        block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
         let header = block.post_header();
         let BlockImportParams { body, .. } = block;

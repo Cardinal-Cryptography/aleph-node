@@ -2,16 +2,13 @@ use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::stream::{Stream, StreamExt};
-use log::{error, trace};
+use log::{error, trace, warn};
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
     NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
-    NotificationSenderT, PeerId, ProtocolName,
+    NotificationSenderT, PeerId, ProtocolName, SyncEventStream,
 };
-use sc_network_common::{
-    sync::{SyncEvent, SyncEventStream},
-    ExHashT,
-};
+use sc_network_common::{sync::SyncEvent, ExHashT};
 use sc_network_sync::SyncingService;
 use sp_runtime::traits::Block;
 use tokio::select;
@@ -22,10 +19,6 @@ use crate::network::gossip::{Event, EventStream, NetworkSender, Protocol, RawNet
 /// authentications.
 const AUTHENTICATION_PROTOCOL_NAME: &str = "/auth/0";
 
-/// Legacy name of the network protocol used by Aleph Zero to disseminate validator
-/// authentications. Might be removed after some updates.
-const LEGACY_AUTHENTICATION_PROTOCOL_NAME: &str = "/aleph/1";
-
 /// Name of the network protocol used by Aleph Zero to synchronize the block state.
 const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
 
@@ -33,7 +26,6 @@ const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
 #[derive(Clone)]
 pub struct ProtocolNaming {
     authentication_name: ProtocolName,
-    authentication_fallback_names: Vec<ProtocolName>,
     block_sync_name: ProtocolName,
     protocols_by_name: HashMap<ProtocolName, Protocol>,
 }
@@ -45,17 +37,11 @@ impl ProtocolNaming {
             format!("{chain_prefix}{AUTHENTICATION_PROTOCOL_NAME}").into();
         let mut protocols_by_name = HashMap::new();
         protocols_by_name.insert(authentication_name.clone(), Protocol::Authentication);
-        let authentication_fallback_names: Vec<ProtocolName> =
-            vec![LEGACY_AUTHENTICATION_PROTOCOL_NAME.into()];
-        for protocol_name in &authentication_fallback_names {
-            protocols_by_name.insert(protocol_name.clone(), Protocol::Authentication);
-        }
         let block_sync_name: ProtocolName =
             format!("{chain_prefix}{BLOCK_SYNC_PROTOCOL_NAME}").into();
         protocols_by_name.insert(block_sync_name.clone(), Protocol::BlockSync);
         ProtocolNaming {
             authentication_name,
-            authentication_fallback_names,
             block_sync_name,
             protocols_by_name,
         }
@@ -71,12 +57,8 @@ impl ProtocolNaming {
     }
 
     /// Returns the fallback names of the protocol.
-    pub fn fallback_protocol_names(&self, protocol: &Protocol) -> Vec<ProtocolName> {
-        use Protocol::*;
-        match protocol {
-            Authentication => self.authentication_fallback_names.clone(),
-            _ => Vec::new(),
-        }
+    pub fn fallback_protocol_names(&self, _protocol: &Protocol) -> Vec<ProtocolName> {
+        Vec::new()
     }
 
     /// Attempts to convert the protocol name to a protocol.
@@ -209,14 +191,18 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                         PeerDisconnected(remote) => {
                             trace!(target: "aleph-network", "Disconnected event for peer {:?}", remote);
                             let addresses: Vec<_> = iter::once(remote).collect();
-                            self.network.remove_peers_from_reserved_set(
+                            if let Err(e) = self.network.remove_peers_from_reserved_set(
                                 self.naming.protocol_name(&Protocol::Authentication),
                                 addresses.clone(),
-                            );
-                            self.network.remove_peers_from_reserved_set(
+                            ) {
+                                warn!(target: "aleph-network", "Error while removing peer from Protocol::Authentication reserved set: {}", e)
+                            }
+                            if let Err(e) = self.network.remove_peers_from_reserved_set(
                                 self.naming.protocol_name(&Protocol::BlockSync),
                                 addresses,
-                            );
+                            ) {
+                                warn!(target: "aleph-network", "Error while removing peer from Protocol::BlockSync reserved set: {}", e)
+                            }
                             continue;
                         }
                     }
@@ -248,26 +234,21 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
             naming,
         }
     }
+
+    pub fn event_stream(&self) -> NetworkEventStream<B, H> {
+        NetworkEventStream {
+            stream: Box::pin(self.network.event_stream("aleph-network")),
+            sync_stream: Box::pin(self.sync_network.event_stream("aleph-syncing-network")),
+            naming: self.naming.clone(),
+            network: self.network.clone(),
+        }
+    }
 }
 
 impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
     type SenderError = SenderError;
     type NetworkSender = SubstrateNetworkSender;
     type PeerId = PeerId;
-    type EventStream = NetworkEventStream<B, H>;
-
-    fn event_stream(&self) -> Self::EventStream {
-        NetworkEventStream {
-            stream: Box::pin(self.network.as_ref().event_stream("aleph-network")),
-            sync_stream: Box::pin(
-                self.sync_network
-                    .as_ref()
-                    .event_stream("aleph-syncing-network"),
-            ),
-            naming: self.naming.clone(),
-            network: self.network.clone(),
-        }
-    }
 
     fn sender(
         &self,

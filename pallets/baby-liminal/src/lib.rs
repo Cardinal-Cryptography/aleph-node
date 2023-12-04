@@ -32,7 +32,7 @@ pub type BalanceOf<T> =
 pub mod pallet {
     use ark_serialize::CanonicalDeserialize;
     use frame_support::{
-        dispatch::PostDispatchInfo, log, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
+        dispatch::PostDispatchInfo, pallet_prelude::*, sp_runtime::DispatchErrorWithPostInfo,
     };
     use frame_system::pallet_prelude::OriginFor;
     use jf_plonk::{
@@ -277,7 +277,7 @@ pub mod pallet {
         /// system)
         /// - verifying procedure fails (e.g. incompatible verification key and proof)
         /// - proof is incorrect
-        #[pallet::weight(0)]
+        #[pallet::weight(T::WeightInfo::verify())]
         #[pallet::call_index(3)]
         pub fn verify(
             _origin: OriginFor<T>,

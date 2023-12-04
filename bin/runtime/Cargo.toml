@@ -63,9 +63,10 @@ pallet-aleph = { workspace = true }
 pallet-committee-management= { workspace = true }
 pallet-elections = { workspace = true }
 primitives = { workspace = true }
+pallet-proxy = { workspace = true }
 
 # Liminal-related dependencies
-baby-liminal-extension = { workspace = true, features = ["substrate"], optional = true }
+baby-liminal-extension = { workspace = true, features = ["runtime"], optional = true }
 pallet-baby-liminal = { workspace = true, optional = true }
 
 [build-dependencies]
@@ -97,6 +98,7 @@ std = [
     "pallet-treasury/std",
     "pallet-vesting/std",
     "pallet-multisig/std",
+    "pallet-proxy/std",
     "pallet-utility/std",
     "sp-api/std",
     "sp-block-builder/std",
@@ -148,6 +150,7 @@ try-runtime = [
     "pallet-multisig/try-runtime",
     "pallet-utility/try-runtime",
     "pallet-committee-management/try-runtime",
+    "pallet-proxy/try-runtime"
 ]
 enable_treasury_proposals = []
 runtime-benchmarks = [
@@ -157,7 +160,7 @@ runtime-benchmarks = [
 
 # Liminal-related features
 liminal = [
-    #"baby-liminal-extension",
+    "baby-liminal-extension",
     "pallet-baby-liminal",
     "sp-io/disable_oom",
     "sp-io/disable_panic_handler"
@@ -165,6 +168,7 @@ liminal = [
 liminal-std = [
     "liminal",
     "std",
+    "baby-liminal-extension/runtime-std",
     "pallet-baby-liminal/std",
 ]
 liminal-try-runtime = [

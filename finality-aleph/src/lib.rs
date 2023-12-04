@@ -15,11 +15,8 @@ use primitives as aleph_primitives;
 use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Hash as AlephHash};
 use sc_client_api::{
     Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, StorageProvider,
-    TransactionFor,
 };
 use sc_consensus::BlockImport;
-use sc_network::NetworkService;
-use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::Keystore;
@@ -33,9 +30,11 @@ use crate::{
         SignatureSet, SpawnHandle, CURRENT_VERSION, LEGACY_VERSION,
     },
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
+    block::UnverifiedHeader,
     compatibility::{Version, Versioned},
-    network::data::split::Split,
+    network::{data::split::Split, session::MAX_MESSAGE_SIZE as MAX_AUTHENTICATION_MESSAGE_SIZE},
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
+    sync::MAX_MESSAGE_SIZE as MAX_BLOCK_SYNC_MESSAGE_SIZE,
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
 };
 
@@ -68,10 +67,10 @@ pub use crate::{
     },
     import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
     justification::AlephJustification,
-    metrics::TimingBlockMetrics,
+    metrics::{AllBlockMetrics, DefaultClock, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        Protocol, ProtocolNaming,
+        Protocol, ProtocolNaming, SubstrateNetwork, SubstrateNetworkEventStream,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -81,6 +80,13 @@ pub use crate::{
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
 
+fn max_message_size(protocol: Protocol) -> u64 {
+    match protocol {
+        Protocol::Authentication => MAX_AUTHENTICATION_MESSAGE_SIZE,
+        Protocol::BlockSync => MAX_BLOCK_SYNC_MESSAGE_SIZE,
+    }
+}
+
 /// Returns a NonDefaultSetConfig for the specified protocol.
 pub fn peers_set_config(
     naming: ProtocolNaming,
@@ -88,11 +94,7 @@ pub fn peers_set_config(
 ) -> sc_network::config::NonDefaultSetConfig {
     let mut config = sc_network::config::NonDefaultSetConfig::new(
         naming.protocol_name(&protocol),
-        // max_notification_size should be larger than the maximum possible honest message size (in bytes).
-        // Max size of alert is UNIT_SIZE * MAX_UNITS_IN_ALERT ~ 100 * 5000 = 50000 bytes
-        // Max size of parents response UNIT_SIZE * N_MEMBERS ~ 100 * N_MEMBERS
-        // When adding other (large) message types we need to make sure this limit is fine.
-        1024 * 1024,
+        max_message_size(protocol),
     );
 
     config.set_config = sc_network::config::SetConfig::default();
@@ -107,13 +109,13 @@ pub struct MillisecsPerBlock(pub u64);
 pub struct UnitCreationDelay(pub u64);
 
 type LegacySplitData = Split<LegacyNetworkData, LegacyRmcNetworkData>;
-type CurrentSplitData = Split<CurrentNetworkData, CurrentRmcNetworkData>;
+type CurrentSplitData<UH> = Split<CurrentNetworkData<UH>, CurrentRmcNetworkData>;
 
 impl Versioned for LegacyNetworkData {
     const VERSION: Version = Version(LEGACY_VERSION);
 }
 
-impl Versioned for CurrentNetworkData {
+impl<UH: UnverifiedHeader> Versioned for CurrentNetworkData<UH> {
     const VERSION: Version = Version(CURRENT_VERSION);
 }
 
@@ -165,7 +167,7 @@ impl<L: Versioned + Encode, R: Versioned + Encode> Encode for VersionedEitherMes
     }
 }
 
-type VersionedNetworkData = VersionedEitherMessage<LegacySplitData, CurrentSplitData>;
+type VersionedNetworkData<UH> = VersionedEitherMessage<LegacySplitData, CurrentSplitData<UH>>;
 
 #[derive(Debug, Display, Clone)]
 pub enum VersionedTryFromError {
@@ -173,20 +175,20 @@ pub enum VersionedTryFromError {
     ExpectedOldGotNew,
 }
 
-impl TryFrom<VersionedNetworkData> for LegacySplitData {
+impl<UH: UnverifiedHeader> TryFrom<VersionedNetworkData<UH>> for LegacySplitData {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData<UH>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(data) => data,
             VersionedEitherMessage::Right(_) => return Err(ExpectedOldGotNew),
         })
     }
 }
-impl TryFrom<VersionedNetworkData> for CurrentSplitData {
+impl<UH: UnverifiedHeader> TryFrom<VersionedNetworkData<UH>> for CurrentSplitData<UH> {
     type Error = VersionedTryFromError;
 
-    fn try_from(value: VersionedNetworkData) -> Result<Self, Self::Error> {
+    fn try_from(value: VersionedNetworkData<UH>) -> Result<Self, Self::Error> {
         Ok(match value {
             VersionedEitherMessage::Left(_) => return Err(ExpectedNewGotOld),
             VersionedEitherMessage::Right(data) => data,
@@ -194,14 +196,14 @@ impl TryFrom<VersionedNetworkData> for CurrentSplitData {
     }
 }
 
-impl From<LegacySplitData> for VersionedNetworkData {
+impl<UH: UnverifiedHeader> From<LegacySplitData> for VersionedNetworkData<UH> {
     fn from(data: LegacySplitData) -> Self {
         VersionedEitherMessage::Left(data)
     }
 }
 
-impl From<CurrentSplitData> for VersionedNetworkData {
-    fn from(data: CurrentSplitData) -> Self {
+impl<UH: UnverifiedHeader> From<CurrentSplitData<UH>> for VersionedNetworkData<UH> {
+    fn from(data: CurrentSplitData<UH>) -> Self {
         VersionedEitherMessage::Right(data)
     }
 }
@@ -210,7 +212,7 @@ pub trait ClientForAleph<B, BE>:
     LockImportRun<B, BE>
     + Finalizer<B, BE>
     + ProvideRuntimeApi<B>
-    + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+    + BlockImport<B, Error = sp_consensus::Error>
     + HeaderBackend<B>
     + HeaderMetadata<B, Error = sp_blockchain::Error>
     + BlockchainEvents<B>
@@ -232,7 +234,7 @@ where
         + HeaderBackend<B>
         + HeaderMetadata<B, Error = sp_blockchain::Error>
         + BlockchainEvents<B>
-        + BlockImport<B, Transaction = TransactionFor<BE, B>, Error = sp_consensus::Error>
+        + BlockImport<B, Error = sp_consensus::Error>
         + BlockBackend<B>
         + StorageProvider<B, BE>,
 {
@@ -247,8 +249,8 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC, T> {
-    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
-    pub sync_network: Arc<SyncingService<AlephBlock>>,
+    pub network: SubstrateNetwork<AlephBlock, AlephHash>,
+    pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
@@ -257,7 +259,7 @@ pub struct AlephConfig<C, SC, T> {
     pub keystore: Arc<dyn Keystore>,
     pub justification_rx: mpsc::UnboundedReceiver<Justification>,
     pub block_rx: mpsc::UnboundedReceiver<AlephBlock>,
-    pub metrics: TimingBlockMetrics,
+    pub metrics: AllBlockMetrics,
     pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,
@@ -265,7 +267,6 @@ pub struct AlephConfig<C, SC, T> {
     pub backup_saving_path: Option<PathBuf>,
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
-    pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
     pub validator_address_cache: Option<ValidatorAddressCache>,
