@@ -9,6 +9,11 @@ on:
         description: "git ref: hash, branch, tag or 'mainnet' or 'testnet'"
         type: string
         required: true
+      build-e2e-tests-targets:
+        description: 'Set to true if aleph-node image and aleph-e2e-client should be built'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   main:
@@ -23,6 +28,10 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
@@ -40,6 +49,7 @@ jobs:
             && { echo "Liminal symbols are present"; exit 1; } \
             || echo "Liminal symbols are not present"
 
+      # this is required for some workflows, yet ideally it should not be required
       - name: Upload test binary to GH Artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -48,10 +58,55 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload test runtime to GH Artifacts
+      - name: Build test docker image
+        if: ${{ inputs.build-e2e-tests-targets == true }}
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node.tar aleph-node:latest
+
+      # this is solely required by action/run-e2e-test.yml, also it should not be required
+      - name: Upload test docker image
+        if: ${{ inputs.build-e2e-tests-targets == true }}
         uses: actions/upload-artifact@v3
         with:
-          name: aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.compressed.wasm
+          name: aleph-test-docker
+          path: aleph-node.tar
           if-no-files-found: error
           retention-days: 7
+
+      - name: Build aleph-e2e-client image
+        if: ${{ inputs.build-e2e-tests-targets == true }}
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+        run: |
+          cd e2e-tests/
+          rm -f target/release/deps/aleph_e2e_client*
+          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
+            grep aleph_e2e_client) target/release/aleph-e2e-client
+          docker build --tag aleph-e2e-client:${{ env.TAG }} -f Dockerfile .
+
+      - name: Login to Public Amazon ECR
+        if: ${{ inputs.build-e2e-tests-targets == true }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+
+      - name: Push aleph-e2e-client to ECR
+        if: ${{ inputs.build-e2e-tests-targets == true }}
+        env:
+          IMAGE: aleph-e2e-client
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+          REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
+        run: |
+          registry='${{ env.REGISTRY }}'
+          image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
+          docker push ${registry}${image_and_tag}
+          if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
+            docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
+            docker push ${registry}'${{ env.IMAGE }}:latest'
+          fi
+

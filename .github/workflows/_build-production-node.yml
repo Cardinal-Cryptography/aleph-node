@@ -14,11 +14,6 @@ on:
         required: false
         type: boolean
         default: false
-      build-e2e-client:
-        description: Set to 'true' to build e2e-client
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   build-production-node-image:
@@ -49,13 +44,6 @@ jobs:
           path: aleph-node.tar
           if-no-files-found: error
           retention-days: 7
-
-  build-and-push-e2e-client-image:
-    if: inputs.build-e2e-client != false
-    name: Build and push e2e client image
-    uses: ./.github/workflows/_build-and-push-e2e-client-image.yml
-    with:
-      push: true
 
   build-synthetic-network-docker:
     if: inputs.build-synthetic-network-docker != false

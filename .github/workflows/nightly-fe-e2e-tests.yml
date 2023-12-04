@@ -15,34 +15,43 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  build-e2e-client-image:
+  build-test-node-and-runtime:
+    name: Build test node and runtime
     needs: [check-vars-and-secrets]
-    name: Build production node and e2e client docker image
-    uses: ./.github/workflows/_build-production-node-and-e2e-client-image.yml
+    uses: ./.github/workflows/_build-test-node-and-runtime.yml
     with:
-      build-e2e-client: true
+      ref: ${{ github.ref }}
+      build-e2e-tests-targets: true
+    secrets: inherit
+
+  push-featurenet-test-node-image-to-ecr:
+    needs: [build-test-node-and-runtime]
+    name: Build and push PR test docker image to ECR
+    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
+    with:
+      ref: ${{ github.ref }}
+    secrets: inherit
 
   get-e2e-test-case-names:
     name: Get e2e test case names
     runs-on: ubuntu-20.04
-    needs: [build-e2e-client-image]
+    needs: [build-test-node-and-runtime]
     outputs:
       testcases: ${{ steps.get-testcases.outputs.testcases }}
     steps:
-      - name: Download artifact with the test suite image
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-e2e-client
-
-      - name: Load test suite docker image
+      - name: Pull aleph-e2e-client image
         shell: bash
-        run: docker load -i aleph-e2e-client.tar
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:${{ env.TAG }}'
 
       - name: Get testcases
         shell: bash
         id: get-testcases
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
-          testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:latest \
+          testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:${{ env.TAG }} \
             `# basically cargo test --list under the hood` \
             --list | \
             `# filter by testcases (not benches)` \
@@ -61,44 +70,9 @@ jobs:
             sed 's/.$//')
           echo "testcases=[$testcases]" >> $GITHUB_OUTPUT
 
-  build-test-node-and-runtime:
-    name: Build test node and runtime
-    needs: [check-vars-and-secrets]
-    uses: ./.github/workflows/_build-test-node-and-runtime.yml
-    with:
-      ref: ${{ github.ref }}
-    secrets: inherit
-
-  # this job is required for bootstrapping featurenet
-  store-test-node-and-runtime:
-    name: Store test node and runtime in Devnet bucket
-    runs-on: ubuntu-20.04
-    needs: [build-test-node-and-runtime]
-    steps:
-      - name: Checkout aleph-node source code
-        uses: actions/checkout@v4
-
-      - name: Store test node and runtime
-        uses: ./.github/actions/store-node-and-runtime
-        with:
-          profile: test
-          aws-access-key-id: ${{ secrets.AWS_DEVNET_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_DEVNET_SECRET_ACCESS_KEY }}
-          aws-bucket: ${{ secrets.CI_DEVNET_S3BUCKET_NAME }}
-
-  push-featurenet-test-node-image-to-ecr:
-    needs: [build-test-node-and-runtime]
-    name: Build and push PR test docker image to ECR
-    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
-    with:
-      ref: ${{ github.ref }}
-    secrets: inherit
-
   runs-e2e-test-on-fe:
     needs:
       - push-featurenet-test-node-image-to-ecr
-      - build-e2e-client-image
-      - store-test-node-and-runtime
       - get-e2e-test-case-names
     name: e2e
     runs-on: [self-hosted, Linux, X64, small]
@@ -126,6 +100,7 @@ jobs:
           echo "final-featurenet-name=$(printf $final_featurename_local | sed 's|::|-|g' | sed 's|_|-|g')" >> $GITHUB_OUTPUT
         # yamllint enable rule:line-length
 
+      # TODO this should be called via action Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml
       - name: Create featurenet from scratch
         uses: Cardinal-Cryptography/github-actions/create-featurenet@v5
         id: create-featurenet
@@ -143,26 +118,23 @@ jobs:
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           wait-for-finalized-heads: "true"
 
-      - name: Download artifact with the test suite image
-        uses: actions/download-artifact@v2
-        with:
-          name: aleph-e2e-client
-
-      - name: Load test suite docker image
+      - name: Pull aleph-e2e-client image
         shell: bash
-        run: docker load -i aleph-e2e-client.tar
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:${{ env.TAG }}'
 
       - name: Run ${{ matrix.testcase }} e2e test
         shell: bash
-        # yamllint disable rule:line-length
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
         run: |
           docker run --network host \
             -e NODE_URL='wss://${{ steps.create-featurenet.outputs.ws-hostname }}:443' \
             -e TEST_CASES='${{ matrix.testcase }}' \
             -e RUST_LOG=info \
-            aleph-e2e-client:latest
+            aleph-e2e-client:${{ env.TAG }}
         timeout-minutes: 15
-        # yamllint enable rule:line-length
 
       - name: Delete old featurenet app and data
         if: always()

@@ -16,6 +16,7 @@ jobs:
   build-and-push-e2e-client-image:
     needs: [check-vars-and-secrets]
     name: Build and push e2e client image
+    secrets: inherit
     uses: ./.github/workflows/_build-and-push-e2e-client-image.yml
     with:
       push: true
