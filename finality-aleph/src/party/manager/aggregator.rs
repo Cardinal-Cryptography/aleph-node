@@ -40,13 +40,18 @@ where
 async fn process_new_block_data<CN, LN>(
     aggregator: &mut Aggregator<'_, CN, LN>,
     block: BlockId,
-    metrics: &AllBlockMetrics,
+    metrics: &mut AllBlockMetrics,
 ) where
     CN: Network<CurrentRmcNetworkData>,
     LN: Network<LegacyRmcNetworkData>,
 {
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
-    metrics.report_block(block.hash(), Checkpoint::Ordered);
+    metrics.report_block(
+        block.hash(),
+        Checkpoint::Ordered,
+        Some(block.number()),
+        None,
+    );
 
     aggregator.start_aggregation(block.hash()).await;
 }
@@ -88,7 +93,7 @@ async fn run_aggregator<B, C, CN, LN, JS>(
     io: IO<JS>,
     client: Arc<C>,
     session_boundaries: &SessionBoundaries,
-    metrics: AllBlockMetrics,
+    mut metrics: AllBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
@@ -129,7 +134,7 @@ where
                     process_new_block_data::<CN, LN>(
                         &mut aggregator,
                         block,
-                        &metrics
+                        &mut metrics
                     ).await;
                 } else {
                     debug!(target: "aleph-party", "Blocks ended in aggregator.");

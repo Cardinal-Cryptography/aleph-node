@@ -6,7 +6,6 @@ use crate::{
     aleph_primitives::{Block, Header},
     block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
     metrics::{AllBlockMetrics, Checkpoint},
-    TimingBlockMetrics,
 };
 
 mod chain_status;
@@ -66,7 +65,7 @@ impl BlockImporter {
     pub fn new(importer: Box<dyn ImportQueueService<Block>>) -> Self {
         Self {
             importer,
-            metrics: AllBlockMetrics::new(TimingBlockMetrics::Noop),
+            metrics: AllBlockMetrics::new(None),
         }
     }
 
@@ -76,9 +75,13 @@ impl BlockImporter {
 }
 
 impl BlockImport<Block> for BlockImporter {
-    fn import_block(&mut self, block: Block) {
-        let origin = BlockOrigin::NetworkBroadcast;
+    fn import_block(&mut self, block: Block, own: bool) {
+        let origin = match own {
+            true => BlockOrigin::Own,
+            false => BlockOrigin::NetworkBroadcast,
+        };
         let hash = block.header.hash();
+        let number = *block.header.number();
         let incoming_block = IncomingBlock::<Block> {
             hash,
             header: Some(block.header),
@@ -91,7 +94,8 @@ impl BlockImport<Block> for BlockImporter {
             import_existing: false,
             state: None,
         };
-        self.metrics.report_block(hash, Checkpoint::Importing);
+        self.metrics
+            .report_block(hash, Checkpoint::Importing, Some(number), Some(own));
         self.importer.import_blocks(origin, vec![incoming_block]);
     }
 }

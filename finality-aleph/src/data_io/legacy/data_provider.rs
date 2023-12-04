@@ -328,6 +328,8 @@ impl DataProvider {
             self.metrics.report_block(
                 *data.head_proposal.branch.last().unwrap(),
                 Checkpoint::Proposed,
+                None,
+                None,
             );
             debug!(target: "aleph-data-store", "Outputting {:?} in get_data", data);
         };
@@ -354,7 +356,7 @@ mod tests {
             client_chain_builder::ClientChainBuilder,
             mocks::{TestClientBuilder, TestClientBuilderExt},
         },
-        SessionBoundaryInfo, SessionId, SessionPeriod, TimingBlockMetrics,
+        SessionBoundaryInfo, SessionId, SessionPeriod,
     };
 
     const SESSION_LEN: u32 = 100;
@@ -385,7 +387,7 @@ mod tests {
             client,
             session_boundaries,
             config,
-            AllBlockMetrics::new(TimingBlockMetrics::noop()),
+            AllBlockMetrics::new(None),
         );
 
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();

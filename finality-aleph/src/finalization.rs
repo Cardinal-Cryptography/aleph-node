@@ -1,5 +1,5 @@
 use core::result::Result;
-use std::{marker::PhantomData, sync::Arc};
+use std::{cell::RefCell, marker::PhantomData, sync::Arc};
 
 use log::{debug, warn};
 use sc_client_api::{Backend, Finalizer, HeaderBackend, LockImportRun};
@@ -26,7 +26,7 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    metrics: AllBlockMetrics,
+    metrics: RefCell<AllBlockMetrics>,
     phantom: PhantomData<(B, BE)>,
 }
 
@@ -39,7 +39,7 @@ where
     pub(crate) fn new(client: Arc<C>, metrics: AllBlockMetrics) -> Self {
         AlephFinalizer {
             client,
-            metrics,
+            metrics: RefCell::new(metrics),
             phantom: PhantomData,
         }
     }
@@ -74,7 +74,12 @@ where
         match &update_res {
             Ok(_) => {
                 debug!(target: "aleph-finality", "Successfully finalized block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.best_number);
-                self.metrics.report_block(hash, Checkpoint::Finalized);
+                self.metrics.borrow_mut().report_block(
+                    hash,
+                    Checkpoint::Finalized,
+                    Some(number),
+                    None,
+                );
             }
             Err(_) => {
                 debug!(target: "aleph-finality", "Failed to finalize block with hash {:?} and number {:?}. Current best: #{:?}.", hash, number, status.best_number)
