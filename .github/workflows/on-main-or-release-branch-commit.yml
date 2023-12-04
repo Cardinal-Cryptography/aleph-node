@@ -13,6 +13,13 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
+  build-and-push-e2e-client-image:
+    needs: [check-vars-and-secrets]
+    name: Build and push e2e client image
+    uses: ./.github/workflows/_build-and-push-e2e-client-image.yml
+    with:
+      push: true
+
   build-production-node-and-runtime:
     needs: [check-vars-and-secrets]
     name: Build production node and runtime
@@ -64,7 +71,6 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        # yamllint disable-line rule:line-length
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
 
       - name: Download node production binary from artifacts

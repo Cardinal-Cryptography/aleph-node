@@ -1,0 +1,62 @@
+---
+#  This workflow builds and optionally pushes aleph-e2e-client image to ECR
+name: Build test node image and e2e client image
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: Set to 'true' to push image to ECR
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  main:
+    name: Build and optionally pushes e2e client image
+    runs-on: [self-hosted, Linux, X64, large]
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v4
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+
+      - name: Install Rust Toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
+
+      - name: Build binary and docker image
+        env:
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+        run: |
+          cd e2e-tests/
+          rm -f target/release/deps/aleph_e2e_client*
+          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
+            grep aleph_e2e_client) target/release/aleph-e2e-client
+          docker build --tag aleph-e2e-client:${{ env.TAG }} -f Dockerfile .
+
+      - name: Login to Public Amazon ECR
+        if: ${{ inputs.push == true }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_PUBLIC_HOST }}
+          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+
+      - name: Push aleph-e2e-client to ECR
+        if: ${{ inputs.push == true }}
+        env:
+          IMAGE: aleph-e2e-client
+          TAG: ${{ steps.get-ref-properties.outputs.sha }}
+          REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
+        run: |
+          registry='${{ env.REGISTRY }}'
+          image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
+          docker push ${registry}${image_and_tag}
+          if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
+            docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
+            docker push ${registry}'${{ env.IMAGE }}:latest'
+          fi

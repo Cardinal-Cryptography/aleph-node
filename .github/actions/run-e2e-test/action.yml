@@ -47,6 +47,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Checkout aleph-node sources
+      uses: actions/checkout@v4
+
+    - name: Call action get-ref-properties
+      id: get-ref-properties
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
 
     - name: Download artifact with docker image
       uses: actions/download-artifact@v2
@@ -64,20 +70,11 @@ runs:
         DOCKER_COMPOSE='${{ inputs.compose-file }}' \
           ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}'
 
-    - name: Sleep
+    - name: Pull aleph-e2e-client image
       shell: bash
-      run: sleep 60
-
-    - name: Download artifact with the test suite image
-      if: inputs.test-case != ''
-      uses: actions/download-artifact@v3
-      with:
-        name: aleph-e2e-client
-
-    - name: Load test suite docker image
-      if: inputs.test-case != ''
-      shell: bash
-      run: docker load -i aleph-e2e-client.tar
+      env:
+        TAG: ${{ steps.get-ref-properties.outputs.sha }}
+      run: docker pull 'public.ecr.aws/p6e8q1z1/aleph-e2e-client:${{ env.TAG }}'
 
     - name: Run single e2e test
       id: run-single-e2e-test

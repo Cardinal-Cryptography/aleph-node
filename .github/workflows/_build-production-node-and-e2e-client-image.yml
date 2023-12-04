@@ -50,36 +50,12 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  build-e2e-client-image:
+  build-and-push-e2e-client-image:
     if: inputs.build-e2e-client != false
-    name: Build e2e client image
-    runs-on: [self-hosted, Linux, X64, large]
-    env:
-      RUST_BACKTRACE: full
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Checkout Source code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
-
-      - name: Build binary and docker image
-        run: |
-          cd e2e-tests/
-          rm -f target/release/deps/aleph_e2e_client*
-          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
-            grep aleph_e2e_client) target/release/aleph-e2e-client
-          docker build --tag aleph-e2e-client:latest -f Dockerfile .
-          docker save -o aleph-e2e-client.tar aleph-e2e-client:latest
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: aleph-e2e-client
-          path: e2e-tests/aleph-e2e-client.tar
-          if-no-files-found: error
-          retention-days: 7
+    name: Build and push e2e client image
+    uses: ./.github/workflows/_build-and-push-e2e-client-image.yml
+    with:
+      push: true
 
   build-synthetic-network-docker:
     if: inputs.build-synthetic-network-docker != false

@@ -23,6 +23,7 @@ do
     t) TEST_CASES="${OPTARG}";;
     f) RESERVED_SEATS="${OPTARG}";;
     n) NON_RESERVED_SEATS="${OPTARG}";;
+    a) ALEPH_E2E_CLIENT_TAG="${OPTARG}";;
     *)
       echo "Unrecognized argument "${flag}"!"
       usage
@@ -36,6 +37,7 @@ MAX_VALIDATOR_COUNT=20
 
 NODE_URL=${NODE_URL:-"ws://127.0.0.1:9944"}
 NETWORK=${NETWORK:-"container:Node0"}
+ALEPH_E2E_CLIENT_TAG=${ALEPH_E2E_CLIENT_TAG:-"latest"}
 
 ARGS=(
   --network "${NETWORK}"
@@ -102,7 +104,7 @@ echo "Running test, logs will be shown when tests finishes or after ${timeout_du
 # a hack to set global timeout on a e2e testcase run
 # we can't do that on GH yaml level due to https://github.com/actions/runner/issues/1979
 docker_service=$(docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" -d "${ARGS[@]}" \
-    aleph-e2e-client:latest)
+    aleph-e2e-client:"${ALEPH_E2E_CLIENT_TAG}")
 set +e
 timeout_output=$(timeout "${timeout_duration}" docker wait "${docker_service}")
 docker_exit_code=$?
