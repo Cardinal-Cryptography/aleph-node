@@ -1,7 +1,9 @@
 use std::cmp::max;
 
 use aleph_client::{
-    pallets::session::SessionApi, utility::BlocksApi, waiting::AlephWaiting, DEFAULT_SESSION_PERIOD,
+    pallets::{committee_management::CommitteeManagementApi, session::SessionApi},
+    utility::BlocksApi,
+    waiting::AlephWaiting,
 };
 use anyhow::{anyhow, Context};
 use futures::future::join_all;
@@ -285,6 +287,8 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
         .nodes_configs()
         .context("unable to build configuration for test nodes")?;
 
+    await_finalized_blocks(nodes_configs.as_slice(), 0, 1).await?;
+
     let connections = join_all(
         nodes_configs
             .as_slice()
@@ -297,6 +301,8 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
             }),
     )
     .await;
+
+    let session_period = connections[0].1.get_session_period().await?;
 
     let mut disconnect_configuration = NodesConnectivityConfiguration::new();
     for node in nodes_configs.as_slice() {
@@ -316,17 +322,11 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
     execute_synthetic_network_test(nodes_configs.clone().as_slice(), async move {
         disconnect_configuration.commit().await?;
 
-        let mut wait_block = u32::MAX;
-        let mut highest_session = 0;
+        let mut wait_block = u32::MIN;
         for (node_name, connection) in connections.iter() {
             let finalized = connection.get_finalized_block_hash().await?;
 
             let session = connection.get_session(Some(finalized)).await;
-            if session > highest_session {
-                highest_session = session;
-            } else {
-                continue;
-            }
             let first_block_of_session = connection
                 .first_block_of_session(session)
                 .await?
@@ -341,7 +341,7 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
                     "Failed to retrieve block number for hash {finalized:?} at node {node_name}"
                 ))?;
 
-            let last_block_to_produce = first_block_of_session + 2 * DEFAULT_SESSION_PERIOD;
+            let last_block_to_produce = first_block_of_session + 2 * session_period;
             wait_block = max(wait_block, last_block_to_produce);
         }
 
