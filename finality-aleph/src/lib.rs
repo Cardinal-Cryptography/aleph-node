@@ -17,6 +17,8 @@ use sc_client_api::{
     Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, StorageProvider,
 };
 use sc_consensus::BlockImport;
+use sc_network::NetworkService;
+use sc_network_sync::SyncingService;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_keystore::Keystore;
@@ -70,7 +72,7 @@ pub use crate::{
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        Protocol, ProtocolNaming, SubstrateNetwork, SubstrateNetworkEventStream,
+        Protocol, ProtocolNaming,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -249,8 +251,8 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC> {
-    pub network: SubstrateNetwork<AlephBlock, AlephHash>,
-    pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
+    pub network: Arc<NetworkService<AlephBlock, AlephHash>>,
+    pub sync_network: Arc<SyncingService<AlephBlock>>,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
@@ -267,6 +269,7 @@ pub struct AlephConfig<C, SC> {
     pub backup_saving_path: Option<PathBuf>,
     pub external_addresses: Vec<String>,
     pub validator_port: u16,
+    pub protocol_naming: ProtocolNaming,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
     pub validator_address_cache: Option<ValidatorAddressCache>,
