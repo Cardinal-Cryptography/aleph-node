@@ -238,7 +238,7 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
     pub fn event_stream(&self) -> NetworkEventStream<B, H> {
         NetworkEventStream {
             stream: Box::pin(self.network.event_stream("aleph-network")),
-            sync_stream: Box::pin(self.sync_network.event_stream("aleph-blocksync-network")),
+            sync_stream: Box::pin(self.sync_network.event_stream("aleph-syncing-network")),
             naming: self.naming.clone(),
             network: self.network.clone(),
         }
