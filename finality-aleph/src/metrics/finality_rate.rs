@@ -113,21 +113,12 @@ impl FinalityRateMetrics {
 mod tests {
     use std::collections::HashMap;
 
-    use lru::LruCache;
-    use parking_lot::Mutex;
     use primitives::{BlockHash, BlockNumber};
-    use sc_service::Arc;
-    use sp_core::ConstU32;
-    use sp_runtime::BoundedVec;
     use substrate_prometheus_endpoint::{Counter, Registry, U64};
 
-    use crate::FinalityRateMetrics;
+    use crate::{metrics::finality_rate::ImportedHashesCache, FinalityRateMetrics};
 
-    type FinalityRateMetricsInternals = (
-        Counter<U64>,
-        Counter<U64>,
-        Arc<Mutex<LruCache<BlockNumber, BoundedVec<BlockHash, ConstU32<64>>>>>,
-    );
+    type FinalityRateMetricsInternals = (Counter<U64>, Counter<U64>, ImportedHashesCache);
 
     fn extract_internals(metrics: FinalityRateMetrics) -> FinalityRateMetricsInternals {
         match metrics {
