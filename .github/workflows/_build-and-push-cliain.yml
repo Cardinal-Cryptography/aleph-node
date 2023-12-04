@@ -93,7 +93,7 @@ jobs:
           image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
           docker build -t ${registry}${image_and_tag} -f ./bin/cliain/Dockerfile ./bin/cliain
           docker push ${registry}${image_and_tag}
-          if [[ '${{ env.TAG }}' -eq 'main' ]]; then
+          if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
             docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
             docker push ${registry}'${{ env.IMAGE }}:latest'
           fi
