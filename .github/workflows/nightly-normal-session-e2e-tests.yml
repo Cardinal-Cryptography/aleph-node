@@ -197,6 +197,7 @@ jobs:
         env:
           NETWORK: "synthetic-network"
           NODE_URL: "ws://Node0:9944"
+          VALIDATOR_COUNT: 5
           TIMEOUT_MINUTES: "60m"
         with:
           test-case: test::sync::large_finalization_stall
