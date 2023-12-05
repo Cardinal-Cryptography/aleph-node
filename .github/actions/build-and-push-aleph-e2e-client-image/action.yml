@@ -21,14 +21,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Validate workflow inputs
-      shell: bash
-      run: |
-        if [[ '${{ inputs.profile }}' != 'test' && '${{ inputs.profile }}' != 'production' ]]; then
-          echo 'Error: inputs.profile should be either test or production!'
-          exit 1
-        fi
-
     - name: Checkout aleph-node source code
       uses: actions/checkout@v4
       with:

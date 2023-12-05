@@ -86,6 +86,7 @@ jobs:
         if: ${{ inputs.build-e2e-tests-targets == true }}
         uses: ./.github/actions/build-and-push-aleph-e2e-client-image
         with:
+          ref: ${{ inputs.ref }}
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           ecr-public-host: ${{ vars.ECR_PUBLIC_HOST }}
