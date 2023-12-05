@@ -4,7 +4,7 @@ use finality_aleph::UnitCreationDelay;
 use log::warn;
 use sc_cli::clap::{self, ArgGroup, Parser};
 
-use crate::aleph_primitives::{DEFAULT_UNIT_CREATION_DELAY, DEFAULT_MAX_NON_FINALIZED_BLOCKS};
+use crate::aleph_primitives::{DEFAULT_MAX_NON_FINALIZED_BLOCKS, DEFAULT_UNIT_CREATION_DELAY};
 
 #[derive(Debug, Parser, Clone)]
 #[clap(group(ArgGroup::new("backup")))]
