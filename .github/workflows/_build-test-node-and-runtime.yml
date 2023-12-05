@@ -37,7 +37,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+        uses: Cardinal-Cryptography/github-actions/getA0-2800-fix-get-ref-properties-ref-properties@A0-2800-fix-get-ref-properties
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
