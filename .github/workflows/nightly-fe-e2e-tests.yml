@@ -83,7 +83,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v5
 
       - name: Get fe name
         id: get-final-featurenet-name

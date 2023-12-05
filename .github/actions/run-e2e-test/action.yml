@@ -52,7 +52,7 @@ runs:
 
     - name: Call action get-ref-properties
       id: get-ref-properties
-      uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-2800-fix-get-ref-properties
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v5
 
     - name: Download artifact with docker image
       uses: actions/download-artifact@v2

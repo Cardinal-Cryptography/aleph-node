@@ -37,7 +37,7 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@A0-2800-fix-get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v5
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
@@ -82,35 +82,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Build aleph-e2e-client image
+      - name: Build and push aleph-e2e-client image
         if: ${{ inputs.build-e2e-tests-targets == true }}
-        run: |
-          cd e2e-tests/
-          rm -f target/release/deps/aleph_e2e_client*
-          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
-            grep aleph_e2e_client) target/release/aleph-e2e-client
-
-      - name: Login to Public Amazon ECR
-        if: ${{ inputs.build-e2e-tests-targets == true }}
-        uses: docker/login-action@v3
+        uses: ./.github/actions/build-and-push-aleph-e2e-client-image
         with:
-          registry: ${{ vars.ECR_PUBLIC_HOST }}
-          username: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
-
-      - name: Push aleph-e2e-client to ECR
-        if: ${{ inputs.build-e2e-tests-targets == true }}
-        env:
-          IMAGE: aleph-e2e-client
-          TAG: ${{ steps.get-ref-properties.outputs.sha }}
-          REGISTRY: ${{ vars.ECR_PUBLIC_REGISTRY }}
-        run: |
-          cd e2e-tests/
-          registry='${{ env.REGISTRY }}'
-          image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
-          docker build --tag ${registry}${image_and_tag} -f Dockerfile .
-          docker push ${registry}${image_and_tag}
-          if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
-            docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
-            docker push ${registry}'${{ env.IMAGE }}:latest'
-          fi
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
+          ecr-public-host: ${{ vars.ECR_PUBLIC_HOST }}
+          ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
