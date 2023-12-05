@@ -17797,7 +17797,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub enum OriginCaller {
-                #[codec(index = 1)]
+                #[codec(index = 0)]
                 system(
                     runtime_types::frame_support::dispatch::RawOrigin<
                         ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
@@ -17855,41 +17855,41 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub enum RuntimeCall {
-                #[codec(index = 1)]
+                #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Call),
-                #[codec(index = 3)]
+                #[codec(index = 2)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Call),
-                #[codec(index = 5)]
+                #[codec(index = 4)]
                 Timestamp(runtime_types::pallet_timestamp::pallet::Call),
-                #[codec(index = 6)]
+                #[codec(index = 5)]
                 Balances(runtime_types::pallet_balances::pallet::Call),
-                #[codec(index = 9)]
+                #[codec(index = 8)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Call),
-                #[codec(index = 11)]
+                #[codec(index = 10)]
                 Session(runtime_types::pallet_session::pallet::Call),
-                #[codec(index = 12)]
+                #[codec(index = 11)]
                 Aleph(runtime_types::pallet_aleph::pallet::Call),
-                #[codec(index = 13)]
+                #[codec(index = 12)]
                 Elections(runtime_types::pallet_elections::pallet::Call),
-                #[codec(index = 14)]
+                #[codec(index = 13)]
                 Treasury(runtime_types::pallet_treasury::pallet::Call),
-                #[codec(index = 15)]
+                #[codec(index = 14)]
                 Vesting(runtime_types::pallet_vesting::pallet::Call),
-                #[codec(index = 16)]
+                #[codec(index = 15)]
                 Utility(runtime_types::pallet_utility::pallet::Call),
-                #[codec(index = 17)]
+                #[codec(index = 16)]
                 Multisig(runtime_types::pallet_multisig::pallet::Call),
-                #[codec(index = 18)]
+                #[codec(index = 17)]
                 Sudo(runtime_types::pallet_sudo::pallet::Call),
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 Contracts(runtime_types::pallet_contracts::pallet::Call),
-                #[codec(index = 20)]
+                #[codec(index = 19)]
                 NominationPools(runtime_types::pallet_nomination_pools::pallet::Call),
-                #[codec(index = 21)]
+                #[codec(index = 20)]
                 Identity(runtime_types::pallet_identity::pallet::Call),
-                #[codec(index = 22)]
+                #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Call),
-                #[codec(index = 23)]
+                #[codec(index = 22)]
                 Proxy(runtime_types::pallet_proxy::pallet::Call),
                 #[codec(index = 41)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Call),
@@ -17908,37 +17908,37 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub enum RuntimeError {
-                #[codec(index = 1)]
+                #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Error),
-                #[codec(index = 3)]
+                #[codec(index = 2)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Error),
-                #[codec(index = 6)]
+                #[codec(index = 5)]
                 Balances(runtime_types::pallet_balances::pallet::Error),
-                #[codec(index = 9)]
+                #[codec(index = 8)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Error),
-                #[codec(index = 11)]
+                #[codec(index = 10)]
                 Session(runtime_types::pallet_session::pallet::Error),
-                #[codec(index = 13)]
+                #[codec(index = 12)]
                 Elections(runtime_types::pallet_elections::pallet::Error),
-                #[codec(index = 14)]
+                #[codec(index = 13)]
                 Treasury(runtime_types::pallet_treasury::pallet::Error),
-                #[codec(index = 15)]
+                #[codec(index = 14)]
                 Vesting(runtime_types::pallet_vesting::pallet::Error),
-                #[codec(index = 16)]
+                #[codec(index = 15)]
                 Utility(runtime_types::pallet_utility::pallet::Error),
-                #[codec(index = 17)]
+                #[codec(index = 16)]
                 Multisig(runtime_types::pallet_multisig::pallet::Error),
-                #[codec(index = 18)]
+                #[codec(index = 17)]
                 Sudo(runtime_types::pallet_sudo::pallet::Error),
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 Contracts(runtime_types::pallet_contracts::pallet::Error),
-                #[codec(index = 20)]
+                #[codec(index = 19)]
                 NominationPools(runtime_types::pallet_nomination_pools::pallet::Error),
-                #[codec(index = 21)]
+                #[codec(index = 20)]
                 Identity(runtime_types::pallet_identity::pallet::Error),
-                #[codec(index = 22)]
+                #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Error),
-                #[codec(index = 23)]
+                #[codec(index = 22)]
                 Proxy(runtime_types::pallet_proxy::pallet::Error),
                 #[codec(index = 41)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Error),
@@ -17957,41 +17957,41 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub enum RuntimeEvent {
-                #[codec(index = 1)]
+                #[codec(index = 0)]
                 System(runtime_types::frame_system::pallet::Event),
-                #[codec(index = 3)]
+                #[codec(index = 2)]
                 Scheduler(runtime_types::pallet_scheduler::pallet::Event),
-                #[codec(index = 6)]
+                #[codec(index = 5)]
                 Balances(runtime_types::pallet_balances::pallet::Event),
-                #[codec(index = 7)]
+                #[codec(index = 6)]
                 TransactionPayment(runtime_types::pallet_transaction_payment::pallet::Event),
-                #[codec(index = 9)]
+                #[codec(index = 8)]
                 Staking(runtime_types::pallet_staking::pallet::pallet::Event),
-                #[codec(index = 11)]
+                #[codec(index = 10)]
                 Session(runtime_types::pallet_session::pallet::Event),
-                #[codec(index = 12)]
+                #[codec(index = 11)]
                 Aleph(runtime_types::pallet_aleph::pallet::Event),
-                #[codec(index = 13)]
+                #[codec(index = 12)]
                 Elections(runtime_types::pallet_elections::pallet::Event),
-                #[codec(index = 14)]
+                #[codec(index = 13)]
                 Treasury(runtime_types::pallet_treasury::pallet::Event),
-                #[codec(index = 15)]
+                #[codec(index = 14)]
                 Vesting(runtime_types::pallet_vesting::pallet::Event),
-                #[codec(index = 16)]
+                #[codec(index = 15)]
                 Utility(runtime_types::pallet_utility::pallet::Event),
-                #[codec(index = 17)]
+                #[codec(index = 16)]
                 Multisig(runtime_types::pallet_multisig::pallet::Event),
-                #[codec(index = 18)]
+                #[codec(index = 17)]
                 Sudo(runtime_types::pallet_sudo::pallet::Event),
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 Contracts(runtime_types::pallet_contracts::pallet::Event),
-                #[codec(index = 20)]
+                #[codec(index = 19)]
                 NominationPools(runtime_types::pallet_nomination_pools::pallet::Event),
-                #[codec(index = 21)]
+                #[codec(index = 20)]
                 Identity(runtime_types::pallet_identity::pallet::Event),
-                #[codec(index = 22)]
+                #[codec(index = 21)]
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Event),
-                #[codec(index = 23)]
+                #[codec(index = 22)]
                 Proxy(runtime_types::pallet_proxy::pallet::Event),
                 #[codec(index = 41)]
                 BabyLiminal(runtime_types::pallet_baby_liminal::pallet::Event),
@@ -18010,7 +18010,7 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub enum RuntimeHoldReason {
-                #[codec(index = 19)]
+                #[codec(index = 18)]
                 Contracts(runtime_types::pallet_contracts::pallet::HoldReason),
             }
             #[derive(
