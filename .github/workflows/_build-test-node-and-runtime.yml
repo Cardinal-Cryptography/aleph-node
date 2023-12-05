@@ -109,4 +109,3 @@ jobs:
             docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
             docker push ${registry}'${{ env.IMAGE }}:latest'
           fi
-
