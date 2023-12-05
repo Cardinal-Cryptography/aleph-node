@@ -272,7 +272,7 @@ pub async fn into_two_groups_one_with_quorum() -> anyhow::Result<()> {
 /// so the finalization can continue in case of a big best-finalized gap.
 #[tokio::test]
 pub async fn large_finalization_stall() -> anyhow::Result<()> {
-    const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 901;
+    const NUMBER_OF_BLOCKS_TO_WAIT_AFTER_RECONNECT: u32 = 311;
     const VALIDATOR_NETWORK_PORT: u16 = 30343;
 
     let config = setup_test();
@@ -287,7 +287,7 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
         .nodes_configs()
         .context("unable to build configuration for test nodes")?;
 
-    await_finalized_blocks(nodes_configs.as_slice(), 0, 1).await?;
+    await_finalized_blocks(nodes_configs.as_slice(), 0, 2).await?;
 
     let connections = join_all(
         nodes_configs
@@ -341,6 +341,7 @@ pub async fn large_finalization_stall() -> anyhow::Result<()> {
                     "Failed to retrieve block number for hash {finalized:?} at node {node_name}"
                 ))?;
 
+            // NOTE at the time of writing, sync won't accept blocks from sessions beyond `session of last finalized block + 1`
             let last_block_to_produce = first_block_of_session + 2 * session_period;
             wait_block = max(wait_block, last_block_to_produce);
         }
