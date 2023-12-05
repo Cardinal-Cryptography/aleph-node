@@ -83,6 +83,7 @@ runs:
       run: |
         ARGS=(
           -t '${{ inputs.test-case }}'
+          -a '${{ steps.get-ref-properties.outputs.sha }}'
         )
 
         RESERVED_SEATS='${{ inputs.reserved-seats }}'
