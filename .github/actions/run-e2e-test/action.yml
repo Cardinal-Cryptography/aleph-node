@@ -71,10 +71,14 @@ runs:
           ./.github/scripts/run_consensus.sh -n '${{ inputs.node-count }}'
 
     - name: Pull aleph-e2e-client image
+      id: pull-aleph-e2e-client
       shell: bash
       env:
         TAG: ${{ steps.get-ref-properties.outputs.sha }}
-      run: docker pull 'public.ecr.aws/p6e8q1z1/aleph-e2e-client:${{ env.TAG }}'
+      run: |
+        image='public.ecr.aws/p6e8q1z1/aleph-e2e-client:${{ env.TAG }}'
+        docker pull ${image}
+        echo "image=${image}" >> $GITHUB_OUTPUT
 
     - name: Run single e2e test
       id: run-single-e2e-test
@@ -83,7 +87,7 @@ runs:
       run: |
         ARGS=(
           -t '${{ inputs.test-case }}'
-          -a '${{ steps.get-ref-properties.outputs.sha }}'
+          -a '${{ steps.pull-aleph-e2e-client.outputs.image }}'
         )
 
         RESERVED_SEATS='${{ inputs.reserved-seats }}'
