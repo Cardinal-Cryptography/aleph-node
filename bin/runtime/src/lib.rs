@@ -910,8 +910,8 @@ construct_runtime!(
         NominationPools: pallet_nomination_pools = 20,
         Identity: pallet_identity = 21,
         CommitteeManagement: pallet_committee_management = 22,
-        BabyLiminal: pallet_baby_liminal = 23
-        Proxy: pallet_proxy = 24,
+        Proxy: pallet_proxy = 23,
+        BabyLiminal: pallet_baby_liminal = 41,
     }
 );
 
