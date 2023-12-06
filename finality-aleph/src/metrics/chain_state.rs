@@ -25,7 +25,10 @@ use crate::{
 
 // Size of transaction cache: 32B (Hash) + 16B (Instant) * `100_000` is approximately 4.8MB
 const TRANSACTION_CACHE_SIZE: usize = 100_000;
-// Maximum number of transactions to recheck if they are still in the pool, per single loop iteration.
+
+// Maximum number of transactions to recheck if they are still in the pool, per single
+// loop iteration. Rechecking is not needed, but reduces the number of transactions
+// in the cache that are absent in the actual pool, and thus the cache size.
 const MAX_RECHECKED_TRANSACTIONS: usize = 4;
 const BUCKETS_FACTOR: f64 = 1.4;
 
@@ -207,8 +210,8 @@ async fn iteration<
                 Some(hash) => {
                     // Putting new transaction can evict the oldest one. However, even if the
                     // removed transaction was actually still in the pool, we don't have
-                    // any guarantees that it could be included in the block. Therefore, we
-                    // we ignore such transaction.
+                    // any guarantees that it would be eventually included in the block.
+                    // Therefore, we ignore such transaction.
                     cache.put(hash, Instant::now());
                 }
                 None => {
