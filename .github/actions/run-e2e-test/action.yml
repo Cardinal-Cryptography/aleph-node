@@ -155,4 +155,5 @@ runs:
       if: inputs.follow-up-finalization-check == 'true'
       shell: bash
       run: |
-        ./.github/scripts/run_e2e_test.sh -t finalization::finalization
+        ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
+          -a '${{ steps.pull-aleph-e2e-client.outputs.image }}'
