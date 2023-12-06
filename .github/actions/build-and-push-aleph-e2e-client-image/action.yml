@@ -17,6 +17,10 @@ inputs:
   ecr-public-registry:
     required: true
     description: 'ECR public registry'
+outputs:
+  aleph-e2e-client-image:
+    description: Built aleph-e2e-client image name
+    value: ${{ steps.push-aleph-e2e-client.outputs.image }}
 
 runs:
   using: "composite"
@@ -52,6 +56,7 @@ runs:
         password: ${{ inputs.aws-secret-access-key }}
 
     - name: Push aleph-e2e-client to ECR
+      id: push-aleph-e2e-client
       env:
         IMAGE: aleph-e2e-client
         TAG: ${{ steps.get-ref-properties.outputs.sha }}
@@ -63,6 +68,7 @@ runs:
         image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
         docker build --tag ${registry}${image_and_tag} -f Dockerfile .
         docker push ${registry}${image_and_tag}
+        echo "image=${registry}${image_and_tag}" >> $GITHUB_OUTPUT
         if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
           docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
           docker push ${registry}'${{ env.IMAGE }}:latest'

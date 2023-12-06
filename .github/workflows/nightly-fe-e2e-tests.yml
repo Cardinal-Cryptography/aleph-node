@@ -36,18 +36,21 @@ jobs:
     name: Get e2e test case names
     runs-on: ubuntu-20.04
     needs: [build-test-node-and-runtime]
+    env:
+      # yamllint disable-line rule:line-length
+      ALEPH_E2E_CLIENT_IMAGE: '${{ needs.build-test-node-and-runtime.outputs.aleph-e2e-client-image }}'
     outputs:
       testcases: ${{ steps.get-testcases.outputs.testcases }}
     steps:
       - name: Pull aleph-e2e-client image
         shell: bash
-        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:latest'
+        run: docker pull '${{ env.ALEPH_E2E_CLIENT_IMAGE }}'
 
       - name: Get testcases
         shell: bash
         id: get-testcases
         run: |
-          testcases=$(docker run --entrypoint aleph-e2e-client aleph-e2e-client:latest \
+          testcases=$(docker run --entrypoint aleph-e2e-client '${{ env.ALEPH_E2E_CLIENT_IMAGE }}' \
             `# basically cargo test --list under the hood` \
             --list | \
             `# filter by testcases (not benches)` \
@@ -71,6 +74,9 @@ jobs:
       - push-featurenet-test-node-image-to-ecr
       - get-e2e-test-case-names
     name: e2e
+    env:
+      # yamllint disable-line rule:line-length
+      ALEPH_E2E_CLIENT_IMAGE: '${{ needs.build-test-node-and-runtime.outputs.aleph-e2e-client-image }}'
     runs-on: [self-hosted, Linux, X64, small]
     strategy:
       fail-fast: false
@@ -117,7 +123,7 @@ jobs:
 
       - name: Pull aleph-e2e-client image
         shell: bash
-        run: docker pull '${{ vars.ECR_PUBLIC_REGISTRY }}/aleph-e2e-client:latest'
+        run: docker pull '${{ env.ALEPH_E2E_CLIENT_IMAGE }}'
 
       - name: Run ${{ matrix.testcase }} e2e test
         shell: bash
@@ -128,7 +134,7 @@ jobs:
             -e NODE_URL='wss://${{ steps.create-featurenet.outputs.ws-hostname }}:443' \
             -e TEST_CASES='${{ matrix.testcase }}' \
             -e RUST_LOG=info \
-            aleph-e2e-client:latest
+            '${{ env.ALEPH_E2E_CLIENT_IMAGE }}'
         timeout-minutes: 15
 
       - name: Delete old featurenet app and data

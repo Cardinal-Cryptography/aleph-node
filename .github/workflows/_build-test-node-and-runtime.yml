@@ -14,6 +14,10 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      aleph-e2e-client-image:
+        description: Built image tag of aleph-e2e-client
+        value: ${{ jobs.build-artifacts.outputs.aleph-e2e-client-image }}
 
 jobs:
   check-vars-and-secrets:
@@ -25,6 +29,9 @@ jobs:
     name: Build test node and runtime
     needs: [check-vars-and-secrets]
     runs-on: [self-hosted, Linux, X64, large]
+    outputs:
+      # yamllint disable-line rule:line-length
+      aleph-e2e-client-image: ${{ steps.build-and-push-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -83,6 +90,7 @@ jobs:
           retention-days: 7
 
       - name: Build and push aleph-e2e-client image
+        id: build-and-push-aleph-e2e-client-image
         if: ${{ inputs.build-e2e-tests-targets == true }}
         uses: ./.github/actions/build-and-push-aleph-e2e-client-image
         with:
