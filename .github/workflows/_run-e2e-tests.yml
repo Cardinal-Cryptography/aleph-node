@@ -7,6 +7,7 @@ on:
       aleph-e2e-client-image:
         description: 'aleph-e2e-client image'
         required: true
+        type: string
 
 jobs:
   run-e2e-finalization-test:
