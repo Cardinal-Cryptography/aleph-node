@@ -85,7 +85,7 @@ runs:
       run: |
         ARGS=(
           -t '${{ inputs.test-case }}'
-          -a '${{ steps.pull-aleph-e2e-client.outputs.image }}'
+          -a aleph-e2e-client:dev
         )
 
         RESERVED_SEATS='${{ inputs.reserved-seats }}'
@@ -154,4 +154,4 @@ runs:
       shell: bash
       run: |
         ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
-          -a '${{ steps.pull-aleph-e2e-client.outputs.image }}'
+          -a aleph-e2e-client:dev

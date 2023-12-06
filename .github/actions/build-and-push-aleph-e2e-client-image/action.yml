@@ -65,13 +65,14 @@ runs:
       run: |
         cd e2e-tests/
         registry='${{ env.REGISTRY }}'
-        image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
-        docker build --tag ${registry}${image_and_tag} -f Dockerfile .
-        docker save -o aleph-e2e-client.tar ${registry}${image_and_tag}
-        echo "image=${registry}${image_and_tag}" >> $GITHUB_OUTPUT
+        image_and_tag='${{ env.IMAGE }}:dev'
+        docker build --tag ${image_and_tag} -f Dockerfile .
+        docker save -o aleph-e2e-client.tar ${image_and_tag}
+        echo "image=${image_and_tag}" >> $GITHUB_OUTPUT
         if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
-          docker push ${registry}${image_and_tag}
-          docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
+          docker tag ${image_and_tag} ${registry}'${{ env.IMAGE }}:${{ env.TAG }}'
+          docker push ${registry}'${{ env.IMAGE }}:${{ env.TAG }}'
+          docker tag ${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
           docker push ${registry}'${{ env.IMAGE }}:latest'
         fi
 
