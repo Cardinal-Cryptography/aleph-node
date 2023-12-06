@@ -8,6 +8,10 @@ on:
         description: "git ref: hash, branch, tag or 'mainnet' or 'testnet'"
         type: string
         required: true
+    outputs:
+      aleph-e2e-client-image:
+        description: Built image tag of aleph-e2e-client
+        value: ${{ jobs.build-artifacts.outputs.aleph-e2e-client-image }}
 
 jobs:
   check-vars-and-secrets:
@@ -19,6 +23,9 @@ jobs:
     name: Build aleph-e2e-client image
     needs: [check-vars-and-secrets]
     runs-on: [self-hosted, Linux, X64, large]
+    outputs:
+      # yamllint disable-line rule:line-length
+      aleph-e2e-client-image: ${{ steps.build-and-push-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -39,6 +46,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Build and push aleph-e2e-client image
+        id: build-and-push-aleph-e2e-client-image
         uses: ./.github/actions/build-and-push-aleph-e2e-client-image
         with:
           ref: ${{ inputs.ref }}

@@ -42,9 +42,14 @@ jobs:
     outputs:
       testcases: ${{ steps.get-testcases.outputs.testcases }}
     steps:
-      - name: Pull aleph-e2e-client image
+      - name: Download aleph-e2e-client artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: aleph-e2e-client
+
+      - name: Load test suite docker image
         shell: bash
-        run: docker pull '${{ env.ALEPH_E2E_CLIENT_IMAGE }}'
+        run: docker load -i aleph-e2e-client.tar
 
       - name: Get testcases
         shell: bash
@@ -122,9 +127,14 @@ jobs:
           git-commit-email: ${{ secrets.AUTOCOMMIT_EMAIL }}
           wait-for-finalized-heads: "true"
 
-      - name: Pull aleph-e2e-client image
+      - name: Download aleph-e2e-client artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: aleph-e2e-client
+
+      - name: Load test suite docker image
         shell: bash
-        run: docker pull '${{ env.ALEPH_E2E_CLIENT_IMAGE }}'
+        run: docker load -i aleph-e2e-client.tar
 
       - name: Run ${{ matrix.testcase }} e2e test
         shell: bash

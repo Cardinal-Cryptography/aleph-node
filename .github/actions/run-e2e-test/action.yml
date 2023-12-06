@@ -43,6 +43,9 @@ inputs:
     description: 'Custom docker-compose configuration'
     required: false
     default: ''
+  aleph-e2e-client-image:
+    description: 'aleph-e2e-client image'
+    required: true
 
 runs:
   using: 'composite'
@@ -85,7 +88,7 @@ runs:
       run: |
         ARGS=(
           -t '${{ inputs.test-case }}'
-          -a aleph-e2e-client:dev
+          -a '${{ inputs.aleph-e2e-client-image }}'
         )
 
         RESERVED_SEATS='${{ inputs.reserved-seats }}'
@@ -154,4 +157,4 @@ runs:
       shell: bash
       run: |
         ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
-          -a aleph-e2e-client:dev
+          -a '${{ inputs.aleph-e2e-client-image }}'
