@@ -276,9 +276,8 @@ fn report_extrinsics_included_in_block<
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
-
     use futures::{FutureExt, StreamExt};
+    use parity_scale_codec::Encode;
     use sc_basic_authorship::ProposerFactory;
     use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
@@ -288,6 +287,7 @@ mod test {
     use sp_blockchain::tree_route;
     use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
     use sp_runtime::transaction_validity::TransactionSource;
+    use std::{sync::Arc, time::Duration};
     use substrate_prometheus_endpoint::Registry;
     use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
@@ -376,7 +376,6 @@ mod test {
     }
 
     type TChainApi = FullChainApi<TestClient, TBlock>;
-
     type FullTransactionPool = BasicPool<TChainApi, TBlock>;
     type TProposerFactory =
         ProposerFactory<FullTransactionPool, TestBackend, TestClient, DisableProofRecording>;
@@ -589,7 +588,7 @@ mod test {
         assert_eq!(block_1.extrinsics.len(), 3);
     }
     #[tokio::test]
-    async fn transactions_are_not_reported_twice_when_reorg() {
+    async fn retracted_transactions_are_reported_once() {
         let mut setup = TestSetup::new();
         let genesis = setup.client.info().genesis_hash;
 
@@ -660,5 +659,48 @@ mod test {
         assert_eq!(block_2b.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
         assert_eq!(setup.transactions_histogram().get_sample_sum(), sum_before);
+    }
+
+    #[tokio::test]
+    async fn transactions_discarded_in_block_authorship_are_not_reported_at_that_time() {
+        let mut setup = TestSetup::new();
+        let genesis = setup.client.info().genesis_hash;
+
+        let xt1 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup.extrinsic(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
+
+        setup.submit(&genesis, xt1.clone()).await;
+        setup.submit(&genesis, xt2.clone()).await;
+        assert_eq!(setup.iter_while_possible(), 2);
+
+        let time_after_submit = Instant::now();
+
+        let block_1 = setup
+            .new_block(genesis, Some(2 * xt1.encoded_size() - 1))
+            .await;
+
+        assert_eq!(setup.iter_while_possible(), 1);
+        assert_eq!(block_1.extrinsics.len(), 1);
+        assert_eq!(setup.transactions_histogram().get_sample_count(), 1);
+        let sample_1 = setup.transactions_histogram().get_sample_sum();
+
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let time_before_block_2 = Instant::now();
+        let block_2 = setup
+            .new_block(block_1.hash(), Some(2 * xt1.encoded_size() - 1))
+            .await;
+        let iters_block_2 = setup.iter_while_possible();
+
+        assert_eq!(iters_block_2, 1);
+        assert_eq!(block_2.extrinsics.len(), 1);
+        assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
+
+        let sample_2 = setup.transactions_histogram().get_sample_sum() - sample_1;
+
+        let duration = Duration::from_secs_f64(sample_2 / 1000.0);
+        let eps = Duration::from_nanos(1);
+
+        assert!(duration >= time_before_block_2 - time_after_submit - eps);
     }
 }
