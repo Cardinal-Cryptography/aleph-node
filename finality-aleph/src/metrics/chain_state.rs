@@ -276,30 +276,20 @@ fn report_extrinsics_included_in_block<
 
 #[cfg(test)]
 mod test {
-    use futures::{FutureExt, StreamExt};
+    use super::*;
+    use futures::FutureExt;
     use parity_scale_codec::Encode;
-    use sc_basic_authorship::ProposerFactory;
     use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
-    use sc_transaction_pool::{BasicPool, FullChainApi};
-    use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool, TransactionPool};
-    use sp_api::BlockT;
-    use sp_blockchain::tree_route;
-    use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
-    use sp_runtime::transaction_validity::TransactionSource;
     use std::{sync::Arc, time::Duration};
-    use substrate_prometheus_endpoint::Registry;
-    use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
-    use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
-    use super::*;
+    use substrate_test_runtime_client::AccountKeyring;
+
     use crate::{
-        metrics::transaction_pool::TransactionPoolWrapper,
+        metrics::transaction_pool::test::TestTransactionPoolSetup,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{
-                TBlock, THash, TestBackend, TestClient, TestClientBuilder, TestClientBuilderExt,
-            },
+            mocks::{TBlock, THash, TestClientBuilder, TestClientBuilderExt},
         },
     };
 
@@ -375,16 +365,8 @@ mod test {
         }
     }
 
-    type TChainApi = FullChainApi<TestClient, TBlock>;
-    type FullTransactionPool = BasicPool<TChainApi, TBlock>;
-    type TProposerFactory =
-        ProposerFactory<FullTransactionPool, TestBackend, TestClient, DisableProofRecording>;
-
     struct TestSetup {
-        pub client: Arc<TestClient>,
-        pub pool: Arc<FullTransactionPool>,
-        pub proposer_factory: TProposerFactory,
-        pub transaction_pool_info_provider: TransactionPoolWrapper<TChainApi, TBlock>,
+        pub pool: TestTransactionPoolSetup,
         pub metrics: ChainStateMetrics,
         pub cache: LruCache<THash, Instant>,
         pub best_block_notifications:
@@ -395,22 +377,6 @@ mod test {
     impl TestSetup {
         fn new() -> Self {
             let client = Arc::new(TestClientBuilder::new().build());
-            let spawner = sp_core::testing::TaskExecutor::new();
-            let pool = BasicPool::new_full(
-                Default::default(),
-                true.into(),
-                None,
-                spawner.clone(),
-                client.clone(),
-            );
-
-            let proposer_factory =
-                ProposerFactory::new(spawner, client.clone(), pool.clone(), None, None);
-
-            let transaction_pool_info_provider = TransactionPoolWrapper::new(pool.clone());
-            let registry = Registry::new();
-            let metrics = ChainStateMetrics::new(Some(registry)).expect("metrics");
-            let cache = LruCache::new(NonZeroUsize::new(10).expect("cache"));
 
             let best_block_notifications = Box::new(
                 client
@@ -418,14 +384,16 @@ mod test {
                     .fuse()
                     .filter(|notification| future::ready(notification.is_new_best)),
             );
-
             let finality_notifications = Box::new(client.finality_notification_stream().fuse());
 
+            let pool = TestTransactionPoolSetup::new(client);
+
+            let registry = Registry::new();
+            let metrics = ChainStateMetrics::new(Some(registry)).expect("metrics");
+            let cache = LruCache::new(NonZeroUsize::new(10).expect("cache"));
+
             TestSetup {
-                client,
                 pool,
-                proposer_factory,
-                transaction_pool_info_provider,
                 metrics,
                 cache,
                 best_block_notifications,
@@ -433,13 +401,27 @@ mod test {
             }
         }
 
+        fn genesis(&self) -> THash {
+            self.pool.client.info().genesis_hash
+        }
+
+        fn transactions_histogram(&self) -> &Histogram {
+            match &self.metrics {
+                ChainStateMetrics::Prometheus {
+                    time_till_block_inclusion,
+                    ..
+                } => time_till_block_inclusion,
+                _ => panic!("metrics"),
+            }
+        }
+
         async fn run_one_metrics_loop_iteration(&mut self) {
             iteration(
-                self.client.as_ref(),
+                self.pool.client.as_ref(),
                 &mut self.best_block_notifications,
                 &mut self.finality_notifications,
                 &self.metrics,
-                &mut self.transaction_pool_info_provider,
+                &mut self.pool.transaction_pool_info_provider,
                 &mut self.cache,
                 &mut None,
             )
@@ -457,74 +439,16 @@ mod test {
             }
             res
         }
-
-        async fn new_block(&mut self, at: THash, weight_limit: Option<usize>) -> TBlock {
-            let proposer = self
-                .proposer_factory
-                .init(&self.client.expect_header(at).unwrap())
-                .await
-                .unwrap();
-
-            let block = proposer
-                .propose(
-                    Default::default(),
-                    Default::default(),
-                    Duration::from_secs(30),
-                    weight_limit,
-                )
-                .await
-                .unwrap();
-
-            let block = block.block;
-            self.client
-                .import(BlockOrigin::NetworkBroadcast, block.clone())
-                .await
-                .unwrap();
-
-            block
-        }
-
-        fn extrinsic(
-            &self,
-            sender: AccountKeyring,
-            receiver: AccountKeyring,
-            nonce: u64,
-        ) -> Extrinsic {
-            let tx = Transfer {
-                amount: Default::default(),
-                nonce,
-                from: sender.into(),
-                to: receiver.into(),
-            };
-            ExtrinsicBuilder::new_transfer(tx).build()
-        }
-
-        async fn submit(&mut self, at: &THash, xt: Extrinsic) {
-            self.pool
-                .submit_one(*at, TransactionSource::External, xt)
-                .await
-                .unwrap();
-        }
-
-        fn transactions_histogram(&self) -> &Histogram {
-            match &self.metrics {
-                ChainStateMetrics::Prometheus {
-                    time_till_block_inclusion,
-                    ..
-                } => time_till_block_inclusion,
-                _ => panic!("metrics"),
-            }
-        }
     }
 
     #[tokio::test]
     async fn transactions_get_reported() {
         let mut setup = TestSetup::new();
-        let genesis = setup.client.info().genesis_hash;
-        let xt = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let genesis = setup.genesis();
+        let xt = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
 
         let time_before_submit = Instant::now();
-        setup.submit(&genesis, xt).await;
+        setup.pool.submit(&genesis, xt).await;
 
         assert_eq!(
             setup.iter_while_possible(),
@@ -536,7 +460,7 @@ mod test {
         tokio::time::sleep(Duration::from_millis(20)).await;
 
         let time_before_import = Instant::now();
-        let _block_1 = setup.new_block(genesis, None).await;
+        let _block_1 = setup.pool.propose_block(genesis, None).await;
         let pre_count = setup.transactions_histogram().get_sample_count();
 
         assert_eq!(
@@ -560,56 +484,51 @@ mod test {
     #[tokio::test]
     async fn transactions_are_reported_only_if_ready_when_added_to_the_pool() {
         let mut setup = TestSetup::new();
-        let genesis = setup.client.info().genesis_hash;
+        let genesis = setup.genesis();
 
-        let xt0 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt1 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 1);
-        let xt2 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 2);
+        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 1);
+        let xt3 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 2);
 
-        setup.submit(&genesis, xt1.clone()).await;
+        setup.pool.submit(&genesis, xt2.clone()).await;
 
-        // No notification for tx1 as it is not ready
+        // No notification for xt2 as it is not ready
         assert_eq!(
             setup.iter_while_possible(),
             0,
             "Future transactions should not be reported"
         );
 
-        setup.submit(&genesis, xt0.clone()).await;
-        setup.submit(&genesis, xt2.clone()).await;
+        setup.pool.submit(&genesis, xt1.clone()).await;
+        setup.pool.submit(&genesis, xt3.clone()).await;
 
-        // Both notification for tx0 and tx2
+        // Notifications for xt1 and xt3
         assert_eq!(setup.iter_while_possible(), 2);
 
-        let block_1 = setup.new_block(genesis, None).await;
-        // Block import notification. Tx1 notification never appears
+        let block_1 = setup.pool.propose_block(genesis, None).await;
+        // Block import notification. xt1 notification never appears
         assert_eq!(setup.iter_while_possible(), 1);
-        // All 3 extrinsics are included in a block
+        // All 3 extrinsics are included in the block
         assert_eq!(block_1.extrinsics.len(), 3);
     }
+
     #[tokio::test]
     async fn retracted_transactions_are_reported_once() {
         let mut setup = TestSetup::new();
-        let genesis = setup.client.info().genesis_hash;
+        let genesis = setup.genesis();
 
-        let xt1 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt2 = setup.extrinsic(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
+        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup
+            .pool
+            .xt(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
 
-        setup.submit(&genesis, xt1.clone()).await;
-        setup.submit(&genesis, xt2.clone()).await;
+        setup.pool.submit(&genesis, xt1.clone()).await;
+        setup.pool.submit(&genesis, xt2.clone()).await;
 
         // make sure import notifications are received before block import
         assert_eq!(setup.iter_while_possible(), 2);
 
-        let block_1a = setup.new_block(genesis, None).await;
-        setup
-            .pool
-            .maintain(ChainEvent::NewBestBlock {
-                hash: block_1a.hash(),
-                tree_route: None,
-            })
-            .await;
-
+        let block_1a = setup.pool.propose_block(genesis, None).await;
         assert_eq!(block_1a.extrinsics.len(), 2);
         assert_eq!(setup.iter_while_possible(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
@@ -618,43 +537,16 @@ mod test {
 
         // external fork block with xt1
         let mut block_1b_builder = setup
+            .pool
             .client
             .new_block_at(genesis, Default::default(), false)
             .unwrap();
         block_1b_builder.push(xt1).unwrap();
-
         let block_1b = block_1b_builder.build().unwrap().block;
-        setup
-            .client
-            .import(BlockOrigin::NetworkBroadcast, block_1b.clone())
-            .await
-            .unwrap();
-        setup
-            .pool
-            .maintain(ChainEvent::NewBestBlock {
-                hash: block_1b.hash(),
-                tree_route: Some(Arc::new(
-                    tree_route(setup.client.as_ref(), block_1a.hash(), genesis).unwrap(),
-                )),
-            })
-            .await;
-        setup.client.finalize_block(block_1b.hash(), None).unwrap();
-        setup
-            .pool
-            .maintain(ChainEvent::Finalized {
-                hash: block_1b.hash(),
-                tree_route: Arc::new([genesis]),
-            })
-            .await;
+        setup.pool.import_block(block_1b.clone()).await;
+        setup.pool.finalize(block_1b.hash()).await;
 
-        let block_2b = setup.new_block(block_1b.hash(), None).await;
-        setup
-            .pool
-            .maintain(ChainEvent::NewBestBlock {
-                hash: block_2b.hash(),
-                tree_route: None,
-            })
-            .await;
+        let block_2b = setup.pool.propose_block(block_1b.hash(), None).await;
 
         assert_eq!(block_2b.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
@@ -664,19 +556,20 @@ mod test {
     #[tokio::test]
     async fn transactions_discarded_in_block_authorship_are_not_reported_at_that_time() {
         let mut setup = TestSetup::new();
-        let genesis = setup.client.info().genesis_hash;
+        let genesis = setup.genesis();
 
-        let xt1 = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt2 = setup.extrinsic(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
+        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup.pool.xt(AccountKeyring::Dave, AccountKeyring::Eve, 0);
 
-        setup.submit(&genesis, xt1.clone()).await;
-        setup.submit(&genesis, xt2.clone()).await;
+        setup.pool.submit(&genesis, xt1.clone()).await;
+        setup.pool.submit(&genesis, xt2.clone()).await;
         assert_eq!(setup.iter_while_possible(), 2);
 
         let time_after_submit = Instant::now();
 
         let block_1 = setup
-            .new_block(genesis, Some(2 * xt1.encoded_size() - 1))
+            .pool
+            .propose_block(genesis, Some(2 * xt1.encoded_size() - 1))
             .await;
 
         assert_eq!(setup.iter_while_possible(), 1);
@@ -688,7 +581,8 @@ mod test {
 
         let time_before_block_2 = Instant::now();
         let block_2 = setup
-            .new_block(block_1.hash(), Some(2 * xt1.encoded_size() - 1))
+            .pool
+            .propose_block(block_1.hash(), Some(2 * xt1.encoded_size() - 1))
             .await;
         let iters_block_2 = setup.iter_while_possible();
 
