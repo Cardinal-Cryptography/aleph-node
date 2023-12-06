@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'release-*'
+      - A0-2800
 
 jobs:
   check-vars-and-secrets:
@@ -21,6 +22,14 @@ jobs:
     with:
       liminal-runtime: false
       check-only: false
+
+  build-aleph-e2e-client-image:
+    needs: [check-vars-and-secrets]
+    name: Build aleph-e2e-client image
+    uses: ./.github/workflows/_build-aleph-e2e-client-image.yml
+    with:
+      ref: ${{ github.ref }}
+    secrets: inherit
 
   build-production-node-and-runtime:
     needs: [check-vars-and-secrets]
