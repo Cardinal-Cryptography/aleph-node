@@ -73,6 +73,7 @@ jobs:
     needs:
       - push-featurenet-test-node-image-to-ecr
       - get-e2e-test-case-names
+      - build-test-node-and-runtime
     name: e2e
     env:
       # yamllint disable-line rule:line-length
