@@ -21,7 +21,7 @@ jobs:
     name: Build aleph-e2e-client image
     uses: ./.github/workflows/_build-aleph-e2e-client-image.yml
     with:
-      ref: ${{ input.ref }}
+      ref: ${{ inputs.ref }}
 
   build-production-node-and-runtime:
     needs: [check-vars-and-secrets]
