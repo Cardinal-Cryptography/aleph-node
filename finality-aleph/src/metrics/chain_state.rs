@@ -220,19 +220,7 @@ async fn iteration<
             }
         },
     }
-
-    let mut rechecked_transactions = 0;
-    while let Some((hash, instant)) = cache.pop_lru() {
-        if !transaction_pool_info_provider.pool_contains(&hash) {
-            cache.pop_lru();
-        } else {
-            cache.put(hash, instant);
-        }
-        rechecked_transactions += 1;
-        if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
-            break;
-        }
-    }
+    recheck_transactions_in_cache(transaction_pool_info_provider, cache);
 }
 
 fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: HeaderMetadata<B>>(
@@ -273,6 +261,24 @@ fn report_extrinsics_included_in_block<
         if let Some(insert_time) = cache.pop(&hash) {
             let elapsed = insert_time.elapsed();
             metrics.report_transaction_in_block(elapsed);
+        }
+    }
+}
+
+fn recheck_transactions_in_cache<TP: TransactionPoolInfoProvider>(
+    transaction_pool_info_provider: &TP,
+    cache: &mut LruCache<TP::TxHash, Instant>,
+) {
+    let mut rechecked_transactions = 0;
+    while let Some((hash, instant)) = cache.pop_lru() {
+        if !transaction_pool_info_provider.pool_contains(&hash) {
+            cache.pop_lru();
+        } else {
+            cache.put(hash, instant);
+        }
+        rechecked_transactions += 1;
+        if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
+            break;
         }
     }
 }
@@ -368,6 +374,7 @@ mod test {
         }
     }
 
+    // Transaction pool metrics tests
     struct TestSetup {
         pub pool: TestTransactionPoolSetup,
         pub metrics: ChainStateMetrics,

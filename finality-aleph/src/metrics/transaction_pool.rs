@@ -8,6 +8,18 @@ use sc_transaction_pool_api::{
 };
 use sp_api::BlockT;
 use sp_runtime::traits;
+use sp_runtime::traits::Member;
+
+#[async_trait::async_trait]
+pub trait TransactionPoolInfoProvider {
+    type TxHash: Member + std::hash::Hash;
+    type Extrinsic;
+    async fn next_transaction(&mut self) -> Option<Self::TxHash>;
+
+    fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash;
+
+    fn pool_contains(&self, transaction: &Self::TxHash) -> bool;
+}
 
 type HashFor<A> = <<A as ChainApi>::Block as traits::Block>::Hash;
 
