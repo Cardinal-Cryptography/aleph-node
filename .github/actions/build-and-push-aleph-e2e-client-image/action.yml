@@ -69,7 +69,7 @@ runs:
         docker build --tag ${image_and_tag} -f Dockerfile .
         docker save -o aleph-e2e-client.tar ${image_and_tag}
         echo "image=${image_and_tag}" >> $GITHUB_OUTPUT
-        if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'A0-2800' ]]; then
+        if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
           docker tag ${image_and_tag} ${registry}'${{ env.IMAGE }}:${{ env.TAG }}'
           docker push ${registry}'${{ env.IMAGE }}:${{ env.TAG }}'
           docker tag ${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
