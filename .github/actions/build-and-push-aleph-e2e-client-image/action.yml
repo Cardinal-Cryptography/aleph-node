@@ -67,9 +67,20 @@ runs:
         registry='${{ env.REGISTRY }}'
         image_and_tag='${{ env.IMAGE }}:${{ env.TAG }}'
         docker build --tag ${registry}${image_and_tag} -f Dockerfile .
-        docker push ${registry}${image_and_tag}
+        docker save -o aleph-e2e-client.tar ${registry}${image_and_tag}
         echo "image=${registry}${image_and_tag}" >> $GITHUB_OUTPUT
         if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' ]]; then
+          docker push ${registry}${image_and_tag}
           docker tag ${registry}${image_and_tag} ${registry}'${{ env.IMAGE }}:latest'
           docker push ${registry}'${{ env.IMAGE }}:latest'
         fi
+
+    # in order to prevent rate quota exceeded, on workflows which requires many aleph-e2e-client
+    # runs, we download them from GH artifacts instead from ECR
+    - name: Upload aleph-e2e-client artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: aleph-e2e-client
+        path: e2e-tests/aleph-e2e-client.tar
+        if-no-files-found: error
+        retention-days: 7
