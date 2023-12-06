@@ -7,8 +7,7 @@ use sc_transaction_pool_api::{
     ImportNotificationStream, TransactionPool,
 };
 use sp_api::BlockT;
-use sp_runtime::traits;
-use sp_runtime::traits::Member;
+use sp_runtime::{traits, traits::Member};
 
 #[async_trait::async_trait]
 pub trait TransactionPoolInfoProvider {

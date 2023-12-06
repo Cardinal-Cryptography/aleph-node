@@ -27,7 +27,7 @@ use crate::{
 const TRANSACTION_CACHE_SIZE: usize = 100_000;
 
 // Maximum number of transactions to recheck if they are still in the pool, per single
-// loop iteration. Rechecking is not needed, but reduces the number of transactions
+// loop iteration. Rechecking is not very crucial, but it reduces the number of transactions
 // in the cache that are absent in the actual pool, and thus the cache size.
 const MAX_RECHECKED_TRANSACTIONS: usize = 4;
 const BUCKETS_FACTOR: f64 = 1.4;
@@ -110,11 +110,11 @@ impl ChainStateMetrics {
 }
 
 pub async fn run_chain_state_metrics<
-    XT,
+    X,
     HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
-    B: BlockT<Header = HE, Extrinsic = XT>,
+    B: BlockT<Header = HE, Extrinsic = X>,
     BE: HeaderMetadata<B> + BlockBackend<B>,
-    TP: TransactionPoolInfoProvider<Extrinsic = XT>,
+    TP: TransactionPoolInfoProvider<Extrinsic = X>,
 >(
     backend: &BE,
     import_notifications: ImportNotifications<B>,
@@ -155,11 +155,11 @@ pub async fn run_chain_state_metrics<
 }
 
 async fn iteration<
-    XT,
+    X,
     HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
-    B: BlockT<Header = HE, Extrinsic = XT>,
+    B: BlockT<Header = HE, Extrinsic = X>,
     BE: HeaderMetadata<B> + BlockBackend<B>,
-    TP: TransactionPoolInfoProvider<Extrinsic = XT>,
+    TP: TransactionPoolInfoProvider<Extrinsic = X>,
     BBN: Stream<Item = BlockImportNotification<B>> + Unpin,
     FN: Stream<Item = FinalityNotification<B>> + Unpin,
 >(
@@ -181,7 +181,7 @@ async fn iteration<
                         metrics.report_reorg(reorg_len);
                     }
                     if let Ok(Some(body)) = backend.block_body(block.hash) {
-                        report_extrinsics_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
+                        report_transaction_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
                     }
                     *previous_best = Some(block.header);
                 }
@@ -208,11 +208,15 @@ async fn iteration<
         maybe_transaction = transaction_pool_info_provider.next_transaction() => {
             match maybe_transaction {
                 Some(hash) => {
-                    // Putting new transaction can evict the oldest one. However, even if the
-                    // removed transaction was actually still in the pool, we don't have
-                    // any guarantees that it would be eventually included in the block.
-                    // Therefore, we ignore such transaction.
-                    cache.put(hash, Instant::now());
+                    if transaction_pool_info_provider.pool_contains(&hash) {
+                        // Putting new transaction can evict the oldest one. However, even if the
+                        // removed transaction was actually still in the pool, we don't have
+                        // any guarantees that it would be eventually included in the block.
+                        // Therefore, we ignore such transaction.
+                        cache.put(hash, Instant::now());
+                    }
+                    // Otherwise, transaction was in the pool, but has been removed before getting
+                    // here. We don't know if it was included in a block or not, so we don't report.
                 }
                 None => {
                     warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
@@ -244,7 +248,7 @@ fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: Header
     Some(len)
 }
 
-fn report_extrinsics_included_in_block<
+fn report_transaction_included_in_block<
     'a,
     TP: TransactionPoolInfoProvider,
     I: IntoIterator<Item = &'a TP::Extrinsic>,
@@ -285,15 +289,15 @@ fn recheck_transactions_in_cache<TP: TransactionPoolInfoProvider>(
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::{sync::Arc, time::Duration};
+
     use futures::FutureExt;
     use parity_scale_codec::Encode;
     use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
-    use std::{sync::Arc, time::Duration};
-
     use substrate_test_runtime_client::AccountKeyring;
 
+    use super::*;
     use crate::{
         metrics::transaction_pool::test::TestTransactionPoolSetup,
         testing::{
@@ -451,8 +455,10 @@ mod test {
         }
     }
 
+    const EPS: Duration = Duration::from_nanos(1);
+
     #[tokio::test]
-    async fn transactions_get_reported() {
+    async fn transactions_are_reported() {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
         let xt = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
@@ -483,12 +489,11 @@ mod test {
 
         let duration =
             Duration::from_secs_f64(setup.transactions_histogram().get_sample_sum() / 1000.);
-        let eps = Duration::from_nanos(1);
 
         assert_eq!(pre_count, 0);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 1);
-        assert!(duration >= time_before_import - time_after_submit - eps);
-        assert!(duration <= time_after_import - time_before_submit + eps);
+        assert!(duration >= time_before_import - time_after_submit - EPS);
+        assert!(duration <= time_after_import - time_before_submit + EPS);
     }
 
     #[tokio::test]
@@ -523,7 +528,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn retracted_transactions_are_reported_once() {
+    async fn retracted_transactions_are_reported_only_once() {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
 
@@ -564,7 +569,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn transactions_discarded_in_block_authorship_are_not_reported_at_that_time() {
+    async fn transactions_skipped_in_block_authorship_are_not_reported_at_that_time() {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
 
@@ -603,8 +608,7 @@ mod test {
         let sample_2 = setup.transactions_histogram().get_sample_sum() - sample_1;
 
         let duration = Duration::from_secs_f64(sample_2 / 1000.0);
-        let eps = Duration::from_nanos(1);
 
-        assert!(duration >= time_before_block_2 - time_after_submit - eps);
+        assert!(duration >= time_before_block_2 - time_after_submit - EPS);
     }
 }
