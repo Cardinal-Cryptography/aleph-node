@@ -1,10 +1,12 @@
 mod all_block;
 mod chain_state;
+mod finality_rate;
 mod timing;
 pub mod transaction_pool;
 
 pub use all_block::AllBlockMetrics;
 pub use chain_state::run_chain_state_metrics;
+pub use finality_rate::FinalityRateMetrics;
 use substrate_prometheus_endpoint::{exponential_buckets, prometheus};
 pub use timing::{Checkpoint, DefaultClock, TimingBlockMetrics};
 pub use transaction_pool::TransactionPoolInfoProvider;
