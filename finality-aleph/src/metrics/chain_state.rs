@@ -1,4 +1,7 @@
-use std::{num::NonZeroUsize, time::Instant};
+use std::{
+    num::NonZeroUsize,
+    time::{Duration, Instant},
+};
 
 use futures::{future, Stream, StreamExt};
 use log::warn;
@@ -98,7 +101,7 @@ impl ChainStateMetrics {
         }
     }
 
-    fn report_transaction_in_block(&self, elapsed: std::time::Duration) {
+    fn report_transaction_in_block(&self, elapsed: Duration) {
         if let ChainStateMetrics::Prometheus {
             time_till_block_inclusion,
             ..
@@ -189,6 +192,9 @@ async fn iteration<
                     warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
                 }
             }
+            // In normal conditions, best_block_notifications stream will be empty here,
+            // so it's good time for rechecking last few transactions in the cache
+            recheck_transactions_in_cache(transaction_pool_info_provider, cache);
         },
         maybe_block = finality_notifications.next() => {
             match maybe_block {
@@ -224,7 +230,6 @@ async fn iteration<
             }
         },
     }
-    recheck_transactions_in_cache(transaction_pool_info_provider, cache);
 }
 
 fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: HeaderMetadata<B>>(
@@ -274,22 +279,24 @@ fn recheck_transactions_in_cache<TP: TransactionPoolInfoProvider>(
     cache: &mut LruCache<TP::TxHash, Instant>,
 ) {
     let mut rechecked_transactions = 0;
-    while let Some((hash, instant)) = cache.pop_lru() {
-        if !transaction_pool_info_provider.pool_contains(&hash) {
-            cache.pop_lru();
-        } else {
-            cache.put(hash, instant);
-        }
-        rechecked_transactions += 1;
+    while let Some((hash, _)) = cache.peek_lru() {
         if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
             break;
         }
+        if !transaction_pool_info_provider.pool_contains(hash) {
+            // The transaction here might have been included in the block, but its notification
+            // hasn't arrived yet. However, such a situation shouldn't happen too often.
+            cache.pop_lru();
+        } else {
+            cache.promote(&hash.clone());
+        }
+        rechecked_transactions += 1;
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
+    use std::sync::Arc;
 
     use futures::FutureExt;
     use parity_scale_codec::Encode;
