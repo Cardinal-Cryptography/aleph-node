@@ -27,6 +27,7 @@ jobs:
 
   build-artifacts:
     name: Build aleph-e2e-client image
+    if: ${{ always() }}
     needs: [check-vars-and-secrets]
     runs-on: [self-hosted, Linux, X64, large]
     outputs:
