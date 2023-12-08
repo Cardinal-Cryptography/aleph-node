@@ -202,7 +202,7 @@ jobs:
         timeout-minutes: 35
 
   run-e2e-finalization-stall:
-    needs: [build-production-node-and-e2e-client-image]
+    needs: [build-synthetic-node, build-aleph-e2e-client-image]
     name: Finalization-stall test using synthetic-network
     runs-on: ubuntu-20.04
     steps:
@@ -221,6 +221,8 @@ jobs:
           image-path: aleph-release-synthetic-docker
           node-image: aleph-node:syntheticnet
           compose-file: docker/docker-compose.finalization_stall_with_pruning.yml
+          # yamllint disable-line rule:line-length
+          aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}
         timeout-minutes: 60
 
   run-major-sync-test:
