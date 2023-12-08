@@ -1,9 +1,9 @@
 use environment::Environment as EnvironmentT;
-use executor::BackendExecutor as BackendExecutorT;
+use executor::{BackendExecutor as BackendExecutorT, ExecutorError::*};
 use frame_support::{pallet_prelude::DispatchError, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
 use log::error;
-use pallet_baby_liminal::{AlephWeight, Error::*, WeightInfo};
+use pallet_baby_liminal::{AlephWeight, WeightInfo};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
     Result as ChainExtensionResult, RetVal,
@@ -16,6 +16,7 @@ mod environment;
 mod executor;
 #[cfg(test)]
 mod tests;
+mod verification;
 
 type ByteCount = u32;
 
@@ -66,7 +67,7 @@ where
         mut env: Environment,
     ) -> ChainExtensionResult<RetVal> {
         // ------- Pre-charge optimistic weight. ---------------------------------------------------
-        let pre_charge = env.charge_weight(Weighting::verify())?;
+        let _pre_charge = env.charge_weight(Weighting::verify())?;
 
         // ------- Read the arguments. -------------------------------------------------------------
         //
@@ -78,26 +79,15 @@ where
         // ------- Forward the call. ---------------------------------------------------------------
         let result = BackendExecutor::verify(args);
 
-        // ------- Adjust weight if needed. --------------------------------------------------------
-        match &result {
-            // In the failure case, if pallet provides us with a post-dispatch weight, we can make
-            // an adjustment.
-            Err((_, Some(actual_weight))) => env.adjust_weight(pre_charge, *actual_weight),
-            // Otherwise (positive case, or pallet doesn't provide us with any adjustment hint), we
-            // don't need to do anything.
-            Ok(_) | Err((_, None)) => {}
-        };
-
         // ------- Translate the status. -----------------------------------------------------------
         let status = match result {
             Ok(()) => VERIFY_SUCCESS,
-            Err((DeserializingProofFailed, _)) => VERIFY_DESERIALIZING_PROOF_FAIL,
-            Err((DeserializingPublicInputFailed, _)) => VERIFY_DESERIALIZING_INPUT_FAIL,
-            Err((UnknownVerificationKeyIdentifier, _)) => VERIFY_UNKNOWN_IDENTIFIER,
-            Err((DeserializingVerificationKeyFailed, _)) => VERIFY_DESERIALIZING_KEY_FAIL,
-            Err((VerificationFailed, _)) => VERIFY_VERIFICATION_FAIL,
-            Err((IncorrectProof, _)) => VERIFY_INCORRECT_PROOF,
-            Err(_) => VERIFY_ERROR_UNKNOWN,
+            Err(DeserializingProofFailed) => VERIFY_DESERIALIZING_PROOF_FAIL,
+            Err(DeserializingPublicInputFailed) => VERIFY_DESERIALIZING_INPUT_FAIL,
+            Err(UnknownVerificationKeyIdentifier) => VERIFY_UNKNOWN_IDENTIFIER,
+            Err(DeserializingVerificationKeyFailed) => VERIFY_DESERIALIZING_KEY_FAIL,
+            Err(VerificationFailed) => VERIFY_VERIFICATION_FAIL,
+            Err(IncorrectProof) => VERIFY_INCORRECT_PROOF,
         };
         Ok(RetVal::Converging(status))
     }

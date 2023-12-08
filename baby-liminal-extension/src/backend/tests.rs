@@ -4,12 +4,12 @@ mod executor;
 
 use aleph_runtime::Runtime as AlephRuntime;
 use frame_support::pallet_prelude::Weight;
-use pallet_baby_liminal::{Error::*, WeightInfo};
+use pallet_baby_liminal::WeightInfo;
 use pallet_contracts::chain_extension::{ChainExtension, RetVal};
 
 use crate::{
     backend::{
-        executor::BackendExecutor,
+        executor::{BackendExecutor, ExecutorError::*},
         tests::{
             arguments::verify_args,
             environment::{CorruptedMode, MockedEnvironment, StandardMode, VerifyMode},
