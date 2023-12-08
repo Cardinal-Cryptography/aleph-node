@@ -19,29 +19,27 @@ packages="${packages//'%0A'/$'\n'}"
 packages=${packages:10}
 
 for p in ${packages[@]}; do
-
   echo "Checking package $p ..."
   pushd "$p"
 
-  if [[ "$p" =~ .*contracts.* ]] && [[ "$p" != "contracts/poseidon_host_bench" ]]; then
+  if [[ "$p" =~ .*contracts.* ]]; then
      docker run \
       --network host \
-      v "$PWD:/code" \
+      -v "$PWD:/code" \
       -u "$(id -u):$(id -g)" \
       --name ink_builder \
       --platform linux/amd64 \
       --rm public.ecr.aws/p6e8q1z1/ink-dev:2.0.0 cargo contract check
 
-  elif [ "$p" = "baby-liminal-extension" ] || [ "$p" = "contracts/poseidon_host_bench" ]; then
+  elif [[ "$p" == "baby-liminal-extension" ]]; then
     # cargo clippy --release --no-default-features --features substrate \
       #  --target wasm32-unknown-unknown -- --no-deps -D warnings
     :
-  elif [ "$p" = "pallets/baby-liminal" ]; then
+  elif [[ "$p" == "pallets/baby-liminal" ]]; then
     cargo test --features runtime-benchmarks
   else
     cargo clippy -- --no-deps -D warnings
   fi
 
   popd
-
 done
