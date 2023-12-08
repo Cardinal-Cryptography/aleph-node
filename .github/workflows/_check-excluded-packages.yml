@@ -11,14 +11,11 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
-      CARGO_CONTRACT_VERSION: 3.0.1
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Install rustup and rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
-
+      # aleph-client and all its dependees still require nightly Rust version
       - name: Read aleph-client toolchain
         id: aleph-client-toolchain-channel
         uses: SebRollen/toml-action@v1.0.2
@@ -45,14 +42,6 @@ jobs:
         env:
           CHECK: aleph-zero-cargo-nono check --no-default-features
         run: |
-          # `sp-io/src/lib.rs` from `aleph-v0.9.38` cannot be parsed with
-          # `syn` from `aleph-zero-cargo-nono`; we have to wait for
-          # a version bump
-          #
-          # cd baby-liminal-extension/
-          # ${{ env.CHECK }}
-          # ${{ env.CHECK }} --features ink
-
           cd poseidon/
           ${{ env.CHECK }}
           ${{ env.CHECK }} --features circuit
