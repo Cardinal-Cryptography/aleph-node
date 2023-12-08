@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eox pipefail
+set -eo pipefail
 
 if [[ -n "${1}" ]]; then
   # if the first arg passed (run via CI), it is of below form
@@ -23,7 +23,7 @@ else
   packages=${packages:10}
 fi
 
-# remove those packages from list to check for now, as they needs to be fixed
+# cargo clippy-liminal-extension is done in _liminal-checks-on-pr.yml
 packages=("${packages[@]/baby-liminal-extension}")
 
 for p in ${packages[@]}; do
