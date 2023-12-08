@@ -21,6 +21,7 @@ on:
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
+    if: ${{ inputs.push == true }}
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
