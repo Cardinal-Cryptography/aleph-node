@@ -42,10 +42,10 @@ jobs:
   get-e2e-test-case-names:
     name: Get e2e test case names
     runs-on: ubuntu-20.04
-    needs: [build-test-node-and-runtime, build-aleph-e2e-client-image]
+    needs: [build-aleph-e2e-client-image]
     env:
       # yamllint disable-line rule:line-length
-      ALEPH_E2E_CLIENT_IMAGE: '${{ needs.build-test-node-and-runtime.outputs.aleph-e2e-client-image }}'
+      ALEPH_E2E_CLIENT_IMAGE: '${{ needs.build-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}'
     outputs:
       testcases: ${{ steps.get-testcases.outputs.testcases }}
     steps:
@@ -86,6 +86,7 @@ jobs:
       - push-featurenet-test-node-image-to-ecr
       - get-e2e-test-case-names
       - build-aleph-e2e-client-image
+      - build-test-node-and-runtime,
     name: e2e
     env:
       # yamllint disable-line rule:line-length
