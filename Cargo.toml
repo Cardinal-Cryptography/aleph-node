@@ -20,7 +20,6 @@ exclude = [
     "benches/payout-stakers",
     "bin/cliain",
     "bin/finalizer",
-    "contracts/access_control",
     "contracts/adder",
     "e2e-tests",
     "flooder",
