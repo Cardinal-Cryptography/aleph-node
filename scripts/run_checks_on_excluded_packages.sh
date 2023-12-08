@@ -2,19 +2,26 @@
 
 set -eox pipefail
 
-TOML_FILE="Cargo.toml"
+if [[ -n "${1}" ]]; then
+  # if the first arg passed (run via CI), it is of below form
+  # [aleph-client,baby-liminal-extension,benches/payout-stakers, ...]
+  list=$(echo "${1}" | sed -e 's/,/ /g' | tr -d '[]')
+  packages=($list)
+else
+  TOML_FILE="Cargo.toml"
 
-# Read the TOML file and extract the `exclude` entries
-packages=$(awk -F ' *= *' '/^exclude *= *\[/ {found=1} found && /^\]$/ {found=0} found' "$TOML_FILE")
-packages="$(echo ${packages} | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
+  # Read the TOML file and extract the `exclude` entries
+  packages=$(awk -F ' *= *' '/^exclude *= *\[/ {found=1} found && /^\]$/ {found=0} found' "$TOML_FILE")
+  packages="$(echo ${packages} | sed 's/[][,]/ /g' | sed 's/\s\+/\n/g' | sed '/^$/d')"
 
-# Remove leading and trailing whitespace, and quotes from the entries
-packages=$(echo "$packages" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+  # Remove leading and trailing whitespace, and quotes from the entries
+  packages=$(echo "$packages" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
 
-packages="${packages//'%0A'/$'\n'}"
+  packages="${packages//'%0A'/$'\n'}"
 
-# Remove the key
-packages=${packages:10}
+  # Remove the key
+  packages=${packages:10}
+fi
 
 for p in ${packages[@]}; do
   echo "Checking package $p ..."

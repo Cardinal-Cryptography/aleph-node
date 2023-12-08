@@ -50,9 +50,8 @@ jobs:
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
-          echo "Excluded packages:"
-          echo "${{ steps.workspace-excluded-packages.outputs.value }}"
-          ./scripts/run_checks_on_excluded_packages.sh
+          ./scripts/run_checks_on_excluded_packages.sh \
+            "${{ steps.workspace-excluded-packages.outputs.value }}"
 
       - name: Assert that packages are compatible with no-std
         env:
