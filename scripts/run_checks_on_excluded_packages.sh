@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo pipefail
+set -eox pipefail
 
 TOML_FILE="Cargo.toml"
 

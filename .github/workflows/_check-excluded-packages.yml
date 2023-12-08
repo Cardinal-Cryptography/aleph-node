@@ -23,6 +23,13 @@ jobs:
           file: 'aleph-client/rust-toolchain.toml'
           field: 'toolchain.channel'
 
+      - name: Read workspace excluded packages list
+        id: workspace-excluded-packages
+        uses: SebRollen/toml-action@v1.0.2
+        with:
+          file: 'Cargo.toml'
+          field: 'workspace.exclude'
+
       - name: Install prerequisites
         env:
           RUST_TOOLCHAIN: ${{ steps.aleph-client-toolchain-channel.outputs.value }}
@@ -36,6 +43,8 @@ jobs:
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
+          echo "Excluded packages:"
+          echo "${{ steps.workspace-excluded-packages.outputs.value }}"
           ./scripts/run_checks_on_excluded_packages.sh
 
       - name: Assert that packages are compatible with no-std
