@@ -63,7 +63,7 @@ hex = { version = "0.4" }
 hex-literal = { version = "0.3" }
 ip_network = { version = "0.4" }
 jsonrpsee = { version = "0.16.3" }
-libp2p = { version = "0.51.3" }
+libp2p = { version = "0.51.4" }
 log = { version = "0.4", default-features = false }
 lru = { version = "0.10" }
 parity-scale-codec = { version = "3.0", default-features = false }
