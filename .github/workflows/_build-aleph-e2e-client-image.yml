@@ -61,4 +61,4 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           ecr-public-host: ${{ vars.ECR_PUBLIC_HOST }}
           ecr-public-registry: ${{ vars.ECR_PUBLIC_REGISTRY }}
-          push: ${{ inputs.push }}
+          push: ${{ inputs.push && 'true' || 'false' }}
