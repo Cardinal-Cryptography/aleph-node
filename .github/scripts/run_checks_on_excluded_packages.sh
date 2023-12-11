@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eou pipefail
+set -eoux pipefail
 
 function usage(){
   cat << EOF
@@ -50,12 +50,13 @@ packages=($packages_escaped)
 if [[ "${SKIP_LIMINAL}" == "true" ]]; then
   # cargo clippy-liminal-extension is done in _liminal-checks-on-pr.yml
   packages=("${packages[@]/baby-liminal-extension}")
-  packages=("${packages[@]/pallets/baby-liminal}")
+  packages=("${packages[@]/pallets\/baby-liminal}")
   packages=("${packages[@]/poseidon}")
-  packages=("${packages[@]/relations/ark}")
-  packages=("${packages[@]/relations/ark/src/proc_macro}")
-  packages=("${packages[@]/relations/jf}")
+  packages=("${packages[@]/relations\/ark}")
+  packages=("${packages[@]/relations\/ark\/src\/proc_macro}")
+  packages=("${packages[@]/relations\/jf}")
 fi
+echo ${packages[@]}
 
 for p in ${packages[@]}; do
   echo "Checking package $p ..."
