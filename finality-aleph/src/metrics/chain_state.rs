@@ -466,7 +466,9 @@ mod test {
     async fn transactions_are_reported() {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
-        let xt = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
 
         let time_before_submit = Instant::now();
         setup.pool.submit(&genesis, xt).await;
@@ -506,9 +508,15 @@ mod test {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
 
-        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt2 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 1);
-        let xt3 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 2);
+        let xt1 = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 1);
+        let xt3 = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 2);
 
         setup.pool.submit(&genesis, xt2.clone()).await;
 
@@ -537,10 +545,12 @@ mod test {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
 
-        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt1 = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
         let xt2 = setup
             .pool
-            .xt(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
+            .extrinsic(AccountKeyring::Charlie, AccountKeyring::Dave, 0);
 
         setup.pool.submit(&genesis, xt1.clone()).await;
         setup.pool.submit(&genesis, xt2.clone()).await;
@@ -578,8 +588,12 @@ mod test {
         let mut setup = TestSetup::new();
         let genesis = setup.genesis();
 
-        let xt1 = setup.pool.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt2 = setup.pool.xt(AccountKeyring::Dave, AccountKeyring::Eve, 0);
+        let xt1 = setup
+            .pool
+            .extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
+        let xt2 = setup
+            .pool
+            .extrinsic(AccountKeyring::Dave, AccountKeyring::Eve, 0);
 
         setup.pool.submit(&genesis, xt1.clone()).await;
         setup.pool.submit(&genesis, xt2.clone()).await;

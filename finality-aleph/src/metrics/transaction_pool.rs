@@ -149,7 +149,7 @@ pub mod test {
             self.pool.maintain(notification.into()).await;
         }
 
-        pub fn xt(
+        pub fn extrinsic(
             &self,
             sender: AccountKeyring,
             receiver: AccountKeyring,
