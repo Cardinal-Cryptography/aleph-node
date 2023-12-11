@@ -19,7 +19,7 @@ inputs:
     description: 'ECR public registry'
   push:
     required: false
-    description: 'Set to 'true' to push aleph-e2e-client to ECR'
+    description: Set to 'true' to push aleph-e2e-client to ECR
 outputs:
   aleph-e2e-client-image:
     description: Built aleph-e2e-client image name
