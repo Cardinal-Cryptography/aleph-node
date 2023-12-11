@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-liminal)
       SKIP_LIMINAL="true"
-      shift;shift
+      shift
       ;;
     *)
       echo "Error: Unrecognized argument $1!"
@@ -44,8 +44,8 @@ if [[ -z "${PACKAGES}" ]]; then
   exit 1
 fi
 
-packages_=$(echo "${PACKAGES}" | sed -e 's/,/ /g' | tr -d '[]')
-packages=($list)
+packages_escaped=$(echo "${PACKAGES}" | sed -e 's/,/ /g' | tr -d '[]')
+packages=($packages_escaped)
 
 if [[ "${SKIP_LIMINAL}" == "true" ]]; then
   # cargo clippy-liminal-extension is done in _liminal-checks-on-pr.yml
