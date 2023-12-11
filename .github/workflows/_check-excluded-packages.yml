@@ -50,9 +50,9 @@ jobs:
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
-          ./scripts/run_checks_on_excluded_packages.sh \
+          ./.github/scripts/run_checks_on_excluded_packages.sh \
             --packages "${{ steps.workspace-excluded-packages.outputs.value }}" \
-             --skip-liminal
+            --skip-liminal
 
       - name: Assert that packages are compatible with no-std
         env:
