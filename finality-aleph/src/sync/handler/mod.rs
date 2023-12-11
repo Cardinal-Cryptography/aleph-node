@@ -502,10 +502,11 @@ where
     }
 
     /// Inform the handler that a block has been imported.
+    /// If we are the author, this method prepares the block for broadcast and returns it.
     pub fn block_imported(
         &mut self,
         header: J::Header,
-    ) -> Result<Option<Vec<ResponseItem<B, J>>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<Option<ResponseItems<B, J>>, <Self as HandlerTypes>::Error> {
         if let Err(e) = self.forest.update_body(&header) {
             if matches!(e, ForestError::TooNew | ForestError::ParentNotImported) {
                 self.missed_import_data
@@ -864,7 +865,8 @@ where
         self.forest.extension_request()
     }
 
-    /// Handle a block freshly created by this node. Imports it and returns a form of it that can be broadcast, and possibly an equivocation proof.
+    /// Handle a block freshly created by this node.
+    /// Imports it and possibly returns an equivocation proof.
     pub fn handle_own_block(
         &mut self,
         block: B,
