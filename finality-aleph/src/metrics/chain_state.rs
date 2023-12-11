@@ -60,8 +60,18 @@ impl ChainStateMetrics {
             )?,
             time_till_block_inclusion: register(
                 Histogram::with_opts(
-                    HistogramOpts::new("aleph_transaction_to_block_time", "no help")
-                        .buckets(exponential_buckets_two_sided(2000.0, BUCKETS_FACTOR, 2, 8)?),
+                    HistogramOpts::new(
+                        "aleph_transaction_to_block_time",
+                        "Time from becoming ready in the pool to inclusion \
+                         in some best block. This should be a close approximation \
+                         of the duration between Ready and first InBlock status change.",
+                    )
+                    .buckets(exponential_buckets_two_sided(
+                        2000.0,
+                        BUCKETS_FACTOR,
+                        2,
+                        8,
+                    )?),
                 )?,
                 &registry,
             )?,
@@ -139,7 +149,7 @@ pub async fn run_chain_state_metrics<
     loop {
         select! {
             maybe_block = best_block_notifications.next() => match maybe_block {
-                Some(block) => handle_block_imported(
+                Some(block) => handle_best_block(
                     block,
                     backend,
                     &metrics,
@@ -153,7 +163,13 @@ pub async fn run_chain_state_metrics<
                 ),
             },
             maybe_block = finality_notifications.next() => match maybe_block {
-                Some(block) => handle_block_finalized(block, &metrics),
+                Some(block) => handle_block_finalized(
+                    block,
+                    backend,
+                    &metrics,
+                    &mut transaction_pool_info_provider,
+                    &mut cache,
+                ),
                 None => warn!(
                     target: LOG_TARGET,
                     "Finality notification stream ended unexpectedly"
@@ -169,7 +185,7 @@ pub async fn run_chain_state_metrics<
     }
 }
 
-fn handle_block_imported<
+fn handle_best_block<
     X,
     HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
     B: BlockT<Header = HE, Extrinsic = X>,
@@ -189,14 +205,28 @@ fn handle_block_imported<
         metrics.report_reorg(reorg_len);
     }
     if let Ok(Some(body)) = backend.block_body(block.hash) {
-        report_transaction_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
+        report_transactions_included_in_block(
+            transaction_pool_info_provider,
+            &body,
+            metrics,
+            cache,
+        );
     }
     *previous_best = Some(block.header);
 }
 
-fn handle_block_finalized<HE: HeaderT<Number = BlockNumber>, B: BlockT<Header = HE>>(
+fn handle_block_finalized<
+    X,
+    HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
+    B: BlockT<Header = HE, Extrinsic = X>,
+    BE: HeaderMetadata<B> + BlockBackend<B>,
+    TP: TransactionPoolInfoProvider<Extrinsic = X>,
+>(
     block: FinalityNotification<B>,
+    backend: &BE,
     metrics: &ChainStateMetrics,
+    transaction_pool_info_provider: &mut TP,
+    cache: &mut LruCache<TP::TxHash, Instant>,
 ) {
     // Sometimes finalization can also cause best block update. However,
     // RPC best block subscription won't notify about that immediately, so
@@ -204,6 +234,16 @@ fn handle_block_finalized<HE: HeaderT<Number = BlockNumber>, B: BlockT<Header = 
     // the newly finalized block (see test), so the best block will be updated
     // after importing anything on the newly finalized branch.
     metrics.update_top_finalized_block(*block.header.number());
+
+    // From the same reason we have to report transaction inclusion in block also here.
+    if let Ok(Some(body)) = backend.block_body(block.hash) {
+        report_transactions_included_in_block(
+            transaction_pool_info_provider,
+            &body,
+            metrics,
+            cache,
+        );
+    }
 }
 
 fn handle_transaction_in_pool<TxHash: std::hash::Hash + Eq>(
@@ -235,7 +275,7 @@ fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: Header
     Some(len)
 }
 
-fn report_transaction_included_in_block<
+fn report_transactions_included_in_block<
     'a,
     TP: TransactionPoolInfoProvider,
     I: IntoIterator<Item = &'a TP::Extrinsic>,
@@ -359,7 +399,7 @@ mod test {
 
     #[derive(PartialEq, Eq, Hash, Debug)]
     enum NotificationType {
-        BlockImport,
+        BestBlock,
         Finality,
         Transaction,
     }
@@ -406,12 +446,12 @@ mod test {
         }
 
         fn process_notifications(&mut self) -> HashMap<NotificationType, usize> {
-            let mut import_notifications = 0;
+            let mut best_block_notifications = 0;
             let mut finality_notifications = 0;
             let mut transaction_notifications = 0;
 
             while let Some(best_block) = self.best_block_notifications.next().now_or_never() {
-                handle_block_imported(
+                handle_best_block(
                     best_block.expect("stream should not end"),
                     self.pool.client.as_ref(),
                     &self.metrics,
@@ -419,10 +459,16 @@ mod test {
                     &mut self.cache,
                     &mut None,
                 );
-                import_notifications += 1;
+                best_block_notifications += 1;
             }
             while let Some(finality) = self.finality_notifications.next().now_or_never() {
-                handle_block_finalized(finality.expect("stream should not end"), &self.metrics);
+                handle_block_finalized(
+                    finality.expect("stream should not end"),
+                    self.pool.client.as_ref(),
+                    &self.metrics,
+                    &mut self.pool.transaction_pool_info_provider,
+                    &mut self.cache,
+                );
                 finality_notifications += 1;
             }
             while let Some(transaction) = self
@@ -438,23 +484,23 @@ mod test {
                 transaction_notifications += 1;
             }
             HashMap::from_iter(vec![
-                (NotificationType::BlockImport, import_notifications),
+                (NotificationType::BestBlock, best_block_notifications),
                 (NotificationType::Finality, finality_notifications),
                 (NotificationType::Transaction, transaction_notifications),
             ])
         }
     }
 
-    fn block_imports(n: usize) -> HashMap<NotificationType, usize> {
+    fn best_blocks(n: usize) -> HashMap<NotificationType, usize> {
         HashMap::from_iter(vec![
-            (NotificationType::BlockImport, n),
+            (NotificationType::BestBlock, n),
             (NotificationType::Finality, 0),
             (NotificationType::Transaction, 0),
         ])
     }
     fn transactions(n: usize) -> HashMap<NotificationType, usize> {
         HashMap::from_iter(vec![
-            (NotificationType::BlockImport, 0),
+            (NotificationType::BestBlock, 0),
             (NotificationType::Finality, 0),
             (NotificationType::Transaction, n),
         ])
@@ -488,7 +534,7 @@ mod test {
 
         assert_eq!(
             setup.process_notifications(),
-            block_imports(1),
+            best_blocks(1),
             "Block import notification wasn't sent"
         );
 
@@ -535,7 +581,7 @@ mod test {
 
         let block_1 = setup.pool.propose_block(genesis, None).await;
         // Block import notification. xt1 notification never appears
-        assert_eq!(setup.process_notifications(), block_imports(1));
+        assert_eq!(setup.process_notifications(), best_blocks(1));
         // All 3 extrinsics are included in the block
         assert_eq!(block_1.extrinsics.len(), 3);
     }
@@ -560,7 +606,7 @@ mod test {
 
         let block_1a = setup.pool.propose_block(genesis, None).await;
         assert_eq!(block_1a.extrinsics.len(), 2);
-        assert_eq!(setup.process_notifications(), block_imports(1));
+        assert_eq!(setup.process_notifications(), best_blocks(1));
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
 
         let sum_before = setup.transactions_histogram().get_sample_sum();
@@ -606,7 +652,7 @@ mod test {
             .propose_block(genesis, Some(2 * xt1.encoded_size() - 1))
             .await;
 
-        assert_eq!(setup.process_notifications(), block_imports(1));
+        assert_eq!(setup.process_notifications(), best_blocks(1));
         assert_eq!(block_1.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 1);
         let sample_1 = setup.transactions_histogram().get_sample_sum();
@@ -619,7 +665,7 @@ mod test {
             .propose_block(block_1.hash(), Some(2 * xt1.encoded_size() - 1))
             .await;
 
-        assert_eq!(setup.process_notifications(), block_imports(1));
+        assert_eq!(setup.process_notifications(), best_blocks(1));
         assert_eq!(block_2.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
 
