@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures::{future, Stream, StreamExt};
+use futures::{future, StreamExt};
 use log::warn;
 use lru::LruCache;
 use sc_client_api::{
@@ -12,10 +12,7 @@ use sc_client_api::{
 };
 use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
-use sp_runtime::{
-    traits::{SaturatedConversion, Zero},
-    Saturating,
-};
+use sp_runtime::{traits::Zero, Saturating};
 use substrate_prometheus_endpoint::{
     register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
@@ -140,85 +137,84 @@ pub async fn run_chain_state_metrics<
     let mut previous_best: Option<HE> = None;
 
     loop {
-        iteration(
-            backend,
-            &mut best_block_notifications,
-            &mut finality_notifications,
-            &metrics,
-            &mut transaction_pool_info_provider,
-            &mut cache,
-            &mut previous_best,
-        )
-        .await;
+        select! {
+            maybe_block = best_block_notifications.next() => match maybe_block {
+                Some(block) => handle_block_imported(
+                    block,
+                    backend,
+                    &metrics,
+                    &mut transaction_pool_info_provider,
+                    &mut cache,
+                    &mut previous_best,
+                ),
+                None => warn!(
+                    target: LOG_TARGET,
+                    "Best block import notification stream ended unexpectedly"
+                ),
+            },
+            maybe_block = finality_notifications.next() => match maybe_block {
+                Some(block) => handle_block_finalized(block, &metrics),
+                None => warn!(
+                    target: LOG_TARGET,
+                    "Finality notification stream ended unexpectedly"
+                ),
+            },
+            maybe_transaction = transaction_pool_info_provider.next_transaction() => {
+                match maybe_transaction {
+                    Some(hash) => handle_transaction_in_pool(hash, &mut cache),
+                    None => warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly"),
+                }
+            }
+        }
     }
 }
 
-async fn iteration<
+fn handle_block_imported<
     X,
     HE: HeaderT<Number = BlockNumber, Hash = B::Hash>,
     B: BlockT<Header = HE, Extrinsic = X>,
     BE: HeaderMetadata<B> + BlockBackend<B>,
     TP: TransactionPoolInfoProvider<Extrinsic = X>,
-    BBN: Stream<Item = BlockImportNotification<B>> + Unpin,
-    FN: Stream<Item = FinalityNotification<B>> + Unpin,
 >(
+    block: BlockImportNotification<B>,
     backend: &BE,
-    best_block_notifications: &mut BBN,
-    finality_notifications: &mut FN,
     metrics: &ChainStateMetrics,
     transaction_pool_info_provider: &mut TP,
     cache: &mut LruCache<TP::TxHash, Instant>,
     previous_best: &mut Option<HE>,
 ) {
-    select! {
-        maybe_block = best_block_notifications.next() => {
-            match maybe_block {
-                Some(block) => {
-                    let number = (*block.header.number()).saturated_into::<BlockNumber>();
-                    metrics.update_best_block(number);
-                    if let Some(reorg_len) = detect_reorgs(backend, previous_best.clone(), block.header.clone()) {
-                        metrics.report_reorg(reorg_len);
-                    }
-                    if let Ok(Some(body)) = backend.block_body(block.hash) {
-                        report_transaction_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
-                    }
-                    *previous_best = Some(block.header);
-                }
-                None => {
-                    warn!(target: LOG_TARGET, "Best block import notification stream ended unexpectedly");
-                }
-            }
-        },
-        maybe_block = finality_notifications.next() => {
-            match maybe_block {
-                Some(block) => {
-                    // Sometimes finalization can also cause best block update. However,
-                    // RPC best block subscription won't notify about that immediately, so
-                    // we also don't update there. Also in that case, substrate sets best_block to
-                    // the newly finalized block (see test), so the best block will be updated
-                    // after importing anything on the newly finalized branch.
-                    metrics.update_top_finalized_block(*block.header.number());
-                }
-                None => {
-                    warn!(target: LOG_TARGET, "Finality notification stream ended unexpectedly");
-                }
-            }
-        },
-        maybe_transaction = transaction_pool_info_provider.next_transaction() => {
-            match maybe_transaction {
-                Some(hash) => {
-                    // Putting new transaction can evict the oldest one. However, even if the
-                    // removed transaction was actually still in the pool, we don't have
-                    // any guarantees that it would be eventually included in the block.
-                    // Therefore, we ignore such transaction.
-                    cache.put(hash, Instant::now());
-                }
-                None => {
-                    warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
-                }
-            }
-        },
+    let number = *block.header.number();
+    metrics.update_best_block(number);
+    if let Some(reorg_len) = detect_reorgs(backend, previous_best.clone(), block.header.clone()) {
+        metrics.report_reorg(reorg_len);
     }
+    if let Ok(Some(body)) = backend.block_body(block.hash) {
+        report_transaction_included_in_block(transaction_pool_info_provider, &body, metrics, cache);
+    }
+    *previous_best = Some(block.header);
+}
+
+fn handle_block_finalized<HE: HeaderT<Number = BlockNumber>, B: BlockT<Header = HE>>(
+    block: FinalityNotification<B>,
+    metrics: &ChainStateMetrics,
+) {
+    // Sometimes finalization can also cause best block update. However,
+    // RPC best block subscription won't notify about that immediately, so
+    // we also don't update there. Also in that case, substrate sets best_block to
+    // the newly finalized block (see test), so the best block will be updated
+    // after importing anything on the newly finalized branch.
+    metrics.update_top_finalized_block(*block.header.number());
+}
+
+fn handle_transaction_in_pool<TxHash: std::hash::Hash + Eq>(
+    hash: TxHash,
+    cache: &mut LruCache<TxHash, Instant>,
+) {
+    // Putting new transaction can evict the oldest one. However, even if the
+    // removed transaction was actually still in the pool, we don't have
+    // any guarantees that it would be eventually included in the block.
+    // Therefore, we ignore such transaction.
+    cache.put(hash, Instant::now());
 }
 
 fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: HeaderMetadata<B>>(
@@ -232,10 +228,7 @@ fn detect_reorgs<HE: HeaderT<Hash = B::Hash>, B: BlockT<Header = HE>, BE: Header
         return None;
     }
     let lca = lowest_common_ancestor(backend, best.hash(), prev_best.hash()).ok()?;
-    let len = prev_best
-        .number()
-        .saturating_sub(lca.number)
-        .saturated_into::<HE::Number>();
+    let len = prev_best.number().saturating_sub(lca.number);
     if len == HE::Number::zero() {
         return None;
     }
@@ -265,9 +258,9 @@ fn report_transaction_included_in_block<
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
 
-    use futures::FutureExt;
+    use futures::{FutureExt, Stream};
     use parity_scale_codec::Encode;
     use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
@@ -364,6 +357,13 @@ mod test {
         pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
     }
 
+    #[derive(PartialEq, Eq, Hash, Debug)]
+    enum NotificationType {
+        BlockImport,
+        Finality,
+        Transaction,
+    }
+
     impl TestSetup {
         fn new() -> Self {
             let client = Arc::new(TestClientBuilder::new().build());
@@ -405,30 +405,59 @@ mod test {
             }
         }
 
-        async fn run_one_metrics_loop_iteration(&mut self) {
-            iteration(
-                self.pool.client.as_ref(),
-                &mut self.best_block_notifications,
-                &mut self.finality_notifications,
-                &self.metrics,
-                &mut self.pool.transaction_pool_info_provider,
-                &mut self.cache,
-                &mut None,
-            )
-            .await
-        }
+        fn process_notifications(&mut self) -> HashMap<NotificationType, usize> {
+            let mut import_notifications = 0;
+            let mut finality_notifications = 0;
+            let mut transaction_notifications = 0;
 
-        fn iter_while_possible(&mut self) -> u32 {
-            let mut res = 0;
-            while self
-                .run_one_metrics_loop_iteration()
-                .now_or_never()
-                .is_some()
-            {
-                res += 1;
+            while let Some(best_block) = self.best_block_notifications.next().now_or_never() {
+                handle_block_imported(
+                    best_block.expect("stream should not end"),
+                    self.pool.client.as_ref(),
+                    &self.metrics,
+                    &mut self.pool.transaction_pool_info_provider,
+                    &mut self.cache,
+                    &mut None,
+                );
+                import_notifications += 1;
             }
-            res
+            while let Some(finality) = self.finality_notifications.next().now_or_never() {
+                handle_block_finalized(finality.expect("stream should not end"), &self.metrics);
+                finality_notifications += 1;
+            }
+            while let Some(transaction) = self
+                .pool
+                .transaction_pool_info_provider
+                .next_transaction()
+                .now_or_never()
+            {
+                handle_transaction_in_pool(
+                    transaction.expect("stream should not end"),
+                    &mut self.cache,
+                );
+                transaction_notifications += 1;
+            }
+            HashMap::from_iter(vec![
+                (NotificationType::BlockImport, import_notifications),
+                (NotificationType::Finality, finality_notifications),
+                (NotificationType::Transaction, transaction_notifications),
+            ])
         }
+    }
+
+    fn block_imports(n: usize) -> HashMap<NotificationType, usize> {
+        HashMap::from_iter(vec![
+            (NotificationType::BlockImport, n),
+            (NotificationType::Finality, 0),
+            (NotificationType::Transaction, 0),
+        ])
+    }
+    fn transactions(n: usize) -> HashMap<NotificationType, usize> {
+        HashMap::from_iter(vec![
+            (NotificationType::BlockImport, 0),
+            (NotificationType::Finality, 0),
+            (NotificationType::Transaction, n),
+        ])
     }
 
     const EPS: Duration = Duration::from_nanos(1);
@@ -443,8 +472,8 @@ mod test {
         setup.pool.submit(&genesis, xt).await;
 
         assert_eq!(
-            setup.iter_while_possible(),
-            1,
+            setup.process_notifications(),
+            transactions(1),
             "'In pool' notification wasn't sent"
         );
         let time_after_submit = Instant::now();
@@ -456,8 +485,8 @@ mod test {
         let pre_count = setup.transactions_histogram().get_sample_count();
 
         assert_eq!(
-            setup.iter_while_possible(),
-            1,
+            setup.process_notifications(),
+            block_imports(1),
             "Block import notification wasn't sent"
         );
 
@@ -485,8 +514,8 @@ mod test {
 
         // No notification for xt2 as it is not ready
         assert_eq!(
-            setup.iter_while_possible(),
-            0,
+            setup.process_notifications(),
+            transactions(0),
             "Future transactions should not be reported"
         );
 
@@ -494,11 +523,11 @@ mod test {
         setup.pool.submit(&genesis, xt3.clone()).await;
 
         // Notifications for xt1 and xt3
-        assert_eq!(setup.iter_while_possible(), 2);
+        assert_eq!(setup.process_notifications(), transactions(2));
 
         let block_1 = setup.pool.propose_block(genesis, None).await;
         // Block import notification. xt1 notification never appears
-        assert_eq!(setup.iter_while_possible(), 1);
+        assert_eq!(setup.process_notifications(), block_imports(1));
         // All 3 extrinsics are included in the block
         assert_eq!(block_1.extrinsics.len(), 3);
     }
@@ -517,11 +546,11 @@ mod test {
         setup.pool.submit(&genesis, xt2.clone()).await;
 
         // make sure import notifications are received before block import
-        assert_eq!(setup.iter_while_possible(), 2);
+        assert_eq!(setup.process_notifications(), transactions(2));
 
         let block_1a = setup.pool.propose_block(genesis, None).await;
         assert_eq!(block_1a.extrinsics.len(), 2);
-        assert_eq!(setup.iter_while_possible(), 1);
+        assert_eq!(setup.process_notifications(), block_imports(1));
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
 
         let sum_before = setup.transactions_histogram().get_sample_sum();
@@ -554,7 +583,7 @@ mod test {
 
         setup.pool.submit(&genesis, xt1.clone()).await;
         setup.pool.submit(&genesis, xt2.clone()).await;
-        assert_eq!(setup.iter_while_possible(), 2);
+        assert_eq!(setup.process_notifications(), transactions(2));
 
         let time_after_submit = Instant::now();
 
@@ -563,7 +592,7 @@ mod test {
             .propose_block(genesis, Some(2 * xt1.encoded_size() - 1))
             .await;
 
-        assert_eq!(setup.iter_while_possible(), 1);
+        assert_eq!(setup.process_notifications(), block_imports(1));
         assert_eq!(block_1.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 1);
         let sample_1 = setup.transactions_histogram().get_sample_sum();
@@ -575,9 +604,8 @@ mod test {
             .pool
             .propose_block(block_1.hash(), Some(2 * xt1.encoded_size() - 1))
             .await;
-        let iters_block_2 = setup.iter_while_possible();
 
-        assert_eq!(iters_block_2, 1);
+        assert_eq!(setup.process_notifications(), block_imports(1));
         assert_eq!(block_2.extrinsics.len(), 1);
         assert_eq!(setup.transactions_histogram().get_sample_count(), 2);
 
