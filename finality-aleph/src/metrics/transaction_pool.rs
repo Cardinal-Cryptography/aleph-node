@@ -7,7 +7,7 @@ use sp_runtime::traits::Member;
 #[async_trait::async_trait]
 pub trait TransactionPoolInfoProvider {
     type TxHash: Member + std::hash::Hash;
-    type Extrinsic;
+    type Extrinsic: sp_runtime::traits::Extrinsic;
     async fn next_transaction(&mut self) -> Option<Self::TxHash>;
 
     fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash;

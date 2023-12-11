@@ -12,9 +12,12 @@ use sc_client_api::{
 };
 use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
-use sp_runtime::{traits::Zero, Saturating};
+use sp_runtime::{
+    traits::{Extrinsic, Zero},
+    Saturating,
+};
 use substrate_prometheus_endpoint::{
-    register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
+    register, Counter, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 use tokio::select;
 
@@ -34,6 +37,7 @@ enum ChainStateMetrics {
         best_block: Gauge<U64>,
         reorgs: Histogram,
         time_till_block_inclusion: Histogram,
+        transactions_not_seen_in_the_pool: Counter<U64>,
     },
     Noop,
 }
@@ -75,6 +79,10 @@ impl ChainStateMetrics {
                 )?,
                 &registry,
             )?,
+            transactions_not_seen_in_the_pool: register(
+                Counter::new("aleph_transactions_not_seen_in_the_pool", "no help")?,
+                &registry,
+            )?,
         })
     }
 
@@ -111,6 +119,16 @@ impl ChainStateMetrics {
         } = self
         {
             time_till_block_inclusion.observe(elapsed.as_secs_f64() * 1000.);
+        }
+    }
+
+    fn report_transaction_not_seen_in_the_pool(&self) {
+        if let ChainStateMetrics::Prometheus {
+            transactions_not_seen_in_the_pool,
+            ..
+        } = self
+        {
+            transactions_not_seen_in_the_pool.inc();
         }
     }
 }
@@ -210,6 +228,7 @@ fn handle_best_block<
             &body,
             metrics,
             cache,
+            true,
         );
     }
     *previous_best = Some(block.header);
@@ -242,6 +261,7 @@ fn handle_block_finalized<
             &body,
             metrics,
             cache,
+            false, // don't report missed transactions to avoid duplicates with import notification
         );
     }
 }
@@ -284,6 +304,7 @@ fn report_transactions_included_in_block<
     body: I,
     metrics: &ChainStateMetrics,
     cache: &mut LruCache<TP::TxHash, Instant>,
+    report_missed: bool,
 ) where
     <TP as TransactionPoolInfoProvider>::TxHash: std::hash::Hash + PartialEq + Eq,
 {
@@ -292,6 +313,12 @@ fn report_transactions_included_in_block<
         if let Some(insert_time) = cache.pop(&hash) {
             let elapsed = insert_time.elapsed();
             metrics.report_transaction_in_block(elapsed);
+        } else if let (true, Some(true)) = (report_missed, xt.is_signed()) {
+            // Either it was never in the pool (eg. submitted locally), or we've got BlockImport
+            // notification faster than transaction in pool one. The latter is more likely,
+            // so we report it as zero.
+            metrics.report_transaction_in_block(Duration::ZERO);
+            metrics.report_transaction_not_seen_in_the_pool();
         }
     }
 }
