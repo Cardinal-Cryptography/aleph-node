@@ -32,7 +32,7 @@ jobs:
           RUSTC_WRAPPER: ""
           RUSTC_WORKSPACE_WRAPPER: sccache
         run: |
-          ./scripts/run_checks_on_excluded_packages.sh --packages \
+          ./.github/scripts/run_checks_on_excluded_packages.sh --packages \
             [pallets/baby-liminal,poseidon,relations/ark,relations/ark/src/proc_macro,relations/jf]
 
   chain-extension-unit-tests:
