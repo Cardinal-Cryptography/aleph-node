@@ -4,9 +4,14 @@
 name: Build test node and runtime
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: "git ref: hash, branch, tag or 'mainnet' or 'testnet'"
+        type: string
+        required: true
 
 jobs:
-  main:
+  build-artifacts:
     name: Build test node and runtime
     runs-on: [self-hosted, Linux, X64, large]
     env:
@@ -15,11 +20,13 @@ jobs:
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        # yamllint disable-line rule:line-length
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v4
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v5
 
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v4
@@ -37,6 +44,7 @@ jobs:
             && { echo "Liminal symbols are present"; exit 1; } \
             || echo "Liminal symbols are not present"
 
+      # this is required for some workflows, yet ideally it should not be required
       - name: Upload test binary to GH Artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -45,10 +53,18 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload test runtime to GH Artifacts
+      - name: Build test docker image
+        id: build-image
+        run: |
+          chmod +x target/release/aleph-node
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node.tar aleph-node:latest
+
+      # this is solely required by action/run-e2e-test.yml, also it should not be required
+      - name: Upload test docker image
         uses: actions/upload-artifact@v3
         with:
-          name: aleph-test-runtime
-          path: target/release/wbuild/aleph-runtime/aleph_runtime.compact.compressed.wasm
+          name: aleph-test-docker
+          path: aleph-node.tar
           if-no-files-found: error
           retention-days: 7

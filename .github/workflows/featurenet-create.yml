@@ -1,0 +1,136 @@
+---
+name: FE - Create
+
+on:
+  workflow_dispatch:
+    inputs:
+      featurenet-name:
+        description: 'Name of featurenet'
+        type: string
+        required: true
+      ref:
+        description: "git ref: hash, branch, tag - or 'mainnet' or 'testnet'"
+        type: string
+        required: true
+      expiration:
+        description: 'Time after which featurenet will be removed'
+        required: true
+        type: choice
+        options:
+          - 48h
+          - 24h
+          - 12h
+          - 3h
+          - 96h
+          - never
+        default: '48h'
+      replicas:
+        description: 'Number of replicas to start, from 0 to 50'
+        required: true
+        default: '5'
+        type: string
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: true
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      featurenet-name:
+        description: 'Name of featurenet'
+        type: string
+        required: true
+      ref:
+        description: "git ref: hash, branch, tag - or 'mainnet' or 'testnet'"
+        type: string
+        required: true
+      expiration:
+        description: 'Time after which featurenet will be removed'
+        required: false
+        type: string
+        default: '48h'
+      replicas:
+        description: 'Number of replicas to start, from 0 to 50'
+        required: false
+        default: '5'
+        type: string
+      internal:
+        description: 'Internal network, accessible from VPN only'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  validate-inputs:
+    name: Validate inputs
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Validate inputs
+        shell: bash
+        # yamllint disable rule:line-length
+        run: |
+          if [[ ! '${{ inputs.featurenet-name }}' =~ ^[a-z0-9][a-z0-9\-]{4,48}$ ]]; then
+            echo '!!! Invalid featurenet name'
+            exit 1
+          fi
+          if [[ ! '${{ inputs.ref }}' =~ ^[a-zA-Z0-9][a-zA-Z0-9\._\-]{1,48}$ ]]; then
+            echo "!!! Invalid ref"
+            exit 1
+          fi
+        # yamllint enable rule:line-length
+
+  check-vars-and-secrets:
+    name: Check vars and secrets
+    needs: [validate-inputs]
+    uses: ./.github/workflows/_check-vars-and-secrets.yml
+    secrets: inherit
+
+  build-test-node-and-runtime:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
+    name: Build test node and runtime
+    needs: [check-vars-and-secrets]
+    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
+
+  push-featurenet-test-node-image-to-ecr:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
+    needs: [build-test-node-and-runtime]
+    name: Build and push PR test docker image to ECR
+    uses: ./.github/workflows/_build-and-push-test-image-to-featurenets.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
+
+  create-featurenet-from-branch:
+    if: ${{ inputs.ref != 'mainnet' && inputs.ref != 'testnet' }}
+    needs: [push-featurenet-test-node-image-to-ecr]
+    name: Create featurenet from branch
+    # yamllint disable-line rule:line-length
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    secrets: inherit
+    with:
+      expiration: ${{ inputs.expiration }}
+      replicas: ${{ inputs.replicas }}
+      internal: ${{ inputs.internal && true || false }}
+      featurenet-name: ${{ inputs.featurenet-name }}
+      aleph-node-image: ${{ needs.push-featurenet-test-node-image-to-ecr.outputs.image-tag }}
+      featurenet-ecr-repo: true
+      delete-first: true
+
+  create-featurenet-from-net:
+    if: ${{ inputs.ref == 'mainnet' || inputs.ref == 'testnet' }}
+    needs: [check-vars-and-secrets]
+    name: Create featurenet from net
+    # yamllint disable-line rule:line-length
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    secrets: inherit
+    with:
+      expiration: ${{ inputs.expiration }}
+      replicas: ${{ inputs.replicas }}
+      internal: ${{ inputs.internal && true || false }}
+      featurenet-name: ${{ inputs.featurenet-name }}
+      aleph-node-image: ${{ inputs.ref }}
+      featurenet-ecr-repo: false
+      delete-first: true

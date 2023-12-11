@@ -3,32 +3,31 @@ mod environment;
 mod executor;
 
 use aleph_runtime::Runtime as AlephRuntime;
-use pallet_baby_liminal::Error::*;
+use frame_support::pallet_prelude::Weight;
+use pallet_baby_liminal::{Error::*, WeightInfo};
 use pallet_contracts::chain_extension::{ChainExtension, RetVal};
 
 use crate::{
     backend::{
         executor::BackendExecutor,
         tests::{
-            arguments::{store_key_args, verify_args},
-            environment::{MockedEnvironment, StandardMode, StoreKeyMode, VerifyMode},
-            executor::{StoreKeyErrorer, StoreKeyOkayer, VerifyErrorer, VerifyOkayer},
+            arguments::verify_args,
+            environment::{CorruptedMode, MockedEnvironment, StandardMode, VerifyMode},
+            executor::{Panicker, VerifyErrorer, VerifyOkayer},
         },
     },
     status_codes::*,
     BabyLiminalChainExtension,
 };
 
-fn simulate_store_key<Exc: BackendExecutor>(expected_ret_val: u32) {
-    let env = MockedEnvironment::<StoreKeyMode, StandardMode>::new(store_key_args());
-    let result = BabyLiminalChainExtension::<AlephRuntime>::store_key::<Exc, _>(env);
-    assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
-}
-
 fn simulate_verify<Exc: BackendExecutor>(expected_ret_val: u32) {
-    let env = MockedEnvironment::<VerifyMode, StandardMode>::new(verify_args());
-    let result = BabyLiminalChainExtension::<AlephRuntime>::verify::<Exc, _>(env);
+    let mut charged = Weight::zero();
+    let env = MockedEnvironment::<VerifyMode, StandardMode>::new(&mut charged, verify_args());
+
+    let result = BabyLiminalChainExtension::<AlephRuntime>::verify::<Exc, _, ()>(env);
+
     assert!(matches!(result, Ok(RetVal::Converging(ret_val)) if ret_val == expected_ret_val));
+    assert_eq!(charged, <()>::verify());
 }
 
 #[test]
@@ -38,20 +37,16 @@ fn extension_is_enabled() {
 
 #[test]
 #[allow(non_snake_case)]
-fn store_key__positive_scenario() {
-    simulate_store_key::<StoreKeyOkayer>(STORE_KEY_SUCCESS)
-}
+fn verify__charges_before_reading_arguments() {
+    let mut charged = Weight::zero();
+    // `CorruptedMode` ensures that the CE call will fail at argument reading/decoding phase.
+    let env = MockedEnvironment::<VerifyMode, CorruptedMode>::new(&mut charged, 41);
 
-#[test]
-#[allow(non_snake_case)]
-fn store_key__pallet_says_too_long_vk() {
-    simulate_store_key::<StoreKeyErrorer<{ VerificationKeyTooLong }>>(STORE_KEY_TOO_LONG_KEY)
-}
+    // `Panicker` ensures that the call will not be forwarded to the pallet.
+    let result = BabyLiminalChainExtension::<AlephRuntime>::verify::<Panicker, _, ()>(env);
 
-#[test]
-#[allow(non_snake_case)]
-fn store_key__pallet_says_identifier_in_use() {
-    simulate_store_key::<StoreKeyErrorer<{ IdentifierAlreadyInUse }>>(STORE_KEY_IDENTIFIER_IN_USE)
+    assert!(matches!(result, Err(_)));
+    assert_eq!(charged, <()>::verify());
 }
 
 #[test]
