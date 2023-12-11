@@ -22,7 +22,6 @@ mod environment;
 mod executor;
 #[cfg(test)]
 mod tests;
-mod verification;
 mod weights;
 
 type ByteCount = u32;
