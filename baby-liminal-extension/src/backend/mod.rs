@@ -3,20 +3,27 @@ use executor::{BackendExecutor as BackendExecutorT, ExecutorError::*};
 use frame_support::{pallet_prelude::DispatchError, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
 use log::error;
-use pallet_baby_liminal::{AlephWeight, WeightInfo};
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
     Result as ChainExtensionResult, RetVal,
 };
 use sp_std::marker::PhantomData;
 
-use crate::{backend::executor::MinimalRuntime, extension_ids::VERIFY_EXT_ID, status_codes::*};
+use crate::{
+    backend::{
+        executor::MinimalRuntime,
+        weights::{AlephWeight, WeightInfo},
+    },
+    extension_ids::VERIFY_EXT_ID,
+    status_codes::*,
+};
 
 mod environment;
 mod executor;
 #[cfg(test)]
 mod tests;
 mod verification;
+mod weights;
 
 type ByteCount = u32;
 
@@ -45,7 +52,7 @@ where
         let func_id = env.func_id() as u32;
 
         match func_id {
-            VERIFY_EXT_ID => Self::verify::<Runtime, _, AlephWeight<Runtime>>(env.buf_in_buf_out()),
+            VERIFY_EXT_ID => Self::verify::<Runtime, _, AlephWeight>(env.buf_in_buf_out()),
             _ => {
                 error!("Called an unregistered `func_id`: {func_id}");
                 Err(DispatchError::Other("Called an unregistered `func_id`"))
@@ -70,10 +77,7 @@ where
         let _pre_charge = env.charge_weight(Weighting::verify())?;
 
         // ------- Read the arguments. -------------------------------------------------------------
-        //
-        // TODO: charge additional weight for the args size (spam protection);
-        // this requires some benchmarking (maybe possible here, instead of polluting pallet's code)
-        // JIRA: https://cardinal-cryptography.atlassian.net/browse/A0-3578
+        env.charge_weight(Weighting::verify_read_args(env.in_len()))?;
         let args = env.read_as_unbounded(env.in_len())?;
 
         // ------- Forward the call. ---------------------------------------------------------------
