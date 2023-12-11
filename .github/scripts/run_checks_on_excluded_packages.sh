@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eoux pipefail
+set -eou pipefail
 
 function usage(){
   cat << EOF
@@ -52,8 +52,8 @@ if [[ "${SKIP_LIMINAL}" == "true" ]]; then
   packages=("${packages[@]/baby-liminal-extension}")
   packages=("${packages[@]/pallets\/baby-liminal}")
   packages=("${packages[@]/poseidon}")
-  packages=("${packages[@]/relations\/ark}")
   packages=("${packages[@]/relations\/ark\/src\/proc_macro}")
+  packages=("${packages[@]/relations\/ark}")
   packages=("${packages[@]/relations\/jf}")
 fi
 echo ${packages[@]}
