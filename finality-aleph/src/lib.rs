@@ -48,7 +48,7 @@ mod finalization;
 mod idx_to_account;
 mod import;
 mod justification;
-pub mod metrics;
+mod metrics;
 mod network;
 mod nodes;
 mod party;
@@ -270,5 +270,5 @@ pub struct AlephConfig<C, SC, T> {
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
     pub validator_address_cache: Option<ValidatorAddressCache>,
-    pub transaction_pool_info_provider: T,
+    pub transaction_pool: Arc<T>,
 }

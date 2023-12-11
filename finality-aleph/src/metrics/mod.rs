@@ -24,16 +24,13 @@ pub fn exponential_buckets_two_sided(
     let mut strictly_smaller =
         exponential_buckets(start / factor.powi(count_below as i32), factor, count_below)?;
     let mut greater_than_or_equal = exponential_buckets(start, factor, 1 + count_above)?;
-    if strictly_smaller.last().is_some()
-        && strictly_smaller.last().unwrap()
-            >= greater_than_or_equal
-                .first()
-                .expect("There is at least one checkpoint")
-    {
-        return Err(prometheus::Error::Msg(
-            "Floating point arithmetic error causing incorrect buckets, try larger factor or smaller count_below"
-                .to_string(),
-        ));
+    if let Some(last_smaller) = strictly_smaller.last() {
+        if last_smaller >= &start {
+            return Err(prometheus::Error::Msg(
+                "Floating point arithmetic error causing incorrect buckets, try larger factor or smaller count_below"
+                    .to_string(),
+            ));
+        }
     }
     strictly_smaller.append(&mut greater_than_or_equal);
     Ok(strictly_smaller)

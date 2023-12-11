@@ -29,10 +29,6 @@ use crate::{
 // Size of transaction cache: 32B (Hash) + 16B (Instant) * `100_000` is approximately 4.8MB
 const TRANSACTION_CACHE_SIZE: usize = 100_000;
 
-// Maximum number of transactions to recheck if they are still in the pool, per single
-// loop iteration. Rechecking is not very crucial, but it reduces the number of transactions
-// in the cache that are absent in the actual pool, and thus the cache size.
-const MAX_RECHECKED_TRANSACTIONS: usize = 4;
 const BUCKETS_FACTOR: f64 = 1.4;
 
 enum ChainStateMetrics {
@@ -189,12 +185,9 @@ async fn iteration<
                     *previous_best = Some(block.header);
                 }
                 None => {
-                    warn!(target: LOG_TARGET, "Import notification stream ended unexpectedly");
+                    warn!(target: LOG_TARGET, "Best block import notification stream ended unexpectedly");
                 }
             }
-            // In normal conditions, best_block_notifications stream will be empty here,
-            // so it's good time for rechecking last few transactions in the cache
-            recheck_transactions_in_cache(transaction_pool_info_provider, cache);
         },
         maybe_block = finality_notifications.next() => {
             match maybe_block {
@@ -214,15 +207,11 @@ async fn iteration<
         maybe_transaction = transaction_pool_info_provider.next_transaction() => {
             match maybe_transaction {
                 Some(hash) => {
-                    if transaction_pool_info_provider.pool_contains(&hash) {
-                        // Putting new transaction can evict the oldest one. However, even if the
-                        // removed transaction was actually still in the pool, we don't have
-                        // any guarantees that it would be eventually included in the block.
-                        // Therefore, we ignore such transaction.
-                        cache.put(hash, Instant::now());
-                    }
-                    // Otherwise, transaction was in the pool, but has been removed before getting
-                    // here. We don't know if it was included in a block or not, so we don't report.
+                    // Putting new transaction can evict the oldest one. However, even if the
+                    // removed transaction was actually still in the pool, we don't have
+                    // any guarantees that it would be eventually included in the block.
+                    // Therefore, we ignore such transaction.
+                    cache.put(hash, Instant::now());
                 }
                 None => {
                     warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
@@ -271,26 +260,6 @@ fn report_transaction_included_in_block<
             let elapsed = insert_time.elapsed();
             metrics.report_transaction_in_block(elapsed);
         }
-    }
-}
-
-fn recheck_transactions_in_cache<TP: TransactionPoolInfoProvider>(
-    transaction_pool_info_provider: &TP,
-    cache: &mut LruCache<TP::TxHash, Instant>,
-) {
-    let mut rechecked_transactions = 0;
-    while let Some((hash, _)) = cache.peek_lru() {
-        if rechecked_transactions > MAX_RECHECKED_TRANSACTIONS {
-            break;
-        }
-        if !transaction_pool_info_provider.pool_contains(hash) {
-            // The transaction here might have been included in the block, but its notification
-            // hasn't arrived yet. However, such a situation shouldn't happen too often.
-            cache.pop_lru();
-        } else {
-            cache.promote(&hash.clone());
-        }
-        rechecked_transactions += 1;
     }
 }
 

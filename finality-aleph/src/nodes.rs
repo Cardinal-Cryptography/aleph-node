@@ -6,10 +6,10 @@ use log::{debug, error};
 use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
+use sc_transaction_pool_api::TransactionPool;
 use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
-use sp_runtime::OpaqueExtrinsic;
 
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
@@ -23,8 +23,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
-    metrics,
-    metrics::run_chain_state_metrics,
+    metrics::{run_chain_state_metrics, transaction_pool::TransactionPoolWrapper},
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
@@ -61,7 +60,7 @@ where
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
-    TP: metrics::TransactionPoolInfoProvider<Extrinsic = OpaqueExtrinsic> + Send + Sync + 'static,
+    TP: TransactionPool<Block = Block> + 'static,
 {
     let AlephConfig {
         network,
@@ -85,7 +84,7 @@ where
         rate_limiter_config,
         sync_oracle,
         validator_address_cache,
-        transaction_pool_info_provider,
+        transaction_pool,
     } = aleph_config;
 
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
@@ -156,7 +155,7 @@ where
             client_for_slo_metrics.every_import_notification_stream(),
             client_for_slo_metrics.finality_notification_stream(),
             registry_for_slo_metrics,
-            transaction_pool_info_provider,
+            TransactionPoolWrapper::new(transaction_pool),
         )
         .await;
     });

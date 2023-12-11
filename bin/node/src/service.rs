@@ -7,11 +7,10 @@ use std::{
 
 use aleph_runtime::{self, opaque::Block, RuntimeApi};
 use finality_aleph::{
-    metrics::transaction_pool::TransactionPoolWrapper, run_validator_node, AlephBlockImport,
-    AlephConfig, AllBlockMetrics, BlockImporter, Justification, JustificationTranslator,
-    MillisecsPerBlock, Protocol, ProtocolNaming, RateLimiterConfig, RedirectingBlockImport,
-    SessionPeriod, SubstrateChainStatus, SubstrateNetwork, SyncOracle, TracingBlockImport,
-    ValidatorAddressCache,
+    run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
+    Justification, JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming,
+    RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus,
+    SubstrateNetwork, SyncOracle, TracingBlockImport, ValidatorAddressCache,
 };
 use futures::channel::mpsc;
 use log::warn;
@@ -409,8 +408,6 @@ pub fn new_authority(
             .unwrap_or(usize::MAX),
     };
 
-    let transaction_pool_info_provider = TransactionPoolWrapper::new(transaction_pool);
-
     // Network event stream needs to be created before starting the network,
     // otherwise some events might be missed.
     let network_event_stream = substrate_network.event_stream();
@@ -437,7 +434,7 @@ pub fn new_authority(
         rate_limiter_config,
         sync_oracle,
         validator_address_cache,
-        transaction_pool_info_provider,
+        transaction_pool,
     };
 
     task_manager.spawn_essential_handle().spawn_blocking(

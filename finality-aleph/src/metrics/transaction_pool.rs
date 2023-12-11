@@ -1,13 +1,8 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use sc_transaction_pool::{BasicPool, ChainApi};
-use sc_transaction_pool_api::{
-    error::{Error, IntoPoolError},
-    ImportNotificationStream, TransactionPool,
-};
-use sp_api::BlockT;
-use sp_runtime::{traits, traits::Member};
+use sc_transaction_pool_api::{ImportNotificationStream, TransactionFor, TransactionPool};
+use sp_runtime::traits::Member;
 
 #[async_trait::async_trait]
 pub trait TransactionPoolInfoProvider {
@@ -16,19 +11,15 @@ pub trait TransactionPoolInfoProvider {
     async fn next_transaction(&mut self) -> Option<Self::TxHash>;
 
     fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash;
-
-    fn pool_contains(&self, transaction: &Self::TxHash) -> bool;
 }
 
-type HashFor<A> = <<A as ChainApi>::Block as traits::Block>::Hash;
-
-pub struct TransactionPoolWrapper<A: ChainApi<Block = B> + 'static, B: BlockT> {
-    pool: Arc<BasicPool<A, B>>,
-    import_notification_stream: ImportNotificationStream<HashFor<A>>,
+pub struct TransactionPoolWrapper<T: TransactionPool> {
+    pool: Arc<T>,
+    import_notification_stream: ImportNotificationStream<T::Hash>,
 }
 
-impl<A: ChainApi<Block = B>, B: BlockT> TransactionPoolWrapper<A, B> {
-    pub fn new(pool: Arc<BasicPool<A, B>>) -> Self {
+impl<T: TransactionPool> TransactionPoolWrapper<T> {
+    pub fn new(pool: Arc<T>) -> Self {
         Self {
             pool: pool.clone(),
             import_notification_stream: pool.import_notification_stream(),
@@ -37,11 +28,9 @@ impl<A: ChainApi<Block = B>, B: BlockT> TransactionPoolWrapper<A, B> {
 }
 
 #[async_trait::async_trait]
-impl<A: ChainApi<Block = B> + 'static, B: BlockT> crate::metrics::TransactionPoolInfoProvider
-    for TransactionPoolWrapper<A, B>
-{
-    type TxHash = HashFor<A>;
-    type Extrinsic = <<A as ChainApi>::Block as traits::Block>::Extrinsic;
+impl<T: TransactionPool> TransactionPoolInfoProvider for TransactionPoolWrapper<T> {
+    type TxHash = T::Hash;
+    type Extrinsic = TransactionFor<T>;
 
     async fn next_transaction(&mut self) -> Option<Self::TxHash> {
         self.import_notification_stream.next().await
@@ -49,14 +38,6 @@ impl<A: ChainApi<Block = B> + 'static, B: BlockT> crate::metrics::TransactionPoo
 
     fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash {
         self.pool.hash_of(extrinsic)
-    }
-
-    fn pool_contains(&self, txn: &Self::TxHash) -> bool {
-        let knowledge = self.pool.pool().validated_pool().check_is_known(txn, false);
-        matches!(
-            knowledge.map_err(|e| e.into_pool_error()),
-            Err(Ok(Error::AlreadyImported(_)))
-        )
     }
 }
 
@@ -66,7 +47,6 @@ pub mod test {
 
     use futures::{future, StreamExt};
     use sc_basic_authorship::ProposerFactory;
-    use sc_block_builder::BlockBuilderProvider;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
     use sc_transaction_pool::{BasicPool, FullChainApi};
     use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
@@ -77,22 +57,20 @@ pub mod test {
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
     use crate::{
-        metrics::{transaction_pool::TransactionPoolWrapper, TransactionPoolInfoProvider},
-        testing::mocks::{
-            TBlock, THash, TestBackend, TestClient, TestClientBuilder, TestClientBuilderExt,
-        },
+        metrics::transaction_pool::TransactionPoolWrapper,
+        testing::mocks::{Backend, TBlock, THash, TestClient},
     };
 
     type TChainApi = FullChainApi<TestClient, TBlock>;
     type FullTransactionPool = BasicPool<TChainApi, TBlock>;
     type TProposerFactory =
-        ProposerFactory<FullTransactionPool, TestBackend, TestClient, DisableProofRecording>;
+        ProposerFactory<FullTransactionPool, Backend, TestClient, DisableProofRecording>;
 
     pub struct TestTransactionPoolSetup {
         pub client: Arc<TestClient>,
         pub pool: Arc<FullTransactionPool>,
         pub proposer_factory: TProposerFactory,
-        pub transaction_pool_info_provider: TransactionPoolWrapper<TChainApi, TBlock>,
+        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, TBlock>>,
     }
 
     impl TestTransactionPoolSetup {
@@ -192,56 +170,5 @@ pub mod test {
                 .await
                 .unwrap();
         }
-    }
-
-    #[tokio::test]
-    async fn test_pool_contains() {
-        let client = Arc::new(TestClientBuilder::new().build());
-        let mut setup = TestTransactionPoolSetup::new(client.clone());
-        let genesis = client.genesis_hash();
-        let xt = setup.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-
-        assert!(!setup
-            .transaction_pool_info_provider
-            .pool_contains(&setup.pool.hash_of(&xt)));
-        setup.submit(&genesis, xt.clone()).await;
-        assert!(setup
-            .transaction_pool_info_provider
-            .pool_contains(&setup.pool.hash_of(&xt)));
-
-        let block_1 = setup.propose_block(genesis, None).await;
-
-        assert_eq!(block_1.extrinsics.len(), 1);
-        assert!(!setup
-            .transaction_pool_info_provider
-            .pool_contains(&setup.pool.hash_of(&xt)));
-    }
-
-    #[tokio::test]
-    async fn test_pool_contains_for_invalid_transactions() {
-        let client = Arc::new(TestClientBuilder::new().build());
-        let mut setup = TestTransactionPoolSetup::new(client.clone());
-        let genesis = client.genesis_hash();
-
-        let xt1 = setup.xt(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let xt2 = setup.xt(AccountKeyring::Alice, AccountKeyring::Charlie, 0);
-
-        setup.submit(&genesis, xt1.clone()).await;
-        assert!(setup
-            .transaction_pool_info_provider
-            .pool_contains(&setup.pool.hash_of(&xt1)));
-
-        // external block, including xt2 with the same nonce as xt1
-        let mut block_1_builder = client
-            .new_block_at(genesis, Default::default(), false)
-            .unwrap();
-        block_1_builder.push(xt2).unwrap();
-        let block_1 = block_1_builder.build().unwrap().block;
-        setup.import_block(block_1).await;
-
-        // pool maintenance after importing should remove xt1
-        assert!(!setup
-            .transaction_pool_info_provider
-            .pool_contains(&setup.pool.hash_of(&xt1)));
     }
 }
