@@ -45,11 +45,11 @@ impl<T: TransactionPool> TransactionPoolInfoProvider for TransactionPoolWrapper<
 pub mod test {
     use std::{sync::Arc, time::Duration};
 
-    use futures::{future, FutureExt, StreamExt};
+    use futures::{future, StreamExt};
     use sc_basic_authorship::ProposerFactory;
     use sc_client_api::{BlockchainEvents, HeaderBackend};
     use sc_transaction_pool::{BasicPool, FullChainApi};
-    use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool, TransactionStatus};
+    use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
     use sp_api::BlockT;
     use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
     use sp_runtime::transaction_validity::TransactionSource;
@@ -58,9 +58,7 @@ pub mod test {
 
     use crate::{
         metrics::transaction_pool::TransactionPoolWrapper,
-        testing::mocks::{
-            Backend, TBlock, THash, TestClient, TestClientBuilder, TestClientBuilderExt,
-        },
+        testing::mocks::{Backend, TBlock, THash, TestClient},
     };
 
     type TChainApi = FullChainApi<TestClient, TBlock>;
@@ -172,39 +170,5 @@ pub mod test {
                 .await
                 .unwrap();
         }
-    }
-
-    #[tokio::test]
-    pub async fn in_block_notification_fired_only_for_best_blocks() {
-        // Test assuring that substrate's implementation details hasn't changed
-        let client = Arc::new(TestClientBuilder::new().build());
-        let mut setup = TestTransactionPoolSetup::new(client.clone());
-        let block1 = setup.propose_block(client.genesis_hash(), None).await;
-        let block2 = setup.propose_block(block1.hash(), None).await;
-
-        let xt = setup.extrinsic(AccountKeyring::Alice, AccountKeyring::Bob, 0);
-        let mut watcher = setup
-            .pool
-            .submit_and_watch(client.genesis_hash(), TransactionSource::External, xt)
-            .await
-            .unwrap();
-
-        assert_eq!(
-            watcher.next().now_or_never().expect("status was updated"),
-            Some(TransactionStatus::Ready),
-        );
-
-        let block_1b = setup.propose_block(client.genesis_hash(), None).await;
-        // Transaction was added, but no notification was fired
-        assert_eq!(block_1b.extrinsics.len(), 1);
-        assert_eq!(watcher.next().now_or_never(), None);
-
-        let block_3 = setup.propose_block(block2.hash(), None).await;
-        // Now transaction was also added, and notification was fired
-        assert_eq!(block_1b.extrinsics.len(), 1);
-        assert_eq!(
-            watcher.next().now_or_never().expect("status was updated"),
-            Some(TransactionStatus::InBlock((block_3.hash(), 0)))
-        );
     }
 }
