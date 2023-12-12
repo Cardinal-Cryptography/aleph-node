@@ -147,7 +147,7 @@ impl<I: PeerId, J: Justification> VertexWithChildren<I, J> {
     }
 }
 
-/// Handler status that will be logged periodically.
+/// Forest status that will be logged periodically.
 pub struct Status {
     /// Number of the highest finalized block.
     finalized: BlockId,
