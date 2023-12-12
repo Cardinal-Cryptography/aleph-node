@@ -2,7 +2,7 @@ use std::fmt::{Display, Error as FmtError, Formatter};
 
 pub use acceptance_policy::AcceptancePolicy;
 pub use block_finalizer::MockedBlockFinalizer;
-pub use client::{TestClient, TestClientBuilder, TestClientBuilderExt};
+pub use client::{Backend, TestClient, TestClientBuilder, TestClientBuilderExt};
 pub use proposal::{
     aleph_data_from_blocks, aleph_data_from_headers, unvalidated_proposal_from_headers,
 };
@@ -58,6 +58,10 @@ impl HeaderVerifier<THeader> for TestVerifier {
             header,
             maybe_equivocation_proof: None,
         })
+    }
+
+    fn own_block(&self, _header: &THeader) -> bool {
+        false
     }
 }
 
