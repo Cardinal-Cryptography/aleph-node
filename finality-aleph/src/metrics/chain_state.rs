@@ -84,10 +84,6 @@ impl ChainStateMetrics {
         })
     }
 
-    fn noop() -> Self {
-        ChainStateMetrics::Noop
-    }
-
     fn update_best_block(&self, number: BlockNumber) {
         if let ChainStateMetrics::Prometheus { best_block, .. } = self {
             best_block.set(number as u64)
@@ -144,11 +140,15 @@ pub async fn run_chain_state_metrics<
     registry: Option<Registry>,
     mut transaction_pool_info_provider: TP,
 ) {
+    if registry.is_none() {
+        return;
+    }
+
     let metrics = match ChainStateMetrics::new(registry) {
         Ok(metrics) => metrics,
         Err(e) => {
             warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
-            ChainStateMetrics::noop()
+            return;
         }
     };
 
