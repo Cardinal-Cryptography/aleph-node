@@ -12,8 +12,8 @@ use cliain::{
 };
 #[cfg(feature = "liminal")]
 use cliain::{
-    delete_key, generate_keys, generate_keys_from_srs, generate_proof, generate_srs, overwrite_key,
-    store_key, verify_proof, SnarkRelation, VkStorage,
+    generate_keys, generate_keys_from_srs, generate_proof, generate_srs, store_key, verify_proof,
+    SnarkRelation, VkStorage,
 };
 use log::{error, info};
 
@@ -243,29 +243,9 @@ async fn main() -> anyhow::Result<()> {
 
         #[cfg(feature = "liminal")]
         Command::VkStorage(cmd) => match cmd {
-            VkStorage::StoreKey {
-                identifier,
-                vk_file,
-            } => {
-                if let Err(why) =
-                    store_key(cfg.get_signed_connection().await, identifier, vk_file).await
-                {
+            VkStorage::StoreKey { vk_file } => {
+                if let Err(why) = store_key(cfg.get_signed_connection().await, vk_file).await {
                     error!("Unable to store key: {why:?}")
-                }
-            }
-            VkStorage::DeleteKey { identifier } => {
-                if let Err(why) = delete_key(cfg.get_root_connection().await, identifier).await {
-                    error!("Unable to delete key: {why:?}")
-                }
-            }
-            VkStorage::OverwriteKey {
-                identifier,
-                vk_file,
-            } => {
-                if let Err(why) =
-                    overwrite_key(cfg.get_root_connection().await, identifier, vk_file).await
-                {
-                    error!("Unable to overwrite key: {why:?}")
                 }
             }
         },

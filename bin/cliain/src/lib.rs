@@ -38,7 +38,7 @@ pub use {
     snark_relations::{
         generate_keys, generate_keys_from_srs, generate_proof, generate_srs, verify as verify_proof,
     },
-    vk_storage::{delete_key, overwrite_key, store_key},
+    vk_storage::store_key,
 };
 
 pub struct ConnectionConfig {
