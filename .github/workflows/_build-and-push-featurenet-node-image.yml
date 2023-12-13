@@ -8,7 +8,7 @@ on:
         description: 'An aleph-node git ref to build image from.'
         type: string
         required: true
-      fqdn-path:
+      fqdn-image:
         description: 'Full path to ECR docker image.'
         type: string
         required: true
@@ -63,7 +63,7 @@ jobs:
           ls -alh target/${{ env.TARGET.PATH }}/
           ls -alh ./docker/
           docker build \
-            --tag '${{ inputs.FQDN_PATH }}' \
+            --tag '${{ inputs.fqdn-image }}' \
             -f ./docker/Dockerfile .
 
       - name: Login to ECR
@@ -76,4 +76,4 @@ jobs:
       - name: Push image to the ECR registry
         id: push-image
         run: |
-          docker push '${{ inputs.FQDN_PATH }}'
+          docker push '${{ inputs.fqdn-image }}'

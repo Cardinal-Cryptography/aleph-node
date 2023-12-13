@@ -55,7 +55,6 @@ jobs:
         # yamllint enable rule:line-length
 
   check-vars-and-secrets:
-    needs: [check-image-existence]
     name: Check vars and secrets
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
@@ -71,7 +70,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path
         id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v5
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
         with:
           ref: ${{ inputs.ref }}
           short-session: ${{ inputs.short-session }}
@@ -88,10 +87,11 @@ jobs:
     secrets: inherit
 
   update-featurenet:
-    needs: [check-vars-and-secrets, check-image-existence]
+    needs: [get-full-docker-image-path, build-and-push-featurenet-node-image]
+    # to prevent this job to be skipped when on of the parent jobs is skipped
+    if: ${{ always() }}
     name: Update featurenet
-    # yamllint disable-line rule:line-length
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
