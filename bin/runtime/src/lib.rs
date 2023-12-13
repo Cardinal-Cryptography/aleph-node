@@ -909,7 +909,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
-        BabyLiminal: pallet_vk_storage = 41,
+        VkStorage: pallet_vk_storage = 41,
     }
 );
 
@@ -952,7 +952,7 @@ pub type Executive = frame_executive::Executive<
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
     #[cfg(feature = "liminal")]
-    frame_benchmarking::define_benchmarks!([pallet_vk_storage, BabyLiminal]);
+    frame_benchmarking::define_benchmarks!([pallet_vk_storage, VkStorage]);
     #[cfg(not(feature = "liminal"))]
     frame_benchmarking::define_benchmarks!([]);
 }

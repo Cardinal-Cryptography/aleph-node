@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use aleph_client::{
-    pallets::baby_liminal::{BabyLiminalSudoApi, BabyLiminalUserApi, VerificationKeyIdentifier},
+    pallets::vk_storage::{VerificationKeyIdentifier, VkStorageSudoApi, VkStorageUserApi},
     RootConnection, SignedConnection, TxStatus,
 };
 use anyhow::Result;
@@ -10,7 +10,7 @@ fn read_bytes(file: &PathBuf) -> Result<Vec<u8>> {
     fs::read(file).map_err(|e| e.into())
 }
 
-/// Calls `pallet_baby_liminal::store_key`.
+/// Calls `pallet_vk_storage::store_key`.
 pub async fn store_key(
     connection: SignedConnection,
     identifier: VerificationKeyIdentifier,
@@ -23,7 +23,7 @@ pub async fn store_key(
         .map(|_| ())
 }
 
-/// Calls `pallet_baby_liminal::delete_key`.
+/// Calls `pallet_vk_storage::delete_key`.
 pub async fn delete_key(
     connection: RootConnection,
     identifier: VerificationKeyIdentifier,
@@ -34,7 +34,7 @@ pub async fn delete_key(
         .map(|_| ())
 }
 
-/// Calls `pallet_baby_liminal::overwrite_key`.
+/// Calls `pallet_vk_storage::overwrite_key`.
 pub async fn overwrite_key(
     connection: RootConnection,
     identifier: VerificationKeyIdentifier,

@@ -13,7 +13,7 @@ use cliain::{
 #[cfg(feature = "liminal")]
 use cliain::{
     delete_key, generate_keys, generate_keys_from_srs, generate_proof, generate_srs, overwrite_key,
-    store_key, verify_proof, BabyLiminal, SnarkRelation,
+    store_key, verify_proof, SnarkRelation, VkStorage,
 };
 use log::{error, info};
 
@@ -242,8 +242,8 @@ async fn main() -> anyhow::Result<()> {
         },
 
         #[cfg(feature = "liminal")]
-        Command::BabyLiminal(cmd) => match cmd {
-            BabyLiminal::StoreKey {
+        Command::VkStorage(cmd) => match cmd {
+            VkStorage::StoreKey {
                 identifier,
                 vk_file,
             } => {
@@ -253,12 +253,12 @@ async fn main() -> anyhow::Result<()> {
                     error!("Unable to store key: {why:?}")
                 }
             }
-            BabyLiminal::DeleteKey { identifier } => {
+            VkStorage::DeleteKey { identifier } => {
                 if let Err(why) = delete_key(cfg.get_root_connection().await, identifier).await {
                     error!("Unable to delete key: {why:?}")
                 }
             }
-            BabyLiminal::OverwriteKey {
+            VkStorage::OverwriteKey {
                 identifier,
                 vk_file,
             } => {

@@ -13,7 +13,7 @@ use {
         parsing::parse_some_system, NonUniversalProvingSystem, RelationArgs, SomeProvingSystem,
         UniversalProvingSystem,
     },
-    aleph_client::pallets::baby_liminal::VerificationKeyIdentifier,
+    aleph_client::pallets::vk_storage::VerificationKeyIdentifier,
 };
 
 #[derive(Debug, Clone, Args)]
@@ -149,7 +149,7 @@ impl From<ExtrinsicState> for TxStatus {
 
 #[cfg(feature = "liminal")]
 #[derive(Debug, Clone, Subcommand)]
-pub enum BabyLiminal {
+pub enum VkStorage {
     /// Store a verification key under an identifier in the pallet's storage.
     StoreKey {
         /// The key identifier.
@@ -484,10 +484,10 @@ pub enum Command {
         expected_state: ExtrinsicState,
     },
 
-    /// Interact with `pallet_baby_liminal`.
+    /// Interact with `pallet_vk_storage`.
     #[cfg(feature = "liminal")]
     #[clap(subcommand)]
-    BabyLiminal(BabyLiminal),
+    VkStorage(VkStorage),
 
     /// Interact with `relations` crate.
     ///
@@ -499,7 +499,7 @@ pub enum Command {
 
 #[cfg(feature = "liminal")]
 mod parsing {
-    use aleph_client::pallets::baby_liminal::VerificationKeyIdentifier;
+    use aleph_client::pallets::vk_storage::VerificationKeyIdentifier;
     use anyhow::anyhow;
 
     /// Try to convert `&str` to `VerificationKeyIdentifier`.

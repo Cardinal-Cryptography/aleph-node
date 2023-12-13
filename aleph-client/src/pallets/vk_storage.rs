@@ -1,18 +1,18 @@
 use anyhow::Result;
 
-/// Verification key identifier alias, copied from `pallet_baby_liminal`.
+/// Verification key identifier alias, copied from `pallet_vk_storage`.
 pub type VerificationKeyIdentifier = [u8; 8];
 
 use crate::{
-    aleph_runtime::RuntimeCall::BabyLiminal,
+    aleph_runtime::RuntimeCall::VkStorage,
     api,
-    pallet_baby_liminal::pallet::Call::{delete_key, overwrite_key},
+    pallet_vk_storage::pallet::Call::{delete_key, overwrite_key},
     RootConnection, SignedConnection, SignedConnectionApi, SudoCall, TxInfo, TxStatus,
 };
 
-/// Pallet baby liminal API.
+/// Pallet vk storage API.
 #[async_trait::async_trait]
-pub trait BabyLiminalUserApi {
+pub trait VkStorageUserApi {
     /// Store verifying key in pallet's storage.
     async fn store_key(
         &self,
@@ -22,9 +22,9 @@ pub trait BabyLiminalUserApi {
     ) -> Result<TxInfo>;
 }
 
-/// Pallet baby liminal API that requires sudo.
+/// Pallet vk storage API that requires sudo.
 #[async_trait::async_trait]
-pub trait BabyLiminalSudoApi {
+pub trait VkStorageSudoApi {
     /// Delete verifying key from pallet's storage.
     async fn delete_key(
         &self,
@@ -42,26 +42,26 @@ pub trait BabyLiminalSudoApi {
 }
 
 #[async_trait::async_trait]
-impl BabyLiminalUserApi for SignedConnection {
+impl VkStorageUserApi for SignedConnection {
     async fn store_key(
         &self,
         identifier: VerificationKeyIdentifier,
         key: Vec<u8>,
         status: TxStatus,
     ) -> Result<TxInfo> {
-        let tx = api::tx().baby_liminal().store_key(identifier, key);
+        let tx = api::tx().vk_storage().store_key(identifier, key);
         self.send_tx(tx, status).await
     }
 }
 
 #[async_trait::async_trait]
-impl BabyLiminalSudoApi for RootConnection {
+impl VkStorageSudoApi for RootConnection {
     async fn delete_key(
         &self,
         identifier: VerificationKeyIdentifier,
         status: TxStatus,
     ) -> Result<TxInfo> {
-        let call = BabyLiminal(delete_key { identifier });
+        let call = VkStorage(delete_key { identifier });
         self.sudo_unchecked(call, status).await
     }
 
@@ -71,7 +71,7 @@ impl BabyLiminalSudoApi for RootConnection {
         key: Vec<u8>,
         status: TxStatus,
     ) -> Result<TxInfo> {
-        let call = BabyLiminal(overwrite_key { identifier, key });
+        let call = VkStorage(overwrite_key { identifier, key });
         self.sudo_unchecked(call, status).await
     }
 }
