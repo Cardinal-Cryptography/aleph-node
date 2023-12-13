@@ -3,7 +3,6 @@
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod benchmarking;
 #[cfg(test)]
 mod tests;
 mod weights;
