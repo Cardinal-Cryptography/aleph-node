@@ -5,7 +5,7 @@ use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use sp_std::vec;
 
-use crate::Config;
+use crate::{Call, Config, Pallet};
 
 const SEED: u32 = 41;
 
