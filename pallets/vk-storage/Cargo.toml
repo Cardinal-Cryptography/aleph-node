@@ -1,5 +1,5 @@
 [package]
-name = "pallet-baby-liminal"
+name = "pallet-vk-storage"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"

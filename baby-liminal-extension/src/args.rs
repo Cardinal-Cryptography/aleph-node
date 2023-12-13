@@ -4,7 +4,7 @@
 #[cfg(feature = "ink")]
 use {crate::VerificationKeyIdentifier, ink::prelude::vec::Vec};
 #[cfg(feature = "runtime")]
-use {pallet_baby_liminal::VerificationKeyIdentifier, sp_std::vec::Vec};
+use {pallet_vk_storage::VerificationKeyIdentifier, sp_std::vec::Vec};
 
 /// A struct describing layout for the `verify` chain extension.
 #[derive(Clone, Debug, PartialEq, Eq, scale::Encode, scale::Decode)]

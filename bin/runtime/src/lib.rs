@@ -346,10 +346,10 @@ parameter_types! {
 }
 
 #[cfg(feature = "liminal")]
-impl pallet_baby_liminal::Config for Runtime {
+impl pallet_vk_storage::Config for Runtime {
     type Currency = Balances;
     type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = pallet_baby_liminal::AlephWeight<Runtime>;
+    type WeightInfo = pallet_vk_storage::AlephWeight<Runtime>;
     type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
     type VerificationKeyDepositPerByte = VerificationKeyDepositPerByte;
 }
@@ -909,7 +909,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
-        BabyLiminal: pallet_baby_liminal = 41,
+        BabyLiminal: pallet_vk_storage = 41,
     }
 );
 
@@ -952,7 +952,7 @@ pub type Executive = frame_executive::Executive<
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
     #[cfg(feature = "liminal")]
-    frame_benchmarking::define_benchmarks!([pallet_baby_liminal, BabyLiminal]);
+    frame_benchmarking::define_benchmarks!([pallet_vk_storage, BabyLiminal]);
     #[cfg(not(feature = "liminal"))]
     frame_benchmarking::define_benchmarks!([]);
 }

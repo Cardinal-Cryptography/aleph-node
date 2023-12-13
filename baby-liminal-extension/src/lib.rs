@@ -31,7 +31,7 @@ mod frontend;
 #[cfg(feature = "ink")]
 pub use frontend::{BabyLiminalError, BabyLiminalExtension, Environment};
 
-/// Copied from `pallet_baby_liminal`.
+/// Copied from `pallet_vk_storage`.
 #[cfg(feature = "ink")]
 pub type VerificationKeyIdentifier = [u8; 8];
 
@@ -43,4 +43,4 @@ mod backend;
 #[cfg(feature = "runtime")]
 pub use backend::BabyLiminalChainExtension;
 #[cfg(feature = "runtime")]
-pub use pallet_baby_liminal::VerificationKeyIdentifier;
+pub use pallet_vk_storage::VerificationKeyIdentifier;

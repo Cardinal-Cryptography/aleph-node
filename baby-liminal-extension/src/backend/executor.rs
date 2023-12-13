@@ -7,8 +7,8 @@ use jf_plonk::{
     },
     transcript::StandardTranscript,
 };
-use pallet_baby_liminal::{Config as BabyLiminalConfig, VerificationKeys};
 use pallet_contracts::Config as ContractsConfig;
+use pallet_vk_storage::{Config as BabyLiminalConfig, VerificationKeys};
 use scale::{Decode, Encode};
 use sp_std::vec::Vec;
 
