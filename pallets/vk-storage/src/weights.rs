@@ -48,9 +48,9 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
     /// The range of component `l` is `[1, 10000]`.
     fn store_key(l: u32, ) -> Weight {
         // Minimum execution time: 8_597 nanoseconds.
-        Weight::from_ref_time(9_536_460_u64)
+        Weight::from_parts(9_536_460_u64, 0)
             // Standard Error: 54
-            .saturating_add(Weight::from_ref_time(1_123_u64).saturating_mul(l as u64))
+            .saturating_add(Weight::from_parts(1_123_u64, 0).saturating_mul(l as u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
 }
@@ -62,9 +62,9 @@ impl BenchmarkInfo for () {
     /// The range of component `l` is `[1, 10000]`.
     fn store_key(l: u32, ) -> Weight {
         // Minimum execution time: 8_597 nanoseconds.
-        Weight::from_ref_time(9_536_460_u64)
+        Weight::from_parts(9_536_460_u64, 0)
             // Standard Error: 54
-            .saturating_add(Weight::from_ref_time(1_123_u64).saturating_mul(l as u64))
+            .saturating_add(Weight::from_parts(1_123_u64, 0).saturating_mul(l as u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 }

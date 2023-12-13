@@ -344,8 +344,8 @@ use pallet_vk_storage::StorageCharge;
 parameter_types! {
     // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
-    // We always charge (10 + `key_length`) AZERO for storing a key. This is a 100% blind guess.
-    pub const VkStorageCharge: StorageCharge = StorageCharge::linear(10 * TOKEN as u64, TOKEN as u64);
+    // We always charge (10 + `key_length`) mAZERO for storing a key. This is a 100% blind guess.
+    pub const VkStorageCharge: StorageCharge = StorageCharge::linear(10 * MILLI_AZERO as u64, MILLI_AZERO as u64);
 }
 
 #[cfg(feature = "liminal")]
