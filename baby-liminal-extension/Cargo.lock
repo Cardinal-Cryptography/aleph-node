@@ -533,6 +533,7 @@ dependencies = [
  "pallet-vk-storage",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-std",
 ]
 
@@ -3391,6 +3392,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-std",
 ]
 

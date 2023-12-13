@@ -29,11 +29,10 @@ pub mod status_codes;
 mod frontend;
 
 #[cfg(feature = "ink")]
-pub use frontend::{BabyLiminalError, BabyLiminalExtension, Environment};
-
-/// Copied from `pallet_vk_storage`.
-#[cfg(feature = "ink")]
-pub type VerificationKeyIdentifier = [u8; 8];
+pub use {
+    frontend::{BabyLiminalError, BabyLiminalExtension, Environment},
+    sp_core::H256 as KeyHash,
+};
 
 // ------ Backend stuff ----------------------------------------------------------------------------
 
@@ -41,6 +40,4 @@ pub type VerificationKeyIdentifier = [u8; 8];
 mod backend;
 
 #[cfg(feature = "runtime")]
-pub use backend::BabyLiminalChainExtension;
-#[cfg(feature = "runtime")]
-pub use pallet_vk_storage::VerificationKeyIdentifier;
+pub use {backend::BabyLiminalChainExtension, pallet_vk_storage::KeyHash};

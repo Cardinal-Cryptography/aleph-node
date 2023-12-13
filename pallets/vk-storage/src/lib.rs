@@ -7,9 +7,18 @@ mod benchmarking;
 mod tests;
 mod weights;
 
-use frame_support::pallet_prelude::{StorageVersion, Weight};
+use frame_support::{
+    pallet_prelude::{StorageVersion, Weight},
+    sp_runtime::traits::BlakeTwo256,
+};
 pub use pallet::*;
+use sp_core::H256;
 pub use weights::{AlephWeight, WeightInfo};
+
+/// Hashing algorithm used for computing key hashes.
+pub type KeyHasher = BlakeTwo256;
+/// Hash type used for storing keys.
+pub type KeyHash = H256;
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -51,7 +60,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Verification key has been successfully stored.
-        VerificationKeyStored(T::Hash),
+        VerificationKeyStored(KeyHash),
     }
 
     #[pallet::pallet]
@@ -61,11 +70,11 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type VerificationKeys<T: Config> =
-        StorageMap<_, Twox64Concat, T::Hash, BoundedVec<u8, T::MaximumKeyLength>>;
+        StorageMap<_, Twox64Concat, KeyHash, BoundedVec<u8, T::MaximumKeyLength>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Stores `key` under its hash in `VerificationKeys` map.
+        /// Stores `key` under its Blake256 hash in `VerificationKeys` map.
         ///
         /// # Errors
         ///
@@ -88,7 +97,7 @@ pub mod pallet {
                 Error::<T>::VerificationKeyTooLong
             );
 
-            let hash = T::Hashing::hash(&key);
+            let hash = KeyHasher::hash(&key);
             VerificationKeys::<T>::insert(
                 hash,
                 BoundedVec::try_from(key)
@@ -105,8 +114,7 @@ pub mod pallet {
 ///
 /// This should be used to impose higher costs on storing anything in this pallet (since there is no way of clearing
 /// the storage). The costs should be charged in addition to the standard operation costs (i.e., database costs).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, codec::Encode, codec::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, codec::Encode, codec::Decode, scale_info::TypeInfo)]
 pub struct StorageCharge {
     base: u64,
     per_byte: u64,
@@ -114,12 +122,12 @@ pub struct StorageCharge {
 
 impl StorageCharge {
     /// Creates a new charge model of a fixed cost.
-    pub fn constant(base: u64) -> Self {
+    pub const fn constant(base: u64) -> Self {
         Self { base, per_byte: 0 }
     }
 
     /// Creates a new charge model of a linear cost.
-    pub fn linear(base: u64, per_byte: u64) -> Self {
+    pub const fn linear(base: u64, per_byte: u64) -> Self {
         Self { base, per_byte }
     }
 

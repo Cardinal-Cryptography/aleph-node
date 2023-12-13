@@ -339,19 +339,21 @@ impl pallet_aleph::Config for Runtime {
 }
 
 #[cfg(feature = "liminal")]
+use pallet_vk_storage::StorageCharge;
+#[cfg(feature = "liminal")]
 parameter_types! {
     // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
-    pub const VerificationKeyDepositPerByte: u128 = MILLI_AZERO;
+    // We always charge (10 + `key_length`) AZERO for storing a key. This is a 100% blind guess.
+    pub const VkStorageCharge: StorageCharge = StorageCharge::linear(10 * TOKEN as u64, TOKEN as u64);
 }
 
 #[cfg(feature = "liminal")]
 impl pallet_vk_storage::Config for Runtime {
-    type Currency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_vk_storage::AlephWeight<Runtime>;
-    type MaximumVerificationKeyLength = MaximumVerificationKeyLength;
-    type VerificationKeyDepositPerByte = VerificationKeyDepositPerByte;
+    type MaximumKeyLength = MaximumVerificationKeyLength;
+    type StorageCharge = VkStorageCharge;
 }
 
 impl_opaque_keys! {
