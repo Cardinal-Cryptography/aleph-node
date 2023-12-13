@@ -33,22 +33,22 @@ pub trait AlephNetworkMessage: Clone + Debug {
 #[cfg(test)]
 mod test {
     use crate::{
+        block::mock::{MockBlock, MockHeader},
         data_io::legacy::{AlephData, UnvalidatedAlephProposal},
-        testing::mocks::{TBlock, THeader},
     };
 
-    pub fn unvalidated_proposal_from_headers(headers: Vec<THeader>) -> UnvalidatedAlephProposal {
+    pub fn unvalidated_proposal_from_headers(headers: Vec<MockHeader>) -> UnvalidatedAlephProposal {
         let num = headers.last().unwrap().number;
         let hashes = headers.into_iter().map(|header| header.hash()).collect();
         UnvalidatedAlephProposal::new(hashes, num)
     }
 
-    pub fn aleph_data_from_blocks(blocks: Vec<TBlock>) -> AlephData {
+    pub fn aleph_data_from_blocks(blocks: Vec<MockBlock>) -> AlephData {
         let headers = blocks.into_iter().map(|b| b.header).collect();
         aleph_data_from_headers(headers)
     }
 
-    pub fn aleph_data_from_headers(headers: Vec<THeader>) -> AlephData {
+    pub fn aleph_data_from_headers(headers: Vec<MockHeader>) -> AlephData {
         AlephData {
             head_proposal: unvalidated_proposal_from_headers(headers),
         }

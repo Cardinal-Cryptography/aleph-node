@@ -305,10 +305,11 @@ mod test {
 
     use super::*;
     use crate::{
+        block::mock::MockBlock,
         metrics::transaction_pool::test::TestTransactionPoolSetup,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{TBlock, THash, TestClientBuilder, TestClientBuilderExt},
+            mocks::{THash, TestClientBuilder, TestClientBuilderExt},
         },
     };
 
@@ -390,8 +391,8 @@ mod test {
         pub metrics: ChainStateMetrics,
         pub cache: LruCache<THash, Instant>,
         pub block_import_notifications:
-            Box<dyn Stream<Item = BlockImportNotification<TBlock>> + Unpin>,
-        pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
+            Box<dyn Stream<Item = BlockImportNotification<MockBlock>> + Unpin>,
+        pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<MockBlock>> + Unpin>,
     }
 
     #[derive(PartialEq, Eq, Hash, Debug)]

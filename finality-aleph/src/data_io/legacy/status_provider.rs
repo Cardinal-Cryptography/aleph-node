@@ -151,6 +151,7 @@ mod tests {
     use sp_runtime::traits::Block as BlockT;
 
     use crate::{
+        block::mock::{MockBlock, MockHeader},
         data_io::{
             chain_info::{
                 AuxFinalizationChainInfoProvider, CachedChainInfoProvider,
@@ -169,7 +170,7 @@ mod tests {
         },
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{TBlock, THeader, TestClient, TestClientBuilder, TestClientBuilderExt},
+            mocks::{TestClient, TestClientBuilder, TestClientBuilderExt},
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
     };
@@ -177,22 +178,22 @@ mod tests {
     // A large number only for the purpose of creating `AlephProposal`s
     const DUMMY_SESSION_LEN: u32 = 1_000_000;
 
-    fn proposal_from_headers(headers: Vec<THeader>) -> AlephProposal {
+    fn proposal_from_headers(headers: Vec<MockHeader>) -> AlephProposal {
         let unvalidated = unvalidated_proposal_from_headers(headers);
         let session_boundaries = SessionBoundaryInfo::new(SessionPeriod(DUMMY_SESSION_LEN))
             .boundaries_for_session(SessionId(0));
         unvalidated.validate_bounds(&session_boundaries).unwrap()
     }
 
-    fn proposal_from_blocks(blocks: Vec<TBlock>) -> AlephProposal {
+    fn proposal_from_blocks(blocks: Vec<MockBlock>) -> AlephProposal {
         let headers = blocks.into_iter().map(|b| b.header().clone()).collect();
         proposal_from_headers(headers)
     }
 
     type TestCachedChainInfo =
-        CachedChainInfoProvider<SubstrateChainInfoProvider<TBlock, TestClient>>;
+        CachedChainInfoProvider<SubstrateChainInfoProvider<MockBlock, TestClient>>;
     type TestAuxChainInfo =
-        AuxFinalizationChainInfoProvider<SubstrateChainInfoProvider<TBlock, TestClient>>;
+        AuxFinalizationChainInfoProvider<SubstrateChainInfoProvider<MockBlock, TestClient>>;
 
     fn prepare_proposal_test() -> (ClientChainBuilder, TestCachedChainInfo, TestAuxChainInfo) {
         let client = Arc::new(TestClientBuilder::new().build());
@@ -237,7 +238,7 @@ mod tests {
     }
 
     fn verify_proposal_of_all_lens_finalizable(
-        blocks: Vec<TBlock>,
+        blocks: Vec<MockBlock>,
         cached_cip: &mut TestCachedChainInfo,
         aux_cip: &mut TestAuxChainInfo,
     ) {

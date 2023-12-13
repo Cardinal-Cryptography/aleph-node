@@ -2,10 +2,10 @@ use sp_blockchain::Error;
 use sp_runtime::{traits::Block, Justification};
 
 use crate::{
-    finalization::BlockFinalizer,
-    testing::mocks::{single_action_mock::SingleActionMock, TBlock},
-    BlockId,
+    block::mock::MockBlock, finalization::BlockFinalizer,
+    testing::mocks::single_action_mock::SingleActionMock, BlockId,
 };
+
 type CallArgs = (BlockId, Justification);
 
 #[derive(Clone, Default)]
@@ -24,7 +24,7 @@ impl MockedBlockFinalizer {
         self.mock.has_not_been_invoked().await
     }
 
-    pub async fn has_been_invoked_with(&self, block: TBlock) -> bool {
+    pub async fn has_been_invoked_with(&self, block: MockBlock) -> bool {
         self.mock
             .has_been_invoked_with(|(id, _)| {
                 block.hash() == id.hash() && block.header.number == id.number()

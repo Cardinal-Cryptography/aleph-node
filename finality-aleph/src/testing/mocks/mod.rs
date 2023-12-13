@@ -7,16 +7,10 @@ pub use proposal::{
     aleph_data_from_blocks, aleph_data_from_headers, unvalidated_proposal_from_headers,
 };
 use sp_runtime::traits::BlakeTwo256;
-use substrate_test_runtime::Extrinsic;
 
-use crate::{
-    aleph_primitives::BlockNumber,
-    block::{EquivocationProof, HeaderVerifier, VerifiedHeader},
-};
+use crate::block::{mock::MockHeader, EquivocationProof, HeaderVerifier, VerifiedHeader};
 
 type Hashing = BlakeTwo256;
-pub type TBlock = sp_runtime::generic::Block<THeader, Extrinsic>;
-pub type THeader = sp_runtime::generic::Header<BlockNumber, Hashing>;
 pub type THash = substrate_test_runtime::Hash;
 
 #[derive(Clone)]
@@ -45,22 +39,22 @@ impl Display for TestVerificationError {
     }
 }
 
-impl HeaderVerifier<THeader> for TestVerifier {
+impl HeaderVerifier<MockHeader> for TestVerifier {
     type EquivocationProof = TestEquivocationProof;
     type Error = TestVerificationError;
 
     fn verify_header(
         &mut self,
-        header: THeader,
+        header: MockHeader,
         _just_created: bool,
-    ) -> Result<VerifiedHeader<THeader, Self::EquivocationProof>, Self::Error> {
+    ) -> Result<VerifiedHeader<MockHeader, Self::EquivocationProof>, Self::Error> {
         Ok(VerifiedHeader {
             header,
             maybe_equivocation_proof: None,
         })
     }
 
-    fn own_block(&self, _header: &THeader) -> bool {
+    fn own_block(&self, _header: &MockHeader) -> bool {
         false
     }
 }

@@ -57,12 +57,13 @@ pub mod test {
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
     use crate::{
+        block::mock::MockBlock,
         metrics::transaction_pool::TransactionPoolWrapper,
-        testing::mocks::{Backend, TBlock, THash, TestClient},
+        testing::mocks::{Backend, THash, TestClient},
     };
 
-    type TChainApi = FullChainApi<TestClient, TBlock>;
-    type FullTransactionPool = BasicPool<TChainApi, TBlock>;
+    type TChainApi = FullChainApi<TestClient, MockBlock>;
+    type FullTransactionPool = BasicPool<TChainApi, MockBlock>;
     type TProposerFactory =
         ProposerFactory<FullTransactionPool, Backend, TestClient, DisableProofRecording>;
 
@@ -70,7 +71,7 @@ pub mod test {
         pub client: Arc<TestClient>,
         pub pool: Arc<FullTransactionPool>,
         pub proposer_factory: TProposerFactory,
-        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, TBlock>>,
+        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, MockBlock>>,
     }
 
     impl TestTransactionPoolSetup {
@@ -96,7 +97,7 @@ pub mod test {
             }
         }
 
-        pub async fn propose_block(&mut self, at: THash, weight_limit: Option<usize>) -> TBlock {
+        pub async fn propose_block(&mut self, at: THash, weight_limit: Option<usize>) -> MockBlock {
             let proposer = self
                 .proposer_factory
                 .init(&self.client.expect_header(at).unwrap())
@@ -117,7 +118,7 @@ pub mod test {
             self.import_block(block).await
         }
 
-        pub async fn import_block(&mut self, block: TBlock) -> TBlock {
+        pub async fn import_block(&mut self, block: MockBlock) -> MockBlock {
             let stream = self.client.every_import_notification_stream();
             self.client
                 .import(BlockOrigin::Own, block.clone())

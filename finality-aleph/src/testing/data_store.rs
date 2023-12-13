@@ -13,7 +13,10 @@ use tokio::time::timeout;
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::Header as _,
+    block::{
+        mock::{MockBlock, MockHeader},
+        Header as _,
+    },
     data_io::{AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, MAX_DATA_BRANCH_LEN},
     network::{
         data::{component::Network as ComponentNetwork, Network as DataNetwork},
@@ -24,7 +27,7 @@ use crate::{
     testing::{
         client_chain_builder::ClientChainBuilder,
         mocks::{
-            aleph_data_from_blocks, aleph_data_from_headers, TBlock, THeader, TestClientBuilder,
+            aleph_data_from_blocks, aleph_data_from_headers, TestClientBuilder,
             TestClientBuilderExt, TestVerifier,
         },
     },
@@ -43,17 +46,17 @@ impl TestBlockRequester {
     }
 }
 
-impl RequestBlocks<THeader> for TestBlockRequester {
+impl RequestBlocks<MockHeader> for TestBlockRequester {
     type Error = TrySendError<BlockId>;
-    fn request_block(&self, header: THeader) -> Result<(), Self::Error> {
+    fn request_block(&self, header: MockHeader) -> Result<(), Self::Error> {
         self.blocks.unbounded_send(header.id())
     }
 }
 
-type TestData = Vec<AlephData<THeader>>;
+type TestData = Vec<AlephData<MockHeader>>;
 
-impl AlephNetworkMessage<THeader> for TestData {
-    fn included_data(&self) -> Vec<AlephData<THeader>> {
+impl AlephNetworkMessage<MockHeader> for TestData {
+    fn included_data(&self) -> Vec<AlephData<MockHeader>> {
         self.clone()
     }
 }
@@ -89,33 +92,33 @@ impl TestHandler {
         self.chain_builder.genesis_hash()
     }
 
-    fn get_header_at(&self, num: BlockNumber) -> THeader {
+    fn get_header_at(&self, num: BlockNumber) -> MockHeader {
         self.chain_builder.get_header_at(num)
     }
 
-    async fn build_block_above(&mut self, parent: &H256) -> TBlock {
+    async fn build_block_above(&mut self, parent: &H256) -> MockBlock {
         self.chain_builder.build_block_above(parent).await
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<TBlock> {
+    async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<MockBlock> {
         self.chain_builder.build_branch_above(parent, len).await
     }
 
     /// imports a sequence of blocks, should be in correct order
-    async fn import_branch(&mut self, blocks: Vec<TBlock>) {
+    async fn import_branch(&mut self, blocks: Vec<MockBlock>) {
         self.chain_builder.import_branch(blocks).await;
     }
 
     /// Builds and imports a sequence of blocks extending from genesis of length `len`
-    async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<TBlock> {
+    async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<MockBlock> {
         self.chain_builder
             .initialize_single_branch_and_import(len)
             .await
     }
 
     /// Builds a sequence of blocks extending from genesis of length `len`
-    async fn initialize_single_branch(&mut self, len: usize) -> Vec<TBlock> {
+    async fn initialize_single_branch(&mut self, len: usize) -> Vec<MockBlock> {
         self.chain_builder.initialize_single_branch(len).await
     }
 
@@ -349,7 +352,7 @@ async fn branch_with_not_finalized_ancestor_correctly_handled() {
     .await;
 }
 
-fn send_proposals_of_each_len(blocks: Vec<TBlock>, test_handler: &mut TestHandler) {
+fn send_proposals_of_each_len(blocks: Vec<MockBlock>, test_handler: &mut TestHandler) {
     for i in 1..=MAX_DATA_BRANCH_LEN {
         let blocks_branch = blocks[0..i].to_vec();
         let test_data: TestData = vec![aleph_data_from_blocks(blocks_branch)];

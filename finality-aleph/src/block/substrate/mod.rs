@@ -4,8 +4,9 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
+    block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, Info, UnverifiedHeader},
     metrics::{AllBlockMetrics, Checkpoint},
+    BlockHash,
 };
 
 mod chain_status;
@@ -18,8 +19,13 @@ pub use chain_status::SubstrateChainStatus;
 pub use justification::{
     InnerJustification, Justification, JustificationTranslator, TranslateError,
 };
+use primitives::BlockNumber;
 pub use status_notifier::SubstrateChainStatusNotifier;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
+
+use crate::block::{
+    BlockImportNotification, FinalityNotification, HeaderBackend, ImportNotifications,
+};
 
 const LOG_TARGET: &str = "aleph-substrate";
 
@@ -108,5 +114,81 @@ impl BlockT for Block {
     /// The header of the block.
     fn header(&self) -> &Self::UnverifiedHeader {
         &self.header
+    }
+}
+
+impl Info for sp_blockchain::Info<Block> {
+    fn best_id(&self) -> BlockId {
+        BlockId {
+            hash: self.best_hash,
+            number: self.best_number,
+        }
+    }
+
+    fn genesis_hash(&self) -> BlockHash {
+        self.genesis_hash
+    }
+
+    fn finalized_id(&self) -> BlockId {
+        BlockId {
+            hash: self.finalized_hash,
+            number: self.finalized_number,
+        }
+    }
+}
+
+impl<SHB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for SHB {
+    type Info = sp_blockchain::Info<Block>;
+    type Error = sp_blockchain::Error;
+
+    fn header(&self, hash: BlockHash) -> Result<Option<Header>, sp_blockchain::Error> {
+        self.header(hash)
+    }
+
+    fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error> {
+        self.hash(number)
+    }
+
+    fn info(&self) -> Self::Info {
+        self.info()
+    }
+}
+
+impl BlockImportNotification<Header> for sc_client_api::BlockImportNotification<Block> {
+    fn hash(&self) -> BlockHash {
+        self.hash
+    }
+
+    fn header(&self) -> &Header {
+        &self.header
+    }
+
+    fn is_new_best(&self) -> bool {
+        self.is_new_best
+    }
+}
+
+impl FinalityNotification<Header> for sc_client_api::FinalityNotification<Block> {
+    fn hash(&self) -> BlockHash {
+        self.hash
+    }
+
+    fn header(&self) -> &Header {
+        &self.header
+    }
+}
+
+impl<E: sc_client_api::BlockchainEvents<Block>> crate::block::BlockchainEvents<Header> for E {
+    type ImportNotification = sc_client_api::BlockImportNotification<Block>;
+    type FinalityNotification = sc_client_api::FinalityNotification<Block>;
+
+    fn import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification> {
+        self.import_notification_stream()
+    }
+    fn every_import_notification_stream(&self) -> sc_client_api::ImportNotifications<Block> {
+        self.every_import_notification_stream()
+    }
+    fn finality_notification_stream(&self) -> sc_client_api::FinalityNotifications<Block> {
+        self.finality_notification_stream()
     }
 }

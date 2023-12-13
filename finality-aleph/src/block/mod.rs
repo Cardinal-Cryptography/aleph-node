@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use parity_scale_codec::{Codec, Decode, Encode};
+use sc_utils::mpsc::TracingUnboundedReceiver;
 
 use crate::{BlockHash, BlockNumber};
 
@@ -225,4 +226,43 @@ where
 
     /// Children of the specified block.
     fn children(&self, id: BlockId) -> Result<Vec<J::Header>, Self::Error>;
+}
+
+pub trait Info {
+    fn best_id(&self) -> BlockId;
+    fn genesis_hash(&self) -> BlockHash;
+    fn finalized_id(&self) -> BlockId;
+}
+
+pub trait HeaderBackend<H: Header>: Send + Sync {
+    type Info: Info;
+    type Error: Debug + Display;
+    /// Get block header. Returns `None` if block is not found.
+    fn header(&self, hash: BlockHash) -> Result<Option<H>, Self::Error>;
+
+    fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error>;
+    fn info(&self) -> Self::Info;
+}
+
+pub trait BlockImportNotification<UH: UnverifiedHeader>: Debug + Send {
+    fn hash(&self) -> BlockHash;
+    fn header(&self) -> &UH;
+    fn is_new_best(&self) -> bool;
+}
+
+pub trait FinalityNotification<UH: UnverifiedHeader>: Debug + Send {
+    fn hash(&self) -> BlockHash;
+    fn header(&self) -> &UH;
+}
+
+pub type ImportNotifications<IN> = TracingUnboundedReceiver<IN>;
+pub type FinalityNotifications<FN> = TracingUnboundedReceiver<FN>;
+
+pub trait BlockchainEvents<UH: UnverifiedHeader> {
+    type ImportNotification: BlockImportNotification<UH>;
+    type FinalityNotification: FinalityNotification<UH>;
+
+    fn import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification>;
+    fn every_import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification>;
+    fn finality_notification_stream(&self) -> FinalityNotifications<Self::FinalityNotification>;
 }

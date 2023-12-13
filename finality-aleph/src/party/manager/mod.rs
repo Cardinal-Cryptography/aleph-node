@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
+use primitives::AlephSessionApi;
 use sc_client_api::Backend;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_consensus::SelectChain;
@@ -15,10 +16,10 @@ use crate::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
         run_legacy_member, SpawnHandle,
     },
-    aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
+    aleph_primitives::{BlockHash, BlockNumber, KEY_TYPE},
     block::{
         substrate::{Justification, JustificationTranslator},
-        Header, HeaderVerifier, UnverifiedHeader,
+        Block, Header, HeaderVerifier, UnverifiedHeader,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{
@@ -74,11 +75,15 @@ type CurrentNetworkType = SimpleNetwork<
 
 struct SubtasksParams<C, B, N, BE, JS>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
+    C: crate::ClientForAleph<B, BE>
+        + crate::block::HeaderBackend<B::Header>
+        + Send
+        + Sync
+        + 'static,
     BE: Backend<B> + 'static,
-    N: Network<VersionedNetworkData<B::Header>> + 'static,
+    N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
     n_members: usize,
@@ -88,7 +93,7 @@ where
     session_boundaries: SessionBoundaries,
     subtask_common: TaskCommon,
     blocks_for_aggregator: mpsc::UnboundedSender<BlockId>,
-    chain_info: SubstrateChainInfoProvider<B, C>,
+    chain_info: SubstrateChainInfoProvider<B::Header, B, C>,
     aggregator_io: aggregator::IO<JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
@@ -98,13 +103,17 @@ where
 
 pub struct NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, V>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader + Header<Unverified = B::Header>,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
+    C: crate::ClientForAleph<B, BE>
+        + crate::block::HeaderBackend<B::Header>
+        + Send
+        + Sync
+        + 'static,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B::Header> + LegacyRequestBlocks,
-    SM: SessionManager<VersionedNetworkData<B::Header>> + 'static,
+    RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
+    SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<B::Header>,
 {
@@ -125,15 +134,20 @@ where
 
 impl<C, SC, B, RB, BE, SM, JS, V> NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, V>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader + Header<Unverified = B::Header>,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
+    C: crate::ClientForAleph<B, BE>
+        + crate::block::HeaderBackend<B::Header>
+        + crate::block::BlockchainEvents<B::UnverifiedHeader>
+        + Send
+        + Sync
+        + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B::Header> + LegacyRequestBlocks,
-    SM: SessionManager<VersionedNetworkData<B::Header>>,
-    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
+    RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
+    SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<B::Header>,
 {
     #[allow(clippy::too_many_arguments)]
@@ -168,7 +182,7 @@ where
         }
     }
 
-    fn legacy_subtasks<N: Network<VersionedNetworkData<B::Header>> + 'static>(
+    fn legacy_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
         params: SubtasksParams<C, B, N, BE, JS>,
     ) -> Subtasks {
@@ -205,7 +219,7 @@ where
 
         let (unfiltered_aleph_network, rmc_network) =
             split(data_network, "aleph_network", "rmc_network");
-        let (data_store, aleph_network) = LegacyDataStore::new(
+        let (data_store, aleph_network) = LegacyDataStore::<_, B, _, _, _, _>::new(
             session_boundaries.clone(),
             self.client.clone(),
             self.block_requester.clone(),
@@ -237,7 +251,7 @@ where
         )
     }
 
-    fn current_subtasks<N: Network<VersionedNetworkData<B::Header>> + 'static>(
+    fn current_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
         params: SubtasksParams<C, B, N, BE, JS>,
     ) -> Subtasks {
@@ -275,7 +289,7 @@ where
 
         let (unfiltered_aleph_network, rmc_network) =
             split(data_network, "aleph_network", "rmc_network");
-        let (data_store, aleph_network) = DataStore::new(
+        let (data_store, aleph_network) = DataStore::<_, B, _, _, _, _, _>::new(
             session_boundaries.clone(),
             self.client.clone(),
             self.verifier.clone(),
@@ -421,15 +435,20 @@ where
 impl<C, SC, B, RB, BE, SM, JS, V> NodeSessionManager
     for NodeSessionManagerImpl<C, SC, B, RB, BE, SM, JS, V>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader + Header<Unverified = B::Header>,
-    C: crate::ClientForAleph<B, BE> + Send + Sync + 'static,
+    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
+    C: crate::ClientForAleph<B, BE>
+        + crate::block::HeaderBackend<B::Header>
+        + crate::block::BlockchainEvents<B::UnverifiedHeader>
+        + Send
+        + Sync
+        + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
     SC: SelectChain<B> + 'static,
-    RB: RequestBlocks<B::Header> + LegacyRequestBlocks,
-    SM: SessionManager<VersionedNetworkData<B::Header>>,
-    JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
+    RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
+    SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
+    JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<B::Header>,
 {
     type Error = SM::Error;

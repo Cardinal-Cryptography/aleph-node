@@ -2,11 +2,10 @@ use std::{marker::PhantomData, sync::Arc};
 
 use log::error;
 use lru::LruCache;
-use sc_client_api::HeaderBackend;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
+    block::{Block, Header, HeaderBackend, Info},
     data_io::ChainInfoCacheConfig,
     BlockId,
 };
@@ -21,21 +20,21 @@ pub trait ChainInfoProvider: Send + Sync + 'static {
     fn get_highest_finalized(&mut self) -> BlockId;
 }
 
-pub struct SubstrateChainInfoProvider<B, C>
+pub struct SubstrateChainInfoProvider<H, B, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B> + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H> + 'static,
 {
     client: Arc<C>,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<(H, B)>,
 }
 
-impl<B, C> SubstrateChainInfoProvider<B, C>
+impl<H, B, C> SubstrateChainInfoProvider<H, B, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B>,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H> + 'static,
 {
     pub fn new(client: Arc<C>) -> Self {
         SubstrateChainInfoProvider {
@@ -44,11 +43,11 @@ where
         }
     }
 }
-impl<B, C> ChainInfoProvider for SubstrateChainInfoProvider<B, C>
+impl<H, B, C> ChainInfoProvider for SubstrateChainInfoProvider<H, B, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B>,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H>,
 {
     fn is_block_imported(&mut self, block: &BlockId) -> bool {
         let maybe_header = self
@@ -57,13 +56,13 @@ where
             .expect("client must answer a query");
         if let Some(header) = maybe_header {
             // If the block number is incorrect, we treat as not imported.
-            return *header.number() == block.number();
+            return header.id().number() == block.number();
         }
         false
     }
 
     fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockId, ()> {
-        if self.client.info().finalized_number < num {
+        if self.client.info().finalized_id().number() < num {
             return Err(());
         }
 
@@ -76,7 +75,7 @@ where
         };
 
         if let Some(header) = self.client.header(block_hash).expect("client must respond") {
-            Ok((header.hash(), num).into())
+            Ok((header.id().hash(), num).into())
         } else {
             Err(())
         }
@@ -88,15 +87,14 @@ where
             .header(block.hash())
             .expect("client must respond")
         {
-            Ok(*header.parent_hash())
+            Ok(header.parent_id().ok_or(())?.hash())
         } else {
             Err(())
         }
     }
 
     fn get_highest_finalized(&mut self) -> BlockId {
-        let status = self.client.info();
-        (status.finalized_hash, status.finalized_number).into()
+        self.client.info().finalized_id()
     }
 }
 

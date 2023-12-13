@@ -3,23 +3,23 @@ use std::sync::Arc;
 use substrate_test_client::{client, sc_client_db, sc_executor};
 use substrate_test_runtime_client::{GenesisParameters, LocalExecutorDispatch};
 
-use crate::testing::mocks::TBlock;
+use crate::block::mock::MockBlock;
 
 // /// A `TestClient` with `test-runtime` builder.
 pub type TestClientBuilder<E, B> =
-    substrate_test_client::TestClientBuilder<TBlock, E, B, GenesisParameters>;
+    substrate_test_client::TestClientBuilder<MockBlock, E, B, GenesisParameters>;
 
 /// Call executor for `kitchensink-runtime` `TestClient`.
 pub type ExecutorDispatch = sc_executor::NativeElseWasmExecutor<LocalExecutorDispatch>;
 
 /// Default backend type.
-pub type Backend = sc_client_db::Backend<TBlock>;
+pub type Backend = sc_client_db::Backend<MockBlock>;
 
 /// Test client type.
 pub type TestClient = client::Client<
     Backend,
-    client::LocalCallExecutor<TBlock, Backend, ExecutorDispatch>,
-    TBlock,
+    client::LocalCallExecutor<MockBlock, Backend, ExecutorDispatch>,
+    MockBlock,
     aleph_runtime::RuntimeApi,
 >;
 
@@ -32,7 +32,9 @@ pub trait TestClientBuilderExt: Sized {
     fn build(self) -> TestClient;
 
     /// Build the test client and longest chain selector.
-    fn build_with_longest_chain(self) -> (TestClient, sc_consensus::LongestChain<Backend, TBlock>);
+    fn build_with_longest_chain(
+        self,
+    ) -> (TestClient, sc_consensus::LongestChain<Backend, MockBlock>);
 
     /// Build the test client and the backend.
     fn build_with_backend(self) -> (TestClient, Arc<Backend>);
@@ -40,8 +42,8 @@ pub trait TestClientBuilderExt: Sized {
 
 impl TestClientBuilderExt
     for substrate_test_client::TestClientBuilder<
-        TBlock,
-        client::LocalCallExecutor<TBlock, Backend, ExecutorDispatch>,
+        MockBlock,
+        client::LocalCallExecutor<MockBlock, Backend, ExecutorDispatch>,
         Backend,
         GenesisParameters,
     >
@@ -54,7 +56,9 @@ impl TestClientBuilderExt
         self.build_with_native_executor(None).0
     }
 
-    fn build_with_longest_chain(self) -> (TestClient, sc_consensus::LongestChain<Backend, TBlock>) {
+    fn build_with_longest_chain(
+        self,
+    ) -> (TestClient, sc_consensus::LongestChain<Backend, MockBlock>) {
         self.build_with_native_executor(None)
     }
 

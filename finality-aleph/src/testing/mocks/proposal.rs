@@ -1,24 +1,22 @@
-use sp_runtime::traits::Block as BlockT;
-
 use crate::{
+    block::mock::{MockBlock, MockHeader},
     data_io::{AlephData, UnvalidatedAlephProposal},
-    testing::mocks::{TBlock, THeader},
 };
 
 pub fn unvalidated_proposal_from_headers(
-    mut headers: Vec<THeader>,
-) -> UnvalidatedAlephProposal<THeader> {
+    mut headers: Vec<MockHeader>,
+) -> UnvalidatedAlephProposal<MockHeader> {
     let head = headers.pop().unwrap();
     let tail = headers.into_iter().map(|header| header.hash()).collect();
     UnvalidatedAlephProposal::new(head, tail)
 }
 
-pub fn aleph_data_from_blocks(blocks: Vec<TBlock>) -> AlephData<THeader> {
+pub fn aleph_data_from_blocks(blocks: Vec<MockBlock>) -> AlephData<MockHeader> {
     let headers = blocks.into_iter().map(|b| b.header().clone()).collect();
     aleph_data_from_headers(headers)
 }
 
-pub fn aleph_data_from_headers(headers: Vec<THeader>) -> AlephData<THeader> {
+pub fn aleph_data_from_headers(headers: Vec<MockHeader>) -> AlephData<MockHeader> {
     AlephData {
         head_proposal: unvalidated_proposal_from_headers(headers),
     }
