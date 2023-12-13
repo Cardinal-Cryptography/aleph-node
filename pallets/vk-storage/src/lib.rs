@@ -95,7 +95,7 @@ pub mod pallet {
         /// 2. If the key is already stored, this call will succeed and charge the full weight, even though the whole
         /// work could have been avoided.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::store_key(key.len() as u32))]
+        #[pallet::weight(T::WeightInfo::store_key(key.len() as u32) + T::StorageCharge::get().charge_for(key.len()))]
         pub fn store_key(origin: OriginFor<T>, key: Vec<u8>) -> DispatchResult {
             ensure_signed(origin)?;
 
