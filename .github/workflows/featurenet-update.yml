@@ -97,6 +97,6 @@ jobs:
       featurenet-name: ${{ inputs.featurenet-name }}
       aleph-node-image: ${{ nneeds.get-full-docker-image-path.outputs.fqdn-image }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
-      replicas: ${{ inputs.validators }}
+      validators: ${{ inputs.validators }}
       internal: ${{ inputs.internal && true || false }}
       delete-first: false

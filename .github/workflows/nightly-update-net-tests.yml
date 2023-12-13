@@ -68,26 +68,26 @@ jobs:
   create-featurenet-from-testnet:
     needs: [get-aleph-node-main-sha, delete-ops-mainnet-featurenet]
     name: Create featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
       aleph-node-image: 'testnet'
       expiration: '4h'
-      replicas: '7'
+      validators: '7'
       internal: true
       delete-first: true
 
   create-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, create-featurenet-from-testnet]
     name: Create featurenet from mainnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
       aleph-node-image: 'mainnet'
       expiration: '4h'
-      replicas: '7'
+      validators: '7'
       internal: true
       delete-first: true
 
@@ -95,26 +95,26 @@ jobs:
     needs: [get-aleph-node-main-sha, create-featurenet-from-mainnet]
     # yamllint disable-line rule:line-length
     name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
       aleph-node-image: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
       rolling-update-partition: '0'
-      replicas: '7'
+      validators: '7'
       internal: true
 
   update-featurenet-from-mainnet:
     needs: [get-aleph-node-main-sha, update-featurenet-from-testnet]
     # yamllint disable-line rule:line-length
     name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v5
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
       aleph-node-image: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
       rolling-update-partition: '0'
-      replicas: '7'
+      validators: '7'
       internal: true
 
   delete-featurenet-from-testnet:

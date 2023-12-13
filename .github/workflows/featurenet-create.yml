@@ -35,7 +35,7 @@ on:
         type: boolean
         default: false
       short-session:
-        description: 'If true, use 30 block session aleph-node binary'
+        description: 'Use short session aleph-node binary'
         required: true
         type: boolean
 
@@ -100,7 +100,7 @@ jobs:
     secrets: inherit
     with:
       expiration: ${{ inputs.expiration }}
-      replicas: ${{ inputs.validators }}
+      validators: ${{ inputs.validators }}
       internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
       aleph-node-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
