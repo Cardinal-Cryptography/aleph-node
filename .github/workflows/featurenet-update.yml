@@ -42,7 +42,6 @@ jobs:
     steps:
       - name: Validate inputs
         shell: bash
-        # yamllint disable rule:line-length
         run: |
           if [[ ! '${{ inputs.featurenet-name }}' =~ ^[a-z0-9][a-z0-9\-]{4,48}$ ]]; then
             echo '!!! Invalid featurenet name'
@@ -52,7 +51,6 @@ jobs:
             echo "!!! Invalid ref"
             exit 1
           fi
-        # yamllint enable rule:line-length
 
   check-vars-and-secrets:
     name: Check vars and secrets
@@ -73,7 +71,9 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
         with:
           ref: ${{ inputs.ref }}
-          short-session: ${{ inputs.short-session }}
+          test-binary: ${{ inputs.short-session == true && 'true' || 'false' }}
+          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
+          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
 
   build-and-push-featurenet-node-image:
     needs: [get-full-docker-image-path]
