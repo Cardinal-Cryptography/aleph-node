@@ -48,8 +48,8 @@ jobs:
         uses: actions/download-artifact@v3
         env:
           TARGET_PATH: ${{ inputs.short-session == true && 'release' || 'production' }}
-          ARTIFACT: ${{ inputs.short-session == true && \
-                    'aleph-test-node' || `aleph-production-node' }}
+          # yamllint disable-line rule:line-length
+          ARTIFACT: ${{ inputs.short-session == true && 'aleph-test-node' || `aleph-production-node' }}
         with:
           name: ${{ env.ARTIFACT }}
           path: target/${{ env.TARGET_PATH }}/
