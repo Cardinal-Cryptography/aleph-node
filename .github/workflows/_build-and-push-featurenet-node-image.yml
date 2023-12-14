@@ -23,6 +23,7 @@ jobs:
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     with:
       ref: ${{ inputs.ref }}
+      fetch-depth: 0
 
   build-production-node-and-runtime:
     if: ${{ inputs.short-session != true }}
@@ -30,18 +31,20 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     with:
       ref: ${{ inputs.ref }}
+      fetch-depth: 0
 
   build-and-push-featurnet-image-to-ecr:
     name: Build and push featurnet image
     needs: [build-test-node-and-runtime, build-production-node-and-runtime]
     # to prevent this job to be skipped as at least on of dependant jobs is skipped
-    if: ${{ always() }}
+    # if: ${{ always() }}
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          fetch-depth: 0
 
       - name: Call action get-ref-properties
         id: get-ref-properties
