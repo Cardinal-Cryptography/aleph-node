@@ -35,7 +35,7 @@ jobs:
     name: Build and push featurnet image
     needs: [build-test-node-and-runtime, build-production-node-and-runtime]
     # to prevent this job to be skipped as at least on of dependant jobs is skipped
-    # if: ${{ always() }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout aleph-node
