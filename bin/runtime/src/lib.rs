@@ -951,8 +951,6 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
-struct BabyLiminalExtension;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
     #[cfg(feature = "liminal")]
