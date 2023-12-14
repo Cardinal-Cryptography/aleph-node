@@ -64,10 +64,14 @@ pub struct AlephWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
     /// The range of component `x` is `[0, 10000000]`.
     fn verify_read_args(x: u32, ) -> Weight {
-        Default::default()
+        // Minimum execution time: 554 nanoseconds.
+        Weight::from_parts(91_264_582_u64, 0)
+            // Standard Error: 6
+            .saturating_add(Weight::from_parts(143_u64, 0).saturating_mul(x as u64))
     }
     fn verify_proof() -> Weight {
-        Default::default()
+        // Minimum execution time: 181 nanoseconds.
+        Weight::from_parts(203_000_u64, 0)
     }
 }
 
@@ -75,9 +79,13 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 impl BenchmarkInfo for () {
     /// The range of component `x` is `[0, 10000000]`.
     fn verify_read_args(x: u32, ) -> Weight {
-        Default::default()
+        // Minimum execution time: 554 nanoseconds.
+        Weight::from_parts(91_264_582_u64, 0)
+            // Standard Error: 6
+            .saturating_add(Weight::from_parts(143_u64, 0).saturating_mul(x as u64))
     }
     fn verify_proof() -> Weight {
-        Default::default()
+        // Minimum execution time: 181 nanoseconds.
+        Weight::from_parts(203_000_u64, 0)
     }
 }
