@@ -1,3 +1,7 @@
+use frame_support::pallet_prelude::Weight;
+
+use crate::backend::{weights::WeightInfo, ByteCount};
+
 /// Test weights.
 pub enum TestWeight {}
 
