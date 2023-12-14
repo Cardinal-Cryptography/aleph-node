@@ -18,11 +18,16 @@ use crate::{
     status_codes::*,
 };
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 mod environment;
 mod executor;
 #[cfg(test)]
 mod tests;
 mod weights;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub use benchmarking::ChainExtensionBenchmarking;
 
 type ByteCount = u32;
 
