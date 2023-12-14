@@ -56,7 +56,7 @@ where
         let func_id = env.func_id() as u32;
 
         match func_id {
-            VERIFY_EXT_ID => Self::verify::<Runtime, _, AlephWeight>(env.buf_in_buf_out()),
+            VERIFY_EXT_ID => Self::verify::<Runtime, _, AlephWeight<Runtime>>(env.buf_in_buf_out()),
             _ => {
                 error!("Called an unregistered `func_id`: {func_id}");
                 Err(DispatchError::Other("Called an unregistered `func_id`"))

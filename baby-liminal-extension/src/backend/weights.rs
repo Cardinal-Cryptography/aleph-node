@@ -20,9 +20,11 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
+#![allow(unused_variables)]
 
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
+use crate::backend::ByteCount;
 
 /// Weight functions needed for baby_liminal_extension.
 pub trait WeightInfo {
@@ -62,14 +64,10 @@ pub struct AlephWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
     /// The range of component `x` is `[0, 10000000]`.
     fn verify_read_args(x: u32, ) -> Weight {
-        // Minimum execution time: 215 nanoseconds.
-        Weight::from_ref_time(78_690_216_u64)
-            // Standard Error: 6
-            .saturating_add(Weight::from_ref_time(144_u64).saturating_mul(x as u64))
+        Default::default()
     }
     fn verify_proof() -> Weight {
-        // Minimum execution time: 180 nanoseconds.
-        Weight::from_ref_time(198_000_u64)
+        Default::default()
     }
 }
 
@@ -77,13 +75,9 @@ impl<T: frame_system::Config> BenchmarkInfo for AlephWeight<T> {
 impl BenchmarkInfo for () {
     /// The range of component `x` is `[0, 10000000]`.
     fn verify_read_args(x: u32, ) -> Weight {
-        // Minimum execution time: 215 nanoseconds.
-        Weight::from_ref_time(78_690_216_u64)
-            // Standard Error: 6
-            .saturating_add(Weight::from_ref_time(144_u64).saturating_mul(x as u64))
+        Default::default()
     }
     fn verify_proof() -> Weight {
-        // Minimum execution time: 180 nanoseconds.
-        Weight::from_ref_time(198_000_u64)
+        Default::default()
     }
 }
