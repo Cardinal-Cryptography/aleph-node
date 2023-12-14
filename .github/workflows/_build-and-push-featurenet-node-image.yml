@@ -23,7 +23,6 @@ jobs:
     uses: ./.github/workflows/_build-test-node-and-runtime.yml
     with:
       ref: ${{ inputs.ref }}
-      fetch-depth: 0
 
   build-production-node-and-runtime:
     if: ${{ inputs.short-session != true }}
@@ -31,7 +30,6 @@ jobs:
     uses: ./.github/workflows/_build-production-node-and-runtime.yml
     with:
       ref: ${{ inputs.ref }}
-      fetch-depth: 0
 
   build-and-push-featurnet-image-to-ecr:
     name: Build and push featurnet image
