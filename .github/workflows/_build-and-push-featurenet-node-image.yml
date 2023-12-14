@@ -52,14 +52,12 @@ jobs:
             'aleph-test-node' || 'aleph-production-node' }}
         with:
           name: ${{ env.ARTIFACT }}
-          path: target/${{ env.TARGET_PATH }}/
+          path: target/release/
 
       - name: Build docker image with PR aleph-node binary
-        env:
-          TARGET_PATH: ${{ inputs.short-session == true && 'release' || 'production' }}
         run: |
-          chmod +x target/${{ env.TARGET_PATH }}/aleph-node
-          ls -alh target/${{ env.TARGET_PATH }}/
+          chmod +x target/release/aleph-node
+          ls -alh target/release/
           ls -alh ./docker/
           docker build \
             --tag '${{ inputs.fqdn-image }}' \
