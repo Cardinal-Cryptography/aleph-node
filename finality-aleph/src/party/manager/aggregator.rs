@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use futures::{
     channel::{mpsc, oneshot},
-    pin_mut, StreamExt,
+    pin_mut,
+    stream::FusedStream,
+    StreamExt,
 };
 use log::{debug, error, trace};
 use sc_client_api::HeaderBackend;
@@ -91,7 +93,7 @@ async fn run_aggregator<B, C, CN, LN, JS>(
     session_boundaries: &SessionBoundaries,
     mut metrics: AllBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
-) -> Result<(), ()>
+) -> Result<(), String>
 where
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
@@ -117,37 +119,34 @@ where
     });
     pin_mut!(blocks_from_interpreter);
     let mut hash_of_last_block = None;
-    let mut no_more_blocks = false;
+    let mut no_more_blocks = blocks_from_interpreter.is_terminated();
 
     let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
 
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
-            maybe_block = blocks_from_interpreter.next() => {
-                if let Some(block) = maybe_block {
+            maybe_block = blocks_from_interpreter.next(), if !no_more_blocks => match maybe_block {
+                Some(block) => {
                     hash_of_last_block = Some(block.hash());
                     process_new_block_data::<CN, LN>(
                         &mut aggregator,
                         block,
                         &mut metrics
                     ).await;
-                } else {
+                },
+                None => {
                     debug!(target: "aleph-party", "Blocks ended in aggregator.");
                     no_more_blocks = true;
-                }
-            }
+                },
+            },
             multisigned_hash = aggregator.next_multisigned_hash() => {
-                if let Some((hash, multisignature)) = multisigned_hash {
-                    process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client)?;
-                    if Some(hash) == hash_of_last_block {
-                        hash_of_last_block = None;
-                    }
-                } else {
-                    debug!(target: "aleph-party", "The stream of multisigned hashes has ended. Terminating.");
-                    break;
+                let (hash, multisignature) = multisigned_hash.ok_or("The stream of multisigned hashes has ended. Terminating.")?;
+                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_|"Error while processing a hash.")?;
+                if Some(hash) == hash_of_last_block {
+                    hash_of_last_block = None;
                 }
-            }
+            },
             _ = status_ticker.tick() => {
                 aggregator.status_report();
             },
@@ -209,6 +208,13 @@ where
                 exit,
             )
             .await;
+            let result = match result {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!(target: "aleph-party", "Aggregator exited with error: {err}");
+                    Err(())
+                }
+            };
             debug!(target: "aleph-party", "Aggregator task stopped for {:?}", session_id);
             result
         }

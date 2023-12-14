@@ -7,8 +7,9 @@ use std::{
 };
 
 use futures::{channel::mpsc, StreamExt};
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
+use primitives::Bottom;
 use rand::{seq::IteratorRandom, thread_rng};
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
@@ -503,36 +504,26 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         info!(target: LOG_TARGET, "{}", status);
     }
 
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> Result<Bottom, String> {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
-                maybe_event = self.network_event_stream.next_event() => match maybe_event {
-                    Some(event) => if self.handle_network_event(event).is_err() {
-                        error!(target: LOG_TARGET, "Cannot forward messages to user.");
-                        return;
-                    },
-                    None => {
-                        error!(target: LOG_TARGET, "Network event stream ended.");
-                        return;
+                maybe_event = self.network_event_stream.next_event() => {
+                    let event = maybe_event.ok_or("Network event stream ended.")?;
+                    self.handle_network_event(event).map_err(|_| "Cannot forward messages to user.")?;
+                },
+                maybe_message = self.messages_from_authentication_user.next() => {
+                    match maybe_message.ok_or("Authentication user message stream ended.")? {
+                        Command::Broadcast(message) => self.broadcast_authentication(message),
+                        Command::SendToRandom(message, peer_ids) => self.send_to_random_authentication(message, peer_ids),
+                        Command::Send(message, peer_id) => self.send_authentication_data(message, peer_id),
                     }
                 },
-                maybe_message = self.messages_from_authentication_user.next() => match maybe_message {
-                    Some(Command::Broadcast(message)) => self.broadcast_authentication(message),
-                    Some(Command::SendToRandom(message, peer_ids)) => self.send_to_random_authentication(message, peer_ids),
-                    Some(Command::Send(message, peer_id)) => self.send_authentication_data(message, peer_id),
-                    None => {
-                        error!(target: LOG_TARGET, "Authentication user message stream ended.");
-                        return;
-                    }
-                },
-                maybe_message = self.messages_from_block_sync_user.next() => match maybe_message {
-                    Some(Command::Broadcast(message)) => self.broadcast_block_sync(message),
-                    Some(Command::SendToRandom(message, peer_ids)) => self.send_to_random_block_sync(message, peer_ids),
-                    Some(Command::Send(message, peer_id)) => self.send_block_sync_data(message, peer_id),
-                    None => {
-                        error!(target: LOG_TARGET, "Block sync user message stream ended.");
-                        return;
+                maybe_message = self.messages_from_block_sync_user.next() => {
+                    match maybe_message.ok_or("Block sync user message stream ended.")? {
+                        Command::Broadcast(message) => self.broadcast_block_sync(message),
+                        Command::SendToRandom(message, peer_ids) => self.send_to_random_block_sync(message, peer_ids),
+                        Command::Send(message, peer_id) => self.send_block_sync_data(message, peer_id),
                     }
                 },
                 _ = status_ticker.tick() => {

@@ -10,6 +10,7 @@ use futures::{
 };
 use log::{debug, trace, warn};
 use network_clique::{Network as CliqueNetwork, PublicKey};
+use primitives::Bottom;
 use tokio::time::{self, Instant};
 
 use crate::{
@@ -347,7 +348,7 @@ where
     }
 
     /// Run the connection manager service.
-    pub async fn run(mut self) -> Result<(), Error<GN::Error>> {
+    pub async fn run(mut self) -> Result<Bottom, Error<GN::Error>> {
         // Initial delay is needed so that Network is fully set up and we received some first discovery broadcasts from other nodes.
         // Otherwise this might cause first maintenance never working, as it happens before first broadcasts.
         let mut maintenance =
@@ -359,33 +360,27 @@ where
             tokio::select! {
                 maybe_command = self.commands_from_user.next() => {
                     trace!(target: "aleph-network", "Manager received a command from user");
-                    match maybe_command {
-                        Some(command) => match self.handle_command(command) {
-                            Ok(to_send) => self.handle_manager_actions(to_send)?,
-                            Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
-                        },
-                        None => return Err(Error::CommandsChannel),
+                    let command = maybe_command.ok_or(Error::CommandsChannel)?;
+                    match self.handle_command(command) {
+                        Ok(to_send) => self.handle_manager_actions(to_send)?,
+                        Err(e) => warn!(target: "aleph-network", "Failed to update handler: {:?}", e),
                     }
                 },
                 maybe_message = self.messages_from_user.next() => {
                     trace!(target: "aleph-network", "Manager received a message from user");
-                    match maybe_message {
-                        Some((message, session_id, recipient)) => for message in self.manager.on_user_message(message, session_id, recipient) {
-                            self.send_data(message);
-                        },
-                        None => return Err(Error::MessageChannel),
+                    let (message, session_id, recipient) = maybe_message.ok_or(Error::MessageChannel)?;
+                    for message in self.manager.on_user_message(message, session_id, recipient) {
+                        self.send_data(message);
                     }
                 },
                 maybe_data = self.validator_network.next() => {
                     trace!(target: "aleph-network", "Manager received some data from network");
-                    match maybe_data {
-                        Some(DataInSession{data, session_id}) => if let Err(e) = self.manager.send_session_data(&session_id, data) {
-                            match e {
-                                SendError::UserSend => trace!(target: "aleph-network", "Failed to send to user in session."),
-                                SendError::NoSession => trace!(target: "aleph-network", "Received message for unknown session."),
-                            }
-                        },
-                        None => return Err(Error::ValidatorNetwork),
+                    let DataInSession{data, session_id} = maybe_data.ok_or(Error::ValidatorNetwork)?;
+                    if let Err(e) = self.manager.send_session_data(&session_id, data) {
+                        match e {
+                            SendError::UserSend => trace!(target: "aleph-network", "Failed to send to user in session."),
+                            SendError::NoSession => trace!(target: "aleph-network", "Received message for unknown session."),
+                        }
                     }
                 },
                 maybe_authentication = self.gossip_network.next() => {

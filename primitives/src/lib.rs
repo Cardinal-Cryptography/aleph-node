@@ -61,6 +61,12 @@ pub type Nonce = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+/// Can be used to represent an infinite computation. One can use it together
+/// with [Result<Bottom, T>](Result) to indicate that a computation can finish
+/// only when some error occurs, otherwise it will spin forever
+/// (compiler/type-checker will enforce this property).
+pub enum Bottom {}
+
 // Default number of heap pages that gives limit of 256MB for a runtime instance since each page is 64KB
 pub const HEAP_PAGES: u64 = 4096;
 

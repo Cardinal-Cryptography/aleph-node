@@ -3,8 +3,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures::StreamExt;
-use log::warn;
+use futures::{stream::FusedStream, StreamExt};
+use log::{debug, warn};
 use lru::LruCache;
 use sc_client_api::{
     BlockBackend, BlockImportNotification, FinalityNotification, FinalityNotifications,
@@ -19,7 +19,6 @@ use sp_runtime::{
 use substrate_prometheus_endpoint::{
     register, Counter, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
-use tokio::select;
 
 use crate::{
     metrics::{exponential_buckets_two_sided, TransactionPoolInfoProvider, LOG_TARGET},
@@ -135,8 +134,8 @@ pub async fn run_chain_state_metrics<
     TP: TransactionPoolInfoProvider<Extrinsic = X>,
 >(
     backend: &BE,
-    import_notifications: ImportNotifications<B>,
-    finality_notifications: FinalityNotifications<B>,
+    mut import_notifications: ImportNotifications<B>,
+    mut finality_notifications: FinalityNotifications<B>,
     registry: Option<Registry>,
     mut transaction_pool_info_provider: TP,
 ) {
@@ -156,13 +155,12 @@ pub async fn run_chain_state_metrics<
         NonZeroUsize::new(TRANSACTION_CACHE_SIZE).expect("the cache size is a non-zero constant"),
     );
 
-    let mut import_notifications = import_notifications.fuse();
-    let mut finality_notifications = finality_notifications.fuse();
     let mut previous_best: Option<HE> = None;
+    let mut transaction_pool_info_provider_terminated = false;
 
     loop {
-        select! {
-            maybe_block = import_notifications.next() => match maybe_block {
+        tokio::select! {
+            maybe_block = import_notifications.next(), if !import_notifications.is_terminated() => match maybe_block {
                 Some(block) => handle_block_imported(
                     block,
                     backend,
@@ -176,21 +174,29 @@ pub async fn run_chain_state_metrics<
                     "Block import notification stream ended unexpectedly"
                 ),
             },
-            maybe_block = finality_notifications.next() => match maybe_block {
+            maybe_block = finality_notifications.next(), if !finality_notifications.is_terminated() => match maybe_block {
                 Some(block) => handle_block_finalized(block, &metrics),
                 None => warn!(
                     target: LOG_TARGET,
                     "Finality notification stream ended unexpectedly"
                 ),
             },
-            maybe_transaction = transaction_pool_info_provider.next_transaction() => {
+            maybe_transaction = transaction_pool_info_provider.next_transaction(), if !transaction_pool_info_provider_terminated => {
                 match maybe_transaction {
                     Some(hash) => handle_transaction_in_pool(hash, &mut cache),
-                    None => warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly"),
+                    None => {
+                        warn!(target: LOG_TARGET, "Transaction stream ended unexpectedly");
+                        transaction_pool_info_provider_terminated = true;
+                    },
                 }
             }
+            else => {
+                warn!(target: LOG_TARGET, "All streams ended");
+                break;
+            },
         }
     }
+    debug!(target: LOG_TARGET, "ChainSateMetrics finished");
 }
 
 fn handle_block_imported<

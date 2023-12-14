@@ -12,6 +12,7 @@ use futures::{
         mpsc::{self, UnboundedSender},
         oneshot,
     },
+    stream::FusedStream,
     StreamExt,
 };
 use futures_timer::Delay;
@@ -233,26 +234,36 @@ where
         )
     }
 
-    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
+    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) -> Result<(), String> {
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
         let mut import_stream = self.client.import_notification_stream();
+        if import_stream.is_terminated() {
+            return Err("Block import notification stream was closed")?;
+        }
         let mut finality_stream = self.client.finality_notification_stream();
+        if finality_stream.is_terminated() {
+            return Err("Finalized block import notification stream was closed")?;
+        }
         loop {
             self.prune_pending_messages();
             self.prune_triggers();
+
             tokio::select! {
-                Some(message) = self.messages_from_network.next() => {
+                maybe_message = self.messages_from_network.next() => {
+                    let message = maybe_message.ok_or("`messages_from_network` stream was closed")?;
                     trace!(target: "aleph-data-store", "Received message at Data Store {:?}", message);
                     self.on_message_received(message);
-                }
-                Some(block) = &mut import_stream.next() => {
+                },
+                maybe_block = import_stream.next() => {
+                    let block = maybe_block.ok_or("`import_stream` was closed")?;
                     trace!(target: "aleph-data-store", "Block import notification at Data Store for block {:?}", block);
                     self.on_block_imported((block.header.hash(), *block.header.number()).into());
                 },
-                Some(block) = &mut finality_stream.next() => {
+                maybe_block = finality_stream.next() => {
+                    let block = maybe_block.ok_or("`finality_stream` was closed")?;
                     trace!(target: "aleph-data-store", "Finalized block import notification at Data Store for block {:?}", block);
                     self.on_block_finalized((block.header.hash(), *block.header.number()).into());
-                }
+                },
                 _ = &mut maintenance_clock => {
                     self.run_maintenance();
                     maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
@@ -263,6 +274,8 @@ where
                 }
             }
         }
+        debug!(target: "aleph-data-store", "Data store finished");
+        Ok(())
     }
 
     // Updates our highest known and highest finalized block info directly from the client.
@@ -653,6 +666,8 @@ where
     R: Receiver<Message> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
-        DataStore::run(&mut self, exit).await
+        if let Err(err) = DataStore::run(&mut self, exit).await {
+            error!(target: "aleph-data-store", "Legacy DataStore exited with error: {err}.");
+        }
     }
 }

@@ -1,7 +1,8 @@
 use std::{collections::HashSet, time::Duration};
 
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, stream::FusedStream, StreamExt};
 use log::{debug, error, trace, warn};
+use primitives::Bottom;
 use substrate_prometheus_endpoint::Registry;
 
 use crate::{
@@ -730,54 +731,61 @@ where
     }
 
     /// Stay synchronized.
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> Result<Bottom, String> {
+        if self.additional_justifications_from_user.is_terminated() {
+            return Err(
+                "Channel with additional justifications from user closed before we started.",
+            )?;
+        }
+        if self.blocks_from_creator.is_terminated() {
+            return Err("Channel with own blocks closed before we started.")?;
+        }
         loop {
             tokio::select! {
-                maybe_data = self.network.next() => match maybe_data {
-                    Ok((data, peer)) => self.handle_network_data(data, peer),
-                    Err(e) => warn!(target: LOG_TARGET, "Error receiving data from network: {}.", e),
+                maybe_data = self.network.next() => {
+                    let (data, peer) = maybe_data.map_err(|e| format!("Error receiving data from network: {e}."))?;
+                    self.handle_network_data(data, peer);
                 },
+
                 Some(task) = self.tasks.pop() => self.handle_task(task),
+
                 _ = self.broadcast_ticker.wait_and_tick() => self.broadcast(),
+
                 force = self.chain_extension_ticker.wait_and_tick() => self.request_chain_extension(force),
-                maybe_event = self.chain_events.next() => match maybe_event {
-                    Ok(chain_event) => self.handle_chain_event(chain_event),
-                    Err(e) => warn!(target: LOG_TARGET, "Error when receiving a chain event: {}.", e),
+
+                maybe_event = self.chain_events.next() => {
+                    let chain_event = maybe_event.map_err(|e| format!("Error when receiving a chain event: {}.", e))?;
+                    self.handle_chain_event(chain_event);
                 },
-                maybe_justification = self.justifications_from_user.next() => match maybe_justification {
-                    Some(justification) => {
-                        debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
-                        self.handle_justification_from_user(justification);
-                    },
-                    None => warn!(target: LOG_TARGET, "Channel with justifications from user closed."),
+
+                maybe_justification = self.justifications_from_user.next() => {
+                    let justification = maybe_justification.ok_or("Channel with justifications from user closed.")?;
+                    debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
+                    self.handle_justification_from_user(justification);
                 },
-                maybe_justification = self.additional_justifications_from_user.next() => match maybe_justification {
-                    Some(justification) => {
-                        debug!(target: LOG_TARGET, "Received new additional justification from user: {:?}.", justification);
-                        self.handle_justification_from_user(justification);
-                    },
-                    None => warn!(target: LOG_TARGET, "Channel with additional justifications from user closed."),
+
+                maybe_justification = self.additional_justifications_from_user.next() => {
+                    let justification = maybe_justification.ok_or("Channel with additional justifications from user closed.")?;
+                    debug!(target: LOG_TARGET, "Received new additional justification from user: {:?}.", justification);
+                    self.handle_justification_from_user(justification);
                 },
-                maybe_header = self.block_requests_from_user.next() => match maybe_header {
-                    Some(header) => {
-                        debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", header);
-                        self.handle_internal_request(header)
-                    },
-                    None => warn!(target: LOG_TARGET, "Channel with internal block request from user closed."),
+
+                maybe_header = self.block_requests_from_user.next() => {
+                    let header = maybe_header.ok_or("Channel with internal block request from user closed.")?;
+                    debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", header);
+                    self.handle_internal_request(header)
                 },
-                maybe_block_id = self.legacy_block_requests_from_user.next() => match maybe_block_id {
-                    Some(block_id) => {
-                        debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", block_id);
-                        self.handle_legacy_internal_request(block_id)
-                    },
-                    None => warn!(target: LOG_TARGET, "Channel with legacy internal block request from user closed."),
+
+                maybe_block_id = self.legacy_block_requests_from_user.next() => {
+                    let block_id = maybe_block_id.ok_or("Channel with legacy internal block request from user closed.")?;
+                    debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", block_id);
+                    self.handle_legacy_internal_request(block_id);
                 },
-                maybe_own_block = self.blocks_from_creator.next() => match maybe_own_block {
-                    Some(block) => {
-                        debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
-                        self.handle_own_block(block)
-                    },
-                    None => warn!(target: LOG_TARGET, "Channel with own blocks closed."),
+
+                maybe_own_block = self.blocks_from_creator.next() => {
+                    let block = maybe_own_block.ok_or("Channel with own blocks closed.")?;
+                    debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
+                    self.handle_own_block(block);
                 },
             }
         }

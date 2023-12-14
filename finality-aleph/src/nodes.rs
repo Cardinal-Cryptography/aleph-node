@@ -46,6 +46,8 @@ use crate::{
 // so the actual size probably needs to be increased by one.
 pub const VERIFIER_CACHE_SIZE: usize = 3;
 
+const LOG_TARGET: &str = "aleph-party";
+
 pub fn new_pen(mnemonic: &str, keystore: Arc<dyn Keystore>) -> AuthorityPen {
     let validator_peer_id = keystore
         .ed25519_generate_new(KEY_TYPE, Some(mnemonic))
@@ -95,7 +97,7 @@ where
         keystore.clone(),
     );
 
-    debug!(target: "aleph-party", "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
+    debug!(target: LOG_TARGET, "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
 
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
@@ -119,8 +121,11 @@ where
     );
     let (_validator_network_exit, exit) = oneshot::channel();
     spawn_handle.spawn("aleph/validator_network", async move {
-        debug!(target: "aleph-party", "Validator network has started.");
-        validator_network_service.run(exit).await
+        debug!(target: LOG_TARGET, "Validator network has started.");
+        match validator_network_service.run(exit).await {
+            Ok(_) => debug!(target: LOG_TARGET, "Validator network finished."),
+            Err(err) => error!(target: LOG_TARGET, "Validator network finished with error: {err}."),
+        }
     });
 
     let (gossip_network_service, authentication_network, block_sync_network) = GossipService::new(
@@ -129,7 +134,12 @@ where
         spawn_handle.clone(),
         registry.clone(),
     );
-    let gossip_network_task = async move { gossip_network_service.run().await };
+    let gossip_network_task = async move {
+        match gossip_network_service.run().await {
+            Ok(_) => error!(target: LOG_TARGET, "GossipNetwork finished."),
+            Err(err) => error!(target: LOG_TARGET, "GossipNetwork finished with error: {err}."),
+        }
+    };
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
@@ -138,8 +148,9 @@ where
     );
     let session_authorities = map_updater.readonly_session_map();
     spawn_handle.spawn("aleph/updater", async move {
-        debug!(target: "aleph-party", "SessionMapUpdater has started.");
-        map_updater.run().await
+        debug!(target: LOG_TARGET, "SessionMapUpdater has started.");
+        map_updater.run().await;
+        debug!(target: LOG_TARGET, "SessionMapUpdater finished.");
     });
 
     let chain_events = SubstrateChainStatusNotifier::new(
@@ -193,7 +204,12 @@ where
         Ok(x) => x,
         Err(e) => panic!("Failed to initialize Sync service: {e}"),
     };
-    let sync_task = async move { sync_service.run().await };
+    let sync_task = async move {
+        match sync_service.run().await {
+            Ok(_) => error!(target: LOG_TARGET, "Sync service finished."),
+            Err(err) => error!(target: LOG_TARGET, "Sync service finished with error: {err}."),
+        }
+    };
 
     let validator_address_cache_updater = validator_address_cache_updater(
         validator_address_cache,
@@ -219,11 +235,11 @@ where
     };
 
     spawn_handle.spawn("aleph/sync", sync_task);
-    debug!(target: "aleph-party", "Sync has started.");
+    debug!(target: LOG_TARGET, "Sync has started.");
 
     spawn_handle.spawn("aleph/connection_manager", connection_manager_task);
     spawn_handle.spawn("aleph/gossip_network", gossip_network_task);
-    debug!(target: "aleph-party", "Gossip network has started.");
+    debug!(target: LOG_TARGET, "Gossip network has started.");
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
@@ -250,7 +266,7 @@ where
         session_info,
     });
 
-    debug!(target: "aleph-party", "Consensus party has started.");
+    debug!(target: LOG_TARGET, "Consensus party has started.");
     party.run().await;
-    error!(target: "aleph-party", "Consensus party has finished unexpectedly.");
+    error!(target: LOG_TARGET, "Consensus party has finished unexpectedly.");
 }
