@@ -44,24 +44,22 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
-      - name: Call action get-ref-properties
-        id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v5
-
       - name: Download aleph-node artifact
         uses: actions/download-artifact@v3
         env:
           TARGET_PATH: ${{ inputs.short-session == true && 'release' || 'production' }}
+          ARTIFACT: ${{ inputs.short-session == true
+            && 'aleph-test-node' || `aleph-production-node' }}
         with:
-          name: aleph-test-node
-          path: target/${{ env.TARGET.PATH }}/
+          name: ${{ env.ARTIFACT }}
+          path: target/${{ env.TARGET_PATH }}/
 
       - name: Build docker image with PR aleph-node binary
         env:
           TARGET_PATH: ${{ inputs.short-session == true && 'release' || 'production' }}
         run: |
-          chmod +x target/${{ env.TARGET.PATH }}/aleph-node
-          ls -alh target/${{ env.TARGET.PATH }}/
+          chmod +x target/${{ env.TARGET_PATH }}/aleph-node
+          ls -alh target/${{ env.TARGET_PATH }}/
           ls -alh ./docker/
           docker build \
             --tag '${{ inputs.fqdn-image }}' \
