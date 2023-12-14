@@ -70,26 +70,27 @@ function bootstrap() {
     > "${CHAINSPEC_FILE}"
 }
 
-function benchmark_pallet() {
+function benchmark() {
+  local target="$1";
+  local output_path="$2";
+
   cargo run --release -p aleph-node --features liminal-runtime-benchmarks -- benchmark pallet \
-      --chain="${CHAINSPEC_FILE}" \
-      --pallet=pallet_vk_storage \
-      --extrinsic='*' \
-      --steps=20 \
-      --repeat=5 \
-      --template=.maintain/pallet-weight-template.hbs \
-      --wasm-execution=compiled \
-      --output=pallets/vk-storage/src/weights.rs
+        --chain="${CHAINSPEC_FILE}" \
+        --pallet="${target}" \
+        --extrinsic='*' \
+        --steps=20 \
+        --repeat=5 \
+        --template=.maintain/pallet-weight-template.hbs \
+        --wasm-execution=compiled \
+        --output="${output_path}"
+}
+
+function benchmark_pallet() {
+  benchmark pallet_vk_storage pallets/vk-storage/src/weights.rs
 }
 
 function benchmark_chain_extension() {
-  cargo run --release -p aleph-node --features liminal-runtime-benchmarks -- benchmark pallet \
-      --chain="${CHAINSPEC_FILE}" \
-      --pallet=baby_liminal_extension \
-      --extrinsic='*' \
-      --steps=20 \
-      --repeat=5 \
-      --wasm-execution=compiled
+  benchmark baby_liminal_extension baby-liminal-extension/src/backend/weights.rs
 }
 
 # ------------------------ main ------------------------------------------------
