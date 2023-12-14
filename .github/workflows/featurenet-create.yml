@@ -9,7 +9,7 @@ on:
         type: string
         required: true
       ref:
-        description: "git ref: full hash, branch, tag - or 'mainnet' or 'testnet'"
+        description: "git ref: full commit hash, branch, tag - or 'mainnet' or 'testnet'"
         type: string
         required: true
       expiration:

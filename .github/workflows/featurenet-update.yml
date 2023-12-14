@@ -9,7 +9,7 @@ on:
         required: true
         type: string
       ref:
-        description: 'git ref: hash, branch, tag'
+        description: 'git ref: full commit hash, branch, tag'
         required: true
         type: string
       rolling-update-partition:
@@ -89,13 +89,13 @@ jobs:
   update-featurenet:
     needs: [get-full-docker-image-path, build-and-push-featurenet-node-image]
     # to prevent this job to be skipped when on of the parent jobs is skipped
-    # if: ${{ always() }}
+    if: ${{ !cancelled() }}
     name: Update featurenet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
-      aleph-node-image: ${{ nneeds.get-full-docker-image-path.outputs.fqdn-image }}
+      aleph-node-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
       validators: ${{ inputs.validators }}
       internal: ${{ inputs.internal && true || false }}
