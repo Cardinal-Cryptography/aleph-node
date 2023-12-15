@@ -13,7 +13,7 @@ use crate::{
 pub enum Error {
     JustificationStreamClosed,
     ImportStreamClosed,
-    AllStreamsClosed,
+    AllStreamsTerminated,
 }
 
 impl Display for Error {
@@ -26,7 +26,7 @@ impl Display for Error {
             ImportStreamClosed => {
                 write!(f, "import notification stream has ended")
             }
-            AllStreamsClosed => {
+            AllStreamsTerminated => {
                 write!(f, "all streams have ended")
             }
         }
@@ -67,7 +67,7 @@ impl ChainStatusNotifier<Header> for SubstrateChainStatusNotifier {
                 .map(|block| ChainStatusNotification::BlockImported(block.header))
                 .ok_or(Error::ImportStreamClosed)
             }
-            complete => Err(Error::AllStreamsClosed)
+            complete => Err(Error::AllStreamsTerminated)
         }
     }
 }
