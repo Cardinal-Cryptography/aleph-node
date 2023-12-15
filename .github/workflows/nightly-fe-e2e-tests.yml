@@ -50,7 +50,7 @@ jobs:
     with:
       ref: ${{ needs.get-full-docker-image-path.outputs.ref }}
       fqdn-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
-      short-session: ${{ inputs.short-session }}
+      short-session: 'false'
     secrets: inherit
 
   create-featurenet:
