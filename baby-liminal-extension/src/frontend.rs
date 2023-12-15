@@ -5,10 +5,8 @@ use ink::{
     prelude::vec::Vec,
 };
 
-use crate::VerificationKeyIdentifier;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[allow(missing_docs)] // Error variants are self-descriptive.
 /// Chain extension errors enumeration.
 pub enum BabyLiminalError {
@@ -27,8 +25,8 @@ pub enum BabyLiminalError {
     UnknownError(u32),
 }
 
-impl From<scale::Error> for BabyLiminalError {
-    fn from(_: scale::Error) -> Self {
+impl From<ink::scale::Error> for BabyLiminalError {
+    fn from(_: ink::scale::Error) -> Self {
         Self::ScaleError
     }
 }
@@ -48,7 +46,6 @@ impl ink::env::chain_extension::FromStatusCode for BabyLiminalError {
             VERIFY_DESERIALIZING_KEY_FAIL => Err(Self::DeserializingVerificationKeyFailed),
             VERIFY_VERIFICATION_FAIL => Err(Self::VerificationFailed),
             VERIFY_INCORRECT_PROOF => Err(Self::IncorrectProof),
-            VERIFY_ERROR_UNKNOWN => Err(Self::VerifyErrorUnknown),
 
             unexpected => Err(Self::UnknownError(unexpected)),
         }
@@ -56,25 +53,27 @@ impl ink::env::chain_extension::FromStatusCode for BabyLiminalError {
 }
 
 /// BabyLiminal chain extension definition.
-#[ink::chain_extension]
+// IMPORTANT: this must match the extension ID in `extension_ids.rs`! However, because constants are not inlined before
+// macro processing, we can't use an identifier from another module here.
+#[ink::chain_extension(extension = 41)]
 pub trait BabyLiminalExtension {
     type ErrorCode = BabyLiminalError;
 
     /// Verify a ZK proof `proof` given the public input `input` against the verification key
     /// `identifier`.
-    // IMPORTANT: this must match the extension ID in `extension_ids.rs`! However, because constants
-    // are not inlined before macro processing, we can't use an identifier from another module here.
-    #[ink(extension = 0)]
+    // IMPORTANT: this must match the function ID in `extension_ids.rs`! However, because constants are not inlined
+    // before macro processing, we can't use an identifier from another module here.
+    #[ink(function = 0)]
     fn verify(
-        identifier: VerificationKeyIdentifier,
+        identifier: crate::KeyHash,
         proof: Vec<u8>,
         input: Vec<u8>,
     ) -> Result<(), BabyLiminalError>;
 }
 
 /// Default ink environment with `BabyLiminalExtension` included.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
 pub enum Environment {}
 
 impl EnvironmentT for Environment {
