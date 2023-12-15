@@ -60,7 +60,7 @@ trap cleanup EXIT
 
 # ------------------------ functions -------------------------------------------
 function bootstrap() {
-  cargo run --release -p aleph-node --features liminal-runtime-benchmarks -- bootstrap-chain \
+  cargo run --profile production -p aleph-node --features liminal-runtime-benchmarks -- bootstrap-chain \
     --base-path /tmp/ \
     --account-ids $NODE_ID \
     --sudo-account-id $NODE_ID \
@@ -74,7 +74,7 @@ function benchmark() {
   local target="$1";
   local output_path="$2";
 
-  cargo run --release -p aleph-node --features liminal-runtime-benchmarks -- benchmark pallet \
+  cargo run --profile production -p aleph-node --features liminal-runtime-benchmarks -- benchmark pallet \
         --chain="${CHAINSPEC_FILE}" \
         --pallet="${target}" \
         --extrinsic='*' \
