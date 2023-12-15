@@ -99,9 +99,9 @@ jobs:
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
-      expiration: ${{ inputs.expiration }}
-      validators: ${{ inputs.validators }}
-      internal: ${{ inputs.internal && true || false }}
       featurenet-name: ${{ inputs.featurenet-name }}
       aleph-node-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
+      validators: ${{ inputs.validators }}
+      expiration: ${{ inputs.expiration }}
+      internal: ${{ inputs.internal && true || false }}
       delete-first: true
