@@ -183,7 +183,7 @@ fn prepare_data_store(
     (
         async move {
             if let Err(err) = data_store.run(exit_data_store_rx).await {
-                panic!("DataStore finished with an error: {err}");
+                println!("DataStore finished with an error: {err}");
             }
         },
         exit_data_store_tx,
