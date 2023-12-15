@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path
         id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: 'testnet'
           test-binary: 'false'
@@ -61,7 +61,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path
         id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: 'mainnet'
           test-binary: 'false'
@@ -79,7 +79,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path
         id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: 'main'
           test-binary: 'false'
@@ -91,7 +91,7 @@ jobs:
       - get-net-names
       - get-full-docker-image-path-testnet
     name: Create featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-net-names.outputs.updatenet-testnet-name }}
@@ -107,7 +107,7 @@ jobs:
       - create-featurenet-from-testnet
       - get-full-docker-image-path-mainnet
     name: Create featurenet from mainnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-net-names.outputs.updatenet-mainnet-name }}
@@ -123,7 +123,7 @@ jobs:
       - create-featurenet-from-mainnet
       - get-full-docker-image-path-main-branch
     name: Update featurenet from testnet to main image
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-net-names.outputs.updatenet-testnet-name }}
@@ -139,7 +139,7 @@ jobs:
       - update-featurenet-from-testnet
       - get-full-docker-image-path-main-branch
     name: Update featurenet from mainnet to main branch
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
       featurenet-name: ${{ needs.get-net-names.outputs.updatenet-mainnet-name }}

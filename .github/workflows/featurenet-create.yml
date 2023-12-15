@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path
         id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: ${{ inputs.ref }}
           test-binary: ${{ inputs.short-session == true && 'true' || 'false' }}
@@ -96,7 +96,7 @@ jobs:
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
     name: Create featurenet from branch
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
