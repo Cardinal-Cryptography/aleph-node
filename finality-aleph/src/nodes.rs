@@ -97,7 +97,11 @@ where
         keystore.clone(),
     );
 
-    debug!(target: LOG_TARGET, "Initializing rate-limiter for the validator-network with {} byte(s) per second.", rate_limiter_config.alephbft_bit_rate_per_connection);
+    debug!(
+        target: LOG_TARGET,
+        "Initializing rate-limiter for the validator-network with {} byte(s) per second.",
+        rate_limiter_config.alephbft_bit_rate_per_connection
+    );
 
     let (dialer, listener, network_identity) = new_tcp_network(
         ("0.0.0.0", validator_port),
@@ -124,7 +128,10 @@ where
         debug!(target: LOG_TARGET, "Validator network has started.");
         match validator_network_service.run(exit).await {
             Ok(_) => debug!(target: LOG_TARGET, "Validator network finished."),
-            Err(err) => error!(target: LOG_TARGET, "Validator network finished with error: {err}."),
+            Err(err) => error!(
+                target: LOG_TARGET,
+                "Validator network finished with error: {err}."
+            ),
         }
     });
 
@@ -137,7 +144,10 @@ where
     let gossip_network_task = async move {
         match gossip_network_service.run().await {
             Ok(_) => error!(target: LOG_TARGET, "GossipNetwork finished."),
-            Err(err) => error!(target: LOG_TARGET, "GossipNetwork finished with error: {err}."),
+            Err(err) => error!(
+                target: LOG_TARGET,
+                "GossipNetwork finished with error: {err}."
+            ),
         }
     };
 
@@ -207,7 +217,10 @@ where
     let sync_task = async move {
         match sync_service.run().await {
             Ok(_) => error!(target: LOG_TARGET, "Sync service finished."),
-            Err(err) => error!(target: LOG_TARGET, "Sync service finished with error: {err}."),
+            Err(err) => error!(
+                target: LOG_TARGET,
+                "Sync service finished with error: {err}."
+            ),
         }
     };
 
@@ -268,5 +281,8 @@ where
 
     debug!(target: LOG_TARGET, "Consensus party has started.");
     party.run().await;
-    error!(target: LOG_TARGET, "Consensus party has finished unexpectedly.");
+    error!(
+        target: LOG_TARGET,
+        "Consensus party has finished unexpectedly."
+    );
 }

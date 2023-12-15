@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use futures::stream::{Stream, StreamExt, Fuse};
+use futures::stream::{Fuse, Stream, StreamExt};
 use log::{error, trace, warn};
 use sc_network::{
     multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
@@ -237,7 +237,10 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
     pub fn event_stream(&self) -> NetworkEventStream<B, H> {
         NetworkEventStream {
             stream: self.network.event_stream("aleph-network").fuse(),
-            sync_stream: self.sync_network.event_stream("aleph-syncing-network").fuse(),
+            sync_stream: self
+                .sync_network
+                .event_stream("aleph-syncing-network")
+                .fuse(),
             naming: self.naming.clone(),
             network: self.network.clone(),
         }
