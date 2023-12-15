@@ -17,37 +17,20 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-aleph-node-main-sha:
+  get-net-names:
     needs: [check-vars-and-secrets]
     name: Get aleph-node main SHA
     outputs:
       updatenet-testnet-name: ${{ steps.get-featurenet-name.outputs.updatenet-testnet-name }}
       updatenet-mainnet-name: ${{ steps.get-featurenet-name.outputs.updatenet-mainnet-name }}
       aleph-node-main-hash: ${{ steps.get-update-hashes.outputs.update-hash }}
-    runs-on: [self-hosted, Linux, X64, small]
+    runs-on: ubuntu-20.04
     steps:
       - name: Get featurenet name
         id: get-featurenet-name
         run: |
           echo "updatenet-testnet-name=ops-updatenet-testnet" >> $GITHUB_OUTPUT
           echo "updatenet-mainnet-name=ops-updatenet-mainnet" >> $GITHUB_OUTPUT
-
-      - name: Checkout aleph-node repository
-        uses: actions/checkout@v4
-        with:
-          path: aleph-node
-          ref: main
-          repository: Cardinal-Cryptography/aleph-node
-          token: ${{ secrets.CI_GH_TOKEN }}
-          fetch-depth: 0
-
-      - name: Get main commit hash
-        shell: bash
-        id: get-update-hashes
-        run: |
-          cd aleph-node
-          update_hash=$(git rev-parse HEAD)
-          echo "update-hash=${update_hash}" >> $GITHUB_OUTPUT
 
   get-full-docker-image-path-testnet:
     name: Get full aleph-node full docker path path for testnet
@@ -85,16 +68,34 @@ jobs:
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
 
+  get-full-docker-image-path-main-branch:
+    name: Get full aleph-node full docker path path for mainnet
+    needs: [check-vars-and-secrets]
+    runs-on: ubuntu-20.04
+    outputs:
+      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
+      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
+      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
+    steps:
+      - name: Get aleph-node fqdn path
+        id: get-aleph-node-fqdn-image
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-3645
+        with:
+          ref: 'main'
+          test-binary: 'false'
+          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
+          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
+
   create-featurenet-from-testnet:
     needs:
-      - get-aleph-node-main-sha
+      - get-net-names
       - get-full-docker-image-path-testnet
     name: Create featurenet from testnet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
-      aleph-node-image:  ${{ needs.get-full-docker-image-path-testnet.outputs.fqdn-image }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-testnet-name }}
+      aleph-node-image: ${{ needs.get-full-docker-image-path-testnet.outputs.fqdn-image }}
       expiration: '4h'
       validators: '7'
       internal: true
@@ -102,14 +103,14 @@ jobs:
 
   create-featurenet-from-mainnet:
     needs:
-      - get-aleph-node-main-sha
+      - get-net-names
       - create-featurenet-from-testnet
       - get-full-docker-image-path-mainnet
     name: Create featurenet from mainnet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-mainnet-name }}
       aleph-node-image: ${{ needs.get-full-docker-image-path-mainnet.outputs.fqdn-image }}
       expiration: '4h'
       validators: '7'
@@ -117,48 +118,58 @@ jobs:
       delete-first: true
 
   update-featurenet-from-testnet:
-    needs: [get-aleph-node-main-sha, create-featurenet-from-mainnet]
-    # yamllint disable-line rule:line-length
-    name: Update featurenet from testnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
+    needs:
+      - get-net-names
+      - create-featurenet-from-mainnet
+      - get-full-docker-image-path-main-branch
+    name: Update featurenet from testnet to main image
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
-      aleph-node-image: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-testnet-name }}
+      aleph-node-image: ${{ needs.get-full-docker-image-path-main-branch.outputs.fqdn-image }}
       expiration: '4h'
       rolling-update-partition: '0'
       validators: '7'
       internal: true
 
   update-featurenet-from-mainnet:
-    needs: [get-aleph-node-main-sha, update-featurenet-from-testnet]
-    # yamllint disable-line rule:line-length
-    name: Update featurenet from mainnet to ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
+    needs:
+      - get-net-names
+      - update-featurenet-from-testnet
+      - get-full-docker-image-path-main-branch
+    name: Update featurenet from mainnet to main branch
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3645
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
-      aleph-node-image: ${{ needs.get-aleph-node-main-sha.outputs.aleph-node-main-hash }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-mainnet-name }}
+      aleph-node-image: ${{ needs.get-full-docker-image-path-main-branch.outputs.fqdn-image }}
       expiration: '4h'
       rolling-update-partition: '0'
       validators: '7'
       internal: true
 
   delete-featurenet-from-testnet:
-    needs: [get-aleph-node-main-sha, update-featurenet-from-mainnet]
+    if: ${{ always() }}
+    needs:
+      - get-net-names
+      - update-featurenet-from-mainnet
     name: Delete featurenet from testnet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v5
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-testnet-name }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-testnet-name }}
 
   delete-featurenet-from-mainnet:
-    needs: [get-aleph-node-main-sha, delete-featurenet-from-testnet]
+    if: ${{ always() }}
+    needs:
+      - get-net-names
+      - delete-featurenet-from-testnet
     name: Delete featurenet from mainnet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v5
     secrets: inherit
     with:
-      featurenet-name: ${{ needs.get-aleph-node-main-sha.outputs.updatenet-mainnet-name }}
+      featurenet-name: ${{ needs.get-net-names.outputs.updatenet-mainnet-name }}
 
   slack-notification:
     name: Slack notification
