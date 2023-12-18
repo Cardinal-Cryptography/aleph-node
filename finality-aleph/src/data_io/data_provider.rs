@@ -303,10 +303,8 @@ where
     SC: SelectChain<B> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
-        tokio::select! {
-            _ = self.run() => error!(target: LOG_TARGET, "Task for refreshing best chain finished."),
-            _ = exit => debug!(target: LOG_TARGET, "Task for refreshing best chain received exit signal. Terminating."),
-        }
+        futures::future::select(self.run(), exit).await;
+        debug!(target: LOG_TARGET, "Task for refreshing best chain received exit signal. Terminating.")
     }
 }
 

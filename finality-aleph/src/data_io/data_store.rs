@@ -242,11 +242,11 @@ where
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
         let mut import_stream = self.client.import_notification_stream();
         if import_stream.is_terminated() {
-            return Err("Blocks import notification stream was closed.")?;
+            return Err("Blocks import notification stream was closed.".into());
         }
         let mut finality_stream = self.client.finality_notification_stream();
         if finality_stream.is_terminated() {
-            return Err("Finalized-blocks notification stream was closed.")?;
+            return Err("Finalized-blocks notification stream was closed.".into());
         }
         loop {
             self.prune_pending_messages();
