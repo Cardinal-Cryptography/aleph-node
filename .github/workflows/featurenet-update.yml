@@ -46,6 +46,11 @@ on:
         description: 'Use short session aleph-node binary'
         required: true
         type: boolean
+      sudo-account-id:
+        description: 'Sudo account ID'
+        type: string
+        required: true
+        default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 
 jobs:
   validate-inputs:
@@ -103,7 +108,7 @@ jobs:
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
     name: Update featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-3737
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
@@ -112,3 +117,4 @@ jobs:
       expiration: ${{ inputs.expiration }}
       internal: ${{ inputs.internal && true || false }}
       rolling-update-partition: ${{ inputs.rolling-update-partition }}
+      sudo-account-id: ${{ inputs.sudo-account-id }}
