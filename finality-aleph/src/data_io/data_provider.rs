@@ -282,7 +282,7 @@ where
         }
     }
 
-    async fn main_loop(&mut self) -> Bottom {
+    async fn run(mut self) -> Bottom {
         let mut best_block_in_session: Option<BlockId> = None;
         loop {
             futures_timer::Delay::new(self.config.refresh_interval).await;
@@ -290,13 +290,6 @@ where
             if let Some(best_block) = &best_block_in_session {
                 self.update_data(best_block);
             }
-        }
-    }
-
-    pub async fn run(mut self, exit: oneshot::Receiver<()>) {
-        tokio::select! {
-            _ = self.main_loop() => error!(target: LOG_TARGET, "Task for refreshing best chain finished."),
-            _ = exit => debug!(target: LOG_TARGET, "Task for refreshing best chain received exit signal. Terminating."),
         }
     }
 }
@@ -310,7 +303,10 @@ where
     SC: SelectChain<B> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
-        ChainTracker::run(self, exit).await
+        tokio::select! {
+            _ = self.run() => error!(target: LOG_TARGET, "Task for refreshing best chain finished."),
+            _ = exit => debug!(target: LOG_TARGET, "Task for refreshing best chain received exit signal. Terminating."),
+        }
     }
 }
 
@@ -357,6 +353,7 @@ mod tests {
             DataProvider, MAX_DATA_BRANCH_LEN,
         },
         metrics::AllBlockMetrics,
+        party::manager::Runnable,
         testing::{
             client_chain_builder::ClientChainBuilder,
             mocks::{aleph_data_from_blocks, THeader, TestClientBuilder, TestClientBuilderExt},
@@ -398,7 +395,7 @@ mod tests {
         let (exit_chain_tracker_tx, exit_chain_tracker_rx) = oneshot::channel();
         (
             async move {
-                chain_tracker.run(exit_chain_tracker_rx).await;
+                Runnable::run(chain_tracker, exit_chain_tracker_rx).await;
             },
             exit_chain_tracker_tx,
             chain_builder,
