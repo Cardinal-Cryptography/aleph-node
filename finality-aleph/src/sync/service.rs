@@ -1,9 +1,10 @@
 use std::{collections::HashSet, time::Duration, fmt::Display};
 
 use futures::{channel::mpsc, stream::FusedStream, StreamExt};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use primitives::Bottom;
 use substrate_prometheus_endpoint::Registry;
+use tokio::time;
 
 use crate::{
     block::{
@@ -27,7 +28,7 @@ use crate::{
         ticker::Ticker,
         BlockId, JustificationSubmissions, LegacyRequestBlocks, RequestBlocks, LOG_TARGET,
     },
-    SyncOracle,
+    SyncOracle, STATUS_REPORT_INTERVAL,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
@@ -47,7 +48,7 @@ where
     network: N,
     chain_events: CE,
     sync_oracle: SyncOracle,
-    additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+    justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     blocks_from_creator: mpsc::UnboundedReceiver<B>,
     database_io: DatabaseIO<B, J, CS, F, BI>,
 }
@@ -67,14 +68,14 @@ where
         network: N,
         chain_events: CE,
         sync_oracle: SyncOracle,
-        additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
+        justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
         blocks_from_creator: mpsc::UnboundedReceiver<B>,
     ) -> Self {
         IO {
             network,
             chain_events,
             sync_oracle,
-            additional_justifications_from_user,
+            justifications_from_user,
             blocks_from_creator,
             database_io,
         }
@@ -139,7 +140,6 @@ where
     chain_extension_ticker: Ticker,
     chain_events: CE,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
-    additional_justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     block_requests_from_user: mpsc::UnboundedReceiver<B::UnverifiedHeader>,
     legacy_block_requests_from_user: mpsc::UnboundedReceiver<BlockId>,
     blocks_from_creator: mpsc::UnboundedReceiver<B>,
@@ -189,8 +189,7 @@ where
     BI: BlockImport<B>,
 {
     /// Create a new service using the provided network for communication.
-    /// Also returns an interface for submitting additional justifications,
-    /// and an interface for requesting blocks.
+    /// Also returns an interface for requesting blocks.
     pub fn new(
         verifier: V,
         session_info: SessionBoundaryInfo,
@@ -199,7 +198,6 @@ where
     ) -> Result<
         (
             Self,
-            impl JustificationSubmissions<J> + Clone,
             impl RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
         ),
         HandlerError<B, J, CS, V, F>,
@@ -208,7 +206,7 @@ where
             network,
             chain_events,
             sync_oracle,
-            additional_justifications_from_user,
+            justifications_from_user,
             blocks_from_creator,
             database_io,
         } = io;
@@ -217,7 +215,6 @@ where
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);
         let chain_extension_ticker = Ticker::new(TICK_PERIOD, CHAIN_EXTENSION_COOLDOWN);
-        let (justifications_for_sync, justifications_from_user) = mpsc::unbounded();
         let (block_requests_for_sync, block_requests_from_user) = mpsc::unbounded();
         let (legacy_block_requests_for_sync, legacy_block_requests_from_user) = mpsc::unbounded();
         let metrics = match Metrics::new(metrics_registry) {
@@ -237,13 +234,11 @@ where
                 chain_extension_ticker,
                 chain_events,
                 justifications_from_user,
-                additional_justifications_from_user,
                 blocks_from_creator,
                 block_requests_from_user,
                 legacy_block_requests_from_user,
                 metrics,
             },
-            justifications_for_sync,
             CompatibilityRequestBlocks {
                 current: block_requests_for_sync,
                 legacy: legacy_block_requests_for_sync,
@@ -773,14 +768,11 @@ where
     pub async fn run(mut self) -> Result<Bottom, SyncServiceError> {
         use self::SyncServiceError as Error;
 
-        if self.additional_justifications_from_user.is_terminated() {
-            return Err(
-                Error::additional_justification_channel()
-            );
-        }
         if self.blocks_from_creator.is_terminated() {
             return Err(Error::creator_channel());
         }
+
+        let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => {
@@ -804,17 +796,10 @@ where
                     debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
                     self.handle_justification_from_user(justification);
                 },
-
-                maybe_justification = self.additional_justifications_from_user.next() => {
-                    let justification = maybe_justification.ok_or(Error::additional_justification_channel())?;
-                    debug!(target: LOG_TARGET, "Received new additional justification from user: {:?}.", justification);
-                    self.handle_justification_from_user(justification);
-                },
-
                 maybe_header = self.block_requests_from_user.next() => {
                     let header = maybe_header.ok_or(Error::block_request_channel())?;
                     debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", header);
-                    self.handle_internal_request(header)
+                    self.handle_internal_request(header);
                 },
 
                 maybe_block_id = self.legacy_block_requests_from_user.next() => {
@@ -827,6 +812,9 @@ where
                     let block = maybe_own_block.ok_or(Error::creator_channel())?;
                     debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
                     self.handle_own_block(block);
+                },
+                _ = status_ticker.tick() => {
+                    info!(target: LOG_TARGET, "{}", self.handler.status());
                 },
             }
         }
