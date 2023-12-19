@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, fmt::Display};
 
 use futures::{
     channel::{mpsc, oneshot},
@@ -7,6 +7,7 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, trace};
+use primitives::GenericError;
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 use tokio::time;
@@ -28,6 +29,21 @@ use crate::{
     BlockId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, SessionBoundaries,
     STATUS_REPORT_INTERVAL,
 };
+
+#[derive(Debug)]
+pub struct AggregatorError(String);
+
+impl Display for AggregatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AggregatorError {
+    fn multisignatures_stream_terminated() -> Self {
+        Self("The stream of multisigned hashes has ended.".into())
+    }
+}
 
 /// IO channels used by the aggregator task.
 pub struct IO<JS>
@@ -102,6 +118,8 @@ where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
+    use AggregatorError as Error;
+
     let IO {
         blocks_from_interpreter,
         mut justifications_for_chain,
@@ -141,7 +159,7 @@ where
                 },
             },
             multisigned_hash = aggregator.next_multisigned_hash() => {
-                let (hash, multisignature) = multisigned_hash.ok_or("The stream of multisigned hashes has ended. Terminating.")?;
+                let (hash, multisignature) = multisigned_hash.ok_or(Error::multisignatures_stream_terminated())?;
                 process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_|"Error while processing a hash.")?;
                 if Some(hash) == hash_of_last_block {
                     hash_of_last_block = None;

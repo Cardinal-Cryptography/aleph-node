@@ -86,7 +86,7 @@ pub struct SyncServiceError(String);
 
 impl Display for SyncServiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, self.0)
+        write!(f, "{}", self.0)
     }
 }
 

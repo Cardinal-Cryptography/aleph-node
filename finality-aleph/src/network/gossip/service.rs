@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Display, Error as FmtError, Formatter},
@@ -9,7 +10,7 @@ use std::{
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
-use primitives::Bottom;
+use primitives::{Bottom, GenericError};
 use rand::{seq::IteratorRandom, thread_rng};
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
@@ -75,6 +76,29 @@ impl Display for Error {
                 write!(f, "gossip network service stopped")
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct GossipServiceError(String);
+
+impl fmt::Display for GossipServiceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl GossipServiceError {
+    fn network_stream_terminated() -> Self {
+        Self("Network event stream ended.".into())
+    }
+
+    fn authorization_stream_terminated() -> Self {
+        Self("Authentication user message stream ended.".into())
+    }
+
+    fn block_sync_stream_terminated() -> Self {
+        Self("Block sync user message stream ended.".into())
     }
 }
 
@@ -504,23 +528,25 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         info!(target: LOG_TARGET, "{}", status);
     }
 
-    pub async fn run(mut self) -> Result<Bottom, String> {
+    pub async fn run(mut self) -> Result<Bottom, GossipServiceError> {
+        use GossipServiceError as Error;
+
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
                 maybe_event = self.network_event_stream.next_event() => {
-                    let event = maybe_event.ok_or("Network event stream ended.")?;
+                    let event = maybe_event.ok_or(Error::network_stream_terminated())?;
                     self.handle_network_event(event).map_err(|_| "Cannot forward messages to user.")?;
                 },
                 maybe_message = self.messages_from_authentication_user.next() => {
-                    match maybe_message.ok_or("Authentication user message stream ended.")? {
+                    match maybe_message.ok_or(Error::authorization_stream_terminated())? {
                         Command::Broadcast(message) => self.broadcast_authentication(message),
                         Command::SendToRandom(message, peer_ids) => self.send_to_random_authentication(message, peer_ids),
                         Command::Send(message, peer_id) => self.send_authentication_data(message, peer_id),
                     }
                 },
                 maybe_message = self.messages_from_block_sync_user.next() => {
-                    match maybe_message.ok_or("Block sync user message stream ended.")? {
+                    match maybe_message.ok_or(Error::block_sync_stream_terminated())? {
                         Command::Broadcast(message) => self.broadcast_block_sync(message),
                         Command::SendToRandom(message, peer_ids) => self.send_to_random_block_sync(message, peer_ids),
                         Command::Send(message, peer_id) => self.send_block_sync_data(message, peer_id),
