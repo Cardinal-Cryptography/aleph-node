@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::Duration, fmt::Display};
+use std::{collections::HashSet, fmt::Display, time::Duration};
 
 use futures::{channel::mpsc, stream::FusedStream, StreamExt};
 use log::{debug, error, info, trace, warn};
@@ -104,7 +104,7 @@ impl SyncServiceError {
         Self("Channel with justifications from user closed.".into())
     }
 
-    fn additional_justification_channel() -> Self{
+    fn additional_justification_channel() -> Self {
         Self("Channel with additional justifications from user closed.".into())
     }
 

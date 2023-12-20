@@ -54,7 +54,10 @@ where
     if let Some(header) = client.header(block.hash()).expect("client must respond") {
         Some((*header.parent_hash(), block.number() - 1).into())
     } else {
-        warn!(target: LOG_TARGET, "Trying to fetch the parent of an unknown block {:?}.", block);
+        warn!(
+            target: LOG_TARGET,
+            "Trying to fetch the parent of an unknown block {:?}.", block
+        );
         None
     }
 }
@@ -102,7 +105,12 @@ where
     } else {
         // By backtracking from the best block we reached a block conflicting with best finalized.
         // This is most likely a bug, or some extremely unlikely synchronization issue of the client.
-        warn!(target: LOG_TARGET, "Error computing proposal. Conflicting blocks: {:?}, finalized {:?}", curr_block, finalized_block);
+        warn!(
+            target: LOG_TARGET,
+            "Error computing proposal. Conflicting blocks: {:?}, finalized {:?}",
+            curr_block,
+            finalized_block
+        );
         Err(BestContradictsFinalized)
     }
 }
@@ -213,7 +221,12 @@ where
 
         if best_block_in_session.number() < finalized_block.number() {
             // Because of the client synchronization, in extremely rare cases this could happen.
-            warn!(target: LOG_TARGET, "Error updating data. best_block {:?} is lower than finalized {:?}.", best_block_in_session, finalized_block);
+            warn!(
+                target: LOG_TARGET,
+                "Error updating data. best_block {:?} is lower than finalized {:?}.",
+                best_block_in_session,
+                finalized_block
+            );
             return;
         }
 
