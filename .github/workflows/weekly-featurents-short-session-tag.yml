@@ -1,15 +1,11 @@
 ---
-name: Test featurenets create (short session, branch)
+name: Weekly test featurenets create (short session, tag)
 
 on:
+  # At 03:40 on Wednesday
   schedule:
-    # At 03:00 on Wednesday
-    - cron: '0 3 * * 3'
+    - cron: '40 3 * * 3'
   workflow_dispatch:
-  # tmp, remove
-  push:
-    branches:
-      - A0-3735
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,7 +17,7 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-fqdn-via-main-keyword:
+  get-fqdn-via-tag:
     name: Get aleph-node main branch FQDN image (short session)
     needs: [check-vars-and-secrets]
     runs-on: ubuntu-20.04
@@ -34,62 +30,62 @@ jobs:
         id: get-aleph-node-fqdn-image
         uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
-          ref: 'main'
+          ref: 'r-12.2'
           test-binary: 'true'
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
 
-  build-and-push-featurenet-node-image-via-branch:
-    needs: [get-fqdn-via-main-keyword]
-    if: ${{ needs.get-fqdn-via-main-keyword.outputs.image-exists != 'true' }}
+  build-and-push-featurenet-node-image-via-tag:
+    needs: [get-fqdn-via-tag]
+    if: ${{ needs.get-fqdn-via-tag.outputs.image-exists != 'true' }}
     name: Build and push PR test docker image
     uses: ./.github/workflows/_build-and-push-featurenet-node-image.yml
     with:
-      ref: ${{ needs.get-fqdn-via-main-keyword.outputs.ref }}
-      fqdn-image: ${{ needs.get-fqdn-via-main-keyword.outputs.fqdn-image }}
+      ref: ${{ needs.get-fqdn-via-tag.outputs.ref }}
+      fqdn-image: ${{ needs.get-fqdn-via-tag.outputs.fqdn-image }}
       short-session: true
     secrets: inherit
 
-  create-featurenet-via-branch:
+  create-featurenet-via-tag:
     needs:
-      - get-fqdn-via-main-keyword
-      - build-and-push-featurenet-node-image-via-branch
+      - get-fqdn-via-tag
+      - build-and-push-featurenet-node-image-via-tag
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
-    name: Create featurenet from branch
+    name: Create featurenet from tag
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-main-branch'
-      aleph-node-image: ${{ needs.get-fqdn-via-main-keyword.outputs.fqdn-image }}
-      validators: '7'
-      expiration: '3h'
+      featurenet-name: 'ops-test-main-tag'
+      aleph-node-image: ${{ needs.get-fqdn-via-tag.outputs.fqdn-image }}
+      validators: '6'
+      expiration: '2h'
       internal: true
       delete-first: true
 
-  delete-branch-featurenet:
-    needs: [create-featurenet-via-branch]
+  delete-tag-featurenet:
+    needs: [create-featurenet-via-tag]
     if: ${{ always() }}
     name: Delete featurenet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v6
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-main-branch'
+      featurenet-name: 'ops-test-main-tag'
 
-#  slack:
-#    name: Slack notification
-#    runs-on: ubuntu-20.04
-#    needs: [delete-branch-featurenet]
-#    if: >
-#      !cancelled() &&
-#      github.event_name != 'workflow_dispatch'
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Send Slack message
-#        uses: ./.github/actions/slack-notification
-#        with:
-#          notify-on: "failure"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+  slack:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [delete-tag-featurenet]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

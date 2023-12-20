@@ -1,15 +1,11 @@
 ---
-name: Test featurenets create (short session, full sha)
+name: Weekly test featurenets create (short session, full sha)
 
 on:
+  # At 03:20 on Wednesday
   schedule:
-    # At 03:20 on Wednesday
     - cron: '20 3 * * 3'
   workflow_dispatch:
-  # tmp, remove
-  push:
-    branches:
-      - A0-3735
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -102,20 +98,20 @@ jobs:
     with:
       featurenet-name: 'ops-test-full-hash'
 
-#  slack:
-#    name: Slack notification
-#    runs-on: ubuntu-20.04
-#    needs: [delete-full-sha-featurenet]
-#    if: >
-#      !cancelled() &&
-#      github.event_name != 'workflow_dispatch'
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Send Slack message
-#        uses: ./.github/actions/slack-notification
-#        with:
-#          notify-on: "failure"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+  slack:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [delete-full-sha-featurenet]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
