@@ -23,9 +23,7 @@ jobs:
 
   get-fqdn-via-tag:
     name: Get aleph-node main branch FQDN image (short session)
-    needs:
-      - check-vars-and-secrets
-      - delete-branch-featurenet
+    needs: [check-vars-and-secrets]
     runs-on: ubuntu-20.04
     outputs:
       fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
@@ -38,9 +36,7 @@ jobs:
         with:
           ref: 'r-12.2'
           test-binary: 'true'
-          # temp, revert
-          # ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-dev-node-repo: 'public.ecr.aws/p6e8q1z1/aleph-node-dev'
+          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
 
   build-and-push-featurenet-node-image-via-tag:

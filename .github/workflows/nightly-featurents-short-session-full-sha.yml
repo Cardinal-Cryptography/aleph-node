@@ -1,6 +1,5 @@
 ---
-name: Test featurenets create and update scenarios (normal session)
-
+name: Test featurenets create (short session, full sha)
 on:
   schedule:
     # At 03:20 on Wednesday
