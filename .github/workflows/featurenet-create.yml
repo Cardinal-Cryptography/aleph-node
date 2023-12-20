@@ -100,7 +100,7 @@ jobs:
     needs: [get-full-docker-image-path, build-and-push-featurenet-node-image]
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
-    name: Create featurenet from branch
+    name: Create featurenet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
     secrets: inherit
     with:
