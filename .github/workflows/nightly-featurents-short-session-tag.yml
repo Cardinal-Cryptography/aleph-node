@@ -1,5 +1,5 @@
 ---
-name: Test featurenets create and update scenarios (normal session)
+name: Test featurenets create (short session, tag)
 
 on:
   schedule:
