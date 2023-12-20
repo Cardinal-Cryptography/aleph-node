@@ -106,7 +106,7 @@ jobs:
 
   delete-featurenet:
     if: ${{ always() }}
-    needs: [update-featurenet-to-maint]
+    needs: [update-featurenet-to-main]
     name: Delete featurenet from testnet
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v5
     secrets: inherit
