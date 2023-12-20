@@ -351,8 +351,8 @@ mod tests {
     use futures::channel::oneshot;
     use tokio::time::sleep;
 
+    use crate::testing::mocks::THeader;
     use crate::{
-        block::mock::MockHeader,
         data_io::{
             data_provider::{ChainTracker, ChainTrackerConfig},
             DataProvider, MAX_DATA_BRANCH_LEN,
@@ -374,7 +374,7 @@ mod tests {
         impl Future<Output = ()>,
         oneshot::Sender<()>,
         ClientChainBuilder,
-        DataProvider<MockHeader>,
+        DataProvider<THeader>,
     ) {
         let (client, select_chain) = TestClientBuilder::new().build_with_longest_chain();
         let client = Arc::new(client);
@@ -415,7 +415,7 @@ mod tests {
     async fn run_test<F, S>(scenario: S)
     where
         F: Future,
-        S: FnOnce(ClientChainBuilder, DataProvider<MockHeader>) -> F,
+        S: FnOnce(ClientChainBuilder, DataProvider<THeader>) -> F,
     {
         let (task_handle, exit, chain_builder, data_provider) = prepare_chain_tracker_test();
         let chain_tracker_handle = tokio::spawn(task_handle);

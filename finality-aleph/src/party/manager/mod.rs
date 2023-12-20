@@ -138,7 +138,7 @@ where
     B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
     C: crate::ClientForAleph<B, BE>
         + crate::block::HeaderBackend<B::Header>
-        + crate::block::BlockchainEvents<B::UnverifiedHeader>
+        + crate::block::BlockchainEvents<B::Header>
         + Send
         + Sync
         + 'static,
@@ -439,7 +439,7 @@ where
     B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
     C: crate::ClientForAleph<B, BE>
         + crate::block::HeaderBackend<B::Header>
-        + crate::block::BlockchainEvents<B::UnverifiedHeader>
+        + crate::block::BlockchainEvents<B::Header>
         + Send
         + Sync
         + 'static,

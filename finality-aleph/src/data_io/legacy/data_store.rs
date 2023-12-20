@@ -7,23 +7,18 @@ use std::{
     time::{self, Duration},
 };
 
-use futures::{
-    channel::{
-        mpsc::{self, UnboundedSender},
-        oneshot,
-    },
-    StreamExt,
+use futures::channel::{
+    mpsc::{self, UnboundedSender},
+    oneshot,
 };
 use futures_timer::Delay;
 use log::{debug, error, info, trace, warn};
 use lru::LruCache;
 
+use crate::block::{BlockchainEvents, ChainStatusNotification, ChainStatusNotifier};
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{
-        Block, BlockImportNotification, BlockchainEvents, FinalityNotification, Header,
-        HeaderBackend, Info, UnverifiedHeader,
-    },
+    block::{Block, Header, HeaderBackend, Info},
     data_io::{
         chain_info::{CachedChainInfoProvider, ChainInfoProvider, SubstrateChainInfoProvider},
         legacy::{
@@ -153,7 +148,7 @@ pub struct DataStore<H, B, C, RB, Message, R>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + BlockchainEvents<H::Unverified> + Send + Sync + 'static,
+    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug
@@ -187,7 +182,7 @@ where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
     H: Header,
-    C: HeaderBackend<H> + BlockchainEvents<H::Unverified> + Send + Sync + 'static,
+    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug
@@ -238,8 +233,7 @@ where
 
     pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
-        let mut import_stream = self.client.import_notification_stream();
-        let mut finality_stream = self.client.finality_notification_stream();
+        let mut chain_status_notifier = self.client.chain_status_notifier();
         loop {
             self.prune_pending_messages();
             self.prune_triggers();
@@ -248,14 +242,18 @@ where
                     trace!(target: "aleph-data-store", "Received message at Data Store {:?}", message);
                     self.on_message_received(message);
                 }
-                Some(block) = &mut import_stream.next() => {
-                    trace!(target: "aleph-data-store", "Block import notification at Data Store for block {:?}", block);
-                    self.on_block_imported(block.header().id());
+                Ok(notification) = chain_status_notifier.next() => {
+                    match notification {
+                        ChainStatusNotification::BlockImported(header) => {
+                            trace!(target: "aleph-data-store", "Block import notification at Data Store for block with header {:?}", header);
+                            self.on_block_imported(header.id());
+                        }
+                        ChainStatusNotification::BlockFinalized(header) => {
+                            trace!(target: "aleph-data-store", "Finalized block import notification at Data Store for block with header {:?}", header);
+                            self.on_block_finalized(header.id());
+                        }
+                    }
                 },
-                Some(block) = &mut finality_stream.next() => {
-                    trace!(target: "aleph-data-store", "Finalized block import notification at Data Store for block {:?}", block);
-                    self.on_block_finalized(block.header().id());
-                }
                 _ = &mut maintenance_clock => {
                     self.run_maintenance();
                     maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
@@ -644,7 +642,7 @@ impl<H, B, C, RB, Message, R> Runnable for DataStore<H, B, C, RB, Message, R>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + BlockchainEvents<H::Unverified> + Send + Sync + 'static,
+    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug

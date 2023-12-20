@@ -11,13 +11,11 @@ use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
+use crate::block::BlockchainEvents;
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
     block::{
-        substrate::{
-            JustificationTranslator, SubstrateChainStatusNotifier, SubstrateFinalizationInfo,
-            VerifierCache,
-        },
+        substrate::{JustificationTranslator, SubstrateFinalizationInfo, VerifierCache},
         ChainStatus, FinalizationStatus, Justification,
     },
     crypto::AuthorityPen,
@@ -142,10 +140,7 @@ where
         map_updater.run().await
     });
 
-    let chain_events = SubstrateChainStatusNotifier::new(
-        client.finality_notification_stream(),
-        client.every_import_notification_stream(),
-    );
+    let chain_events = client.chain_status_notifier();
 
     let client_for_slo_metrics = client.clone();
     let registry_for_slo_metrics = registry.clone();

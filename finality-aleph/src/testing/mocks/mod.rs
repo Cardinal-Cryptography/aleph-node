@@ -1,17 +1,19 @@
+use sp_core::H256;
 use std::fmt::{Display, Error as FmtError, Formatter};
 
+use crate::aleph_primitives::{Block, Header};
 pub use acceptance_policy::AcceptancePolicy;
 pub use block_finalizer::MockedBlockFinalizer;
 pub use client::{Backend, TestClient, TestClientBuilder, TestClientBuilderExt};
 pub use proposal::{
     aleph_data_from_blocks, aleph_data_from_headers, unvalidated_proposal_from_headers,
 };
-use sp_runtime::traits::BlakeTwo256;
 
-use crate::block::{mock::MockHeader, EquivocationProof, HeaderVerifier, VerifiedHeader};
+use crate::block::{EquivocationProof, HeaderVerifier, VerifiedHeader};
 
-type Hashing = BlakeTwo256;
-pub type THash = substrate_test_runtime::Hash;
+pub type TBlock = Block;
+pub type THeader = Header;
+pub type THash = H256;
 
 #[derive(Clone)]
 pub struct TestVerifier;
@@ -39,22 +41,22 @@ impl Display for TestVerificationError {
     }
 }
 
-impl HeaderVerifier<MockHeader> for TestVerifier {
+impl HeaderVerifier<THeader> for TestVerifier {
     type EquivocationProof = TestEquivocationProof;
     type Error = TestVerificationError;
 
     fn verify_header(
         &mut self,
-        header: MockHeader,
+        header: THeader,
         _just_created: bool,
-    ) -> Result<VerifiedHeader<MockHeader, Self::EquivocationProof>, Self::Error> {
+    ) -> Result<VerifiedHeader<THeader, Self::EquivocationProof>, Self::Error> {
         Ok(VerifiedHeader {
             header,
             maybe_equivocation_proof: None,
         })
     }
 
-    fn own_block(&self, _header: &MockHeader) -> bool {
+    fn own_block(&self, _header: &THeader) -> bool {
         false
     }
 }

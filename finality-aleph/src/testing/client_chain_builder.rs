@@ -8,12 +8,8 @@ use sp_runtime::{traits::Block as BlockT, DigestItem};
 use substrate_test_runtime::ExtrinsicBuilder;
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
-use crate::{
-    aleph_primitives::BlockNumber,
-    block::mock::{MockBlock, MockHeader},
-    testing::mocks::TestClient,
-    BlockId,
-};
+use crate::testing::mocks::{TBlock, THeader};
+use crate::{aleph_primitives::BlockNumber, testing::mocks::TestClient, BlockId};
 
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
@@ -47,7 +43,7 @@ impl ClientChainBuilder {
     }
 
     /// Import block in test client
-    pub async fn import_block(&mut self, block: MockBlock) {
+    pub async fn import_block(&mut self, block: TBlock) {
         self.client
             .import(BlockOrigin::Own, block.clone())
             .await
@@ -72,7 +68,7 @@ impl ClientChainBuilder {
         self.unique_seed.to_be_bytes().to_vec()
     }
 
-    pub async fn build_block_above(&mut self, parent: &H256) -> MockBlock {
+    pub async fn build_block_above(&mut self, parent: &H256) -> TBlock {
         let unique_bytes: Vec<u8> = self.get_unique_bytes();
         let mut builder = self
             .client_builder
@@ -81,7 +77,8 @@ impl ClientChainBuilder {
         builder
             .push(
                 ExtrinsicBuilder::new_deposit_log_digest_item(DigestItem::Other(unique_bytes))
-                    .build(),
+                    .build()
+                    .into(),
             )
             .unwrap();
         let block = builder.build().unwrap().block;
@@ -94,7 +91,7 @@ impl ClientChainBuilder {
     }
 
     /// Builds a sequence of blocks extending from `hash` of length `len`
-    pub async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<MockBlock> {
+    pub async fn build_branch_above(&mut self, parent: &H256, len: usize) -> Vec<TBlock> {
         let mut blocks = Vec::new();
         let mut prev_hash = *parent;
         for _ in 0..len {
@@ -107,7 +104,7 @@ impl ClientChainBuilder {
     }
 
     /// imports a sequence of blocks, should be in correct order
-    pub async fn import_branch(&mut self, blocks: Vec<MockBlock>) {
+    pub async fn import_branch(&mut self, blocks: Vec<TBlock>) {
         for block in blocks {
             self.import_block(block.clone()).await;
         }
@@ -118,13 +115,13 @@ impl ClientChainBuilder {
         &mut self,
         parent: &H256,
         len: usize,
-    ) -> Vec<MockBlock> {
+    ) -> Vec<TBlock> {
         let blocks = self.build_branch_above(parent, len).await;
         self.import_branch(blocks.clone()).await;
         blocks
     }
 
-    pub fn get_header_at(&self, num: BlockNumber) -> MockHeader {
+    pub fn get_header_at(&self, num: BlockNumber) -> THeader {
         self.client_builder
             .header(self.client_builder.hash(num).unwrap().unwrap())
             .unwrap()
@@ -132,12 +129,12 @@ impl ClientChainBuilder {
     }
 
     /// Builds a sequence of blocks extending from genesis of length `len`
-    pub async fn initialize_single_branch(&mut self, len: usize) -> Vec<MockBlock> {
+    pub async fn initialize_single_branch(&mut self, len: usize) -> Vec<TBlock> {
         self.build_branch_above(&self.genesis_hash(), len).await
     }
 
     /// Builds and imports a sequence of blocks extending from genesis of length `len`
-    pub async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<MockBlock> {
+    pub async fn initialize_single_branch_and_import(&mut self, len: usize) -> Vec<TBlock> {
         self.build_and_import_branch_above(&self.genesis_hash(), len)
             .await
     }

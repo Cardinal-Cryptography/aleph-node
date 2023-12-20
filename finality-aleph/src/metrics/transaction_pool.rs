@@ -56,14 +56,14 @@ pub mod test {
     use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
+    use crate::testing::mocks::TBlock;
     use crate::{
-        block::mock::MockBlock,
         metrics::transaction_pool::TransactionPoolWrapper,
         testing::mocks::{Backend, THash, TestClient},
     };
 
-    type TChainApi = FullChainApi<TestClient, MockBlock>;
-    type FullTransactionPool = BasicPool<TChainApi, MockBlock>;
+    type TChainApi = FullChainApi<TestClient, TBlock>;
+    type FullTransactionPool = BasicPool<TChainApi, TBlock>;
     type TProposerFactory =
         ProposerFactory<FullTransactionPool, Backend, TestClient, DisableProofRecording>;
 
@@ -71,7 +71,7 @@ pub mod test {
         pub client: Arc<TestClient>,
         pub pool: Arc<FullTransactionPool>,
         pub proposer_factory: TProposerFactory,
-        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, MockBlock>>,
+        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, TBlock>>,
     }
 
     impl TestTransactionPoolSetup {
@@ -97,7 +97,7 @@ pub mod test {
             }
         }
 
-        pub async fn propose_block(&mut self, at: THash, weight_limit: Option<usize>) -> MockBlock {
+        pub async fn propose_block(&mut self, at: THash, weight_limit: Option<usize>) -> TBlock {
             let proposer = self
                 .proposer_factory
                 .init(&self.client.expect_header(at).unwrap())
@@ -118,7 +118,7 @@ pub mod test {
             self.import_block(block).await
         }
 
-        pub async fn import_block(&mut self, block: MockBlock) -> MockBlock {
+        pub async fn import_block(&mut self, block: TBlock) -> TBlock {
             let stream = self.client.every_import_notification_stream();
             self.client
                 .import(BlockOrigin::Own, block.clone())
@@ -167,7 +167,7 @@ pub mod test {
 
         pub async fn submit(&mut self, at: &THash, xt: Extrinsic) {
             self.pool
-                .submit_one(*at, TransactionSource::External, xt)
+                .submit_one(*at, TransactionSource::External, xt.into())
                 .await
                 .unwrap();
         }

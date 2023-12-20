@@ -1,6 +1,8 @@
+use parity_scale_codec::Codec;
 use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
 use sp_consensus::BlockOrigin;
-use sp_runtime::traits::{CheckedSub, Header as _, One};
+use sp_runtime::generic;
+use sp_runtime::traits::{CheckedSub, Header as _, Member, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
@@ -8,6 +10,8 @@ use crate::{
     metrics::{AllBlockMetrics, Checkpoint},
     BlockHash,
 };
+
+type GenericBlock<E> = generic::Block<Header, E>;
 
 mod chain_status;
 mod finalizer;
@@ -23,9 +27,7 @@ use primitives::BlockNumber;
 pub use status_notifier::SubstrateChainStatusNotifier;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-use crate::block::{
-    BlockImportNotification, FinalityNotification, HeaderBackend, ImportNotifications,
-};
+use crate::block::{BlockchainEvents, HeaderBackend};
 
 const LOG_TARGET: &str = "aleph-substrate";
 
@@ -108,7 +110,7 @@ impl BlockImport<Block> for BlockImporter {
     }
 }
 
-impl BlockT for Block {
+impl<E: Member + Codec> BlockT for GenericBlock<E> {
     type UnverifiedHeader = Header;
 
     /// The header of the block.
@@ -137,7 +139,7 @@ impl Info for sp_blockchain::Info<Block> {
     }
 }
 
-impl<SHB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for SHB {
+impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
     type Info = sp_blockchain::Info<Block>;
     type Error = sp_blockchain::Error;
 
@@ -154,41 +156,13 @@ impl<SHB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for SHB {
     }
 }
 
-impl BlockImportNotification<Header> for sc_client_api::BlockImportNotification<Block> {
-    fn hash(&self) -> BlockHash {
-        self.hash
-    }
+impl<C: sc_client_api::BlockchainEvents<Block> + Send> BlockchainEvents<Header> for C {
+    type ChainStatusNotifier = SubstrateChainStatusNotifier;
 
-    fn header(&self) -> &Header {
-        &self.header
-    }
-
-    fn is_new_best(&self) -> bool {
-        self.is_new_best
-    }
-}
-
-impl FinalityNotification<Header> for sc_client_api::FinalityNotification<Block> {
-    fn hash(&self) -> BlockHash {
-        self.hash
-    }
-
-    fn header(&self) -> &Header {
-        &self.header
-    }
-}
-
-impl<E: sc_client_api::BlockchainEvents<Block>> crate::block::BlockchainEvents<Header> for E {
-    type ImportNotification = sc_client_api::BlockImportNotification<Block>;
-    type FinalityNotification = sc_client_api::FinalityNotification<Block>;
-
-    fn import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification> {
-        self.import_notification_stream()
-    }
-    fn every_import_notification_stream(&self) -> sc_client_api::ImportNotifications<Block> {
-        self.every_import_notification_stream()
-    }
-    fn finality_notification_stream(&self) -> sc_client_api::FinalityNotifications<Block> {
-        self.finality_notification_stream()
+    fn chain_status_notifier(&self) -> SubstrateChainStatusNotifier {
+        SubstrateChainStatusNotifier::new(
+            self.finality_notification_stream(),
+            self.every_import_notification_stream(),
+        )
     }
 }

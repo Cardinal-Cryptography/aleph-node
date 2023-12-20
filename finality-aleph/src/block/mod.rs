@@ -1,7 +1,6 @@
 use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 
 use parity_scale_codec::{Codec, Decode, Encode};
-use sc_utils::mpsc::TracingUnboundedReceiver;
 
 use crate::{BlockHash, BlockNumber};
 
@@ -161,12 +160,18 @@ pub enum ChainStatusNotification<H: Header> {
 /// A stream of notifications about the chain status in the database changing.
 /// We assume that this will return all the events, otherwise we will end up with a broken state.
 #[async_trait::async_trait]
-pub trait ChainStatusNotifier<H: Header> {
+pub trait ChainStatusNotifier<H: Header>: Send {
     type Error: Debug + Display;
 
     /// Returns a chain status notification when it is available.
     /// This method's implementation must be cancellation safe.
     async fn next(&mut self) -> Result<ChainStatusNotification<H>, Self::Error>;
+}
+
+pub trait BlockchainEvents<H: Header>: Send {
+    type ChainStatusNotifier: ChainStatusNotifier<H>;
+
+    fn chain_status_notifier(&self) -> Self::ChainStatusNotifier;
 }
 
 /// The status of a block in the database.
@@ -242,27 +247,4 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
 
     fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error>;
     fn info(&self) -> Self::Info;
-}
-
-pub trait BlockImportNotification<UH: UnverifiedHeader>: Debug + Send {
-    fn hash(&self) -> BlockHash;
-    fn header(&self) -> &UH;
-    fn is_new_best(&self) -> bool;
-}
-
-pub trait FinalityNotification<UH: UnverifiedHeader>: Debug + Send {
-    fn hash(&self) -> BlockHash;
-    fn header(&self) -> &UH;
-}
-
-pub type ImportNotifications<IN> = TracingUnboundedReceiver<IN>;
-pub type FinalityNotifications<FN> = TracingUnboundedReceiver<FN>;
-
-pub trait BlockchainEvents<UH: UnverifiedHeader> {
-    type ImportNotification: BlockImportNotification<UH>;
-    type FinalityNotification: FinalityNotification<UH>;
-
-    fn import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification>;
-    fn every_import_notification_stream(&self) -> ImportNotifications<Self::ImportNotification>;
-    fn finality_notification_stream(&self) -> FinalityNotifications<Self::FinalityNotification>;
 }

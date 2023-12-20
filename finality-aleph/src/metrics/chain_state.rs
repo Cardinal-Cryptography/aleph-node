@@ -304,8 +304,8 @@ mod test {
     use substrate_test_runtime_client::AccountKeyring;
 
     use super::*;
+    use crate::testing::mocks::TBlock;
     use crate::{
-        block::mock::MockBlock,
         metrics::transaction_pool::test::TestTransactionPoolSetup,
         testing::{
             client_chain_builder::ClientChainBuilder,
@@ -391,8 +391,8 @@ mod test {
         pub metrics: ChainStateMetrics,
         pub cache: LruCache<THash, Instant>,
         pub block_import_notifications:
-            Box<dyn Stream<Item = BlockImportNotification<MockBlock>> + Unpin>,
-        pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<MockBlock>> + Unpin>,
+            Box<dyn Stream<Item = BlockImportNotification<TBlock>> + Unpin>,
+        pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
     }
 
     #[derive(PartialEq, Eq, Hash, Debug)]
@@ -605,7 +605,7 @@ mod test {
             .client
             .new_block_at(genesis, Default::default(), false)
             .unwrap();
-        block_1b_builder.push(xt1).unwrap();
+        block_1b_builder.push(xt1.into()).unwrap();
         let block_1b = block_1b_builder.build().unwrap().block;
         setup.pool.import_block(block_1b.clone()).await;
         setup.pool.finalize(block_1b.hash()).await;
