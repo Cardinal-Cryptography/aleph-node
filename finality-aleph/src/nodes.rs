@@ -171,14 +171,20 @@ where
     let client_for_slo_metrics = client.clone();
     let registry_for_slo_metrics = registry.clone();
     spawn_handle.spawn("aleph/slo-metrics", async move {
-        run_chain_state_metrics(
+        if let Err(err) = run_chain_state_metrics(
             client_for_slo_metrics.as_ref(),
             client_for_slo_metrics.every_import_notification_stream(),
             client_for_slo_metrics.finality_notification_stream(),
             registry_for_slo_metrics,
             TransactionPoolWrapper::new(transaction_pool),
         )
-        .await;
+        .await
+        {
+            error!(
+                target: LOG_TARGET,
+                "ChainStateMetrics service finished with err: {err}."
+            );
+        }
     });
 
     let session_info = SessionBoundaryInfo::new(session_period);
@@ -216,12 +222,11 @@ where
         Err(e) => panic!("Failed to initialize Sync service: {e}"),
     };
     let sync_task = async move {
-        match sync_service.run().await {
-            Ok(_) => error!(target: LOG_TARGET, "Sync service finished."),
-            Err(err) => error!(
+        if let Err(err) = sync_service.run().await {
+            error!(
                 target: LOG_TARGET,
                 "Sync service finished with error: {err}."
-            ),
+            );
         }
     };
 
