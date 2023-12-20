@@ -80,7 +80,9 @@ jobs:
 
   get-fqdn-via-tag:
     name: Get aleph-node main branch FQDN image (short session)
-    needs: [check-vars-and-secrets]
+    needs:
+      - check-vars-and-secrets
+      - delete-branch-featurenet
     runs-on: ubuntu-20.04
     outputs:
       fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
@@ -136,7 +138,9 @@ jobs:
       featurenet-name: 'ops-test-main-tag'
 
   get-main-commit-full-sha:
-    needs: [check-vars-and-secrets]
+    needs:
+      - check-vars-and-secrets
+      - delete-tag-featurenet
     name: Get aleph-node full main commit SHA
     outputs:
       full-sha: ${{ steps.get-main-sha.outputs.main-sha }}
@@ -218,20 +222,20 @@ jobs:
     with:
       featurenet-name: 'ops-test-full-hash'
 
-  slack:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [delete-branch-featurenet, delete-tag-featurenet, delete-full-sha-featurenet]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#  slack:
+#    name: Slack notification
+#    runs-on: ubuntu-20.04
+#    needs: [delete-branch-featurenet, delete-tag-featurenet, delete-full-sha-featurenet]
+#    if: >
+#      !cancelled() &&
+#      github.event_name != 'workflow_dispatch'
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
