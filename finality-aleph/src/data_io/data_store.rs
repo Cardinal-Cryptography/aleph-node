@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
     num::NonZeroUsize,
     sync::Arc,
-    time::{self, Duration},
+    time::{self, Duration}, fmt::Display,
 };
 
 use futures::{
@@ -126,10 +126,6 @@ impl DataStoreError {
 
     fn network_messages_terminated() -> Self {
         Self("Stream with network messages was closed.".into())
-    }
-
-    fn finalized_blocks_stream_closed() -> Self {
-        Self("Stream with finalized blocks was closed.".into())
     }
 }
 

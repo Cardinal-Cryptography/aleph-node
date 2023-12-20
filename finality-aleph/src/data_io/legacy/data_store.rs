@@ -129,10 +129,6 @@ impl DataStoreError {
     fn network_messages_terminated() -> Self {
         Self("Stream with network messages was closed.".into())
     }
-
-    fn finalized_blocks_stream_closed() -> Self {
-        Self("Stream with finalized blocks was closed.".into())
-    }
 }
 
 // DataStore is the data availability proxy for the AlephBFT protocol, meaning that whenever we receive

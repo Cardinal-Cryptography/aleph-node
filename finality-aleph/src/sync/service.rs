@@ -104,10 +104,6 @@ impl SyncServiceError {
         Self("Channel with justifications from user closed.".into())
     }
 
-    fn additional_justification_channel() -> Self {
-        Self("Channel with additional justifications from user closed.".into())
-    }
-
     fn block_request_channel() -> Self {
         Self("Channel with internal block request from user closed.".into())
     }

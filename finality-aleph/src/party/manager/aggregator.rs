@@ -7,7 +7,6 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, trace};
-use primitives::GenericError;
 use sc_client_api::HeaderBackend;
 use sp_runtime::traits::{Block, Header};
 use tokio::time;
@@ -42,6 +41,10 @@ impl Display for AggregatorError {
 impl AggregatorError {
     fn multisignatures_stream_terminated() -> Self {
         Self("The stream of multisigned hashes has ended.".into())
+    }
+
+    fn unable_to_process_hash() -> Self {
+        Self("Error while processing a hash.".into())
     }
 }
 
@@ -109,7 +112,7 @@ async fn run_aggregator<B, C, CN, LN, JS>(
     session_boundaries: &SessionBoundaries,
     mut metrics: AllBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
-) -> Result<(), String>
+) -> Result<(), AggregatorError>
 where
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
@@ -160,7 +163,7 @@ where
             },
             multisigned_hash = aggregator.next_multisigned_hash() => {
                 let (hash, multisignature) = multisigned_hash.ok_or(Error::multisignatures_stream_terminated())?;
-                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_|"Error while processing a hash.")?;
+                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_| Error::unable_to_process_hash())?;
                 if Some(hash) == hash_of_last_block {
                     hash_of_last_block = None;
                 }
