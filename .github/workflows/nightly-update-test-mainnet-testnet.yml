@@ -10,11 +10,6 @@ on:
   # Daily at 02:00
   schedule:
     - cron: '00 02 * * *'
-  # tmp, remove
-  push:
-    branches:
-      - A0-3735
-
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -99,20 +94,20 @@ jobs:
     with:
       featurenet-name: 'ops-updatenet-mainnet'
 
-#  slack-notification:
-#    name: Slack notification
-#    runs-on: ubuntu-20.04
-#    needs: [delete-featurenet]
-#    if: >
-#      !cancelled() &&
-#      github.event_name != 'workflow_dispatch'
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Send Slack message
-#        uses: ./.github/actions/slack-notification
-#        with:
-#          notify-on: "failure"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+  slack-notification:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [delete-featurenet]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack message
+        uses: ./.github/actions/slack-notification
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
