@@ -30,7 +30,7 @@ jobs:
     uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET-NAME
+      featurenet-name: ${{ env.FEATURENET_NAME }}
       ref: 'main'
       expiration: '4h'
       validators: '7'
