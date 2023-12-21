@@ -10,11 +10,9 @@ use futures::{
 use sp_core::hash::H256;
 use tokio::time::timeout;
 
-use crate::testing::mocks::{TBlock, THeader};
 use crate::{
     aleph_primitives::BlockNumber,
-    block::Block,
-    block::Header as _,
+    block::{Block, Header as _},
     data_io::{AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, MAX_DATA_BRANCH_LEN},
     network::{
         data::{component::Network as ComponentNetwork, Network as DataNetwork},
@@ -25,7 +23,7 @@ use crate::{
     testing::{
         client_chain_builder::ClientChainBuilder,
         mocks::{
-            aleph_data_from_blocks, aleph_data_from_headers, TestClientBuilder,
+            aleph_data_from_blocks, aleph_data_from_headers, TBlock, THeader, TestClientBuilder,
             TestClientBuilderExt, TestVerifier,
         },
     },

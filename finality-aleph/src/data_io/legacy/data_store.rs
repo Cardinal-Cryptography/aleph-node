@@ -15,10 +15,12 @@ use futures_timer::Delay;
 use log::{debug, error, info, trace, warn};
 use lru::LruCache;
 
-use crate::block::{BlockchainEvents, ChainStatusNotification, ChainStatusNotifier};
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{Block, Header, HeaderBackend, Info},
+    block::{
+        Block, BlockchainEvents, ChainStatusNotification, ChainStatusNotifier, Header,
+        HeaderBackend, HeaderBackendStatus,
+    },
     data_io::{
         chain_info::{CachedChainInfoProvider, ChainInfoProvider, SubstrateChainInfoProvider},
         legacy::{
@@ -203,7 +205,7 @@ where
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
         let (messages_to_network, messages_from_network) = component_network.into();
-        let status = client.info();
+        let status = client.status();
         let chain_info_provider = CachedChainInfoProvider::new(
             SubstrateChainInfoProvider::new(client.clone()),
             Default::default(),

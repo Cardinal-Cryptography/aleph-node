@@ -351,7 +351,6 @@ mod tests {
     use futures::channel::oneshot;
     use tokio::time::sleep;
 
-    use crate::testing::mocks::THeader;
     use crate::{
         data_io::{
             data_provider::{ChainTracker, ChainTrackerConfig},
@@ -360,7 +359,7 @@ mod tests {
         metrics::AllBlockMetrics,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{aleph_data_from_blocks, TestClientBuilder, TestClientBuilderExt},
+            mocks::{aleph_data_from_blocks, THeader, TestClientBuilder, TestClientBuilderExt},
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
     };

@@ -150,7 +150,6 @@ mod tests {
 
     use sp_runtime::traits::Block as BlockT;
 
-    use crate::testing::mocks::{TBlock, THeader};
     use crate::{
         data_io::{
             chain_info::{
@@ -170,7 +169,7 @@ mod tests {
         },
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{TestClient, TestClientBuilder, TestClientBuilderExt},
+            mocks::{TBlock, THeader, TestClient, TestClientBuilder, TestClientBuilderExt},
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
     };

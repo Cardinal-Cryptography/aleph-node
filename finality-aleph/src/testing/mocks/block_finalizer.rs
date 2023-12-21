@@ -1,9 +1,10 @@
 use sp_blockchain::Error;
 use sp_runtime::{traits::Block, Justification};
 
-use crate::testing::mocks::TBlock;
 use crate::{
-    finalization::BlockFinalizer, testing::mocks::single_action_mock::SingleActionMock, BlockId,
+    finalization::BlockFinalizer,
+    testing::mocks::{single_action_mock::SingleActionMock, TBlock},
+    BlockId,
 };
 
 type CallArgs = (BlockId, Justification);

@@ -188,11 +188,10 @@ mod tests {
             status_provider::get_proposal_status,
             ChainInfoCacheConfig, MAX_DATA_BRANCH_LEN,
         },
-        testing::mocks::{TBlock, THeader},
         testing::{
             client_chain_builder::ClientChainBuilder,
             mocks::{
-                unvalidated_proposal_from_headers, TestClient, TestClientBuilder,
+                unvalidated_proposal_from_headers, TBlock, THeader, TestClient, TestClientBuilder,
                 TestClientBuilderExt, TestVerifier,
             },
         },

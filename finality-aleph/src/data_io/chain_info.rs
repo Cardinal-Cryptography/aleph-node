@@ -5,7 +5,7 @@ use lru::LruCache;
 
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
-    block::{Block, Header, HeaderBackend, Info},
+    block::{Block, Header, HeaderBackend, HeaderBackendStatus},
     data_io::ChainInfoCacheConfig,
     BlockId,
 };
@@ -62,7 +62,7 @@ where
     }
 
     fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockId, ()> {
-        if self.client.info().finalized_id().number() < num {
+        if self.client.status().finalized_id().number() < num {
             return Err(());
         }
 
@@ -94,7 +94,7 @@ where
     }
 
     fn get_highest_finalized(&mut self) -> BlockId {
-        self.client.info().finalized_id()
+        self.client.status().finalized_id()
     }
 }
 

@@ -11,12 +11,11 @@ use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
 use sp_keystore::Keystore;
 
-use crate::block::BlockchainEvents;
 use crate::{
     aleph_primitives::{AlephSessionApi, AuraId, Block},
     block::{
         substrate::{JustificationTranslator, SubstrateFinalizationInfo, VerifierCache},
-        ChainStatus, FinalizationStatus, Justification,
+        BlockchainEvents, ChainStatus, FinalizationStatus, Justification,
     },
     crypto::AuthorityPen,
     finalization::AlephFinalizer,

@@ -1,15 +1,17 @@
-use sp_core::H256;
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-use crate::aleph_primitives::{Block, Header};
 pub use acceptance_policy::AcceptancePolicy;
 pub use block_finalizer::MockedBlockFinalizer;
 pub use client::{Backend, TestClient, TestClientBuilder, TestClientBuilderExt};
 pub use proposal::{
     aleph_data_from_blocks, aleph_data_from_headers, unvalidated_proposal_from_headers,
 };
+use sp_core::H256;
 
-use crate::block::{EquivocationProof, HeaderVerifier, VerifiedHeader};
+use crate::{
+    aleph_primitives::{Block, Header},
+    block::{EquivocationProof, HeaderVerifier, VerifiedHeader},
+};
 
 pub type TBlock = Block;
 pub type THeader = Header;

@@ -1,12 +1,17 @@
 use parity_scale_codec::Codec;
 use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
 use sp_consensus::BlockOrigin;
-use sp_runtime::generic;
-use sp_runtime::traits::{CheckedSub, Header as _, Member, One};
+use sp_runtime::{
+    generic,
+    traits::{CheckedSub, Header as _, Member, One},
+};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, Info, UnverifiedHeader},
+    block::{
+        Block as BlockT, BlockId, BlockImport, Header as HeaderT, HeaderBackendStatus,
+        UnverifiedHeader,
+    },
     metrics::{AllBlockMetrics, Checkpoint},
     BlockHash,
 };
@@ -119,7 +124,7 @@ impl<E: Member + Codec> BlockT for GenericBlock<E> {
     }
 }
 
-impl Info for sp_blockchain::Info<Block> {
+impl HeaderBackendStatus for sp_blockchain::Info<Block> {
     fn best_id(&self) -> BlockId {
         BlockId {
             hash: self.best_hash,
@@ -140,7 +145,7 @@ impl Info for sp_blockchain::Info<Block> {
 }
 
 impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
-    type Info = sp_blockchain::Info<Block>;
+    type Status = sp_blockchain::Info<Block>;
     type Error = sp_blockchain::Error;
 
     fn header(&self, hash: BlockHash) -> Result<Option<Header>, sp_blockchain::Error> {
@@ -151,7 +156,7 @@ impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
         self.hash(number)
     }
 
-    fn info(&self) -> Self::Info {
+    fn status(&self) -> Self::Status {
         self.info()
     }
 }

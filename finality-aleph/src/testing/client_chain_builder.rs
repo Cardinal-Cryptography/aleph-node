@@ -8,8 +8,11 @@ use sp_runtime::{traits::Block as BlockT, DigestItem};
 use substrate_test_runtime::ExtrinsicBuilder;
 use substrate_test_runtime_client::{ClientBlockImportExt, ClientExt};
 
-use crate::testing::mocks::{TBlock, THeader};
-use crate::{aleph_primitives::BlockNumber, testing::mocks::TestClient, BlockId};
+use crate::{
+    aleph_primitives::BlockNumber,
+    testing::mocks::{TBlock, THeader, TestClient},
+    BlockId,
+};
 
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {

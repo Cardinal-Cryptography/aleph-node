@@ -56,10 +56,9 @@ pub mod test {
     use substrate_test_runtime::{Extrinsic, ExtrinsicBuilder, Transfer};
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
-    use crate::testing::mocks::TBlock;
     use crate::{
         metrics::transaction_pool::TransactionPoolWrapper,
-        testing::mocks::{Backend, THash, TestClient},
+        testing::mocks::{Backend, TBlock, THash, TestClient},
     };
 
     type TChainApi = FullChainApi<TestClient, TBlock>;

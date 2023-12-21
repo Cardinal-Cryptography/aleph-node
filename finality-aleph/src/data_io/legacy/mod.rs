@@ -32,8 +32,10 @@ pub trait AlephNetworkMessage: Clone + Debug {
 
 #[cfg(test)]
 mod test {
-    use crate::data_io::legacy::{AlephData, UnvalidatedAlephProposal};
-    use crate::testing::mocks::{TBlock, THeader};
+    use crate::{
+        data_io::legacy::{AlephData, UnvalidatedAlephProposal},
+        testing::mocks::{TBlock, THeader},
+    };
 
     pub fn unvalidated_proposal_from_headers(headers: Vec<THeader>) -> UnvalidatedAlephProposal {
         let num = headers.last().unwrap().number;

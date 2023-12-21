@@ -304,12 +304,11 @@ mod test {
     use substrate_test_runtime_client::AccountKeyring;
 
     use super::*;
-    use crate::testing::mocks::TBlock;
     use crate::{
         metrics::transaction_pool::test::TestTransactionPoolSetup,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{THash, TestClientBuilder, TestClientBuilderExt},
+            mocks::{TBlock, THash, TestClientBuilder, TestClientBuilderExt},
         },
     };
 
