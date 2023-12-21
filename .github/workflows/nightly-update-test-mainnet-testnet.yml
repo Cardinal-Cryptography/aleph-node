@@ -10,6 +10,10 @@ on:
   # Daily at 02:00
   schedule:
     - cron: '00 02 * * *'
+  # tmp, remove
+  on:
+    push:
+      - A0-3735
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -21,93 +25,53 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-full-docker-image-path-testnet:
-    name: Get full aleph-node full docker path path for testnet
-    needs: [check-vars-and-secrets]
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: 'testnet'
-          test-binary: 'false'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
-  get-full-docker-image-path-mainnet:
-    name: Get full aleph-node full docker path path for mainnet
-    needs: [check-vars-and-secrets]
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: 'mainnet'
-          test-binary: 'false'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
   create-featurenet-from-mainnet:
-    needs: [get-full-docker-image-path-mainnet]
+    needs: [check-vars-and-secrets]
     name: Create featurenet from mainnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
       featurenet-name: 'ops-updatenet-mainnet'
-      aleph-node-image: ${{ needs.get-full-docker-image-path-mainnet.outputs.fqdn-image }}
+      ref: 'mainnet'
       expiration: '4h'
       validators: '7'
       internal: true
-      delete-first: true
+      short-session: false
 
   update-featurenet-to-testnet:
-    needs:
-      - create-featurenet-from-mainnet
-      - get-full-docker-image-path-testnet
-    name: Update featurenet to Testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    needs: [create-featurenet-from-mainnet]
+    name: Create featurenet from mainnet
+    uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
     with:
       featurenet-name: 'ops-updatenet-mainnet'
-      aleph-node-image: ${{ needs.get-full-docker-image-path-testnet.outputs.fqdn-image }}
-      expiration: '4h'
+      ref: 'testnet'
       rolling-update-partition: '0'
-      validators: '7'
-      internal: true
+      short-session: false
 
   delete-featurenet:
     if: ${{ always() }}
     needs: [update-featurenet-to-testnet]
     name: Delete featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v5
+    uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
       featurenet-name: 'ops-updatenet-mainnet'
 
-  slack-notification:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [delete-featurenet]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#  slack-notification:
+#    name: Slack notification
+#    runs-on: ubuntu-20.04
+#    needs: [delete-featurenet]
+#    if: >
+#      !cancelled() &&
+#      github.event_name != 'workflow_dispatch'
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

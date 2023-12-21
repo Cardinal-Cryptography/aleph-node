@@ -3,6 +3,7 @@ name: FE - Create
 
 on:
   workflow_dispatch:
+  workflow_call:
     inputs:
       featurenet-name:
         description: 'Name of the featurenet'
