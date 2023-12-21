@@ -43,6 +43,9 @@ on:
         type: string
         required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+  # this section needs to be duplicated only because workflow_call does not accept
+  # choice type. Only difference to the above workflow_dispatch section is expiration
+  # input, which is choice type in the former, but in the latter must be string.
   workflow_call:
     inputs:
       featurenet-name:

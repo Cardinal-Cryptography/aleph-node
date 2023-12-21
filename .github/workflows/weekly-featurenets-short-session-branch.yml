@@ -6,10 +6,17 @@ on:
   schedule:
     - cron: '0 3 * * 3'
   workflow_dispatch:
+  # tmp, remove
+  push:
+    branches:
+      - A0-3735
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  FEATURENET-NAME: ops-test-main-branch
 
 jobs:
   check-vars-and-secrets:
@@ -17,75 +24,42 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-fqdn-via-main-keyword:
-    name: Get aleph-node main branch FQDN image (short session)
-    needs: [check-vars-and-secrets]
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: 'main'
-          test-binary: 'true'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
-  build-and-push-featurenet-node-image-via-branch:
-    needs: [get-fqdn-via-main-keyword]
-    if: ${{ needs.get-fqdn-via-main-keyword.outputs.image-exists != 'true' }}
-    name: Build and push PR test docker image
-    uses: ./.github/workflows/_build-and-push-featurenet-node-image.yml
-    with:
-      ref: ${{ needs.get-fqdn-via-main-keyword.outputs.ref }}
-      fqdn-image: ${{ needs.get-fqdn-via-main-keyword.outputs.fqdn-image }}
-      short-session: true
-    secrets: inherit
-
   create-featurenet-via-branch:
-    needs:
-      - get-fqdn-via-main-keyword
-      - build-and-push-featurenet-node-image-via-branch
-    # to prevent this job to be skipped when on of the parent jobs is skipped
-    if: ${{ !cancelled() }}
-    name: Create featurenet from branch
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    needs: [check-vars-and-secrets]
+    name: Create featurenet from main branch
+    uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-main-branch'
-      aleph-node-image: ${{ needs.get-fqdn-via-main-keyword.outputs.fqdn-image }}
+      featurenet-name: $FEATURENET-NAME
+      ref: 'main'
+      expiration: '4h'
       validators: '7'
-      expiration: '3h'
       internal: true
-      delete-first: true
+      short-session: true
 
-  delete-branch-featurenet:
-    needs: [create-featurenet-via-branch]
+  delete-featurenet:
     if: ${{ always() }}
+    needs: [create-featurenet-via-branch]
     name: Delete featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v6
+    uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-main-branch'
+      featurenet-name: FEATURENET-NAME
 
-  slack:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [delete-branch-featurenet]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#  slack:
+#    name: Slack notification
+#    runs-on: ubuntu-20.04
+#    needs: [delete-featurenet]
+#    if: >
+#      !cancelled() &&
+#      github.event_name != 'workflow_dispatch'
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

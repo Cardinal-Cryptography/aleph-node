@@ -6,10 +6,17 @@ on:
   schedule:
     - cron: '20 3 * * 3'
   workflow_dispatch:
+  # tmp, remove
+  push:
+    branches:
+      - A0-3735
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  FEATURENET-NAME: ops-test-full-hash
 
 jobs:
   check-vars-and-secrets:
@@ -17,101 +24,42 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-main-commit-full-sha:
+  create-featurenet-from-full-sha:
     needs: [check-vars-and-secrets]
-    name: Get aleph-node full main commit SHA
-    outputs:
-      full-sha: ${{ steps.get-main-sha.outputs.main-sha }}
-    runs-on: [self-hosted, Linux, X64, small]
-    steps:
-      - name: Checkout aleph-node repository
-        uses: actions/checkout@v4
-        with:
-          path: aleph-node
-          ref: main
-          repository: Cardinal-Cryptography/aleph-node
-          token: ${{ secrets.CI_GH_TOKEN }}
-          fetch-depth: 0
-
-      - name: Get main branch SHA
-        shell: bash
-        id: get-main-sha
-        run: |
-          cd aleph-node
-          main_sha=$(git rev-parse HEAD)
-          echo "main-sha=${main_sha}" >> $GITHUB_OUTPUT
-
-  get-fqdn-via-full-sha:
-    name: Get aleph-node main branch FQDN image (short session)
-    needs:
-      - check-vars-and-secrets
-      - get-main-commit-full-sha
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: ${{ needs.get-main-commit-full-sha.outputs.full-sha }}
-          test-binary: 'true'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
-  build-and-push-featurenet-node-image-via-full-sha:
-    needs: [get-fqdn-via-full-sha]
-    if: ${{ needs.get-fqdn-via-full-sha.outputs.image-exists != 'true' }}
-    name: Build and push PR test docker image
-    uses: ./.github/workflows/_build-and-push-featurenet-node-image.yml
-    with:
-      ref: ${{ needs.get-fqdn-via-full-sha.outputs.ref }}
-      fqdn-image: ${{ needs.get-fqdn-via-full-sha.outputs.fqdn-image }}
-      short-session: true
-    secrets: inherit
-
-  create-featurenet-via-full-sha:
-    needs:
-      - get-fqdn-via-full-sha
-      - build-and-push-featurenet-node-image-via-full-sha
-    # to prevent this job to be skipped when on of the parent jobs is skipped
-    if: ${{ !cancelled() }}
-    name: Create featurenet from full sha
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    name: Create featurenet from full SHA
+    uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-full-hash'
-      aleph-node-image: ${{ needs.get-fqdn-via-full-sha.outputs.fqdn-image }}
+      featurenet-name: $FEATURENET-NAME
+      ref: '787c39186884aaf86ed48f46f575a8cd8cfd13e8'
+      expiration: '2h'
       validators: '5'
-      expiration: '4h'
       internal: true
-      delete-first: true
+      short-session: true
 
-  delete-full-sha-featurenet:
-    needs: [create-featurenet-via-full-sha]
+  delete-featurenet:
     if: ${{ always() }}
+    needs: [create-featurenet-from-full-sha]
     name: Delete featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v6
+    uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-test-full-hash'
+      featurenet-name: FEATURENET-NAME
 
-  slack:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [delete-full-sha-featurenet]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#  slack:
+#    name: Slack notification
+#    runs-on: ubuntu-20.04
+#    needs: [delete-full-sha-featurenet]
+#    if: >
+#      !cancelled() &&
+#      github.event_name != 'workflow_dispatch'
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

@@ -10,10 +10,17 @@ on:
   # Daily at 02:20
   schedule:
     - cron: '20 02 * * *'
+  # tmp, remove
+  push:
+    branches:
+      - A0-3735
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: false
+
+env:
+  FEATURENET-NAME: ops-updatenet-testnet
 
 jobs:
   check-vars-and-secrets:
@@ -21,108 +28,53 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  get-net-names:
-    needs: [check-vars-and-secrets]
-    name: Get aleph-node main SHA
-    outputs:
-      updatenet-testnet-name: ${{ steps.get-featurenet-name.outputs.updatenet-testnet-name }}
-      updatenet-mainnet-name: ${{ steps.get-featurenet-name.outputs.updatenet-mainnet-name }}
-      aleph-node-main-hash: ${{ steps.get-update-hashes.outputs.update-hash }}
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Get featurenet name
-        id: get-featurenet-name
-        run: |
-          echo "updatenet-testnet-name=ops-updatenet-testnet" >> $GITHUB_OUTPUT
-          echo "updatenet-mainnet-name=ops-updatenet-mainnet" >> $GITHUB_OUTPUT
-
-  get-full-docker-image-path-testnet:
-    name: Get full aleph-node full docker path path for testnet
-    needs: [check-vars-and-secrets]
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: 'testnet'
-          test-binary: 'false'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
-  get-full-docker-image-path-main-branch:
-    name: Get full aleph-node full docker path path for mainnet
-    needs: [check-vars-and-secrets]
-    runs-on: ubuntu-20.04
-    outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
-    steps:
-      - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
-        with:
-          ref: 'main'
-          test-binary: 'false'
-          ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
-          ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
-
   create-featurenet-from-testnet:
-    needs: [get-full-docker-image-path-testnet]
+    needs: [check-vars-and-secrets]
     name: Create featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-updatenet-testnet'
-      aleph-node-image: ${{ needs.get-full-docker-image-path-testnet.outputs.fqdn-image }}
+      featurenet-name: $FEATURENET-NAME
+      ref: 'testnet'
       expiration: '4h'
-      validators: '7'
+      validators: '8'
       internal: true
-      delete-first: true
+      short-session: false
 
   update-featurenet-to-main:
-    needs:
-      - create-featurenet-from-testnet
-      - get-full-docker-image-path-main-branch
-    name: Update featurenet from testnet to main image
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-updatenet-testnet'
-      aleph-node-image: ${{ needs.get-full-docker-image-path-main-branch.outputs.fqdn-image }}
-      expiration: '4h'
+      featurenet-name: FEATURENET-NAME
+      ref: 'main'
       rolling-update-partition: '0'
-      validators: '7'
-      internal: true
+      short-session: false
 
   delete-featurenet:
     if: ${{ always() }}
     needs: [update-featurenet-to-main]
-    name: Delete featurenet from testnet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v5
+    name: Delete featurenet
+    uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: 'ops-updatenet-testnet'
+      featurenet-name: FEATURENET-NAME
 
-  slack-notification:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [delete-featurenet]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Send Slack message
-        uses: ./.github/actions/slack-notification
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#  slack-notification:
+#    name: Slack notification
+#    runs-on: ubuntu-20.04
+#    needs: [delete-featurenet]
+#    if: >
+#      !cancelled() &&
+#      github.event_name != 'workflow_dispatch'
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Send Slack message
+#        uses: ./.github/actions/slack-notification
+#        with:
+#          notify-on: "failure"
+#        env:
+#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
