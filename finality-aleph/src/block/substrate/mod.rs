@@ -32,7 +32,7 @@ use primitives::BlockNumber;
 pub use status_notifier::SubstrateChainStatusNotifier;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-use crate::block::{BlockchainEvents, HeaderBackend};
+use crate::block::{BlockchainEvents, HeaderBackend, SelectChain, SelectChainError};
 
 const LOG_TARGET: &str = "aleph-substrate";
 
@@ -169,5 +169,24 @@ impl<C: sc_client_api::BlockchainEvents<Block> + Send> BlockchainEvents<Header> 
             self.finality_notification_stream(),
             self.every_import_notification_stream(),
         )
+    }
+}
+
+#[async_trait::async_trait]
+impl<SC: sp_consensus::SelectChain<Block>> SelectChain<Header> for SC {
+    async fn leaves(&self) -> Result<Vec<BlockHash>, SelectChainError> {
+        self.leaves().await
+    }
+
+    async fn best_chain(&self) -> Result<Header, SelectChainError> {
+        self.best_chain().await
+    }
+
+    async fn finality_target(
+        &self,
+        base_hash: BlockHash,
+        maybe_max_number: Option<BlockNumber>,
+    ) -> Result<BlockHash, SelectChainError> {
+        self.finality_target(base_hash, maybe_max_number).await
     }
 }

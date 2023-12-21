@@ -250,3 +250,17 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     /// Get current status of the header backend.
     fn status(&self) -> Self::Status;
 }
+type SelectChainError = sp_consensus::Error;
+
+#[async_trait::async_trait]
+pub trait SelectChain<H: Header>: Sync + Send + Clone {
+    async fn leaves(&self) -> Result<Vec<BlockHash>, SelectChainError>;
+
+    async fn best_chain(&self) -> Result<H, SelectChainError>;
+
+    async fn finality_target(
+        &self,
+        base_hash: BlockHash,
+        _maybe_max_number: Option<BlockNumber>,
+    ) -> Result<BlockHash, SelectChainError>;
+}

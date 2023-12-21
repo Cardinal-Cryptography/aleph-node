@@ -7,7 +7,6 @@ use network_clique::SpawnHandleT;
 use primitives::AlephSessionApi;
 use sc_client_api::Backend;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_consensus::SelectChain;
 use sp_keystore::Keystore;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
@@ -19,7 +18,7 @@ use crate::{
     aleph_primitives::{BlockHash, BlockNumber, KEY_TYPE},
     block::{
         substrate::{Justification, JustificationTranslator},
-        Block, Header, HeaderVerifier, UnverifiedHeader,
+        Block, Header, HeaderVerifier, SelectChain, UnverifiedHeader,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{
@@ -111,7 +110,7 @@ where
         + Sync
         + 'static,
     BE: Backend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    SC: SelectChain<B::Header> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
@@ -144,7 +143,7 @@ where
         + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    SC: SelectChain<B::Header> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
@@ -201,7 +200,7 @@ where
             backup,
             ..
         } = params;
-        let (chain_tracker, data_provider) = LegacyChainTracker::new(
+        let (chain_tracker, data_provider) = LegacyChainTracker::<_, B, _, _>::new(
             self.select_chain.clone(),
             self.client.clone(),
             session_boundaries.clone(),
@@ -270,7 +269,7 @@ where
             backup,
             ..
         } = params;
-        let (chain_tracker, data_provider) = ChainTracker::new(
+        let (chain_tracker, data_provider) = ChainTracker::<_, B, _, _>::new(
             self.select_chain.clone(),
             self.client.clone(),
             session_boundaries.clone(),
@@ -445,7 +444,7 @@ where
         + 'static,
     C::Api: crate::aleph_primitives::AlephSessionApi<B>,
     BE: Backend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    SC: SelectChain<B::Header> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,

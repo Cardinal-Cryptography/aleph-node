@@ -3,16 +3,11 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 use futures::channel::oneshot;
 use log::{debug, warn};
 use parking_lot::Mutex;
-use sc_client_api::HeaderBackend;
-use sp_consensus::SelectChain;
-use sp_runtime::{
-    traits::{Block as BlockT, Header as HeaderT, Zero},
-    SaturatedConversion,
-};
+use sp_runtime::{traits::Zero, SaturatedConversion};
 
 use crate::{
-    aleph_primitives::{BlockHash, BlockNumber},
-    block::UnverifiedHeader,
+    aleph_primitives::BlockNumber,
+    block::{Block, Header, HeaderBackend, HeaderBackendStatus, SelectChain, UnverifiedHeader},
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
     party::manager::Runnable,
@@ -20,37 +15,40 @@ use crate::{
 };
 
 // Reduce block header to the level given by num, by traversing down via parents.
-pub fn reduce_header_to_num<B, C>(client: &C, header: B::Header, num: BlockNumber) -> B::Header
+pub fn reduce_header_to_num<H, C>(client: &C, header: H, num: BlockNumber) -> H
 where
-    B: BlockT,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B>,
+    H: Header,
+    C: HeaderBackend<H>,
 {
     assert!(
-        header.number() >= &num,
+        header.id().number() >= num,
         "Cannot reduce {header:?} to number {num:?}"
     );
     let mut curr_header = header;
-    while curr_header.number() > &num {
+    while curr_header.id().number() > num {
         curr_header = client
-            .header(*curr_header.parent_hash())
+            .header(
+                curr_header
+                    .parent_id()
+                    .expect("number() > num >= 0, so parent exists qed.")
+                    .hash(),
+            )
             .expect("client must respond")
             .expect("parent hash is known by the client");
     }
     curr_header
 }
 
-pub fn get_parent<B, C>(client: &C, block: &BlockId) -> Option<BlockId>
+pub fn get_parent<H, C>(client: &C, block: &BlockId) -> Option<BlockId>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber>,
-    C: HeaderBackend<B>,
+    H: Header,
+    C: HeaderBackend<H>,
 {
     if block.number().is_zero() {
         return None;
     }
     if let Some(header) = client.header(block.hash()).expect("client must respond") {
-        Some((*header.parent_hash(), block.number() - 1).into())
+        Some(header.parent_id()?)
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);
         None
@@ -62,15 +60,14 @@ pub enum ProposalPreparationError {
     BestContradictsFinalized,
 }
 
-pub fn get_proposal<B, C>(
+pub fn get_proposal<H, C>(
     client: &C,
     best_block: BlockId,
     finalized_block: BlockId,
-) -> Result<Option<AlephData<B::Header>>, ProposalPreparationError>
+) -> Result<Option<AlephData<H::Unverified>>, ProposalPreparationError>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
-    C: HeaderBackend<B>,
+    H: Header,
+    C: HeaderBackend<H>,
 {
     use ProposalPreparationError::*;
     let mut curr_block = best_block;
@@ -95,7 +92,7 @@ where
         };
         let tail: Vec<_> = branch.rev().collect();
         Ok(Some(AlephData {
-            head_proposal: UnvalidatedAlephProposal::new(head, tail),
+            head_proposal: UnvalidatedAlephProposal::new(head.into_unverified(), tail),
         }))
     } else {
         // By backtracking from the best block we reached a block conflicting with best finalized.
@@ -129,28 +126,28 @@ struct ChainInfo {
 /// Internally it frequently updates a `data_to_propose` field that is shared with a `DataProvider`, which
 /// in turn is a tiny wrapper around this single shared resource that takes out `data_to_propose` whenever
 /// `get_data` is called.
-pub struct ChainTracker<B, SC, C>
+pub struct ChainTracker<H, B, SC, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
-    C: HeaderBackend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H> + 'static,
+    SC: SelectChain<H> + 'static,
 {
     select_chain: SC,
     client: Arc<C>,
-    data_to_propose: Arc<Mutex<Option<AlephData<B::Header>>>>,
+    data_to_propose: Arc<Mutex<Option<AlephData<H::Unverified>>>>,
     session_boundaries: SessionBoundaries,
     prev_chain_info: Option<ChainInfo>,
     config: ChainTrackerConfig,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<(B, H)>,
 }
 
-impl<B, SC, C> ChainTracker<B, SC, C>
+impl<H, B, SC, C> ChainTracker<H, B, SC, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
-    C: HeaderBackend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H> + 'static,
+    SC: SelectChain<H> + 'static,
 {
     pub fn new(
         select_chain: SC,
@@ -158,7 +155,7 @@ where
         session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
         metrics: AllBlockMetrics,
-    ) -> (Self, DataProvider<B::Header>) {
+    ) -> (Self, DataProvider<H::Unverified>) {
         let data_to_propose = Arc::new(Mutex::new(None));
         (
             ChainTracker {
@@ -183,9 +180,8 @@ where
         // times we remember these "inputs" in `prev_chain_info` and upon match we leave the old value
         // of `data_to_propose` unaffected.
 
-        let client_info = self.client.info();
-        let finalized_block: BlockId =
-            (client_info.finalized_hash, client_info.finalized_number).into();
+        let client_info = self.client.status();
+        let finalized_block: BlockId = client_info.finalized_id();
 
         if finalized_block.number() >= self.session_boundaries.last_block() {
             // This session is already finished, but this instance of ChainTracker has not been terminated yet.
@@ -224,7 +220,7 @@ where
         }
     }
 
-    async fn get_best_header(&self) -> B::Header {
+    async fn get_best_header(&self) -> H {
         self.select_chain.best_chain().await.expect("No best chain")
     }
 
@@ -236,12 +232,12 @@ where
         // then we don't need to recompute `best_block_in_session`, as `prev_best_block` is already correct.
 
         let new_best_header = self.get_best_header().await;
-        if new_best_header.number() < &self.session_boundaries.first_block() {
+        if new_best_header.id().number() < self.session_boundaries.first_block() {
             return None;
         }
         let last_block = self.session_boundaries.last_block();
-        let new_best_block = (new_best_header.hash(), *new_best_header.number()).into();
-        if new_best_header.number() <= &last_block {
+        let new_best_block = (new_best_header.id().hash(), new_best_header.id().number()).into();
+        if new_best_header.id().number() <= last_block {
             Some(new_best_block)
         } else {
             match prev_best_block {
@@ -249,7 +245,7 @@ where
                     // This is the the first time we see a block in this session.
                     let reduced_header =
                         reduce_header_to_num(&*self.client, new_best_header, last_block);
-                    Some((reduced_header.hash(), *reduced_header.number()).into())
+                    Some(reduced_header.id())
                 }
                 Some(prev) => {
                     if prev.number() < last_block {
@@ -257,7 +253,7 @@ where
                         // but must compute the new best_block_in_session naively.
                         let reduced_header =
                             reduce_header_to_num(&*self.client, new_best_header, last_block);
-                        Some((reduced_header.hash(), *reduced_header.number()).into())
+                        Some(reduced_header.id())
                     } else {
                         // Both `prev_best_block` and thus also `new_best_header` are above (or equal to) `last_block`, we optimize.
                         let reduced_header = reduce_header_to_num(
@@ -265,12 +261,12 @@ where
                             new_best_header.clone(),
                             prev.number(),
                         );
-                        if reduced_header.hash() != prev.hash() {
+                        if reduced_header.id().hash() != prev.hash() {
                             // The new_best_block is not a descendant of `prev`, we need to update.
                             // In the opposite case we do nothing, as the `prev` is already correct.
                             let reduced_header =
                                 reduce_header_to_num(&*self.client, new_best_header, last_block);
-                            Some((reduced_header.hash(), *reduced_header.number()).into())
+                            Some(reduced_header.id())
                         } else {
                             Some(prev)
                         }
@@ -302,12 +298,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, SC, C> Runnable for ChainTracker<B, SC, C>
+impl<H, B, SC, C> Runnable for ChainTracker<H, B, SC, C>
 where
-    B: BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
-    C: HeaderBackend<B> + 'static,
-    SC: SelectChain<B> + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified>,
+    C: HeaderBackend<H> + 'static,
+    SC: SelectChain<H> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
         ChainTracker::run(self, exit).await
@@ -359,7 +355,9 @@ mod tests {
         metrics::AllBlockMetrics,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{aleph_data_from_blocks, THeader, TestClientBuilder, TestClientBuilderExt},
+            mocks::{
+                aleph_data_from_blocks, TBlock, THeader, TestClientBuilder, TestClientBuilderExt,
+            },
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
     };
@@ -387,7 +385,7 @@ mod tests {
             refresh_interval: REFRESH_INTERVAL,
         };
 
-        let (chain_tracker, data_provider) = ChainTracker::new(
+        let (chain_tracker, data_provider) = ChainTracker::<_, TBlock, _, _>::new(
             select_chain,
             client,
             session_boundaries,
