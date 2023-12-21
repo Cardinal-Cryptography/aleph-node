@@ -30,7 +30,7 @@ jobs:
     uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: ${{ env.FEATURENET_NAME }}
+      featurenet-name: $FEATURENET_NAME
       ref: 'main'
       expiration: '4h'
       validators: '7'
@@ -44,7 +44,7 @@ jobs:
     uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: ${{ env.FEATURENET_NAME }}
+      featurenet-name: $FEATURENET_NAME
 
 #  slack:
 #    name: Slack notification
