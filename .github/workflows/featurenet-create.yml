@@ -41,7 +41,7 @@ on:
       sudo-account-id:
         description: 'Sudo account ID'
         type: string
-        required: true
+        required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
   workflow_call:
     inputs:
@@ -75,7 +75,7 @@ on:
       sudo-account-id:
         description: 'Sudo account ID'
         type: string
-        required: true
+        required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
 
 jobs:
