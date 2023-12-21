@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FEATURENET-NAME: ops-test-main-branch
+  FEATURENET_NAME: ops-test-main-branch
 
 jobs:
   check-vars-and-secrets:
@@ -44,7 +44,7 @@ jobs:
     uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: FEATURENET-NAME
+      featurenet-name: ${{ env.FEATURENET_NAME }}
 
 #  slack:
 #    name: Slack notification
