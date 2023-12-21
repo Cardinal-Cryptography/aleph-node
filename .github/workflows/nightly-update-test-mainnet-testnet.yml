@@ -11,8 +11,8 @@ on:
   schedule:
     - cron: '00 02 * * *'
   # tmp, remove
-  on:
-    push:
+  push:
+    branches:
       - A0-3735
 
 concurrency:
