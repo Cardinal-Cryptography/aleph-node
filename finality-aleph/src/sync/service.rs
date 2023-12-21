@@ -762,7 +762,7 @@ where
 
     /// Stay synchronized.
     pub async fn run(mut self) -> Result<Bottom, SyncServiceError> {
-        use self::SyncServiceError as Error;
+        use SyncServiceError as Error;
 
         if self.blocks_from_creator.is_terminated() {
             return Err(Error::creator_channel());
