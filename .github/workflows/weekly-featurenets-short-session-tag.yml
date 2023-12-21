@@ -42,7 +42,7 @@ jobs:
   slack:
     name: Slack notification
     runs-on: ubuntu-20.04
-    needs: [delete-tag-featurenet]
+    needs: [delete-featurenet]
     if: >
       !cancelled() &&
       github.event_name != 'workflow_dispatch'
