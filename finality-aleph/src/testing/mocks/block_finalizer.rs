@@ -6,7 +6,6 @@ use crate::{
     testing::mocks::{single_action_mock::SingleActionMock, TBlock},
     BlockId,
 };
-
 type CallArgs = (BlockId, Justification);
 
 #[derive(Clone, Default)]

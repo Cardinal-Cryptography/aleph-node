@@ -13,7 +13,6 @@ use crate::{
     testing::mocks::{TBlock, THeader, TestClient},
     BlockId,
 };
-
 // A helper struct that allows to build blocks without importing/finalizing them right away.
 pub struct ClientChainBuilder {
     pub client: Arc<TestClient>,

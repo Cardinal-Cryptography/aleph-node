@@ -34,7 +34,7 @@ impl<H, B, C> SubstrateChainInfoProvider<H, B, C>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + 'static,
+    C: HeaderBackend<H>,
 {
     pub fn new(client: Arc<C>) -> Self {
         SubstrateChainInfoProvider {

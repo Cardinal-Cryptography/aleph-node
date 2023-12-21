@@ -1,11 +1,12 @@
+use crate::testing::mocks::{TBlock, THeader};
 use crate::{
     block::{Block, UnverifiedHeader},
     data_io::{AlephData, UnvalidatedAlephProposal},
 };
 
-pub fn unvalidated_proposal_from_headers<U: UnverifiedHeader>(
-    mut headers: Vec<U>,
-) -> UnvalidatedAlephProposal<U> {
+pub fn unvalidated_proposal_from_headers(
+    mut headers: Vec<THeader>,
+) -> UnvalidatedAlephProposal<THeader> {
     let head = headers.pop().unwrap();
     let tail = headers
         .into_iter()
@@ -14,12 +15,12 @@ pub fn unvalidated_proposal_from_headers<U: UnverifiedHeader>(
     UnvalidatedAlephProposal::new(head, tail)
 }
 
-pub fn aleph_data_from_blocks<B: Block>(blocks: Vec<B>) -> AlephData<B::UnverifiedHeader> {
+pub fn aleph_data_from_blocks(blocks: Vec<TBlock>) -> AlephData<THeader> {
     let headers = blocks.into_iter().map(|b| b.header().clone()).collect();
     aleph_data_from_headers(headers)
 }
 
-pub fn aleph_data_from_headers<U: UnverifiedHeader>(headers: Vec<U>) -> AlephData<U> {
+pub fn aleph_data_from_headers(headers: Vec<THeader>) -> AlephData<THeader> {
     AlephData {
         head_proposal: unvalidated_proposal_from_headers(headers),
     }

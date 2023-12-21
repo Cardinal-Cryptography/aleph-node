@@ -12,7 +12,7 @@ use tokio::time::timeout;
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{Block, Header as _},
+    block::{Block, Header},
     data_io::{AlephData, AlephNetworkMessage, DataStore, DataStoreConfig, MAX_DATA_BRANCH_LEN},
     network::{
         data::{component::Network as ComponentNetwork, Network as DataNetwork},

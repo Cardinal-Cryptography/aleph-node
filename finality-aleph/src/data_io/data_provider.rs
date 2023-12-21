@@ -236,7 +236,7 @@ where
             return None;
         }
         let last_block = self.session_boundaries.last_block();
-        let new_best_block = (new_best_header.id().hash(), new_best_header.id().number()).into();
+        let new_best_block = new_best_header.id();
         if new_best_header.id().number() <= last_block {
             Some(new_best_block)
         } else {
