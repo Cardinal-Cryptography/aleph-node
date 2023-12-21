@@ -19,9 +19,6 @@ concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: false
 
-env:
-  FEATURENET_NAME: ops-updatenet-mainnet
-
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
@@ -34,7 +31,7 @@ jobs:
     uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET_NAME
+      featurenet-name: 'ops-updatenet-mainnet'
       ref: 'mainnet'
       expiration: '4h'
       validators: '7'
@@ -47,7 +44,7 @@ jobs:
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET_NAME
+      featurenet-name: 'ops-updatenet-mainnet'
       ref: 'testnet'
       rolling-update-partition: '0'
       short-session: false
@@ -59,7 +56,7 @@ jobs:
     uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET_NAME
+      featurenet-name: 'ops-updatenet-mainnet'
 
 #  slack-notification:
 #    name: Slack notification

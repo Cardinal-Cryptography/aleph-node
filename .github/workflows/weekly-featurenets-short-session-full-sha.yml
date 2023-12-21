@@ -15,9 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  FEATURENET_NAME: ops-test-full-hash
-
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
@@ -30,7 +27,7 @@ jobs:
     uses: ./.github/workflows/featurenet-create.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET_NAME
+      featurenet-name: 'ops-test-full-hash'
       ref: '787c39186884aaf86ed48f46f575a8cd8cfd13e8'
       expiration: '2h'
       validators: '5'
@@ -44,7 +41,7 @@ jobs:
     uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
     with:
-      featurenet-name: $FEATURENET_NAME
+      featurenet-name: 'ops-test-full-hash'
 
 #  slack:
 #    name: Slack notification
