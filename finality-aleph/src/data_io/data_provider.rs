@@ -30,8 +30,7 @@ where
             .header(
                 curr_header
                     .parent_id()
-                    .expect("number() > num >= 0, so parent exists qed.")
-                    .hash(),
+                    .expect("number() > num >= 0, so parent exists qed."),
             )
             .expect("client must respond")
             .expect("parent hash is known by the client");
@@ -47,7 +46,7 @@ where
     if block.number().is_zero() {
         return None;
     }
-    if let Some(header) = client.header(block.hash()).expect("client must respond") {
+    if let Some(header) = client.header(block.clone()).expect("client must respond") {
         Some(header.parent_id()?)
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);
@@ -76,21 +75,21 @@ where
         if curr_block.number() - finalized_block.number()
             <= <BlockNumber>::saturated_from(MAX_DATA_BRANCH_LEN)
         {
-            branch.push(curr_block.hash());
+            branch.push(curr_block.clone());
         }
         curr_block = get_parent(client, &curr_block).expect("block of num >= 1 must have a parent")
     }
-    if curr_block.hash() == finalized_block.hash() {
+    if curr_block == finalized_block {
         let mut branch = branch.into_iter();
-        let head_hash = match branch.next() {
-            Some(hash) => hash,
+        let head_id = match branch.next() {
+            Some(id) => id,
             None => return Ok(None),
         };
-        let head = match client.header(head_hash) {
+        let head = match client.header(head_id) {
             Ok(Some(header)) => header,
             _ => return Err(MissingHeader),
         };
-        let tail: Vec<_> = branch.rev().collect();
+        let tail: Vec<_> = branch.rev().map(|id| id.hash()).collect();
         Ok(Some(AlephData {
             head_proposal: UnvalidatedAlephProposal::new(head.into_unverified(), tail),
         }))

@@ -142,8 +142,8 @@ impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
     type Status = sp_blockchain::Info<Block>;
     type Error = sp_blockchain::Error;
 
-    fn header(&self, hash: BlockHash) -> Result<Option<Header>, sp_blockchain::Error> {
-        self.header(hash)
+    fn header(&self, id: BlockId) -> Result<Option<Header>, sp_blockchain::Error> {
+        self.header(id.hash)
     }
 
     fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error> {

@@ -52,7 +52,7 @@ where
     fn is_block_imported(&mut self, block: &BlockId) -> bool {
         let maybe_header = self
             .client
-            .header(block.hash())
+            .header(block.clone())
             .expect("client must answer a query");
         if let Some(header) = maybe_header {
             // If the block number is incorrect, we treat as not imported.
@@ -61,21 +61,25 @@ where
         false
     }
 
-    fn get_finalized_at(&mut self, num: BlockNumber) -> Result<BlockId, ()> {
-        if self.client.status().finalized_id().number() < num {
+    fn get_finalized_at(&mut self, number: BlockNumber) -> Result<BlockId, ()> {
+        if self.client.status().finalized_id().number() < number {
             return Err(());
         }
 
-        let block_hash = match self.client.hash(num).ok().flatten() {
+        let hash = match self.client.hash(number).ok().flatten() {
             None => {
-                error!(target: "chain-info", "Could not get hash for block #{:?}", num);
+                error!(target: "chain-info", "Could not get hash for block #{:?}", number);
                 return Err(());
             }
             Some(h) => h,
         };
 
-        if let Some(header) = self.client.header(block_hash).expect("client must respond") {
-            Ok((header.id().hash(), num).into())
+        if let Some(header) = self
+            .client
+            .header(BlockId::new(hash, number))
+            .expect("client must respond")
+        {
+            Ok(header.id())
         } else {
             Err(())
         }
@@ -84,7 +88,7 @@ where
     fn get_parent_hash(&mut self, block: &BlockId) -> Result<BlockHash, ()> {
         if let Some(header) = self
             .client
-            .header(block.hash())
+            .header(block.clone())
             .expect("client must respond")
         {
             Ok(header.parent_id().ok_or(())?.hash())

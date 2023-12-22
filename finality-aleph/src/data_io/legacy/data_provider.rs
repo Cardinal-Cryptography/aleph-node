@@ -30,8 +30,7 @@ where
             .header(
                 curr_header
                     .parent_id()
-                    .expect("number() > num >= 0, so parent exists qed.")
-                    .hash(),
+                    .expect("number() > num >= 0, so parent exists qed."),
             )
             .expect("client must respond")
             .expect("parent hash is known by the client");
@@ -47,7 +46,7 @@ where
     if block.number().is_zero() {
         return None;
     }
-    if let Some(header) = client.header(block.hash()).expect("client must respond") {
+    if let Some(header) = client.header(block.clone()).expect("client must respond") {
         Some(header.parent_id()?)
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);

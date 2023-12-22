@@ -243,7 +243,7 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     type Status: HeaderBackendStatus;
     type Error: Debug + Display;
     /// Get block header. Returns `None` if block is not found.
-    fn header(&self, hash: BlockHash) -> Result<Option<H>, Self::Error>;
+    fn header(&self, id: BlockId) -> Result<Option<H>, Self::Error>;
     /// Get hash of a block with a given number, on the path from genesis to the currently
     /// best block. Returned value is unspecified if queried `number` is larger than best block.
     fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error>;
