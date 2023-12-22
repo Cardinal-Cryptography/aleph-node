@@ -19,7 +19,7 @@ use crate::{
     aleph_primitives::BlockNumber,
     block::{
         Block, BlockchainEvents, ChainStatusNotification, ChainStatusNotifier, Header,
-        HeaderBackend, HeaderBackendStatus, HeaderVerifier, UnverifiedHeader,
+        HeaderBackend, HeaderVerifier, UnverifiedHeader,
     },
     data_io::{
         chain_info::{CachedChainInfoProvider, ChainInfoProvider, SubstrateChainInfoProvider},
@@ -206,13 +206,12 @@ where
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
         let (messages_to_network, messages_from_network) = component_network.into();
-        let status = client.status();
+        let highest_finalized_num = client.top_finalized().number();
         let chain_info_provider = CachedChainInfoProvider::new(
             SubstrateChainInfoProvider::new(client.clone()),
             Default::default(),
         );
 
-        let highest_finalized_num = status.finalized_id().number();
         (
             DataStore {
                 next_free_id: 0,

@@ -7,7 +7,7 @@ use sp_runtime::{traits::Zero, SaturatedConversion};
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{Block, Header, HeaderBackend, HeaderBackendStatus, SelectChain},
+    block::{Block, Header, HeaderBackend, SelectChain},
     data_io::legacy::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
     party::manager::Runnable,
@@ -161,14 +161,11 @@ where
     }
 
     fn update_data(&mut self, best_block_in_session: &BlockId) {
-        // We use best_block_in_session argument and the highest_finalized block from the client and compute
+        // We use best_block_in_session argument and the top_finalized block from the client and compute
         // the corresponding `AlephData<B>` in `data_to_propose` for AlephBFT. To not recompute this many
         // times we remember these "inputs" in `prev_chain_info` and upon match we leave the old value
         // of `data_to_propose` unaffected.
-
-        let client_info = self.client.status();
-        let finalized_block: BlockId = client_info.finalized_id();
-
+        let finalized_block = self.client.top_finalized();
         if finalized_block.number() >= self.session_boundaries.last_block() {
             // This session is already finished, but this instance of ChainTracker has not been terminated yet.
             // We go with the default -- empty proposal, this does not have any significance.

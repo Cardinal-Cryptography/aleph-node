@@ -4,10 +4,7 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    block::{
-        Block as BlockT, BlockId, BlockImport, Header as HeaderT, HeaderBackendStatus,
-        UnverifiedHeader,
-    },
+    block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
     metrics::{AllBlockMetrics, Checkpoint},
     BlockHash,
 };
@@ -118,28 +115,7 @@ impl BlockT for Block {
     }
 }
 
-impl HeaderBackendStatus for sp_blockchain::Info<Block> {
-    fn best_id(&self) -> BlockId {
-        BlockId {
-            hash: self.best_hash,
-            number: self.best_number,
-        }
-    }
-
-    fn genesis_hash(&self) -> BlockHash {
-        self.genesis_hash
-    }
-
-    fn finalized_id(&self) -> BlockId {
-        BlockId {
-            hash: self.finalized_hash,
-            number: self.finalized_number,
-        }
-    }
-}
-
 impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
-    type Status = sp_blockchain::Info<Block>;
     type Error = sp_blockchain::Error;
 
     fn header(&self, id: BlockId) -> Result<Option<Header>, sp_blockchain::Error> {
@@ -150,8 +126,12 @@ impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
         self.hash(number)
     }
 
-    fn status(&self) -> Self::Status {
-        self.info()
+    fn top_finalized(&self) -> BlockId {
+        let info = self.info();
+        BlockId {
+            hash: info.finalized_hash,
+            number: info.finalized_number,
+        }
     }
 }
 
