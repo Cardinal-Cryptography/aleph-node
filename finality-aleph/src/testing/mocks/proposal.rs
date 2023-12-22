@@ -1,7 +1,7 @@
-use crate::testing::mocks::{TBlock, THeader};
 use crate::{
     block::{Block, UnverifiedHeader},
     data_io::{AlephData, UnvalidatedAlephProposal},
+    testing::mocks::{TBlock, THeader},
 };
 
 pub fn unvalidated_proposal_from_headers(
