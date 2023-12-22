@@ -1,10 +1,6 @@
-use parity_scale_codec::Codec;
 use sc_consensus::import_queue::{ImportQueueService, IncomingBlock};
 use sp_consensus::BlockOrigin;
-use sp_runtime::{
-    generic,
-    traits::{CheckedSub, Header as _, Member, One},
-};
+use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
@@ -15,8 +11,6 @@ use crate::{
     metrics::{AllBlockMetrics, Checkpoint},
     BlockHash,
 };
-
-type GenericBlock<E> = generic::Block<Header, E>;
 
 mod chain_status;
 mod finalizer;
@@ -115,7 +109,7 @@ impl BlockImport<Block> for BlockImporter {
     }
 }
 
-impl<E: Member + Codec> BlockT for GenericBlock<E> {
+impl BlockT for Block {
     type UnverifiedHeader = Header;
 
     /// The header of the block.
