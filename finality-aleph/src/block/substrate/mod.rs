@@ -4,10 +4,7 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 
 use crate::{
     aleph_primitives::{Block, Header},
-    block::{
-        Block as BlockT, BlockId, BlockImport, Header as HeaderT, HeaderBackendStatus,
-        UnverifiedHeader,
-    },
+    block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
     metrics::{AllBlockMetrics, Checkpoint},
     BlockHash,
 };
@@ -118,40 +115,41 @@ impl BlockT for Block {
     }
 }
 
-impl HeaderBackendStatus for sp_blockchain::Info<Block> {
-    fn best_id(&self) -> BlockId {
-        BlockId {
-            hash: self.best_hash,
-            number: self.best_number,
-        }
-    }
-
-    fn genesis_hash(&self) -> BlockHash {
-        self.genesis_hash
-    }
-
-    fn finalized_id(&self) -> BlockId {
-        BlockId {
-            hash: self.finalized_hash,
-            number: self.finalized_number,
-        }
-    }
+#[derive(Debug)]
+pub enum HeaderBackendError {
+    NotFinalized(BlockNumber),
+    UnknownHeader(BlockId),
+    NoHashForNumber(BlockNumber),
 }
 
 impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
-    type Status = sp_blockchain::Info<Block>;
-    type Error = sp_blockchain::Error;
+    type Error = HeaderBackendError;
 
-    fn header(&self, id: BlockId) -> Result<Option<Header>, sp_blockchain::Error> {
+    fn header(&self, id: BlockId) -> Result<Option<Header>, Self::Error> {
         self.header(id.hash)
+            .map_err(|_| Self::Error::UnknownHeader(id))
     }
 
-    fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error> {
-        self.hash(number)
+    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error> {
+        if self.top_finalized().number() < number {
+            return Err(Self::Error::NotFinalized(number));
+        }
+
+        return match self.hash(number).ok().flatten() {
+            None => {
+                log::error!(target: "chain-info", "Could not get hash for block #{:?}", number);
+                Err(Self::Error::NoHashForNumber(number))
+            }
+            Some(h) => Ok(h),
+        };
     }
 
-    fn status(&self) -> Self::Status {
-        self.info()
+    fn top_finalized(&self) -> BlockId {
+        let info = self.info();
+        BlockId {
+            hash: info.finalized_hash,
+            number: info.finalized_number,
+        }
     }
 }
 

@@ -1,11 +1,10 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use log::error;
 use lru::LruCache;
 
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
-    block::{Block, Header, HeaderBackend, HeaderBackendStatus},
+    block::{Block, Header, HeaderBackend},
     data_io::ChainInfoCacheConfig,
     BlockId,
 };
@@ -62,26 +61,9 @@ where
     }
 
     fn get_finalized_at(&mut self, number: BlockNumber) -> Result<BlockId, ()> {
-        if self.client.status().finalized_id().number() < number {
-            return Err(());
-        }
-
-        let hash = match self.client.hash(number).ok().flatten() {
-            None => {
-                error!(target: "chain-info", "Could not get hash for block #{:?}", number);
-                return Err(());
-            }
-            Some(h) => h,
-        };
-
-        if let Some(header) = self
-            .client
-            .header(BlockId::new(hash, number))
-            .expect("client must respond")
-        {
-            Ok(header.id())
-        } else {
-            Err(())
+        match self.client.finalized_hash(number) {
+            Ok(hash) => Ok((hash, number).into()),
+            Err(_) => Err(()),
         }
     }
 
@@ -98,7 +80,7 @@ where
     }
 
     fn get_highest_finalized(&mut self) -> BlockId {
-        self.client.status().finalized_id()
+        self.client.top_finalized()
     }
 }
 
