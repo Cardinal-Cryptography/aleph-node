@@ -234,12 +234,11 @@ where
 }
 
 pub trait HeaderBackend<H: Header>: Send + Sync {
-    type Error: Debug + Display;
+    type Error: Debug;
     /// Get block header. Returns `None` if block is not found.
     fn header(&self, id: BlockId) -> Result<Option<H>, Self::Error>;
-    /// Get hash of a block with a given number, on the path from genesis to the currently
-    /// best block. Returned value is unspecified if queried `number` is larger than best block.
-    fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error>;
+    /// Get hash of a finalized block with a given number.
+    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error>;
     /// Get currently highest finalized block.
     fn top_finalized(&self) -> BlockId;
 }

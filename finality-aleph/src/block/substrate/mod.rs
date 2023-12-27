@@ -115,15 +115,33 @@ impl BlockT for Block {
     }
 }
 
-impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
-    type Error = sp_blockchain::Error;
+#[derive(Debug)]
+pub enum HeaderBackendError {
+    NotFinalized(BlockNumber),
+    UnknownHeader(BlockId),
+    NoHashForNumber(BlockNumber),
+}
 
-    fn header(&self, id: BlockId) -> Result<Option<Header>, sp_blockchain::Error> {
+impl<HB: sp_blockchain::HeaderBackend<Block>> HeaderBackend<Header> for HB {
+    type Error = HeaderBackendError;
+
+    fn header(&self, id: BlockId) -> Result<Option<Header>, Self::Error> {
         self.header(id.hash)
+            .map_err(|_| Self::Error::UnknownHeader(id))
     }
 
-    fn hash(&self, number: BlockNumber) -> Result<Option<BlockHash>, Self::Error> {
-        self.hash(number)
+    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error> {
+        if self.top_finalized().number() < number {
+            return Err(Self::Error::NotFinalized(number));
+        }
+
+        return match self.hash(number).ok().flatten() {
+            None => {
+                log::error!(target: "chain-info", "Could not get hash for block #{:?}", number);
+                Err(Self::Error::NoHashForNumber(number))
+            }
+            Some(h) => Ok(h),
+        };
     }
 
     fn top_finalized(&self) -> BlockId {
