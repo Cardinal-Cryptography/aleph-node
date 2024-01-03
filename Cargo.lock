@@ -277,6 +277,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "futures",
+ "halo2_proofs",
  "hex",
  "hex-literal",
  "jsonrpsee",
@@ -653,7 +654,7 @@ dependencies = [
  "ark-std",
  "digest 0.10.7",
  "rand_core 0.6.4",
- "sha3",
+ "sha3 0.10.8",
 ]
 
 [[package]]
@@ -1020,7 +1021,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
- "block-padding",
+ "block-padding 0.1.5",
  "byte-tools",
  "byteorder",
  "generic-array 0.12.4",
@@ -1032,6 +1033,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
+ "block-padding 0.2.1",
  "generic-array 0.14.7",
 ]
 
@@ -1052,6 +1054,12 @@ checksum = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
 dependencies = [
  "byte-tools",
 ]
+
+[[package]]
+name = "block-padding"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bounded-collections"
@@ -2282,6 +2290,7 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
+ "bitvec",
  "rand_core 0.6.4",
  "subtle",
 ]
@@ -3028,6 +3037,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "halo2_proofs"
+version = "0.2.0"
+source = "git+https://github.com/Cardinal-Cryptography/pse-halo2?branch=substrate-compatible#9aef7201c56a1cc78c294c4a2a34716e0cdd3c19"
+dependencies = [
+ "blake2b_simd",
+ "ff",
+ "group",
+ "halo2curves",
+ "maybe-rayon",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "sha3 0.9.1",
+ "subtle",
+ "tracing",
+]
+
+[[package]]
+name = "halo2curves"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6b1142bd1059aacde1b477e0c80c142910f1ceae67fc619311d6a17428007ab"
+dependencies = [
+ "blake2b_simd",
+ "ff",
+ "group",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "pasta_curves",
+ "paste",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "static_assertions",
+ "subtle",
+]
+
+[[package]]
 name = "handlebars"
 version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3749,6 +3795,9 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+dependencies = [
+ "spin 0.5.2",
+]
 
 [[package]]
 name = "lazycell"
@@ -4450,6 +4499,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "maybe-rayon"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ea1f30cedd69f0a2954655f7188c6a834246d2bcf1e315e2ac40c4b24dc9519"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "memchr"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4620,7 +4678,7 @@ dependencies = [
  "digest 0.10.7",
  "multihash-derive",
  "sha2 0.10.8",
- "sha3",
+ "sha3 0.10.8",
  "unsigned-varint",
 ]
 
@@ -5560,6 +5618,21 @@ name = "partial_sort"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7924d1d0ad836f665c9065e26d016c673ece3993f30d340068b16f282afc1156"
+
+[[package]]
+name = "pasta_curves"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3e57598f73cc7e1b2ac63c79c517b31a0877cd7c402cdcaa311b5208de7a095"
+dependencies = [
+ "blake2b_simd",
+ "ff",
+ "group",
+ "lazy_static",
+ "rand 0.8.5",
+ "static_assertions",
+ "subtle",
+]
 
 [[package]]
 name = "paste"
@@ -7711,6 +7784,18 @@ dependencies = [
 
 [[package]]
 name = "sha3"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
+dependencies = [
+ "block-buffer 0.9.0",
+ "digest 0.9.0",
+ "keccak",
+ "opaque-debug 0.3.0",
+]
+
+[[package]]
+name = "sha3"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
@@ -8080,7 +8165,7 @@ dependencies = [
  "byteorder",
  "digest 0.10.7",
  "sha2 0.10.8",
- "sha3",
+ "sha3 0.10.8",
  "twox-hash",
 ]
 
