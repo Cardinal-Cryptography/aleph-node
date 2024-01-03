@@ -26,9 +26,6 @@ sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", br
 ## Proof verification dependencies:
 
 pallet-vk-storage = { path = "../pallets/vk-storage", default-features = false, optional = true }
-ark-bls12-381 = { version = "0.4.0", default-features = false, features = ["curve"], optional = true }
-ark-serialize = { version = "0.4.0", default-features = false, optional = true }
-jf-plonk = { git = "https://github.com/Cardinal-Cryptography/jellyfish", branch = "substrate-compatible", default-features = false, optional = true }
 
 # Benchmarking
 
@@ -50,9 +47,6 @@ runtime = [
     "pallet-contracts",
     "sp-std",
     "pallet-vk-storage",
-    "ark-bls12-381",
-    "ark-serialize",
-    "jf-plonk",
 ]
 runtime-std = [
     "runtime",
@@ -63,9 +57,6 @@ runtime-std = [
     "pallet-contracts/std",
     "sp-std/std",
     "pallet-vk-storage/std",
-    "ark-bls12-381/std",
-    "ark-serialize/std",
-    "jf-plonk/std",
 ]
 
 # `ink` and `ink-std` features are dedicated to the ink! part of the extension. They bring the smart contract part of
