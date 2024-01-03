@@ -393,11 +393,29 @@ pub mod staking {
 
 #[cfg(feature = "liminal")]
 pub mod liminal {
+    use crate::runtime_decl_for_aleph_session_api::{Decode, Encode};
+
+    #[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
+    pub enum VerifierError {
+        /// No verification key available under this identifier.
+        UnknownVerificationKeyIdentifier,
+        /// Couldn't deserialize proof.
+        DeserializingProofFailed,
+        /// Couldn't deserialize public input.
+        DeserializingPublicInputFailed,
+        /// Couldn't deserialize verification key from storage.
+        DeserializingVerificationKeyFailed,
+        /// Verification procedure has failed. Proof still can be correct.
+        VerificationFailed,
+        /// Proof has been found as incorrect.
+        IncorrectProof,
+    }
+
     #[sp_runtime_interface::runtime_interface]
     pub trait SnarkVerifier {
-        fn verify() -> bool {
+        fn verify() -> Result<(), VerifierError> {
             let x = halo2_proofs::halo2curves::pasta::Fq::one();
-            true
+            Ok(())
         }
     }
 }

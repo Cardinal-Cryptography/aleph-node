@@ -9,7 +9,7 @@ use pallet_contracts::chain_extension::{ChainExtension, RetVal};
 
 use crate::{
     backend::{
-        executor::{BackendExecutor, ExecutorError::*},
+        executor::{BackendExecutor, VerifierError::*},
         tests::{
             arguments::verify_args,
             environment::{CorruptedMode, MockedEnvironment, StandardMode, VerifyMode},

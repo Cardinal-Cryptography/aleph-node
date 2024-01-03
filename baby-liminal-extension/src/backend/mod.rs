@@ -1,5 +1,5 @@
 use environment::Environment as EnvironmentT;
-use executor::{BackendExecutor as BackendExecutorT, ExecutorError::*};
+use executor::BackendExecutor as BackendExecutorT;
 use frame_support::{pallet_prelude::DispatchError, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
 use log::error;
@@ -7,6 +7,7 @@ use pallet_contracts::chain_extension::{
     ChainExtension, Environment as SubstrateEnvironment, Ext, InitState,
     Result as ChainExtensionResult, RetVal,
 };
+use primitives::liminal::VerifierError::*;
 use sp_std::marker::PhantomData;
 
 use crate::{
