@@ -228,7 +228,7 @@ fi
 
 if [[ -z "${DONT_BUILD_ALEPH_NODE}" ]]; then
   info "Building testing aleph-node binary (short session)."
-  cargo build --release -p aleph-node --features "short_session enable_treasury_proposals"
+  cargo build --release -p aleph-node --features "liminal short_session enable_treasury_proposals"
 elif [[ ! -x "${ALEPH_NODE}" ]]; then
   error "${ALEPH_NODE} does not exist or it's not an executable file!"
 fi

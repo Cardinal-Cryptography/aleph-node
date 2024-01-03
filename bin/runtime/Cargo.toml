@@ -162,12 +162,14 @@ runtime-benchmarks = [
 liminal = [
     "baby-liminal-extension",
     "pallet-vk-storage",
+    "primitives/liminal",
 ]
 liminal-std = [
     "liminal",
     "std",
     "baby-liminal-extension/runtime-std",
     "pallet-vk-storage/std",
+    "primitives/liminal-std",
 ]
 liminal-try-runtime = [
     "liminal",

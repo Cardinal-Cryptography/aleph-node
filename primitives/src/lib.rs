@@ -390,3 +390,14 @@ pub mod staking {
         };
     }
 }
+
+#[cfg(feature = "liminal")]
+pub mod liminal {
+    #[sp_runtime_interface::runtime_interface]
+    pub trait SnarkVerifier {
+        fn verify() -> bool {
+            let x = halo2_proofs::halo2curves::pasta::Fq::one();
+            true
+        }
+    }
+}

@@ -76,9 +76,6 @@ sp-block-builder = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 
-# Liminal dependencies
-halo2_proofs = { workspace = true, optional = true }
-
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }
 
@@ -107,7 +104,7 @@ only_legacy = [
 # Liminal-related features
 liminal = [
     "aleph-runtime/liminal",
-    "halo2_proofs",
+    "primitives/liminal-std",
 ]
 liminal-try-runtime = [
     "liminal",

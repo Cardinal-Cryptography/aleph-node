@@ -277,7 +277,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "futures",
- "halo2_proofs",
  "hex",
  "hex-literal",
  "jsonrpsee",
@@ -5916,6 +5915,7 @@ dependencies = [
 name = "primitives"
 version = "0.8.1"
 dependencies = [
+ "halo2_proofs",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -5924,6 +5924,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
+ "sp-runtime-interface",
  "sp-staking",
  "sp-std",
 ]

@@ -7,8 +7,6 @@ mod executor;
 mod resources;
 mod rpc;
 mod service;
-#[cfg(feature = "liminal")]
-mod snark_verifier;
 
 pub use cli::{Cli, Subcommand};
 pub use executor::ExecutorDispatch;
