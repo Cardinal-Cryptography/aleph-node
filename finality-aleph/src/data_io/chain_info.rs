@@ -19,31 +19,31 @@ pub trait ChainInfoProvider: Send + Sync + 'static {
     fn get_highest_finalized(&mut self) -> BlockId;
 }
 
-pub struct SubstrateChainInfoProvider<H, C>
+pub struct SubstrateChainInfoProvider<H, HB>
 where
     H: Header,
-    C: HeaderBackend<H> + 'static,
+    HB: HeaderBackend<H> + 'static,
 {
-    client: C,
+    client: HB,
     _phantom: PhantomData<H>,
 }
 
-impl<H, C> SubstrateChainInfoProvider<H, C>
+impl<H, HB> SubstrateChainInfoProvider<H, HB>
 where
     H: Header,
-    C: HeaderBackend<H>,
+    HB: HeaderBackend<H>,
 {
-    pub fn new(client: C) -> Self {
+    pub fn new(client: HB) -> Self {
         SubstrateChainInfoProvider {
             client,
             _phantom: PhantomData,
         }
     }
 }
-impl<H, C> ChainInfoProvider for SubstrateChainInfoProvider<H, C>
+impl<H, HB> ChainInfoProvider for SubstrateChainInfoProvider<H, HB>
 where
     H: Header,
-    C: HeaderBackend<H>,
+    HB: HeaderBackend<H>,
 {
     fn is_block_imported(&mut self, block: &BlockId) -> bool {
         let maybe_header = self

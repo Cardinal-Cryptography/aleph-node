@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
-use primitives::AlephSessionApi;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_keystore::Keystore;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
@@ -14,7 +13,7 @@ use crate::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
         run_legacy_member, SpawnHandle,
     },
-    aleph_primitives::{BlockHash, BlockNumber, KEY_TYPE},
+    aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
     block::{
         substrate::{Justification, JustificationTranslator},
         Block, Header, HeaderVerifier, SelectChain, UnverifiedHeader,
@@ -71,11 +70,11 @@ type CurrentNetworkType = SimpleNetwork<
     SessionSender<CurrentRmcNetworkData>,
 >;
 
-struct SubtasksParams<C, B, N, JS>
+struct SubtasksParams<HB, B, N, JS>
 where
     B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
     B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
-    C: crate::block::HeaderBackend<B::Header> + Send + Sync + 'static,
+    HB: crate::block::HeaderBackend<B::Header> + Send + Sync + 'static,
     N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
@@ -86,7 +85,7 @@ where
     session_boundaries: SessionBoundaries,
     subtask_common: TaskCommon,
     blocks_for_aggregator: mpsc::UnboundedSender<BlockId>,
-    chain_info: SubstrateChainInfoProvider<B::Header, C>,
+    chain_info: SubstrateChainInfoProvider<B::Header, HB>,
     aggregator_io: aggregator::IO<JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
