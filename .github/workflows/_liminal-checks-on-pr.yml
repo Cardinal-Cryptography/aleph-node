@@ -57,7 +57,7 @@ jobs:
 
   runtime-interface-unit-tests:
     name: Run unit tests for the SNARK verification runtime interface
-    runs-on: [ self-hosted, Linux, X64, large ]
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
