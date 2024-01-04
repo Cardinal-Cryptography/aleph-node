@@ -70,12 +70,11 @@ type CurrentNetworkType = SimpleNetwork<
     SessionSender<CurrentRmcNetworkData>,
 >;
 
-struct SubtasksParams<HB, B, N, JS>
+struct SubtasksParams<H, HB, N, JS>
 where
-    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
-    HB: crate::block::HeaderBackend<B::Header> + Send + Sync + 'static,
-    N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
+    H: Header,
+    HB: crate::block::HeaderBackend<H> + Send + Sync + 'static,
+    N: Network<VersionedNetworkData<H::Unverified>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
     n_members: usize,
@@ -85,7 +84,7 @@ where
     session_boundaries: SessionBoundaries,
     subtask_common: TaskCommon,
     blocks_for_aggregator: mpsc::UnboundedSender<BlockId>,
-    chain_info: SubstrateChainInfoProvider<B::Header, HB>,
+    chain_info: SubstrateChainInfoProvider<H, HB>,
     aggregator_io: aggregator::IO<JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
@@ -170,7 +169,7 @@ where
 
     fn legacy_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
-        params: SubtasksParams<HB, B, N, JS>,
+        params: SubtasksParams<B::Header, HB, N, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -240,7 +239,7 @@ where
 
     fn current_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
-        params: SubtasksParams<HB, B, N, JS>,
+        params: SubtasksParams<B::Header, HB, N, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
