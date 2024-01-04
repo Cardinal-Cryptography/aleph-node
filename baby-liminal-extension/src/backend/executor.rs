@@ -20,6 +20,6 @@ impl<Runtime: MinimalRuntime> BackendExecutor for Runtime {
             .ok_or(VerifierError::UnknownVerificationKeyIdentifier)?
             .to_vec();
 
-        verify(&args.proof, &verifying_key)
+        verify(&args.proof, &args.public_input, &verifying_key)
     }
 }

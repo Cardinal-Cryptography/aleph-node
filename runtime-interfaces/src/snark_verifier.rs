@@ -2,28 +2,6 @@
 //! and configuration.
 
 use codec::{Decode, Encode};
-#[cfg(feature = "std")]
-use halo2_proofs::{
-    plonk::{verify_proof, Error, VerifyingKey},
-    poly::kzg::{
-        commitment::{KZGCommitmentScheme, ParamsVerifierKZG},
-        multiopen::VerifierGWC,
-        strategy::SingleStrategy,
-    },
-    standard_plonk::StandardPlonk,
-    transcript::{Blake2bRead, Challenge255, TranscriptReadBuffer},
-    SerdeFormat,
-};
-
-/// Circuit curve.
-#[cfg(feature = "std")]
-pub type Curve = halo2_proofs::halo2curves::bn256::Bn256;
-/// Curve (G1) point in its affine form.
-#[cfg(feature = "std")]
-pub type G1Affine = halo2_proofs::halo2curves::bn256::G1Affine;
-/// The scalar field for circuits.
-#[cfg(feature = "std")]
-pub type Fr = halo2_proofs::halo2curves::bn256::Fr;
 
 /// Gathers errors that can happen during proof verification.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
@@ -42,34 +20,30 @@ pub enum VerifierError {
     IncorrectProof,
 }
 
+// Bring trait implementation helpers to the scope.
+#[cfg(feature = "std")]
+use implementation::*;
+
 /// An interface that provides to the runtime a functionality of verifying halo2 SNARKs.
 #[sp_runtime_interface::runtime_interface]
 pub trait SnarkVerifier {
     /// Verify `proof` given `verifying_key`.
-    fn verify(proof: &[u8], verifying_key: &[u8]) -> Result<(), VerifierError> {
-        let instances: &[&[Fr]] = &[&[Fr::one()]];
-        let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-        let params = ParamsVerifierKZG::mock(10);
-        let verifying_key = VerifyingKey::from_bytes::<StandardPlonk>(
-            verifying_key,
-            SerdeFormat::RawBytesUnchecked,
-        )
-        .map_err(|err| {
-            log::debug!("Failed to deserialize verification key: {err:?}");
-            VerifierError::DeserializingVerificationKeyFailed
-        })?;
+    fn verify(
+        proof: &[u8],
+        public_input: &[u8],
+        verifying_key: &[u8],
+    ) -> Result<(), VerifierError> {
+        let instances = deserialize_public_input(public_input)?;
+        let verifying_key = deserialize_verifying_key(verifying_key)?;
 
-        verify_proof::<
-            KZGCommitmentScheme<Curve>,
-            VerifierGWC<'_, Curve>,
-            Challenge255<G1Affine>,
-            Blake2bRead<&[u8], G1Affine, Challenge255<G1Affine>>,
-            SingleStrategy<'_, Curve>,
-        >(
+        let mut transcript = Blake2bRead::init(&proof[..]);
+        let params = ParamsVerifierKZG::<Curve>::mock(10);
+
+        verify_proof::<_, VerifierGWC<_>, _, _, _>(
             &params,
             &verifying_key,
             SingleStrategy::new(&params),
-            &[instances],
+            &[&[&instances]],
             &mut transcript,
         )
         .map_err(|err| match err {
@@ -87,3 +61,48 @@ pub trait SnarkVerifier {
 pub use snark_verifier::verify;
 #[cfg(feature = "std")]
 pub use snark_verifier::HostFunctions;
+
+// We move all imports, type aliases and auxiliary helpers for the interface (host-side) implementation in one place.
+#[cfg(feature = "std")]
+mod implementation {
+    pub use halo2_proofs::{
+        plonk::{verify_proof, Error, VerifyingKey},
+        poly::kzg::{
+            commitment::{KZGCommitmentScheme, ParamsVerifierKZG},
+            multiopen::VerifierGWC,
+            strategy::SingleStrategy,
+        },
+        standard_plonk::StandardPlonk,
+        transcript::{Blake2bRead, TranscriptReadBuffer},
+        SerdeFormat,
+    };
+
+    use crate::snark_verifier::VerifierError;
+
+    pub type Curve = halo2_proofs::halo2curves::bn256::Bn256;
+    pub type G1Affine = halo2_proofs::halo2curves::bn256::G1Affine;
+    pub type Fr = halo2_proofs::halo2curves::bn256::Fr;
+
+    pub fn deserialize_public_input(raw: &[u8]) -> Result<Vec<Fr>, VerifierError> {
+        raw.chunks(32)
+            .map(|bytes| {
+                let bytes = bytes.try_into().map_err(|_| {
+                    log::debug!("Public input length is not multiple of 32");
+                    VerifierError::DeserializingPublicInputFailed
+                })?;
+                Option::from(Fr::from_bytes(bytes))
+                    .ok_or(VerifierError::DeserializingPublicInputFailed)
+            })
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    pub fn deserialize_verifying_key(key: &[u8]) -> Result<VerifyingKey<G1Affine>, VerifierError> {
+        // We use `SerdeFormat::RawBytesUnchecked` here for performance reasons.
+        VerifyingKey::from_bytes::<StandardPlonk>(key, SerdeFormat::RawBytesUnchecked).map_err(
+            |err| {
+                log::debug!("Failed to deserialize verification key: {err:?}");
+                VerifierError::DeserializingVerificationKeyFailed
+            },
+        )
+    }
+}
