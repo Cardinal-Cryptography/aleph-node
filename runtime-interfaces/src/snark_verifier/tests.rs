@@ -9,7 +9,7 @@ use halo2_proofs::{
 
 use crate::snark_verifier::{
     implementation::{Curve, Fr},
-    verify, CIRCUIT_MAX_K,
+    verify, VerifierError, CIRCUIT_MAX_K,
 };
 
 #[derive(Default)]
@@ -48,13 +48,18 @@ impl Circuit<Fr> for APlusBIsC {
     }
 }
 
-#[test]
-fn accepts_correct_proof() {
+struct EncodedArgs {
+    proof: Vec<u8>,
+    public_input: Vec<u8>,
+    vk: Vec<u8>,
+}
+
+fn setup(a: u64, b: u64, c: u64) -> EncodedArgs {
     let circuit = APlusBIsC {
-        a: Fr::from(1u64),
-        b: Fr::from(2u64),
+        a: Fr::from(a),
+        b: Fr::from(b),
     };
-    let instances = vec![Fr::from(3u64)];
+    let instances = vec![Fr::from(c)];
 
     let params = ParamsKZG::<Curve>::setup(CIRCUIT_MAX_K, ParamsKZG::<Curve>::mock_rng());
     let vk = keygen_vk(&params, &circuit).expect("vk should not fail");
@@ -70,16 +75,127 @@ fn accepts_correct_proof() {
         &mut transcript,
     )
     .expect("prover should not fail");
-    let proof = transcript.finalize();
 
-    let x = verify(
-        &proof,
-        &instances
-            .iter()
-            .flat_map(|i| i.to_bytes())
-            .collect::<Vec<_>>(),
-        &vk.to_bytes(SerdeFormat::RawBytesUnchecked),
+    let proof = transcript.finalize();
+    let public_input = instances
+        .iter()
+        .flat_map(|i| i.to_bytes())
+        .collect::<Vec<_>>();
+    let vk = vk.to_bytes(SerdeFormat::RawBytesUnchecked);
+
+    EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    }
+}
+
+#[test]
+fn accepts_correct_proof() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    assert!(verify(&proof, &public_input, &vk).is_ok());
+}
+
+#[test]
+fn rejects_incorrect_proof() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(2, 2, 3);
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::IncorrectProof)
+    );
+}
+
+#[test]
+fn rejects_incorrect_input() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    let public_input = public_input.iter().map(|i| i + 1).collect::<Vec<_>>();
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::IncorrectProof)
+    );
+}
+
+#[test]
+fn rejects_mismatching_input() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    assert_eq!(
+        verify(&proof, &vec![], &vk),
+        Err(VerifierError::IncorrectProof)
     );
 
-    assert!(x.is_ok());
+    let public_input = [public_input.clone(), public_input].concat();
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::IncorrectProof)
+    );
+}
+
+#[test]
+fn rejects_invalid_vk() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    let vk = vk.iter().map(|i| i + 1).collect::<Vec<_>>();
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::DeserializingVerificationKeyFailed)
+    );
+}
+
+#[test]
+fn rejects_invalid_public_input() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    let public_input = public_input[..31].to_vec();
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::DeserializingPublicInputFailed)
+    );
+}
+
+#[test]
+fn rejects_invalid_proof() {
+    let EncodedArgs {
+        proof,
+        public_input,
+        vk,
+    } = setup(1, 2, 3);
+
+    let proof = proof.iter().map(|i| i + 1).skip(3).collect::<Vec<_>>();
+
+    assert_eq!(
+        verify(&proof, &public_input, &vk),
+        Err(VerifierError::VerificationFailed)
+    );
 }
