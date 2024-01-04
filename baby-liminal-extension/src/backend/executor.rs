@@ -1,6 +1,6 @@
+use aleph_runtime_interfaces::snark_verifier::{verify, VerifierError};
 use pallet_contracts::Config as ContractsConfig;
 use pallet_vk_storage::{Config as VkStorageConfig, VerificationKeys};
-use primitives::liminal::VerifierError;
 
 use crate::args::VerifyArgs;
 
@@ -20,6 +20,6 @@ impl<Runtime: MinimalRuntime> BackendExecutor for Runtime {
             .ok_or(VerifierError::UnknownVerificationKeyIdentifier)?
             .to_vec();
 
-        primitives::liminal::snark_verifier::verify(&args.proof, &verifying_key)
+        verify(&args.proof, &verifying_key)
     }
 }

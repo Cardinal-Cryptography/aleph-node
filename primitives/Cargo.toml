@@ -16,13 +16,9 @@ sp-api = { workspace = true }
 sp-application-crypto = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
-sp-runtime-interface = { workspace = true, optional = true }
 sp-std = { workspace = true }
 sp-staking = { workspace = true }
 sp-consensus-aura = { workspace = true }
-subtle = "=2.4.1"
-
-halo2_proofs = { workspace = true, features = ["substrate"], optional = true }
 
 [features]
 default = ["std"]
@@ -39,13 +35,3 @@ std = [
     "sp-consensus-aura/std"
 ]
 short_session = []
-
-liminal = [
-    "sp-runtime-interface",
-]
-liminal-std = [
-    "liminal",
-    "std",
-    "sp-runtime-interface/std",
-    "halo2_proofs",
-]

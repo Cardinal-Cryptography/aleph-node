@@ -273,6 +273,7 @@ name = "aleph-node"
 version = "0.13.0+dev"
 dependencies = [
  "aleph-runtime",
+ "aleph-runtime-interfaces",
  "finality-aleph",
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -331,6 +332,7 @@ dependencies = [
 name = "aleph-runtime"
 version = "0.13.0+dev"
 dependencies = [
+ "aleph-runtime-interfaces",
  "baby-liminal-extension",
  "frame-benchmarking",
  "frame-executive",
@@ -382,6 +384,15 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "aleph-runtime-interfaces"
+version = "0.1.0"
+dependencies = [
+ "halo2_proofs",
+ "parity-scale-codec",
+ "sp-runtime-interface",
 ]
 
 [[package]]
@@ -825,6 +836,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "baby-liminal-extension"
 version = "0.1.0"
 dependencies = [
+ "aleph-runtime-interfaces",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -832,7 +844,6 @@ dependencies = [
  "pallet-contracts",
  "pallet-vk-storage",
  "parity-scale-codec",
- "primitives",
  "sp-std",
 ]
 
@@ -5907,7 +5918,6 @@ dependencies = [
 name = "primitives"
 version = "0.8.1"
 dependencies = [
- "halo2_proofs",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -5916,10 +5926,8 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-staking",
  "sp-std",
- "subtle",
 ]
 
 [[package]]

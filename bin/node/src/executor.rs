@@ -9,12 +9,12 @@ pub struct ExecutorDispatch;
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
     #[cfg(all(feature = "liminal", feature = "runtime-benchmarks"))]
     type ExtendHostFunctions = (
-        primitives::liminal::snark_verifier::HostFunctions,
+        aleph_runtime_interfaces::snark_verifier::HostFunctions,
         frame_benchmarking::benchmarking::HostFunctions,
     );
 
     #[cfg(all(feature = "liminal", not(feature = "runtime-benchmarks")))]
-    type ExtendHostFunctions = (primitives::liminal::snark_verifier::HostFunctions,);
+    type ExtendHostFunctions = (aleph_runtime_interfaces::snark_verifier::HostFunctions,);
     #[cfg(all(not(feature = "liminal"), feature = "runtime-benchmarks"))]
     type ExtendHostFunctions = (frame_benchmarking::benchmarking::HostFunctions,);
     #[cfg(all(not(feature = "liminal"), not(feature = "runtime-benchmarks")))]

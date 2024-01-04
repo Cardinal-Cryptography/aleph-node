@@ -2899,7 +2899,6 @@ dependencies = [
  "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
  "sp-staking",
  "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "subtle",
 ]
 
 [[package]]

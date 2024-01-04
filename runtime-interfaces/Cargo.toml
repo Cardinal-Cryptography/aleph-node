@@ -1,0 +1,25 @@
+[package]
+name = "aleph-runtime-interfaces"
+version = "0.1.0"
+authors = ["Cardinal", "Aleph Zero Foundation"]
+edition = "2021"
+homepage = "https://alephzero.org"
+repository = "https://github.com/Cardinal-Cryptography/aleph-node"
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
+
+halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "substrate-compatible", default-features = false, features = ["substrate"], optional = true }
+sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false }
+
+[features]
+std = [
+    "codec/std",
+    "sp-runtime-interface/std",
+]
+liminal = []
+liminal-std = [
+    "liminal",
+    "std",
+    "halo2_proofs",
+]

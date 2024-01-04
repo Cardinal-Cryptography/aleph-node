@@ -29,6 +29,7 @@ exclude = [
     "relations/ark",
     "relations/ark/src/proc_macro",
     "relations/jf",
+    "runtime-interfaces",
     "scripts/synthetic-network/synthetic-link",
 ]
 
@@ -178,7 +179,7 @@ pallets-support = { path = "pallets/support", default-features = false }
 primitives = { path = "primitives", default-features = false }
 
 # Liminal-related dependencies
-halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "substrate-compatible", default-features = false }
 
+aleph-runtime-interfaces = { path = "runtime-interfaces", default-features = false }
 baby-liminal-extension = { path = "baby-liminal-extension", default-features = false }
 pallet-vk-storage = { path = "pallets/vk-storage", default-features = false }

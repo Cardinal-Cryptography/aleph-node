@@ -25,8 +25,8 @@ sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", br
 
 ## Proof verification dependencies:
 
+aleph-runtime-interfaces = { path = "../runtime-interfaces", default-features = false, optional = true }
 pallet-vk-storage = { path = "../pallets/vk-storage", default-features = false, optional = true }
-primitives = { path = "../primitives", default-features = false, optional = true }
 
 # Benchmarking
 
@@ -48,7 +48,7 @@ runtime = [
     "pallet-contracts",
     "sp-std",
     "pallet-vk-storage",
-    "primitives/liminal",
+    "aleph-runtime-interfaces/liminal",
 ]
 runtime-std = [
     "runtime",
@@ -59,7 +59,7 @@ runtime-std = [
     "pallet-contracts/std",
     "sp-std/std",
     "pallet-vk-storage/std",
-    "primitives/liminal-std",
+    "aleph-runtime-interfaces/liminal-std",
 ]
 
 # `ink` and `ink-std` features are dedicated to the ink! part of the extension. They bring the smart contract part of

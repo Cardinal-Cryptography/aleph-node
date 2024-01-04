@@ -162,15 +162,12 @@ runtime-benchmarks = [
 liminal = [
     "baby-liminal-extension",
     "pallet-vk-storage",
-    "primitives/liminal",
-    "sp-io/disable_panic_handler",
 ]
 liminal-std = [
     "liminal",
     "std",
     "baby-liminal-extension/runtime-std",
     "pallet-vk-storage/std",
-    "primitives/liminal-std",
 ]
 liminal-try-runtime = [
     "liminal",
