@@ -49,6 +49,7 @@ dependencies = [
  "halo2_proofs",
  "log",
  "parity-scale-codec",
+ "rand",
  "sp-runtime-interface",
 ]
 
@@ -386,18 +387,17 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.2.0"
-source = "git+https://github.com/Cardinal-Cryptography/pse-halo2?branch=substrate-compatible#f6b4962597cd1d9616d18905a18f09e01503d1f2"
+source = "git+https://github.com/Cardinal-Cryptography/pse-halo2?branch=substrate-compatible#90a1eeb58cb21bc5de100c46d8cfcdf32138f5af"
 dependencies = [
  "blake2b_simd",
  "ff",
  "group",
  "halo2curves",
  "maybe-rayon",
- "parity-scale-codec",
+ "rand",
  "rand_chacha",
  "rand_core",
  "sha3",
- "subtle",
  "tracing",
 ]
 
