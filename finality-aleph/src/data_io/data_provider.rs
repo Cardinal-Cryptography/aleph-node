@@ -7,7 +7,7 @@ use sp_runtime::{traits::Zero, SaturatedConversion};
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{Block, Header, HeaderBackend, SelectChain, UnverifiedHeader},
+    block::{Header, HeaderBackend, SelectChain, UnverifiedHeader},
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
     party::manager::Runnable,
@@ -125,10 +125,9 @@ struct ChainInfo {
 /// Internally it frequently updates a `data_to_propose` field that is shared with a `DataProvider`, which
 /// in turn is a tiny wrapper around this single shared resource that takes out `data_to_propose` whenever
 /// `get_data` is called.
-pub struct ChainTracker<H, B, SC, C>
+pub struct ChainTracker<H, SC, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H>,
     SC: SelectChain<H> + 'static,
 {
@@ -138,13 +137,12 @@ where
     session_boundaries: SessionBoundaries,
     prev_chain_info: Option<ChainInfo>,
     config: ChainTrackerConfig,
-    _phantom: PhantomData<(B, H)>,
+    _phantom: PhantomData<H>,
 }
 
-impl<H, B, SC, C> ChainTracker<H, B, SC, C>
+impl<H, SC, C> ChainTracker<H, SC, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H>,
     SC: SelectChain<H> + 'static,
 {
@@ -292,10 +290,9 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, B, SC, C> Runnable for ChainTracker<H, B, SC, C>
+impl<H, SC, C> Runnable for ChainTracker<H, SC, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H> + 'static,
     SC: SelectChain<H> + 'static,
 {
@@ -349,9 +346,7 @@ mod tests {
         metrics::AllBlockMetrics,
         testing::{
             client_chain_builder::ClientChainBuilder,
-            mocks::{
-                aleph_data_from_blocks, TBlock, THeader, TestClientBuilder, TestClientBuilderExt,
-            },
+            mocks::{aleph_data_from_blocks, THeader, TestClientBuilder, TestClientBuilderExt},
         },
         SessionBoundaryInfo, SessionId, SessionPeriod,
     };
@@ -379,7 +374,7 @@ mod tests {
             refresh_interval: REFRESH_INTERVAL,
         };
 
-        let (chain_tracker, data_provider) = ChainTracker::<_, TBlock, _, _>::new(
+        let (chain_tracker, data_provider) = ChainTracker::new(
             select_chain,
             client,
             session_boundaries,

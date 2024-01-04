@@ -11,7 +11,7 @@ use super::common::{sanity_check_round_delays, unit_creation_delay_fn, MAX_ROUND
 pub use crate::aleph_primitives::{BlockHash, BlockNumber, LEGACY_FINALITY_VERSION as VERSION};
 use crate::{
     abft::NetworkWrapper,
-    block::{Block, Header, HeaderBackend},
+    block::{Header, HeaderBackend},
     data_io::{
         legacy::{AlephData, OrderedDataInterpreter},
         SubstrateChainInfoProvider,
@@ -25,18 +25,17 @@ use crate::{
     Keychain, LegacyNetworkData, NodeIndex, SessionId, UnitCreationDelay,
 };
 
-pub fn run_member<H, B, C, ADN>(
+pub fn run_member<H, C, ADN>(
     subtask_common: TaskCommon,
     multikeychain: Keychain,
     config: Config,
     network: NetworkWrapper<LegacyNetworkData, ADN>,
     data_provider: impl legacy_aleph_bft::DataProvider<AlephData> + Send + 'static,
-    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<H, B, C>>,
+    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<H, C>>,
     backup: ABFTBackup,
 ) -> Task
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H> + Send + 'static,
     ADN: Network<LegacyNetworkData> + 'static,
 {

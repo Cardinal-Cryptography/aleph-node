@@ -15,7 +15,7 @@ use crate::{
         common::{unit_creation_delay_fn, MAX_ROUNDS, SESSION_LEN_LOWER_BOUND_MS},
         NetworkWrapper,
     },
-    block::{Block, Header, HeaderBackend, HeaderVerifier},
+    block::{Header, HeaderBackend, HeaderVerifier},
     crypto::Signature,
     data_io::{AlephData, OrderedDataInterpreter, SubstrateChainInfoProvider},
     network::data::Network,
@@ -32,18 +32,17 @@ type WrappedNetwork<H, ADN> = NetworkWrapper<
     ADN,
 >;
 
-pub fn run_member<H, B, C, ADN, V>(
+pub fn run_member<H, C, ADN, V>(
     subtask_common: TaskCommon,
     multikeychain: Keychain,
     config: Config,
     network: WrappedNetwork<H::Unverified, ADN>,
     data_provider: impl current_aleph_bft::DataProvider<AlephData<H::Unverified>> + Send + 'static,
-    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<H, B, C>, H, V>,
+    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<H, C>, H, V>,
     backup: ABFTBackup,
 ) -> Task
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H> + 'static,
     ADN: Network<CurrentNetworkData<H::Unverified>> + 'static,
     V: HeaderVerifier<H>,

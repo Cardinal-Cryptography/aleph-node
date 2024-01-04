@@ -228,7 +228,7 @@ where
             client: client.clone(),
             _phantom: PhantomData,
         },
-        session_manager: NodeSessionManagerImpl::<_, _, _, Block, _, _, _, _>::new(
+        session_manager: NodeSessionManagerImpl::new(
             client,
             chain_status.clone(),
             select_chain,

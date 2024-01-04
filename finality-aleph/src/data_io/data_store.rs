@@ -18,8 +18,8 @@ use lru::LruCache;
 use crate::{
     aleph_primitives::BlockNumber,
     block::{
-        Block, BlockchainEvents, ChainStatusNotification, ChainStatusNotifier, Header,
-        HeaderBackend, HeaderVerifier, UnverifiedHeader,
+        BlockchainEvents, ChainStatusNotification, ChainStatusNotifier, Header, HeaderBackend,
+        HeaderVerifier, UnverifiedHeader,
     },
     data_io::{
         chain_info::{CachedChainInfoProvider, ChainInfoProvider, SubstrateChainInfoProvider},
@@ -144,10 +144,9 @@ impl Default for DataStoreConfig {
 
 /// This component is used for filtering available data for Aleph Network.
 /// It needs to be started by calling the run method.
-pub struct DataStore<H, B, HB, BEV, RB, Message, R, V>
+pub struct DataStore<H, HB, BEV, RB, Message, R, V>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     HB: HeaderBackend<H> + 'static,
     BEV: BlockchainEvents<H>,
     RB: RequestBlocks<H::Unverified>,
@@ -167,7 +166,7 @@ where
     // We use BtreeMap instead of HashMap to be able to fetch the Message with lowest MessageId
     // when pruning messages.
     pending_messages: BTreeMap<MessageId, PendingMessageInfo<H::Unverified, Message>>,
-    chain_info_provider: CachedChainInfoProvider<SubstrateChainInfoProvider<H, B, HB>>,
+    chain_info_provider: CachedChainInfoProvider<SubstrateChainInfoProvider<H, HB>>,
     verifier: V,
     available_proposals_cache: LruCache<AlephProposal<H::Unverified>, ProposalStatus>,
     num_triggers_registered_since_last_pruning: usize,
@@ -180,10 +179,9 @@ where
     messages_for_aleph: UnboundedSender<Message>,
 }
 
-impl<H, B, HB, BEV, RB, Message, R, V> DataStore<H, B, HB, BEV, RB, Message, R, V>
+impl<H, HB, BEV, RB, Message, R, V> DataStore<H, HB, BEV, RB, Message, R, V>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     HB: HeaderBackend<H>,
     BEV: BlockchainEvents<H>,
     RB: RequestBlocks<H::Unverified>,
@@ -666,9 +664,8 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, B, HB, BEV, RB, Message, R, V> Runnable for DataStore<H, B, HB, BEV, RB, Message, R, V>
+impl<H, HB, BEV, RB, Message, R, V> Runnable for DataStore<H, HB, BEV, RB, Message, R, V>
 where
-    B: Block<UnverifiedHeader = H::Unverified>,
     H: Header,
     HB: HeaderBackend<H>,
     BEV: BlockchainEvents<H> + Send + Sync + 'static,

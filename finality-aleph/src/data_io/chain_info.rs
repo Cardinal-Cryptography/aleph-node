@@ -4,7 +4,7 @@ use lru::LruCache;
 
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
-    block::{Block, Header, HeaderBackend},
+    block::{Header, HeaderBackend},
     data_io::ChainInfoCacheConfig,
     BlockId,
 };
@@ -19,20 +19,18 @@ pub trait ChainInfoProvider: Send + Sync + 'static {
     fn get_highest_finalized(&mut self) -> BlockId;
 }
 
-pub struct SubstrateChainInfoProvider<H, B, C>
+pub struct SubstrateChainInfoProvider<H, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H> + 'static,
 {
     client: C,
-    _phantom: PhantomData<(H, B)>,
+    _phantom: PhantomData<H>,
 }
 
-impl<H, B, C> SubstrateChainInfoProvider<H, B, C>
+impl<H, C> SubstrateChainInfoProvider<H, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H>,
 {
     pub fn new(client: C) -> Self {
@@ -42,10 +40,9 @@ where
         }
     }
 }
-impl<H, B, C> ChainInfoProvider for SubstrateChainInfoProvider<H, B, C>
+impl<H, C> ChainInfoProvider for SubstrateChainInfoProvider<H, C>
 where
     H: Header,
-    B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H>,
 {
     fn is_block_imported(&mut self, block: &BlockId) -> bool {

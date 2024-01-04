@@ -86,7 +86,7 @@ where
     session_boundaries: SessionBoundaries,
     subtask_common: TaskCommon,
     blocks_for_aggregator: mpsc::UnboundedSender<BlockId>,
-    chain_info: SubstrateChainInfoProvider<B::Header, B, C>,
+    chain_info: SubstrateChainInfoProvider<B::Header, C>,
     aggregator_io: aggregator::IO<JS>,
     multikeychain: Keychain,
     exit_rx: oneshot::Receiver<()>,
@@ -188,7 +188,7 @@ where
             backup,
             ..
         } = params;
-        let (chain_tracker, data_provider) = LegacyChainTracker::<_, B, _, _>::new(
+        let (chain_tracker, data_provider) = LegacyChainTracker::new(
             self.select_chain.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
@@ -206,7 +206,7 @@ where
 
         let (unfiltered_aleph_network, rmc_network) =
             split(data_network, "aleph_network", "rmc_network");
-        let (data_store, aleph_network) = LegacyDataStore::<_, B, _, _, _, _, _>::new(
+        let (data_store, aleph_network) = LegacyDataStore::new(
             session_boundaries.clone(),
             self.header_backend.clone(),
             self.client.clone(),
@@ -258,7 +258,7 @@ where
             backup,
             ..
         } = params;
-        let (chain_tracker, data_provider) = ChainTracker::<_, B, _, _>::new(
+        let (chain_tracker, data_provider) = ChainTracker::new(
             self.select_chain.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
@@ -277,7 +277,7 @@ where
 
         let (unfiltered_aleph_network, rmc_network) =
             split(data_network, "aleph_network", "rmc_network");
-        let (data_store, aleph_network) = DataStore::<_, B, _, _, _, _, _, _>::new(
+        let (data_store, aleph_network) = DataStore::new(
             session_boundaries.clone(),
             self.header_backend.clone(),
             self.client.clone(),
