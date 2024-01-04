@@ -20,8 +20,9 @@ sp-runtime-interface = { workspace = true, optional = true }
 sp-std = { workspace = true }
 sp-staking = { workspace = true }
 sp-consensus-aura = { workspace = true }
+subtle = "=2.4.1"
 
-halo2_proofs = { workspace = true, optional = true }
+halo2_proofs = { workspace = true, features = ["substrate"], optional = true }
 
 [features]
 default = ["std"]

@@ -163,6 +163,7 @@ liminal = [
     "baby-liminal-extension",
     "pallet-vk-storage",
     "primitives/liminal",
+    "sp-io/disable_panic_handler",
 ]
 liminal-std = [
     "liminal",

@@ -1,5 +1,5 @@
 use pallet_contracts::Config as ContractsConfig;
-use pallet_vk_storage::Config as BabyLiminalConfig;
+use pallet_vk_storage::{Config as VkStorageConfig, VerificationKeys};
 use primitives::liminal::VerifierError;
 
 use crate::args::VerifyArgs;
@@ -10,12 +10,16 @@ pub trait BackendExecutor {
 }
 
 /// Minimal runtime configuration required by the standard chain extension executor.
-pub trait MinimalRuntime: BabyLiminalConfig + ContractsConfig {}
-impl<R: BabyLiminalConfig + ContractsConfig> MinimalRuntime for R {}
+pub trait MinimalRuntime: VkStorageConfig + ContractsConfig {}
+impl<R: VkStorageConfig + ContractsConfig> MinimalRuntime for R {}
 
 /// Default implementation for the chain extension mechanics.
 impl<Runtime: MinimalRuntime> BackendExecutor for Runtime {
-    fn verify(_args: VerifyArgs) -> Result<(), VerifierError> {
-        primitives::liminal::snark_verifier::verify()
+    fn verify(args: VerifyArgs) -> Result<(), VerifierError> {
+        let verifying_key = VerificationKeys::<Runtime>::get(args.verification_key_hash)
+            .ok_or(VerifierError::UnknownVerificationKeyIdentifier)?
+            .to_vec();
+
+        primitives::liminal::snark_verifier::verify(&args.proof, &verifying_key)
     }
 }
