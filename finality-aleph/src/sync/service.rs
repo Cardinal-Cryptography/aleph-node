@@ -2,7 +2,6 @@ use std::{collections::HashSet, fmt::Display, time::Duration};
 
 use futures::{channel::mpsc, stream::FusedStream, StreamExt};
 use log::{debug, error, info, trace, warn};
-use primitives::Bottom;
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
 
@@ -761,7 +760,7 @@ where
     }
 
     /// Stay synchronized.
-    pub async fn run(mut self) -> Result<Bottom, SyncServiceError> {
+    pub async fn run(mut self) -> Result<(), SyncServiceError> {
         use SyncServiceError as Error;
 
         if self.blocks_from_creator.is_terminated() {

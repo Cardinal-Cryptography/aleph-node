@@ -11,7 +11,7 @@ use sp_runtime::{
 };
 
 use crate::{
-    aleph_primitives::{BlockHash, BlockNumber, Bottom},
+    aleph_primitives::{BlockHash, BlockNumber},
     block::UnverifiedHeader,
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
@@ -295,7 +295,7 @@ where
         }
     }
 
-    async fn run(mut self) -> Bottom {
+    async fn run(mut self) {
         let mut best_block_in_session: Option<BlockId> = None;
         loop {
             futures_timer::Delay::new(self.config.refresh_interval).await;

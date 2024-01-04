@@ -7,7 +7,6 @@ use std::{
 use futures::{stream::FusedStream, StreamExt};
 use log::warn;
 use lru::LruCache;
-use primitives::Bottom;
 use sc_client_api::{
     BlockBackend, BlockImportNotification, FinalityNotification, FinalityNotifications,
     ImportNotifications,
@@ -171,7 +170,7 @@ pub async fn run_chain_state_metrics<
     mut finality_notifications: FinalityNotifications<B>,
     registry: Option<Registry>,
     mut transaction_pool_info_provider: TP,
-) -> Result<Bottom, ChainStateMetricsError> {
+) -> Result<(), ChainStateMetricsError> {
     use ChainStateMetricsError as Error;
 
     if registry.is_none() {

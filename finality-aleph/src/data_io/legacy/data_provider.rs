@@ -3,7 +3,6 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 use futures::channel::oneshot;
 use log::{debug, error, warn};
 use parking_lot::Mutex;
-use primitives::Bottom;
 use sc_client_api::HeaderBackend;
 use sp_consensus::SelectChain;
 use sp_runtime::{
@@ -287,7 +286,7 @@ where
         }
     }
 
-    async fn run(mut self) -> Bottom {
+    async fn run(mut self) {
         let mut best_block_in_session: Option<BlockId> = None;
         loop {
             futures_timer::Delay::new(self.config.refresh_interval).await;

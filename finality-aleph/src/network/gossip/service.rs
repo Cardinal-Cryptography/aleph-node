@@ -10,7 +10,6 @@ use std::{
 use futures::{channel::mpsc, StreamExt};
 use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleT;
-use primitives::Bottom;
 use rand::{seq::IteratorRandom, thread_rng};
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
@@ -532,7 +531,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         info!(target: LOG_TARGET, "{}", status);
     }
 
-    pub async fn run(mut self) -> Result<Bottom, GossipServiceError> {
+    pub async fn run(mut self) -> Result<(), GossipServiceError> {
         use GossipServiceError as Error;
 
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);

@@ -10,7 +10,6 @@ use futures::{
 };
 use log::{debug, trace, warn};
 use network_clique::{Network as CliqueNetwork, PublicKey};
-use primitives::Bottom;
 use tokio::time::{self, Instant};
 
 use crate::{
@@ -348,7 +347,7 @@ where
     }
 
     /// Run the connection manager service.
-    pub async fn run(mut self) -> Result<Bottom, Error<GN::Error>> {
+    pub async fn run(mut self) -> Result<(), Error<GN::Error>> {
         // Initial delay is needed so that Network is fully set up and we received some first discovery broadcasts from other nodes.
         // Otherwise this might cause first maintenance never working, as it happens before first broadcasts.
         let mut maintenance =
