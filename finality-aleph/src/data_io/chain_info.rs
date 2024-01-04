@@ -58,9 +58,9 @@ where
     }
 
     fn get_finalized_at(&mut self, number: BlockNumber) -> Result<BlockId, ()> {
-        match self.client.finalized_hash(number) {
-            Ok(hash) => Ok((hash, number).into()),
-            Err(_) => Err(()),
+        match self.client.header_of_finalized_at(number) {
+            Ok(Some(header)) => Ok(header.id()),
+            _ => Err(()),
         }
     }
 

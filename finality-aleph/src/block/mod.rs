@@ -237,12 +237,13 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     type Error: Debug;
     /// Get block header. Returns `None` if block is not found.
     fn header(&self, id: BlockId) -> Result<Option<H>, Self::Error>;
-    /// Get hash of a finalized block with a given number.
-    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error>;
+    /// Get hash of a finalized block with a given number. Returns Ok(None) if block exists in
+    /// the database, but is not finalized yet.
+    fn header_of_finalized_at(&self, number: BlockNumber) -> Result<Option<H>, Self::Error>;
     /// Get currently highest finalized block.
     fn top_finalized_id(&self) -> BlockId;
-
-    fn hash_to_id(&self, hash: BlockHash) -> Result<BlockId, Self::Error>;
+    /// Get full id of a block with a given hash
+    fn hash_to_id(&self, hash: BlockHash) -> Result<Option<BlockId>, Self::Error>;
 }
 
 type SelectChainError = sp_consensus::Error;

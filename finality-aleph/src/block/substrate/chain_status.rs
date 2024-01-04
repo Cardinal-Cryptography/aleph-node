@@ -244,30 +244,24 @@ impl ChainStatus<Block, Justification> for SubstrateChainStatus {
     }
 }
 
-#[derive(Debug)]
-pub enum HeaderBackendError {
-    NotFinalized(BlockNumber),
-    UnknownHeader(BlockId),
-    UnknownHash(BlockHash),
-    NoHashForNumber(BlockNumber),
-}
-
 impl HeaderBackend<AlephHeader> for SubstrateChainStatus {
-    type Error = HeaderBackendError;
+    type Error = Error;
 
     fn header(&self, id: BlockId) -> Result<Option<AlephHeader>, Self::Error> {
-        self.header(&id).map_err(|_| Self::Error::UnknownHeader(id))
+        self.header(&id)
     }
 
-    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error> {
+    fn header_of_finalized_at(
+        &self,
+        number: BlockNumber,
+    ) -> Result<Option<AlephHeader>, Self::Error> {
         match self.finalized_at(number) {
             Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
-                Ok(justification.header().id().hash())
+                Ok(Some(justification.header().clone()))
             }
-
-            Ok(FinalizationStatus::FinalizedByDescendant(header)) => Ok(header.id().hash()),
-            Ok(FinalizationStatus::NotFinalized) => Err(Self::Error::NotFinalized(number)),
-            Err(_) => Err(Self::Error::NoHashForNumber(number)),
+            Ok(FinalizationStatus::FinalizedByDescendant(header)) => Ok(Some(header)),
+            Ok(FinalizationStatus::NotFinalized) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -279,10 +273,12 @@ impl HeaderBackend<AlephHeader> for SubstrateChainStatus {
         }
     }
 
-    fn hash_to_id(&self, hash: BlockHash) -> Result<BlockId, Self::Error> {
+    fn hash_to_id(&self, hash: BlockHash) -> Result<Option<BlockId>, Self::Error> {
         match self.header_for_hash(hash) {
-            Ok(Some(header)) => Ok(header.id()),
-            _ => Err(Self::Error::UnknownHash(hash)),
+            Ok(maybe_header) => {
+                Ok(maybe_header.map(|header| (header.hash(), *header.number()).into()))
+            }
+            Err(e) => Err(Self::Error::Backend(e)),
         }
     }
 }

@@ -353,10 +353,14 @@ where
         };
 
         let last_block_of_previous_session = session_boundaries.first_block().saturating_sub(1);
-        let last_block_of_previous_session_hash = self
+        let last_block_of_previous_session_header = self
             .header_backend
-            .finalized_hash(last_block_of_previous_session)
-            .expect("Previous session ended, the block should be present");
+            .header_of_finalized_at(last_block_of_previous_session)
+            .expect("Previous session ended, the block should be present.")
+            .expect("Previous session ended, the block should be finalized.");
+
+        let last_block_of_previous_session_hash =
+            UnverifiedHeader::id(&last_block_of_previous_session_header).hash();
 
         let params = SubtasksParams {
             n_members: authorities.len(),

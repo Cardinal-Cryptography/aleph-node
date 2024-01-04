@@ -63,7 +63,7 @@ where
     C: HeaderBackend<H> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
-    let number = client.hash_to_id(hash).unwrap().number();
+    let number = client.hash_to_id(hash).unwrap().unwrap().number();
     // The unwrap might actually fail if data availability is not implemented correctly.
     let justification = match justification_translator.translate(
         AlephJustification::CommitteeMultisignature(multisignature),

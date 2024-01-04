@@ -79,13 +79,19 @@ impl AlephHeaderBackend<THeader> for Arc<TestClient> {
         TestClient::header(self, id.hash())
     }
 
-    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error> {
-        if self.top_finalized_id().number() < number {
-            return Err(sp_blockchain::Error::NotInFinalizedChain);
-        }
+    fn header_of_finalized_at(&self, number: BlockNumber) -> Result<Option<THeader>, Self::Error> {
         match TestClient::hash(self, number) {
-            Ok(Some(hash)) => Ok(hash),
-            Ok(None) => Err(sp_blockchain::Error::NotInFinalizedChain),
+            Ok(Some(hash)) => {
+                if self.top_finalized_id().number() >= number {
+                    Ok(Some(
+                        self.header((hash, number).into())?
+                            .expect("header must exist"),
+                    ))
+                } else {
+                    Ok(None)
+                }
+            }
+            Ok(None) => Err(sp_blockchain::Error::UnknownBlocks("{number}".into())),
             Err(e) => Err(e),
         }
     }
@@ -95,10 +101,10 @@ impl AlephHeaderBackend<THeader> for Arc<TestClient> {
         (info.finalized_hash, info.finalized_number).into()
     }
 
-    fn hash_to_id(&self, hash: BlockHash) -> Result<BlockId, Self::Error> {
+    fn hash_to_id(&self, hash: BlockHash) -> Result<Option<BlockId>, Self::Error> {
         match TestClient::number(self, hash) {
-            Ok(Some(number)) => Ok((hash, number).into()),
-            Ok(None) => Err(sp_blockchain::Error::UnknownBlocks("{hash}".into())),
+            Ok(Some(number)) => Ok(Some((hash, number).into())),
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }
