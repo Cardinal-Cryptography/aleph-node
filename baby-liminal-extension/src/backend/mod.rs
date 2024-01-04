@@ -92,7 +92,6 @@ where
         // ------- Translate the status. -----------------------------------------------------------
         let status = match result {
             Ok(()) => VERIFY_SUCCESS,
-            Err(DeserializingProofFailed) => VERIFY_DESERIALIZING_PROOF_FAIL,
             Err(DeserializingPublicInputFailed) => VERIFY_DESERIALIZING_INPUT_FAIL,
             Err(UnknownVerificationKeyIdentifier) => VERIFY_UNKNOWN_IDENTIFIER,
             Err(DeserializingVerificationKeyFailed) => VERIFY_DESERIALIZING_KEY_FAIL,

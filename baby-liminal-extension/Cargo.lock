@@ -135,6 +135,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph-runtime-interfaces"
+version = "0.1.0"
+dependencies = [
+ "halo2_proofs",
+ "log",
+ "parity-scale-codec",
+ "sp-runtime-interface",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -410,6 +420,7 @@ name = "baby-liminal-extension"
 version = "0.1.0"
 dependencies = [
  "aleph-runtime",
+ "aleph-runtime-interfaces",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -418,7 +429,6 @@ dependencies = [
  "pallet-contracts",
  "pallet-vk-storage",
  "parity-scale-codec",
- "primitives",
  "sp-core",
  "sp-std",
 ]
@@ -1775,13 +1785,14 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.2.0"
-source = "git+https://github.com/Cardinal-Cryptography/pse-halo2?branch=substrate-compatible#9aef7201c56a1cc78c294c4a2a34716e0cdd3c19"
+source = "git+https://github.com/Cardinal-Cryptography/pse-halo2?branch=substrate-compatible#f6b4962597cd1d9616d18905a18f09e01503d1f2"
 dependencies = [
  "blake2b_simd",
  "ff",
  "group",
  "halo2curves",
  "maybe-rayon",
+ "parity-scale-codec",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
  "sha3 0.9.1",
@@ -3328,7 +3339,6 @@ dependencies = [
 name = "primitives"
 version = "0.8.1"
 dependencies = [
- "halo2_proofs",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -3337,10 +3347,8 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-staking",
  "sp-std",
- "subtle",
 ]
 
 [[package]]
@@ -5115,7 +5123,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
- "rand 0.8.5",
+ "rand 0.7.3",
  "static_assertions",
 ]
 

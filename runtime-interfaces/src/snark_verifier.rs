@@ -8,8 +8,6 @@ use codec::{Decode, Encode};
 pub enum VerifierError {
     /// No verification key available under this identifier.
     UnknownVerificationKeyIdentifier,
-    /// Couldn't deserialize proof.
-    DeserializingProofFailed,
     /// Couldn't deserialize public input.
     DeserializingPublicInputFailed,
     /// Couldn't deserialize verification key from storage.

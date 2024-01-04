@@ -1,7 +1,6 @@
-use crate::{
-    args::VerifyArgs,
-    backend::executor::{BackendExecutor, VerifierError},
-};
+use aleph_runtime_interfaces::snark_verifier::VerifierError;
+
+use crate::{args::VerifyArgs, backend::executor::BackendExecutor};
 
 /// Describes how the `Executor` should behave when one of its methods is called.
 #[derive(Clone, Eq, PartialEq)]
