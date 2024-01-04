@@ -1,3 +1,6 @@
+//! An interface that provides to the runtime a functionality of verifying halo2 SNARKs, together with related errors
+//! and configuration.
+
 use codec::{Decode, Encode};
 #[cfg(feature = "std")]
 use halo2_proofs::{
@@ -12,13 +15,17 @@ use halo2_proofs::{
     SerdeFormat,
 };
 
+/// Circuit curve.
 #[cfg(feature = "std")]
 pub type Curve = halo2_proofs::halo2curves::bn256::Bn256;
+/// Curve (G1) point in its affine form.
 #[cfg(feature = "std")]
 pub type G1Affine = halo2_proofs::halo2curves::bn256::G1Affine;
+/// The scalar field for circuits.
 #[cfg(feature = "std")]
 pub type Fr = halo2_proofs::halo2curves::bn256::Fr;
 
+/// Gathers errors that can happen during proof verification.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
 pub enum VerifierError {
     /// No verification key available under this identifier.
@@ -35,8 +42,10 @@ pub enum VerifierError {
     IncorrectProof,
 }
 
+/// An interface that provides to the runtime a functionality of verifying halo2 SNARKs.
 #[sp_runtime_interface::runtime_interface]
 pub trait SnarkVerifier {
+    /// Verify `proof` given `verifying_key`.
     fn verify(proof: &[u8], verifying_key: &[u8]) -> Result<(), VerifierError> {
         let instances: &[&[Fr]] = &[&[Fr::one()]];
         let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
@@ -45,8 +54,10 @@ pub trait SnarkVerifier {
             verifying_key,
             SerdeFormat::RawBytesUnchecked,
         )
-        // todo: log error
-        .map_err(|_| VerifierError::DeserializingVerificationKeyFailed)?;
+        .map_err(|err| {
+            log::debug!("Failed to deserialize verification key: {err:?}");
+            VerifierError::DeserializingVerificationKeyFailed
+        })?;
 
         verify_proof::<
             KZGCommitmentScheme<Curve>,
@@ -63,12 +74,16 @@ pub trait SnarkVerifier {
         )
         .map_err(|err| match err {
             Error::ConstraintSystemFailure => VerifierError::IncorrectProof,
-            // todo: log error
-            _ => VerifierError::VerificationFailed,
+            _ => {
+                log::debug!("Failed to verify a proof: {err:?}");
+                VerifierError::VerificationFailed
+            }
         })
     }
 }
 
+// Reexport `verify` and `HostFunctions`, so that they are not imported like
+// `aleph-runtime-interfaces::snark_verifier::snark_verifier::<>`.
 pub use snark_verifier::verify;
 #[cfg(feature = "std")]
 pub use snark_verifier::HostFunctions;

@@ -47,6 +47,7 @@ name = "aleph-runtime-interfaces"
 version = "0.1.0"
 dependencies = [
  "halo2_proofs",
+ "log",
  "parity-scale-codec",
  "sp-runtime-interface",
 ]
