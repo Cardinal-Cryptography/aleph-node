@@ -167,8 +167,9 @@ fn prepare_data_store(
     } else {
         SessionBoundaryInfo::new(SessionPeriod(900)).boundaries_for_session(SessionId(0))
     };
-    let (mut data_store, network) = DataStore::<_, TBlock, _, _, _, _, _>::new(
+    let (mut data_store, network) = DataStore::<_, TBlock, _, _, _, _, _, _>::new(
         session_boundaries,
+        client.clone(),
         client.clone(),
         TestVerifier,
         block_requester,

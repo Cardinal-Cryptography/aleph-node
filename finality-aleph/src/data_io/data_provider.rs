@@ -129,11 +129,11 @@ pub struct ChainTracker<H, B, SC, C>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + 'static,
+    C: HeaderBackend<H>,
     SC: SelectChain<H> + 'static,
 {
     select_chain: SC,
-    client: Arc<C>,
+    client: C,
     data_to_propose: Arc<Mutex<Option<AlephData<H::Unverified>>>>,
     session_boundaries: SessionBoundaries,
     prev_chain_info: Option<ChainInfo>,
@@ -145,12 +145,12 @@ impl<H, B, SC, C> ChainTracker<H, B, SC, C>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + 'static,
+    C: HeaderBackend<H>,
     SC: SelectChain<H> + 'static,
 {
     pub fn new(
         select_chain: SC,
-        client: Arc<C>,
+        client: C,
         session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
         metrics: AllBlockMetrics,
@@ -178,7 +178,7 @@ where
         // the corresponding `AlephData<B>` in `data_to_propose` for AlephBFT. To not recompute this many
         // times we remember these "inputs" in `prev_chain_info` and upon match we leave the old value
         // of `data_to_propose` unaffected.
-        let finalized_block = self.client.top_finalized();
+        let finalized_block = self.client.top_finalized_id();
         if finalized_block.number() >= self.session_boundaries.last_block() {
             // This session is already finished, but this instance of ChainTracker has not been terminated yet.
             // We go with the default -- empty proposal, this does not have any significance.
@@ -207,11 +207,9 @@ where
             return;
         }
 
-        if let Ok(proposal) = get_proposal(
-            &*self.client,
-            best_block_in_session.clone(),
-            finalized_block,
-        ) {
+        if let Ok(proposal) =
+            get_proposal(&self.client, best_block_in_session.clone(), finalized_block)
+        {
             *self.data_to_propose.lock() = proposal;
         }
     }
@@ -240,7 +238,7 @@ where
                 None => {
                     // This is the the first time we see a block in this session.
                     let reduced_header =
-                        reduce_header_to_num(&*self.client, new_best_header, last_block);
+                        reduce_header_to_num(&self.client, new_best_header, last_block);
                     Some(reduced_header.id())
                 }
                 Some(prev) => {
@@ -248,12 +246,12 @@ where
                         // The previous best block was below the sessioun boundary, we cannot really optimize
                         // but must compute the new best_block_in_session naively.
                         let reduced_header =
-                            reduce_header_to_num(&*self.client, new_best_header, last_block);
+                            reduce_header_to_num(&self.client, new_best_header, last_block);
                         Some(reduced_header.id())
                     } else {
                         // Both `prev_best_block` and thus also `new_best_header` are above (or equal to) `last_block`, we optimize.
                         let reduced_header = reduce_header_to_num(
-                            &*self.client,
+                            &self.client,
                             new_best_header.clone(),
                             prev.number(),
                         );
@@ -261,7 +259,7 @@ where
                             // The new_best_block is not a descendant of `prev`, we need to update.
                             // In the opposite case we do nothing, as the `prev` is already correct.
                             let reduced_header =
-                                reduce_header_to_num(&*self.client, new_best_header, last_block);
+                                reduce_header_to_num(&self.client, new_best_header, last_block);
                             Some(reduced_header.id())
                         } else {
                             Some(prev)

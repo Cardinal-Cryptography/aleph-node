@@ -1,19 +1,18 @@
-use std::sync::Arc;
-
 use futures::{
     channel::{mpsc, oneshot},
     pin_mut, StreamExt,
 };
 use log::{debug, error, trace};
-use sc_client_api::HeaderBackend;
-use sp_runtime::traits::{Block, Header};
 use tokio::time;
 
 use crate::{
     abft::SignatureSet,
     aggregation::Aggregator,
-    aleph_primitives::{BlockHash, BlockNumber},
-    block::substrate::{Justification, JustificationTranslator},
+    aleph_primitives::BlockHash,
+    block::{
+        substrate::{Justification, JustificationTranslator},
+        Header, HeaderBackend,
+    },
     crypto::Signature,
     justification::AlephJustification,
     metrics::{AllBlockMetrics, Checkpoint},
@@ -52,20 +51,19 @@ async fn process_new_block_data<CN, LN>(
     aggregator.start_aggregation(hash).await;
 }
 
-fn process_hash<B, C, JS>(
+fn process_hash<H, C, JS>(
     hash: BlockHash,
     multisignature: SignatureSet<Signature>,
     justifications_for_chain: &mut JS,
     justification_translator: &JustificationTranslator,
-    client: &Arc<C>,
+    client: &C,
 ) -> Result<(), ()>
 where
-    B: Block<Hash = BlockHash>,
-    B::Header: Header<Number = BlockNumber>,
-    C: HeaderBackend<B> + Send + Sync + 'static,
+    H: Header,
+    C: HeaderBackend<H> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
-    let number = client.number(hash).unwrap().unwrap();
+    let number = client.hash_to_id(hash).unwrap().number();
     // The unwrap might actually fail if data availability is not implemented correctly.
     let justification = match justification_translator.translate(
         AlephJustification::CommitteeMultisignature(multisignature),
@@ -84,19 +82,18 @@ where
     Ok(())
 }
 
-async fn run_aggregator<B, C, CN, LN, JS>(
+async fn run_aggregator<H, C, CN, LN, JS>(
     mut aggregator: Aggregator<'_, CN, LN>,
     io: IO<JS>,
-    client: Arc<C>,
+    client: C,
     session_boundaries: &SessionBoundaries,
     mut metrics: AllBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
 ) -> Result<(), ()>
 where
-    B: Block<Hash = BlockHash>,
-    B::Header: Header<Number = BlockNumber>,
+    H: Header,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    C: HeaderBackend<B> + Send + Sync + 'static,
+    C: HeaderBackend<H> + 'static,
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
@@ -171,9 +168,9 @@ pub enum AggregatorVersion<CN, LN> {
 }
 
 /// Runs the justification signature aggregator within a single session.
-pub fn task<B, C, CN, LN, JS>(
+pub fn task<H, C, CN, LN, JS>(
     subtask_common: AuthoritySubtaskCommon,
-    client: Arc<C>,
+    client: C,
     io: IO<JS>,
     session_boundaries: SessionBoundaries,
     metrics: AllBlockMetrics,
@@ -181,10 +178,9 @@ pub fn task<B, C, CN, LN, JS>(
     version: AggregatorVersion<CN, LN>,
 ) -> Task
 where
-    B: Block<Hash = BlockHash>,
-    B::Header: Header<Number = BlockNumber>,
+    H: Header,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
-    C: HeaderBackend<B> + Send + Sync + 'static,
+    C: HeaderBackend<H> + 'static,
     LN: Network<LegacyRmcNetworkData> + 'static,
     CN: Network<CurrentRmcNetworkData> + 'static,
 {

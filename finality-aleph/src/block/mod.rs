@@ -240,7 +240,9 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     /// Get hash of a finalized block with a given number.
     fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error>;
     /// Get currently highest finalized block.
-    fn top_finalized(&self) -> BlockId;
+    fn top_finalized_id(&self) -> BlockId;
+
+    fn hash_to_id(&self, hash: BlockHash) -> Result<BlockId, Self::Error>;
 }
 
 type SelectChainError = sp_consensus::Error;

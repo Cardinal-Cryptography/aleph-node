@@ -4,7 +4,7 @@ use std::{
 };
 
 use log::warn;
-use sc_client_api::{blockchain::HeaderBackend, Backend as _};
+use sc_client_api::{blockchain::HeaderBackend as _, Backend as _};
 use sc_service::TFullBackend;
 use sp_blockchain::{Backend as _, Error as BackendError, Info};
 use sp_runtime::traits::{Block as SubstrateBlock, Header as SubstrateHeader};
@@ -15,7 +15,8 @@ use crate::{
     },
     block::{
         substrate::{Justification, LOG_TARGET},
-        BlockStatus, ChainStatus, FinalizationStatus, Header, Justification as _,
+        BlockHash, BlockStatus, ChainStatus, FinalizationStatus, Header, HeaderBackend,
+        Justification as _,
     },
     justification::backwards_compatible_decode,
     BlockId,
@@ -240,5 +241,48 @@ impl ChainStatus<Block, Justification> for SubstrateChainStatus {
             .into_iter()
             .flatten()
             .collect())
+    }
+}
+
+#[derive(Debug)]
+pub enum HeaderBackendError {
+    NotFinalized(BlockNumber),
+    UnknownHeader(BlockId),
+    UnknownHash(BlockHash),
+    NoHashForNumber(BlockNumber),
+}
+
+impl HeaderBackend<AlephHeader> for SubstrateChainStatus {
+    type Error = HeaderBackendError;
+
+    fn header(&self, id: BlockId) -> Result<Option<AlephHeader>, Self::Error> {
+        self.header(&id).map_err(|_| Self::Error::UnknownHeader(id))
+    }
+
+    fn finalized_hash(&self, number: BlockNumber) -> Result<BlockHash, Self::Error> {
+        match self.finalized_at(number) {
+            Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
+                Ok(justification.header().id().hash())
+            }
+
+            Ok(FinalizationStatus::FinalizedByDescendant(header)) => Ok(header.id().hash()),
+            Ok(FinalizationStatus::NotFinalized) => Err(Self::Error::NotFinalized(number)),
+            Err(_) => Err(Self::Error::NoHashForNumber(number)),
+        }
+    }
+
+    fn top_finalized_id(&self) -> BlockId {
+        let info = self.info();
+        BlockId {
+            hash: info.finalized_hash,
+            number: info.finalized_number,
+        }
+    }
+
+    fn hash_to_id(&self, hash: BlockHash) -> Result<BlockId, Self::Error> {
+        match self.header_for_hash(hash) {
+            Ok(Some(header)) => Ok(header.id()),
+            _ => Err(Self::Error::UnknownHash(hash)),
+        }
     }
 }

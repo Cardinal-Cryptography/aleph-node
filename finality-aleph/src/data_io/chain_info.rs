@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use lru::LruCache;
 
@@ -25,7 +25,7 @@ where
     B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H> + 'static,
 {
-    client: Arc<C>,
+    client: C,
     _phantom: PhantomData<(H, B)>,
 }
 
@@ -35,7 +35,7 @@ where
     B: Block<UnverifiedHeader = H::Unverified>,
     C: HeaderBackend<H>,
 {
-    pub fn new(client: Arc<C>) -> Self {
+    pub fn new(client: C) -> Self {
         SubstrateChainInfoProvider {
             client,
             _phantom: PhantomData,
@@ -80,7 +80,7 @@ where
     }
 
     fn get_highest_finalized(&mut self) -> BlockId {
-        self.client.top_finalized()
+        self.client.top_finalized_id()
     }
 }
 

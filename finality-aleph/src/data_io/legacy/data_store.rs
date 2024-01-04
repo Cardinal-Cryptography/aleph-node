@@ -146,11 +146,12 @@ impl Default for DataStoreConfig {
 
 /// This component is used for filtering available data for Aleph Network.
 /// It needs to be started by calling the run method.
-pub struct DataStore<H, B, C, RB, Message, R>
+pub struct DataStore<H, B, HB, BEV, RB, Message, R>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
+    HB: HeaderBackend<H> + 'static,
+    BEV: BlockchainEvents<H>,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug
@@ -167,24 +168,25 @@ where
     // We use BtreeMap instead of HashMap to be able to fetch the Message with lowest MessageId
     // when pruning messages.
     pending_messages: BTreeMap<MessageId, PendingMessageInfo<Message>>,
-    chain_info_provider: CachedChainInfoProvider<SubstrateChainInfoProvider<H, B, C>>,
+    chain_info_provider: CachedChainInfoProvider<SubstrateChainInfoProvider<H, B, HB>>,
     available_proposals_cache: LruCache<AlephProposal, ProposalStatus>,
     num_triggers_registered_since_last_pruning: usize,
     highest_finalized_num: BlockNumber,
     session_boundaries: SessionBoundaries,
-    client: Arc<C>,
+    blockchain_events: Arc<BEV>,
     block_requester: RB,
     config: DataStoreConfig,
     messages_from_network: R,
     messages_for_aleph: UnboundedSender<Message>,
 }
 
-impl<H, B, C, RB, Message, R> DataStore<H, B, C, RB, Message, R>
+impl<H, B, HB, BEV, RB, Message, R> DataStore<H, B, HB, BEV, RB, Message, R>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
     H: Header,
-    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
+    HB: HeaderBackend<H> + 'static,
+    BEV: BlockchainEvents<H>,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug
@@ -198,16 +200,17 @@ where
     /// Returns a struct to be run and a network that outputs messages filtered as appropriate
     pub fn new<N: ComponentNetwork<Message, R = R>>(
         session_boundaries: SessionBoundaries,
-        client: Arc<C>,
+        header_backend: HB,
+        blockchain_events: Arc<BEV>,
         block_requester: RB,
         config: DataStoreConfig,
         component_network: N,
     ) -> (Self, impl DataNetwork<Message>) {
         let (messages_for_aleph, messages_from_data_store) = mpsc::unbounded();
         let (messages_to_network, messages_from_network) = component_network.into();
-        let highest_finalized_num = client.top_finalized().number();
+        let highest_finalized_num = header_backend.top_finalized_id().number();
         let chain_info_provider = CachedChainInfoProvider::new(
-            SubstrateChainInfoProvider::new(client.clone()),
+            SubstrateChainInfoProvider::new(header_backend),
             Default::default(),
         );
 
@@ -222,7 +225,7 @@ where
                 num_triggers_registered_since_last_pruning: 0,
                 highest_finalized_num,
                 session_boundaries,
-                client,
+                blockchain_events,
                 block_requester,
                 config,
                 messages_from_network,
@@ -234,7 +237,7 @@ where
 
     pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
-        let mut chain_status_notifier = self.client.chain_status_notifier();
+        let mut chain_status_notifier = self.blockchain_events.chain_status_notifier();
         loop {
             self.prune_pending_messages();
             self.prune_triggers();
@@ -639,11 +642,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, B, C, RB, Message, R> Runnable for DataStore<H, B, C, RB, Message, R>
+impl<H, B, HB, BEV, RB, Message, R> Runnable for DataStore<H, B, HB, BEV, RB, Message, R>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified>,
-    C: HeaderBackend<H> + BlockchainEvents<H> + Send + Sync + 'static,
+    HB: HeaderBackend<H>,
+    BEV: BlockchainEvents<H> + Send + Sync + 'static,
     RB: LegacyRequestBlocks,
     Message: AlephNetworkMessage
         + std::fmt::Debug
