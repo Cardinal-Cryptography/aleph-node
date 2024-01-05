@@ -82,37 +82,62 @@ where
 }
 
 #[derive(Debug)]
-pub struct SyncServiceError(String);
+pub enum SyncServiceError<NetworkError, ChainEventError> {
+    Network(NetworkError),
+    ChainEvent(ChainEventError),
+    JustificationChannelClosed,
+    BlockRequestChannelClosed,
+    LegacyBlockRequestChannelClosed,
+    CreatorChannelClosed,
+}
 
-impl Display for SyncServiceError {
+impl<NetworkError, ChainEventError> Display for SyncServiceError<NetworkError, ChainEventError>
+where
+    NetworkError: Display,
+    ChainEventError: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            SyncServiceError::Network(e) => format!("Error receiving data from network: {e}."),
+            SyncServiceError::ChainEvent(e) => format!("Error when receiving a chain event: {e}."),
+            SyncServiceError::JustificationChannelClosed => {
+                "Channel with justifications from user closed.".into()
+            }
+            SyncServiceError::BlockRequestChannelClosed => {
+                "Channel with internal block request from user closed.".into()
+            }
+            SyncServiceError::LegacyBlockRequestChannelClosed => {
+                "Channel with legacy internal block request from user closed.".into()
+            }
+            SyncServiceError::CreatorChannelClosed => "Channel with own blocks closed.".into(),
+        };
+        write!(f, "{}", &description)
     }
 }
 
-impl SyncServiceError {
-    fn network(error: impl Display) -> Self {
-        Self(format!("Error receiving data from network: {error}."))
+impl<NetworkError, ChainEventError> SyncServiceError<NetworkError, ChainEventError> {
+    fn network_error(error: NetworkError) -> Self {
+        Self::Network(error)
     }
 
-    fn chain_event(error: impl Display) -> Self {
-        Self(format!("Error when receiving a chain event: {error}."))
+    fn chain_event_error(error: ChainEventError) -> Self {
+        Self::ChainEvent(error)
     }
 
     fn justification_channel() -> Self {
-        Self("Channel with justifications from user closed.".into())
+        Self::JustificationChannelClosed
     }
 
     fn block_request_channel() -> Self {
-        Self("Channel with internal block request from user closed.".into())
+        Self::BlockRequestChannelClosed
     }
 
     fn legacy_block_request_channel() -> Self {
-        Self("Channel with legacy internal block request from user closed.".into())
+        Self::LegacyBlockRequestChannelClosed
     }
 
     fn creator_channel() -> Self {
-        Self("Channel with own blocks closed.".into())
+        Self::CreatorChannelClosed
     }
 }
 
@@ -760,7 +785,7 @@ where
     }
 
     /// Stay synchronized.
-    pub async fn run(mut self) -> Result<(), SyncServiceError> {
+    pub async fn run(mut self) -> Result<(), SyncServiceError<N::Error, CE::Error>> {
         use SyncServiceError as Error;
 
         if self.blocks_from_creator.is_terminated() {
@@ -771,7 +796,7 @@ where
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => {
-                    let (data, peer) = maybe_data.map_err(Error::network)?;
+                    let (data, peer) = maybe_data.map_err(Error::network_error)?;
                     self.handle_network_data(data, peer);
                 },
 
@@ -782,7 +807,7 @@ where
                 force = self.chain_extension_ticker.wait_and_tick() => self.request_chain_extension(force),
 
                 maybe_event = self.chain_events.next() => {
-                    let chain_event = maybe_event.map_err(Error::chain_event)?;
+                    let chain_event = maybe_event.map_err(Error::chain_event_error)?;
                     self.handle_chain_event(chain_event);
                 },
 

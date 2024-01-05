@@ -93,25 +93,38 @@ pub trait SpawnHandleT {
 }
 
 #[derive(Debug)]
-pub struct CliqueNetworkServiceError(String);
+pub enum CliqueNetworkServiceError {
+    CommandsStreamClosed,
+    AuthorizationRequestsStreamClosed,
+    ConnectionWorkerStreamClosed,
+}
 
 impl Display for CliqueNetworkServiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            CliqueNetworkServiceError::CommandsStreamClosed => "Stream with commands was closed.",
+            CliqueNetworkServiceError::AuthorizationRequestsStreamClosed => {
+                "`authorization_requests` channel was closed."
+            }
+            CliqueNetworkServiceError::ConnectionWorkerStreamClosed => {
+                "`worker_results` channel was closed."
+            }
+        };
+        write!(f, "{}", description)
     }
 }
 
 impl CliqueNetworkServiceError {
     fn commands_stream_closed() -> Self {
-        Self("Stream with commands was closed.".into())
+        Self::CommandsStreamClosed
     }
 
     fn authorization_requests_stream_closed() -> Self {
-        Self("`authorization_requests` channel was closed.".into())
+        Self::AuthorizationRequestsStreamClosed
     }
 
     fn connection_worker_stream_closed() -> Self {
-        Self("`worker_results` channel was closed.".into())
+        Self::ConnectionWorkerStreamClosed
     }
 }
 

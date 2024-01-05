@@ -79,29 +79,44 @@ impl Display for Error {
 }
 
 #[derive(Debug)]
-pub struct GossipServiceError(String);
+pub enum GossipServiceError {
+    NetworkStreamTerminated,
+    AuthorizationStreamTerminated,
+    BlockSyncStreamTerminated,
+    UnableToForwardMessageToUser,
+}
 
 impl fmt::Display for GossipServiceError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            GossipServiceError::NetworkStreamTerminated => "Network event stream ended.",
+            GossipServiceError::AuthorizationStreamTerminated => {
+                "Authentication user message stream ended."
+            }
+            GossipServiceError::BlockSyncStreamTerminated => {
+                "Block sync user message stream ended."
+            }
+            GossipServiceError::UnableToForwardMessageToUser => "Cannot forward messages to user.",
+        };
+        write!(f, "{}", description)
     }
 }
 
 impl GossipServiceError {
     fn network_stream_terminated() -> Self {
-        Self("Network event stream ended.".into())
+        Self::NetworkStreamTerminated
     }
 
     fn authorization_stream_terminated() -> Self {
-        Self("Authentication user message stream ended.".into())
+        Self::AuthorizationStreamTerminated
     }
 
     fn block_sync_stream_terminated() -> Self {
-        Self("Block sync user message stream ended.".into())
+        Self::BlockSyncStreamTerminated
     }
 
     fn unable_to_forward_message_to_user() -> Self {
-        Self("Cannot forward messages to user.".into())
+        Self::UnableToForwardMessageToUser
     }
 }
 

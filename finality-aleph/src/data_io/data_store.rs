@@ -108,25 +108,38 @@ impl Default for DataStoreConfig {
 }
 
 #[derive(Debug)]
-pub struct DataStoreError(String);
+pub enum DataStoreError {
+    BlockImportStreamClosed,
+    FinalizedBlocksStreamClosed,
+    NetworkMessagesTerminated,
+}
 
 impl Display for DataStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            DataStoreError::BlockImportStreamClosed => {
+                "Block import notification stream was closed."
+            }
+            DataStoreError::FinalizedBlocksStreamClosed => {
+                "Finalized block import notification stream was closed."
+            }
+            DataStoreError::NetworkMessagesTerminated => "Stream with network messages was closed.",
+        };
+        write!(f, "{}", description)
     }
 }
 
 impl DataStoreError {
     fn block_import_stream_closed() -> Self {
-        Self("Block import notification stream was closed.".into())
+        Self::BlockImportStreamClosed
     }
 
     fn finalized_blocks_stream_closed() -> Self {
-        Self("Finalized block import notification stream was closed.".into())
+        Self::FinalizedBlocksStreamClosed
     }
 
     fn network_messages_terminated() -> Self {
-        Self("Stream with network messages was closed.".into())
+        Self::NetworkMessagesTerminated
     }
 }
 

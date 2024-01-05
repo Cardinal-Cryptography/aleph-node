@@ -30,21 +30,30 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct AggregatorError(String);
+pub enum AggregatorError {
+    MultisignaturesStreamTerminated,
+    UnableToProcessHash,
+}
 
 impl Display for AggregatorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            AggregatorError::MultisignaturesStreamTerminated => {
+                "The stream of multisigned hashes has ended."
+            }
+            AggregatorError::UnableToProcessHash => "Error while processing a hash.",
+        };
+        write!(f, "{}", description)
     }
 }
 
 impl AggregatorError {
     fn multisignatures_stream_terminated() -> Self {
-        Self("The stream of multisigned hashes has ended.".into())
+        Self::MultisignaturesStreamTerminated
     }
 
     fn unable_to_process_hash() -> Self {
-        Self("Error while processing a hash.".into())
+        Self::UnableToProcessHash
     }
 }
 

@@ -32,33 +32,54 @@ const TRANSACTION_CACHE_SIZE: usize = 100_000;
 const BUCKETS_FACTOR: f64 = 1.4;
 
 #[derive(Debug)]
-pub struct ChainStateMetricsError(String);
+pub enum ChainStateMetricsError {
+    NoRegistry,
+    UnableToCreateMetrics(PrometheusError),
+    BlockImportStreamClosed,
+    FinalizedBlocksStreamClosed,
+    TransactionStreamClosed,
+}
 
 impl Display for ChainStateMetricsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let description = match self {
+            ChainStateMetricsError::NoRegistry => "Registry can not be empty.".into(),
+            ChainStateMetricsError::UnableToCreateMetrics(e) => {
+                format!("Failed to create metrics: {e}.")
+            }
+            ChainStateMetricsError::BlockImportStreamClosed => {
+                "Block import notification stream ended unexpectedly.".into()
+            }
+            ChainStateMetricsError::FinalizedBlocksStreamClosed => {
+                "Finality notification stream ended unexpectedly.".into()
+            }
+            ChainStateMetricsError::TransactionStreamClosed => {
+                "Transaction stream ended unexpectedly.".into()
+            }
+        };
+        write!(f, "{}", &description)
     }
 }
 
 impl ChainStateMetricsError {
     fn no_registry() -> Self {
-        Self("Registry can not be empty.".into())
+        Self::NoRegistry
     }
 
-    fn unable_to_create_metrics(error: impl Display) -> Self {
-        Self(format!("Failed to create metrics: {error}."))
+    fn unable_to_create_metrics(error: PrometheusError) -> Self {
+        Self::UnableToCreateMetrics(error)
     }
 
     fn block_import_stream_closed() -> Self {
-        Self("Block import notification stream ended unexpectedly.".into())
+        Self::BlockImportStreamClosed
     }
 
     fn finalized_blocks_stream_closed() -> Self {
-        Self("Finality notification stream ended unexpectedly.".into())
+        Self::FinalizedBlocksStreamClosed
     }
 
     fn transaction_stream_closed() -> Self {
-        Self("Transaction stream ended unexpectedly.".into())
+        Self::TransactionStreamClosed
     }
 }
 
