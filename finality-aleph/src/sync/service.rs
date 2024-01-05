@@ -97,21 +97,25 @@ where
     ChainEventError: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let description = match self {
-            SyncServiceError::Network(e) => format!("Error receiving data from network: {e}."),
-            SyncServiceError::ChainEvent(e) => format!("Error when receiving a chain event: {e}."),
+        match self {
+            SyncServiceError::Network(e) => write!(f, "Error receiving data from network: {e}."),
+            SyncServiceError::ChainEvent(e) => {
+                write!(f, "Error when receiving a chain event: {e}.")
+            }
             SyncServiceError::JustificationChannelClosed => {
-                "Channel with justifications from user closed.".into()
+                write!(f, "Channel with justifications from user closed.")
             }
             SyncServiceError::BlockRequestChannelClosed => {
-                "Channel with internal block request from user closed.".into()
+                write!(f, "Channel with internal block request from user closed.")
             }
             SyncServiceError::LegacyBlockRequestChannelClosed => {
-                "Channel with legacy internal block request from user closed.".into()
+                write!(
+                    f,
+                    "Channel with legacy internal block request from user closed."
+                )
             }
-            SyncServiceError::CreatorChannelClosed => "Channel with own blocks closed.".into(),
-        };
-        write!(f, "{}", &description)
+            SyncServiceError::CreatorChannelClosed => write!(f, "Channel with own blocks closed."),
+        }
     }
 }
 

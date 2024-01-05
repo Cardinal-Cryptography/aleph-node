@@ -116,16 +116,17 @@ pub enum DataStoreError {
 
 impl Display for DataStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let description = match self {
+        match self {
             DataStoreError::BlockImportStreamClosed => {
-                "Block import notification stream was closed."
+                write!(f, "Block import notification stream was closed.")
             }
             DataStoreError::FinalizedBlocksStreamClosed => {
-                "Finalized block import notification stream was closed."
+                write!(f, "Finalized block import notification stream was closed.")
             }
-            DataStoreError::NetworkMessagesTerminated => "Stream with network messages was closed.",
-        };
-        write!(f, "{}", description)
+            DataStoreError::NetworkMessagesTerminated => {
+                write!(f, "Stream with network messages was closed.")
+            }
+        }
     }
 }
 

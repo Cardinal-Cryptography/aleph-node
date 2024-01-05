@@ -37,13 +37,12 @@ pub enum AggregatorError {
 
 impl Display for AggregatorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let description = match self {
+        match self {
             AggregatorError::MultisignaturesStreamTerminated => {
-                "The stream of multisigned hashes has ended."
+                write!(f, "The stream of multisigned hashes has ended.")
             }
-            AggregatorError::UnableToProcessHash => "Error while processing a hash.",
-        };
-        write!(f, "{}", description)
+            AggregatorError::UnableToProcessHash => write!(f, "Error while processing a hash."),
+        }
     }
 }
 

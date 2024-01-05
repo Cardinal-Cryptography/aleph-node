@@ -42,22 +42,21 @@ pub enum ChainStateMetricsError {
 
 impl Display for ChainStateMetricsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let description = match self {
-            ChainStateMetricsError::NoRegistry => "Registry can not be empty.".into(),
+        match self {
+            ChainStateMetricsError::NoRegistry => write!(f, "Registry can not be empty."),
             ChainStateMetricsError::UnableToCreateMetrics(e) => {
-                format!("Failed to create metrics: {e}.")
+                write!(f, "Failed to create metrics: {e}.")
             }
             ChainStateMetricsError::BlockImportStreamClosed => {
-                "Block import notification stream ended unexpectedly.".into()
+                write!(f, "Block import notification stream ended unexpectedly.")
             }
             ChainStateMetricsError::FinalizedBlocksStreamClosed => {
-                "Finality notification stream ended unexpectedly.".into()
+                write!(f, "Finality notification stream ended unexpectedly.")
             }
             ChainStateMetricsError::TransactionStreamClosed => {
-                "Transaction stream ended unexpectedly.".into()
+                write!(f, "Transaction stream ended unexpectedly.")
             }
-        };
-        write!(f, "{}", &description)
+        }
     }
 }
 

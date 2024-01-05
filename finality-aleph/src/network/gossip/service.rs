@@ -88,17 +88,18 @@ pub enum GossipServiceError {
 
 impl fmt::Display for GossipServiceError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let description = match self {
-            GossipServiceError::NetworkStreamTerminated => "Network event stream ended.",
+        match self {
+            GossipServiceError::NetworkStreamTerminated => write!(f, "Network event stream ended."),
             GossipServiceError::AuthorizationStreamTerminated => {
-                "Authentication user message stream ended."
+                write!(f, "Authentication user message stream ended.")
             }
             GossipServiceError::BlockSyncStreamTerminated => {
-                "Block sync user message stream ended."
+                write!(f, "Block sync user message stream ended.")
             }
-            GossipServiceError::UnableToForwardMessageToUser => "Cannot forward messages to user.",
-        };
-        write!(f, "{}", description)
+            GossipServiceError::UnableToForwardMessageToUser => {
+                write!(f, "Cannot forward messages to user.")
+            }
+        }
     }
 }
 
