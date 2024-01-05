@@ -103,24 +103,6 @@ impl fmt::Display for GossipServiceError {
     }
 }
 
-impl GossipServiceError {
-    fn network_stream_terminated() -> Self {
-        Self::NetworkStreamTerminated
-    }
-
-    fn authorization_stream_terminated() -> Self {
-        Self::AuthorizationStreamTerminated
-    }
-
-    fn block_sync_stream_terminated() -> Self {
-        Self::BlockSyncStreamTerminated
-    }
-
-    fn unable_to_forward_message_to_user() -> Self {
-        Self::UnableToForwardMessageToUser
-    }
-}
-
 #[async_trait::async_trait]
 impl<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> Network<D> for ServiceInterface<D, P> {
     type Error = Error;
@@ -554,18 +536,18 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         loop {
             tokio::select! {
                 maybe_event = self.network_event_stream.next_event() => {
-                    let event = maybe_event.ok_or(Error::network_stream_terminated())?;
-                    self.handle_network_event(event).map_err(|_| Error::unable_to_forward_message_to_user())?;
+                    let event = maybe_event.ok_or(Error::NetworkStreamTerminated)?;
+                    self.handle_network_event(event).map_err(|_| Error::UnableToForwardMessageToUser)?;
                 },
                 maybe_message = self.messages_from_authentication_user.next() => {
-                    match maybe_message.ok_or(Error::authorization_stream_terminated())? {
+                    match maybe_message.ok_or(Error::AuthorizationStreamTerminated)? {
                         Command::Broadcast(message) => self.broadcast_authentication(message),
                         Command::SendToRandom(message, peer_ids) => self.send_to_random_authentication(message, peer_ids),
                         Command::Send(message, peer_id) => self.send_authentication_data(message, peer_id),
                     }
                 },
                 maybe_message = self.messages_from_block_sync_user.next() => {
-                    match maybe_message.ok_or(Error::block_sync_stream_terminated())? {
+                    match maybe_message.ok_or(Error::BlockSyncStreamTerminated)? {
                         Command::Broadcast(message) => self.broadcast_block_sync(message),
                         Command::SendToRandom(message, peer_ids) => self.send_to_random_block_sync(message, peer_ids),
                         Command::Send(message, peer_id) => self.send_block_sync_data(message, peer_id),

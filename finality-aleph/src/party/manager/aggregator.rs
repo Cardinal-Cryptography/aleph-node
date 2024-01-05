@@ -30,29 +30,19 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum AggregatorError {
+pub enum Error {
     MultisignaturesStreamTerminated,
     UnableToProcessHash,
 }
 
-impl Display for AggregatorError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AggregatorError::MultisignaturesStreamTerminated => {
+            Error::MultisignaturesStreamTerminated => {
                 write!(f, "The stream of multisigned hashes has ended.")
             }
-            AggregatorError::UnableToProcessHash => write!(f, "Error while processing a hash."),
+            Error::UnableToProcessHash => write!(f, "Error while processing a hash."),
         }
-    }
-}
-
-impl AggregatorError {
-    fn multisignatures_stream_terminated() -> Self {
-        Self::MultisignaturesStreamTerminated
-    }
-
-    fn unable_to_process_hash() -> Self {
-        Self::UnableToProcessHash
     }
 }
 
@@ -120,7 +110,7 @@ async fn run_aggregator<B, C, CN, LN, JS>(
     session_boundaries: &SessionBoundaries,
     mut metrics: AllBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
-) -> Result<(), AggregatorError>
+) -> Result<(), Error>
 where
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
@@ -129,8 +119,6 @@ where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    use AggregatorError as Error;
-
     let IO {
         blocks_from_interpreter,
         mut justifications_for_chain,
@@ -170,8 +158,8 @@ where
                 },
             },
             multisigned_hash = aggregator.next_multisigned_hash() => {
-                let (hash, multisignature) = multisigned_hash.ok_or(Error::multisignatures_stream_terminated())?;
-                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_| Error::unable_to_process_hash())?;
+                let (hash, multisignature) = multisigned_hash.ok_or(Error::MultisignaturesStreamTerminated)?;
+                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_| Error::UnableToProcessHash)?;
                 if Some(hash) == hash_of_last_block {
                     hash_of_last_block = None;
                 }

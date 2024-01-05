@@ -93,37 +93,23 @@ pub trait SpawnHandleT {
 }
 
 #[derive(Debug)]
-pub enum CliqueNetworkServiceError {
+pub enum Error {
     Commands,
     AuthorizationRequests,
     ConnectionWorker,
 }
 
-impl Display for CliqueNetworkServiceError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CliqueNetworkServiceError::Commands => write!(f, "Stream with commands was closed."),
-            CliqueNetworkServiceError::AuthorizationRequests => {
+            Error::Commands => write!(f, "Stream with commands was closed."),
+            Error::AuthorizationRequests => {
                 write!(f, "`authorization_requests` channel was closed.")
             }
-            CliqueNetworkServiceError::ConnectionWorker => {
+            Error::ConnectionWorker => {
                 write!(f, "`worker_results` channel was closed.")
             }
         }
-    }
-}
-
-impl CliqueNetworkServiceError {
-    fn commands_stream_closed() -> Self {
-        Self::Commands
-    }
-
-    fn authorization_requests_stream_closed() -> Self {
-        Self::AuthorizationRequests
-    }
-
-    fn connection_worker_stream_closed() -> Self {
-        Self::ConnectionWorker
     }
 }
 
@@ -331,12 +317,7 @@ where
     }
 
     /// Run the service until a signal from exit.
-    pub async fn run(
-        mut self,
-        mut exit: oneshot::Receiver<()>,
-    ) -> Result<(), CliqueNetworkServiceError> {
-        use CliqueNetworkServiceError as Error;
-
+    pub async fn run(mut self, mut exit: oneshot::Receiver<()>) -> Result<(), Error> {
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         let (result_for_parent, mut worker_results) = mpsc::unbounded();
         let (authorization_requests_sender, mut authorization_requests) = mpsc::unbounded();
@@ -349,17 +330,17 @@ where
                 },
                 // got a new command from the interface
                 maybe_command = self.commands_from_interface.next() => {
-                    let command = maybe_command.ok_or(Error::commands_stream_closed())?;
+                    let command = maybe_command.ok_or(Error::Commands)?;
                     self.handle_command(command, &result_for_parent);
                 },
                 maybe_authorization_request = authorization_requests.next() => {
-                    let (public_key, response_channel) = maybe_authorization_request.ok_or(Error::authorization_requests_stream_closed())?;
+                    let (public_key, response_channel) = maybe_authorization_request.ok_or(Error::AuthorizationRequests)?;
                     self.handle_authorization_request(public_key, response_channel);
                 },
                 // received information from a spawned worker managing a connection
                 // check if we still want to be connected to the peer, and if so, spawn a new worker or actually add proper connection
                 maybe_data_for_network = worker_results.next() => {
-                    let (public_key, maybe_data_for_network) = maybe_data_for_network.ok_or(Error::connection_worker_stream_closed())?;
+                    let (public_key, maybe_data_for_network) = maybe_data_for_network.ok_or(Error::ConnectionWorker)?;
                     self.handle_data_for_network(public_key, maybe_data_for_network, &result_for_parent);
                 },
                 // periodically reporting what we are trying to do

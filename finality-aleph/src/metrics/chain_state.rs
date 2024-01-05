@@ -5,7 +5,6 @@ use std::{
 };
 
 use futures::{stream::FusedStream, StreamExt};
-use log::warn;
 use lru::LruCache;
 use sc_client_api::{
     BlockBackend, BlockImportNotification, FinalityNotification, FinalityNotifications,
@@ -22,7 +21,7 @@ use substrate_prometheus_endpoint::{
 };
 
 use crate::{
-    metrics::{exponential_buckets_two_sided, TransactionPoolInfoProvider, LOG_TARGET},
+    metrics::{exponential_buckets_two_sided, TransactionPoolInfoProvider},
     BlockNumber,
 };
 
@@ -32,7 +31,7 @@ const TRANSACTION_CACHE_SIZE: usize = 100_000;
 const BUCKETS_FACTOR: f64 = 1.4;
 
 #[derive(Debug)]
-pub enum ChainStateMetricsError {
+pub enum Error {
     NoRegistry,
     UnableToCreateMetrics(PrometheusError),
     BlockImportStreamClosed,
@@ -40,45 +39,23 @@ pub enum ChainStateMetricsError {
     TransactionStreamClosed,
 }
 
-impl Display for ChainStateMetricsError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ChainStateMetricsError::NoRegistry => write!(f, "Registry can not be empty."),
-            ChainStateMetricsError::UnableToCreateMetrics(e) => {
+            Error::NoRegistry => write!(f, "Registry can not be empty."),
+            Error::UnableToCreateMetrics(e) => {
                 write!(f, "Failed to create metrics: {e}.")
             }
-            ChainStateMetricsError::BlockImportStreamClosed => {
+            Error::BlockImportStreamClosed => {
                 write!(f, "Block import notification stream ended unexpectedly.")
             }
-            ChainStateMetricsError::FinalizedBlocksStreamClosed => {
+            Error::FinalizedBlocksStreamClosed => {
                 write!(f, "Finality notification stream ended unexpectedly.")
             }
-            ChainStateMetricsError::TransactionStreamClosed => {
+            Error::TransactionStreamClosed => {
                 write!(f, "Transaction stream ended unexpectedly.")
             }
         }
-    }
-}
-
-impl ChainStateMetricsError {
-    fn no_registry() -> Self {
-        Self::NoRegistry
-    }
-
-    fn unable_to_create_metrics(error: PrometheusError) -> Self {
-        Self::UnableToCreateMetrics(error)
-    }
-
-    fn block_import_stream_closed() -> Self {
-        Self::BlockImportStreamClosed
-    }
-
-    fn finalized_blocks_stream_closed() -> Self {
-        Self::FinalizedBlocksStreamClosed
-    }
-
-    fn transaction_stream_closed() -> Self {
-        Self::TransactionStreamClosed
     }
 }
 
@@ -190,27 +167,18 @@ pub async fn run_chain_state_metrics<
     mut finality_notifications: FinalityNotifications<B>,
     registry: Option<Registry>,
     mut transaction_pool_info_provider: TP,
-) -> Result<(), ChainStateMetricsError> {
-    use ChainStateMetricsError as Error;
-
+) -> Result<(), Error> {
     if registry.is_none() {
-        return Err(Error::no_registry());
+        return Err(Error::NoRegistry);
     }
     if import_notifications.is_terminated() {
-        return Err(Error::block_import_stream_closed());
+        return Err(Error::BlockImportStreamClosed);
     }
     if finality_notifications.is_terminated() {
-        return Err(Error::finalized_blocks_stream_closed());
+        return Err(Error::FinalizedBlocksStreamClosed);
     }
 
-    let metrics = match ChainStateMetrics::new(registry) {
-        Ok(metrics) => metrics,
-        Err(e) => {
-            warn!(target: LOG_TARGET, "Failed to create metrics: {e}.");
-            return Err(Error::unable_to_create_metrics(e));
-        }
-    };
-
+    let metrics = ChainStateMetrics::new(registry).map_err(Error::UnableToCreateMetrics)?;
     let mut cache: LruCache<TP::TxHash, Instant> = LruCache::new(
         NonZeroUsize::new(TRANSACTION_CACHE_SIZE).expect("the cache size is a non-zero constant"),
     );
@@ -220,7 +188,7 @@ pub async fn run_chain_state_metrics<
     loop {
         tokio::select! {
             maybe_block = import_notifications.next() => {
-                let block = maybe_block.ok_or(Error::block_import_stream_closed())?;
+                let block = maybe_block.ok_or(Error::BlockImportStreamClosed)?;
                 handle_block_imported(
                     block,
                     backend,
@@ -231,11 +199,11 @@ pub async fn run_chain_state_metrics<
                 );
             },
             maybe_block = finality_notifications.next() => {
-                let block = maybe_block.ok_or(Error::finalized_blocks_stream_closed())?;
+                let block = maybe_block.ok_or(Error::FinalizedBlocksStreamClosed)?;
                 handle_block_finalized(block, &metrics);
             },
             maybe_transaction = transaction_pool_info_provider.next_transaction() => {
-                let hash = maybe_transaction.ok_or(Error::transaction_stream_closed())?;
+                let hash = maybe_transaction.ok_or(Error::TransactionStreamClosed)?;
                 handle_transaction_in_pool(hash, &mut cache);
             }
         }

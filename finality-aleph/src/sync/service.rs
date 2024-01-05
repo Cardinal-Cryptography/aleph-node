@@ -119,32 +119,6 @@ where
     }
 }
 
-impl<NetworkError, ChainEventError> SyncServiceError<NetworkError, ChainEventError> {
-    fn network_error(error: NetworkError) -> Self {
-        Self::Network(error)
-    }
-
-    fn chain_event_error(error: ChainEventError) -> Self {
-        Self::ChainEvent(error)
-    }
-
-    fn justification_channel() -> Self {
-        Self::JustificationChannelClosed
-    }
-
-    fn block_request_channel() -> Self {
-        Self::BlockRequestChannelClosed
-    }
-
-    fn legacy_block_request_channel() -> Self {
-        Self::LegacyBlockRequestChannelClosed
-    }
-
-    fn creator_channel() -> Self {
-        Self::CreatorChannelClosed
-    }
-}
-
 /// A service synchronizing the knowledge about the chain between the nodes.
 pub struct Service<B, J, N, CE, CS, V, F, BI>
 where
@@ -793,14 +767,14 @@ where
         use SyncServiceError as Error;
 
         if self.blocks_from_creator.is_terminated() {
-            return Err(Error::creator_channel());
+            return Err(Error::CreatorChannelClosed);
         }
 
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
             tokio::select! {
                 maybe_data = self.network.next() => {
-                    let (data, peer) = maybe_data.map_err(Error::network_error)?;
+                    let (data, peer) = maybe_data.map_err(Error::Network)?;
                     self.handle_network_data(data, peer);
                 },
 
@@ -811,29 +785,29 @@ where
                 force = self.chain_extension_ticker.wait_and_tick() => self.request_chain_extension(force),
 
                 maybe_event = self.chain_events.next() => {
-                    let chain_event = maybe_event.map_err(Error::chain_event_error)?;
+                    let chain_event = maybe_event.map_err(Error::ChainEvent)?;
                     self.handle_chain_event(chain_event);
                 },
 
                 maybe_justification = self.justifications_from_user.next() => {
-                    let justification = maybe_justification.ok_or(Error::justification_channel())?;
+                    let justification = maybe_justification.ok_or(Error::JustificationChannelClosed)?;
                     debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
                     self.handle_justification_from_user(justification);
                 },
                 maybe_header = self.block_requests_from_user.next() => {
-                    let header = maybe_header.ok_or(Error::block_request_channel())?;
+                    let header = maybe_header.ok_or(Error::BlockRequestChannelClosed)?;
                     debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", header);
                     self.handle_internal_request(header);
                 },
 
                 maybe_block_id = self.legacy_block_requests_from_user.next() => {
-                    let block_id = maybe_block_id.ok_or(Error::legacy_block_request_channel())?;
+                    let block_id = maybe_block_id.ok_or(Error::LegacyBlockRequestChannelClosed)?;
                     debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", block_id);
                     self.handle_legacy_internal_request(block_id);
                 },
 
                 maybe_own_block = self.blocks_from_creator.next() => {
-                    let block = maybe_own_block.ok_or(Error::creator_channel())?;
+                    let block = maybe_own_block.ok_or(Error::CreatorChannelClosed)?;
                     debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
                     self.handle_own_block(block);
                 },

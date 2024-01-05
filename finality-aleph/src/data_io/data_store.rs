@@ -108,39 +108,25 @@ impl Default for DataStoreConfig {
 }
 
 #[derive(Debug)]
-pub enum DataStoreError {
+pub enum Error {
     BlockImportStreamClosed,
     FinalizedBlocksStreamClosed,
     NetworkMessagesTerminated,
 }
 
-impl Display for DataStoreError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataStoreError::BlockImportStreamClosed => {
+            Error::BlockImportStreamClosed => {
                 write!(f, "Block import notification stream was closed.")
             }
-            DataStoreError::FinalizedBlocksStreamClosed => {
+            Error::FinalizedBlocksStreamClosed => {
                 write!(f, "Finalized block import notification stream was closed.")
             }
-            DataStoreError::NetworkMessagesTerminated => {
+            Error::NetworkMessagesTerminated => {
                 write!(f, "Stream with network messages was closed.")
             }
         }
-    }
-}
-
-impl DataStoreError {
-    fn block_import_stream_closed() -> Self {
-        Self::BlockImportStreamClosed
-    }
-
-    fn finalized_blocks_stream_closed() -> Self {
-        Self::FinalizedBlocksStreamClosed
-    }
-
-    fn network_messages_terminated() -> Self {
-        Self::NetworkMessagesTerminated
     }
 }
 
@@ -276,17 +262,15 @@ where
         )
     }
 
-    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) -> Result<(), DataStoreError> {
-        use DataStoreError as Error;
-
+    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) -> Result<(), Error> {
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
         let mut import_stream = self.client.import_notification_stream();
         if import_stream.is_terminated() {
-            return Err(Error::block_import_stream_closed());
+            return Err(Error::BlockImportStreamClosed);
         }
         let mut finality_stream = self.client.finality_notification_stream();
         if finality_stream.is_terminated() {
-            return Err(Error::finalized_blocks_stream_closed());
+            return Err(Error::FinalizedBlocksStreamClosed);
         }
         loop {
             self.prune_pending_messages();
@@ -294,17 +278,17 @@ where
 
             tokio::select! {
                 maybe_message = self.messages_from_network.next() => {
-                    let message = maybe_message.ok_or(Error::network_messages_terminated())?;
+                    let message = maybe_message.ok_or(Error::NetworkMessagesTerminated)?;
                     trace!(target: "aleph-data-store", "Received message at Data Store {:?}", message);
                     self.on_message_received(message);
                 },
                 maybe_block = import_stream.next() => {
-                    let block = maybe_block.ok_or(Error::block_import_stream_closed())?;
+                    let block = maybe_block.ok_or(Error::BlockImportStreamClosed)?;
                     trace!(target: "aleph-data-store", "Block import notification at Data Store for block {:?}", block);
                     self.on_block_imported((block.header.hash(), *block.header.number()).into());
                 },
                 maybe_block = finality_stream.next() => {
-                    let block = maybe_block.ok_or(Error::finalized_blocks_stream_closed())?;
+                    let block = maybe_block.ok_or(Error::FinalizedBlocksStreamClosed)?;
                     trace!(target: "aleph-data-store", "Finalized block import notification at Data Store for block {:?}", block);
                     self.on_block_finalized((block.header.hash(), *block.header.number()).into());
                 },
