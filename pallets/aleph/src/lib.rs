@@ -133,14 +133,14 @@ pub mod pallet {
             next_authorities: Vec<(&T::AccountId, T::AuthorityId)>,
         ) -> Vec<T::AuthorityId> {
             let mut account_to_authority: BTreeMap<_, _> = next_authorities.into_iter().collect();
-            let stored_accounts = NextFinalityCommittee::<T>::get();
-            let stored_accounts_len = stored_accounts.len();
-            let next_committee_authorities: Vec<_> = stored_accounts
+            let next_committee_accounts = NextFinalityCommittee::<T>::get();
+            let expected_len = next_committee_accounts.len();
+            let next_committee_authorities: Vec<_> = next_committee_accounts
                 .into_iter()
                 .filter_map(|account_id| account_to_authority.remove(&account_id))
                 .collect();
 
-            if next_committee_authorities.len() != stored_accounts_len {
+            if next_committee_authorities.len() != expected_len {
                 log::error!(
                     target: LOG_TARGET,
                     "Not all committee members were converted to keys."
