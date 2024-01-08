@@ -168,9 +168,12 @@ pub trait ChainStatusNotifier<H: Header>: Send {
     async fn next(&mut self) -> Result<ChainStatusNotification<H>, Self::Error>;
 }
 
+/// A facility for getting ChainStatusNotifier.
 pub trait BlockchainEvents<H: Header>: Send {
     type ChainStatusNotifier: ChainStatusNotifier<H>;
 
+    /// Returns a chain status notifier, which will contain all the events
+    /// that appeared after this call.
     fn chain_status_notifier(&self) -> Self::ChainStatusNotifier;
 }
 
