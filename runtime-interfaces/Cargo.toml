@@ -10,7 +10,7 @@ repository = "https://github.com/Cardinal-Cryptography/aleph-node"
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 log = { version = "0.4", default-features = false }
 
-halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "substrate-compatible", default-features = false, features = ["mock-kzg-params"], optional = true }
+halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "aleph", default-features = false, features = ["mock-kzg-params"], optional = true }
 
 sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false }
 
