@@ -75,7 +75,7 @@ impl TestClientBuilderExt
 impl AlephHeaderBackend<THeader> for Arc<TestClient> {
     type Error = sp_blockchain::Error;
 
-    fn header(&self, id: BlockId) -> Result<Option<THeader>, Self::Error> {
+    fn header(&self, id: &BlockId) -> Result<Option<THeader>, Self::Error> {
         TestClient::header(self, id.hash())
     }
 
@@ -84,7 +84,7 @@ impl AlephHeaderBackend<THeader> for Arc<TestClient> {
             Ok(Some(hash)) => {
                 if self.top_finalized_id().number() >= number {
                     Ok(Some(
-                        self.header((hash, number).into())?
+                        self.header(&(hash, number).into())?
                             .expect("header must exist"),
                     ))
                 } else {

@@ -236,7 +236,7 @@ where
 pub trait HeaderBackend<H: Header>: Send + Sync {
     type Error: Debug;
     /// Get block header. Returns `None` if block is not found.
-    fn header(&self, id: BlockId) -> Result<Option<H>, Self::Error>;
+    fn header(&self, id: &BlockId) -> Result<Option<H>, Self::Error>;
     /// Get hash of a finalized block with a given number. Returns Ok(None) if block exists in
     /// the database, but is not finalized yet.
     fn header_of_finalized_at(&self, number: BlockNumber) -> Result<Option<H>, Self::Error>;
@@ -246,17 +246,10 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     fn hash_to_id(&self, hash: BlockHash) -> Result<Option<BlockId>, Self::Error>;
 }
 
-type SelectChainError = sp_consensus::Error;
-
+/// A strategy for selecting a leaf that should be considered as the chain tip.
 #[async_trait::async_trait]
-pub trait SelectChain<H: Header>: Sync + Send + Clone {
-    async fn leaves(&self) -> Result<Vec<BlockHash>, SelectChainError>;
-
-    async fn best_chain(&self) -> Result<H, SelectChainError>;
-
-    async fn finality_target(
-        &self,
-        base_hash: BlockHash,
-        _maybe_max_number: Option<BlockNumber>,
-    ) -> Result<BlockHash, SelectChainError>;
+pub trait ChainTipSelectionStrategy<H: Header>: Sync + Send + Clone {
+    type Error: Debug;
+    /// Return header of the leaf, that should be considered as the tip of the chain.
+    async fn select_tip(&self) -> Result<H, Self::Error>;
 }

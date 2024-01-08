@@ -6,7 +6,6 @@ use crate::{
     aleph_primitives::{Block, Header},
     block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
     metrics::{AllBlockMetrics, Checkpoint},
-    BlockHash,
 };
 
 mod chain_status;
@@ -19,11 +18,10 @@ pub use chain_status::SubstrateChainStatus;
 pub use justification::{
     InnerJustification, Justification, JustificationTranslator, TranslateError,
 };
-use primitives::BlockNumber;
 pub use status_notifier::SubstrateChainStatusNotifier;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-use crate::block::{BlockchainEvents, SelectChain, SelectChainError};
+use crate::block::{BlockchainEvents, ChainTipSelectionStrategy};
 
 const LOG_TARGET: &str = "aleph-substrate";
 
@@ -127,20 +125,9 @@ impl<C: sc_client_api::BlockchainEvents<Block> + Send> BlockchainEvents<Header> 
 }
 
 #[async_trait::async_trait]
-impl<SC: sp_consensus::SelectChain<Block>> SelectChain<Header> for SC {
-    async fn leaves(&self) -> Result<Vec<BlockHash>, SelectChainError> {
-        self.leaves().await
-    }
-
-    async fn best_chain(&self) -> Result<Header, SelectChainError> {
+impl<SC: sp_consensus::SelectChain<Block>> ChainTipSelectionStrategy<Header> for SC {
+    type Error = sp_consensus::Error;
+    async fn select_tip(&self) -> Result<Header, Self::Error> {
         self.best_chain().await
-    }
-
-    async fn finality_target(
-        &self,
-        base_hash: BlockHash,
-        maybe_max_number: Option<BlockNumber>,
-    ) -> Result<BlockHash, SelectChainError> {
-        self.finality_target(base_hash, maybe_max_number).await
     }
 }

@@ -46,15 +46,13 @@ where
     HB: HeaderBackend<H>,
 {
     fn is_block_imported(&mut self, block: &BlockId) -> bool {
-        let maybe_header = self
-            .client
-            .header(block.clone())
-            .expect("client must answer a query");
-        if let Some(header) = maybe_header {
-            // If the block number is incorrect, we treat as not imported.
-            return header.id().number() == block.number();
+        match self.client.header(block) {
+            Ok(maybe_header) => maybe_header.is_some(),
+            Err(e) => {
+                log::debug!("Error while fetching header in ChainInfoProvider: {:?}", e);
+                false
+            }
         }
-        false
     }
 
     fn get_finalized_at(&mut self, number: BlockNumber) -> Result<BlockId, ()> {
@@ -65,14 +63,19 @@ where
     }
 
     fn get_parent_hash(&mut self, block: &BlockId) -> Result<BlockHash, ()> {
-        if let Some(header) = self
-            .client
-            .header(block.clone())
-            .expect("client must respond")
-        {
-            Ok(header.parent_id().ok_or(())?.hash())
-        } else {
-            Err(())
+        match self.client.header(block) {
+            Ok(Some(header)) => Ok(header.parent_id().ok_or(())?.hash()),
+            Ok(None) => {
+                log::info!("Block not found while getting parent hash in ChainInfoProvider");
+                Err(())
+            }
+            Err(e) => {
+                log::info!(
+                    "Error while getting parent hash in ChainInfoProvider: {:?}",
+                    e
+                );
+                Err(())
+            }
         }
     }
 

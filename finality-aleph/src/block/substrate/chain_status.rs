@@ -247,8 +247,8 @@ impl ChainStatus<Block, Justification> for SubstrateChainStatus {
 impl HeaderBackend<AlephHeader> for SubstrateChainStatus {
     type Error = Error;
 
-    fn header(&self, id: BlockId) -> Result<Option<AlephHeader>, Self::Error> {
-        self.header(&id)
+    fn header(&self, id: &BlockId) -> Result<Option<AlephHeader>, Self::Error> {
+        SubstrateChainStatus::header(self, id)
     }
 
     fn header_of_finalized_at(

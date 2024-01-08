@@ -204,7 +204,7 @@ async fn forks_have_different_block_hashes() {
     let genesis_hash = test_handler.genesis_hash();
     let a1 = test_handler.build_block_above(&genesis_hash).await;
     let b1 = test_handler.build_block_above(&genesis_hash).await;
-    assert_ne!(a1.header().id().hash(), b1.header().id().hash());
+    assert_ne!(a1.header().id(), b1.header().id());
 }
 
 async fn run_test<F, S>(scenario: S)

@@ -7,7 +7,7 @@ use sp_runtime::{traits::Zero, SaturatedConversion};
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{Header, HeaderBackend, SelectChain},
+    block::{ChainTipSelectionStrategy, Header, HeaderBackend},
     data_io::legacy::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
     party::manager::Runnable,
@@ -28,7 +28,7 @@ where
     while curr_header.id().number() > num {
         curr_header = client
             .header(
-                curr_header
+                &curr_header
                     .parent_id()
                     .expect("number() > num >= 0, so parent exists qed."),
             )
@@ -46,7 +46,7 @@ where
     if block.number().is_zero() {
         return None;
     }
-    if let Some(header) = client.header(block.clone()).expect("client must respond") {
+    if let Some(header) = client.header(block).expect("client must respond") {
         Some(header.parent_id()?)
     } else {
         warn!(target: "aleph-data-store", "Trying to fetch the parent of an unknown block {:?}.", block);
@@ -112,13 +112,13 @@ struct ChainInfo {
 /// Internally it frequently updates a `data_to_propose` field that is shared with a `DataProvider`, which
 /// in turn is a tiny wrapper around this single shared resource that takes out `data_to_propose` whenever
 /// `get_data` is called.
-pub struct ChainTracker<H, SC, C>
+pub struct ChainTracker<H, TSS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    SC: SelectChain<H> + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
 {
-    select_chain: SC,
+    chain_tip_selection_strategy: TSS,
     client: C,
     data_to_propose: Arc<Mutex<Option<AlephData>>>,
     session_boundaries: SessionBoundaries,
@@ -127,14 +127,14 @@ where
     _phantom: PhantomData<H>,
 }
 
-impl<H, SC, C> ChainTracker<H, SC, C>
+impl<H, TSS, C> ChainTracker<H, TSS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    SC: SelectChain<H> + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
 {
     pub fn new(
-        select_chain: SC,
+        chain_tip_selection_strategy: TSS,
         client: C,
         session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
@@ -143,7 +143,7 @@ where
         let data_to_propose = Arc::new(Mutex::new(None));
         (
             ChainTracker {
-                select_chain,
+                chain_tip_selection_strategy,
                 client,
                 data_to_propose: data_to_propose.clone(),
                 session_boundaries,
@@ -205,7 +205,10 @@ where
     }
 
     async fn get_best_header(&self) -> H {
-        self.select_chain.best_chain().await.expect("No best chain")
+        self.chain_tip_selection_strategy
+            .select_tip()
+            .await
+            .expect("Failed to select the chain tip")
     }
 
     // Returns the highest ancestor of best_block that fits in session_boundaries (typically the best block itself).
@@ -282,11 +285,11 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, SC, C> Runnable for ChainTracker<H, SC, C>
+impl<H, TSS, C> Runnable for ChainTracker<H, TSS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    SC: SelectChain<H> + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
         ChainTracker::run(self, exit).await

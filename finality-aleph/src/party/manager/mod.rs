@@ -16,7 +16,7 @@ use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
     block::{
         substrate::{Justification, JustificationTranslator},
-        Block, Header, HeaderVerifier, SelectChain, UnverifiedHeader,
+        Block, ChainTipSelectionStrategy, Header, HeaderVerifier, UnverifiedHeader,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{
@@ -53,6 +53,7 @@ pub use task::{Handle, Runnable, Task, TaskCommon};
 
 use crate::{
     abft::{CURRENT_VERSION, LEGACY_VERSION},
+    block::{BlockchainEvents, HeaderBackend},
     sync::{LegacyRequestBlocks, RequestBlocks},
 };
 
@@ -73,7 +74,7 @@ type CurrentNetworkType = SimpleNetwork<
 struct SubtasksParams<H, HB, N, JS>
 where
     H: Header,
-    HB: crate::block::HeaderBackend<H> + Send + Sync + 'static,
+    HB: HeaderBackend<H> + Send + Sync + 'static,
     N: Network<VersionedNetworkData<H::Unverified>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
@@ -91,22 +92,23 @@ where
     backup: ABFTBackup,
 }
 
-pub struct NodeSessionManagerImpl<C, HB, SC, B, RB, SM, JS, V>
+pub struct NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
 where
-    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
-    C: ProvideRuntimeApi<B> + crate::block::BlockchainEvents<B::Header> + Send + Sync + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
+    C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
-    HB: crate::block::HeaderBackend<B::Header> + Send + Sync + 'static,
-    SC: SelectChain<B::Header> + 'static,
+    HB: HeaderBackend<H> + Send + Sync + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    V: HeaderVerifier<B::Header>,
+    V: HeaderVerifier<H>,
 {
     client: Arc<C>,
     header_backend: HB,
-    select_chain: SC,
+    chain_tip_selection_strategy: TSS,
     verifier: V,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
@@ -117,27 +119,28 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<dyn Keystore>,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<(B, H)>,
 }
 
-impl<C, HB, SC, B, RB, SM, JS, V> NodeSessionManagerImpl<C, HB, SC, B, RB, SM, JS, V>
+impl<H, C, HB, TSS, B, RB, SM, JS, V> NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
 where
-    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
-    C: ProvideRuntimeApi<B> + crate::block::BlockchainEvents<B::Header> + Send + Sync + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
+    C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
-    HB: crate::block::HeaderBackend<B::Header> + Clone + Send + Sync + 'static,
-    SC: SelectChain<B::Header> + 'static,
+    HB: HeaderBackend<H> + Send + Sync + Clone + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    V: HeaderVerifier<B::Header>,
+    V: HeaderVerifier<H>,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         client: Arc<C>,
         header_backend: HB,
-        select_chain: SC,
+        chain_tip_selection_strategy: TSS,
         verifier: V,
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
@@ -152,7 +155,7 @@ where
         Self {
             client,
             header_backend,
-            select_chain,
+            chain_tip_selection_strategy,
             verifier,
             session_info: SessionBoundaryInfo::new(session_period),
             unit_creation_delay,
@@ -169,7 +172,7 @@ where
 
     fn legacy_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
-        params: SubtasksParams<B::Header, HB, N, JS>,
+        params: SubtasksParams<H, HB, N, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -187,7 +190,7 @@ where
             ..
         } = params;
         let (chain_tracker, data_provider) = LegacyChainTracker::new(
-            self.select_chain.clone(),
+            self.chain_tip_selection_strategy.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
             Default::default(),
@@ -239,7 +242,7 @@ where
 
     fn current_subtasks<N: Network<VersionedNetworkData<B::UnverifiedHeader>> + 'static>(
         &self,
-        params: SubtasksParams<B::Header, HB, N, JS>,
+        params: SubtasksParams<H, HB, N, JS>,
     ) -> Subtasks {
         let SubtasksParams {
             n_members,
@@ -257,7 +260,7 @@ where
             ..
         } = params;
         let (chain_tracker, data_provider) = ChainTracker::new(
-            self.select_chain.clone(),
+            self.chain_tip_selection_strategy.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
             Default::default(),
@@ -351,14 +354,13 @@ where
         };
 
         let last_block_of_previous_session = session_boundaries.first_block().saturating_sub(1);
-        let last_block_of_previous_session_header = self
+        let last_block_of_previous_session_hash = self
             .header_backend
             .header_of_finalized_at(last_block_of_previous_session)
             .expect("Previous session ended, the block should be present.")
-            .expect("Previous session ended, the block should be finalized.");
-
-        let last_block_of_previous_session_hash =
-            UnverifiedHeader::id(&last_block_of_previous_session_header).hash();
+            .expect("Previous session ended, the block should be finalized.")
+            .id()
+            .hash();
 
         let params = SubtasksParams {
             n_members: authorities.len(),
@@ -421,19 +423,20 @@ where
 }
 
 #[async_trait]
-impl<C, HB, SC, B, RB, SM, JS, V> NodeSessionManager
-    for NodeSessionManagerImpl<C, HB, SC, B, RB, SM, JS, V>
+impl<H, C, HB, TSS, B, RB, SM, JS, V> NodeSessionManager
+    for NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
 where
-    B: Block<UnverifiedHeader = B::Header> + BlockT<Hash = BlockHash>,
-    B::Header: HeaderT<Number = BlockNumber> + Header<Unverified = B::Header> + UnverifiedHeader,
-    C: ProvideRuntimeApi<B> + crate::block::BlockchainEvents<B::Header> + Send + Sync + 'static,
+    H: Header,
+    B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
+    B::Header: HeaderT<Number = BlockNumber> + UnverifiedHeader,
+    C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
-    HB: crate::block::HeaderBackend<B::Header> + Clone + Send + Sync + 'static,
-    SC: SelectChain<B::Header> + 'static,
+    HB: HeaderBackend<H> + Send + Sync + Clone + 'static,
+    TSS: ChainTipSelectionStrategy<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    V: HeaderVerifier<B::Header>,
+    V: HeaderVerifier<H>,
 {
     type Error = SM::Error;
 
