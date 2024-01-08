@@ -82,7 +82,7 @@ where
 }
 
 #[derive(Debug)]
-pub enum SyncServiceError<NetworkError, ChainEventError> {
+pub enum Error<NetworkError, ChainEventError> {
     Network(NetworkError),
     ChainEvent(ChainEventError),
     JustificationChannelClosed,
@@ -91,30 +91,30 @@ pub enum SyncServiceError<NetworkError, ChainEventError> {
     CreatorChannelClosed,
 }
 
-impl<NetworkError, ChainEventError> Display for SyncServiceError<NetworkError, ChainEventError>
+impl<NetworkError, ChainEventError> Display for Error<NetworkError, ChainEventError>
 where
     NetworkError: Display,
     ChainEventError: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SyncServiceError::Network(e) => write!(f, "Error receiving data from network: {e}."),
-            SyncServiceError::ChainEvent(e) => {
+            Error::Network(e) => write!(f, "Error receiving data from network: {e}."),
+            Error::ChainEvent(e) => {
                 write!(f, "Error when receiving a chain event: {e}.")
             }
-            SyncServiceError::JustificationChannelClosed => {
+            Error::JustificationChannelClosed => {
                 write!(f, "Channel with justifications from user closed.")
             }
-            SyncServiceError::BlockRequestChannelClosed => {
+            Error::BlockRequestChannelClosed => {
                 write!(f, "Channel with internal block request from user closed.")
             }
-            SyncServiceError::LegacyBlockRequestChannelClosed => {
+            Error::LegacyBlockRequestChannelClosed => {
                 write!(
                     f,
                     "Channel with legacy internal block request from user closed."
                 )
             }
-            SyncServiceError::CreatorChannelClosed => write!(f, "Channel with own blocks closed."),
+            Error::CreatorChannelClosed => write!(f, "Channel with own blocks closed."),
         }
     }
 }
@@ -763,9 +763,7 @@ where
     }
 
     /// Stay synchronized.
-    pub async fn run(mut self) -> Result<(), SyncServiceError<N::Error, CE::Error>> {
-        use SyncServiceError as Error;
-
+    pub async fn run(mut self) -> Result<(), Error<N::Error, CE::Error>> {
         if self.blocks_from_creator.is_terminated() {
             return Err(Error::CreatorChannelClosed);
         }
