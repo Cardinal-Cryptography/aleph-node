@@ -16,9 +16,10 @@ impl<R: VkStorageConfig + ContractsConfig> MinimalRuntime for R {}
 /// Default implementation for the chain extension mechanics.
 impl<Runtime: MinimalRuntime> BackendExecutor for Runtime {
     fn verify(args: VerifyArgs) -> Result<(), VerifierError> {
-        let vk_data = VerificationKeys::<Runtime>::get(args.verification_key_hash)
-            .ok_or(VerifierError::UnknownVerificationKeyIdentifier)?;
+        let verifying_key = VerificationKeys::<Runtime>::get(args.verification_key_hash)
+            .ok_or(VerifierError::UnknownVerificationKeyIdentifier)?
+            .to_vec();
 
-        verify(&args.proof, &args.public_input, &vk_data.key, vk_data.k)
+        verify(&args.proof, &args.public_input, &verifying_key)
     }
 }

@@ -19,11 +19,10 @@ pub fn do_verify(
     proof: &[u8],
     public_input: &[u8],
     verifying_key: &[u8],
-    k: u32,
 ) -> Result<(), VerifierError> {
     let instances = deserialize_public_input(public_input)?;
     let verifying_key = deserialize_verifying_key(verifying_key)?;
-    let params = ParamsVerifierKZG::<Curve>::mock(k);
+    let params = ParamsVerifierKZG::<Curve>::mock(crate::snark_verifier::CIRCUIT_MAX_K);
 
     verify_proof::<_, VerifierGWC<_>, _, _, _>(
         &params,
