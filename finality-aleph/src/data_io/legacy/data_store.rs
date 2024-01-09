@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::Entry::Occupied, BTreeMap, HashMap, HashSet},
     default::Default,
+    fmt::Display,
     hash::Hash,
     num::NonZeroUsize,
     sync::Arc,
@@ -100,6 +101,25 @@ impl Default for DataStoreConfig {
             available_proposals_cache_capacity: NonZeroUsize::new(8000).unwrap(),
             periodic_maintenance_interval: Duration::from_secs(25),
             request_block_after: Duration::from_secs(20),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    ChainNotificationsTerminated,
+    NetworkMessagesTerminated,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::ChainNotificationsTerminated => {
+                write!(f, "Chain notifications stream was closed.")
+            }
+            Error::NetworkMessagesTerminated => {
+                write!(f, "Stream with network messages was closed.")
+            }
         }
     }
 }
@@ -231,18 +251,20 @@ where
         )
     }
 
-    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) {
+    pub async fn run(&mut self, mut exit: oneshot::Receiver<()>) -> Result<(), Error> {
         let mut maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
         let mut chain_status_notifier = self.blockchain_events.chain_status_notifier();
         loop {
             self.prune_pending_messages();
             self.prune_triggers();
             tokio::select! {
-                Some(message) = self.messages_from_network.next() => {
-                    trace!(target: "aleph-data-store", "Received message at Data Store {:?}", message);
+                maybe_message = self.messages_from_network.next() => {
+                    let message = maybe_message.ok_or(Error::NetworkMessagesTerminated)?;
+                    trace ! (target: "aleph-data-store", "Received message at Data Store {:?}", message);
                     self.on_message_received(message);
-                }
-                Ok(notification) = chain_status_notifier.next() => {
+                },
+                maybe_notification = chain_status_notifier.next() => {
+                    let notification = maybe_notification.map_err(|_| Error::ChainNotificationsTerminated)?;
                     match notification {
                         ChainStatusNotification::BlockImported(header) => {
                             trace!(target: "aleph-data-store", "Block import notification at Data Store for block with header {:?}", header);
@@ -264,6 +286,8 @@ where
                 }
             }
         }
+        debug!(target: "aleph-data-store", "Data store finished");
+        Ok(())
     }
 
     // Updates our highest known and highest finalized block info directly from the client.
@@ -654,6 +678,8 @@ where
     R: Receiver<Message> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
-        DataStore::run(&mut self, exit).await
+        if let Err(err) = DataStore::run(&mut self, exit).await {
+            error!(target: "aleph-data-store", "Legacy DataStore exited with error: {err}.");
+        }
     }
 }
