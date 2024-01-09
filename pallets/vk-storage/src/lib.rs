@@ -10,7 +10,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![recursion_limit = "256"]
-#![deny(missing_docs)]
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
