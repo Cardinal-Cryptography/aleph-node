@@ -21,7 +21,7 @@ pub use justification::{
 pub use status_notifier::SubstrateChainStatusNotifier;
 pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
 
-use crate::block::{BlockchainEvents, ChainTipSelectionStrategy};
+use crate::block::{BestBlockSelector, BlockchainEvents};
 
 const LOG_TARGET: &str = "aleph-substrate";
 
@@ -125,9 +125,9 @@ impl<C: sc_client_api::BlockchainEvents<Block> + Send> BlockchainEvents<Header> 
 }
 
 #[async_trait::async_trait]
-impl<SC: sp_consensus::SelectChain<Block>> ChainTipSelectionStrategy<Header> for SC {
+impl<SC: sp_consensus::SelectChain<Block>> BestBlockSelector<Header> for SC {
     type Error = sp_consensus::Error;
-    async fn select_tip(&self) -> Result<Header, Self::Error> {
+    async fn select_best(&self) -> Result<Header, Self::Error> {
         self.best_chain().await
     }
 }

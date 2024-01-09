@@ -249,10 +249,10 @@ pub trait HeaderBackend<H: Header>: Send + Sync {
     fn hash_to_id(&self, hash: BlockHash) -> Result<Option<BlockId>, Self::Error>;
 }
 
-/// A strategy for selecting a leaf that should be considered as the chain tip.
+/// A strategy for selecting a leaf that should be considered as the best block.
 #[async_trait::async_trait]
-pub trait ChainTipSelectionStrategy<H: Header>: Sync + Send + Clone {
+pub trait BestBlockSelector<H: Header>: Sync + Send + Clone {
     type Error: Debug;
-    /// Return header of the leaf, that should be considered as the tip of the chain.
-    async fn select_tip(&self) -> Result<H, Self::Error>;
+    /// Return header of the leaf that should be considered the best block.
+    async fn select_best(&self) -> Result<H, Self::Error>;
 }

@@ -16,7 +16,7 @@ use crate::{
     aleph_primitives::{AlephSessionApi, BlockHash, BlockNumber, KEY_TYPE},
     block::{
         substrate::{Justification, JustificationTranslator},
-        Block, ChainTipSelectionStrategy, Header, HeaderVerifier, UnverifiedHeader,
+        BestBlockSelector, Block, Header, HeaderVerifier, UnverifiedHeader,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{
@@ -92,7 +92,7 @@ where
     backup: ABFTBackup,
 }
 
-pub struct NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
+pub struct NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -100,7 +100,7 @@ where
     C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
     HB: HeaderBackend<H> + Send + Sync + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
@@ -108,7 +108,7 @@ where
 {
     client: Arc<C>,
     header_backend: HB,
-    chain_tip_selection_strategy: TSS,
+    best_block_selection_strategy: BBS,
     verifier: V,
     session_info: SessionBoundaryInfo,
     unit_creation_delay: UnitCreationDelay,
@@ -122,7 +122,7 @@ where
     _phantom: PhantomData<(B, H)>,
 }
 
-impl<H, C, HB, TSS, B, RB, SM, JS, V> NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
+impl<H, C, HB, BBS, B, RB, SM, JS, V> NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -130,7 +130,7 @@ where
     C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
     HB: HeaderBackend<H> + Send + Sync + Clone + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
@@ -140,7 +140,7 @@ where
     pub fn new(
         client: Arc<C>,
         header_backend: HB,
-        chain_tip_selection_strategy: TSS,
+        best_block_selection_strategy: BBS,
         verifier: V,
         session_period: SessionPeriod,
         unit_creation_delay: UnitCreationDelay,
@@ -155,7 +155,7 @@ where
         Self {
             client,
             header_backend,
-            chain_tip_selection_strategy,
+            best_block_selection_strategy,
             verifier,
             session_info: SessionBoundaryInfo::new(session_period),
             unit_creation_delay,
@@ -190,7 +190,7 @@ where
             ..
         } = params;
         let (chain_tracker, data_provider) = LegacyChainTracker::new(
-            self.chain_tip_selection_strategy.clone(),
+            self.best_block_selection_strategy.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
             Default::default(),
@@ -260,7 +260,7 @@ where
             ..
         } = params;
         let (chain_tracker, data_provider) = ChainTracker::new(
-            self.chain_tip_selection_strategy.clone(),
+            self.best_block_selection_strategy.clone(),
             self.header_backend.clone(),
             session_boundaries.clone(),
             Default::default(),
@@ -423,8 +423,8 @@ where
 }
 
 #[async_trait]
-impl<H, C, HB, TSS, B, RB, SM, JS, V> NodeSessionManager
-    for NodeSessionManagerImpl<H, C, HB, TSS, B, RB, SM, JS, V>
+impl<H, C, HB, BBS, B, RB, SM, JS, V> NodeSessionManager
+    for NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -432,7 +432,7 @@ where
     C: ProvideRuntimeApi<B> + BlockchainEvents<H> + Send + Sync + 'static,
     C::Api: AlephSessionApi<B>,
     HB: HeaderBackend<H> + Send + Sync + Clone + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
     RB: RequestBlocks<B::UnverifiedHeader> + LegacyRequestBlocks,
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,

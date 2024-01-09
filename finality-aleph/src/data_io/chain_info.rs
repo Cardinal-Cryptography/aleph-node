@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use log::{debug, info};
 use lru::LruCache;
 
 use crate::{
@@ -8,6 +9,8 @@ use crate::{
     data_io::ChainInfoCacheConfig,
     BlockId,
 };
+
+const LOG_TARGET: &str = "aleph-data-store";
 
 pub trait ChainInfoProvider: Send + Sync + 'static {
     fn is_block_imported(&mut self, block: &BlockId) -> bool;
@@ -49,7 +52,10 @@ where
         match self.client.header(block) {
             Ok(maybe_header) => maybe_header.is_some(),
             Err(e) => {
-                log::debug!("Error while fetching header in ChainInfoProvider: {:?}", e);
+                debug!(
+                    target: LOG_TARGET,
+                    "Error while fetching header in ChainInfoProvider: {:?}", e
+                );
                 false
             }
         }
@@ -66,13 +72,16 @@ where
         match self.client.header(block) {
             Ok(Some(header)) => Ok(header.parent_id().ok_or(())?.hash()),
             Ok(None) => {
-                log::info!("Block not found while getting parent hash in ChainInfoProvider");
+                info!(
+                    target: LOG_TARGET,
+                    "Block not found while getting parent hash in ChainInfoProvider"
+                );
                 Err(())
             }
             Err(e) => {
-                log::info!(
-                    "Error while getting parent hash in ChainInfoProvider: {:?}",
-                    e
+                info!(
+                    target: LOG_TARGET,
+                    "Error while getting parent hash in ChainInfoProvider: {:?}", e
                 );
                 Err(())
             }

@@ -7,7 +7,7 @@ use sp_runtime::{traits::Zero, SaturatedConversion};
 
 use crate::{
     aleph_primitives::BlockNumber,
-    block::{ChainTipSelectionStrategy, Header, HeaderBackend},
+    block::{BestBlockSelector, Header, HeaderBackend},
     data_io::legacy::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
     metrics::{AllBlockMetrics, Checkpoint},
     party::manager::Runnable,
@@ -122,13 +122,13 @@ struct ChainInfo {
 /// Internally it frequently updates a `data_to_propose` field that is shared with a `DataProvider`, which
 /// in turn is a tiny wrapper around this single shared resource that takes out `data_to_propose` whenever
 /// `get_data` is called.
-pub struct ChainTracker<H, TSS, C>
+pub struct ChainTracker<H, BBS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
 {
-    chain_tip_selection_strategy: TSS,
+    best_block_selection_strategy: BBS,
     client: C,
     data_to_propose: Arc<Mutex<Option<AlephData>>>,
     session_boundaries: SessionBoundaries,
@@ -137,14 +137,14 @@ where
     _phantom: PhantomData<H>,
 }
 
-impl<H, TSS, C> ChainTracker<H, TSS, C>
+impl<H, BBS, C> ChainTracker<H, BBS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
 {
     pub fn new(
-        chain_tip_selection_strategy: TSS,
+        best_block_selection_strategy: BBS,
         client: C,
         session_boundaries: SessionBoundaries,
         config: ChainTrackerConfig,
@@ -153,7 +153,7 @@ where
         let data_to_propose = Arc::new(Mutex::new(None));
         (
             ChainTracker {
-                chain_tip_selection_strategy,
+                best_block_selection_strategy,
                 client,
                 data_to_propose: data_to_propose.clone(),
                 session_boundaries,
@@ -220,8 +220,8 @@ where
     }
 
     async fn get_best_header(&self) -> H {
-        self.chain_tip_selection_strategy
-            .select_tip()
+        self.best_block_selection_strategy
+            .select_best()
             .await
             .expect("Failed to select the chain tip")
     }
@@ -291,11 +291,11 @@ where
 }
 
 #[async_trait::async_trait]
-impl<H, TSS, C> Runnable for ChainTracker<H, TSS, C>
+impl<H, BBS, C> Runnable for ChainTracker<H, BBS, C>
 where
     H: Header,
     C: HeaderBackend<H> + 'static,
-    TSS: ChainTipSelectionStrategy<H> + 'static,
+    BBS: BestBlockSelector<H> + 'static,
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
         tokio::select! {
