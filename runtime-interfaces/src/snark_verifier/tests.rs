@@ -9,8 +9,10 @@ use halo2_proofs::{
 
 use crate::snark_verifier::{
     implementation::{Curve, Fr},
-    verify, VerifierError, CIRCUIT_MAX_K,
+    verify, VerifierError,
 };
+
+const CIRCUIT_MAX_K: u32 = 5;
 
 #[derive(Default)]
 struct APlusBIsC {
@@ -98,7 +100,7 @@ fn accepts_correct_proof() {
         vk,
     } = setup(1, 2, 3);
 
-    assert!(verify(&proof, &public_input, &vk).is_ok());
+    assert!(verify(&proof, &public_input, &vk, CIRCUIT_MAX_K).is_ok());
 }
 
 #[test]
@@ -110,7 +112,7 @@ fn rejects_incorrect_proof() {
     } = setup(2, 2, 3);
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::IncorrectProof)
     );
 }
@@ -126,7 +128,7 @@ fn rejects_incorrect_input() {
     let public_input = public_input.iter().map(|i| i + 1).collect::<Vec<_>>();
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::IncorrectProof)
     );
 }
@@ -140,14 +142,14 @@ fn rejects_mismatching_input() {
     } = setup(1, 2, 3);
 
     assert_eq!(
-        verify(&proof, &vec![], &vk),
+        verify(&proof, &vec![], &vk, CIRCUIT_MAX_K),
         Err(VerifierError::IncorrectProof)
     );
 
     let public_input = [public_input.clone(), public_input].concat();
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::IncorrectProof)
     );
 }
@@ -163,7 +165,7 @@ fn rejects_invalid_vk() {
     let vk = vk.iter().map(|i| i + 1).collect::<Vec<_>>();
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::DeserializingVerificationKeyFailed)
     );
 }
@@ -179,7 +181,7 @@ fn rejects_invalid_public_input() {
     let public_input = public_input[..31].to_vec();
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::DeserializingPublicInputFailed)
     );
 }
@@ -195,7 +197,7 @@ fn rejects_invalid_proof() {
     let proof = proof.iter().map(|i| i + 1).skip(3).collect::<Vec<_>>();
 
     assert_eq!(
-        verify(&proof, &public_input, &vk),
+        verify(&proof, &public_input, &vk, CIRCUIT_MAX_K),
         Err(VerifierError::VerificationFailed)
     );
 }

@@ -44,7 +44,7 @@ pub type KeyHash = H256;
     scale_info::TypeInfo,
 )]
 #[scale_info(skip_type_params(KeyLenBound))]
-pub struct StorageData<KeyLenBound: Get<u32>> {
+pub struct VkData<KeyLenBound: Get<u32>> {
     /// Verification key.
     ///
     /// Note that the pallet doesn't validate the key in any way, so it can be just a random sequence of bytes.
@@ -103,7 +103,7 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type VerificationKeys<T: Config> =
-        StorageMap<_, Twox64Concat, KeyHash, StorageData<T::MaximumKeyLength>>;
+        StorageMap<_, Twox64Concat, KeyHash, VkData<T::MaximumKeyLength>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -137,7 +137,7 @@ pub mod pallet {
             let hash = KeyHasher::hash(&key);
             VerificationKeys::<T>::insert(
                 hash,
-                StorageData {
+                VkData {
                     key: BoundedVec::try_from(key)
                         .expect("Key is already guaranteed to be within length limits."),
                     k,

@@ -14,12 +14,6 @@ pub use snark_verifier::verify;
 #[cfg(feature = "std")]
 pub use snark_verifier::HostFunctions;
 
-/// Log_2(max number of rows in a supported circuit).
-///
-/// Note: the same constant MUST be used in the params generation for preparing proving and
-/// verifying keys.
-pub const CIRCUIT_MAX_K: u32 = 12;
-
 /// Gathers errors that can happen during proof verification.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, codec::Encode, codec::Decode)]
 pub enum VerifierError {
@@ -38,16 +32,18 @@ pub enum VerifierError {
 /// An interface that provides to the runtime a functionality of verifying halo2 SNARKs.
 #[sp_runtime_interface::runtime_interface]
 pub trait SnarkVerifier {
-    /// Verify `proof` given `verifying_key`.
+    /// Verify `proof` given `verifying_key` and `public_input`. `k` is the logarithm of the maximum number of rows
+    /// in a supported circuit (a trusted setup parameter).
     fn verify(
         proof: &[u8],
         public_input: &[u8],
         verifying_key: &[u8],
+        k: u32,
     ) -> Result<(), VerifierError> {
         #[cfg(not(feature = "std"))]
         unreachable!("Runtime interface implementation is not available in the no-std mode");
 
         #[cfg(feature = "std")]
-        implementation::do_verify(proof, public_input, verifying_key)
+        implementation::do_verify(proof, public_input, verifying_key, k)
     }
 }
