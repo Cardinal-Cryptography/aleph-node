@@ -73,6 +73,8 @@ Usage:
       set to not delete AlephBFT backups; by default they are removed since
       this script is intended to bootstrap chain by default, in which case you do not want to have
       them in 99% of scenarios
+    [--liminal]
+      build nodes with liminal feature
 EOF
   exit 0
 }
