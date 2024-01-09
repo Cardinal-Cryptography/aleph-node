@@ -38,6 +38,8 @@ use crate::{
     BlockId, SessionBoundaries,
 };
 
+const LOG_TARGET: &str = "aleph-data-store";
+
 type MessageId = u64;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -260,18 +262,19 @@ where
             tokio::select! {
                 maybe_message = self.messages_from_network.next() => {
                     let message = maybe_message.ok_or(Error::NetworkMessagesTerminated)?;
-                    trace ! (target: "aleph-data-store", "Received message at Data Store {:?}", message);
+                    trace!(target: LOG_TARGET, "Received message at Data Store {:?}", message);
                     self.on_message_received(message);
                 },
                 maybe_notification = chain_status_notifier.next() => {
-                    let notification = maybe_notification.map_err(|_| Error::ChainNotificationsTerminated)?;
+                    let notification =
+                        maybe_notification.map_err(|_| Error::ChainNotificationsTerminated)?;
                     match notification {
                         ChainStatusNotification::BlockImported(header) => {
-                            trace!(target: "aleph-data-store", "Block import notification at Data Store for block with header {:?}", header);
+                            trace!(target: LOG_TARGET, "Block import notification at Data Store for block with header {:?}", header);
                             self.on_block_imported(header.id());
                         }
                         ChainStatusNotification::BlockFinalized(header) => {
-                            trace!(target: "aleph-data-store", "Finalized block import notification at Data Store for block with header {:?}", header);
+                            trace!(target: LOG_TARGET, "Finalized block import notification at Data Store for block with header {:?}", header);
                             self.on_block_finalized(header.id());
                         }
                     }
@@ -281,12 +284,12 @@ where
                     maintenance_clock = Delay::new(self.config.periodic_maintenance_interval);
                 }
                 _ = &mut exit => {
-                    debug!(target: "aleph-data-store", "Data Store task received exit signal. Terminating.");
+                    debug!(target: LOG_TARGET, "Data Store task received exit signal. Terminating.");
                     break;
                 }
             }
         }
-        debug!(target: "aleph-data-store", "Data store finished");
+        debug!(target: LOG_TARGET, "Data store finished");
         Ok(())
     }
 
@@ -307,13 +310,21 @@ where
             .collect();
         match proposals_with_timestamps.len() {
             0 => {
-                trace!(target: "aleph-data-store", "No pending proposals in data store during maintenance.");
+                trace!(
+                    target: LOG_TARGET,
+                    "No pending proposals in data store during maintenance."
+                );
             }
             1..=5 => {
-                info!(target: "aleph-data-store", "Data Store maintenance. Awaiting {:?} proposals: {:?}",proposals_with_timestamps.len(), proposals_with_timestamps);
+                info!(
+                    target: LOG_TARGET,
+                    "Data Store maintenance. Awaiting {:?} proposals: {:?}",
+                    proposals_with_timestamps.len(),
+                    proposals_with_timestamps
+                );
             }
             _ => {
-                info!(target: "aleph-data-store", "Data Store maintenance. Awaiting {:?} proposals: (showing 5 initial only) {:?}",proposals_with_timestamps.len(), &proposals_with_timestamps[..5]);
+                info!(target: LOG_TARGET, "Data Store maintenance. Awaiting {:?} proposals: (showing 5 initial only) {:?}",proposals_with_timestamps.len(), &proposals_with_timestamps[..5]);
             }
         }
 
@@ -330,9 +341,17 @@ where
 
             let block = proposal.top_block();
             if !self.chain_info_provider.is_block_imported(&block) {
-                debug!(target: "aleph-data-store", "Requesting a block {:?} after it has been missing for {:?} secs.", block, time_waiting.as_secs());
+                debug!(
+                    target: LOG_TARGET,
+                    "Requesting a block {:?} after it has been missing for {:?} secs.",
+                    block,
+                    time_waiting.as_secs()
+                );
                 if let Err(e) = self.block_requester.request_block(block.clone()) {
-                    warn!(target: "aleph-data-store", "Error requesting block {:?}, {}.", block, e);
+                    warn!(
+                        target: LOG_TARGET,
+                        "Error requesting block {:?}, {}.", block, e
+                    );
                 }
                 continue;
             }
@@ -343,22 +362,41 @@ where
             let parent_hash = match self.chain_info_provider.get_parent_hash(&bottom_block) {
                 Ok(ph) => ph,
                 _ => {
-                    warn!(target: "aleph-data-store", "Expected the block below the proposal {:?} to be imported", proposal);
+                    warn!(
+                        target: LOG_TARGET,
+                        "Expected the block below the proposal {:?} to be imported", proposal
+                    );
                     continue;
                 }
             };
             let parent_num = bottom_block.number() - 1;
             if let Ok(finalized_block) = self.chain_info_provider.get_finalized_at(parent_num) {
                 if parent_hash != finalized_block.hash() {
-                    warn!(target: "aleph-data-store", "The proposal {:?} is pending because the parent: \
-                        {:?}, does not agree with the block finalized at this height: {:?}.", proposal, parent_hash, finalized_block);
+                    warn!(
+                        target: LOG_TARGET,
+                        "The proposal {:?} is pending because the parent: \
+                        {:?}, does not agree with the block finalized at this height: {:?}.",
+                        proposal,
+                        parent_hash,
+                        finalized_block
+                    );
                 } else {
-                    warn!(target: "aleph-data-store", "The proposal {:?} is pending even though blocks \
-                            have been imported and parent was finalized.", proposal);
+                    warn!(
+                        target: LOG_TARGET,
+                        "The proposal {:?} is pending even though blocks \
+                            have been imported and parent was finalized.",
+                        proposal
+                    );
                 }
             } else {
-                debug!(target: "aleph-data-store", "Justification for block {:?} {:?} \
-                        still not present after {:?} secs.", parent_num, parent_hash, time_waiting.as_secs());
+                debug!(
+                    target: LOG_TARGET,
+                    "Justification for block {:?} {:?} \
+                        still not present after {:?} secs.",
+                    parent_num,
+                    parent_hash,
+                    time_waiting.as_secs()
+                );
             }
         }
     }
@@ -544,9 +582,16 @@ where
     }
 
     fn on_message_dependencies_resolved(&self, message: Message) {
-        trace!(target: "aleph-data-store", "Sending message from DataStore {:?}", message);
+        trace!(
+            target: LOG_TARGET,
+            "Sending message from DataStore {:?}",
+            message
+        );
         if let Err(e) = self.messages_for_aleph.unbounded_send(message) {
-            error!(target: "aleph-data-store", "Unable to send a ready message from DataStore {}", e);
+            error!(
+                target: LOG_TARGET,
+                "Unable to send a ready message from DataStore {}", e
+            );
         }
     }
 
@@ -561,7 +606,12 @@ where
         let mut message_info = match self.pending_messages.remove(&id) {
             Some(message_info) => message_info,
             None => {
-                warn!(target: "aleph-data-store", "Message {:?} not found when resolving a proposal dependency {:?}.", id, proposal);
+                warn!(
+                    target: LOG_TARGET,
+                    "Message {:?} not found when resolving a proposal dependency {:?}.",
+                    id,
+                    proposal
+                );
                 return;
             }
         };
@@ -582,7 +632,10 @@ where
                 proposal_entry.remove();
             }
         } else {
-            warn!(target: "aleph-data-store", "Proposal {:?} with id {:?} referenced in message does not exist", proposal, id);
+            warn!(
+                target: LOG_TARGET,
+                "Proposal {:?} with id {:?} referenced in message does not exist", proposal, id
+            );
         }
     }
 
@@ -602,7 +655,10 @@ where
                 false
             }
         } else {
-            warn!(target: "aleph-data-store", "Tried to prune a message but there are none pending.");
+            warn!(
+                target: LOG_TARGET,
+                "Tried to prune a message but there are none pending."
+            );
             false
         }
     }
@@ -614,7 +670,10 @@ where
             || self.pending_proposals.len() > self.config.max_proposals_pending
         {
             if !self.prune_single_message() {
-                warn!(target: "aleph-data-store", "Message pruning in DataStore failed. Moving on.");
+                warn!(
+                    target: LOG_TARGET,
+                    "Message pruning in DataStore failed. Moving on."
+                );
                 break;
             }
         }
@@ -640,8 +699,14 @@ where
             match unvalidated_proposal.validate_bounds(&self.session_boundaries) {
                 Ok(proposal) => proposals.push(proposal),
                 Err(error) => {
-                    warn!(target: "aleph-data-store", "Message {:?} dropped as it contains \
-                            proposal {:?} not within bounds ({:?}).", message, unvalidated_proposal, error);
+                    warn!(
+                        target: LOG_TARGET,
+                        "Message {:?} dropped as it contains \
+                            proposal {:?} not within bounds ({:?}).",
+                        message,
+                        unvalidated_proposal,
+                        error
+                    );
                     return;
                 }
             }
@@ -679,7 +744,10 @@ where
 {
     async fn run(mut self, exit: oneshot::Receiver<()>) {
         if let Err(err) = DataStore::run(&mut self, exit).await {
-            error!(target: "aleph-data-store", "Legacy DataStore exited with error: {err}.");
+            error!(
+                target: LOG_TARGET,
+                "Legacy DataStore exited with error: {err}."
+            );
         }
     }
 }
