@@ -8,10 +8,10 @@ fn read_bytes(file: &PathBuf) -> Result<Vec<u8>> {
 }
 
 /// Calls `pallet_vk_storage::store_key`.
-pub async fn store_key(connection: SignedConnection, vk_file: PathBuf, k: u32) -> Result<()> {
+pub async fn store_key(connection: SignedConnection, vk_file: PathBuf) -> Result<()> {
     let vk = read_bytes(&vk_file)?;
     connection
-        .store_key(vk, k, TxStatus::Finalized)
+        .store_key(vk, TxStatus::Finalized)
         .await
         .map(|_| ())
 }

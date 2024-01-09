@@ -243,8 +243,8 @@ async fn main() -> anyhow::Result<()> {
 
         #[cfg(feature = "liminal")]
         Command::VkStorage(cmd) => match cmd {
-            VkStorage::StoreKey { vk_file, k } => {
-                if let Err(why) = store_key(cfg.get_signed_connection().await, vk_file, k).await {
+            VkStorage::StoreKey { vk_file } => {
+                if let Err(why) = store_key(cfg.get_signed_connection().await, vk_file).await {
                     error!("Unable to store key: {why:?}")
                 }
             }

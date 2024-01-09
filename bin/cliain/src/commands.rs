@@ -153,8 +153,6 @@ pub enum VkStorage {
         /// Path to a file containing the verification key.
         #[clap(long)]
         vk_file: PathBuf,
-        #[clap(long)]
-        k: u32,
     },
 }
 
