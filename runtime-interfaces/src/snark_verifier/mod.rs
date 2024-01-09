@@ -29,6 +29,18 @@ pub enum VerifierError {
     IncorrectProof,
 }
 
+/// Serializes `vk` together with `k` into a vector of bytes.
+///
+/// A corresponding deserialization procedure is implemented in the verifier.
+#[cfg(feature = "std")]
+pub fn serialize_vk(vk: halo2_proofs::plonk::VerifyingKey<G1Affine>, k: u32) -> Vec<u8> {
+    let mut buffer = Vec::new();
+    buffer.extend(k.to_le_bytes());
+    // We use `SerdeFormat::RawBytesUnchecked` here for performance reasons.
+    buffer.extend(vk.to_bytes(halo2_proofs::SerdeFormat::RawBytesUnchecked));
+    buffer
+}
+
 /// An interface that provides to the runtime a functionality of verifying halo2 SNARKs.
 #[sp_runtime_interface::runtime_interface]
 pub trait SnarkVerifier {

@@ -4,12 +4,11 @@ use halo2_proofs::{
     poly::kzg::{commitment::ParamsKZG, multiopen::ProverGWC},
     standard_plonk::StandardPlonk,
     transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer},
-    SerdeFormat,
 };
 
 use crate::snark_verifier::{
     implementation::{Curve, Fr},
-    verify, VerifierError,
+    serialize_vk, verify, VerifierError,
 };
 
 const CIRCUIT_MAX_K: u32 = 5;
@@ -83,17 +82,11 @@ fn setup(a: u64, b: u64, c: u64) -> EncodedArgs {
         .iter()
         .flat_map(|i| i.to_bytes())
         .collect::<Vec<_>>();
-    let vk = [
-        CIRCUIT_MAX_K.to_le_bytes().to_vec(),
-        vk.to_bytes(SerdeFormat::RawBytesUnchecked),
-    ]
-    .concat()
-    .to_vec();
 
     EncodedArgs {
         proof,
         public_input,
-        vk,
+        vk: serialize_vk(vk, CIRCUIT_MAX_K),
     }
 }
 
