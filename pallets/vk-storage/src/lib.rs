@@ -4,6 +4,9 @@
 //! can register a verification key. A key is stored in a map under its Blake256 hash. Pallet doesn't provide any way
 //! for removing keys from the map, so it's a good idea to impose some costs on storing a key (see `StorageCharge`) to
 //! avoid bloating the storage.
+//!
+//! For technical reasons, the keys are stored together with the SNARK setup parameter `k`, which denotes the logarithm
+//! of the maximum number of rows in a supported circuit.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![recursion_limit = "256"]
@@ -15,8 +18,10 @@ mod tests;
 mod weights;
 
 use frame_support::{
-    pallet_prelude::{StorageVersion, Weight},
+    pallet_prelude::{RuntimeDebug, StorageVersion, Weight},
     sp_runtime::traits::BlakeTwo256,
+    traits::Get,
+    BoundedVec,
 };
 pub use pallet::*;
 use sp_core::H256;
@@ -26,6 +31,27 @@ pub use weights::{AlephWeight, WeightInfo};
 pub type KeyHasher = BlakeTwo256;
 /// Hash type used for storing keys.
 pub type KeyHash = H256;
+
+/// Data stored by the pallet.
+#[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    RuntimeDebug,
+    codec::Encode,
+    codec::Decode,
+    codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
+#[scale_info(skip_type_params(KeyLenBound))]
+pub struct StorageData<KeyLenBound: Get<u32>> {
+    /// Verification key.
+    ///
+    /// Note that the pallet doesn't validate the key in any way, so it can be just a random sequence of bytes.
+    pub key: BoundedVec<u8, KeyLenBound>,
+    /// The logarithm of the maximum number of rows in a supported circuit.
+    pub k: u32,
+}
 
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -77,11 +103,11 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type VerificationKeys<T: Config> =
-        StorageMap<_, Twox64Concat, KeyHash, BoundedVec<u8, T::MaximumKeyLength>>;
+        StorageMap<_, Twox64Concat, KeyHash, StorageData<T::MaximumKeyLength>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Stores `key` under its Blake256 hash in `VerificationKeys` map.
+        /// Stores a pair (`key`, `k`) under the Blake256 hash of `key` in `VerificationKeys` map.
         ///
         /// # Errors
         ///
@@ -94,9 +120,12 @@ pub mod pallet {
         ///
         /// 2. If the key is already stored, this call will succeed and charge the full weight, even though the whole
         /// work could have been avoided.
+        ///
+        /// 3. For performance reason, `k` is not taken into account when computing the key hash. `key` should be
+        /// dependent on `k` anyway.
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::store_key(key.len() as u32) + T::StorageCharge::get().charge_for(key.len()))]
-        pub fn store_key(origin: OriginFor<T>, key: Vec<u8>) -> DispatchResult {
+        pub fn store_key(origin: OriginFor<T>, key: Vec<u8>, k: u32) -> DispatchResult {
             ensure_signed(origin)?;
 
             ensure!(
@@ -104,11 +133,15 @@ pub mod pallet {
                 Error::<T>::VerificationKeyTooLong
             );
 
+            // We do not include `k` in hashing, because it would require cloning `key`.
             let hash = KeyHasher::hash(&key);
             VerificationKeys::<T>::insert(
                 hash,
-                BoundedVec::try_from(key)
-                    .expect("Key is already guaranteed to be within length limits."),
+                StorageData {
+                    key: BoundedVec::try_from(key)
+                        .expect("Key is already guaranteed to be within length limits."),
+                    k,
+                },
             );
 
             Self::deposit_event(Event::VerificationKeyStored(hash));
@@ -121,7 +154,16 @@ pub mod pallet {
 ///
 /// This should be used to impose higher costs on storing anything in this pallet (since there is no way of clearing
 /// the storage). The costs should be charged in addition to the standard operation costs (i.e., database costs).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, codec::Encode, codec::Decode, scale_info::TypeInfo)]
+#[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    RuntimeDebug,
+    codec::Encode,
+    codec::Decode,
+    codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
 pub struct StorageCharge {
     base: u64,
     per_byte: u64,

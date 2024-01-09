@@ -7,6 +7,8 @@ use crate::{Error, KeyHash, KeyHasher, VerificationKeys};
 
 type VkStorage = crate::Pallet<TestRuntime>;
 
+const K: u32 = 20;
+
 fn vk() -> Vec<u8> {
     vec![41; 1000]
 }
@@ -22,24 +24,24 @@ fn caller() -> OriginFor<TestRuntime> {
 #[test]
 fn stores_new_vk() {
     new_test_ext().execute_with(|| {
-        assert_ok!(VkStorage::store_key(caller(), vk()));
+        assert_ok!(VkStorage::store_key(caller(), vk(), K));
 
-        let stored_key = VerificationKeys::<TestRuntime>::get(&vk_hash());
-        assert!(stored_key.is_some());
-        assert_eq!(stored_key.unwrap().to_vec(), vk());
+        let stored_data = VerificationKeys::<TestRuntime>::get(&vk_hash()).expect("key not found");
+        assert_eq!(stored_data.k, K);
+        assert_eq!(stored_data.key.to_vec(), vk());
     });
 }
 
 #[test]
 fn overwrite_is_idempotent() {
     new_test_ext().execute_with(|| {
-        assert_ok!(VkStorage::store_key(caller(), vk()));
-        assert_ok!(VkStorage::store_key(caller(), vk()));
-        assert_ok!(VkStorage::store_key(caller(), vk()));
+        assert_ok!(VkStorage::store_key(caller(), vk(), K));
+        assert_ok!(VkStorage::store_key(caller(), vk(), K));
+        assert_ok!(VkStorage::store_key(caller(), vk(), K));
 
-        let stored_key = VerificationKeys::<TestRuntime>::get(&vk_hash());
-        assert!(stored_key.is_some());
-        assert_eq!(stored_key.unwrap().to_vec(), vk());
+        let stored_data = VerificationKeys::<TestRuntime>::get(&vk_hash()).expect("key not found");
+        assert_eq!(stored_data.k, K);
+        assert_eq!(stored_data.key.to_vec(), vk());
     });
 }
 
@@ -49,7 +51,7 @@ fn does_not_store_too_long_key() {
         let limit: u32 = <TestRuntime as crate::Config>::MaximumKeyLength::get();
 
         assert_err!(
-            VkStorage::store_key(caller(), vec![0; (limit + 1) as usize]),
+            VkStorage::store_key(caller(), vec![0; (limit + 1) as usize], K),
             Error::<TestRuntime>::VerificationKeyTooLong
         );
     });
