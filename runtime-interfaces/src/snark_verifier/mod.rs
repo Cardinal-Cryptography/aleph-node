@@ -14,12 +14,6 @@ pub use snark_verifier::verify;
 #[cfg(feature = "std")]
 pub use snark_verifier::HostFunctions;
 
-/// Log_2(max number of rows in a supported circuit).
-///
-/// Note: the same constant MUST be used in the params generation for preparing proving and
-/// verifying keys.
-pub const CIRCUIT_MAX_K: u32 = 12;
-
 /// Gathers errors that can happen during proof verification.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, codec::Encode, codec::Decode)]
 pub enum VerifierError {

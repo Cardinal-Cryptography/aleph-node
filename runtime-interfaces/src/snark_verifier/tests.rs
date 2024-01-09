@@ -9,8 +9,10 @@ use halo2_proofs::{
 
 use crate::snark_verifier::{
     implementation::{Curve, Fr},
-    verify, VerifierError, CIRCUIT_MAX_K,
+    verify, VerifierError,
 };
+
+const CIRCUIT_MAX_K: u32 = 5;
 
 #[derive(Default)]
 struct APlusBIsC {
@@ -81,7 +83,12 @@ fn setup(a: u64, b: u64, c: u64) -> EncodedArgs {
         .iter()
         .flat_map(|i| i.to_bytes())
         .collect::<Vec<_>>();
-    let vk = vk.to_bytes(SerdeFormat::RawBytesUnchecked);
+    let vk = [
+        CIRCUIT_MAX_K.to_le_bytes().to_vec(),
+        vk.to_bytes(SerdeFormat::RawBytesUnchecked),
+    ]
+    .concat()
+    .to_vec();
 
     EncodedArgs {
         proof,
