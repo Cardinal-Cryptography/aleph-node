@@ -33,6 +33,7 @@ DB_CACHE=${DB_CACHE:-1024}
 RUNTIME_CACHE_SIZE=${RUNTIME_CACHE_SIZE:-2}
 MAX_RUNTIME_INSTANCES=${MAX_RUNTIME_INSTANCES:-8}
 BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
+PRUNING_ENABLED=${PRUNING_ENABLED:-false}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -120,6 +121,10 @@ if [[ "false" == "${VALIDATOR}" ]]; then
   # We will never use this address, but because of the current shape of our code we need to have something here.
   # This address is one reserved for documentation, so attempting to connect to it should always fail.
   PUBLIC_VALIDATOR_ADDRESS=${PUBLIC_VALIDATOR_ADDRESS:-"192.0.2.1:${VALIDATOR_PORT}"}
+fi
+
+if [[ "true" == "${PRUNING_ENABLED}" ]]; then
+    ARGS+=(--enable-pruning)
 fi
 
 ARGS+=(--public-validator-addresses "${PUBLIC_VALIDATOR_ADDRESS}")
