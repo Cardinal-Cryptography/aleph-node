@@ -121,7 +121,7 @@ runs:
 
     - name: Upload logs from failed e2e test
       if: ${{ failure() }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         path: aleph-node-${{ steps.get-log-tarball-file-name.outputs.name }}-e2e-failure.tgz
         name: aleph-node-${{ steps.get-log-tarball-file-name.outputs.name }}-e2e-failure.tgz
