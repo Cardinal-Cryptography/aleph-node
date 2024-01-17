@@ -743,7 +743,7 @@ impl pallet_contracts::Config for Runtime {
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
     type MaxCodeLen = ConstU32<{ 256 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
-    type UnsafeUnstableInterface = ConstBool<true>;
+    type UnsafeUnstableInterface = ConstBool<false>;
     type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
     type RuntimeHoldReason = RuntimeHoldReason;
     type Migrations = ();
