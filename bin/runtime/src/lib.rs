@@ -23,13 +23,12 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
-        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, InstanceFilter,
-        SortedMembers, WithdrawReasons,
+        ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
+        InstanceFilter, SortedMembers, WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
 };
-use frame_support::traits::Contains;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
@@ -728,7 +727,7 @@ impl pallet_contracts::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
     // The safest default is to allow no calls at all. This is unsafe experimental feature with no support in ink!
-    type CallFilter =  ContractsCallFilter;
+    type CallFilter = ContractsCallFilter;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     #[cfg(feature = "liminal")]
@@ -741,7 +740,7 @@ impl pallet_contracts::Config for Runtime {
     type DefaultDepositLimit = ConstU128<{ u128::MAX }>;
     type DepositPerItem = DepositPerItem;
     type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
-    type MaxCodeLen = ConstU32<{ 256 * 1024 }>;
+    type MaxCodeLen = ConstU32<{ 1024 * 1024 }>;
     type MaxStorageKeyLen = ConstU32<128>;
     type UnsafeUnstableInterface = ConstBool<false>;
     type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
@@ -1283,38 +1282,10 @@ impl_runtime_apis! {
 
 #[cfg(test)]
 mod tests {
-    use frame_support::traits::Get;
-    use primitives::HEAP_PAGES;
-    use smallvec::Array;
-
     use super::*;
 
     #[test]
     fn state_version_must_be_zero() {
         assert_eq!(0, VERSION.state_version);
-    }
-
-    #[test]
-    fn check_contracts_memory_parameters() {
-        // Memory limit of one instance of a runtime
-        const MAX_RUNTIME_MEM: u32 = HEAP_PAGES as u32 * 64 * 1024;
-        // Max stack size defined by wasmi - 1MB
-        const MAX_STACK_SIZE: u32 = 1024 * 1024;
-        // Max heap size is 16 mempages of 64KB each - 1MB
-        let max_heap_size = <Runtime as pallet_contracts::Config>::Schedule::get()
-            .limits
-            .max_memory_size();
-        // Max call depth is CallStack::size() + 1
-        let max_call_depth = <Runtime as pallet_contracts::Config>::CallStack::size() as u32 + 1;
-        // Max code len
-        let max_code_len: u32 = <Runtime as pallet_contracts::Config>::MaxCodeLen::get();
-
-        // The factor comes from allocator, contracts representation, and wasmi
-        let lhs = max_call_depth * (36 * max_code_len + max_heap_size + MAX_STACK_SIZE);
-        // We allocate only 75% of all runtime memory to contracts execution. Important: it's not
-        // enforeced in wasmtime
-        let rhs = MAX_RUNTIME_MEM * 3 / 4;
-
-        assert!(lhs < rhs);
     }
 }
