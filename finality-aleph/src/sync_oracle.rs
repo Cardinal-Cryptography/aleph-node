@@ -20,6 +20,7 @@ const MAJOR_SYNC_THRESHOLD: Duration = Duration::from_secs(10);
 pub struct SyncOracle {
     last_far_behind: Arc<Mutex<Instant>>,
     last_update: Arc<Mutex<Instant>>,
+    // TODO: remove when SyncingService is no longer needed
     is_major_syncing: Arc<AtomicBool>,
 }
 
