@@ -26,7 +26,7 @@ pub struct SyncOracle {
 
 impl SyncOracle {
     pub fn new() -> (Self, Arc<AtomicBool>) {
-        let is_major_syncing = Arc::new(AtomicBool::new(false));
+        let is_major_syncing = Arc::new(AtomicBool::new(true));
         let oracle = SyncOracle {
             last_update: Arc::new(Mutex::new(Instant::now() - OFFLINE_THRESHOLD)),
             last_far_behind: Arc::new(Mutex::new(Instant::now())),
