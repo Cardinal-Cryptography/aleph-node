@@ -61,6 +61,8 @@ jobs:
       - name: Generate release artifacts checksum (SHA256)
         uses: jmgilman/actions-generate-checksum@v1
         with:
+          output:
+            checksums-${{ steps.get-ref-properties.outputs.sha }}-linux-amd64.tar.gz.SHA256.txt
           patterns: |
             *.tar.gz
 
@@ -68,7 +70,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            checksum.txt
+            checksums-${{ steps.get-ref-properties.outputs.sha }}-linux-amd64.tar.gz.SHA256.txt
             aleph-runtime-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
             aleph-node-${{ steps.get-ref-properties.outputs.sha }}-linux-amd64.tar.gz
 
