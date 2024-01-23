@@ -47,23 +47,6 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
     parser.add_argument('--dry-run',
                         action='store_true',
                         help='Specify this switch if script should just print what if would do. Default: False')
-    parser.add_argument('--fix-free-balance',
-                        action='store_true',
-                        help='Specify this switch if script should find all accounts '
-                             'that have free < ED and send transfers so that free >= ED. '
-                             'It requires AlephNode < 12.X version and SENDER_ACCOUNT env to be set with '
-                             'a mnemonic phrase of sender account that has funds for transfers and fees. '
-                             'dust-accounts.json file is saved with all such accounts.'
-                             'Must be used exclusively with --upgrade-accounts. '
-                             'Default: False')
-    parser.add_argument('--upgrade-accounts',
-                        action='store_true',
-                        help='Specify this switch if script should send Balances.UpgradeAccounts '
-                             'for all accounts on a chain. It requires at least AlephNode 12.X version '
-                             'and SENDER_ACCOUNT env to be set with a mnemonic phrase of sender account that has funds '
-                             'for transfers and fees.'
-                             'Must be used exclusively with --fix-free-balance. '
-                             'Default: False')
     parser.add_argument('--transfer-calls-in-batch',
                         type=int,
                         default=64,
@@ -72,6 +55,24 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         type=int,
                         default=128,
                         help='How many accounts to upgrade in a single transaction. Default: 128')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--fix-free-balance',
+                        action='store_true',
+                        help='Specify this switch if script should find all accounts '
+                             'that have free < ED and send transfers so that free >= ED. '
+                             'It requires AlephNode < 12.X version and SENDER_ACCOUNT env to be set with '
+                             'a mnemonic phrase of sender account that has funds for transfers and fees. '
+                             'dust-accounts.json file is saved with all such accounts.'
+                             'Must be used exclusively with --upgrade-accounts. '
+                             'Default: False')
+    group.add_argument('--upgrade-accounts',
+                        action='store_true',
+                        help='Specify this switch if script should send Balances.UpgradeAccounts '
+                             'for all accounts on a chain. It requires at least AlephNode 12.X version '
+                             'and SENDER_ACCOUNT env to be set with a mnemonic phrase of sender account that has funds '
+                             'for transfers and fees.'
+                             'Must be used exclusively with --fix-free-balance. '
+                             'Default: False')
 
     return parser.parse_args()
 
@@ -154,9 +155,9 @@ def filter_false_accounts(chain_connection,
     :param chain_connection: WS handler
     :param ed: existential deposit
     :param chain_major_version: enum ChainMajorVersion
-    :param check_accounts_predicate: a pr
-    :param check_accounts_predicate_name:
-    :return:
+    :param check_accounts_predicate: a function that takes three arguments predicate(account, chain_major_version, ed)
+    :param check_accounts_predicate_name: name of the predicate, used for logging reasons only
+    :return: a list which has those chain accounts which returns False on check_accounts_predicate
     """
     accounts_that_do_not_meet_predicate = []
     account_query = chain_connection.query_map('System', 'Account', page_size=1000)
@@ -386,15 +387,12 @@ if __name__ == "__main__":
     args = get_args()
     log = get_global_logger(args)
 
-    if args.fix_free_balance and args.upgrade_accounts:
-        log.error(f"--fix-free-balance must be used mutually exclusive with --upgrade-accounts. Exiting.")
-        exit(1)
     if args.fix_free_balance or args.upgrade_accounts:
         sender_origin_account_seed = os.getenv('SENDER_ACCOUNT')
         if sender_origin_account_seed is None:
             log.error(f"When specifying --fix-free-balance or --upgrade-accounts, env SENDER_ACCOUNT must exists. "
                       f"Exiting.")
-            exit(2)
+            exit(1)
     if args.dry_run:
         log.info(f"Dry-run mode is enabled.")
 
@@ -406,11 +404,11 @@ if __name__ == "__main__":
     if args.fix_free_balance:
         if chain_major_version is not ChainMajorVersion.PRE_12_MAJOR_VERSION:
             log.error(f"--fix-free-balance can be used only on chains with pre-12 version. Exiting.")
-            exit(3)
+            exit(2)
     if args.upgrade_accounts:
         if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
             log.error(f"--upgrade-accounts can be used only on chains with at least 12 version. Exiting.")
-            exit(4)
+            exit(3)
 
     existential_deposit = chain_ws_connection.get_constant("Balances", "ExistentialDeposit").value
     log.info(f"Existential deposit is {format_balance(chain_ws_connection, existential_deposit)}")
