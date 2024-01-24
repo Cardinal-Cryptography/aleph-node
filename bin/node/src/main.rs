@@ -1,6 +1,6 @@
 mod pruning_config;
 
-#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
+#[cfg(feature = "try-runtime")]
 use aleph_node::ExecutorDispatch;
 use aleph_node::{new_authority, new_partial, Cli, Subcommand};
 #[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
