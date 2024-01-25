@@ -1,14 +1,14 @@
-// This build script is only used for the runtime benchmarking setup. We don't need to do anything here if we are
-// not building the runtime with the `runtime-benchmarks` feature.
-#[cfg(not(feature = "runtime-benchmarks"))]
-fn main() {}
-
 #[cfg(feature = "runtime-benchmarks")]
 use {
     artifacts::generate_artifacts,
     halo2_proofs::{halo2curves::bn256::Bn256, poly::kzg::commitment::ParamsKZG},
     std::{env, fs, path::Path},
 };
+
+// This build script is only used for the runtime benchmarking setup. We don't need to do anything here if we are
+// not building the runtime with the `runtime-benchmarks` feature.
+#[cfg(not(feature = "runtime-benchmarks"))]
+fn main() {}
 
 #[cfg(feature = "runtime-benchmarks")]
 fn main() {
@@ -19,16 +19,22 @@ fn main() {
     const CIRCUIT_MAX_K: u32 = 12;
     let params = ParamsKZG::<Bn256>::setup(CIRCUIT_MAX_K, ParamsKZG::<Bn256>::mock_rng());
 
-    let artifacts = generate_artifacts::<5, 10>(&params);
+    let artifacts = generate_artifacts::<5, 3>(&params);
 
-    let out_dir = env::var_os("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_vk");
+    let out_dir = env::current_dir().unwrap();
+    let dest_path = Path::new(&out_dir)
+        .join("benchmark-resources")
+        .join("bench_artifact_5_10_vk");
     fs::write(&dest_path, artifacts.verification_key).unwrap();
 
-    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_proof");
+    let dest_path = Path::new(&out_dir)
+        .join("benchmark-resources")
+        .join("bench_artifact_5_10_proof");
     fs::write(&dest_path, artifacts.proof).unwrap();
 
-    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_input");
+    let dest_path = Path::new(&out_dir)
+        .join("benchmark-resources")
+        .join("bench_artifact_5_10_input");
     fs::write(&dest_path, artifacts.public_input).unwrap();
 }
 
@@ -130,11 +136,10 @@ mod circuit {
             idx: usize,
             region: &mut Region<Fr>,
             config: &StandardPlonkConfig<Fr>,
-            offset: usize,
         ) -> Result<(), Error> {
-            region.assign_advice(|| "", config.a, offset, || Value::known(self.roots[idx]))?;
-            region.assign_advice(|| "", config.b, offset, || Value::known(self.roots[idx]))?;
-            region.assign_fixed(|| "", config.q_ab, offset, || Value::known(-Fr::one()))?;
+            region.assign_advice(|| "", config.a, 0, || Value::known(self.roots[idx]))?;
+            region.assign_advice(|| "", config.b, 0, || Value::known(self.roots[idx]))?;
+            region.assign_fixed(|| "", config.q_ab, 0, || Value::known(-Fr::one()))?;
             Ok(())
         }
     }
@@ -162,30 +167,29 @@ mod circuit {
                 // For every instance, we ensure that the corresponding advice is indeed a square root of it.
                 layouter.assign_region(
                     || "",
-                    |mut region| {
-                        self.neg_root_square(instance_idx, &mut region, &config, instance_idx)
-                    },
+                    |mut region| self.neg_root_square(instance_idx, &mut region, &config),
                 )?;
+            }
 
+            for instance_idx in 0..INSTANCES {
                 // We also do some dummy work to blow up the number of rows.
-                for row in 0..(ROW_BLOWUP - 1) {
-                    let offset = INSTANCES + instance_idx * ROW_BLOWUP + row;
+                for _ in 0..(ROW_BLOWUP - 1) {
                     layouter.assign_region(
                         || "",
                         |mut region| {
-                            self.neg_root_square(instance_idx, &mut region, &config, offset)?;
+                            self.neg_root_square(instance_idx, &mut region, &config)?;
 
                             region.assign_advice_from_instance(
                                 || "",
                                 config.instance,
                                 instance_idx,
                                 config.c,
-                                offset,
+                                0,
                             )?;
                             region.assign_fixed(
                                 || "",
                                 config.q_c,
-                                offset,
+                                0,
                                 || Value::known(Fr::one()),
                             )?;
                             Ok(())

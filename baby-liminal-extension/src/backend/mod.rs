@@ -1,6 +1,9 @@
 use aleph_runtime_interfaces::snark_verifier::VerifierError::*;
 use environment::Environment as EnvironmentT;
+#[cfg(not(feature = "runtime-benchmarks"))]
 use executor::BackendExecutor as BackendExecutorT;
+#[cfg(feature = "runtime-benchmarks")]
+pub use executor::BackendExecutor as BackendExecutorT;
 use frame_support::{pallet_prelude::DispatchError, sp_runtime::AccountId32};
 use frame_system::Config as SystemConfig;
 use log::error;
