@@ -1,9 +1,5 @@
 mod pruning_config;
 
-#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
-use {
-    aleph_node::ExecutorDispatch, aleph_runtime::Block, sc_executor::NativeExecutionDispatch,
-};
 use aleph_node::{new_authority, new_partial, Cli, Subcommand};
 use log::info;
 use primitives::HEAP_PAGES;
@@ -11,6 +7,8 @@ use pruning_config::PruningConfigValidator;
 use sc_cli::{clap::Parser, SubstrateCli};
 use sc_network::config::Role;
 use sc_service::{Configuration, PartialComponents};
+#[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
+use {aleph_node::ExecutorDispatch, aleph_runtime::Block, sc_executor::NativeExecutionDispatch};
 
 fn enforce_heap_pages(config: &mut Configuration) {
     config.default_heap_pages = Some(HEAP_PAGES);
