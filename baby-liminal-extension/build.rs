@@ -1,3 +1,5 @@
+use halo2_proofs::poly::kzg::commitment::ParamsKZG;
+
 // This build script is only used for the runtime benchmarking setup. We don't need to do anything here if we are
 // not building the runtime with the `runtime-benchmarks` feature.
 #[cfg(not(feature = "runtime-benchmarks"))]
@@ -8,6 +10,68 @@ fn main() {
     // We rerun the build script only if this file changes. SNARK artifacts generation doesn't
     // depend on any of the source files.
     println!("cargo:rerun-if-changed=build.rs");
+
+    // let params = ParamsKZG::<Curve>::setup(CIRCUIT_MAX_K, ParamsKZG::<Curve>::mock_rng());
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+mod artifacts {
+    use halo2_proofs::{
+        halo2curves::bn256::{Bn256, Fr, G1Affine},
+        plonk::{create_proof, keygen_pk, keygen_vk, VerifyingKey},
+        poly::{
+            commitment::Params,
+            kzg::{commitment::ParamsKZG, multiopen::ProverGWC},
+        },
+        transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer},
+    };
+
+    use crate::circuit::BenchCircuit;
+
+    pub struct Artifacts {
+        /// The verification key.
+        pub verification_key: Vec<u8>,
+        /// The proof.
+        pub proof: Vec<u8>,
+        /// The public input.
+        pub public_input: Vec<u8>,
+    }
+
+    pub fn generate_artifacts<const INSTANCES: usize, const ROW_BLOWUP: usize>(
+        params: ParamsKZG<Bn256>,
+    ) -> Artifacts {
+        let circuit = BenchCircuit::<INSTANCES, ROW_BLOWUP>::natural_numbers();
+        let instances = (0..INSTANCES)
+            .map(|i| Fr::from((i * i) as u64))
+            .collect::<Vec<_>>();
+
+        let vk = keygen_vk(&params, &circuit).expect("vk should not fail");
+        let pk = keygen_pk(&params, vk.clone(), &circuit).expect("pk should not fail");
+
+        let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
+        create_proof::<_, ProverGWC<'_, Bn256>, _, _, _, _>(
+            &params,
+            &pk,
+            &[circuit],
+            &[&[&instances]],
+            ParamsKZG::<Bn256>::mock_rng(),
+            &mut transcript,
+        )
+        .expect("prover should not fail");
+
+        Artifacts {
+            verification_key: serialize_vk(vk, params.k()),
+            proof: transcript.finalize(),
+            public_input: instances.iter().flat_map(|i| i.to_bytes()).collect(),
+        }
+    }
+
+    fn serialize_vk(vk: VerifyingKey<G1Affine>, k: u32) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        buffer.extend(k.to_le_bytes());
+        buffer.extend(vk.to_bytes(halo2_proofs::SerdeFormat::RawBytesUnchecked));
+        buffer
+    }
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -34,6 +98,15 @@ mod circuit {
     }
 
     impl<const INSTANCES: usize, const ROW_BLOWUP: usize> BenchCircuit<INSTANCES, ROW_BLOWUP> {
+        pub fn natural_numbers() -> Self {
+            let roots = (0..INSTANCES)
+                .map(|i| Fr::from(i as u64))
+                .collect::<Vec<_>>();
+            Self {
+                roots: roots.try_into().unwrap(),
+            }
+        }
+
         fn neg_root_square(
             &self,
             idx: usize,
@@ -41,9 +114,10 @@ mod circuit {
             config: &StandardPlonkConfig<Fr>,
             offset: usize,
         ) -> Result<(), Error> {
-            region.assign_advice(|| "", config.a, offset, || Value::known(*self.roots[idx]))?;
-            region.assign_advice(|| "", config.b, offset, || Value::known(*self.roots[idx]))?;
+            region.assign_advice(|| "", config.a, offset, || Value::known(self.roots[idx]))?;
+            region.assign_advice(|| "", config.b, offset, || Value::known(self.roots[idx]))?;
             region.assign_fixed(|| "", config.q_ab, offset, || Value::known(-Fr::one()))?;
+            Ok(())
         }
     }
 
