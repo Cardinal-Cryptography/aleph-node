@@ -55,13 +55,19 @@ fn get_verification_artifacts<T: pallet_vk_storage::Config>() -> (
     VerifyArgs,
     BoundedVec<u8, <T as pallet_vk_storage::Config>::MaximumKeyLength>,
 ) {
-    let get = |art| include_bytes!(concat!("../../benchmark-resources/5_10_", art)).to_vec();
-    let verification_key = get("vk");
+    // We use a macro here, because a function cannot put literal variables in the `include_bytes` macro.
+    macro_rules! get {
+        ($art:literal) => {
+            include_bytes!(concat!("../../benchmark-resources/5_3_", $art)).to_vec()
+        };
+    }
+
+    let verification_key = get!("vk");
     (
         VerifyArgs {
             verification_key_hash: KeyHasher::hash(&verification_key),
-            proof: get("proof"),
-            public_input: get("input"),
+            proof: get!("proof"),
+            public_input: get!("input"),
         },
         verification_key.try_into().unwrap(),
     )
@@ -94,7 +100,7 @@ mod benchmarks {
     }
 
     /// Benchmark proof verification (covering both reading the verification key from the storage and the actual
-    /// verification procedure).
+    /// verification).
     ///
     /// Due to macro internals, we cannot name the benchmark just `verify`.
     #[benchmark]
