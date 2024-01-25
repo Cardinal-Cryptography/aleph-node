@@ -1,3 +1,49 @@
+//! This build script is used to generate the SNARK artifacts for the benchmarking purposes.
+//!
+//! # Why build script?
+//!
+//! Benchmarks are run within the runtime environment. This means that:
+//! - cryptography is less effective there,
+//! - we don't have access to no-std funcionalities, which means that it is hard to run halo2 prover there (for proof
+//! generation)
+//!
+//! To overcome these problems, we generate the artifacts during building the crate and then use them in the runtime.
+//!
+//! # What is generated?
+//!
+//! For every circuit, we generate the following artifacts:
+//! - verification key,
+//! - proof,
+//! - public input.
+//!
+//! All of them are saved to corresponding files in the `benchmark-resources` directory as raw bytes.
+//!
+//! # How to run?
+//!
+//! You just have to build this crate with the `runtime-benchmarks` feature enabled. This will generate the artifacts
+//! and put them in the `benchmark-resources` directory. Changing the build script will trigger the artifacts generation
+//! again. On the other hand, changing any other file in this crate will not be considered as a reason for rerunning.
+//!
+//! # What circuits are generated?
+//!
+//! We provide a generic circuit that can be parametrized with the number of instances and the number of rows. More
+//! specifically, `BenchCircuit<INSTANCES, ROW_BLOWUP>` is a circuit that:
+//! - has `INSTANCES` instances (public inputs);
+//! - has `INSTANCES` advices (private inputs); `i`th advice is a square root of `i`th instance;
+//! - has `INSTANCES · ROW_BLOWUP` gates (rows);
+//!
+//! ## Gates
+//!
+//! First `INSTANCES` gates are the ones that ensure that the corresponding advice is indeed a square root of the
+//! corresponding instance.
+//!
+//! The rest of the gates are batches of `ROW_BLOWUP - 1` copies of the `i`th gate (`i`th batch corresponds to the `ith`
+//! gate).
+
+/// This build script is used only for the runtime benchmarking setup. We don't need to do anything here in other case.
+#[cfg(not(feature = "runtime-benchmarks"))]
+fn main() {}
+
 #[cfg(feature = "runtime-benchmarks")]
 use {
     artifacts::generate_artifacts,
@@ -5,39 +51,32 @@ use {
     std::{env, fs, path::Path},
 };
 
-// This build script is only used for the runtime benchmarking setup. We don't need to do anything here if we are
-// not building the runtime with the `runtime-benchmarks` feature.
-#[cfg(not(feature = "runtime-benchmarks"))]
-fn main() {}
-
 #[cfg(feature = "runtime-benchmarks")]
 fn main() {
-    // We rerun the build script only if this file changes. SNARK artifacts generation doesn't
-    // depend on any of the source files.
+    // We rerun the build script only if this file changes. SNARK artifacts generation doesn't depend on any of the
+    // source files.
     println!("cargo:rerun-if-changed=build.rs");
 
+    // We run benchmarks for up to ~4K gates - this is to be changed for the final version. Now, we keep it low for
+    // developer convenience.
     const CIRCUIT_MAX_K: u32 = 12;
+    // We run a common setup for all generated circuits.
     let params = ParamsKZG::<Bn256>::setup(CIRCUIT_MAX_K, ParamsKZG::<Bn256>::mock_rng());
 
     let artifacts = generate_artifacts::<5, 3>(&params);
 
-    let out_dir = env::current_dir().unwrap();
-    let dest_path = Path::new(&out_dir)
-        .join("benchmark-resources")
-        .join("bench_artifact_5_10_vk");
-    fs::write(&dest_path, artifacts.verification_key).unwrap();
+    let path = |suf| {
+        Path::new(&env::current_dir().unwrap())
+            .join("benchmark-resources")
+            .join(format!("5_3_{suf}"))
+    };
 
-    let dest_path = Path::new(&out_dir)
-        .join("benchmark-resources")
-        .join("bench_artifact_5_10_proof");
-    fs::write(&dest_path, artifacts.proof).unwrap();
-
-    let dest_path = Path::new(&out_dir)
-        .join("benchmark-resources")
-        .join("bench_artifact_5_10_input");
-    fs::write(&dest_path, artifacts.public_input).unwrap();
+    fs::write(&path("vk"), artifacts.verification_key).unwrap();
+    fs::write(&path("proof"), artifacts.proof).unwrap();
+    fs::write(&path("input"), artifacts.public_input).unwrap();
 }
 
+/// This module contains the code that is used to generate the SNARK artifacts (proof generation).
 #[cfg(feature = "runtime-benchmarks")]
 mod artifacts {
     use halo2_proofs::{
@@ -53,14 +92,12 @@ mod artifacts {
     use crate::circuit::BenchCircuit;
 
     pub struct Artifacts {
-        /// The verification key.
         pub verification_key: Vec<u8>,
-        /// The proof.
         pub proof: Vec<u8>,
-        /// The public input.
         pub public_input: Vec<u8>,
     }
 
+    /// Run the proof generation for the given circuit and parameters.
     pub fn generate_artifacts<const INSTANCES: usize, const ROW_BLOWUP: usize>(
         params: &ParamsKZG<Bn256>,
     ) -> Artifacts {
@@ -90,6 +127,8 @@ mod artifacts {
         }
     }
 
+    /// Serializes the verification key to the raw bytes together with the upperbound on the number of gates (required
+    /// by the on-chain verifier).
     fn serialize_vk(vk: VerifyingKey<G1Affine>, k: u32) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend(k.to_le_bytes());
@@ -98,6 +137,7 @@ mod artifacts {
     }
 }
 
+/// This module defines the circuit for the benchmarking purposes.
 #[cfg(feature = "runtime-benchmarks")]
 mod circuit {
     use halo2_proofs::{
@@ -108,6 +148,7 @@ mod circuit {
     };
 
     pub struct BenchCircuit<const INSTANCES: usize, const ROW_BLOWUP: usize> {
+        /// The roots of the instances (`i`th root is a square root of `i`th instance).
         roots: [Fr; INSTANCES],
     }
 
@@ -122,15 +163,17 @@ mod circuit {
     }
 
     impl<const INSTANCES: usize, const ROW_BLOWUP: usize> BenchCircuit<INSTANCES, ROW_BLOWUP> {
+        /// Create a circuit with the consecutive natural numbers as advices.
         pub fn natural_numbers() -> Self {
-            let roots = (0..INSTANCES)
-                .map(|i| Fr::from(i as u64))
-                .collect::<Vec<_>>();
+            let roots: Vec<_> = (0..INSTANCES).map(|i| Fr::from(i as u64)).collect();
             Self {
                 roots: roots.try_into().unwrap(),
             }
         }
 
+        /// Assign the `idx`th root to the `a` and `b` advices and `-1` to the `q_ab` fixed value.
+        ///
+        /// We assume here that this is the first row in the region (offset 0).
         fn neg_root_square(
             &self,
             idx: usize,
