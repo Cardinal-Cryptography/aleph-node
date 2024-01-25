@@ -1,9 +1,14 @@
-use halo2_proofs::poly::kzg::commitment::ParamsKZG;
-
 // This build script is only used for the runtime benchmarking setup. We don't need to do anything here if we are
 // not building the runtime with the `runtime-benchmarks` feature.
 #[cfg(not(feature = "runtime-benchmarks"))]
 fn main() {}
+
+#[cfg(feature = "runtime-benchmarks")]
+use {
+    artifacts::generate_artifacts,
+    halo2_proofs::{halo2curves::bn256::Bn256, poly::kzg::commitment::ParamsKZG},
+    std::{env, fs, path::Path},
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 fn main() {
@@ -11,7 +16,20 @@ fn main() {
     // depend on any of the source files.
     println!("cargo:rerun-if-changed=build.rs");
 
-    // let params = ParamsKZG::<Curve>::setup(CIRCUIT_MAX_K, ParamsKZG::<Curve>::mock_rng());
+    const CIRCUIT_MAX_K: u32 = 12;
+    let params = ParamsKZG::<Bn256>::setup(CIRCUIT_MAX_K, ParamsKZG::<Bn256>::mock_rng());
+
+    let artifacts = generate_artifacts::<5, 10>(&params);
+
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_vk");
+    fs::write(&dest_path, artifacts.verification_key).unwrap();
+
+    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_proof");
+    fs::write(&dest_path, artifacts.proof).unwrap();
+
+    let dest_path = Path::new(&out_dir).join("bench_artifact_5_10_input");
+    fs::write(&dest_path, artifacts.public_input).unwrap();
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -38,19 +56,19 @@ mod artifacts {
     }
 
     pub fn generate_artifacts<const INSTANCES: usize, const ROW_BLOWUP: usize>(
-        params: ParamsKZG<Bn256>,
+        params: &ParamsKZG<Bn256>,
     ) -> Artifacts {
         let circuit = BenchCircuit::<INSTANCES, ROW_BLOWUP>::natural_numbers();
         let instances = (0..INSTANCES)
             .map(|i| Fr::from((i * i) as u64))
             .collect::<Vec<_>>();
 
-        let vk = keygen_vk(&params, &circuit).expect("vk should not fail");
-        let pk = keygen_pk(&params, vk.clone(), &circuit).expect("pk should not fail");
+        let vk = keygen_vk(params, &circuit).expect("vk should not fail");
+        let pk = keygen_pk(params, vk.clone(), &circuit).expect("pk should not fail");
 
         let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
         create_proof::<_, ProverGWC<'_, Bn256>, _, _, _, _>(
-            &params,
+            params,
             &pk,
             &[circuit],
             &[&[&instances]],
