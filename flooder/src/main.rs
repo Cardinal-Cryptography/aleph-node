@@ -1,17 +1,68 @@
+use core::cmp::min;
+use std::env;
 use std::time::Duration;
 
 use aleph_client::{
     account_from_keypair, pallets::balances::BalanceUserApi, raw_keypair_from_string, AccountId,
-    Balance, KeyPair, SignedConnection, SignedConnectionApi, TxStatus,
+    Balance, BlockHash, ConnectionApi, KeyPair, SignedConnection, SignedConnectionApi, TxStatus,
 };
+
+use subxt::rpc::{Rpc, RpcParams};
+use subxt::tx::TxClient;
+use subxt::utils::MultiAddress;
+
 use clap::Parser;
 use config::Config;
 use futures::future::join_all;
 use log::info;
+use subxt::config::extrinsic_params::BaseExtrinsicParamsBuilder;
 use subxt::ext::sp_core::{sr25519, Pair};
+use subxt::tx::PairSigner;
 use tokio::{time, time::sleep};
-
 mod config;
+
+pub async fn nonce(connection: &SignedConnection, account: &AccountId) -> u64 {
+    connection
+        .connection
+        .client
+        .tx()
+        .account_nonce(account)
+        .await
+        .unwrap()
+}
+
+pub async fn transfer_keep_alive(
+    connection: &SignedConnection,
+    dest: &AccountId,
+    transfer_amount: Balance,
+    nonce: u64,
+    status: TxStatus,
+) {
+    let tx = aleph_client::api::tx()
+        .balances()
+        .transfer_keep_alive(MultiAddress::Id(dest.clone().into()), transfer_amount);
+
+    let watcher = connection
+        .connection
+        .client
+        .tx()
+        .create_signed_with_nonce(
+            &tx,
+            &PairSigner::new(connection.signer.signer().clone()),
+            nonce,
+            BaseExtrinsicParamsBuilder::new(),
+        )
+        .unwrap()
+        .submit_and_watch()
+        .await
+        .unwrap();
+
+    match status {
+        TxStatus::Submitted => return,
+        TxStatus::InBlock => watcher.wait_for_in_block().await.unwrap(),
+        TxStatus::Finalized => watcher.wait_for_finalized().await.unwrap(),
+    };
+}
 
 async fn flood(
     connections: Vec<SignedConnection>,
@@ -34,15 +85,22 @@ async fn flood(
                     _ => (0, (tx_count, 1)),
                 };
 
+                let nonce = nonce(&conn, conn.account_id()).await;
+
                 for i in 0..round_count {
                     info!("starting round #{}", i);
                     let start = time::Instant::now();
 
                     info!("sending #{} transactions", tx_count);
-                    for _ in 0..tx_count {
-                        conn.transfer_keep_alive(dest.clone(), transfer_amount, status)
-                            .await
-                            .unwrap();
+                    for j in 0..tx_count {
+                        transfer_keep_alive(
+                            &conn,
+                            &dest,
+                            transfer_amount,
+                            nonce + i * tx_count + j,
+                            TxStatus::Submitted,
+                        )
+                        .await;
                     }
 
                     let dur = time::Instant::now().saturating_duration_since(start);
@@ -78,27 +136,40 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     if skip {
         return connections;
     }
-    for conn in connections.iter() {
-        connection
-            .transfer_keep_alive(
-                conn.account_id().clone(),
-                account_balance,
-                TxStatus::Submitted,
-            )
-            .await
-            .unwrap();
-    }
 
-    connection
-        .transfer_keep_alive(connection.account_id().clone(), 1, TxStatus::Finalized)
-        .await
-        .unwrap();
+    let nonce = nonce(&connection, connection.account_id()).await;
+
+    for (i, conn) in connections.iter().enumerate() {
+        transfer_keep_alive(
+            &connection,
+            &conn.account_id(),
+            account_balance,
+            nonce + i as u64,
+            if i % 100 == 0 {
+                TxStatus::InBlock
+            } else {
+                TxStatus::Submitted
+            },
+        )
+        .await;
+    }
+    transfer_keep_alive(
+        &connection,
+        &connection.account_id(),
+        1,
+        nonce + connections.len() as u64,
+        TxStatus::Finalized,
+    )
+    .await;
 
     connections
 }
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "info")
+    }
     env_logger::init();
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
@@ -109,8 +180,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let tx_count = config.transactions;
-    let accounts = (tx_count + 1) / 100;
-    let tx_per_account = 100;
+    let accounts = min(32, tx_count);
+    let tx_per_account = (tx_count + accounts - 1) / accounts;
     let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
         (Some(tii), Some(is)) => Some((tii, is)),
         (None, None) => None,
@@ -138,15 +209,17 @@ async fn main() -> anyhow::Result<()> {
 
     let nodes = config.nodes.clone();
 
+    info!("tx per acc {tx_per_account:?}, initializing {accounts:?} accounts");
+
     let connections = initialize_n_accounts(
         main_connection,
         accounts as u32,
         |i| nodes[i as usize % nodes.len()].clone(),
-        tx_per_account + tx_per_account * 10_000,
+        (tx_per_account + tx_per_account * 10_000_000_000).into(),
         config.skip_initialization,
     )
     .await;
-
+    info!("Init done");
     flood(
         connections,
         account_from_keypair(&account),
