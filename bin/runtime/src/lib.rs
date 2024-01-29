@@ -23,8 +23,8 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
-        ConstBool, ConstU32, EqualPrivilegeOnly, EstimateNextSessionRotation, InstanceFilter,
-        SortedMembers, WithdrawReasons,
+        ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
+        InstanceFilter, SortedMembers, WithdrawReasons,
     },
     weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
     PalletId,
@@ -709,14 +709,27 @@ parameter_types! {
     pub CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
 }
 
+// The filter for the runtime calls that are allowed to be executed by contracts.
+// Currently we allow only staking and nomination pools calls.
+pub struct ContractsCallRuntimeFilter;
+
+impl Contains<RuntimeCall> for ContractsCallRuntimeFilter {
+    fn contains(call: &RuntimeCall) -> bool {
+        matches!(
+            call,
+            RuntimeCall::Staking(_) | RuntimeCall::NominationPools(_)
+        )
+    }
+}
+
 impl pallet_contracts::Config for Runtime {
     type Time = Timestamp;
     type Randomness = RandomnessCollectiveFlip;
     type Currency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
-    // The safest default is to allow no calls at all. This is unsafe experimental feature with no support in ink!
-    type CallFilter = Nothing;
+
+    type CallFilter = ContractsCallRuntimeFilter;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     #[cfg(feature = "liminal")]
