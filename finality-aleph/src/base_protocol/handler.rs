@@ -33,6 +33,7 @@ where
 {
     reserved_nodes: HashSet<PeerId>,
     peers: HashMap<PeerId, PeerInfo>,
+    // the below counters and bounds ignore the nodes which belong to `reserved_nodes`
     num_full_in_peers: usize,
     num_full_out_peers: usize,
     num_light_peers: usize,
