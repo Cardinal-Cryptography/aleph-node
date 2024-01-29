@@ -837,7 +837,21 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
     }
     fn is_superset(&self, o: &Self) -> bool {
         // ProxyType::Nomination ⊆ ProxyType::Staking ⊆ ProxyType::NonTransfer ⊆ ProxyType::Any
-        (*self as u64) <= (*o as u64)
+        match self {
+            ProxyType::Any => true,
+            ProxyType::NonTransfer => match o {
+                ProxyType::Any => false,
+                ProxyType::NonTransfer | ProxyType::Staking | ProxyType::Nomination => true,
+            },
+            ProxyType::Staking => match o {
+                ProxyType::Any | ProxyType::NonTransfer => false,
+                ProxyType::Staking | ProxyType::Nomination => true,
+            },
+            ProxyType::Nomination => match o {
+                ProxyType::Any | ProxyType::NonTransfer | ProxyType::Staking => false,
+                ProxyType::Nomination => true,
+            },
+        }
     }
 }
 
@@ -1280,13 +1294,17 @@ mod tests {
 
     #[test]
     fn test_proxy_is_superset() {
-        assert!(ProxyType::Any.is_superset(&ProxyType::NonTransfer));
-        assert!(ProxyType::NonTransfer.is_superset(&ProxyType::Staking));
-        assert!(ProxyType::Staking.is_superset(&ProxyType::Nomination));
-
-        assert!(ProxyType::Any.is_superset(&ProxyType::Staking));
-        assert!(ProxyType::NonTransfer.is_superset(&ProxyType::NonTransfer));
-        assert!(!ProxyType::Nomination.is_superset(&ProxyType::Staking));
+        let proxies = [
+            ProxyType::Any,
+            ProxyType::NonTransfer,
+            ProxyType::Staking,
+            ProxyType::Nomination,
+        ];
+        for (i, proxy) in proxies.iter().enumerate() {
+            for (j, other) in proxies.iter().enumerate() {
+                assert_eq!(proxy.is_superset(other), i <= j);
+            }
+        }
     }
 
     #[test]
