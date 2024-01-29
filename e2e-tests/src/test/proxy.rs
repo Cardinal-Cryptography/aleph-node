@@ -263,7 +263,7 @@ pub async fn non_transfer_proxy_works() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-pub async fn nomination_transfer_proxy_works() -> anyhow::Result<()> {
+pub async fn nomination_proxy_works() -> anyhow::Result<()> {
     let config = setup_test();
     let root_connection = config.create_root_connection().await;
     let handle = setup_proxy(root_connection.clone(), ProxyType::Nomination).await;

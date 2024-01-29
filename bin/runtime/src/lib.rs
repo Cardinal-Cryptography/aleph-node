@@ -829,8 +829,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
             ProxyType::Nomination => {
                 matches!(
                     c,
-                    RuntimeCall::NominationPools(pallet_nomination_pools::Call::nominate { .. })
-                        | RuntimeCall::Staking(pallet_staking::Call::nominate { .. })
+                    RuntimeCall::Staking(pallet_staking::Call::nominate { .. })
                 )
             }
         }
