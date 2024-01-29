@@ -793,6 +793,7 @@ pub enum ProxyType {
     Any = 0,
     NonTransfer = 1,
     Staking = 2,
+    Nomination = 3,
 }
 impl Default for ProxyType {
     fn default() -> Self {
@@ -825,18 +826,18 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
                         | RuntimeCall::NominationPools(..)
                 )
             }
+            ProxyType::Nomination => {
+                matches!(
+                    c,
+                    RuntimeCall::NominationPools(pallet_nomination_pools::Call::nominate { .. })
+                        | RuntimeCall::Staking(pallet_staking::Call::nominate { .. })
+                )
+            }
         }
     }
     fn is_superset(&self, o: &Self) -> bool {
-        // ProxyType::Staking ⊆ ProxyType::NonTransfer ⊆ ProxyType::Any
-        match (self, o) {
-            (ProxyType::Any, _) => true,
-            (_, ProxyType::Any) => false,
-            (ProxyType::NonTransfer, ProxyType::Staking) => true,
-            (ProxyType::Staking, ProxyType::NonTransfer) => false,
-            (ProxyType::Staking, ProxyType::Staking) => true,
-            (ProxyType::NonTransfer, ProxyType::NonTransfer) => true,
-        }
+        // ProxyType::Nomination ⊆ ProxyType::Staking ⊆ ProxyType::NonTransfer ⊆ ProxyType::Any
+        (*self as u64) <= (*o as u64)
     }
 }
 
@@ -1276,6 +1277,17 @@ mod tests {
     use smallvec::Array;
 
     use super::*;
+
+    #[test]
+    fn test_proxy_is_superset() {
+        assert!(ProxyType::Any.is_superset(&ProxyType::NonTransfer));
+        assert!(ProxyType::NonTransfer.is_superset(&ProxyType::Staking));
+        assert!(ProxyType::Staking.is_superset(&ProxyType::Nomination));
+
+        assert!(ProxyType::Any.is_superset(&ProxyType::Staking));
+        assert!(ProxyType::NonTransfer.is_superset(&ProxyType::NonTransfer));
+        assert!(!ProxyType::Nomination.is_superset(&ProxyType::Staking));
+    }
 
     #[test]
     fn state_version_must_be_zero() {
