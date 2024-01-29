@@ -123,21 +123,18 @@ where
             return Ok(handshake.roles);
         }
 
-        // check slot constraints for full non-reserved nodes
+        // Check slot constraints depending on the node's role and the connection's direction.
         if is_inbound
             && handshake.roles.is_full()
             && self.num_full_in_peers >= self.max_full_in_peers
         {
             return Err(ConnectError::TooManyFullInboundPeers);
-        }
-        else if !is_inbound
+        } else if !is_inbound
             && handshake.roles.is_full()
             && self.num_full_out_peers >= self.max_full_out_peers
         {
             return Err(ConnectError::TooManyFullOutboundPeers);
-        }
-        // check slot constraints for light nodes
-        else if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
+        } else if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
             return Err(ConnectError::TooManyLightPeers);
         }
 
@@ -152,22 +149,18 @@ where
     ) -> Result<(), ConnectError> {
         let role = self.verify_connection(peer_id, handshake, is_inbound)?;
 
-        // update peer sets
         self.peers.insert(peer_id, PeerInfo { role, is_inbound });
 
         if self.reserved_nodes.contains(&peer_id) {
             return Ok(());
         }
 
-        // update slots for full nodes
+        // Assign a slot for the node depending on their role and the connection's direction.
         if is_inbound && role.is_full() {
             self.num_full_in_peers += 1;
-        }
-        else if !is_inbound && role.is_full() {
+        } else if !is_inbound && role.is_full() {
             self.num_full_out_peers += 1;
-        }
-        // update slots of light nodes
-        else if role.is_light() {
+        } else if role.is_light() {
             self.num_light_peers += 1;
         }
 
@@ -186,15 +179,12 @@ where
             return Ok(());
         }
 
-        // update slots for full nodes
+        // Free the slot of the node depending on their role and the connection's direction.
         if info.is_inbound && info.role.is_full() {
             self.num_full_in_peers.saturating_dec();
-        }
-        else if !info.is_inbound && info.role.is_full() {
+        } else if !info.is_inbound && info.role.is_full() {
             self.num_full_out_peers.saturating_dec();
-        }
-        // update slots of light nodes
-        else if info.role.is_light() {
+        } else if info.role.is_light() {
             self.num_light_peers.saturating_dec();
         }
 
