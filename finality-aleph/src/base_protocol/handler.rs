@@ -109,7 +109,7 @@ where
         is_inbound: bool,
     ) -> Result<Roles, ConnectError> {
         let handshake = BlockAnnouncesHandshake::<B>::decode_all(&mut &handshake[..])
-            .map_err(|e| ConnectError::BadlyEncodedHandshake(e))?;
+            .map_err(ConnectError::BadlyEncodedHandshake)?;
         if handshake.genesis_hash != self.genesis_hash {
             return Err(ConnectError::BadHandshakeGenesis);
         }
@@ -163,8 +163,6 @@ where
             self.num_light_peers += 1;
         }
 
-        // TODO(A0-3901): disseminate appropriate `SyncEvent`
-
         Ok(())
     }
 
@@ -186,8 +184,6 @@ where
         } else if info.role.is_light() {
             self.num_light_peers.saturating_dec();
         }
-
-        // TODO(A0-3901): disseminate appropriate `SyncEvent`
 
         Ok(())
     }
