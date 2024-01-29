@@ -60,12 +60,11 @@ where
         // It is assumed that `default_peers_set.out_peers` only refers to full nodes, but
         // `default_peers_set.in_peers` refers to both full and light nodes.
         // Moreover, `default_peers_set_num_full` refers to the total of full nodes.
-        let max_full_out_peers =
-            net_config.network_config.default_peers_set.out_peers as usize;
-        let max_full_in_peers =
-            (net_config.network_config.default_peers_set_num_full as usize).saturating_sub(max_full_out_peers);
-        let max_light_peers =
-            (net_config.network_config.default_peers_set.in_peers as usize).saturating_sub(max_full_in_peers);
+        let max_full_out_peers = net_config.network_config.default_peers_set.out_peers as usize;
+        let max_full_in_peers = (net_config.network_config.default_peers_set_num_full as usize)
+            .saturating_sub(max_full_out_peers);
+        let max_light_peers = (net_config.network_config.default_peers_set.in_peers as usize)
+            .saturating_sub(max_full_in_peers);
 
         Handler {
             reserved_nodes,
@@ -103,7 +102,12 @@ where
             .collect()
     }
 
-    fn verify_connection(&self, peer_id: PeerId, handshake: Vec<u8>, is_inbound: bool) -> Result<Roles, ConnectError> {
+    fn verify_connection(
+        &self,
+        peer_id: PeerId,
+        handshake: Vec<u8>,
+        is_inbound: bool,
+    ) -> Result<Roles, ConnectError> {
         let handshake = BlockAnnouncesHandshake::<B>::decode_all(&mut &handshake[..])
             .map_err(|_| ConnectError::BadlyEncodedHandshake)?;
         if handshake.genesis_hash != self.genesis_hash {
@@ -116,10 +120,16 @@ where
 
         if !self.reserved_nodes.contains(&peer_id) {
             // check slot constraints for full non-reserved nodes
-            if is_inbound && handshake.roles.is_full() && self.num_full_in_peers >= self.max_full_in_peers {
+            if is_inbound
+                && handshake.roles.is_full()
+                && self.num_full_in_peers >= self.max_full_in_peers
+            {
                 return Err(ConnectError::TooManyFullInboundPeers);
             }
-            if !is_inbound && handshake.roles.is_full() && self.num_full_out_peers >= self.max_full_out_peers {
+            if !is_inbound
+                && handshake.roles.is_full()
+                && self.num_full_out_peers >= self.max_full_out_peers
+            {
                 return Err(ConnectError::TooManyFullOutboundPeers);
             }
             // check slot constraints for light nodes
@@ -140,13 +150,7 @@ where
         let role = self.verify_connection(peer_id, handshake, is_inbound)?;
 
         // update peer sets
-        self.peers.insert(
-            peer_id,
-            PeerInfo {
-                role,
-                is_inbound,
-            },
-        );
+        self.peers.insert(peer_id, PeerInfo { role, is_inbound });
 
         if !self.reserved_nodes.contains(&peer_id) {
             // update slots for full nodes
@@ -168,8 +172,11 @@ where
     }
 
     pub fn on_peer_disconnect(&mut self, peer_id: PeerId) -> Result<(), DisconnectError> {
-        let info = self.peers.remove(&peer_id).ok_or(DisconnectError::PeerWasNotConnected)?;
-        
+        let info = self
+            .peers
+            .remove(&peer_id)
+            .ok_or(DisconnectError::PeerWasNotConnected)?;
+
         if !self.reserved_nodes.contains(&peer_id) {
             // update slots for full nodes
             if info.is_inbound && info.role.is_full() {

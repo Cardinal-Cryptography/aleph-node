@@ -53,7 +53,11 @@ where
     // TODO(A0-3886): This shouldn't need to return the substrate type after replacing RPCs.
     // In particular, it shouldn't depend on `B`. This is also the only reason why
     // the `major_sync` argument is needed.
-    pub fn new(major_sync: Arc<AtomicBool>, genesis_hash: B::Hash, net_config: &FullNetworkConfiguration) -> (Self, SyncingService<B>) {
+    pub fn new(
+        major_sync: Arc<AtomicBool>,
+        genesis_hash: B::Hash,
+        net_config: &FullNetworkConfiguration,
+    ) -> (Self, SyncingService<B>) {
         let (commands_for_service, commands_from_user) =
             tracing_unbounded("mpsc_base_protocol", 100_000);
         (
