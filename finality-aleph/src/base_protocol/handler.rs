@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use parity_scale_codec::DecodeAll;
+use parity_scale_codec::{DecodeAll, Error as CodecError};
 use sc_network::{config::FullNetworkConfiguration, ExtendedPeerInfo, PeerId};
 use sc_network_common::{role::Roles, sync::message::BlockAnnouncesHandshake};
 use sp_runtime::traits::{Block, Header, Saturating};
@@ -8,7 +8,7 @@ use sp_runtime::traits::{Block, Header, Saturating};
 use crate::{BlockHash, BlockNumber};
 
 pub enum ConnectError {
-    BadlyEncodedHandshake,
+    BadlyEncodedHandshake(CodecError),
     BadHandshakeGenesis,
     PeerAlreadyConnected,
     TooManyFullInboundPeers,
@@ -110,7 +110,7 @@ where
         is_inbound: bool,
     ) -> Result<Roles, ConnectError> {
         let handshake = BlockAnnouncesHandshake::<B>::decode_all(&mut &handshake[..])
-            .map_err(|_| ConnectError::BadlyEncodedHandshake)?;
+            .map_err(|e| ConnectError::BadlyEncodedHandshake(e))?;
         if handshake.genesis_hash != self.genesis_hash {
             return Err(ConnectError::BadHandshakeGenesis);
         }
