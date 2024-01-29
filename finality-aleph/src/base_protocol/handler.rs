@@ -128,12 +128,14 @@ where
             && self.num_full_in_peers >= self.max_full_in_peers
         {
             return Err(ConnectError::TooManyFullInboundPeers);
-        } else if !is_inbound
+        }
+        if !is_inbound
             && handshake.roles.is_full()
             && self.num_full_out_peers >= self.max_full_out_peers
         {
             return Err(ConnectError::TooManyFullOutboundPeers);
-        } else if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
+        }
+        if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
             return Err(ConnectError::TooManyLightPeers);
         }
 
