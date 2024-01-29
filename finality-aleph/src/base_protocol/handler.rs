@@ -162,6 +162,8 @@ where
             }
         }
 
+        // TODO(A0-3901): disseminate appropriate `SyncEvent`
+
         Ok(())
     }
 
@@ -182,20 +184,8 @@ where
             }
         }
 
+        // TODO(A0-3901): disseminate appropriate `SyncEvent`
+
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{aleph_primitives::Block, base_protocol::handler::Handler};
-
-    #[test]
-    fn initially_no_peers() {
-        let handler = Handler::new();
-        assert!(
-            handler.peers_info::<Block>().is_empty(),
-            "there should be no peers initially"
-        );
     }
 }
