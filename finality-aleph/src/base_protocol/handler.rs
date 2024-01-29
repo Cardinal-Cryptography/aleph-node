@@ -130,14 +130,14 @@ where
         {
             return Err(ConnectError::TooManyFullInboundPeers);
         }
-        if !is_inbound
+        else if !is_inbound
             && handshake.roles.is_full()
             && self.num_full_out_peers >= self.max_full_out_peers
         {
             return Err(ConnectError::TooManyFullOutboundPeers);
         }
         // check slot constraints for light nodes
-        if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
+        else if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
             return Err(ConnectError::TooManyLightPeers);
         }
 
@@ -163,11 +163,11 @@ where
         if is_inbound && role.is_full() {
             self.num_full_in_peers += 1;
         }
-        if !is_inbound && role.is_full() {
+        else if !is_inbound && role.is_full() {
             self.num_full_out_peers += 1;
         }
         // update slots of light nodes
-        if role.is_light() {
+        else if role.is_light() {
             self.num_light_peers += 1;
         }
 
@@ -190,11 +190,11 @@ where
         if info.is_inbound && info.role.is_full() {
             self.num_full_in_peers.saturating_dec();
         }
-        if !info.is_inbound && info.role.is_full() {
+        else if !info.is_inbound && info.role.is_full() {
             self.num_full_out_peers.saturating_dec();
         }
         // update slots of light nodes
-        if info.role.is_light() {
+        else if info.role.is_light() {
             self.num_light_peers.saturating_dec();
         }
 
