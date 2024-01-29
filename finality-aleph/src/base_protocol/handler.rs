@@ -119,24 +119,26 @@ where
             return Err(ConnectError::PeerAlreadyConnected);
         }
 
-        if !self.reserved_nodes.contains(&peer_id) {
-            // check slot constraints for full non-reserved nodes
-            if is_inbound
-                && handshake.roles.is_full()
-                && self.num_full_in_peers >= self.max_full_in_peers
-            {
-                return Err(ConnectError::TooManyFullInboundPeers);
-            }
-            if !is_inbound
-                && handshake.roles.is_full()
-                && self.num_full_out_peers >= self.max_full_out_peers
-            {
-                return Err(ConnectError::TooManyFullOutboundPeers);
-            }
-            // check slot constraints for light nodes
-            if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
-                return Err(ConnectError::TooManyLightPeers);
-            }
+        if self.reserved_nodes.contains(&peer_id) {
+            return Ok(handshake.roles);
+        }
+
+        // check slot constraints for full non-reserved nodes
+        if is_inbound
+            && handshake.roles.is_full()
+            && self.num_full_in_peers >= self.max_full_in_peers
+        {
+            return Err(ConnectError::TooManyFullInboundPeers);
+        }
+        if !is_inbound
+            && handshake.roles.is_full()
+            && self.num_full_out_peers >= self.max_full_out_peers
+        {
+            return Err(ConnectError::TooManyFullOutboundPeers);
+        }
+        // check slot constraints for light nodes
+        if handshake.roles.is_light() && self.num_light_peers >= self.max_light_peers {
+            return Err(ConnectError::TooManyLightPeers);
         }
 
         Ok(handshake.roles)
@@ -153,18 +155,20 @@ where
         // update peer sets
         self.peers.insert(peer_id, PeerInfo { role, is_inbound });
 
-        if !self.reserved_nodes.contains(&peer_id) {
-            // update slots for full nodes
-            if is_inbound && role.is_full() {
-                self.num_full_in_peers += 1;
-            }
-            if !is_inbound && role.is_full() {
-                self.num_full_out_peers += 1;
-            }
-            // update slots of light nodes
-            if role.is_light() {
-                self.num_light_peers += 1;
-            }
+        if self.reserved_nodes.contains(&peer_id) {
+            return Ok(());
+        }
+
+        // update slots for full nodes
+        if is_inbound && role.is_full() {
+            self.num_full_in_peers += 1;
+        }
+        if !is_inbound && role.is_full() {
+            self.num_full_out_peers += 1;
+        }
+        // update slots of light nodes
+        if role.is_light() {
+            self.num_light_peers += 1;
         }
 
         // TODO(A0-3901): disseminate appropriate `SyncEvent`
@@ -178,18 +182,20 @@ where
             .remove(&peer_id)
             .ok_or(DisconnectError::PeerWasNotConnected)?;
 
-        if !self.reserved_nodes.contains(&peer_id) {
-            // update slots for full nodes
-            if info.is_inbound && info.role.is_full() {
-                self.num_full_in_peers.saturating_dec();
-            }
-            if !info.is_inbound && info.role.is_full() {
-                self.num_full_out_peers.saturating_dec();
-            }
-            // update slots of light nodes
-            if info.role.is_light() {
-                self.num_light_peers.saturating_dec();
-            }
+        if self.reserved_nodes.contains(&peer_id) {
+            return Ok(());
+        }
+
+        // update slots for full nodes
+        if info.is_inbound && info.role.is_full() {
+            self.num_full_in_peers.saturating_dec();
+        }
+        if !info.is_inbound && info.role.is_full() {
+            self.num_full_out_peers.saturating_dec();
+        }
+        // update slots of light nodes
+        if info.role.is_light() {
+            self.num_light_peers.saturating_dec();
         }
 
         // TODO(A0-3901): disseminate appropriate `SyncEvent`
