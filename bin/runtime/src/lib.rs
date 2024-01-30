@@ -711,7 +711,7 @@ parameter_types! {
 
 // The filter for the runtime calls that are allowed to be executed by contracts.
 // Currently we allow only staking and nomination pools calls.
-pub struct ContractsCallRuntimeFilter;
+pub enum ContractsCallRuntimeFilter {}
 
 impl Contains<RuntimeCall> for ContractsCallRuntimeFilter {
     fn contains(call: &RuntimeCall) -> bool {
