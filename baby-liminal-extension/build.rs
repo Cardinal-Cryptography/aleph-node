@@ -180,9 +180,14 @@ mod circuit {
             region: &mut Region<Fr>,
             config: &StandardPlonkConfig<Fr>,
         ) -> Result<(), Error> {
-            region.assign_advice(|| "", config.a, 0, || Value::known(self.roots[idx]))?;
-            region.assign_advice(|| "", config.b, 0, || Value::known(self.roots[idx]))?;
-            region.assign_fixed(|| "", config.q_ab, 0, || Value::known(-Fr::one()))?;
+            region.assign_advice(|| "root", config.a, 0, || Value::known(self.roots[idx]))?;
+            region.assign_advice(|| "root", config.b, 0, || Value::known(self.roots[idx]))?;
+            region.assign_fixed(
+                || "root selector",
+                config.q_ab,
+                0,
+                || Value::known(-Fr::one()),
+            )?;
             Ok(())
         }
     }
@@ -209,28 +214,28 @@ mod circuit {
             for instance_idx in 0..INSTANCES {
                 // For every instance, we ensure that the corresponding advice is indeed a square root of it.
                 layouter.assign_region(
-                    || "",
+                    || format!("check {instance_idx}-th root"),
                     |mut region| self.neg_root_square(instance_idx, &mut region, &config),
                 )?;
             }
 
             for instance_idx in 0..INSTANCES {
                 // We also do some dummy work to blow up the number of rows.
-                for _ in 0..(ROW_BLOWUP - 1) {
+                for copy in 0..(ROW_BLOWUP - 1) {
                     layouter.assign_region(
-                        || "",
+                        || format!("check {instance_idx}-th root ({}/{})", copy + 1, ROW_BLOWUP),
                         |mut region| {
                             self.neg_root_square(instance_idx, &mut region, &config)?;
 
                             region.assign_advice_from_instance(
-                                || "",
+                                || "copied instance",
                                 config.instance,
                                 instance_idx,
                                 config.c,
                                 0,
                             )?;
                             region.assign_fixed(
-                                || "",
+                                || "copied instance selector",
                                 config.q_c,
                                 0,
                                 || Value::known(Fr::one()),
