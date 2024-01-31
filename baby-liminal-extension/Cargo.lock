@@ -430,6 +430,7 @@ dependencies = [
  "pallet-contracts",
  "pallet-vk-storage",
  "parity-scale-codec",
+ "paste",
  "sp-core",
  "sp-std",
 ]
