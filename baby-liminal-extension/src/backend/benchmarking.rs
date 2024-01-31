@@ -24,6 +24,15 @@
 //! Please note, that in the current form, it would be sufficient to just use the `VkStorage` pallet as the `Pallet`
 //! type and `pallete_vk_storage::Config` as the `Config` trait. However, we want to keep the benchmarking of the
 //! chain extension abstracted from the pallets that it uses. This is why we define our own dummy pallet and config.
+//!
+//! # Macro-generated benchmark suite
+//!
+//! Since we want to run benchmarks for different circuit parameters, we use a macro to generate all the corresponding
+//! benchmark functions.
+//!
+//! However, since the whole benchmark suite is defined with `#[benchmarks]` macro, we cannot use an auxiliary macro
+//! within it -- this is due to the macro expansion order. To overcome this problem, we provide a macro that generates
+//! the whole benchmark suite.
 
 #![allow(unused_imports)]
 
@@ -62,6 +71,7 @@ macro_rules! get_artifact {
     };
 }
 
+/// Generate the benchmark suite for the given circuit parameters.
 macro_rules! generate_benchmarks {
     (
         circuit_parameters: $(($instances:literal, $row_blowup:literal)),*
@@ -121,4 +131,12 @@ macro_rules! generate_benchmarks {
     };
 }
 
-generate_benchmarks!(circuit_parameters: (1, 1),(1, 8));
+generate_benchmarks!(
+    circuit_parameters:
+        (1, 1), (1, 8), (1, 64), (1, 512), (1, 4096),
+        (2, 1), (2, 8), (2, 64), (2, 512), (2, 4096),
+        (8, 1), (8, 8), (8, 64), (8, 512), (8, 4096),
+        (16, 1), (16, 8), (16, 64), (16, 512), (16, 4096),
+        (64, 1), (64, 8), (64, 64), (64, 512), (64, 4096),
+        (128, 1), (128, 8), (128, 64), (128, 512), (128, 4096)
+);
