@@ -9,9 +9,17 @@ pub struct Config {
     #[clap(long, default_value = "ws://127.0.0.1:9944")]
     pub nodes: Vec<String>,
 
-    /// how many transactions to send
-    #[clap(long, default_value = "10000")]
-    pub transactions: u64,
+    /// How many transactions to put in the interval
+    #[clap(long)]
+    pub transactions_in_interval: u64,
+
+    /// How long the interval is (in secs)
+    #[clap(long, default_value = "1")]
+    pub interval_secs: u64,
+
+    /// For how many intervals should the flood last
+    #[clap(long, default_value = "180")]
+    pub duration: u64,
 
     /// secret phrase : a path to a file or passed on stdin
     #[clap(long)]
@@ -32,14 +40,6 @@ pub struct Config {
     /// changes the awaited status of every transaction from `SubmitOnly` to `Ready`
     #[clap(long)]
     pub wait_for_ready: bool,
-
-    /// How many transactions to put in the interval
-    #[clap(long)]
-    pub transactions_in_interval: Option<u64>,
-
-    /// How long the interval is (in secs)
-    #[clap(long)]
-    pub interval_secs: Option<u64>,
 }
 
 pub fn read_phrase(phrase: String) -> String {

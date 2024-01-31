@@ -1,34 +1,43 @@
+use aleph_client::TOKEN;
 use core::cmp::min;
 use std::env;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use aleph_client::{
     account_from_keypair, pallets::balances::BalanceUserApi, raw_keypair_from_string, AccountId,
-    Balance, BlockHash, ConnectionApi, KeyPair, SignedConnection, SignedConnectionApi, TxStatus,
+    Balance, BlockHash, Connection, ConnectionApi, KeyPair, SignedConnection, SignedConnectionApi,
+    TxStatus,
 };
 
 use subxt::rpc::{Rpc, RpcParams};
 use subxt::tx::TxClient;
 use subxt::utils::MultiAddress;
 
+use aleph_client::AsConnection;
 use clap::Parser;
 use config::Config;
 use futures::future::join_all;
 use log::info;
+use sp_core::Bytes;
 use subxt::config::extrinsic_params::BaseExtrinsicParamsBuilder;
 use subxt::ext::sp_core::{sr25519, Pair};
+use subxt::rpc_params;
 use subxt::tx::PairSigner;
 use tokio::{time, time::sleep};
+
 mod config;
 
-pub async fn nonce(connection: &SignedConnection, account: &AccountId) -> u64 {
-    connection
-        .connection
+pub async fn get_nonce(connection: &Connection, account: &AccountId) -> u64 {
+    connection.client.tx().account_nonce(account).await.unwrap()
+}
+
+pub async fn pending_extrinsics_in_pool(connection: &Connection) -> anyhow::Result<usize> {
+    Ok(connection
         .client
-        .tx()
-        .account_nonce(account)
-        .await
-        .unwrap()
+        .rpc()
+        .request::<Vec<Bytes>>("author_pendingExtrinsics", rpc_params![])
+        .await?
+        .len())
 }
 
 pub async fn transfer_keep_alive(
@@ -37,7 +46,7 @@ pub async fn transfer_keep_alive(
     transfer_amount: Balance,
     nonce: u64,
     status: TxStatus,
-) {
+) -> Result<(), String> {
     let tx = aleph_client::api::tx()
         .balances()
         .transfer_keep_alive(MultiAddress::Id(dest.clone().into()), transfer_amount);
@@ -55,59 +64,83 @@ pub async fn transfer_keep_alive(
         .unwrap()
         .submit_and_watch()
         .await
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
-    match status {
-        TxStatus::Submitted => return,
-        TxStatus::InBlock => watcher.wait_for_in_block().await.unwrap(),
-        TxStatus::Finalized => watcher.wait_for_finalized().await.unwrap(),
-    };
+    if let TxStatus::InBlock = status {
+        watcher
+            .wait_for_in_block()
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
+
+// Max number of ready transactions a node can store (see --pool-limit flag in aleph-node).
+const TX_POOL_LIMIT: u64 = 8096;
+// Leave some space for non-flooder transactions.
+const TX_POOL_LIMIT_SOFT: u64 = TX_POOL_LIMIT * 3 / 4;
 
 async fn flood(
     connections: Vec<SignedConnection>,
     dest: AccountId,
     transfer_amount: Balance,
-    tx_count: u64,
-    rate_limiting: Option<(u64, u64)>,
+    transactions_in_interval: u64,
+    interval_secs: u64,
+    duration: u64,
     status: TxStatus,
 ) -> anyhow::Result<()> {
+    let n_connections = connections.len() as u64;
     let handles: Vec<_> = connections
         .into_iter()
-        .map(|conn| {
+        .enumerate()
+        .map(|(conn_id, conn)| {
             let dest = dest.clone();
             tokio::spawn(async move {
-                let (time, (tx_count, round_count)) = match rate_limiting {
-                    Some((tx_in_interval, interval_secs)) => (
-                        interval_secs,
-                        (tx_in_interval, (tx_count + tx_in_interval) / tx_in_interval),
-                    ),
-                    _ => (0, (tx_count, 1)),
-                };
+                let start = time::Instant::now();
+                let mut nonce = get_nonce(&conn.as_connection(), conn.account_id()).await;
+                for i in 0..duration {
+                    let mut ok_count = 0;
 
-                let nonce = nonce(&conn, conn.account_id()).await;
+                    let pending_in_pool: u64 = pending_extrinsics_in_pool(&conn.as_connection())
+                        .await
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                    if conn_id == 0 {
+                        log::debug!("Pool size: {pending_in_pool}");
+                    }
 
-                for i in 0..round_count {
-                    info!("starting round #{}", i);
-                    let start = time::Instant::now();
-
-                    info!("sending #{} transactions", tx_count);
-                    for j in 0..tx_count {
-                        transfer_keep_alive(
+                    let transactions_to_soft_limit = TX_POOL_LIMIT_SOFT.saturating_sub(pending_in_pool);
+                    let total_tx_to_submit = min(transactions_to_soft_limit, transactions_in_interval);
+                    let mut tx_to_sumbit = total_tx_to_submit / n_connections as u64;
+                    if (conn_id as u64) < total_tx_to_submit % n_connections {
+                        tx_to_sumbit += 1;
+                    }
+                    for _ in 0..tx_to_sumbit {
+                        if let Err(e) = transfer_keep_alive(
                             &conn,
                             &dest,
                             transfer_amount,
-                            nonce + i * tx_count + j,
+                            nonce,
                             TxStatus::Submitted,
                         )
-                        .await;
+                        .await
+                        {
+                            nonce = get_nonce(&conn.as_connection(), conn.account_id()).await;
+                            log::info!("Error when submitting a transaction: {e:?}");
+                            break;
+                        } else {
+                            nonce += 1;
+                            ok_count += 1;
+                        }
                     }
+                    log::debug!("Account {conn_id} round {i}: submitted #{ok_count}/{tx_to_sumbit} transactions");
 
                     let dur = time::Instant::now().saturating_duration_since(start);
-
-                    let left_duration = Duration::from_secs(time).saturating_sub(dur);
-
-                    info!("sleeping for {}ms", left_duration.as_millis());
+                    if dur.as_secs() >= duration * interval_secs {
+                        break;
+                    }
+                    let left_duration = Duration::from_secs((i+1)*interval_secs).saturating_sub(dur);
                     sleep(left_duration).await;
                 }
             })
@@ -123,7 +156,6 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     connection: SignedConnection,
     n: u32,
     node: F,
-    account_balance: Balance,
     skip: bool,
 ) -> Vec<SignedConnection> {
     let mut connections = vec![];
@@ -137,13 +169,12 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
         return connections;
     }
 
-    let nonce = nonce(&connection, connection.account_id()).await;
-
+    let nonce = get_nonce(connection.as_connection(), connection.account_id()).await;
     for (i, conn) in connections.iter().enumerate() {
         transfer_keep_alive(
             &connection,
             &conn.account_id(),
-            account_balance,
+            (1e22 as u128).into(),
             nonce + i as u64,
             if i % 100 == 0 {
                 TxStatus::InBlock
@@ -179,19 +210,14 @@ async fn main() -> anyhow::Result<()> {
         panic!("Needs --phrase or --seed");
     }
 
-    let tx_count = config.transactions;
-    let accounts = min(32, tx_count);
-    let tx_per_account = (tx_count + accounts - 1) / accounts;
-    let rate_limiting = match (config.transactions_in_interval, config.interval_secs) {
-        (Some(tii), Some(is)) => Some((tii, is)),
-        (None, None) => None,
-        _ => panic!("--transactions-in-interval needs to be specified with --interval-secs"),
-    };
+    let accounts: u32 = min(32u64, config.transactions_in_interval)
+        .try_into()
+        .unwrap();
+
     let tx_status = match config.wait_for_ready {
         true => TxStatus::InBlock,
         false => TxStatus::Submitted,
     };
-
     let account = match &config.phrase {
         Some(phrase) => {
             sr25519::Pair::from_phrase(&config::read_phrase(phrase.clone()), None)
@@ -204,28 +230,26 @@ async fn main() -> anyhow::Result<()> {
         )
         .unwrap(),
     };
+
     let main_connection =
         SignedConnection::new(&config.nodes[0], KeyPair::new(account.clone())).await;
 
     let nodes = config.nodes.clone();
-
-    info!("tx per acc {tx_per_account:?}, initializing {accounts:?} accounts");
-
     let connections = initialize_n_accounts(
         main_connection,
-        accounts as u32,
+        accounts,
         |i| nodes[i as usize % nodes.len()].clone(),
-        (tx_per_account + tx_per_account * 10_000_000_000).into(),
         config.skip_initialization,
     )
     .await;
-    info!("Init done");
+
     flood(
         connections,
         account_from_keypair(&account),
         1,
-        tx_per_account as u64,
-        rate_limiting,
+        config.transactions_in_interval,
+        config.interval_secs,
+        config.duration,
         tx_status,
     )
     .await?;
