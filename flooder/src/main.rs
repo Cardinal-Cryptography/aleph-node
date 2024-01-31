@@ -1,18 +1,16 @@
 use aleph_client::TOKEN;
 use core::cmp::min;
 use std::env;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use aleph_client::{
-    account_from_keypair, pallets::balances::BalanceUserApi, raw_keypair_from_string, AccountId,
-    Balance, BlockHash, Connection, ConnectionApi, KeyPair, SignedConnection, SignedConnectionApi,
-    TxStatus,
+    account_from_keypair, raw_keypair_from_string, AccountId, Balance, Connection, KeyPair,
+    SignedConnection, SignedConnectionApi, TxStatus,
 };
 
-use subxt::rpc::{Rpc, RpcParams};
-use subxt::tx::TxClient;
 use subxt::utils::MultiAddress;
 
+use aleph_client::AlephConfig;
 use aleph_client::AsConnection;
 use clap::Parser;
 use config::Config;
@@ -23,6 +21,8 @@ use subxt::config::extrinsic_params::BaseExtrinsicParamsBuilder;
 use subxt::ext::sp_core::{sr25519, Pair};
 use subxt::rpc_params;
 use subxt::tx::PairSigner;
+use subxt::tx::SubmittableExtrinsic;
+use subxt::OnlineClient;
 use tokio::{time, time::sleep};
 
 mod config;
@@ -40,18 +40,17 @@ pub async fn pending_extrinsics_in_pool(connection: &Connection) -> anyhow::Resu
         .len())
 }
 
-pub async fn transfer_keep_alive(
+pub fn transfer_keep_alive(
     connection: &SignedConnection,
     dest: &AccountId,
     transfer_amount: Balance,
     nonce: u64,
-    status: TxStatus,
-) -> Result<(), String> {
+) -> SubmittableExtrinsic<AlephConfig, OnlineClient<AlephConfig>> {
     let tx = aleph_client::api::tx()
         .balances()
         .transfer_keep_alive(MultiAddress::Id(dest.clone().into()), transfer_amount);
 
-    let watcher = connection
+    connection
         .connection
         .client
         .tx()
@@ -62,15 +61,30 @@ pub async fn transfer_keep_alive(
             BaseExtrinsicParamsBuilder::new(),
         )
         .unwrap()
-        .submit_and_watch()
-        .await
-        .map_err(|e| e.to_string())?;
+}
 
-    if let TxStatus::InBlock = status {
-        watcher
-            .wait_for_in_block()
-            .await
-            .map_err(|e| e.to_string())?;
+pub async fn submit(
+    status: TxStatus,
+    tx: SubmittableExtrinsic<AlephConfig, OnlineClient<AlephConfig>>,
+) -> anyhow::Result<()> {
+    match status {
+        TxStatus::Submitted => {
+            tx.submit().await.unwrap();
+        }
+        TxStatus::InBlock => {
+            tx.submit_and_watch()
+                .await
+                .unwrap()
+                .wait_for_in_block()
+                .await?;
+        }
+        TxStatus::Finalized => {
+            tx.submit_and_watch()
+                .await
+                .unwrap()
+                .wait_for_finalized()
+                .await?;
+        }
     }
     Ok(())
 }
@@ -117,13 +131,12 @@ async fn flood(
                         tx_to_sumbit += 1;
                     }
                     for _ in 0..tx_to_sumbit {
-                        if let Err(e) = transfer_keep_alive(
+                        if let Err(e) = submit(status, transfer_keep_alive(
                             &conn,
                             &dest,
                             transfer_amount,
                             nonce,
-                            TxStatus::Submitted,
-                        )
+                        ))
                         .await
                         {
                             nonce = get_nonce(&conn.as_connection(), conn.account_id()).await;
@@ -155,9 +168,14 @@ async fn flood(
 async fn initialize_n_accounts<F: Fn(u32) -> String>(
     connection: SignedConnection,
     n: u32,
+    amount: Balance,
     node: F,
     skip: bool,
 ) -> Vec<SignedConnection> {
+    log::info!(
+        "Initializing accounts, estimated total fee per account: {}TZERO",
+        amount as f32 / TOKEN as f32
+    );
     let mut connections = vec![];
     for i in 0..n {
         let seed = i.to_string();
@@ -171,29 +189,36 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
 
     let nonce = get_nonce(connection.as_connection(), connection.account_id()).await;
     for (i, conn) in connections.iter().enumerate() {
+        submit(
+            TxStatus::Submitted,
+            transfer_keep_alive(&connection, &conn.account_id(), amount, nonce + i as u64),
+        )
+        .await
+        .unwrap();
+    }
+    submit(
+        TxStatus::Finalized,
         transfer_keep_alive(
             &connection,
-            &conn.account_id(),
-            (1e22 as u128).into(),
-            nonce + i as u64,
-            if i % 100 == 0 {
-                TxStatus::InBlock
-            } else {
-                TxStatus::Submitted
-            },
-        )
-        .await;
-    }
-    transfer_keep_alive(
-        &connection,
-        &connection.account_id(),
-        1,
-        nonce + connections.len() as u64,
-        TxStatus::Finalized,
+            &connection.account_id(),
+            1,
+            nonce + connections.len() as u64,
+        ),
     )
-    .await;
+    .await
+    .unwrap();
 
     connections
+}
+
+fn estimate_avg_fee_per_transaction_in_block(estimated_blocks: u64, starting_fee: Balance) -> u128 {
+    let mut total_fee = 0;
+    let mut fee = starting_fee;
+    for _ in 0..estimated_blocks {
+        total_fee += fee;
+        fee = (fee as f64 * 1.04) as Balance;
+    }
+    (total_fee + estimated_blocks as u128 - 1) / estimated_blocks as u128
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -234,10 +259,30 @@ async fn main() -> anyhow::Result<()> {
     let main_connection =
         SignedConnection::new(&config.nodes[0], KeyPair::new(account.clone())).await;
 
+    let estimated_blocks = config.duration * config.interval_secs;
+    let starting_fee = transfer_keep_alive(
+        &main_connection,
+        &main_connection.account_id(),
+        1,
+        get_nonce(
+            &main_connection.as_connection(),
+            main_connection.account_id(),
+        )
+        .await,
+    )
+    .partial_fee_estimate()
+    .await
+    .unwrap();
+
+    let avg_fee_per_transaction =
+        estimate_avg_fee_per_transaction_in_block(estimated_blocks, starting_fee) * 5 / 4; // Give some margin
+
     let nodes = config.nodes.clone();
     let connections = initialize_n_accounts(
         main_connection,
         accounts,
+        avg_fee_per_transaction * config.transactions_in_interval as u128 * config.duration as u128
+            / accounts as u128,
         |i| nodes[i as usize % nodes.len()].clone(),
         config.skip_initialization,
     )
