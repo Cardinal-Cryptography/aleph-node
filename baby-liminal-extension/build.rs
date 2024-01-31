@@ -59,7 +59,7 @@ fn main() {
 
     // We run benchmarks for up to ~4K gates - this is to be changed for the final version. Now, we keep it low for
     // developer convenience.
-    const CIRCUIT_MAX_K: u32 = 15;
+    const CIRCUIT_MAX_K: u32 = 20;
     // We run a common setup for all generated circuits.
     let params = ParamsKZG::<Bn256>::setup(CIRCUIT_MAX_K, ParamsKZG::<Bn256>::mock_rng());
 
