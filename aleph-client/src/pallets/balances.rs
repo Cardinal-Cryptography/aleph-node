@@ -152,7 +152,7 @@ impl<S: SignedConnectionApi> BalanceUserApi for S {
             .balances()
             .transfer_keep_alive(MultiAddress::Id(dest.into()), amount);
 
-        self.send_tx_with_params(tx, ParamsBuilder::new().tip(tip), status)
+        self.send_tx_with_params(tx, ParamsBuilder::new().tip(tip), None, status)
             .await
     }
 }

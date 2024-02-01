@@ -9,17 +9,17 @@ pub struct Config {
     #[clap(long, default_value = "ws://127.0.0.1:9944")]
     pub nodes: Vec<String>,
 
-    /// How many transactions to put in the interval
+    /// How many transactions to send in the interval
     #[clap(long)]
     pub transactions_in_interval: u64,
 
-    /// How long the interval is (in secs)
+    /// How long the interval is, in secs
     #[clap(long, default_value = "1")]
-    pub interval_secs: u64,
+    pub interval_duration: u64,
 
     /// For how many intervals should the flood last
     #[clap(long, default_value = "180")]
-    pub duration: u64,
+    pub intervals: u64,
 
     /// secret phrase : a path to a file or passed on stdin
     #[clap(long)]

@@ -3,6 +3,7 @@ use std::{thread::sleep, time::Duration};
 use anyhow::anyhow;
 use codec::Decode;
 use log::{debug, info};
+use primitives::Nonce;
 use serde::{Deserialize, Serialize};
 use subxt::{
     blocks::ExtrinsicEvents,
@@ -161,6 +162,7 @@ pub trait SignedConnectionApi: ConnectionApi {
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
     /// * `params` - optional tx params e.g. tip
+    /// * `nonce` - optional nonce. If None, current signer's account nonce will be used)
     /// * `status` - a [`TxStatus`] of a tx to wait for
     /// # Returns
     /// Block hash of block where transaction was put together with transaction hash, or error.
@@ -168,6 +170,7 @@ pub trait SignedConnectionApi: ConnectionApi {
         &self,
         tx: Call,
         params: ParamsBuilder,
+        nonce: Option<Nonce>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo>;
 
@@ -301,7 +304,7 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
         tx: Call,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
-        self.send_tx_with_params(tx, Default::default(), status)
+        self.send_tx_with_params(tx, Default::default(), None, status)
             .await
     }
 
@@ -309,17 +312,38 @@ impl<S: AsSigned + Sync> SignedConnectionApi for S {
         &self,
         tx: Call,
         params: ParamsBuilder,
+        nonce: Option<Nonce>,
         status: TxStatus,
     ) -> anyhow::Result<TxInfo> {
         if let Some(details) = tx.validation_details() {
-            info!(target:"aleph-client", "Sending extrinsic {}.{} with params: {:?}", details.pallet_name, details.call_name, params);
+            info!(
+                target:"aleph-client", "Sending extrinsic {}.{} with params: {:?} and nonce {:?}",
+                details.pallet_name,
+                details.call_name,
+                params,
+                nonce
+            );
         }
 
-        let progress = self
+        let nonce = match nonce {
+            Some(nonce) => nonce as u64,
+            None => {
+                self.as_connection()
+                    .as_client()
+                    .tx()
+                    .account_nonce(self.account_id())
+                    .await?
+            }
+        };
+
+        let signed = self
             .as_connection()
             .as_client()
             .tx()
-            .sign_and_submit_then_watch(&tx, &self.as_signed().signer().inner, params)
+            .create_signed_with_nonce(&tx, &self.as_signed().signer().inner, nonce, params)?;
+
+        let progress = signed
+            .submit_and_watch()
             .await
             .map_err(|e| anyhow!("Failed to submit transaction: {:?}", e))?;
 
