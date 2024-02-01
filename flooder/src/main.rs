@@ -20,11 +20,6 @@ use subxt::{
 use tokio::{time, time::sleep};
 mod config;
 
-// Max number of ready transactions a node can store (see --pool-limit flag in aleph-node).
-const TX_POOL_LIMIT: u64 = 8096;
-// Leave some space for non-flooder transactions.
-const TX_POOL_LIMIT_SOFT: u64 = TX_POOL_LIMIT * 3 / 4;
-
 fn transfer_keep_alive(dest: AccountId, amount: Balance) -> impl TxPayload + Send + Sync {
     aleph_client::api::tx()
         .balances()
@@ -49,6 +44,7 @@ async fn flood(
     transfer_amount: Balance,
     schedule: Schedule,
     status: TxStatus,
+    pool_limit: u64,
     return_balance_at_the_end: bool,
 ) -> anyhow::Result<()> {
     let n_connections = connections.len() as u64;
@@ -68,7 +64,7 @@ async fn flood(
                         log::debug!("Pool size: {pending_in_pool}");
                     }
 
-                    let transactions_to_soft_limit = TX_POOL_LIMIT_SOFT.saturating_sub(pending_in_pool);
+                    let transactions_to_soft_limit = pool_limit.saturating_sub(pending_in_pool);
                     let total_tx_to_submit = min(transactions_to_soft_limit, schedule.transactions_in_interval);
                     let mut tx_to_sumbit = total_tx_to_submit / n_connections;
                     if (conn_id as u64) < total_tx_to_submit % n_connections {
@@ -169,10 +165,9 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
 
 async fn estimate_avg_fee_per_transaction_in_block(
     main_connection: &SignedConnection,
-    duration: u128,
-    interval_secs: u128,
+    schedule: &Schedule,
 ) -> anyhow::Result<u128> {
-    let estimated_blocks = duration * interval_secs;
+    let estimated_blocks = (schedule.intervals * schedule.interval_duration) as u128;
     let fee_estimation_tx = main_connection
         .transfer_keep_alive(main_connection.account_id().clone(), 1, TxStatus::Finalized)
         .await?;
@@ -204,9 +199,9 @@ async fn main() -> anyhow::Result<()> {
         transactions_in_interval: config.transactions_in_interval,
     };
 
-    let accounts: u32 = min(32u64, schedule.transactions_in_interval)
-        .try_into()
-        .unwrap();
+    let accounts: u32 = (schedule.transactions_in_interval as f64).sqrt() as u32;
+
+    assert!(accounts >= 1);
 
     let tx_status = match config.wait_for_ready {
         true => TxStatus::InBlock,
@@ -228,17 +223,13 @@ async fn main() -> anyhow::Result<()> {
     let main_connection =
         SignedConnection::new(&config.nodes[0], KeyPair::new(account.clone())).await;
 
-    let mut avg_fee_per_transaction = estimate_avg_fee_per_transaction_in_block(
-        &main_connection,
-        schedule.intervals.into(),
-        schedule.interval_duration.into(),
-    )
-    .await?;
+    let mut avg_fee_per_transaction =
+        estimate_avg_fee_per_transaction_in_block(&main_connection, &schedule).await?;
     avg_fee_per_transaction = avg_fee_per_transaction * 5 / 4; // Leave some margin
 
     let total_fee_per_account = avg_fee_per_transaction
         * schedule.transactions_in_interval as u128
-        * schedule.interval_duration as u128
+        * schedule.intervals as u128
         / accounts as u128;
 
     let nodes = config.nodes.clone();
@@ -257,6 +248,7 @@ async fn main() -> anyhow::Result<()> {
         1,
         schedule,
         tx_status,
+        config.pool_limit,
         !config.skip_initialization,
     )
     .await?;
