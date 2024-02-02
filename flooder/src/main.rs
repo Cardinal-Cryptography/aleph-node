@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use aleph_client::{
     account_from_keypair,
-    pallets::{author::AuthorRpc, balances::BalanceUserApi, system::SystemApi},
+    pallets::{
+        author::AuthorRpc, balances::BalanceUserApi, system::SystemApi, timestamp::TimestampApi,
+    },
     raw_keypair_from_string,
     utility::BlocksApi,
     AccountId, Balance, KeyPair, Nonce, SignedConnection, SignedConnectionApi, TxStatus, TOKEN,
@@ -113,7 +115,7 @@ async fn flood(
 }
 
 async fn initialize_n_accounts<F: Fn(u32) -> String>(
-    connection: SignedConnection,
+    connection: &SignedConnection,
     n: u32,
     amount: Balance,
     node: F,
@@ -163,6 +165,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     connections
 }
 
+/// Only a rough estimation, for the worst case where blocks are 75% full with normal non-operational.
 async fn estimate_avg_fee_per_transaction_in_block(
     main_connection: &SignedConnection,
     schedule: &Schedule,
@@ -178,8 +181,62 @@ async fn estimate_avg_fee_per_transaction_in_block(
     for _ in 0..estimated_blocks {
         total_fee += fee;
         fee = (fee as f64 * 1.06) as Balance;
+        if total_fee > Balance::MAX / 4 {
+            return Err(anyhow::anyhow!("Fee estimation overflowed."));
+        }
     }
     Ok((total_fee + estimated_blocks - 1) / estimated_blocks)
+}
+
+struct FloodStats {
+    transactions_per_second: f64,
+    transactions_per_block: f64,
+    transactions_per_block_stddev: f64,
+    block_time: f64,
+    block_time_stddev: f64,
+}
+
+fn stddev(values: &[u64]) -> f64 {
+    let mean = values.iter().map(|&x| x as f64).sum::<f64>() / values.len() as f64;
+    let mean_of_squares =
+        values.iter().map(|&x| x as f64 * x as f64).sum::<f64>() / values.len() as f64;
+    (mean_of_squares - mean * mean).sqrt()
+}
+
+async fn compute_stats(
+    connection: &SignedConnection,
+    start_block: u32,
+    end_block: u32,
+) -> anyhow::Result<FloodStats> {
+    let mut xt_counts = vec![];
+    let mut block_times = vec![];
+
+    let timestamp = |number| async move {
+        anyhow::Ok(
+            connection
+                .get_timestamp(connection.get_block_hash(number).await?)
+                .await
+                .unwrap(),
+        )
+    };
+
+    for number in start_block..=end_block {
+        let hash = connection.get_block_hash(number).await?.unwrap();
+        let block = connection.connection.as_client().blocks().at(hash).await?;
+        xt_counts.push(block.body().await?.extrinsics().len().try_into()?);
+        block_times.push(timestamp(number).await? - timestamp(number - 1).await?);
+    }
+
+    let total_time_ms = timestamp(end_block).await? - timestamp(start_block - 1).await?;
+    let total_xt: u64 = xt_counts.iter().sum();
+
+    Ok(FloodStats {
+        transactions_per_second: total_xt as f64 * 1000.0 / total_time_ms as f64,
+        transactions_per_block: total_xt as f64 / xt_counts.len() as f64,
+        transactions_per_block_stddev: stddev(&xt_counts[..]),
+        block_time: total_time_ms as f64 / xt_counts.len() as f64,
+        block_time_stddev: stddev(&block_times[..]),
+    })
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -227,20 +284,21 @@ async fn main() -> anyhow::Result<()> {
         estimate_avg_fee_per_transaction_in_block(&main_connection, &schedule).await?;
     avg_fee_per_transaction = avg_fee_per_transaction * 5 / 4; // Leave some margin
 
-    let total_fee_per_account = avg_fee_per_transaction
-        * schedule.transactions_in_interval as u128
-        * schedule.intervals as u128
-        / accounts as u128;
+    let total_fee_per_account = (avg_fee_per_transaction / accounts as u128)
+        .saturating_mul(schedule.transactions_in_interval as u128)
+        .saturating_mul(schedule.intervals as u128);
 
     let nodes = config.nodes.clone();
     let connections = initialize_n_accounts(
-        main_connection,
+        &main_connection,
         accounts,
         total_fee_per_account,
         |i| nodes[i as usize % nodes.len()].clone(),
         config.skip_initialization,
     )
     .await;
+
+    let best_block_pre_flood = main_connection.get_best_block().await.unwrap().unwrap();
 
     flood(
         connections,
@@ -252,6 +310,19 @@ async fn main() -> anyhow::Result<()> {
         !config.skip_initialization,
     )
     .await?;
+
+    let end_block = main_connection.get_best_block().await.unwrap().unwrap();
+    let start_block = best_block_pre_flood + (end_block - best_block_pre_flood) / 10;
+    let stats = compute_stats(&main_connection, start_block, end_block).await?;
+
+    info!(
+        "Stats:\nTransactions per second: {:.2}\nTransactions per block: {:.2} (stddev = {:.2})\nBlock time: {:.2}ms (stddev = {:.2})",
+        stats.transactions_per_second,
+        stats.transactions_per_block,
+        stats.transactions_per_block_stddev,
+        stats.block_time,
+        stats.block_time_stddev,
+    );
 
     Ok(())
 }
