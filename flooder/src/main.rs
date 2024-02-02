@@ -20,6 +20,7 @@ use subxt::{
     utils::{MultiAddress, Static},
 };
 use tokio::{time, time::sleep};
+
 mod config;
 
 fn transfer_keep_alive(dest: AccountId, amount: Balance) -> impl TxPayload + Send + Sync {
@@ -117,8 +118,8 @@ async fn flood(
 async fn initialize_n_accounts<F: Fn(u32) -> String>(
     connection: &SignedConnection,
     n: u32,
-    amount: Balance,
     node: F,
+    amount: Balance,
     skip: bool,
 ) -> Vec<SignedConnection> {
     log::info!(
@@ -257,7 +258,6 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let accounts: u32 = (schedule.transactions_in_interval as f64).sqrt() as u32;
-
     assert!(accounts >= 1);
 
     let tx_status = match config.wait_for_ready {
@@ -292,8 +292,8 @@ async fn main() -> anyhow::Result<()> {
     let connections = initialize_n_accounts(
         &main_connection,
         accounts,
-        total_fee_per_account,
         |i| nodes[i as usize % nodes.len()].clone(),
+        total_fee_per_account,
         config.skip_initialization,
     )
     .await;
