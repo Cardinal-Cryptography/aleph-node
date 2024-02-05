@@ -162,7 +162,7 @@ pub trait SignedConnectionApi: ConnectionApi {
     /// Send a transaction to a chain. It waits for a given tx `status`.
     /// * `tx` - encoded transaction payload
     /// * `params` - optional tx params e.g. tip
-    /// * `nonce` - optional nonce. If None, current signer's account nonce will be used)
+    /// * `nonce` - optional nonce. If None, current signer's account nonce will be used
     /// * `status` - a [`TxStatus`] of a tx to wait for
     /// # Returns
     /// Block hash of block where transaction was put together with transaction hash, or error.
