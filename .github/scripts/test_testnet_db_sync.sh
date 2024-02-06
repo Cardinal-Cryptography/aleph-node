@@ -8,6 +8,7 @@ CHAINSPEC="${BASE_PATH}/chainspec.json"
 DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity.html"
 DB_PATH="chains/testnet/"
 DB_ARG="--database paritydb"
+TOP_BLOCK_SCRIPT="./.github/scripts/get_top_block.py"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -16,10 +17,6 @@ while [[ $# -gt 0 ]]; do
             DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
             DB_ARG="--enable-pruning"
             shift;;
-        --top-block-script)
-            echo "Using $2 to get the top block."
-            TOP_BLOCK_SCRIPT=$2
-            shift 2;;
         *)
             echo "Unrecognized argument: $1"
             exit 1;;

@@ -41,8 +41,7 @@ jobs:
       - name: Download snapshot
         timeout-minutes: 360
         run: |
-          ./.github/scripts/test_db_sync.sh \
-            --top-block-script ./.github/scripts/get_top_block.py
+          ./.github/scripts/test_testnet_db_sync.sh
 
 
   slack-notification:
