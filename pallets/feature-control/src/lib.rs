@@ -8,6 +8,9 @@
 #![recursion_limit = "256"]
 #![deny(missing_docs)]
 
+#[cfg(test)]
+mod tests;
+
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -25,17 +28,6 @@ pub enum Feature {
     OnChainVerifier,
 }
 
-/// The status of a feature: either enabled or disabled.
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
-pub enum FeatureStatus {
-    /// The feature is enabled.
-    #[codec(index = 0)]
-    Enabled,
-    /// The feature is disabled.
-    #[codec(index = 1)]
-    Disabled,
-}
-
 /// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -44,7 +36,7 @@ pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::OriginFor;
 
-    use super::{FeatureStatus::*, *};
+    use super::*;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -57,8 +49,10 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A feature has been enabled or disabled.
-        FeatureStatusChanged(Feature, FeatureStatus),
+        /// A feature has been enabled.
+        FeatureEnabled(Feature),
+        /// A feature has been disabled.
+        FeatureDisabled(Feature),
     }
 
     #[pallet::storage]
@@ -77,7 +71,7 @@ pub mod pallet {
         pub fn enable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
             T::Controller::ensure_origin(origin)?;
             ActiveFeatures::<T>::insert(feature, ());
-            Self::deposit_event(Event::FeatureStatusChanged(feature, Enabled));
+            Self::deposit_event(Event::FeatureEnabled(feature));
             Ok(())
         }
 
@@ -87,7 +81,7 @@ pub mod pallet {
         pub fn disable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
             T::Controller::ensure_origin(origin)?;
             ActiveFeatures::<T>::remove(feature);
-            Self::deposit_event(Event::FeatureStatusChanged(feature, Disabled));
+            Self::deposit_event(Event::FeatureDisabled(feature));
             Ok(())
         }
     }
