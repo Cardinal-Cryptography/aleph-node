@@ -990,11 +990,12 @@ pub type Executive = frame_executive::Executive<
 mod benches {
     #[cfg(feature = "liminal")]
     frame_benchmarking::define_benchmarks!(
+        [pallet_feature_control, FeatureControl]
         [pallet_vk_storage, VkStorage]
         [baby_liminal_extension, baby_liminal_extension::ChainExtensionBenchmarking<Runtime>]
     );
     #[cfg(not(feature = "liminal"))]
-    frame_benchmarking::define_benchmarks!([]);
+    frame_benchmarking::define_benchmarks!([pallet_feature_control, FeatureControl]);
 }
 
 type EventRecord = frame_system::EventRecord<RuntimeEvent, Hash>;

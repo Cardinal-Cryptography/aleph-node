@@ -1,11 +1,12 @@
 use frame_benchmarking::v2::*;
-use frame_system::RawOrigin;
-use sp_std::vec;
-
-use crate::{Call, Config, Feature, Pallet};
 
 #[benchmarks]
 mod benchmarks {
+    use frame_system::RawOrigin;
+    use sp_std::vec;
+
+    use crate::{ActiveFeatures, Call, Config, Feature, Pallet};
+
     #[benchmark]
     fn enable() {
         #[extrinsic_call]
@@ -16,15 +17,15 @@ mod benchmarks {
 
     #[benchmark]
     fn disable() {
-        Pallet::enable(RawOrigin::Root, Feature::OnChainVerifier);
+        Pallet::<T>::enable(RawOrigin::Root.into(), Feature::OnChainVerifier).unwrap();
 
         #[extrinsic_call]
         _(RawOrigin::Root, Feature::OnChainVerifier);
 
-        assert!(ActiveFeatures::<T>::contains_key(Feature::OnChainVerifier));
+        assert!(!ActiveFeatures::<T>::contains_key(Feature::OnChainVerifier));
     }
 
-    impl_benchmark_test_suite!(
+    frame_benchmarking::impl_benchmark_test_suite!(
         Pallet,
         crate::tests::new_test_ext(),
         crate::tests::TestRuntime
