@@ -882,6 +882,10 @@ impl pallet_proxy::Config for Runtime {
     type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+impl pallet_feature_control::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(not(feature = "liminal"))]
 construct_runtime!(
@@ -909,6 +913,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
+        FeatureControl: pallet_feature_control = 23,
     }
 );
 
@@ -938,6 +943,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
+        FeatureControl: pallet_feature_control = 23,
         VkStorage: pallet_vk_storage = 41,
     }
 );

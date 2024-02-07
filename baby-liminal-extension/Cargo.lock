@@ -97,6 +97,7 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-elections",
+ "pallet-feature-control",
  "pallet-identity",
  "pallet-insecure-randomness-collective-flip",
  "pallet-multisig",
@@ -2919,6 +2920,18 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-feature-control"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
  "sp-std",
 ]
 

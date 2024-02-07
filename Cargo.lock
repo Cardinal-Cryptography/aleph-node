@@ -347,6 +347,7 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-elections",
+ "pallet-feature-control",
  "pallet-identity",
  "pallet-insecure-randomness-collective-flip",
  "pallet-multisig",

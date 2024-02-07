@@ -62,6 +62,7 @@ frame-benchmarking = { workspace = true, optional = true }
 pallet-aleph = { workspace = true }
 pallet-committee-management= { workspace = true }
 pallet-elections = { workspace = true }
+pallet-feature-control = { workspace = true }
 primitives = { workspace = true }
 pallet-proxy = { workspace = true }
 
