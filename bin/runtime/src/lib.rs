@@ -884,6 +884,7 @@ impl pallet_proxy::Config for Runtime {
 
 impl pallet_feature_control::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type Controller = EnsureRoot<AccountId>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

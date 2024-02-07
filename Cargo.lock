@@ -5208,6 +5208,7 @@ dependencies = [
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-std",
 ]
 
