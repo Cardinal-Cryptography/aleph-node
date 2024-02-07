@@ -8,6 +8,7 @@ members = [
     "finality-aleph",
     "pallets/aleph",
     "pallets/elections",
+    "pallets/feature-control",
     "pallets/committee-management",
     "pallets/support",
     "primitives",
