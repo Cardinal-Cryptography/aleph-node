@@ -884,6 +884,7 @@ impl pallet_proxy::Config for Runtime {
 
 impl pallet_feature_control::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_feature_control::AlephWeight<Runtime>;
     type Controller = EnsureRoot<AccountId>;
 }
 

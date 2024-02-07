@@ -24,6 +24,7 @@ impl frame_system::Config for TestRuntime {
 
 impl crate::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
     type Controller = EnsureRoot<Self::AccountId>;
 }
 

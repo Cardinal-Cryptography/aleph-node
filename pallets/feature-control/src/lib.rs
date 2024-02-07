@@ -8,14 +8,18 @@
 #![recursion_limit = "256"]
 #![deny(missing_docs)]
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 mod tests;
+mod weights;
 
 use frame_support::pallet_prelude::StorageVersion;
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
+pub use weights::{AlephWeight, WeightInfo};
 
 /// All available optional features for the Aleph Zero runtime.
 #[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
@@ -36,12 +40,14 @@ pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::OriginFor;
 
-    use super::*;
+    use super::{weights::WeightInfo, *};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Item required for emitting events.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Weight information for the pallet's extrinsics.
+        type WeightInfo: WeightInfo;
         /// The origin that can modify the feature map.
         type Controller: EnsureOrigin<Self::RuntimeOrigin>;
     }
@@ -67,7 +73,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Enable a feature.
         #[pallet::call_index(0)]
-        #[pallet::weight(0)]
+        #[pallet::weight(T::WeightInfo::enable())]
         pub fn enable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
             T::Controller::ensure_origin(origin)?;
             ActiveFeatures::<T>::insert(feature, ());
@@ -77,7 +83,7 @@ pub mod pallet {
 
         /// Disable a feature.
         #[pallet::call_index(1)]
-        #[pallet::weight(0)]
+        #[pallet::weight(T::WeightInfo::disable())]
         pub fn disable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
             T::Controller::ensure_origin(origin)?;
             ActiveFeatures::<T>::remove(feature);
