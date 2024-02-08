@@ -959,7 +959,6 @@ pub type SignedExtra = (
 /// Should be cleared after every release.
 pub type Migrations = (pallet_contracts::migration::Migration<Runtime>,);
 
-
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
     generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
