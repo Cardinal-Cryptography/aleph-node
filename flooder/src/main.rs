@@ -14,6 +14,8 @@ use config::Config;
 use futures::future::join_all;
 use log::{debug, info};
 use subxt::{
+    config::extrinsic_params::BaseExtrinsicParamsBuilder,
+    config::substrate::Era,
     ext::sp_core::{sr25519, Pair},
     tx::TxPayload,
     utils::{MultiAddress, Static},
@@ -53,6 +55,12 @@ async fn flood(
     return_balance_at_the_end: bool,
 ) -> anyhow::Result<()> {
     let start = Instant::now();
+    let start_finalized_hash = connections[0].get_finalized_block_hash().await?;
+    let start_finalized_number = connections[0]
+        .get_block_number(start_finalized_hash)
+        .await?
+        .unwrap() as u64;
+
     let mut nonces: Vec<u32> = vec![];
     for conn in &connections {
         nonces.push(conn.account_nonce(conn.account_id()).await?);
@@ -84,11 +92,21 @@ async fn flood(
                 let dest = dest.clone();
                 let nonce = nonces[conn_id];
                 nonces[conn_id] += per_task as u32;
+
+                // Set mortality roughly to flooding length
+                let params = BaseExtrinsicParamsBuilder::default().era(
+                    Era::mortal(
+                        schedule.intervals * schedule.interval_duration + 30,
+                        start_finalized_number,
+                    ),
+                    start_finalized_hash,
+                );
+
                 async move {
                     for tx_id in 0..per_task as u32 {
                         conn.sign_with_params(
                             transfer_keep_alive(dest.clone(), transfer_amount),
-                            Default::default(),
+                            params.clone(),
                             nonce + tx_id,
                         )?
                         .submit(status)
