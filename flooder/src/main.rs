@@ -1,5 +1,4 @@
 use core::cmp::min;
-use std::time::Duration;
 
 use aleph_client::{
     account_from_keypair,
@@ -13,15 +12,18 @@ use aleph_client::{
 use clap::Parser;
 use config::Config;
 use futures::future::join_all;
-use log::info;
+use log::{debug, info};
 use subxt::{
     ext::sp_core::{sr25519, Pair},
     tx::TxPayload,
     utils::{MultiAddress, Static},
 };
-use tokio::{time, time::sleep};
+use tokio::time::{sleep, Duration, Instant};
 
 mod config;
+
+/// Accounts used for the experiment (except for the main account) will have seed //1 etc.
+const ACCOUNTS_SEED_PREFIX: &str = "//";
 
 fn transfer_keep_alive(dest: AccountId, amount: Balance) -> impl TxPayload + Send + Sync {
     aleph_client::api::tx()
@@ -50,67 +52,74 @@ async fn flood(
     pool_limit: u64,
     return_balance_at_the_end: bool,
 ) -> anyhow::Result<()> {
-    let n_connections = connections.len() as u64;
-    let handles: Vec<_> = connections
-        .into_iter()
-        .enumerate()
-        .map(|(conn_id, conn)| {
-            let dest = dest.clone();
-            tokio::spawn(async move {
-                let start = time::Instant::now();
-                let mut nonce = conn.account_nonce(conn.account_id()).await.unwrap();
-                for i in 0..schedule.intervals {
-                    let mut ok_count = 0;
+    let start = Instant::now();
+    let mut nonces: Vec<u32> = vec![];
+    for conn in &connections {
+        nonces.push(conn.account_nonce(conn.account_id()).await?);
+    }
 
-                    let pending_in_pool = conn.pending_extrinsics_len().await.unwrap();
-                    if conn_id == 0 {
-                        log::debug!("Pool size: {pending_in_pool}");
-                    }
+    let mut overdue_transactions = 0;
+    for i in 0..schedule.intervals {
+        let pending_in_pool = connections[0].pending_extrinsics_len().await?;
+        overdue_transactions += schedule.transactions_in_interval;
+        let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
+        let transactions_to_send = min(transactions_to_pool_limit, overdue_transactions);
+        overdue_transactions -= transactions_to_send;
+        info!("Interval {}: submitting {} txns", i, transactions_to_send);
+        debug!("In txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}");
 
-                    let transactions_to_soft_limit = pool_limit.saturating_sub(pending_in_pool);
-                    let total_tx_to_submit = min(transactions_to_soft_limit, schedule.transactions_in_interval);
-                    let mut tx_to_sumbit = total_tx_to_submit / n_connections;
-                    if (conn_id as u64) < total_tx_to_submit % n_connections {
-                        tx_to_sumbit += 1;
-                    }
-                    for _ in 0..tx_to_sumbit {
-                        if let Err(e) = conn.send_tx_with_params(
+        let tasks = connections
+            .iter()
+            .enumerate()
+            .map(|(conn_id, conn)| {
+                let mut per_task = transactions_to_send / connections.len() as u64;
+                if (conn_id as u64) < transactions_to_send % connections.len() as u64 {
+                    per_task += 1;
+                }
+
+                let dest = dest.clone();
+                let nonce = nonces[conn_id];
+                nonces[conn_id] += per_task as u32;
+                async move {
+                    for tx_id in 0..per_task as u32 {
+                        conn.sign_with_params(
                             transfer_keep_alive(dest.clone(), transfer_amount),
                             Default::default(),
-                            Some(nonce),
-                            status
-                        ).await {
-                            nonce = conn.account_nonce(conn.account_id()).await.unwrap();
-                            log::info!("Error when submitting a transaction: {e:?}");
-                            break;
-                        } else {
-                            nonce += 1;
-                            ok_count += 1;
-                        }
+                            nonce + tx_id,
+                        )?
+                        .submit(status)
+                        .await
+                        .unwrap();
                     }
-                    log::debug!("Account {conn_id} round {i}: submitted #{ok_count}/{tx_to_sumbit} transactions");
-
-                    let dur = time::Instant::now().saturating_duration_since(start);
-                    if dur.as_secs() >= schedule.interval_duration * schedule.intervals {
-                        break;
-                    }
-                    let left_duration = Duration::from_secs((i + 1) * schedule.interval_duration).saturating_sub(dur);
-                    sleep(left_duration).await;
-                }
-
-                if return_balance_at_the_end {
-                    conn.send_tx_with_params(
-                        transfer_all(dest, true),
-                        Default::default(),
-                        Some(nonce),
-                        status
-                    ).await.unwrap();
+                    anyhow::Ok(())
                 }
             })
-        })
-        .collect();
+            .collect::<Vec<_>>();
 
-    join_all(handles).await;
+        join_all(tasks).await;
+
+        let duration = Instant::now().saturating_duration_since(start);
+        if duration.as_secs() >= schedule.interval_duration * schedule.intervals {
+            break;
+        }
+        let left_duration =
+            Duration::from_secs((i + 1) * schedule.interval_duration).saturating_sub(duration);
+        sleep(left_duration).await;
+    }
+
+    info!("Flooding time has passed, left {overdue_transactions} overdue txns because of the pool limit.");
+    if return_balance_at_the_end {
+        for (conn_id, conn) in connections.iter().enumerate() {
+            conn.sign_with_params(
+                transfer_all(dest.clone(), true),
+                Default::default(),
+                nonces[conn_id],
+            )?
+            .submit(status)
+            .await?;
+        }
+        debug!("Returned balance back to main account");
+    }
 
     Ok(())
 }
@@ -121,52 +130,50 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     node: F,
     amount: Balance,
     skip: bool,
-) -> Vec<SignedConnection> {
-    log::info!(
+) -> anyhow::Result<Vec<SignedConnection>> {
+    info!(
         "Initializing accounts, estimated total fee per account: {}TZERO",
         amount as f32 / TOKEN as f32
     );
     let mut connections = vec![];
     for i in 0..n {
         let seed = i.to_string();
-        let signer = KeyPair::new(raw_keypair_from_string(&("//".to_string() + &seed)));
+        let signer = KeyPair::new(raw_keypair_from_string(
+            &(ACCOUNTS_SEED_PREFIX.to_string() + &seed),
+        ));
         connections.push(SignedConnection::new(&node(i), signer).await);
     }
 
     if skip {
-        return connections;
+        return Ok(connections);
     }
 
-    let nonce = connection
-        .account_nonce(connection.account_id())
-        .await
-        .unwrap();
+    let nonce = connection.account_nonce(connection.account_id()).await?;
     for (i, conn) in connections.iter().enumerate() {
         connection
-            .send_tx_with_params(
+            .sign_with_params(
                 transfer_keep_alive(conn.account_id().clone(), amount),
                 Default::default(),
-                Some(nonce + i as Nonce),
-                TxStatus::Submitted,
-            )
-            .await
-            .unwrap();
+                nonce + i as Nonce,
+            )?
+            .submit(TxStatus::Submitted)
+            .await?;
     }
 
     connection
-        .send_tx_with_params(
+        .sign_with_params(
             transfer_keep_alive(connection.account_id().clone(), 1),
             Default::default(),
-            Some(nonce + connections.len() as Nonce),
-            TxStatus::Finalized,
-        )
-        .await
-        .unwrap();
+            nonce + connections.len() as Nonce,
+        )?
+        .submit(TxStatus::Finalized)
+        .await?;
 
-    connections
+    Ok(connections)
 }
 
-/// Only a rough estimation, for the worst case where blocks are 75% full with normal non-operational.
+/// Only a rough estimation, for the worst case where blocks are 75% full
+/// (it is a maximum for non-operational transactions).
 async fn estimate_avg_fee_per_transaction_in_block(
     main_connection: &SignedConnection,
     schedule: &Schedule,
@@ -181,7 +188,7 @@ async fn estimate_avg_fee_per_transaction_in_block(
     let mut fee = starting_fee;
     for _ in 0..estimated_blocks {
         total_fee += fee;
-        fee = (fee as f64 * 1.06) as Balance;
+        fee = (fee as f64 * 1.065) as Balance;
         if total_fee > Balance::MAX / 4 {
             return Err(anyhow::anyhow!("Fee estimation overflowed."));
         }
@@ -195,13 +202,6 @@ struct FloodStats {
     transactions_per_block_stddev: f64,
     block_time: f64,
     block_time_stddev: f64,
-}
-
-fn stddev(values: &[u64]) -> f64 {
-    let mean = values.iter().map(|&x| x as f64).sum::<f64>() / values.len() as f64;
-    let mean_of_squares =
-        values.iter().map(|&x| x as f64 * x as f64).sum::<f64>() / values.len() as f64;
-    (mean_of_squares - mean * mean).sqrt()
 }
 
 async fn compute_stats(
@@ -240,6 +240,13 @@ async fn compute_stats(
     })
 }
 
+fn stddev(values: &[u64]) -> f64 {
+    let mean = values.iter().map(|&x| x as f64).sum::<f64>() / values.len() as f64;
+    let mean_of_squares =
+        values.iter().map(|&x| x as f64 * x as f64).sum::<f64>() / values.len() as f64;
+    (mean_of_squares - mean * mean).sqrt()
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -258,7 +265,6 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let accounts: u32 = (schedule.transactions_in_interval as f64).sqrt() as u32;
-    assert!(accounts >= 1);
 
     let tx_status = match config.wait_for_ready {
         true => TxStatus::InBlock,
@@ -296,7 +302,7 @@ async fn main() -> anyhow::Result<()> {
         total_fee_per_account,
         config.skip_initialization,
     )
-    .await;
+    .await?;
 
     let best_block_pre_flood = main_connection.get_best_block().await.unwrap().unwrap();
 
@@ -316,7 +322,7 @@ async fn main() -> anyhow::Result<()> {
     let stats = compute_stats(&main_connection, start_block, end_block).await?;
 
     info!(
-        "Stats:\nTransactions per second: {:.2}\nTransactions per block: {:.2} (stddev = {:.2})\nBlock time: {:.2}ms (stddev = {:.2})",
+        "Stats:\nActual transactions per second: {:.2}\nTransactions per block: {:.2} (stddev = {:.2})\nBlock time: {:.2}ms (stddev = {:.2})",
         stats.transactions_per_second,
         stats.transactions_per_block,
         stats.transactions_per_block_stddev,
