@@ -138,6 +138,7 @@ impl From<ExtrinsicEvents<AlephConfig>> for TxInfo {
     }
 }
 
+/// A signed extrinsics ready to be submitted.
 pub struct SubmittableExtrinsic {
     submittable: SubxtSubmittable<AlephConfig, SubxtClient>,
 }
