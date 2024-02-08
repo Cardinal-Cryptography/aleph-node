@@ -8,7 +8,7 @@ pub use setup::{new_test_ext, TestRuntime};
 use sp_io::TestExternalities;
 use sp_runtime::BuildStorage;
 
-use crate::{ActiveFeatures, Event, Feature};
+use crate::{Event, Feature};
 
 construct_runtime!(
     pub struct TestRuntime {
@@ -25,7 +25,7 @@ impl frame_system::Config for TestRuntime {
 impl crate::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
-    type Controller = EnsureRoot<Self::AccountId>;
+    type Supervisor = EnsureRoot<Self::AccountId>;
 }
 
 fn new_test_ext() -> TestExternalities {
@@ -43,26 +43,22 @@ fn new_test_ext() -> TestExternalities {
 
 const FEATURE: Feature = Feature::OnChainVerifier;
 
-fn get_status() -> Option<()> {
-    ActiveFeatures::<TestRuntime>::get(FEATURE)
-}
-
 #[test]
 fn enabling_and_disabling_feature_works() {
     new_test_ext().execute_with(|| {
-        assert!(get_status().is_none());
+        assert!(!FeatureControl::is_feature_enabled(FEATURE));
 
         assert_ok!(FeatureControl::enable(RuntimeOrigin::root(), FEATURE));
-        assert!(get_status().is_some());
+        assert!(FeatureControl::is_feature_enabled(FEATURE));
         // Enabling is idempotent.
         assert_ok!(FeatureControl::enable(RuntimeOrigin::root(), FEATURE));
-        assert!(get_status().is_some());
+        assert!(FeatureControl::is_feature_enabled(FEATURE));
 
         assert_ok!(FeatureControl::disable(RuntimeOrigin::root(), FEATURE));
-        assert!(get_status().is_none());
+        assert!(!FeatureControl::is_feature_enabled(FEATURE));
         // Disabling is idempotent.
         assert_ok!(FeatureControl::disable(RuntimeOrigin::root(), FEATURE));
-        assert!(get_status().is_none());
+        assert!(!FeatureControl::is_feature_enabled(FEATURE));
     });
 }
 

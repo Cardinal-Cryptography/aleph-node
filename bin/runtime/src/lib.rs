@@ -662,16 +662,16 @@ parameter_types! {
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
 }
 
-pub struct SudoGovernance;
+pub struct TreasuryGovernance;
 
-impl SortedMembers<AccountId> for SudoGovernance {
+impl SortedMembers<AccountId> for TreasuryGovernance {
     fn sorted_members() -> Vec<AccountId> {
         pallet_sudo::Pallet::<Runtime>::key().into_iter().collect()
     }
 }
 
 impl pallet_treasury::Config for Runtime {
-    type ApproveOrigin = EnsureSignedBy<SudoGovernance, AccountId>;
+    type ApproveOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
     type Burn = Burn;
     type BurnDestination = ();
     type Currency = Balances;
@@ -682,7 +682,7 @@ impl pallet_treasury::Config for Runtime {
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
     type ProposalBondMaximum = ProposalBondMaximum;
-    type RejectOrigin = EnsureSignedBy<SudoGovernance, AccountId>;
+    type RejectOrigin = EnsureSignedBy<TreasuryGovernance, AccountId>;
     type SpendFunds = ();
     type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
     type SpendPeriod = SpendPeriod;
@@ -885,7 +885,7 @@ impl pallet_proxy::Config for Runtime {
 impl pallet_feature_control::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_feature_control::AlephWeight<Runtime>;
-    type Controller = EnsureSignedBy<SudoGovernance, AccountId>;
+    type Supervisor = EnsureRoot<AccountId>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

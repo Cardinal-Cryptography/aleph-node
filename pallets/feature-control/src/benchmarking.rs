@@ -22,7 +22,7 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Root, Feature::OnChainVerifier);
 
-        assert!(!ActiveFeatures::<T>::contains_key(Feature::OnChainVerifier));
+        assert!(!Pallet::<T>::is_feature_enabled(Feature::OnChainVerifier));
     }
 
     frame_benchmarking::impl_benchmark_test_suite!(

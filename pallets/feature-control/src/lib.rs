@@ -32,7 +32,6 @@ pub enum Feature {
     OnChainVerifier,
 }
 
-/// The current storage version.
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
@@ -49,7 +48,7 @@ pub mod pallet {
         /// Weight information for the pallet's extrinsics.
         type WeightInfo: WeightInfo;
         /// The origin that can modify the feature map.
-        type Controller: EnsureOrigin<Self::RuntimeOrigin>;
+        type Supervisor: EnsureOrigin<Self::RuntimeOrigin>;
     }
 
     #[pallet::event]
@@ -75,7 +74,7 @@ pub mod pallet {
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::enable())]
         pub fn enable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
-            T::Controller::ensure_origin(origin)?;
+            T::Supervisor::ensure_origin(origin)?;
             ActiveFeatures::<T>::insert(feature, ());
             Self::deposit_event(Event::FeatureEnabled(feature));
             Ok(())
@@ -85,10 +84,17 @@ pub mod pallet {
         #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::disable())]
         pub fn disable(origin: OriginFor<T>, feature: Feature) -> DispatchResult {
-            T::Controller::ensure_origin(origin)?;
+            T::Supervisor::ensure_origin(origin)?;
             ActiveFeatures::<T>::remove(feature);
             Self::deposit_event(Event::FeatureDisabled(feature));
             Ok(())
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        /// Check if a feature is enabled.
+        pub fn is_feature_enabled(feature: Feature) -> bool {
+            ActiveFeatures::<T>::contains_key(feature)
         }
     }
 }
