@@ -1483,7 +1483,6 @@ mod tests {
         };
     }
 
-
     #[test]
     fn state_version_must_be_zero() {
         assert_eq!(0, VERSION.state_version);
