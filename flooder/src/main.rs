@@ -65,7 +65,11 @@ async fn flood(
         let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
         let transactions_to_send = min(transactions_to_pool_limit, overdue_transactions);
         overdue_transactions -= transactions_to_send;
-        info!("Interval {}: submitting {} txns", i, transactions_to_send);
+        info!(
+            "Interval {}: submitting {} txns",
+            i + 1,
+            transactions_to_send
+        );
         debug!("In txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}");
 
         let tasks = connections
@@ -88,15 +92,19 @@ async fn flood(
                             nonce + tx_id,
                         )?
                         .submit(status)
-                        .await
-                        .unwrap();
+                        .await?;
                     }
                     anyhow::Ok(())
                 }
             })
             .collect::<Vec<_>>();
 
-        join_all(tasks).await;
+        for result in join_all(tasks).await {
+            if let Err(e) = result {
+                info!("Error submitting transaction: {e:?}");
+                return Err(e);
+            }
+        }
 
         let duration = Instant::now().saturating_duration_since(start);
         if duration.as_secs() >= schedule.interval_duration * schedule.intervals {
