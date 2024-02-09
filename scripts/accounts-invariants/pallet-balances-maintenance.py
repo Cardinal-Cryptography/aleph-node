@@ -1,4 +1,5 @@
 #!/bin/python3
+import copy
 import datetime
 import json
 import pathlib
@@ -55,25 +56,36 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         type=int,
                         default=128,
                         help='How many accounts to upgrade in a single transaction. Default: 128')
+    parser.add_argument('--set-storage-in-batch',
+                        type=int,
+                        default=1024,
+                        help='How many System.SetStorage calls to perform in a single transactions. Default: 1024')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
-                        action='store_true',
-                        help='Specify this switch if script should find all accounts '
-                             'that have free < ED and send transfers so that free >= ED. '
-                             'It requires AlephNode < 12.X version and SENDER_ACCOUNT env to be set with '
-                             'a mnemonic phrase of sender account that has funds for transfers and fees. '
-                             'dust-accounts.json file is saved with all such accounts.'
-                             'Must be used exclusively with --upgrade-accounts. '
-                             'Default: False')
+                       action='store_true',
+                       help='Specify this switch if script should find all accounts '
+                            'that have free < ED and send transfers so that free >= ED. '
+                            'It requires AlephNode < 12.X version and SENDER_ACCOUNT env to be set with '
+                            'a mnemonic phrase of sender account that has funds for transfers and fees. '
+                            'dust-accounts.json file is saved with all such accounts.'
+                            'Must be used exclusively with --upgrade-accounts or --fix-double-providers-count'
+                            'Default: False')
     group.add_argument('--upgrade-accounts',
-                        action='store_true',
-                        help='Specify this switch if script should send Balances.UpgradeAccounts '
-                             'for all accounts on a chain. It requires at least AlephNode 12.X version '
-                             'and SENDER_ACCOUNT env to be set with a mnemonic phrase of sender account that has funds '
-                             'for transfers and fees.'
-                             'Must be used exclusively with --fix-free-balance. '
-                             'Default: False')
-
+                       action='store_true',
+                       help='Specify this switch if script should send Balances.UpgradeAccounts '
+                            'for all accounts on a chain. It requires at least AlephNode 12.X version '
+                            'and SENDER_ACCOUNT env to be set with a mnemonic phrase of sender account that has funds '
+                            'for transfers and fees.'
+                            'Must be used exclusively with --fix-free-balance or --fix-double-providers-count'
+                            'Default: False')
+    group.add_argument('--fix-double-providers-count',
+                       action='store_true',
+                       help='Specify this switch if script should query all accounts that have providers == 2'
+                            'and decrease this counter by one using System.SetStorage call. '
+                            'It requires at least AlephNode 12.X version '
+                            'and SENDER_ACCOUNT env to be set with a sudo mnemonic phrase. '
+                            'Must be used exclusively with --fix-free-balance or --upgrade-accounts'
+                            'Default: False')
     return parser.parse_args()
 
 
@@ -333,6 +345,75 @@ def upgrade_accounts(chain_connection,
         submit_extrinsic(chain_connection, extrinsic, len(account_ids_chunk), args.dry_run)
 
 
+def check_if_account_has_double_providers(account, chain_major_version, ed):
+    """
+    This predicate checks if an account has providers counter set to 2
+    :param account: AccountInfo struct (element of System.Accounts StorageMap)
+    :param chain_major_version: Must be >= 12
+    :param ed: existential deposit, not used
+    :return: True if providers == 2, False otherwise
+    """
+
+    assert chain_major_version == ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION, \
+        "Chain major version must be at least 12!"
+
+    providers = account['providers'].value
+
+    return providers == 2
+
+
+def fix_double_providers_count(chain_connection,
+                               input_args,
+                               chain_major_version,
+                               sender_keypair):
+    """
+    Queries those accounts using System.Account map which have providers == 2.
+    For each such account, performs System.SetStorage with the same data but providers set to 1.
+    Must be run on AlephNode chain with at least 12 version.
+    :param chain_connection: WS connection handler
+    :param input_args: script input arguments returned from argparse
+    :param chain_major_version: enum ChainMajorVersion
+    :param sender_keypair: sudo keypair of sender account
+    :return: None. Can raise exception in case of substrateinterface.SubstrateRequestException thrown
+    """
+    result = chain_connection.query('System', 'Account', ['5HjrE7XCXdUBYr8FeRxF4V4bjcojhb5tTyowqStSxDr3ZPsR']).value
+    system_account_storage_function = \
+        next(filter(
+            lambda storage_function: storage_function['storage_name'] == 'Account' and
+                                     storage_function['module_id'] == 'System'
+            , chain_connection.get_metadata_storage_functions()))
+    internal_metadata_scale_codec_type = system_account_storage_function['type_value']
+    new_account_data = copy.deepcopy(result)
+    new_account_data['providers'] = 1
+    encoded_new_account_data = chain_connection.encode_scale(type_string=internal_metadata_scale_codec_type,
+                                                             value=new_account_data)
+    system_account_storage_key = chain_connection.create_storage_key(
+        'System', 'Account', ['5HjrE7XCXdUBYr8FeRxF4V4bjcojhb5tTyowqStSxDr3ZPsR']
+    )
+    set_storage_call = chain_connection.compose_call(
+        call_module='System',
+        call_function='set_storage',
+        call_params={
+            'items': [(system_account_storage_key.to_hex(), encoded_new_account_data.to_hex())],
+        })
+    sudo_unchecked_weight_call = chain_connection.compose_call(
+        call_module='Sudo',
+        call_function='sudo_unchecked_weight',
+        call_params={
+            'call': set_storage_call,
+            'weight': {
+                'proof_size': 0,
+                'ref_time': 0,
+            },
+        }
+    )
+    extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call, keypair=sender_keypair)
+    log.info(f"About to send System.set_storage call {set_storage_call},"
+             f"from account {sender_keypair.ss58_address}")
+
+    submit_extrinsic(chain_connection, extrinsic, 1, args.dry_run)
+
+
 def chunks(list_of_elements, n):
     """
     Lazily split 'list_of_elements' into 'n'-sized chunks.
@@ -387,7 +468,7 @@ if __name__ == "__main__":
     args = get_args()
     log = get_global_logger(args)
 
-    if args.fix_free_balance or args.upgrade_accounts:
+    if args.fix_free_balance or args.upgrade_accounts or args.fix_double_providers_count:
         sender_origin_account_seed = os.getenv('SENDER_ACCOUNT')
         if sender_origin_account_seed is None:
             log.error(f"When specifying --fix-free-balance or --upgrade-accounts, env SENDER_ACCOUNT must exists. "
@@ -409,6 +490,10 @@ if __name__ == "__main__":
         if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
             log.error(f"--upgrade-accounts can be used only on chains with at least 12 version. Exiting.")
             exit(3)
+    if args.fix_double_providers_count:
+        if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
+            log.error(f"--fix-double-providers-count can be used only on chains with at least 12 version. Exiting.")
+            exit(4)
 
     existential_deposit = chain_ws_connection.get_constant("Balances", "ExistentialDeposit").value
     log.info(f"Existential deposit is {format_balance(chain_ws_connection, existential_deposit)}")
@@ -441,6 +526,16 @@ if __name__ == "__main__":
                          chain_major_version=chain_major_version,
                          sender_keypair=sender_origin_account_keypair)
         log.info("Upgrade accounts done.")
+    if args.fix_double_providers_count:
+        sudo_account_keypair = substrateinterface.Keypair.create_from_uri(sender_origin_account_seed)
+        log.info(f"This script is going to query all accounts that have providers == 2 and decrease this counter"
+                 f"by one using System.SetStorage extrinsic, which requires sudo.")
+        log.info(f"Using the following account for System.SetStorage calls: {sudo_account_keypair.ss58_address}")
+        fix_double_providers_count(chain_connection=chain_ws_connection,
+                                   input_args=args,
+                                   chain_major_version=chain_major_version,
+                                   sender_keypair=sudo_account_keypair)
+        log.info(f"System.SetStorage calls done.")
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_account_sanity_checks(chain_connection=chain_ws_connection,
