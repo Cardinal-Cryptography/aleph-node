@@ -12,7 +12,7 @@ log = { version = "0.4", default-features = false }
 
 halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "aleph", default-features = false, features = ["mock-kzg-params"], optional = true }
 
-sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false }
+sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.8.5" }

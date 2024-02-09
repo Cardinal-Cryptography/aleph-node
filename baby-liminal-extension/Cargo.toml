@@ -11,17 +11,17 @@ license = "Apache-2.0"
 # Frontend dependencies:
 
 ink = { version = "5.0.0-rc", default-features = false, optional = true }
-sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", optional = true }
+sp-core = { default-features = false, git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", optional = true }
 
 # Backend dependencies:
 
 log = { version = "0.4", default-features = false, optional = true }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"], optional = true }
 
-frame-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
+frame-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false, optional = true }
+frame-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false, optional = true }
+pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false, optional = true }
+sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false, optional = true }
 
 ## Proof verification dependencies:
 
@@ -30,7 +30,7 @@ pallet-vk-storage = { path = "../pallets/vk-storage", default-features = false, 
 
 # Benchmarking
 
-frame-benchmarking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", optional = true }
+frame-benchmarking = { default-features = false, git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", optional = true }
 paste = { version = "1.0.11", optional = true }
 
 [dev-dependencies]
