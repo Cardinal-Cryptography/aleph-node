@@ -26,8 +26,11 @@ jobs:
           RUSTC_WORKSPACE_WRAPPER: sccache
         with:
           command: clippy
-          args: --all-targets --skip baby-liminal-extension -- --no-deps -D warnings
+          args: --all-targets -- --no-deps -D warnings --skip baby-liminal-extension
 
+      - name: Run clippy for chain extension
+        working-directory: baby-liminal-extension
+        run: make lint
 
   unit-tests:
     name: Run unit tests
@@ -48,6 +51,6 @@ jobs:
           command: test
           args: -- --skip clique_network --skip baby-liminal-extension
 
-      - name: Check chain extension unit tests
+      - name: Run unit tests for chain extension
         working-directory: baby-liminal-extension
         run: make test
