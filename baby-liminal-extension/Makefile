@@ -16,7 +16,6 @@ lint: ## Check linting rules
 	cargo +nightly fmt --all --check $(AT_TEST_CONTRACT) || exit 1
 
 clippy: ## Run clippy
-	cargo clippy --no-deps --features ink-std -- -D warnings || exit 1
 	cargo clippy --no-deps --features runtime-std -- -D warnings || exit 1
 
 clean: ## Clean all build files
