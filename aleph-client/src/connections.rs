@@ -186,7 +186,7 @@ pub trait SignedConnectionApi: ConnectionApi {
     /// Lower level api: signs a transaction with given params and nonce.
     /// * `tx` - encoded transaction payload
     /// * `params` - optional tx params e.g. tip
-    /// * `nonce` - tx nonce. If None, current signer's on chain account nonce will be used
+    /// * `nonce` - tx nonce.
     /// # Returns
     /// A signed transaction ready to be submitted via this connection.
     fn sign_with_params<Call: TxPayload + Send + Sync>(

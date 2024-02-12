@@ -1,7 +1,6 @@
 use core::cmp::min;
 
 use aleph_client::{
-    account_from_keypair,
     pallets::{
         author::AuthorRpc, balances::BalanceUserApi, system::SystemApi, timestamp::TimestampApi,
     },
@@ -14,8 +13,7 @@ use config::Config;
 use futures::future::join_all;
 use log::{debug, info};
 use subxt::{
-    config::extrinsic_params::BaseExtrinsicParamsBuilder,
-    config::substrate::Era,
+    config::{extrinsic_params::BaseExtrinsicParamsBuilder, substrate::Era},
     ext::sp_core::{sr25519, Pair},
     tx::TxPayload,
     utils::{MultiAddress, Static},
@@ -23,9 +21,6 @@ use subxt::{
 use tokio::time::{sleep, Duration, Instant};
 
 mod config;
-
-/// Accounts used for the experiment (except for the main account) will have seed //1 etc.
-const ACCOUNTS_SEED_PREFIX: &str = "//";
 
 fn transfer_keep_alive(dest: AccountId, amount: Balance) -> impl TxPayload + Send + Sync {
     aleph_client::api::tx()
@@ -46,14 +41,13 @@ struct Schedule {
 }
 
 async fn flood(
-    connections: Vec<SignedConnection>,
+    connections: &Vec<SignedConnection>,
     dest: AccountId,
     transfer_amount: Balance,
     schedule: Schedule,
     status: TxStatus,
     pool_limit: u64,
-    return_balance_at_the_end: bool,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<Nonce>> {
     let start = Instant::now();
     let start_finalized_hash = connections[0].get_finalized_block_hash().await?;
     let start_finalized_number = connections[0]
@@ -62,7 +56,7 @@ async fn flood(
         .unwrap() as u64;
 
     let mut nonces: Vec<u32> = vec![];
-    for conn in &connections {
+    for conn in connections {
         nonces.push(conn.account_nonce(conn.account_id()).await?);
     }
 
@@ -78,7 +72,9 @@ async fn flood(
             i + 1,
             transactions_to_send
         );
-        debug!("In txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}");
+        debug!(
+            "In the txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}"
+        );
 
         let tasks = connections
             .iter()
@@ -106,7 +102,7 @@ async fn flood(
                     for tx_id in 0..per_task as u32 {
                         conn.sign_with_params(
                             transfer_keep_alive(dest.clone(), transfer_amount),
-                            params.clone(),
+                            params,
                             nonce + tx_id,
                         )?
                         .submit(status)
@@ -132,40 +128,46 @@ async fn flood(
             Duration::from_secs((i + 1) * schedule.interval_duration).saturating_sub(duration);
         sleep(left_duration).await;
     }
-
     info!("Flooding time has passed, left {overdue_transactions} overdue txns because of the pool limit.");
-    if return_balance_at_the_end {
-        for (conn_id, conn) in connections.iter().enumerate() {
-            conn.sign_with_params(
-                transfer_all(dest.clone(), true),
-                Default::default(),
-                nonces[conn_id],
-            )?
-            .submit(status)
-            .await?;
-        }
-        debug!("Returned balance back to main account");
-    }
 
+    Ok(nonces)
+}
+
+async fn return_balances(
+    connections: &[SignedConnection],
+    nonces: &[Nonce],
+    dest: AccountId,
+) -> anyhow::Result<()> {
+    for (conn, nonce) in connections.iter().zip(nonces) {
+        conn.sign_with_params(
+            transfer_all(dest.clone(), false),
+            Default::default(),
+            *nonce,
+        )?
+        .submit(TxStatus::Submitted)
+        .await?;
+    }
+    debug!("Returned balance back to main account");
     Ok(())
 }
 
 async fn initialize_n_accounts<F: Fn(u32) -> String>(
-    connection: &SignedConnection,
+    main_connection: &SignedConnection,
     n: u32,
     node: F,
     amount: Balance,
     skip: bool,
 ) -> anyhow::Result<Vec<SignedConnection>> {
+    const ACCOUNTS_SEED_PREFIX: &str = "//";
     info!(
-        "Initializing accounts, estimated total fee per account: {}TZERO",
+        "Initializing accounts, estimated total fee per account: {}",
         amount as f32 / TOKEN as f32
     );
     let mut connections = vec![];
     for i in 0..n {
         let seed = i.to_string();
         let signer = KeyPair::new(raw_keypair_from_string(
-            &(ACCOUNTS_SEED_PREFIX.to_string() + &seed),
+            format!("{ACCOUNTS_SEED_PREFIX}{seed}").as_ref(),
         ));
         connections.push(SignedConnection::new(&node(i), signer).await);
     }
@@ -174,26 +176,25 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
         return Ok(connections);
     }
 
-    let nonce = connection.account_nonce(connection.account_id()).await?;
+    let nonce = main_connection
+        .account_nonce(main_connection.account_id())
+        .await?;
     for (i, conn) in connections.iter().enumerate() {
-        connection
+        let status = if i + 1 == n as usize {
+            TxStatus::Finalized
+        } else {
+            TxStatus::Submitted
+        };
+
+        main_connection
             .sign_with_params(
                 transfer_keep_alive(conn.account_id().clone(), amount),
                 Default::default(),
                 nonce + i as Nonce,
             )?
-            .submit(TxStatus::Submitted)
+            .submit(status)
             .await?;
     }
-
-    connection
-        .sign_with_params(
-            transfer_keep_alive(connection.account_id().clone(), 1),
-            Default::default(),
-            nonce + connections.len() as Nonce,
-        )?
-        .submit(TxStatus::Finalized)
-        .await?;
 
     Ok(connections)
 }
@@ -214,7 +215,7 @@ async fn estimate_avg_fee_per_transaction_in_block(
     let mut fee = starting_fee;
     for _ in 0..estimated_blocks {
         total_fee += fee;
-        fee = (fee as f64 * 1.065) as Balance;
+        fee = (fee as f64 * 1.0345) as Balance;
         if total_fee > Balance::MAX / 4 {
             return Err(anyhow::anyhow!("Fee estimation overflowed."));
         }
@@ -332,16 +333,24 @@ async fn main() -> anyhow::Result<()> {
 
     let best_block_pre_flood = main_connection.get_best_block().await.unwrap().unwrap();
 
-    flood(
-        connections,
-        account_from_keypair(&account),
+    let nonces_after_flood = flood(
+        &connections,
+        main_connection.account_id().clone(),
         1,
         schedule,
         tx_status,
         config.pool_limit,
-        !config.skip_initialization,
     )
     .await?;
+
+    if !config.skip_initialization {
+        return_balances(
+            &connections,
+            &nonces_after_flood,
+            main_connection.account_id().clone(),
+        )
+        .await?;
+    }
 
     let end_block = main_connection.get_best_block().await.unwrap().unwrap();
     let start_block = best_block_pre_flood + (end_block - best_block_pre_flood) / 10;
