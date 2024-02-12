@@ -10,11 +10,10 @@ mod treasury;
 mod validators;
 mod version_upgrade;
 mod vesting;
-#[cfg(feature = "liminal")]
 mod vk_storage;
 
 use aleph_client::{keypair_from_string, Connection, RootConnection, SignedConnection};
-pub use commands::Command;
+pub use commands::{Command, SnarkRelation, VkStorage};
 pub use contracts::{
     call, code_info, instantiate, instantiate_with_code, remove_code, upload_code,
 };
@@ -22,6 +21,9 @@ pub use finalization::{finalize, set_emergency_finalizer};
 pub use keys::{next_session_keys, prepare_keys, rotate_keys, set_keys};
 pub use runtime::update_runtime;
 pub use secret::prompt_password_hidden;
+pub use snark_relations::{
+    generate_keys, generate_keys_from_srs, generate_proof, generate_srs, verify as verify_proof,
+};
 pub use staking::{bond, force_new_era, nominate, set_staking_limits, validate};
 pub use transfer::transfer_keep_alive;
 pub use treasury::{
@@ -30,8 +32,7 @@ pub use treasury::{
 pub use validators::change_validators;
 pub use version_upgrade::schedule_upgrade;
 pub use vesting::{vest, vest_other, vested_transfer};
-#[cfg(feature = "liminal")]
-pub use {commands::VkStorage, vk_storage::store_key};
+pub use vk_storage::store_key;
 
 pub struct ConnectionConfig {
     node_endpoint: String,
