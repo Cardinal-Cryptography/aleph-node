@@ -11,10 +11,7 @@ use cliain::{
     ConnectionConfig,
 };
 #[cfg(feature = "liminal")]
-use cliain::{
-    generate_keys, generate_keys_from_srs, generate_proof, generate_srs, store_key, verify_proof,
-    VkStorage,
-};
+use cliain::{store_key, VkStorage};
 use log::{error, info};
 
 #[derive(Debug, Parser, Clone)]
