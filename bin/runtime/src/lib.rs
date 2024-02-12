@@ -6,6 +6,9 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use sp_runtime::traits::IdentityLookup;
+use frame_support::traits::tokens::PayFromAccount;
+use frame_support::traits::tokens::UnityAssetBalanceConversion;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -34,6 +37,7 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
+use pallet_identity::simple::IdentityInfo;
 use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -236,10 +240,11 @@ impl pallet_balances::Config for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
-    type FreezeIdentifier = ();
+    type FreezeIdentifier = RuntimeFreezeReason;
     type MaxHolds = MaxHolds;
     type MaxFreezes = MaxFreezes;
     type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -448,6 +453,7 @@ impl pallet_nomination_pools::Config for Runtime {
     type MaxUnbonding = ConstU32<8>;
     type PalletId = NominationPoolsPalletId;
     type MaxPointsToBalance = MaxPointsToBalance;
+    type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
 parameter_types! {
@@ -660,6 +666,7 @@ parameter_types! {
     // Every 4 hours we fund accepted proposals.
     pub const SpendPeriod: AlephBlockNumber = 4 * BLOCKS_PER_HOUR;
     pub const TreasuryPalletId: PalletId = PalletId(*b"a0/trsry");
+    pub TreasuryAccount: AccountId = Treasury::account_id();
 }
 
 pub struct TreasuryGovernance;
@@ -687,6 +694,12 @@ impl pallet_treasury::Config for Runtime {
     type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
     type SpendPeriod = SpendPeriod;
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+    type AssetKind = ();
+    type Beneficiary = Self::AccountId;
+    type BeneficiaryLookup = IdentityLookup<Self::AccountId>;
+    type Paymaster = PayFromAccount<Balances, TreasuryAccount>;
+    type BalanceConverter = UnityAssetBalanceConversion;
+    type PayoutPeriod = ConstU32<0>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -778,6 +791,7 @@ impl pallet_identity::Config for Runtime {
     type ForceOrigin = EnsureRoot<AccountId>;
     type RegistrarOrigin = EnsureRoot<AccountId>;
     type WeightInfo = pallet_identity::weights::SubstrateWeight<Self>;
+    type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 }
 parameter_types! {
     // Key size = 32, value size = 8
