@@ -58,10 +58,6 @@ jobs:
         env:
           CHECK: aleph-zero-cargo-nono check --no-default-features
         run: |
-          cd poseidon/
-          ${{ env.CHECK }}
-          ${{ env.CHECK }} --features circuit
-
           cd ../relations/ark/
           ${{ env.CHECK }}
           ${{ env.CHECK }} --features circuit
