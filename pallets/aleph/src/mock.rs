@@ -99,6 +99,7 @@ impl pallet_balances::Config for Test {
     type MaxHolds = ConstU32<0>;
     type MaxFreezes = ConstU32<0>;
     type RuntimeHoldReason = ();
+    type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
 pub struct SessionInfoImpl;

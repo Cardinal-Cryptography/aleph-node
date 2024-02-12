@@ -6,9 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use sp_runtime::traits::IdentityLookup;
-use frame_support::traits::tokens::PayFromAccount;
-use frame_support::traits::tokens::UnityAssetBalanceConversion;
 pub use frame_support::{
     construct_runtime, parameter_types,
     traits::{
@@ -26,6 +23,7 @@ pub use frame_support::{
 use frame_support::{
     sp_runtime::Perquintill,
     traits::{
+        tokens::{PayFromAccount, UnityAssetBalanceConversion},
         ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
         InstanceFilter, SortedMembers, WithdrawReasons,
     },
@@ -60,7 +58,8 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, One, OpaqueKeys,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, IdentityLookup, One,
+        OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug,
@@ -1492,6 +1491,7 @@ mod tests {
                 change_rate: _,
             } => {}
             pallet_nomination_pools::Call::claim_commission { pool_id: _ } => {}
+            pallet_nomination_pools::Call::adjust_pool_deposit { .. } => {}
             pallet_nomination_pools::Call::__Ignore(..) => {}
         }
     }
