@@ -44,7 +44,9 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
     parser.add_argument('--log-level',
                         default='info',
                         choices=['debug', 'info', 'warning', 'error'],
-                        help='Provide logging level. Default is info')
+                        help='Provide global logging level, for both file and console logger. If set to debug, '
+                             'file logger will log with debug anyway, but console with info. If set to info, '
+                             'both will log as info.')
     parser.add_argument('--dry-run',
                         action='store_true',
                         help='Specify this switch if script should just print what if would do. Default: False')
@@ -448,7 +450,8 @@ def set_provider_count_to_one(chain_connection,
 
     account_data['providers'] = 1
 
-    # encode_scale under the hood does
+    # encode_scale under the hood does a few RPC calls, which is unfortunate, as it slows down this function
+    # execution, which should as fast as possible to avoid data race conditions
     encoded_account_data = chain_connection.encode_scale(type_string=internal_system_account_scale_codec_type,
                                                          value=account_data,
                                                          block_hash=block_hash)
