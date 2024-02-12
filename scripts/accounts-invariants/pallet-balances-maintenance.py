@@ -103,7 +103,7 @@ def get_chain_major_version(chain_connection):
 
 def check_account_invariants(account, chain_major_version, ed):
     """
-    This predicate checks whather an accounts meet pallet balances and account reference counters predicates.
+    This predicate checks whether an accounts meet pallet balances and account reference counters predicates.
 
     :param account: AccountInfo struct (element of System.Accounts StorageMap)
     :param chain_major_version: integer which is major version of AlephNode chain
@@ -157,35 +157,34 @@ def check_account_invariants(account, chain_major_version, ed):
         consumer_ref_applies_to_suspended_balances_invariant
 
 
-def filter_false_accounts(chain_connection,
-                          ed,
-                          chain_major_version,
-                          check_accounts_predicate,
-                          check_accounts_predicate_name=""):
+def filter_accounts(chain_connection,
+                    ed,
+                    chain_major_version,
+                    check_accounts_predicate,
+                    check_accounts_predicate_name=""):
     """
-    Filters our accounts from the list on which predicate returns False
+    Filters out all chain accounts by given predicate.
     :param chain_connection: WS handler
     :param ed: existential deposit
     :param chain_major_version: enum ChainMajorVersion
     :param check_accounts_predicate: a function that takes three arguments predicate(account, chain_major_version, ed)
     :param check_accounts_predicate_name: name of the predicate, used for logging reasons only
-    :return: a list which has those chain accounts which returns False on check_accounts_predicate
+    :return: a list which has those chain accounts which returns True on check_accounts_predicate
     """
-    accounts_that_do_not_meet_predicate = []
+    accounts_that_do_meet_predicate = []
     account_query = chain_connection.query_map('System', 'Account', page_size=1000)
     total_accounts_count = 0
 
     for (i, (account_id, info)) in enumerate(account_query):
         total_accounts_count += 1
-        if not check_accounts_predicate(info, chain_major_version, ed):
-            log.debug(f"Account {account_id.value} does not meet given predicate!"
-                      f" Check name: {check_accounts_predicate_name}!")
-            accounts_that_do_not_meet_predicate.append([account_id.value, info.serialize()])
+        if check_accounts_predicate(info, chain_major_version, ed):
+            accounts_that_do_meet_predicate.append([account_id.value, info.serialize()])
         if i % 5000 == 0 and i > 0:
             log.info(f"Checked {i} accounts")
 
-    log.info(f"Total accounts that match given predicate {check_accounts_predicate_name} is {total_accounts_count}")
-    return accounts_that_do_not_meet_predicate
+    log.info(f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
+    log.info(f"Total accounts checked: {total_accounts_count}")
+    return accounts_that_do_meet_predicate
 
 
 def check_if_account_would_be_dust_in_12_version(account, chain_major_version, ed):
@@ -214,13 +213,11 @@ def find_dust_accounts(chain_connection, ed, chain_major_version):
     """
     assert chain_major_version == ChainMajorVersion.PRE_12_MAJOR_VERSION, \
         "Chain major version must be less than 12!"
-    return filter_false_accounts(chain_connection=chain_connection,
-                                 ed=ed,
-                                 chain_major_version=chain_major_version,
-                                 check_accounts_predicate=
-                                 lambda x, y, z: not check_if_account_would_be_dust_in_12_version(x, y, z),
-                                 check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 "
-                                                               "version\'")
+    return filter_accounts(chain_connection=chain_connection,
+                           ed=ed,
+                           chain_major_version=chain_major_version,
+                           check_accounts_predicate=check_if_account_would_be_dust_in_12_version,
+                           check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'")
 
 
 def format_balance(chain_connection, amount):
@@ -248,7 +245,7 @@ def batch_transfer(chain_connection,
     :param accounts: transfer beneficents
     :param amount: amount to be transferred
     :param sender_keypair: keypair of sender account
-    :return: None. Can raise exception in case of substrateinterface.SubstrateRequestException thrown
+    :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     for (i, account_ids_chunk) in enumerate(chunks(accounts, input_args.transfer_calls_in_batch)):
         balance_calls = list(map(lambda account: chain_connection.compose_call(
@@ -284,7 +281,7 @@ def submit_extrinsic(chain_connection,
     :param extrinsic: an ext to be sent
     :param expected_number_of_events: how many events caller expects to be emitted from chain
     :param dry_run: boolean whether to actually send ext or not
-    :return: None. Can raise exception in case of substrateinterface.SubstrateRequestException thrown
+    :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     try:
         log.debug(f"Extrinsic to be sent: {extrinsic}")
@@ -298,11 +295,14 @@ def submit_extrinsic(chain_connection,
                     log.debug(
                         f"Emitted fewer events than expected: "
                         f"{len(receipt.triggered_events)} < {expected_number_of_events}")
+                log.debug(f"Emitted events:")
+                for event in receipt.triggered_events:
+                    log.debug(f'* {event.value}')
             else:
                 log.warning(f"Extrinsic failed with following message: {receipt.error_message}")
         else:
             log.info(f"Not sending extrinsic, --dry-run is enabled.")
-    except substrateinterface.SubstrateRequestException as e:
+    except substrateinterface.exceptions.SubstrateRequestException as e:
         log.warning(f"Failed to submit extrinsic: {e}")
         raise e
 
@@ -319,14 +319,14 @@ def upgrade_accounts(chain_connection,
     :param ed: chain existential deposit
     :param chain_major_version: enum ChainMajorVersion
     :param sender_keypair: keypair of sender account
-    :return: None. Can raise exception in case of substrateinterface.SubstrateRequestException thrown
+    :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts.")
-    all_accounts_on_chain = list(map(lambda x: x[0], filter_false_accounts(chain_connection,
-                                                                           ed,
-                                                                           chain_major_version,
-                                                                           lambda x, y, z: False,
-                                                                           "\'all accounts\'")))
+    all_accounts_on_chain = list(map(lambda x: x[0], filter_accounts(chain_connection,
+                                                                     ed,
+                                                                     chain_major_version,
+                                                                     lambda x, y, z: True,
+                                                                     "\'all accounts\'")))
 
     for (i, account_ids_chunk) in enumerate(chunks(all_accounts_on_chain, input_args.upgrade_accounts_in_batch)):
         upgrade_accounts_call = chain_connection.compose_call(
@@ -345,9 +345,9 @@ def upgrade_accounts(chain_connection,
         submit_extrinsic(chain_connection, extrinsic, len(account_ids_chunk), args.dry_run)
 
 
-def check_if_account_has_double_providers(account, chain_major_version, ed):
+def check_if_account_double_providers(account, chain_major_version, ed):
     """
-    This predicate checks if an account has providers counter set to 2
+    This predicate checks if an account's providers counter is different from 2
     :param account: AccountInfo struct (element of System.Accounts StorageMap)
     :param chain_major_version: Must be >= 12
     :param ed: existential deposit, not used
@@ -374,21 +374,67 @@ def fix_double_providers_count(chain_connection,
     :param input_args: script input arguments returned from argparse
     :param chain_major_version: enum ChainMajorVersion
     :param sender_keypair: sudo keypair of sender account
-    :return: None. Can raise exception in case of substrateinterface.SubstrateRequestException thrown
+    :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
-    result = chain_connection.query('System', 'Account', ['5HjrE7XCXdUBYr8FeRxF4V4bjcojhb5tTyowqStSxDr3ZPsR']).value
+    log.info("Querying all accounts that have double provider counter.")
+    double_providers_accounts = list(map(lambda x: x[0],
+                                         filter_accounts(chain_connection,
+                                                         None,
+                                                         chain_major_version,
+                                                         check_if_account_double_providers,
+                                                         "\'double provider count\'")))
+    log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
+    if len(double_providers_accounts) > 0:
+        save_accounts_to_json_file("double-providers-accounts.json", double_providers_accounts)
+        for (i, account_ids_chunk) in enumerate(chunks(double_providers_accounts, input_args.set_storage_in_batch)):
+            set_storage_calls = list(map(lambda account: set_provider_count_to_one(chain_connection,
+                                                                                   account,
+                                                                                   chain_major_version),
+                                         account_ids_chunk))
+            batch_call = chain_connection.compose_call(
+                call_module='Utility',
+                call_function='batch',
+                call_params={
+                    'calls': set_storage_calls
+                }
+            )
+
+            extrinsic = chain_connection.create_signed_extrinsic(call=batch_call, keypair=sender_keypair)
+            submit_extrinsic(chain_connection, extrinsic, 1, args.dry_run)
+        log.info(f"System.SetStorage calls done.")
+
+
+def set_provider_count_to_one(chain_connection, account_id, chain_major_version):
+    """
+    Method sets provider counter for a System.Account to 1 using System.SetStorage call. Since we must replace whole
+    System.Account value, which contains also other account counters as well as balances data for the account, this
+    solution is prone to a race condition in which we this data is altered meanwhile we issue set_storage. Practically,
+    this can happen either that here is a transaction that ends up in the same block as set_storage or just before,
+    causing a (write) race condition. In order to prevent that we need to read events before some blocks that
+    set_storage is issued and from the same block itself. If any of those events concern account id in action, those
+    events must be logged to perform appropriate fixing actions manually.
+
+    This function prepares and signs System.SetStorage call. Wraps it in Sudo.UncheckedWeight call before sending.
+    :param chain_connection: WS connection handler
+    :param account_id: An account id to set provider count to 1.
+    :return: extrinsic ready to be sent
+    """
+    assert chain_major_version == ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION, \
+        "Chain major version must be at least 12!"
+
+    result = chain_connection.query('System', 'Account', [account_id]).value
     system_account_storage_function = \
         next(filter(
             lambda storage_function: storage_function['storage_name'] == 'Account' and
-                                     storage_function['module_id'] == 'System'
-            , chain_connection.get_metadata_storage_functions()))
+                                     storage_function['module_id'] == 'System',
+            chain_connection.get_metadata_storage_functions()))
     internal_metadata_scale_codec_type = system_account_storage_function['type_value']
     new_account_data = copy.deepcopy(result)
     new_account_data['providers'] = 1
     encoded_new_account_data = chain_connection.encode_scale(type_string=internal_metadata_scale_codec_type,
                                                              value=new_account_data)
     system_account_storage_key = chain_connection.create_storage_key(
-        'System', 'Account', ['5HjrE7XCXdUBYr8FeRxF4V4bjcojhb5tTyowqStSxDr3ZPsR']
+        'System', 'Account', [account_id]
     )
     set_storage_call = chain_connection.compose_call(
         call_module='System',
@@ -396,6 +442,9 @@ def fix_double_providers_count(chain_connection,
         call_params={
             'items': [(system_account_storage_key.to_hex(), encoded_new_account_data.to_hex())],
         })
+    log.debug(f"Prepared System.set_storage call for account {account_id} "
+              f"Account counters and data before fixing: {result} "
+              f"Prepared call: {set_storage_call}")
     sudo_unchecked_weight_call = chain_connection.compose_call(
         call_module='Sudo',
         call_function='sudo_unchecked_weight',
@@ -407,11 +456,7 @@ def fix_double_providers_count(chain_connection,
             },
         }
     )
-    extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call, keypair=sender_keypair)
-    log.info(f"About to send System.set_storage call {set_storage_call},"
-             f"from account {sender_keypair.ss58_address}")
-
-    submit_extrinsic(chain_connection, extrinsic, 1, args.dry_run)
+    return sudo_unchecked_weight_call
 
 
 def chunks(list_of_elements, n):
@@ -432,11 +477,11 @@ def perform_account_sanity_checks(chain_connection,
     :param chain_major_version: enum ChainMajorVersion
     :return:None
     """
-    invalid_accounts = filter_false_accounts(chain_connection=chain_connection,
-                                             ed=ed,
-                                             chain_major_version=chain_major_version,
-                                             check_accounts_predicate=check_account_invariants,
-                                             check_accounts_predicate_name="\'account invariants\'")
+    invalid_accounts = filter_accounts(chain_connection=chain_connection,
+                                       ed=ed,
+                                       chain_major_version=chain_major_version,
+                                       check_accounts_predicate=lambda x, y, z: not check_account_invariants(x, y, z),
+                                       check_accounts_predicate_name="\'account invariants\'")
     if len(invalid_accounts) > 0:
         log.warning(f"Found {len(invalid_accounts)} accounts that do not meet balances invariants!")
         save_accounts_to_json_file("accounts-with-failed-invariants.json", invalid_accounts)
@@ -535,7 +580,6 @@ if __name__ == "__main__":
                                    input_args=args,
                                    chain_major_version=chain_major_version,
                                    sender_keypair=sudo_account_keypair)
-        log.info(f"System.SetStorage calls done.")
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_account_sanity_checks(chain_connection=chain_ws_connection,
