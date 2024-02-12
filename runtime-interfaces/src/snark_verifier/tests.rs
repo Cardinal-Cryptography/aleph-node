@@ -160,7 +160,7 @@ fn rejects_invalid_vk() {
         vk,
     } = setup(1, 2, 3);
 
-    let vk = vk.iter().map(|i| i + 1).collect::<Vec<_>>();
+    let vk = vk.iter().map(|i| i.saturating_add(1)).collect::<Vec<_>>();
 
     assert_eq!(
         verify(&proof, &public_input, &vk),
@@ -192,7 +192,7 @@ fn rejects_invalid_proof() {
         vk,
     } = setup(1, 2, 3);
 
-    let proof = proof.iter().map(|i| i + 1).skip(3).collect::<Vec<_>>();
+    let proof = proof.iter().map(|i| i.saturating_add(1)).skip(3).collect::<Vec<_>>();
 
     assert_eq!(
         verify(&proof, &public_input, &vk),
