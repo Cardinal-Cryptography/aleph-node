@@ -58,8 +58,8 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         help='How many accounts to upgrade in a single transaction. Default: 128')
     parser.add_argument('--set-storage-in-batch',
                         type=int,
-                        default=1024,
-                        help='How many System.SetStorage calls to perform in a single transactions. Default: 1024')
+                        default=8192,
+                        help='How many System.SetStorage calls to perform in a single transactions. Default: 8192')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
                        action='store_true',
@@ -161,7 +161,8 @@ def filter_accounts(chain_connection,
                     ed,
                     chain_major_version,
                     check_accounts_predicate,
-                    check_accounts_predicate_name=""):
+                    check_accounts_predicate_name="",
+                    block_hash=None):
     """
     Filters out all chain accounts by given predicate.
     :param chain_connection: WS handler
@@ -169,10 +170,16 @@ def filter_accounts(chain_connection,
     :param chain_major_version: enum ChainMajorVersion
     :param check_accounts_predicate: a function that takes three arguments predicate(account, chain_major_version, ed)
     :param check_accounts_predicate_name: name of the predicate, used for logging reasons only
+    :param block_hash: Specific block has to read state from.
+           Default: None (tip of the chain == result of chain.getBlockHash RPC call).
     :return: a list which has those chain accounts which returns True on check_accounts_predicate
     """
     accounts_that_do_meet_predicate = []
-    account_query = chain_connection.query_map('System', 'Account', page_size=1000)
+    # query_map reads state from the **single** block, if block_hash is not None this is top of the chain
+    account_query = chain_connection.query_map(module='System',
+                                               storage_function='Account',
+                                               page_size=1000,
+                                               block_hash=block_hash)
     total_accounts_count = 0
 
     for (i, (account_id, info)) in enumerate(account_query):
@@ -182,7 +189,8 @@ def filter_accounts(chain_connection,
         if i % 5000 == 0 and i > 0:
             log.info(f"Checked {i} accounts")
 
-    log.info(f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
+    log.info(
+        f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
     log.info(f"Total accounts checked: {total_accounts_count}")
     return accounts_that_do_meet_predicate
 
@@ -377,20 +385,28 @@ def fix_double_providers_count(chain_connection,
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts that have double provider counter.")
-    double_providers_accounts = list(map(lambda x: x[0],
-                                         filter_accounts(chain_connection,
-                                                         None,
-                                                         chain_major_version,
-                                                         check_if_account_double_providers,
-                                                         "\'double provider count\'")))
+    chain_head = chain_connection.get_block_hash()
+    log.info(f"Accounts state is read from block {chain_head}")
+    double_providers_accounts = filter_accounts(chain_connection=chain_connection,
+                                                ed=None,
+                                                chain_major_version=chain_major_version,
+                                                check_accounts_predicate=check_if_account_double_providers,
+                                                check_accounts_predicate_name="\'double provider count\'",
+                                                block_hash=chain_head)
     log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
     if len(double_providers_accounts) > 0:
         save_accounts_to_json_file("double-providers-accounts.json", double_providers_accounts)
-        for (i, account_ids_chunk) in enumerate(chunks(double_providers_accounts, input_args.set_storage_in_batch)):
-            set_storage_calls = list(map(lambda account: set_provider_count_to_one(chain_connection,
-                                                                                   account,
-                                                                                   chain_major_version),
-                                         account_ids_chunk))
+        internal_metadata_scale_codec_type = get_internal_scale_codec_type(chain_connection)
+        for (i, account_id_and_data_chunk) in enumerate(
+                chunks(double_providers_accounts, input_args.set_storage_in_batch)):
+            log.info(f"Preparing batch of set_storage calls...")
+            set_storage_calls = list(map(lambda account_and_data: set_provider_count_to_one(chain_connection,
+                                                                                            account_and_data,
+                                                                                            internal_metadata_scale_codec_type,
+                                                                                            chain_head),
+                                         account_id_and_data_chunk))
+            log.info(f"Prepared {len(set_storage_calls)} calls.")
+            log.debug(f"{set_storage_calls}")
             batch_call = chain_connection.compose_call(
                 call_module='Utility',
                 call_function='batch',
@@ -404,35 +420,38 @@ def fix_double_providers_count(chain_connection,
         log.info(f"System.SetStorage calls done.")
 
 
-def set_provider_count_to_one(chain_connection, account_id, chain_major_version):
+def set_provider_count_to_one(chain_connection,
+                              account_id_and_data,
+                              internal_system_account_scale_codec_type,
+                              block_hash):
     """
     Method sets provider counter for a System.Account to 1 using System.SetStorage call. Since we must replace whole
     System.Account value, which contains also other account counters as well as balances data for the account, this
     solution is prone to a race condition in which we this data is altered meanwhile we issue set_storage. Practically,
     this can happen either that here is a transaction that ends up in the same block as set_storage or just before,
-    causing a (write) race condition. In order to prevent that we need to read events before some blocks that
+    causing a (write) race condition. In order to prevent that one needs to read events before some blocks that
     set_storage is issued and from the same block itself. If any of those events concern account id in action, those
     events must be logged to perform appropriate fixing actions manually.
 
     This function prepares and signs System.SetStorage call. Wraps it in Sudo.UncheckedWeight call before sending.
     :param chain_connection: WS connection handler
-    :param account_id: An account id to set provider count to 1.
+    :param account_id_and_data: A tuple (account_id, account_id_data) that has double providers counter
+    :param internal_system_account_scale_codec_type: internal (and usually obfuscated) SCALE codec type name
+           to encode System.Account data
+    :param block_hash:
+
     :return: extrinsic ready to be sent
     """
-    assert chain_major_version == ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION, \
-        "Chain major version must be at least 12!"
 
-    result = chain_connection.query('System', 'Account', [account_id]).value
-    system_account_storage_function = \
-        next(filter(
-            lambda storage_function: storage_function['storage_name'] == 'Account' and
-                                     storage_function['module_id'] == 'System',
-            chain_connection.get_metadata_storage_functions()))
-    internal_metadata_scale_codec_type = system_account_storage_function['type_value']
-    new_account_data = copy.deepcopy(result)
-    new_account_data['providers'] = 1
-    encoded_new_account_data = chain_connection.encode_scale(type_string=internal_metadata_scale_codec_type,
-                                                             value=new_account_data)
+    account_id = account_id_and_data[0]
+    account_data = account_id_and_data[1]
+
+    account_data['providers'] = 1
+
+    # encode_scale under the hood does
+    encoded_account_data = chain_connection.encode_scale(type_string=internal_system_account_scale_codec_type,
+                                                         value=account_data,
+                                                         block_hash=block_hash)
     system_account_storage_key = chain_connection.create_storage_key(
         'System', 'Account', [account_id]
     )
@@ -440,11 +459,8 @@ def set_provider_count_to_one(chain_connection, account_id, chain_major_version)
         call_module='System',
         call_function='set_storage',
         call_params={
-            'items': [(system_account_storage_key.to_hex(), encoded_new_account_data.to_hex())],
+            'items': [(system_account_storage_key.to_hex(), encoded_account_data.to_hex())],
         })
-    log.debug(f"Prepared System.set_storage call for account {account_id} "
-              f"Account counters and data before fixing: {result} "
-              f"Prepared call: {set_storage_call}")
     sudo_unchecked_weight_call = chain_connection.compose_call(
         call_module='Sudo',
         call_function='sudo_unchecked_weight',
@@ -457,6 +473,16 @@ def set_provider_count_to_one(chain_connection, account_id, chain_major_version)
         }
     )
     return sudo_unchecked_weight_call
+
+
+def get_internal_scale_codec_type(chain_connection):
+    system_account_storage_function = \
+        next(filter(
+            lambda storage_function: storage_function['storage_name'] == 'Account' and
+                                     storage_function['module_id'] == 'System',
+            chain_connection.get_metadata_storage_functions()))
+    internal_metadata_scale_codec_type = system_account_storage_function['type_value']
+    return internal_metadata_scale_codec_type
 
 
 def chunks(list_of_elements, n):
@@ -496,16 +522,22 @@ def save_accounts_to_json_file(json_file_name, accounts):
 
 
 def get_global_logger(input_args):
+    log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(input_args.log_level.upper())
+
     time_now = datetime.datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     script_name_without_extension = pathlib.Path(__file__).stem
-    logging.basicConfig(
-        level=input_args.log_level.upper(),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(f"{script_name_without_extension}-{time_now}.log"),
-            logging.StreamHandler()
-        ]
-    )
+    file_handler = logging.FileHandler(f"{script_name_without_extension}-{time_now}.log")
+    file_handler.setFormatter(log_formatter)
+    file_handler.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    console_handler.setLevel(logging.INFO)
+    root_logger.addHandler(console_handler)
+
     return logging
 
 
@@ -573,7 +605,7 @@ if __name__ == "__main__":
         log.info("Upgrade accounts done.")
     if args.fix_double_providers_count:
         sudo_account_keypair = substrateinterface.Keypair.create_from_uri(sender_origin_account_seed)
-        log.info(f"This script is going to query all accounts that have providers == 2 and decrease this counter"
+        log.info(f"This script is going to query all accounts that have providers == 2 and decrease this counter "
                  f"by one using System.SetStorage extrinsic, which requires sudo.")
         log.info(f"Using the following account for System.SetStorage calls: {sudo_account_keypair.ss58_address}")
         fix_double_providers_count(chain_connection=chain_ws_connection,
