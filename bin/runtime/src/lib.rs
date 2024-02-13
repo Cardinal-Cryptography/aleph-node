@@ -143,11 +143,26 @@ parameter_types! {
     pub const SS58Prefix: u8 = ADDRESSES_ENCODING;
 }
 
+pub enum CallFilter {}
+impl Contains<RuntimeCall> for CallFilter {
+    fn contains(call: &RuntimeCall) -> bool {
+        match call {
+            #[cfg(feature = "liminal")]
+            RuntimeCall::VkStorage(_) => {
+                pallet_feature_control::Pallet::<Runtime>::is_feature_enabled(
+                    Feature::OnChainVerifier,
+                )
+            }
+            _ => true,
+        }
+    }
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = frame_support::traits::Everything;
+    type BaseCallFilter = CallFilter;
     /// Block & extrinsics weights: base values and limits.
     type BlockWeights = BlockWeights;
     /// The maximum length of a block (in bytes).
@@ -417,6 +432,7 @@ parameter_types! {
     pub const MaxPointsToBalance: u8 = 10;
 }
 
+use pallet_feature_control::Feature;
 use sp_runtime::traits::Convert;
 
 pub struct BalanceToU256;
