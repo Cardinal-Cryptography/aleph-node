@@ -6,7 +6,7 @@ mod weighting;
 use aleph_runtime::Runtime as AlephRuntime;
 use aleph_runtime_interfaces::snark_verifier::VerifierError::*;
 use frame_support::pallet_prelude::Weight;
-use pallet_contracts::chain_extension::{ChainExtension, RetVal};
+use pallet_contracts::chain_extension::RetVal;
 
 use crate::{
     backend::{
@@ -34,11 +34,6 @@ fn simulate_verify<Exc: BackendExecutor>(expected_ret_val: u32) {
     let expected_charged = <TestWeight as WeightInfo>::verify()
         + TestWeight::verify_read_args(verify_args().len() as u32);
     assert_eq!(charged, expected_charged);
-}
-
-#[test]
-fn extension_is_enabled() {
-    assert!(BabyLiminalChainExtension::<AlephRuntime>::enabled())
 }
 
 #[test]
