@@ -1,5 +1,4 @@
 #!/bin/python3
-import copy
 import datetime
 import json
 import pathlib
@@ -358,9 +357,9 @@ def upgrade_accounts(chain_connection,
         submit_extrinsic(chain_connection, extrinsic, len(account_ids_chunk), args.dry_run)
 
 
-def check_if_account_double_providers(account, chain_major_version, ed):
+def check_if_account_has_double_providers(account, chain_major_version, ed):
     """
-    This predicate checks if an account's providers counter is different from 2
+    This predicate checks if an account's providers counter is equal to 2
     :param account: AccountInfo struct (element of System.Accounts StorageMap)
     :param chain_major_version: Must be >= 12
     :param ed: existential deposit, not used
@@ -377,7 +376,7 @@ def check_if_account_double_providers(account, chain_major_version, ed):
 
 def events_sanity_check(chain_connection, double_providers_accounts, original_state_block_hash):
     """
-    Makes sure that there were no unexpected events emitted meanwhile System.setStorage was issues.
+    Makes sure that there were no unexpected events emitted meanwhile System.setStorage was issued.
     It logs warning in case some unexpected events were emitted for original double_providers_accounts,
     such as Balances.transfer.
     :param chain_connection WS connection handler
@@ -424,7 +423,7 @@ def fix_double_providers_count(chain_connection,
     double_providers_accounts = filter_accounts(chain_connection=chain_connection,
                                                 ed=None,
                                                 chain_major_version=chain_major_version,
-                                                check_accounts_predicate=check_if_account_double_providers,
+                                                check_accounts_predicate=check_if_account_has_double_providers,
                                                 check_accounts_predicate_name="\'double provider count\'",
                                                 block_hash=chain_head)
     log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
