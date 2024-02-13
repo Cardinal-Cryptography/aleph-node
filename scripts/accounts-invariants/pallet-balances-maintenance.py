@@ -187,7 +187,7 @@ def filter_accounts(chain_connection,
     for (i, (account_id, info)) in enumerate(account_query):
         total_accounts_count += 1
         if check_accounts_predicate(info, chain_major_version, ed):
-            accounts_that_do_meet_predicate.append([account_id.value, info.serialize()])
+            accounts_that_do_meet_predicate.append([account_id.value, info])
         if i % 5000 == 0 and i > 0:
             log.info(f"Checked {i} accounts")
 
@@ -398,34 +398,81 @@ def fix_double_providers_count(chain_connection,
     log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
     if len(double_providers_accounts) > 0:
         save_accounts_to_json_file("double-providers-accounts.json", double_providers_accounts)
-        internal_metadata_scale_codec_type = get_internal_scale_codec_type(chain_connection)
         for (i, account_id_and_data_chunk) in enumerate(
                 chunks(double_providers_accounts, input_args.set_storage_in_batch)):
-            log.info(f"Preparing batch of set_storage calls...")
-            set_storage_calls = list(map(lambda account_and_data: set_provider_count_to_one(chain_connection,
-                                                                                            account_and_data,
-                                                                                            internal_metadata_scale_codec_type,
-                                                                                            chain_head),
-                                         account_id_and_data_chunk))
-            log.info(f"Prepared {len(set_storage_calls)} calls.")
-            log.debug(f"{set_storage_calls}")
-            batch_call = chain_connection.compose_call(
-                call_module='Utility',
-                call_function='batch',
+            log.info(f"Preparing batch of raw key value pairs...")
+            log.debug(f"List of triples (account_id, ScaleInfo AccountInfo:")
+            log.debug(f"{account_id_and_data_chunk}")
+
+            account_ids_chunk = list(
+                map(lambda account_id_and_data: account_id_and_data[0], account_id_and_data_chunk))
+            # unfortunately each create_storage_key does 3 RCP calls under the hood, which slows downs script execution
+            # there is no official API to speed it up, otherwise we would need to compute storage keys manually
+            system_account_storage_keys_hexstrings = list(map(
+                lambda account_id:
+                chain_connection.create_storage_key("System", "Account", [account_id]).to_hex(),
+                account_ids_chunk))
+
+            account_info_chunk = list(
+                map(lambda account_id_and_data: account_id_and_data[1], account_id_and_data_chunk))
+            raw_hexstring_values = list(map(lambda account_info: set_providers_counter_to_one(account_info),
+                                            account_info_chunk))
+            raw_key_values = list(zip(system_account_storage_keys_hexstrings, raw_hexstring_values))
+            log.info(f"Prepared {len(raw_key_values)} raw key value pairs.")
+            log.debug(f"{raw_key_values}")
+
+            set_storage_call = chain_connection.compose_call(
+                call_module='System',
+                call_function='set_storage',
                 call_params={
-                    'calls': set_storage_calls
+                    'items': raw_key_values,
+                })
+            sudo_unchecked_weight_call = chain_connection.compose_call(
+                call_module='Sudo',
+                call_function='sudo_unchecked_weight',
+                call_params={
+                    'call': set_storage_call,
+                    'weight': {
+                        'proof_size': 0,
+                        'ref_time': 0,
+                    },
                 }
             )
+            # batch_call = chain_connection.compose_call(
+            #     call_module='Utility',
+            #     call_function='batch',
+            #     call_params={
+            #         'calls': set_storage_calls
+            #     }
+            # )
 
-            extrinsic = chain_connection.create_signed_extrinsic(call=batch_call, keypair=sender_keypair)
+            extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call,
+                                                                 keypair=sender_keypair)
             submit_extrinsic(chain_connection, extrinsic, 1, args.dry_run)
         log.info(f"System.SetStorage calls done.")
 
 
-def set_provider_count_to_one(chain_connection,
-                              account_id_and_data,
-                              internal_system_account_scale_codec_type,
-                              block_hash):
+def assert_same_data_except_providers_counter(account_data_hexstring,
+                                              account_data_with_fixed_providers_counter_hexstring):
+    """
+    Function makes sure previous and fixed account data is different only in providers counter
+    :param account_data_hexstring: Hexstring (raw value) representation of original AccountData
+    :param account_data_with_fixed_providers_counter_hexstring: Hexstring representation (raw value) of AccountData with
+           fixed providers counter
+    :return: None, but raises AssertionError in case data is different not only in providers counter
+    """
+    # example hexstring of AccountInfo is
+    # 0x00000000000000000100000000000000f4010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080
+    # difference can be only on byte 20th, which is LSB of providers counter that must be equal to 1 in fixed data
+    assert account_data_hexstring[:19] == account_data_with_fixed_providers_counter_hexstring[:19], \
+        f"First 20 bytes of original and fixed AccountInfo must be equal"
+    assert account_data_with_fixed_providers_counter_hexstring[19] == '1', \
+        f"Providers counter of fixed AccountInfo must be 1"
+    assert account_data_hexstring[20:] == account_data_with_fixed_providers_counter_hexstring[20:], \
+        f"Last but 21 bytes of original and fixed AccountInfo must be equal"
+
+
+def set_providers_counter_to_one(account_info):
     """
     Method sets provider counter for a System.Account to 1 using System.SetStorage call. Since we must replace whole
     System.Account value, which contains also other account counters as well as balances data for the account, this
@@ -435,57 +482,19 @@ def set_provider_count_to_one(chain_connection,
     set_storage is issued and from the same block itself. If any of those events concern account id in action, those
     events must be logged to perform appropriate fixing actions manually.
 
-    This function prepares and signs System.SetStorage call. Wraps it in Sudo.UncheckedWeight call before sending.
-    :param chain_connection: WS connection handler
-    :param account_id_and_data: A tuple (account_id, account_id_data) that has double providers counter
-    :param internal_system_account_scale_codec_type: internal (and usually obfuscated) SCALE codec type name
-           to encode System.Account data
-    :param block_hash:
+    This function decodes and encodes original AccountInfo with fixed providers count (set to 1). It also asserts
+    original and fixed AccountInfo is different only on the providers counter.
 
-    :return: extrinsic ready to be sent
+    :param account_info: ScaleType representation of AccountInfo that has double providers counter
+    :return: Raw storage value hexstring representation of AccountInfo with providers counter set to 1
     """
-
-    account_id = account_id_and_data[0]
-    account_data = account_id_and_data[1]
-
-    account_data['providers'] = 1
-
-    # encode_scale under the hood does a few RPC calls, which is unfortunate, as it slows down this function
-    # execution, which should as fast as possible to avoid data race conditions
-    encoded_account_data = chain_connection.encode_scale(type_string=internal_system_account_scale_codec_type,
-                                                         value=account_data,
-                                                         block_hash=block_hash)
-    system_account_storage_key = chain_connection.create_storage_key(
-        'System', 'Account', [account_id]
-    )
-    set_storage_call = chain_connection.compose_call(
-        call_module='System',
-        call_function='set_storage',
-        call_params={
-            'items': [(system_account_storage_key.to_hex(), encoded_account_data.to_hex())],
-        })
-    sudo_unchecked_weight_call = chain_connection.compose_call(
-        call_module='Sudo',
-        call_function='sudo_unchecked_weight',
-        call_params={
-            'call': set_storage_call,
-            'weight': {
-                'proof_size': 0,
-                'ref_time': 0,
-            },
-        }
-    )
-    return sudo_unchecked_weight_call
-
-
-def get_internal_scale_codec_type(chain_connection):
-    system_account_storage_function = \
-        next(filter(
-            lambda storage_function: storage_function['storage_name'] == 'Account' and
-                                     storage_function['module_id'] == 'System',
-            chain_connection.get_metadata_storage_functions()))
-    internal_metadata_scale_codec_type = system_account_storage_function['type_value']
-    return internal_metadata_scale_codec_type
+    decoded_account_data = account_info.decode()
+    decoded_account_data['providers'] = 1
+    account_data_with_fixed_providers_counter = account_info.encode(decoded_account_data)
+    fixed_account_info_hexstring = account_data_with_fixed_providers_counter.to_hex()
+    assert_same_data_except_providers_counter(account_info.encode().to_hex(),
+                                              fixed_account_info_hexstring)
+    return fixed_account_info_hexstring
 
 
 def chunks(list_of_elements, n):
@@ -510,7 +519,7 @@ def perform_account_sanity_checks(chain_connection,
                                        ed=ed,
                                        chain_major_version=chain_major_version,
                                        check_accounts_predicate=lambda x, y, z: not check_account_invariants(x, y, z),
-                                       check_accounts_predicate_name="\'account invariants\'")
+                                       check_accounts_predicate_name="\'incorrect account invariants\'")
     if len(invalid_accounts) > 0:
         log.warning(f"Found {len(invalid_accounts)} accounts that do not meet balances invariants!")
         save_accounts_to_json_file("accounts-with-failed-invariants.json", invalid_accounts)
@@ -520,7 +529,9 @@ def perform_account_sanity_checks(chain_connection,
 
 def save_accounts_to_json_file(json_file_name, accounts):
     with open(json_file_name, 'w') as f:
-        json.dump(accounts, f)
+        json.dump(
+            list(map(lambda account_id_and_data: [account_id_and_data[0], account_id_and_data[1].serialize()],
+                     accounts)), f)
         log.info(f"Wrote file '{json_file_name}'")
 
 
