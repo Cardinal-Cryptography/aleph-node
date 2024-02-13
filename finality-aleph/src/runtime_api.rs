@@ -5,7 +5,8 @@ use std::{
 };
 
 use aleph_runtime::SessionKeys;
-use parity_scale_codec::{Decode, DecodeAll, Error as DecodeError};
+use frame_support::StorageHasher;
+use parity_scale_codec::{Decode, DecodeAll, Encode, Error as DecodeError};
 use sc_client_api::Backend;
 use sp_application_crypto::key_types::AURA;
 use sp_core::twox_128;
@@ -63,36 +64,55 @@ where
         }
     }
 
-    fn read_storage<D: Decode>(
+    fn access_storage<D: Decode>(
+        &self,
+        storage_key: Vec<u8>,
+        at_block: BlockHash,
+    ) -> Result<D, ApiError> {
+        let encoded = self
+            .client
+            .storage(at_block, &sc_client_api::StorageKey(storage_key))
+            .unwrap()
+            .unwrap();
+        D::decode_all(&mut encoded.0.as_ref()).map_err(ApiError::DecodeError)
+    }
+
+    fn read_storage_value<D: Decode>(
         &self,
         pallet: &str,
         item: &str,
         at_block: BlockHash,
     ) -> Result<D, ApiError> {
         let storage_key = [twox_128(pallet.as_bytes()), twox_128(item.as_bytes())].concat();
+        self.access_storage(storage_key, at_block)
+    }
 
-        let encoded = match self
-            .client
-            .storage(at_block, &sc_client_api::StorageKey(storage_key))
-        {
-            Ok(Some(e)) => e,
-            _ => return Err(ApiError::NoStorage(pallet.to_string(), item.to_string())),
-        };
-
-        D::decode_all(&mut encoded.0.as_ref()).map_err(ApiError::DecodeError)
+    fn read_storage_map<H: StorageHasher, D: Decode, E: Encode>(
+        &self,
+        pallet: &str,
+        item: &str,
+        key: E,
+        at_block: BlockHash,
+    ) -> Result<D, ApiError> {
+        let mut storage_key = [twox_128(pallet.as_bytes()), twox_128(item.as_bytes())].concat();
+        let p = key.using_encoded(H::hash);
+        storage_key.extend(p.as_ref());
+        self.access_storage::<D>(storage_key, at_block)
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum ApiError {
-    NoStorage(String, String),
+    AccessFailure,
+    NoStorage(String),
     DecodeError(DecodeError),
 }
 
 impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            ApiError::NoStorage(pallet, item) => write!(f, "no storage under {}.{}", pallet, item),
+            ApiError::AccessFailure => write!(f, "blockchain error during a storage read attempt"),
+            ApiError::NoStorage(path) => write!(f, "no storage under {}", path),
             ApiError::DecodeError(error) => write!(f, "decode error: {:?}", error),
         }
     }
@@ -115,10 +135,80 @@ where
             return Ok(authorities);
         }
 
-        let queued_keys: QueuedKeys = self.read_storage("Session", "QueuedKeys", at)?;
+        let queued_keys: QueuedKeys = self.read_storage_value("Session", "QueuedKeys", at)?;
         Ok(queued_keys
             .into_iter()
             .filter_map(|(account_id, keys)| keys.get(AURA).map(|key| (account_id, key)))
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::{
+        collections::{BTreeMap, HashMap},
+        sync::Arc,
+    };
+
+    use frame_support::Twox128;
+    use parity_scale_codec::Encode;
+    use sp_runtime::Storage;
+    use substrate_test_client::ClientExt;
+
+    use super::*;
+    use crate::testing::mocks::{TestClientBuilder, TestClientBuilderExt};
+
+    #[tokio::test]
+    async fn test_storage_reads() {
+        let mut client_builder = TestClientBuilder::new();
+
+        let pallet = twox_128("Pallet".as_bytes());
+        let map = twox_128("Map".as_bytes());
+        let key1 = twox_128("Key1".encode().as_slice());
+        let key2 = twox_128("Key2".encode().as_slice());
+
+        let map_path1 = [pallet, map, key1].concat();
+        let map_path2 = [pallet, map, key2].concat();
+
+        let storage_value = twox_128("StorageValue".as_bytes());
+        let storage_value_path = [pallet, storage_value].concat();
+
+        let storage = Storage {
+            top: BTreeMap::from([
+                (map_path1, 1u32.encode()),
+                (map_path2, 2u32.encode()),
+                (storage_value_path, 3u32.encode()),
+            ]),
+            children_default: HashMap::new(),
+        };
+
+        *client_builder.genesis_init_mut().extra_storage() = storage;
+
+        let client = Arc::new(client_builder.build());
+        let genesis_hash = client.genesis_hash();
+        let runtime_api = RuntimeApiImpl::new(client);
+
+        let map_value1 = runtime_api.read_storage_map::<Twox128, u32, &str>(
+            "Pallet",
+            "Map",
+            "Key1",
+            genesis_hash,
+        );
+        let map_value2 = runtime_api.read_storage_map::<Twox128, u32, &str>(
+            "Pallet",
+            "Map",
+            "Key2",
+            genesis_hash,
+        );
+        let storage_value =
+            runtime_api.read_storage_value::<u32>("Pallet", "StorageValue", genesis_hash);
+
+        assert!(map_value1.is_ok());
+        assert!(map_value2.is_ok());
+        assert!(storage_value.is_ok());
+
+        assert_eq!(map_value1.unwrap(), 1);
+        assert_eq!(map_value2.unwrap(), 2);
+        assert_eq!(storage_value.unwrap(), 3);
     }
 }
