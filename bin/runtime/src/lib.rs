@@ -432,6 +432,7 @@ parameter_types! {
     pub const MaxPointsToBalance: u8 = 10;
 }
 
+#[cfg(feature = "liminal")]
 use pallet_feature_control::Feature;
 use sp_runtime::traits::Convert;
 
