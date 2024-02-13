@@ -72,8 +72,8 @@ where
         let encoded = self
             .client
             .storage(at_block, &sc_client_api::StorageKey(storage_key))
-            .unwrap()
-            .unwrap();
+            .map_err(|_| ApiError::StorageAccessFailure)?
+            .ok_or(ApiError::NoStorage)?;
         D::decode_all(&mut encoded.0.as_ref()).map_err(ApiError::DecodeError)
     }
 
@@ -84,9 +84,13 @@ where
         at_block: BlockHash,
     ) -> Result<D, ApiError> {
         let storage_key = [twox_128(pallet.as_bytes()), twox_128(item.as_bytes())].concat();
-        self.access_storage(storage_key, at_block)
+        match self.access_storage(storage_key, at_block) {
+            Err(ApiError::NoStorage) => Err(ApiError::NoStorageValue(pallet.into(), item.into())),
+            other => other,
+        }
     }
 
+    #[allow(dead_code)]
     fn read_storage_map<H: StorageHasher, D: Decode, E: Encode>(
         &self,
         pallet: &str,
@@ -97,22 +101,37 @@ where
         let mut storage_key = [twox_128(pallet.as_bytes()), twox_128(item.as_bytes())].concat();
         let p = key.using_encoded(H::hash);
         storage_key.extend(p.as_ref());
-        self.access_storage::<D>(storage_key, at_block)
+        match self.access_storage::<D>(storage_key, at_block) {
+            Err(ApiError::NoStorage) => {
+                Err(ApiError::NoStorageMapElement(pallet.into(), item.into()))
+            }
+            other => other,
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum ApiError {
-    AccessFailure,
-    NoStorage(String),
+    StorageAccessFailure,
+    NoStorage,
+    NoStorageMapElement(String, String),
+    NoStorageValue(String, String),
     DecodeError(DecodeError),
 }
 
 impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            ApiError::AccessFailure => write!(f, "blockchain error during a storage read attempt"),
-            ApiError::NoStorage(path) => write!(f, "no storage under {}", path),
+            ApiError::StorageAccessFailure => {
+                write!(f, "blockchain error during a storage read attempt")
+            }
+            ApiError::NoStorage => write!(f, "no storage found"),
+            ApiError::NoStorageMapElement(pallet, item) => {
+                write!(f, "storage map element not found under {}{}", pallet, item)
+            }
+            ApiError::NoStorageValue(pallet, item) => {
+                write!(f, "storage value not found under {}{}", pallet, item)
+            }
             ApiError::DecodeError(error) => write!(f, "decode error: {:?}", error),
         }
     }
