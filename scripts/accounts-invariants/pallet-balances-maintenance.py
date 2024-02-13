@@ -10,6 +10,8 @@ import logging
 import enum
 import os
 
+from substrateinterface.storage import StorageKey
+
 
 class ChainMajorVersion(enum.Enum):
     PRE_12_MAJOR_VERSION = 65,
@@ -60,8 +62,9 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         help='How many accounts to upgrade in a single transaction. Default: 128')
     parser.add_argument('--set-storage-in-batch',
                         type=int,
-                        default=8192,
-                        help='How many System.SetStorage calls to perform in a single transactions. Default: 8192')
+                        default=16384,
+                        help='How many storage value pairs to update in a single System.setStorage transaction.'
+                             ' Default: 16384')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
                        action='store_true',
@@ -372,6 +375,35 @@ def check_if_account_double_providers(account, chain_major_version, ed):
     return providers == 2
 
 
+def events_sanity_check(chain_connection, double_providers_accounts, original_state_block_hash):
+    """
+    Makes sure that there were no unexpected events emitted meanwhile System.setStorage was issues.
+    It logs warning in case some unexpected events were emitted for original double_providers_accounts,
+    such as Balances.transfer.
+    :param chain_connection WS connection handler
+    :param double_providers_accounts: list of original double providers counter accounts
+    :param original_state_block_hash: a hash of a block from which double_providers_accounts were read
+    :return: None.
+    """
+    chain_head = chain_connection.get_block_hash()
+    chain_head_block_number = chain_connection.get_block_number(chain_head)
+    current_block_number = chain_connection.get_block_number(original_state_block_hash)
+    log.info(
+        f"Performing events sanity checks, from block #{current_block_number} till block #{chain_head_block_number}")
+    while current_block_number < chain_head_block_number:
+        block_hash = chain_connection.get_block_hash(current_block_number)
+        log.info(f"Getting events for block #{current_block_number}")
+        events = chain_connection.get_events(block_hash)
+        log.debug(f"Emitted events:")
+        for event in events:
+            serialized_event = json.dumps(event.value)
+            log.debug(f'* {serialized_event}')
+            if any([account_id in serialized_event for account_id in double_providers_accounts]):
+                log.warning(f"Unexpected event found for original double provider account!")
+                log.warning(f"{serialized_event}")
+        current_block_number += 1
+
+
 def fix_double_providers_count(chain_connection,
                                input_args,
                                chain_major_version,
@@ -401,25 +433,10 @@ def fix_double_providers_count(chain_connection,
         for (i, account_id_and_data_chunk) in enumerate(
                 chunks(double_providers_accounts, input_args.set_storage_in_batch)):
             log.info(f"Preparing batch of raw key value pairs...")
-            log.debug(f"List of triples (account_id, ScaleInfo AccountInfo:")
+            log.debug(f"List of tuples (account_id, ScaleInfo AccountInfo):")
             log.debug(f"{account_id_and_data_chunk}")
 
-            account_ids_chunk = list(
-                map(lambda account_id_and_data: account_id_and_data[0], account_id_and_data_chunk))
-            # unfortunately each create_storage_key does 3 RCP calls under the hood, which slows downs script execution
-            # there is no official API to speed it up, otherwise we would need to compute storage keys manually
-            system_account_storage_keys_hexstrings = list(map(
-                lambda account_id:
-                chain_connection.create_storage_key("System", "Account", [account_id]).to_hex(),
-                account_ids_chunk))
-
-            account_info_chunk = list(
-                map(lambda account_id_and_data: account_id_and_data[1], account_id_and_data_chunk))
-            raw_hexstring_values = list(map(lambda account_info: set_providers_counter_to_one(account_info),
-                                            account_info_chunk))
-            raw_key_values = list(zip(system_account_storage_keys_hexstrings, raw_hexstring_values))
-            log.info(f"Prepared {len(raw_key_values)} raw key value pairs.")
-            log.debug(f"{raw_key_values}")
+            raw_key_values = get_raw_key_values(chain_connection, account_id_and_data_chunk)
 
             set_storage_call = chain_connection.compose_call(
                 call_module='System',
@@ -438,18 +455,43 @@ def fix_double_providers_count(chain_connection,
                     },
                 }
             )
-            # batch_call = chain_connection.compose_call(
-            #     call_module='Utility',
-            #     call_function='batch',
-            #     call_params={
-            #         'calls': set_storage_calls
-            #     }
-            # )
 
             extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call,
                                                                  keypair=sender_keypair)
             submit_extrinsic(chain_connection, extrinsic, 1, args.dry_run)
         log.info(f"System.SetStorage calls done.")
+        events_sanity_check(chain_connection,
+                            list(map(lambda account_id_and_data: account_id_and_data[0], double_providers_accounts)),
+                            chain_head)
+
+
+def get_raw_key_values(chain_connection, account_id_and_data_chunk):
+    """
+    Fix chain AccountInfo data with regard to the providers counter. Computes StorageKeys for all input accounts, that
+    requires RPC calls to the chain.
+    :param chain_connection: WS connection handler
+    :param account_id_and_data_chunk: A list of tuples (account_id, scale_info_account_info_object)
+    :return: List of tuples (system_account_storage_key_hexstring, account_info_raw_value_hexstring) ready to be sent
+    to System.setStorage call
+    """
+    account_ids_chunk = list(
+        map(lambda account_id_and_data: account_id_and_data[0], account_id_and_data_chunk))
+    system_account_storage_keys_hexstrings = list(map(
+        lambda account_id:
+        StorageKey.create_from_storage_function(pallet="System",
+                                                storage_function="Account",
+                                                params=[account_id],
+                                                runtime_config=chain_connection.runtime_config,
+                                                metadata=chain_connection.metadata).to_hex(),
+        account_ids_chunk))
+    account_info_chunk = list(
+        map(lambda account_id_and_data: account_id_and_data[1], account_id_and_data_chunk))
+    raw_hexstring_values = list(map(lambda account_info: set_providers_counter_to_one(account_info),
+                                    account_info_chunk))
+    raw_key_values = list(zip(system_account_storage_keys_hexstrings, raw_hexstring_values))
+    log.info(f"Prepared {len(raw_key_values)} raw key value pairs.")
+    log.debug(f"{raw_key_values}")
+    return raw_key_values
 
 
 def assert_same_data_except_providers_counter(account_data_hexstring,
