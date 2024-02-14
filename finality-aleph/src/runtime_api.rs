@@ -110,7 +110,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ApiError {
     StorageAccessFailure,
     NoStorage,
@@ -222,12 +222,8 @@ mod test {
         let storage_value =
             runtime_api.read_storage_value::<u32>("Pallet", "StorageValue", genesis_hash);
 
-        assert!(map_value1.is_ok());
-        assert!(map_value2.is_ok());
-        assert!(storage_value.is_ok());
-
-        assert_eq!(map_value1.unwrap(), 1);
-        assert_eq!(map_value2.unwrap(), 2);
-        assert_eq!(storage_value.unwrap(), 3);
+        assert_eq!(map_value1, Ok(1));
+        assert_eq!(map_value2, Ok(2));
+        assert_eq!(storage_value, Ok(3));
     }
 }
