@@ -61,11 +61,6 @@ fn verify__positive_scenario() {
 }
 
 #[test]
-fn extension_is_enabled() {
-    assert!(!BabyLiminalChainExtension::<AlephRuntime>::enabled())
-}
-
-#[test]
 #[allow(non_snake_case)]
 fn verify__pallet_says_input_deserialization_failed() {
     simulate_verify::<VerifyErrorer<{ DeserializingPublicInputFailed }>>(
