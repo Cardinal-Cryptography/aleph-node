@@ -147,13 +147,13 @@ impl From<SignatureV1> for Signature {
 
 #[cfg(test)]
 mod tests {
-    use sp_keystore::{testing::MemoryKeystore as Keystore, Keystore as _};
+    use sp_keystore::Keystore as _;
 
     use super::*;
     use crate::abft::NodeIndex;
 
     fn generate_keys(names: &[String]) -> (Vec<AuthorityPen>, AuthorityVerifier) {
-        let key_store = Arc::new(Keystore::new());
+        let key_store = Arc::new(LocalKeystore::in_memory());
         let mut authority_ids = Vec::with_capacity(names.len());
         for name in names {
             let pk = key_store
