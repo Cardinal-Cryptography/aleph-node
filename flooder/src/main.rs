@@ -63,18 +63,13 @@ async fn flood(
     let mut overdue_transactions = 0;
     for i in 0..schedule.intervals {
         let pending_in_pool = connections[0].pending_extrinsics_len().await?;
-        overdue_transactions += schedule.transactions_in_interval;
-        let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
-        let transactions_to_send = min(transactions_to_pool_limit, overdue_transactions);
-        overdue_transactions -= transactions_to_send;
-        info!(
-            "Interval {}: submitting {} txns",
-            i + 1,
-            transactions_to_send
-        );
         debug!(
             "In the txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}"
         );
+
+        overdue_transactions += schedule.transactions_in_interval;
+        let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
+        let transactions_to_send = min(transactions_to_pool_limit, overdue_transactions);
 
         let tasks = connections
             .iter()
@@ -84,10 +79,8 @@ async fn flood(
                 if (conn_id as u64) < transactions_to_send % connections.len() as u64 {
                     per_task += 1;
                 }
-
                 let dest = dest.clone();
                 let nonce = nonces[conn_id];
-                nonces[conn_id] += per_task as u32;
 
                 // Set mortality roughly to flooding length
                 let params = BaseExtrinsicParamsBuilder::default().era(
@@ -98,8 +91,18 @@ async fn flood(
                     start_finalized_hash,
                 );
 
+                let inner_start = Instant::now();
+                let duration_limit = Duration::from_secs(i + 1)
+                    * (schedule.interval_duration as u32)
+                    - inner_start.duration_since(start);
+
                 async move {
                     for tx_id in 0..per_task as u32 {
+                        // Don't use "pure" timeout to avoid a situation, where we don't know if
+                        // a submission was successful or not.
+                        if Instant::now().saturating_duration_since(inner_start) > duration_limit {
+                            return anyhow::Ok(tx_id);
+                        }
                         conn.sign_with_params(
                             transfer_keep_alive(dest.clone(), transfer_amount),
                             params,
@@ -108,22 +111,27 @@ async fn flood(
                         .submit(status)
                         .await?;
                     }
-                    anyhow::Ok(())
+                    anyhow::Ok(per_task as u32)
                 }
             })
             .collect::<Vec<_>>();
 
-        for result in join_all(tasks).await {
-            if let Err(e) = result {
-                info!("Error submitting transaction: {e:?}");
-                return Err(e);
+        let mut total_submitted = 0;
+        for (conn_id, result) in join_all(tasks).await.into_iter().enumerate() {
+            match result {
+                Ok(sent) => {
+                    nonces[conn_id] += sent;
+                    overdue_transactions -= sent as u64;
+                    total_submitted += sent;
+                }
+                Err(e) => {
+                    info!("Error submitting transaction: {e:?}");
+                    return Err(e);
+                }
             }
         }
-
+        info!("Interval {}: submitted {total_submitted} txns out of {transactions_to_send} that should be sent", i + 1,);
         let duration = Instant::now().saturating_duration_since(start);
-        if duration.as_secs() >= schedule.interval_duration * schedule.intervals {
-            break;
-        }
         let left_duration =
             Duration::from_secs((i + 1) * schedule.interval_duration).saturating_sub(duration);
         sleep(left_duration).await;
@@ -201,6 +209,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
 
 /// Only a rough estimation, for the worst case where blocks are 75% full
 /// (it is a maximum for non-operational transactions).
+/// See https://github.com/Cardinal-Cryptography/aleph-node/blob/b6ac239809667b5c6a113c4e3c9ef9216c5b97eb/bin/runtime/src/lib.rs#L267
 async fn estimate_avg_fee_per_transaction_in_block(
     main_connection: &SignedConnection,
     schedule: &Schedule,
@@ -276,7 +285,7 @@ fn stddev(values: &[u64]) -> f64 {
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    env_logger::builder().format_timestamp_millis().init();
     let config: Config = Config::parse();
     info!("Starting benchmark with config {:#?}", &config);
 
