@@ -6,7 +6,7 @@ mod weighting;
 use aleph_runtime::Runtime as AlephRuntime;
 use aleph_runtime_interfaces::snark_verifier::VerifierError::*;
 use frame_support::pallet_prelude::Weight;
-use pallet_contracts::chain_extension::RetVal;
+use pallet_contracts::chain_extension::{ChainExtension, RetVal};
 
 use crate::{
     backend::{
@@ -58,6 +58,11 @@ fn verify__charges_before_reading_arguments() {
 #[allow(non_snake_case)]
 fn verify__positive_scenario() {
     simulate_verify::<VerifyOkayer>(VERIFY_SUCCESS)
+}
+
+#[test]
+fn extension_is_enabled() {
+    assert!(!BabyLiminalChainExtension::<AlephRuntime>::enabled())
 }
 
 #[test]

@@ -34,6 +34,8 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
+#[cfg(feature = "liminal")]
+use pallet_feature_control::Feature;
 use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -56,7 +58,8 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, One, OpaqueKeys,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, Convert, ConvertInto, One,
+        OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug,
@@ -431,10 +434,6 @@ parameter_types! {
     pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
     pub const MaxPointsToBalance: u8 = 10;
 }
-
-#[cfg(feature = "liminal")]
-use pallet_feature_control::Feature;
-use sp_runtime::traits::Convert;
 
 pub struct BalanceToU256;
 
