@@ -99,8 +99,8 @@ where
         at_block: BlockHash,
     ) -> Result<D, ApiError> {
         let mut storage_key = [twox_128(pallet.as_bytes()), twox_128(item.as_bytes())].concat();
-        let p = key.using_encoded(H::hash);
-        storage_key.extend(p.as_ref());
+        let hashed_encoded_key = key.using_encoded(H::hash);
+        storage_key.extend(hashed_encoded_key.as_ref());
         match self.access_storage::<D>(storage_key, at_block) {
             Err(ApiError::NoStorage) => {
                 Err(ApiError::NoStorageMapElement(pallet.into(), item.into()))
