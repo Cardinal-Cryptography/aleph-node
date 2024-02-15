@@ -25,6 +25,8 @@ frame-system = { workspace = true, optional = true }
 pallet-contracts = { workspace = true, optional = true }
 sp-std = { workspace = true, optional = true }
 
+pallet-feature-control = { path = "../pallets/feature-control", default-features = false, optional = true }
+
 ## Proof verification dependencies:
 
 aleph-runtime-interfaces = { workspace = true, optional = true }
@@ -55,6 +57,7 @@ runtime = [
     "frame-system",
     "pallet-contracts",
     "sp-std",
+    "pallet-feature-control",
     "pallet-vk-storage",
     "aleph-runtime-interfaces",
 ]
@@ -66,6 +69,7 @@ runtime-std = [
     "frame-system/std",
     "pallet-contracts/std",
     "sp-std/std",
+    "pallet-feature-control/std",
     "pallet-vk-storage/std",
     "aleph-runtime-interfaces/std",
 ]
