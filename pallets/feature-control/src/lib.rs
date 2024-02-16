@@ -85,7 +85,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     #[derive(frame_support::DefaultNoBound)]
     pub struct GenesisConfig<T: Config> {
-        /// Features to be acrivated from the very beginning.
+        /// Features to be activated from the very beginning.
         pub active_features: Vec<Feature>,
         /// Generic marker.
         #[serde(skip)]
