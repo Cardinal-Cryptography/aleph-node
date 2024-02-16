@@ -183,30 +183,45 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
     })
 }
 
-#[allow(clippy::type_complexity)]
-#[allow(clippy::too_many_arguments)]
-fn setup(
+
+/// Builds a new service for a full client.
+pub fn new_authority(
     config: Configuration,
-    backend: Arc<FullBackend>,
-    chain_status: SubstrateChainStatus,
-    keystore_container: &KeystoreContainer,
-    import_queue: sc_consensus::DefaultImportQueue<Block>,
-    transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
-    task_manager: &mut TaskManager,
-    client: Arc<FullClient>,
-    telemetry: &mut Option<Telemetry>,
-    import_justification_tx: mpsc::UnboundedSender<Justification>,
-    collect_extra_debugging_data: bool,
-) -> Result<
-    (
-        RpcHandlers,
-        SubstrateNetwork<Block, BlockHash>,
-        NetworkStarter,
-        SyncOracle,
-        Option<ValidatorAddressCache>,
-    ),
-    ServiceError,
-> {
+    aleph_config: AlephCli,
+) -> Result<TaskManager, ServiceError> {
+    let sc_service::PartialComponents {
+        client,
+        backend,
+        mut task_manager,
+        import_queue,
+        keystore_container,
+        select_chain,
+        transaction_pool,
+        other: (justification_channel_provider, mut telemetry, metrics),
+    } = new_partial(&config)?;
+
+    let (block_import, block_rx) = RedirectingBlockImport::new(client.clone());
+
+    let backup_path = backup_path(&aleph_config, config.base_path.path());
+
+    let finalized = client.info().finalized_hash;
+
+    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
+
+    let millisecs_per_block =
+        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
+
+    let force_authoring = config.force_authoring;
+    let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
+    let prometheus_registry = config.prometheus_registry().cloned();
+
+    let import_queue_handle = BlockImporter::new(import_queue.service());
+
+    let chain_status = SubstrateChainStatus::new(backend.clone())
+        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
+
+    let collect_extra_debugging_data = !aleph_config.no_collection_of_extra_debugging_data();
+
     let genesis_hash = client
         .block_hash(0)
         .ok()
@@ -252,6 +267,8 @@ fn setup(
         let pool = transaction_pool.clone();
         let sync_oracle = sync_oracle.clone();
         let validator_address_cache = validator_address_cache.clone();
+        let import_justification_tx = justification_channel_provider.get_sender();
+        let chain_status = chain_status.clone();
         Box::new(move |deny_unsafe, _| {
             let deps = RpcFullDeps {
                 client: client.clone(),
@@ -267,13 +284,13 @@ fn setup(
         })
     };
 
-    let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+    let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         network: network.clone(),
         sync_service: sync_network.clone(),
-        client,
+        client: client.clone(),
         keystore: keystore_container.local_keystore(),
-        task_manager,
-        transaction_pool,
+        task_manager: &mut task_manager,
+        transaction_pool: transaction_pool.clone(),
         rpc_builder,
         backend,
         system_rpc_tx,
@@ -283,68 +300,6 @@ fn setup(
     })?;
 
     let substrate_network = SubstrateNetwork::new(network, sync_network, protocol_naming);
-
-    Ok((
-        rpc_handlers,
-        substrate_network,
-        network_starter,
-        sync_oracle,
-        validator_address_cache,
-    ))
-}
-
-/// Builds a new service for a full client.
-pub fn new_authority(
-    config: Configuration,
-    aleph_config: AlephCli,
-) -> Result<TaskManager, ServiceError> {
-    let sc_service::PartialComponents {
-        client,
-        backend,
-        mut task_manager,
-        import_queue,
-        keystore_container,
-        select_chain,
-        transaction_pool,
-        other: (justification_channel_provider, mut telemetry, metrics),
-    } = new_partial(&config)?;
-
-    let (block_import, block_rx) = RedirectingBlockImport::new(client.clone());
-
-    let backup_path = backup_path(&aleph_config, config.base_path.path());
-
-    let finalized = client.info().finalized_hash;
-
-    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
-
-    let millisecs_per_block =
-        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
-
-    let force_authoring = config.force_authoring;
-    let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
-    let prometheus_registry = config.prometheus_registry().cloned();
-
-    let import_queue_handle = BlockImporter::new(import_queue.service());
-
-    let chain_status = SubstrateChainStatus::new(backend.clone())
-        .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?;
-
-    let collect_extra_debugging_data = !aleph_config.no_collection_of_extra_debugging_data();
-
-    let (_rpc_handlers, substrate_network, network_starter, sync_oracle, validator_address_cache) =
-        setup(
-            config,
-            backend,
-            chain_status.clone(),
-            &keystore_container,
-            import_queue,
-            transaction_pool.clone(),
-            &mut task_manager,
-            client.clone(),
-            &mut telemetry,
-            justification_channel_provider.get_sender(),
-            collect_extra_debugging_data,
-        )?;
 
     let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
         task_manager.spawn_handle(),
