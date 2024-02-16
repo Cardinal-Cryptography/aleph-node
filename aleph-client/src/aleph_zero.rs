@@ -1894,9 +1894,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                49u8, 119u8, 45u8, 178u8, 123u8, 39u8, 159u8, 242u8, 119u8, 63u8, 142u8, 39u8,
-                144u8, 91u8, 71u8, 111u8, 81u8, 118u8, 226u8, 67u8, 237u8, 158u8, 8u8, 240u8,
-                133u8, 109u8, 119u8, 132u8, 180u8, 27u8, 142u8, 122u8,
+                194u8, 198u8, 254u8, 53u8, 100u8, 245u8, 231u8, 191u8, 100u8, 77u8, 68u8, 13u8,
+                196u8, 105u8, 181u8, 113u8, 32u8, 87u8, 18u8, 73u8, 49u8, 244u8, 131u8, 53u8, 72u8,
+                252u8, 236u8, 75u8, 135u8, 93u8, 125u8, 247u8,
             ]
     }
     pub mod system {
@@ -8783,9 +8783,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            175u8, 157u8, 30u8, 13u8, 57u8, 57u8, 218u8, 104u8, 128u8, 70u8, 105u8,
-                            166u8, 130u8, 229u8, 233u8, 196u8, 202u8, 141u8, 75u8, 92u8, 129u8,
-                            13u8, 8u8, 143u8, 183u8, 42u8, 40u8, 204u8, 229u8, 230u8, 52u8, 226u8,
+                            93u8, 110u8, 103u8, 73u8, 38u8, 18u8, 200u8, 48u8, 183u8, 53u8, 186u8,
+                            27u8, 217u8, 236u8, 57u8, 216u8, 91u8, 27u8, 243u8, 207u8, 81u8, 174u8,
+                            169u8, 230u8, 226u8, 228u8, 14u8, 136u8, 207u8, 41u8, 139u8, 189u8,
                         ],
                     )
                 }
@@ -17778,7 +17778,7 @@ pub mod api {
                 Proxy(runtime_types::pallet_proxy::pallet::Call),
                 #[codec(index = 23)]
                 FeatureControl(runtime_types::pallet_feature_control::pallet::Call),
-                #[codec(index = 41)]
+                #[codec(index = 24)]
                 VkStorage(runtime_types::pallet_vk_storage::pallet::Call),
             }
             #[derive(
@@ -17827,7 +17827,7 @@ pub mod api {
                 CommitteeManagement(runtime_types::pallet_committee_management::pallet::Error),
                 #[codec(index = 22)]
                 Proxy(runtime_types::pallet_proxy::pallet::Error),
-                #[codec(index = 41)]
+                #[codec(index = 24)]
                 VkStorage(runtime_types::pallet_vk_storage::pallet::Error),
             }
             #[derive(
@@ -17882,7 +17882,7 @@ pub mod api {
                 Proxy(runtime_types::pallet_proxy::pallet::Event),
                 #[codec(index = 23)]
                 FeatureControl(runtime_types::pallet_feature_control::pallet::Event),
-                #[codec(index = 41)]
+                #[codec(index = 24)]
                 VkStorage(runtime_types::pallet_vk_storage::pallet::Event),
             }
             #[derive(
