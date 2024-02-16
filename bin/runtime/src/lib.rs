@@ -34,7 +34,6 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
-#[cfg(feature = "liminal")]
 use pallet_feature_control::Feature;
 use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -150,7 +149,6 @@ pub enum CallFilter {}
 impl Contains<RuntimeCall> for CallFilter {
     fn contains(call: &RuntimeCall) -> bool {
         match call {
-            #[cfg(feature = "liminal")]
             RuntimeCall::VkStorage(_) => {
                 pallet_feature_control::Pallet::<Runtime>::is_feature_enabled(
                     Feature::OnChainVerifier,
@@ -925,7 +923,7 @@ construct_runtime!(
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
         FeatureControl: pallet_feature_control = 23,
-        VkStorage: pallet_vk_storage = 41,
+        VkStorage: pallet_vk_storage = 24,
     }
 );
 

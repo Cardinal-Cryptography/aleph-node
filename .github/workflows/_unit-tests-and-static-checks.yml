@@ -60,6 +60,13 @@ jobs:
           channel: nightly-2023-05-22-unknown-linux-gnu
           targets: wasm32-unknown-unknown
 
+  unit-tests-chain-extension:
+    name: Run unit tests for chain extension
+    runs-on: [ self-hosted, Linux, X64, large ]
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTC_WRAPPER: sccache
+    steps:
       - name: Run unit tests for chain extension
         working-directory: baby-liminal-extension
         run: make test
