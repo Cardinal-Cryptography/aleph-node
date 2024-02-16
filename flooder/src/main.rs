@@ -69,31 +69,40 @@ async fn flood(
         start_nonces[conn_id] = conn.account_nonce(conn.account_id()).await?;
     }
 
+    let split_per_connections = move |total, conn_id| {
+        let mut part = total / n_connections as u64;
+        if conn_id < (total as usize) % n_connections {
+            part += 1;
+        }
+        part
+    };
+
     let handles: Vec<_> = connections
         .into_iter()
         .enumerate()
         .map(|(conn_id, conn)| {
             let dest = dest.clone();
             let mut nonce = start_nonces[conn_id];
-
             tokio::spawn(async move {
                 let mut interval = interval(schedule.interval_duration);
+                let mut overdue_transactions = 0;
                 for i in 0..schedule.intervals {
                     interval.tick().await;
+                    overdue_transactions += split_per_connections(schedule.transactions_in_interval, conn_id);
+
                     let pending_in_pool = conn.pending_extrinsics_len().await?;
                     let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
-                    let total_transactions_to_send = min(
-                        transactions_to_pool_limit,
-                        schedule.transactions_in_interval,
-                    );
-                    let mut my_transactions = total_transactions_to_send / n_connections as u64;
-                    if conn_id < (total_transactions_to_send as usize) % n_connections {
-                        my_transactions += 1;
-                    }
+                    let my_limit_part = split_per_connections(transactions_to_pool_limit, conn_id);
 
+                    let my_transactions = min(
+                        overdue_transactions,
+                        my_limit_part,
+                    );
+                    overdue_transactions -= my_transactions;
                     debug!(
                         "Interval {}, sending {my_transactions} transaction from connection {conn_id}. \
-                         In pool, there are pending {pending_in_pool} transactions.",
+                         In the pool, there are pending {pending_in_pool} transactions. \
+                         Overdue transactions: {overdue_transactions}.",
                         i + 1
                     );
 
@@ -134,7 +143,7 @@ async fn flood(
 
     let target_transactions = schedule.intervals * schedule.transactions_in_interval;
     info!(
-        "Submitted {total_submitted} txns out of {target_transactions} that should be sent ({:2}%)",
+        "Submitted {total_submitted} txns out of {target_transactions} that should be sent ({:.2}%)",
         total_submitted as f64 / target_transactions as f64 * 100.0
     );
 
