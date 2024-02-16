@@ -407,7 +407,7 @@ mod tests {
     }
 
     // Sleep enough time so that the internal refreshing in ChainTracker has time to finish.
-    // Even though sleep time should be more enough, this may return None instead of Some very occasionally.
+    // Even though the sleep time should be enough, this may return None instead of Some very occasionally.
     async fn sleep_enough() {
         sleep(REFRESH_INTERVAL + REFRESH_INTERVAL + REFRESH_INTERVAL).await;
     }
