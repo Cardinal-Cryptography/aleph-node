@@ -77,7 +77,7 @@ async fn flood(
         part
     };
 
-    let handles: Vec<_> = connections
+    let handles = connections
         .into_iter()
         .enumerate()
         .map(|(conn_id, conn)| {
@@ -122,8 +122,7 @@ async fn flood(
                 }
                 anyhow::Ok((nonce, conn))
             })
-        })
-        .collect::<Vec<_>>();
+        });
 
     let mut total_submitted = 0;
     let mut last_error = None;
@@ -172,6 +171,7 @@ async fn return_balances(
 
 async fn initialize_n_accounts<F: Fn(u32) -> String>(
     main_connection: &SignedConnection,
+    first_account_in_range: u64,
     n: u32,
     node: F,
     amount: Balance,
@@ -184,7 +184,7 @@ async fn initialize_n_accounts<F: Fn(u32) -> String>(
     );
     let mut connections = vec![];
     for i in 0..n {
-        let seed = i.to_string();
+        let seed = (i as u64 + first_account_in_range).to_string();
         let signer = KeyPair::new(raw_keypair_from_string(
             format!("{ACCOUNTS_SEED_PREFIX}{seed}").as_ref(),
         ));
@@ -344,6 +344,7 @@ async fn main() -> anyhow::Result<()> {
     let nodes = config.nodes.clone();
     let connections = initialize_n_accounts(
         &main_connection,
+        config.first_account_in_range,
         accounts,
         |i| nodes[i as usize % nodes.len()].clone(),
         total_fee_per_account,
@@ -374,7 +375,7 @@ async fn main() -> anyhow::Result<()> {
     let end_block = main_connection.get_best_block().await.unwrap().unwrap();
     let start_block = best_block_pre_flood + (end_block - best_block_pre_flood) / 10;
     let stats = compute_stats(&main_connection, start_block, end_block).await?;
-
+    info!("Stats measured for blocks {start_block} to {end_block} inclusive");
     info!(
         "Stats:\nActual transactions per second: {:.2}\nTransactions per block: {:.2} (stddev = {:.2})\nBlock time: {:.2}ms (stddev = {:.2})",
         stats.transactions_per_second,
