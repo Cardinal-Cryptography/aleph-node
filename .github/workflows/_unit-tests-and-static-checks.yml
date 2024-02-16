@@ -52,14 +52,6 @@ jobs:
           command: test
           args: --workspace --exclude baby-liminal-extension -- --skip clique_network
 
-      # Run unit tests for the chain extension: they require a different setup.
-
-      - name: Install Nightly Rust Toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v6
-        with:
-          channel: nightly-2023-05-22-unknown-linux-gnu
-          targets: wasm32-unknown-unknown
-
   unit-tests-chain-extension:
     name: Run unit tests for chain extension
     runs-on: [self-hosted, Linux, X64, large]
@@ -70,8 +62,11 @@ jobs:
       - name: Checkout Source code
         uses: actions/checkout@v4
 
-      - name: Install Rust Toolchain
+      - name: Install Nightly Rust Toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v6
+        with:
+          channel: nightly-2023-05-22-unknown-linux-gnu
+          targets: wasm32-unknown-unknown
 
       - name: Run unit tests for chain extension
         working-directory: baby-liminal-extension
