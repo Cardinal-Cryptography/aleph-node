@@ -18,7 +18,7 @@ use subxt::{
     tx::TxPayload,
     utils::{MultiAddress, Static},
 };
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{interval, Duration, Instant};
 
 mod config;
 
@@ -36,117 +36,119 @@ fn transfer_all(dest: AccountId, keep_alive: bool) -> impl TxPayload + Send + Sy
 
 struct Schedule {
     pub intervals: u64,
-    pub interval_duration: u64,
+    pub interval_duration: Duration,
     pub transactions_in_interval: u64,
 }
 
 async fn flood(
-    connections: &Vec<SignedConnection>,
+    connections: Vec<SignedConnection>,
     dest: AccountId,
     transfer_amount: Balance,
     schedule: Schedule,
     status: TxStatus,
     pool_limit: u64,
-) -> anyhow::Result<Vec<Nonce>> {
+) -> anyhow::Result<Vec<(SignedConnection, Nonce)>> {
     let start = Instant::now();
+    let total_duration = schedule.interval_duration * (schedule.intervals as u32);
+
     let start_finalized_hash = connections[0].get_finalized_block_hash().await?;
     let start_finalized_number = connections[0]
         .get_block_number(start_finalized_hash)
         .await?
         .unwrap() as u64;
 
-    let mut nonces: Vec<u32> = vec![];
-    for conn in connections {
-        nonces.push(conn.account_nonce(conn.account_id()).await?);
+    // Set mortality roughly to flooding length
+    let params = BaseExtrinsicParamsBuilder::default().era(
+        Era::mortal(total_duration.as_secs() + 30, start_finalized_number),
+        start_finalized_hash,
+    );
+
+    let n_connections = connections.len();
+    let mut start_nonces = vec![0; n_connections];
+    for (conn_id, conn) in connections.iter().enumerate() {
+        start_nonces[conn_id] = conn.account_nonce(conn.account_id()).await?;
     }
 
-    let mut overdue_transactions = 0;
-    for i in 0..schedule.intervals {
-        let pending_in_pool = connections[0].pending_extrinsics_len().await?;
-        debug!(
-            "In the txpool there are {pending_in_pool} txns. Overdue txns: {overdue_transactions}"
-        );
+    let handles: Vec<_> = connections
+        .into_iter()
+        .enumerate()
+        .map(|(conn_id, conn)| {
+            let dest = dest.clone();
+            let mut nonce = start_nonces[conn_id];
 
-        overdue_transactions += schedule.transactions_in_interval;
-        let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
-        let transactions_to_send = min(transactions_to_pool_limit, overdue_transactions);
+            tokio::spawn(async move {
+                let mut interval = interval(schedule.interval_duration);
+                for i in 0..schedule.intervals {
+                    interval.tick().await;
+                    let pending_in_pool = conn.pending_extrinsics_len().await?;
+                    let transactions_to_pool_limit = pool_limit.saturating_sub(pending_in_pool);
+                    let total_transactions_to_send = min(
+                        transactions_to_pool_limit,
+                        schedule.transactions_in_interval,
+                    );
+                    let mut my_transactions = total_transactions_to_send / n_connections as u64;
+                    if conn_id < (total_transactions_to_send as usize) % n_connections {
+                        my_transactions += 1;
+                    }
 
-        let tasks = connections
-            .iter()
-            .enumerate()
-            .map(|(conn_id, conn)| {
-                let mut per_task = transactions_to_send / connections.len() as u64;
-                if (conn_id as u64) < transactions_to_send % connections.len() as u64 {
-                    per_task += 1;
-                }
-                let dest = dest.clone();
-                let nonce = nonces[conn_id];
+                    debug!(
+                        "Interval {}, sending {my_transactions} transaction from connection {conn_id}. \
+                         In pool, there are pending {pending_in_pool} transactions.",
+                        i + 1
+                    );
 
-                // Set mortality roughly to flooding length
-                let params = BaseExtrinsicParamsBuilder::default().era(
-                    Era::mortal(
-                        schedule.intervals * schedule.interval_duration + 30,
-                        start_finalized_number,
-                    ),
-                    start_finalized_hash,
-                );
-
-                let inner_start = Instant::now();
-                let duration_limit = Duration::from_secs(i + 1)
-                    * (schedule.interval_duration as u32)
-                    - inner_start.duration_since(start);
-
-                async move {
-                    for tx_id in 0..per_task as u32 {
-                        // Don't use "pure" timeout to avoid a situation, where we don't know if
-                        // a submission was successful or not.
-                        if Instant::now().saturating_duration_since(inner_start) > duration_limit {
-                            return anyhow::Ok(tx_id);
-                        }
+                    for _ in 0..my_transactions {
                         conn.sign_with_params(
                             transfer_keep_alive(dest.clone(), transfer_amount),
                             params,
-                            nonce + tx_id,
+                            nonce,
                         )?
                         .submit(status)
                         .await?;
+                        nonce += 1;
+                        if Instant::now().saturating_duration_since(start) > total_duration {
+                            return anyhow::Ok((nonce, conn));
+                        }
                     }
-                    anyhow::Ok(per_task as u32)
                 }
+                anyhow::Ok((nonce, conn))
             })
-            .collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
-        let mut total_submitted = 0;
-        for (conn_id, result) in join_all(tasks).await.into_iter().enumerate() {
-            match result {
-                Ok(sent) => {
-                    nonces[conn_id] += sent;
-                    overdue_transactions -= sent as u64;
-                    total_submitted += sent;
-                }
-                Err(e) => {
-                    info!("Error submitting transaction: {e:?}");
-                    return Err(e);
-                }
+    let mut total_submitted = 0;
+    let mut last_error = None;
+    let mut res = vec![];
+    for (conn_id, result) in join_all(handles).await.into_iter().enumerate() {
+        match result? {
+            Ok((nonce, conn)) => {
+                total_submitted += nonce - start_nonces[conn_id];
+                res.push((conn, nonce));
+            }
+            Err(e) => {
+                info!("Sender subtask finished with an error: {e:?}");
+                last_error = Some(e);
             }
         }
-        info!("Interval {}: submitted {total_submitted} txns out of {transactions_to_send} that should be sent", i + 1,);
-        let duration = Instant::now().saturating_duration_since(start);
-        let left_duration =
-            Duration::from_secs((i + 1) * schedule.interval_duration).saturating_sub(duration);
-        sleep(left_duration).await;
     }
-    info!("Flooding time has passed, left {overdue_transactions} overdue txns because of the pool limit.");
 
-    Ok(nonces)
+    let target_transactions = schedule.intervals * schedule.transactions_in_interval;
+    info!(
+        "Submitted {total_submitted} txns out of {target_transactions} that should be sent ({:2}%)",
+        total_submitted as f64 / target_transactions as f64 * 100.0
+    );
+
+    match last_error {
+        Some(e) => Err(e),
+        None => Ok(res),
+    }
 }
 
 async fn return_balances(
-    connections: &[SignedConnection],
-    nonces: &[Nonce],
+    connections_and_nonces: &[(SignedConnection, Nonce)],
     dest: AccountId,
 ) -> anyhow::Result<()> {
-    for (conn, nonce) in connections.iter().zip(nonces) {
+    for (conn, nonce) in connections_and_nonces {
         conn.sign_with_params(
             transfer_all(dest.clone(), false),
             Default::default(),
@@ -214,7 +216,7 @@ async fn estimate_avg_fee_per_transaction_in_block(
     main_connection: &SignedConnection,
     schedule: &Schedule,
 ) -> anyhow::Result<u128> {
-    let estimated_blocks = (schedule.intervals * schedule.interval_duration) as u128;
+    let estimated_blocks = (schedule.intervals * schedule.interval_duration.as_secs()) as u128;
     let fee_estimation_tx = main_connection
         .transfer_keep_alive(main_connection.account_id().clone(), 1, TxStatus::Finalized)
         .await?;
@@ -296,7 +298,7 @@ async fn main() -> anyhow::Result<()> {
 
     let schedule = Schedule {
         intervals: config.intervals,
-        interval_duration: config.interval_duration,
+        interval_duration: Duration::from_secs(config.interval_duration),
         transactions_in_interval: config.transactions_in_interval,
     };
 
@@ -342,8 +344,8 @@ async fn main() -> anyhow::Result<()> {
 
     let best_block_pre_flood = main_connection.get_best_block().await.unwrap().unwrap();
 
-    let nonces_after_flood = flood(
-        &connections,
+    let connections_and_nonces = flood(
+        connections,
         main_connection.account_id().clone(),
         1,
         schedule,
@@ -354,8 +356,7 @@ async fn main() -> anyhow::Result<()> {
 
     if !config.skip_initialization {
         return_balances(
-            &connections,
-            &nonces_after_flood,
+            &connections_and_nonces,
             main_connection.account_id().clone(),
         )
         .await?;
