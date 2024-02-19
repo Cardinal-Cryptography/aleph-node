@@ -35,6 +35,7 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_committee_management::SessionAndEraManager;
+pub use pallet_feature_control::Feature;
 use pallet_identity::simple::IdentityInfo;
 use pallet_session::QueuedKeys;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -58,8 +59,8 @@ pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, IdentityLookup, One,
-        OpaqueKeys,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, Convert, ConvertInto,
+        IdentityLookup, One, OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug,
@@ -146,11 +147,25 @@ parameter_types! {
     pub const SS58Prefix: u8 = ADDRESSES_ENCODING;
 }
 
+pub enum CallFilter {}
+impl Contains<RuntimeCall> for CallFilter {
+    fn contains(call: &RuntimeCall) -> bool {
+        match call {
+            RuntimeCall::VkStorage(_) => {
+                pallet_feature_control::Pallet::<Runtime>::is_feature_enabled(
+                    Feature::OnChainVerifier,
+                )
+            }
+            _ => true,
+        }
+    }
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = frame_support::traits::Everything;
+    type BaseCallFilter = CallFilter;
     /// Block & extrinsics weights: base values and limits.
     type BlockWeights = BlockWeights;
     /// The maximum length of a block (in bytes).
@@ -342,9 +357,7 @@ impl pallet_aleph::Config for Runtime {
     type NextSessionAuthorityProvider = Session;
 }
 
-#[cfg(feature = "liminal")]
 use pallet_vk_storage::StorageCharge;
-#[cfg(feature = "liminal")]
 parameter_types! {
     // We allow 10kB keys, proofs and public inputs. This is a 100% blind guess.
     pub const MaximumVerificationKeyLength: u32 = 10_000;
@@ -352,7 +365,6 @@ parameter_types! {
     pub const VkStorageCharge: StorageCharge = StorageCharge::linear(10 * MILLI_AZERO as u64, MILLI_AZERO as u64);
 }
 
-#[cfg(feature = "liminal")]
 impl pallet_vk_storage::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_vk_storage::AlephWeight<Runtime>;
@@ -420,8 +432,6 @@ parameter_types! {
     pub const NominationPoolsPalletId: PalletId = PalletId(*b"py/nopls");
     pub const MaxPointsToBalance: u8 = 10;
 }
-
-use sp_runtime::traits::Convert;
 
 pub struct BalanceToU256;
 
@@ -744,10 +754,7 @@ impl pallet_contracts::Config for Runtime {
     type CallFilter = ContractsCallRuntimeFilter;
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    #[cfg(feature = "liminal")]
     type ChainExtension = baby_liminal_extension::BabyLiminalChainExtension<Runtime>;
-    #[cfg(not(feature = "liminal"))]
-    type ChainExtension = ();
     type Schedule = Schedule;
     type CallStack = [pallet_contracts::Frame<Self>; 16];
     type DepositPerByte = DepositPerByte;
@@ -902,7 +909,6 @@ impl pallet_feature_control::Config for Runtime {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
-#[cfg(not(feature = "liminal"))]
 construct_runtime!(
     pub struct Runtime {
         System: frame_system = 0,
@@ -929,37 +935,7 @@ construct_runtime!(
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
         FeatureControl: pallet_feature_control = 23,
-    }
-);
-
-#[cfg(feature = "liminal")]
-construct_runtime!(
-    pub struct Runtime {
-        System: frame_system = 0,
-        RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip = 1,
-        Scheduler: pallet_scheduler = 2,
-        Aura: pallet_aura = 3,
-        Timestamp: pallet_timestamp = 4,
-        Balances: pallet_balances = 5,
-        TransactionPayment: pallet_transaction_payment = 6,
-        Authorship: pallet_authorship = 7,
-        Staking: pallet_staking = 8,
-        History: pallet_session::historical = 9,
-        Session: pallet_session = 10,
-        Aleph: pallet_aleph = 11,
-        Elections: pallet_elections = 12,
-        Treasury: pallet_treasury = 13,
-        Vesting: pallet_vesting = 14,
-        Utility: pallet_utility = 15,
-        Multisig: pallet_multisig = 16,
-        Sudo: pallet_sudo = 17,
-        Contracts: pallet_contracts = 18,
-        NominationPools: pallet_nomination_pools = 19,
-        Identity: pallet_identity = 20,
-        CommitteeManagement: pallet_committee_management = 21,
-        Proxy: pallet_proxy = 22,
-        FeatureControl: pallet_feature_control = 23,
-        VkStorage: pallet_vk_storage = 41,
+        VkStorage: pallet_vk_storage = 24,
     }
 );
 
@@ -1001,14 +977,11 @@ pub type Executive = frame_executive::Executive<
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
-    #[cfg(feature = "liminal")]
     frame_benchmarking::define_benchmarks!(
         [pallet_feature_control, FeatureControl]
         [pallet_vk_storage, VkStorage]
         [baby_liminal_extension, baby_liminal_extension::ChainExtensionBenchmarking<Runtime>]
     );
-    #[cfg(not(feature = "liminal"))]
-    frame_benchmarking::define_benchmarks!([pallet_feature_control, FeatureControl]);
 }
 
 type EventRecord = frame_system::EventRecord<RuntimeEvent, Hash>;

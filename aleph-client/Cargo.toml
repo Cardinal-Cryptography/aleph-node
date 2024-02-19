@@ -1,6 +1,6 @@
 [package]
 name = "aleph_client"
-version = "3.8.0"
+version = "3.9.0"
 edition = "2021"
 authors = ["Cardinal"]
 documentation = "https://docs.rs/aleph_client"
@@ -30,6 +30,3 @@ primitives = { path = "../primitives" }
 
 [dev-dependencies]
 tokio = "1.21"
-
-[features]
-liminal = []
