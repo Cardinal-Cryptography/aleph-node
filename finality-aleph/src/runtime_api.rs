@@ -337,7 +337,7 @@ mod test {
         );
         let result2 = runtime_api.read_storage_value::<u32>("Pallet", "StorageValue", Hash::zero());
 
-        assert!(matches!(result1, Err(ApiError::StorageAccessFailure)));
-        assert!(matches!(result2, Err(ApiError::StorageAccessFailure)));
+        assert_eq!(result1, Err(ApiError::StorageAccessFailure));
+        assert_eq!(result2, Err(ApiError::StorageAccessFailure));
     }
 }
