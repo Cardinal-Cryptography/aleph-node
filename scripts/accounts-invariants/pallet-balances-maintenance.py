@@ -407,7 +407,8 @@ def state_sanity_check(chain_connection,
     assert changed_state_for_sake_of_assert == set_storage_info_state, \
         f"Parent account info state is different from set storage state with more than providers counter! " \
         f"Parent state: {parent_account_info_state} " \
-        f"Set storage state: {set_storage_info_state}"
+        f"Set storage state: {set_storage_info_state}" \
+        f"Set storage block number {set_storage_block_number}"
 
 
 def get_system_account_metadata_scale_codec_type(chain_connection):
@@ -468,8 +469,11 @@ def fix_double_providers_count_for_account(chain_connection,
         }
     )
 
+    # add a small tip to make sure this will be the first transaction in the block
+    token_mili_unit = 1000000000
     extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call,
-                                                         keypair=sudo_sender_keypair)
+                                                         keypair=sudo_sender_keypair,
+                                                         tip=token_mili_unit)
     block_hash = submit_extrinsic(chain_connection, extrinsic, 1, input_args.dry_run)
     if not input_args.dry_run:
         state_sanity_check(chain_connection,
