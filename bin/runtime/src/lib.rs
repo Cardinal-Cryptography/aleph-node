@@ -1491,7 +1491,7 @@ mod tests {
                 change_rate: _,
             } => {}
             pallet_nomination_pools::Call::claim_commission { pool_id: _ } => {}
-            pallet_nomination_pools::Call::adjust_pool_deposit { .. } => {}
+            pallet_nomination_pools::Call::adjust_pool_deposit { pool_id: _ } => {}
             pallet_nomination_pools::Call::__Ignore(..) => {}
         }
     }
