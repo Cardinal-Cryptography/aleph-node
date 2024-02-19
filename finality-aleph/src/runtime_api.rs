@@ -169,7 +169,7 @@ mod test {
         sync::Arc,
     };
 
-    use frame_support::{Twox128, Twox64Concat};
+    use frame_support::Twox64Concat;
     use parity_scale_codec::Encode;
     use primitives::Hash;
     use sp_runtime::Storage;
