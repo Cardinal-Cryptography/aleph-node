@@ -243,7 +243,7 @@ pub mod pallet {
 
             let member_set: BTreeSet<_> = reserved_validators
                 .into_iter()
-                .chain(non_reserved_validators.into_iter())
+                .chain(non_reserved_validators)
                 .collect();
 
             ensure!(
