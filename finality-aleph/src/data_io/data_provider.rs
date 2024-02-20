@@ -368,6 +368,8 @@ mod tests {
     // The lower the interval the less time the tests take, however setting this too low might cause
     // the tests to fail.
     const REFRESH_INTERVAL: Duration = Duration::from_millis(5);
+    //  Sleep time that's usually enough for the internal refreshing in ChainTracker to finish.
+    const SLEEP_TIME: Duration = Duration::from_millis(15);
 
     fn prepare_chain_tracker_test() -> (
         impl Future<Output = ()>,
@@ -406,20 +408,14 @@ mod tests {
         )
     }
 
-    // Sleep enough time so that the internal refreshing in ChainTracker has time to finish.
-    // Even though the sleep time should be enough, this may return None instead of Some very occasionally.
-    async fn sleep_enough() {
-        sleep(REFRESH_INTERVAL + REFRESH_INTERVAL + REFRESH_INTERVAL).await;
-    }
-
-    // Retries `sleep_enough` until data in provider is available.
+    // Retries sleeping and checking if data in provider is available.
     // This theoretically might fail, but practically shouldn't.
     async fn sleep_until_data_available(
         data_provider: &mut DataProvider<THeader>,
     ) -> AlephData<THeader> {
         const RETRIES: u128 = 1000;
         for _ in 0..RETRIES {
-            sleep_enough().await;
+            sleep(SLEEP_TIME).await;
             let maybe_data = data_provider.get_data().await;
             if let Some(data) = maybe_data {
                 return data;
@@ -451,7 +447,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn proposes_empty_and_nonempty_when_expected() {
         run_test(|mut chain_builder, mut data_provider| async move {
-            sleep_enough().await;
+            sleep(SLEEP_TIME).await;
 
             assert_eq!(
                 data_provider.get_data().await,
@@ -484,7 +480,7 @@ mod tests {
                 assert_eq!(data, expected_data);
             }
             chain_builder.finalize_block(&blocks.last().unwrap().header.hash());
-            sleep_enough().await;
+            sleep(SLEEP_TIME).await;
             assert_eq!(
                 data_provider.get_data().await,
                 None,
@@ -508,7 +504,7 @@ mod tests {
 
             // Finalize a block beyond the last block in the session.
             chain_builder.finalize_block(&blocks.last().unwrap().header.hash());
-            sleep_enough().await;
+            sleep(SLEEP_TIME).await;
             assert_eq!(
                 data_provider.get_data().await,
                 None,
