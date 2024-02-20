@@ -194,10 +194,19 @@ struct AlephRuntimeVars {
 fn get_aleph_runtime_vars(client: &Arc<FullClient>) -> AlephRuntimeVars {
     let finalized = client.info().finalized_hash;
 
-    let session_period = SessionPeriod(client.runtime_api().session_period(finalized).unwrap());
+    let session_period = SessionPeriod(
+        client
+            .runtime_api()
+            .session_period(finalized)
+            .expect("should always be available"),
+    );
 
-    let millisecs_per_block =
-        MillisecsPerBlock(client.runtime_api().millisecs_per_block(finalized).unwrap());
+    let millisecs_per_block = MillisecsPerBlock(
+        client
+            .runtime_api()
+            .millisecs_per_block(finalized)
+            .expect("should always be available"),
+    );
 
     AlephRuntimeVars {
         session_period,
@@ -206,10 +215,9 @@ fn get_aleph_runtime_vars(client: &Arc<FullClient>) -> AlephRuntimeVars {
 }
 
 fn get_validator_address_cache(aleph_config: &AlephCli) -> Option<ValidatorAddressCache> {
-    match aleph_config.no_collection_of_extra_debugging_data() {
-        false => Some(ValidatorAddressCache::new()),
-        true => None,
-    }
+    aleph_config
+        .no_collection_of_extra_debugging_data()
+        .then(|| ValidatorAddressCache::new())
 }
 
 fn get_net_config(
