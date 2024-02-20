@@ -325,7 +325,7 @@ pub mod pallet {
 
             let eligible_validators = staking_reserved_validators
                 .into_iter()
-                .chain(new_non_reserved_validators.into_iter());
+                .chain(new_non_reserved_validators);
             let mut supports = eligible_validators
                 .into_iter()
                 .map(|id| {
