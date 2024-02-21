@@ -64,6 +64,9 @@ jobs:
 
       - name: Install Nightly Rust Toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v6
+        with:
+          channel: nightly-2024-02-14
+          targets: wasm32-unknown-unknown
 
       - name: Run unit tests for chain extension
         working-directory: baby-liminal-extension
