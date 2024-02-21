@@ -4,9 +4,8 @@ mod executor;
 mod weighting;
 
 use aleph_runtime::Runtime as AlephRuntime;
-use aleph_runtime_interfaces::snark_verifier::VerifierError::*;
 use frame_support::pallet_prelude::Weight;
-use pallet_contracts::chain_extension::{ChainExtension, RetVal};
+use pallet_contracts::chain_extension::RetVal;
 
 use crate::{
     backend::{
@@ -14,7 +13,7 @@ use crate::{
         tests::{
             arguments::verify_args,
             environment::{CorruptedMode, MockedEnvironment, StandardMode, VerifyMode},
-            executor::{Panicker, VerifyErrorer, VerifyOkayer},
+            executor::{Panicker, VerifierError::*, VerifyErrorer, VerifyOkayer},
             weighting::TestWeight,
         },
         weights::WeightInfo,

@@ -45,7 +45,6 @@ homepage = "https://alephzero.org"
 repository = "https://github.com/Cardinal-Cryptography/aleph-node"
 
 [workspace.dependencies]
-ahash = { version = "=0.8.6", default-features = false } # reqiured until Rust is updated to 1.71 (https://solana.stackexchange.com/questions/8800/error-use-of-unstable-library-feature-build-hasher-simple-hash-one)
 aleph-bft-crypto = { version = "0.8" }
 aleph-bft-mock = { version = "0.11.1" }
 aleph-bft-rmc = { version = "0.11" }
