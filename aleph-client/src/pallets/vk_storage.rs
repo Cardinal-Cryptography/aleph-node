@@ -22,7 +22,7 @@ pub trait VkStorageUserApi {
 #[async_trait::async_trait]
 impl<C: ConnectionApi> VkStorageApi for C {
     async fn get_verification_key(&self, key_hash: H256, at: Option<BlockHash>) -> Vec<u8> {
-        let addrs = api::storage().vk_storage().verification_keys(&key_hash);
+        let addrs = api::storage().vk_storage().verification_keys(key_hash);
         self.get_storage_entry(&addrs, at).await.0
     }
 }

@@ -22,7 +22,7 @@ pub trait FeatureControlSudoApi {
 #[async_trait::async_trait]
 impl<C: ConnectionApi> FeatureControlApi for C {
     async fn is_feature_active(&self, feature: Feature, at: Option<BlockHash>) -> bool {
-        let addrs = api::storage().feature_control().active_features(&feature);
+        let addrs = api::storage().feature_control().active_features(feature);
         self.get_storage_entry_maybe(&addrs, at).await.is_some()
     }
 }
