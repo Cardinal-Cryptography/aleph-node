@@ -295,7 +295,7 @@ where
     // 3. Slot number is calculated using the current system time.
     fn verify_aura_header(
         &mut self,
-        slot: &SessionSlot,
+        session_slot: &SessionSlot,
         sig: &AuraSignature,
         pre_hash: H256,
         author: &AuraId,
@@ -307,8 +307,10 @@ where
             sp_timestamp::Timestamp::current(),
             sp_consensus_slots::SlotDuration::from_millis(MILLISECS_PER_BLOCK),
         );
-        if slot.1 > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
-            return Err(VerificationError::HeaderVerification(HeaderTooNew(slot.1)));
+        if session_slot.1 > slot_now + HEADER_VERIFICATION_SLOT_OFFSET {
+            return Err(VerificationError::HeaderVerification(HeaderTooNew(
+                session_slot.1,
+            )));
         }
         if !AuthorityPair::verify(sig, pre_hash.as_ref(), author) {
             return Err(VerificationError::HeaderVerification(IncorrectAuthority));
@@ -322,12 +324,12 @@ where
     fn check_for_equivocation(
         &mut self,
         header: &Header,
-        slot: SessionSlot,
+        session_slot: SessionSlot,
         author: AuraId,
         maybe_account_id: Option<AccountId>,
         just_created: bool,
     ) -> Result<Option<EquivocationProof>, VerificationError> {
-        match self.equivocation_cache.entry(slot) {
+        match self.equivocation_cache.entry(session_slot) {
             Entry::Occupied(occupied) => {
                 let (cached_header, certainly_own) = occupied.into_mut();
                 if cached_header == header {
@@ -401,12 +403,17 @@ where
                 )),
             };
         }
-        let (slot, sig, pre_hash, author, maybe_account_id) =
-            self.parse_aura_header(&mut header)
-                .map_err(VerificationError::HeaderVerification)?;
-        self.verify_aura_header(&slot, &sig, pre_hash, &author)?;
-        let maybe_equivocation_proof =
-            self.check_for_equivocation(&header, slot, author, maybe_account_id, just_created)?;
+        let (session_slot, sig, pre_hash, author, maybe_account_id) = self
+            .parse_aura_header(&mut header)
+            .map_err(VerificationError::HeaderVerification)?;
+        self.verify_aura_header(&session_slot, &sig, pre_hash, &author)?;
+        let maybe_equivocation_proof = self.check_for_equivocation(
+            &header,
+            session_slot,
+            author,
+            maybe_account_id,
+            just_created,
+        )?;
         Ok(VerifiedHeader {
             header,
             maybe_equivocation_proof,
