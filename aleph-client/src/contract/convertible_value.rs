@@ -200,6 +200,88 @@ where
     }
 }
 
+impl TryFrom<ConvertibleValue> for Option<String>
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> Result<Option<String>> {
+        let tuple = match &value.0 {
+            Value::Tuple(tuple) => tuple,
+            _ => bail!("Expected {:?} to be a Some(_) or None Tuple.", &value),
+        };
+
+        match tuple.ident() {
+            Some(x) if x == "Some" => {
+                if tuple.values().count() == 1 {
+                    let item =
+                        ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
+                    Ok(Some(item))
+                } else {
+                    bail!(
+                        "Unexpected number of elements in Some(_) variant: {:?}. Expected one.",
+                        &value
+                    );
+                }
+            }
+            Some(x) if x == "None" => {
+                if tuple.values().count() == 0 {
+                    Ok(None)
+                } else {
+                    bail!(
+                        "Unexpected number of elements in None variant: {:?}. Expected zero.",
+                        &value
+                    );
+                }
+            }
+            _ => bail!(
+                "Expected `.ident()` to be `Some` or `None`, got: {:?}",
+                &tuple
+            ),
+        }
+    }
+}
+
+impl TryFrom<ConvertibleValue> for Option<AccountId>
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: ConvertibleValue) -> Result<Option<AccountId>> {
+        let tuple = match &value.0 {
+            Value::Tuple(tuple) => tuple,
+            _ => bail!("Expected {:?} to be a Some(_) or None Tuple.", &value),
+        };
+
+        match tuple.ident() {
+            Some(x) if x == "Some" => {
+                if tuple.values().count() == 1 {
+                    let item =
+                        ConvertibleValue(tuple.values().next().unwrap().clone()).try_into()?;
+                    Ok(Some(item))
+                } else {
+                    bail!(
+                        "Unexpected number of elements in Some(_) variant: {:?}. Expected one.",
+                        &value
+                    );
+                }
+            }
+            Some(x) if x == "None" => {
+                if tuple.values().count() == 0 {
+                    Ok(None)
+                } else {
+                    bail!(
+                        "Unexpected number of elements in None variant: {:?}. Expected zero.",
+                        &value
+                    );
+                }
+            }
+            _ => bail!(
+                "Expected `.ident()` to be `Some` or `None`, got: {:?}",
+                &tuple
+            ),
+        }
+    }
+}
+
 impl<Elem: TryFrom<ConvertibleValue, Error = anyhow::Error>> TryFrom<ConvertibleValue>
     for Vec<Elem>
 {
