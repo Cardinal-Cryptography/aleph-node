@@ -200,8 +200,7 @@ where
     }
 }
 
-impl TryFrom<ConvertibleValue> for Option<String>
-{
+impl TryFrom<ConvertibleValue> for Option<String> {
     type Error = anyhow::Error;
 
     fn try_from(value: ConvertibleValue) -> Result<Option<String>> {
@@ -241,8 +240,7 @@ impl TryFrom<ConvertibleValue> for Option<String>
     }
 }
 
-impl TryFrom<ConvertibleValue> for Option<AccountId>
-{
+impl TryFrom<ConvertibleValue> for Option<AccountId> {
     type Error = anyhow::Error;
 
     fn try_from(value: ConvertibleValue) -> Result<Option<AccountId>> {
