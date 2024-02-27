@@ -1186,7 +1186,7 @@ impl_runtime_apis! {
     }
 
     impl pallet_staking_runtime_api::StakingApi<Block, Balance> for Runtime {
-        fn nominations_quota(balance: Balance) -> u32 {
+        fn nominations_quota(_balance: Balance) -> u32 {
             MAX_NOMINATORS
         }
     }
