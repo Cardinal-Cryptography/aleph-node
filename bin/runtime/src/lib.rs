@@ -1186,11 +1186,10 @@ impl_runtime_apis! {
     }
 
     impl pallet_staking_runtime_api::StakingApi<Block, Balance> for Runtime {
-		fn nominations_quota(balance: Balance) -> u32 {
-			MAX_NOMINATORS
-		}
-	}
-
+        fn nominations_quota(balance: Balance) -> u32 {
+            MAX_NOMINATORS
+        }
+    }
 
     impl pallet_contracts::ContractsApi<Block, AccountId, Balance, AlephBlockNumber, Hash, EventRecord>
         for Runtime
