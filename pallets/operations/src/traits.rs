@@ -1,5 +1,4 @@
-use frame_support::traits::StoredMap;
-use frame_support::WeakBoundedVec;
+use frame_support::{traits::StoredMap, WeakBoundedVec};
 use pallet_balances::BalanceLock;
 use sp_runtime::traits::Zero;
 

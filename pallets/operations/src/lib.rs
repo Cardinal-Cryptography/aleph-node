@@ -22,12 +22,13 @@ pub use pallet::*;
 #[frame_support::pallet]
 #[pallet_doc("../README.md")]
 pub mod pallet {
-    use crate::traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider};
     use frame_support::pallet_prelude::*;
-    use frame_system::ensure_signed;
-    use frame_system::pallet_prelude::OriginFor;
+    use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
-    use crate::STORAGE_VERSION;
+    use crate::{
+        traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider},
+        STORAGE_VERSION,
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

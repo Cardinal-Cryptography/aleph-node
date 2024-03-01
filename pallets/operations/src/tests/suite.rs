@@ -1,8 +1,11 @@
+use frame_support::{
+    assert_ok,
+    traits::{Currency, LockableCurrency, ReservableCurrency, WithdrawReasons},
+};
+use pallet_staking::RewardDestination;
+
 use super::setup::*;
 use crate::VESTING_ID;
-use frame_support::assert_ok;
-use frame_support::traits::{Currency, LockableCurrency, ReservableCurrency, WithdrawReasons};
-use pallet_staking::RewardDestination;
 
 fn total_balance(account_id: u64) -> u128 {
     pallet_balances::Pallet::<TestRuntime>::total_balance(&account_id)

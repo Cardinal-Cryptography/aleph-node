@@ -1,14 +1,13 @@
-use frame_support::traits::{ConstU64, OneSessionHandler};
 use frame_support::{
     construct_runtime,
     pallet_prelude::ConstU32,
     parameter_types,
+    traits::{ConstU64, OneSessionHandler},
     weights::{RuntimeDbWeight, Weight},
 };
 use frame_system::mocking::MockBlock;
-use sp_runtime::testing::H256;
 use sp_runtime::{
-    testing::UintAuthorityId,
+    testing::{UintAuthorityId, H256},
     traits::{ConvertInto, IdentityLookup},
     BuildStorage,
 };

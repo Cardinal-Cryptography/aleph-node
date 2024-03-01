@@ -1,16 +1,19 @@
 #![allow(clippy::nonminimal_bool)]
 
-use crate::pallet::{Config, Event, Pallet};
-use crate::traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider};
-use crate::{LOG_TARGET, STAKING_ID, VESTING_ID};
-use frame_support::dispatch::DispatchResultWithPostInfo;
-use frame_support::pallet_prelude::Get;
-use frame_support::traits::LockIdentifier;
-use frame_support::WeakBoundedVec;
+use frame_support::{
+    dispatch::DispatchResultWithPostInfo, pallet_prelude::Get, traits::LockIdentifier,
+    WeakBoundedVec,
+};
 use pallet_balances::BalanceLock;
 use parity_scale_codec::Encode;
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::DispatchError;
+
+use crate::{
+    pallet::{Config, Event, Pallet},
+    traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider},
+    LOG_TARGET, STAKING_ID, VESTING_ID,
+};
 
 impl<T: Config> Pallet<T> {
     /// Checks if account has an underflow of `consumers` counter. In such case, it increments
