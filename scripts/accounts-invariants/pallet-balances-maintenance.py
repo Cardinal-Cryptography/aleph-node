@@ -605,6 +605,35 @@ def set_providers_counter_to_one(chain_connection, account_info, internal_system
     return fixed_account_info_hexstring
 
 
+def query_contract_and_code_owners_accounts(chain_connection):
+    """
+    Returns contract accounts and code owners.
+    """
+    code_owners = set()
+    contract_accounts = set()
+
+    log.info(f"Querying code owners.")
+    code_info_of_query = chain_connection.query_map('Contracts', 'CodeInfoOf', page_size=1000)
+
+    for (i, (account_id, info)) in enumerate(code_info_of_query):
+        code_owners.add(info.serialize()['owner'])
+        if i % 5000 == 0 and i > 0:
+            log.info(f"Checked {i} code owners")
+    log.info(f"Total code owners is {len(code_owners)}")
+    log.debug(f"Code owners: {code_owners}")
+
+    log.info(f"Querying contract accounts.")
+    contract_info_of_query = chain_connection.query_map('Contracts', 'ContractInfoOf', page_size=1000)
+    for (i, (account_id, info)) in enumerate(contract_info_of_query):
+        contract_accounts.add(account_id.value)
+        if i % 5000 == 0 and i > 0:
+            log.info(f"Checked {i} contracts")
+    log.info(f"Total contracts count is {len(contract_accounts)}")
+    log.debug(f"Contract accounts: {contract_accounts}")
+
+    return code_owners, contract_accounts
+
+
 def query_accounts_with_consumers_counter_underflow(chain_connection):
     """
     Queries all accounts that have an underflow of consumers counter, which is either of those account categories:
@@ -802,6 +831,16 @@ if __name__ == "__main__":
         log.info(f"Found {len(accounts_with_consumers_underflow)} accounts with consumers underflow.")
         if len(accounts_with_consumers_underflow) > 0:
             save_accounts_to_json_file("accounts_with_consumers_underflow.json", accounts_with_consumers_underflow)
+        code_owners, contract_accounts = query_contract_and_code_owners_accounts(chain_connection=chain_ws_connection)
+        accounts_with_consumers_underflow_set = set(list(map(lambda x: x[0], accounts_with_consumers_underflow)))
+        code_owners_intersection = accounts_with_consumers_underflow_set.intersection(code_owners)
+        if len(code_owners_intersection):
+            log.warning(
+                f"There are common code owners accounts and consumers underflow accounts: {code_owners_intersection}")
+        contract_accounts_intersection = accounts_with_consumers_underflow_set.intersection(contract_accounts)
+        if len(contract_accounts_intersection):
+            log.warning(
+                f"There are common contract accounts and consumers underflow accounts: {contract_accounts_intersection}")
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_account_sanity_checks(chain_connection=chain_ws_connection,
