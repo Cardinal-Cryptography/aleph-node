@@ -65,6 +65,12 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         default=10,
                         help='How many accounts to fix in one script run session.'
                              ' Default: 10')
+    parser.add_argument('--query-consumers-counter-underflow',
+                        action='store_true',
+                        help='Specify this switch if script should query all accounts that have underflow consumers '
+                             'counter.'
+                             'It requires at least AlephNode 12.X version '
+                             'Default: False')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
                        action='store_true',
@@ -73,7 +79,7 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                             'It requires AlephNode < 12.X version and SENDER_ACCOUNT env to be set with '
                             'a mnemonic phrase of sender account that has funds for transfers and fees. '
                             'dust-accounts.json file is saved with all such accounts.'
-                            'Must be used exclusively with --upgrade-accounts or --fix-double-providers-count'
+                            'Must be used exclusively with --upgrade-accounts or --fix-double-providers-count.'
                             'Default: False')
     group.add_argument('--upgrade-accounts',
                        action='store_true',
@@ -81,7 +87,7 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                             'for all accounts on a chain. It requires at least AlephNode 12.X version '
                             'and SENDER_ACCOUNT env to be set with a mnemonic phrase of sender account that has funds '
                             'for transfers and fees.'
-                            'Must be used exclusively with --fix-free-balance or --fix-double-providers-count'
+                            'Must be used exclusively with --fix-free-balance or --fix-double-providers-count.'
                             'Default: False')
     group.add_argument('--fix-double-providers-count',
                        action='store_true',
@@ -89,7 +95,7 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                             'and decrease this counter by one using System.SetStorage call. '
                             'It requires at least AlephNode 12.X version '
                             'and SENDER_ACCOUNT env to be set with a sudo mnemonic phrase. '
-                            'Must be used exclusively with --fix-free-balance or --upgrade-accounts'
+                            'Must be used exclusively with --fix-free-balance or --upgrade-accounts.'
                             'Default: False')
     return parser.parse_args()
 
@@ -599,6 +605,63 @@ def set_providers_counter_to_one(chain_connection, account_info, internal_system
     return fixed_account_info_hexstring
 
 
+def query_accounts_with_consumers_counter_underflow(chain_connection):
+    """
+    Queries all accounts that have an underflow of consumers counter, which is either of those account categories:
+    * `consumers`  == 0, `reserved`  > 0
+    * `consumers`  == 1, `balances.Locks` contain an entry with `id`  == `vesting`
+    * `consumers`  == 2, `balances.Locks` contain an entry with `id`  == `staking`
+    * `consumers`  == 3, `balances.Locks` contain entries with `id`  == `staking` and accountId is in `session.nextKeys`
+    """
+    log.info("Querying session.nextKeys.")
+    next_keys = []
+    for account_id, _ in chain_connection.query_map("Session", "NextKeys", max_results=1000):
+        next_keys.append(account_id.value)
+    log.debug(f"Found below accounts in Session.nextKeys: {next_keys}")
+
+    log.info("Querying balances.locks.")
+    locks = {}
+    for account_id, lock in chain_connection.query_map("Balances", "Locks", max_results=1000):
+        locks[account_id.value] = lock.value
+    log.debug(f"Found below locks: {locks}")
+
+    log.info("Querying all accounts and filtering by consumers underflow predicate.")
+    zero_consumers_underflow_accounts = []
+    for account_id_and_info in filter_accounts(chain_connection,
+                                               None,
+                                               None,
+                                               lambda x, y, z: True,
+                                               "\'all accounts\'"):
+        account_id, account_info = account_id_and_info
+        consumers = account_info['consumers']
+        reserved = account_info['data']['reserved']
+        if consumers == 0 and reserved > 0:
+            zero_consumers_underflow_accounts.append(account_id_and_info)
+            log.debug(f"Found an account that has zero consumers and non-zero reserved: {account_id_and_info}")
+            continue
+        if account_id in locks and len(locks[account_id]) > 0:
+            log.debug(f"Account {account_id} has following locks: {locks[account_id]}")
+            vesting_lock = next(filter(lambda lock: lock['id'] == "0x76657374696e6720", locks[account_id]), None)
+            if vesting_lock is not None and consumers == 1:
+                log.debug(f"Found vesting lock: {vesting_lock}")
+                zero_consumers_underflow_accounts.append(account_id_and_info)
+                log.debug(f"Found an account that has one consumer and vesting lock: {account_id_and_info}")
+                continue
+            staking_lock = next(filter(lambda lock: lock['id'] == "0x7374616b696e6720", locks[account_id]), None)
+            if staking_lock is not None:
+                log.debug(f"Found staking lock: {staking_lock}")
+                if consumers == 2:
+                    zero_consumers_underflow_accounts.append(account_id_and_info)
+                    log.debug(f"Found an account that has two consumers and staking lock: {account_id_and_info}")
+                    continue
+                if consumers == 3 and account_id in next_keys:
+                    zero_consumers_underflow_accounts.append(account_id_and_info)
+                    log.debug(f"Found an account that has three consumers, staking lock, and next session key: "
+                              f"{account_id_and_info}")
+                    continue
+    return zero_consumers_underflow_accounts
+
+
 def chunks(list_of_elements, n):
     """
     Lazily split 'list_of_elements' into 'n'-sized chunks.
@@ -686,6 +749,11 @@ if __name__ == "__main__":
         if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
             log.error(f"--fix-double-providers-count can be used only on chains with at least 12 version. Exiting.")
             exit(4)
+    if args.query_consumers_counter_underflow:
+        if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
+            log.error(f"--query-consumers-counter-underflow can be used only on chains with at least 12 version. "
+                      f"Exiting.")
+            exit(5)
 
     existential_deposit = chain_ws_connection.get_constant("Balances", "ExistentialDeposit").value
     log.info(f"Existential deposit is {format_balance(chain_ws_connection, existential_deposit)}")
@@ -727,6 +795,13 @@ if __name__ == "__main__":
                                    input_args=args,
                                    chain_major_version=chain_major_version,
                                    sudo_sender_keypair=sudo_account_keypair)
+    if args.query_consumers_counter_underflow:
+        log.info(f"This script is going to query all accounts that have underflow of consumers counter.")
+        accounts_with_consumers_underflow = \
+            query_accounts_with_consumers_counter_underflow(chain_connection=chain_ws_connection)
+        log.info(f"Found {len(accounts_with_consumers_underflow)} accounts with consumers underflow.")
+        if len(accounts_with_consumers_underflow) > 0:
+            save_accounts_to_json_file("accounts_with_consumers_underflow.json", accounts_with_consumers_underflow)
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_account_sanity_checks(chain_connection=chain_ws_connection,
