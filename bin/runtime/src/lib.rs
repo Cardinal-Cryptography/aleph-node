@@ -376,6 +376,13 @@ impl pallet_elections::Config for Runtime {
     type BannedValidators = CommitteeManagement;
 }
 
+impl pallet_operations::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AccountInfoProvider = System;
+    type BalancesProvider = Balances;
+    type NextKeysSessionProvider = Session;
+}
+
 impl pallet_committee_management::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type BanHandler = Elections;
@@ -912,6 +919,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
+        Operations: pallet_operations = 23,
     }
 );
 
