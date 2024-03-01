@@ -1,3 +1,5 @@
+#![allow(clippy::nonminimal_bool)]
+
 use crate::pallet::{Config, Event, Pallet};
 use crate::traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider};
 use crate::{LOG_TARGET, STAKING_ID, VESTING_ID};
@@ -38,12 +40,12 @@ impl<T: Config> Pallet<T> {
     }
 
     fn staker_has_consumers_underflow(who: &T::AccountId, consumers: u32) -> bool {
-        let locks = T::BalancesProvider::locks(&who);
+        let locks = T::BalancesProvider::locks(who);
         let has_vesting_lock = Self::has_lock(&locks, VESTING_ID);
         let vester_has_consumers_underflow = consumers == 1 && has_vesting_lock;
         let has_staking_lock = Self::has_lock(&locks, STAKING_ID);
         let nominator_has_consumers_underflow = consumers == 2 && has_staking_lock;
-        let has_next_session_keys = T::NextKeysSessionProvider::has_next_session_keys(&who);
+        let has_next_session_keys = T::NextKeysSessionProvider::has_next_session_keys(who);
         let validator_has_consumers_underflow =
             consumers == 3 && has_staking_lock && has_next_session_keys;
         vester_has_consumers_underflow
@@ -53,18 +55,17 @@ impl<T: Config> Pallet<T> {
     }
 
     fn no_consumers_some_reserved(who: &T::AccountId, consumers: u32) -> bool {
-        let is_reserved_not_zero = T::BalancesProvider::is_reserved_not_zero(&who);
-        let account_with_reserved_funds_has_consumers_underflow =
-            consumers == 0 && is_reserved_not_zero;
-        account_with_reserved_funds_has_consumers_underflow
+        let is_reserved_not_zero = T::BalancesProvider::is_reserved_not_zero(who);
+        
+        consumers == 0 && is_reserved_not_zero
     }
 
     fn has_lock<U, V>(locks: &WeakBoundedVec<BalanceLock<U>, V>, id: LockIdentifier) -> bool {
-        locks.iter().find(|x| x.id == id).is_some()
+        locks.iter().any(|x| x.id == id)
     }
 
     fn increment_consumers(who: T::AccountId) -> Result<(), DispatchError> {
-        let _ = frame_system::Pallet::<T>::inc_consumers_without_limit(&who)?;
+        frame_system::Pallet::<T>::inc_consumers_without_limit(&who)?;
         Self::deposit_event(Event::ConsumersUnderflowFixed { who });
         Ok(())
     }

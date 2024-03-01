@@ -9,15 +9,15 @@ fn total_balance(account_id: u64) -> u128 {
 }
 
 fn free_balance(account_id: u64) -> u128 {
-    pallet_balances::Pallet::<TestRuntime>::free_balance(&account_id)
+    pallet_balances::Pallet::<TestRuntime>::free_balance(account_id)
 }
 
 fn reserved_balance(account_id: u64) -> u128 {
-    pallet_balances::Pallet::<TestRuntime>::reserved_balance(&account_id)
+    pallet_balances::Pallet::<TestRuntime>::reserved_balance(account_id)
 }
 
 fn usable_balance(account_id: u64) -> u128 {
-    pallet_balances::Pallet::<TestRuntime>::usable_balance(&account_id)
+    pallet_balances::Pallet::<TestRuntime>::usable_balance(account_id)
 }
 
 fn ed() -> u128 {

@@ -205,9 +205,9 @@ pub fn new_test_ext(accounts_and_balances: &[(u64, bool, u128)]) -> sp_io::TestE
         .assimilate_storage(&mut t)
         .unwrap();
 
-    let _ = pallet_session::GenesisConfig::<TestRuntime> {
+    pallet_session::GenesisConfig::<TestRuntime> {
         keys: accounts_and_balances
-            .into_iter()
+            .iter()
             .filter(|(_, is_authority, _)| *is_authority)
             .map(|(id, _, _)| {
                 (

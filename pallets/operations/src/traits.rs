@@ -18,7 +18,7 @@ where
     type RefCount = frame_system::RefCount;
 
     fn get_consumers(who: &Self::AccountId) -> Self::RefCount {
-        frame_system::Pallet::<T>::consumers(&who)
+        frame_system::Pallet::<T>::consumers(who)
     }
 }
 
@@ -42,7 +42,7 @@ impl<T: pallet_balances::Config<I>, I: 'static> BalancesProvider for pallet_bala
     }
 
     fn locks(who: &Self::AccountId) -> WeakBoundedVec<BalanceLock<Self::Balance>, Self::MaxLocks> {
-        pallet_balances::Locks::<T, I>::get(&who)
+        pallet_balances::Locks::<T, I>::get(who)
     }
 }
 
@@ -59,6 +59,6 @@ where
     type AccountId = T::AccountId;
 
     fn has_next_session_keys(who: &Self::AccountId) -> bool {
-        pallet_session::NextKeys::<T>::get(&who).is_some()
+        pallet_session::NextKeys::<T>::get(who).is_some()
     }
 }
