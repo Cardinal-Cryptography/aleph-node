@@ -8,6 +8,8 @@ use frame_support::pallet_prelude::Get;
 use frame_support::traits::LockIdentifier;
 use frame_support::WeakBoundedVec;
 use pallet_balances::BalanceLock;
+use parity_scale_codec::Encode;
+use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::DispatchError;
 
 impl<T: Config> Pallet<T> {
@@ -34,7 +36,7 @@ impl<T: Config> Pallet<T> {
         log::debug!(
             target: LOG_TARGET,
             "Account {:?} has correct consumer counter, not incrementing",
-            who
+            HexDisplay::from(&who.encode())
         );
         Ok(Some(weight).into())
     }
@@ -56,7 +58,7 @@ impl<T: Config> Pallet<T> {
 
     fn no_consumers_some_reserved(who: &T::AccountId, consumers: u32) -> bool {
         let is_reserved_not_zero = T::BalancesProvider::is_reserved_not_zero(who);
-        
+
         consumers == 0 && is_reserved_not_zero
     }
 

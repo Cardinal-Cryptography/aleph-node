@@ -16,6 +16,7 @@ frame-system = { workspace = true }
 pallet-session = { workspace = true }
 pallet-balances = { workspace = true }
 sp-runtime = { workspace = true }
+sp-core = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
@@ -38,6 +39,8 @@ std = [
     "pallet-timestamp/std",
     "frame-election-provider-support/std",
     "sp-runtime/std",
+    "sp-core/std",
+
 ]
 
 try-runtime = [
