@@ -23,6 +23,7 @@ pub use pallet::*;
 #[pallet_doc("../README.md")]
 pub mod pallet {
     use frame_support::pallet_prelude::*;
+    use frame_support::weights::constants::WEIGHT_REF_TIME_PER_MILLIS;
     use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
     use crate::{
@@ -69,11 +70,8 @@ pub mod pallet {
         /// - `who`: An account to be fixed
         ///
         #[pallet::call_index(0)]
-        // TODO: below weight is a maximum of DbReads ext can done, but it was not benchmarked
         #[pallet::weight(
-        Weight::from_parts(0, 0)
-        .saturating_add(T::DbWeight::get().reads(4_u64))
-        .saturating_add(T::DbWeight::get().writes(1_u64))
+        Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(8), 0)
         )]
         pub fn fix_accounts_consumers_underflow(
             origin: OriginFor<T>,
