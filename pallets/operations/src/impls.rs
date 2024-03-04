@@ -56,7 +56,6 @@ impl<T: Config> Pallet<T> {
         vester_has_consumers_underflow
             || nominator_has_consumers_underflow
             || validator_has_consumers_underflow
-            || validator_has_consumers_underflow
     }
 
     fn no_consumers_some_reserved(who: &T::AccountId, consumers: u32) -> bool {
