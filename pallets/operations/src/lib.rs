@@ -22,8 +22,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 #[pallet_doc("../README.md")]
 pub mod pallet {
-    use frame_support::pallet_prelude::*;
-    use frame_support::weights::constants::WEIGHT_REF_TIME_PER_MILLIS;
+    use frame_support::{pallet_prelude::*, weights::constants::WEIGHT_REF_TIME_PER_MILLIS};
     use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
     use crate::{
