@@ -20,14 +20,14 @@ class ChainMajorVersion(enum.Enum):
 
     @classmethod
     def from_spec_version(cls, spec_version):
-        return cls(
-            {
-                65: ChainMajorVersion.PRE_12_MAJOR_VERSION,
-                68: ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION,
-                70: ChainMajorVersion.AT_LEAST_13_1_VERSION,
-            }[spec_version]
-        )
-
+        ret = None
+        if spec_version <= 65:
+            ret = ChainMajorVersion.PRE_12_MAJOR_VERSION
+        elif 68 <= spec_version < 70:
+            ret = ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION
+        elif spec_version >= 70:
+            ret = ChainMajorVersion.AT_LEAST_13_1_VERSION
+        return cls(ret)
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -879,7 +879,8 @@ if __name__ == "__main__":
         log.info(f"Found {len(accounts_with_consumers_underflow)} accounts with consumers underflow.")
         if len(accounts_with_consumers_underflow) > 0:
             save_accounts_to_json_file("accounts_with_consumers_underflow.json", accounts_with_consumers_underflow)
-            code_owners, contract_accounts = query_contract_and_code_owners_accounts(chain_connection=chain_ws_connection)
+            code_owners, contract_accounts = query_contract_and_code_owners_accounts(
+                chain_connection=chain_ws_connection)
             accounts_with_consumers_underflow_set = set(list(map(lambda x: x[0], accounts_with_consumers_underflow)))
             code_owners_intersection = accounts_with_consumers_underflow_set.intersection(code_owners)
             if len(code_owners_intersection):
