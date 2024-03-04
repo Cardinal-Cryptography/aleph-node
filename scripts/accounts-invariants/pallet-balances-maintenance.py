@@ -20,14 +20,13 @@ class ChainMajorVersion(enum.Enum):
 
     @classmethod
     def from_spec_version(cls, spec_version):
-        ret = None
         if spec_version <= 65:
-            ret = ChainMajorVersion.PRE_12_MAJOR_VERSION
+            return cls(ChainMajorVersion.PRE_12_MAJOR_VERSION)
         elif 68 <= spec_version < 70:
-            ret = ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION
+            return cls(ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION)
         elif spec_version >= 70:
-            ret = ChainMajorVersion.AT_LEAST_13_1_VERSION
-        return cls(ret)
+            return cls(ChainMajorVersion.AT_LEAST_13_1_VERSION)
+
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -73,9 +72,9 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                              ' Default: 10')
     parser.add_argument('--fix-consumers-calls-in-batch',
                         type=int,
-                        default=25,
+                        default=10,
                         help='How many consumers underflow accounts to fix in one script run session.'
-                             ' Default: 25')
+                             ' Default: 10')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
                        action='store_true',
@@ -642,6 +641,53 @@ def query_contract_and_code_owners_accounts(chain_connection):
     return code_owners, contract_accounts
 
 
+def no_consumers_zero_reserved(account_id, account_info):
+    """
+    Checks if an account has zero consumers, but non-zero reserved amount.
+    """
+    consumers = account_info['consumers']
+    reserved = account_info['data']['reserved']
+    if consumers == 0 and reserved > 0:
+        log.debug(f"Found an account that has zero consumers and non-zero reserved: {account_id}")
+        return True
+    return False
+
+
+def staker_has_consumers_underflow(account_id, consumers, locks, next_keys):
+    """
+    Checks if an account is a staker or vester that has underflow consumers counter.
+    """
+    vesting_lock_encoded_id = "0x76657374696e6720"
+    staking_lock_encoded_id = "0x7374616b696e6720"
+    if account_id in locks and len(locks[account_id]) > 0:
+        log.debug(f"Account {account_id} has following locks: {locks[account_id]}")
+        vesting_lock = next(filter(lambda lock: lock['id'] == vesting_lock_encoded_id, locks[account_id]), None)
+        if vesting_lock is not None and consumers == 1:
+            log.debug(f"Found vesting lock: {vesting_lock}")
+            log.debug(f"Found an account that has one consumer and vesting lock: {account_id}")
+            return True
+        staking_lock = next(filter(lambda lock: lock['id'] == staking_lock_encoded_id, locks[account_id]), None)
+        if staking_lock is not None:
+            log.debug(f"Found staking lock: {staking_lock}")
+            if consumers == 2:
+                log.debug(f"Found an account that has two consumers and staking lock: {account_id}")
+                return True
+            if consumers == 3 and account_id in next_keys:
+                log.debug(f"Found an account that has three consumers, staking lock, and next session key: "
+                          f"{account_id}")
+                return True
+
+
+def has_account_consumer_underflow(account_id_and_info, locks, next_keys):
+    """
+    Returns True if an account has consumers underflow
+    """
+    account_id, account_info = account_id_and_info
+    consumers = account_info['consumers']
+    return no_consumers_zero_reserved(account_id, account_info) or \
+        staker_has_consumers_underflow(account_id, consumers,locks, next_keys)
+
+
 def query_accounts_with_consumers_counter_underflow(chain_connection):
     """
     Queries all accounts that have an underflow of consumers counter, which is either of those account categories:
@@ -651,9 +697,9 @@ def query_accounts_with_consumers_counter_underflow(chain_connection):
     * `consumers`  == 3, `balances.Locks` contain entries with `id`  == `staking` and accountId is in `session.nextKeys`
     """
     log.info("Querying session.nextKeys.")
-    next_keys = []
+    next_keys = set()
     for account_id, _ in chain_connection.query_map("Session", "NextKeys", page_size=1000):
-        next_keys.append(account_id.value)
+        next_keys.add(account_id.value)
     log.debug(f"Found below accounts in Session.nextKeys: {next_keys}")
 
     log.info("Querying balances.locks.")
@@ -663,36 +709,8 @@ def query_accounts_with_consumers_counter_underflow(chain_connection):
     log.debug(f"Found below locks: {locks}")
 
     log.info("Querying all accounts and filtering by consumers underflow predicate.")
-    zero_consumers_underflow_accounts = []
-    for account_id_and_info in get_all_accounts(chain_connection):
-        account_id, account_info = account_id_and_info
-        consumers = account_info['consumers']
-        reserved = account_info['data']['reserved']
-        if consumers == 0 and reserved > 0:
-            zero_consumers_underflow_accounts.append(account_id_and_info)
-            log.debug(f"Found an account that has zero consumers and non-zero reserved: {account_id_and_info}")
-            continue
-        if account_id in locks and len(locks[account_id]) > 0:
-            log.debug(f"Account {account_id} has following locks: {locks[account_id]}")
-            vesting_lock = next(filter(lambda lock: lock['id'] == "0x76657374696e6720", locks[account_id]), None)
-            if vesting_lock is not None and consumers == 1:
-                log.debug(f"Found vesting lock: {vesting_lock}")
-                zero_consumers_underflow_accounts.append(account_id_and_info)
-                log.debug(f"Found an account that has one consumer and vesting lock: {account_id_and_info}")
-                continue
-            staking_lock = next(filter(lambda lock: lock['id'] == "0x7374616b696e6720", locks[account_id]), None)
-            if staking_lock is not None:
-                log.debug(f"Found staking lock: {staking_lock}")
-                if consumers == 2:
-                    zero_consumers_underflow_accounts.append(account_id_and_info)
-                    log.debug(f"Found an account that has two consumers and staking lock: {account_id_and_info}")
-                    continue
-                if consumers == 3 and account_id in next_keys:
-                    zero_consumers_underflow_accounts.append(account_id_and_info)
-                    log.debug(f"Found an account that has three consumers, staking lock, and next session key: "
-                              f"{account_id_and_info}")
-                    continue
-    return zero_consumers_underflow_accounts
+    return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection) if
+            has_account_consumer_underflow(account_id_and_info, locks, next_keys)]
 
 
 def get_all_accounts(chain_connection):
