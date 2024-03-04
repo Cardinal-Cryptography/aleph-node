@@ -11,6 +11,7 @@ members = [
     "pallets/elections",
     "pallets/feature-control",
     "pallets/committee-management",
+    "pallets/operations",
     "pallets/support",
     "pallets/vk-storage",
     "primitives",
@@ -181,6 +182,7 @@ pallet-aleph = { path = "pallets/aleph", default-features = false }
 pallet-committee-management = { path = "pallets/committee-management", default-features = false }
 pallet-elections = { path = "pallets/elections", default-features = false }
 pallet-feature-control = { path = "pallets/feature-control", default-features = false }
+pallet-operations = { path = "pallets/operations", default-features = false }
 pallets-support = { path = "pallets/support", default-features = false }
 pallet-vk-storage = { path = "pallets/vk-storage", default-features = false }
 primitives = { path = "primitives", default-features = false }

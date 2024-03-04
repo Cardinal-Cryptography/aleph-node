@@ -99,10 +99,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 67,
+    spec_version: 70,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 17,
+    transaction_version: 18,
     state_version: 0,
 };
 
@@ -387,6 +387,13 @@ impl pallet_elections::Config for Runtime {
     type ValidatorProvider = Staking;
     type MaxWinners = MaxWinners;
     type BannedValidators = CommitteeManagement;
+}
+
+impl pallet_operations::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AccountInfoProvider = System;
+    type BalancesProvider = Balances;
+    type NextKeysSessionProvider = Session;
 }
 
 impl pallet_committee_management::Config for Runtime {
@@ -923,6 +930,7 @@ construct_runtime!(
         Proxy: pallet_proxy = 22,
         FeatureControl: pallet_feature_control = 23,
         VkStorage: pallet_vk_storage = 24,
+        Operations: pallet_operations = 255,
     }
 );
 

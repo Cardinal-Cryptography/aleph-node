@@ -64,6 +64,7 @@ pallet-aleph = { workspace = true }
 pallet-committee-management= { workspace = true }
 pallet-elections = { workspace = true }
 pallet-feature-control = { workspace = true }
+pallet-operations = { workspace = true }
 primitives = { workspace = true }
 pallet-proxy = { workspace = true }
 pallet-vk-storage = { workspace = true }
@@ -89,6 +90,7 @@ std = [
     "pallet-balances/std",
     "pallet-elections/std",
     "pallet-feature-control/std",
+    "pallet-operations/std",
     "pallet-identity/std",
     "pallet-insecure-randomness-collective-flip/std",
     "pallet-session/std",
