@@ -351,11 +351,7 @@ def upgrade_accounts(chain_connection,
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts.")
-    all_accounts_on_chain = list(map(lambda x: x[0], filter_accounts(chain_connection,
-                                                                     ed,
-                                                                     chain_major_version,
-                                                                     lambda x, y, z: True,
-                                                                     "\'all accounts\'")))
+    all_accounts_on_chain = list(map(lambda x: x[0], get_all_accounts(chain_connection)))
 
     for (i, account_ids_chunk) in enumerate(chunks(all_accounts_on_chain, input_args.upgrade_accounts_in_batch)):
         upgrade_accounts_call = chain_connection.compose_call(
@@ -656,23 +652,19 @@ def query_accounts_with_consumers_counter_underflow(chain_connection):
     """
     log.info("Querying session.nextKeys.")
     next_keys = []
-    for account_id, _ in chain_connection.query_map("Session", "NextKeys", max_results=1000):
+    for account_id, _ in chain_connection.query_map("Session", "NextKeys", page_size=1000):
         next_keys.append(account_id.value)
     log.debug(f"Found below accounts in Session.nextKeys: {next_keys}")
 
     log.info("Querying balances.locks.")
     locks = {}
-    for account_id, lock in chain_connection.query_map("Balances", "Locks", max_results=1000):
+    for account_id, lock in chain_connection.query_map("Balances", "Locks", page_size=1000):
         locks[account_id.value] = lock.value
     log.debug(f"Found below locks: {locks}")
 
     log.info("Querying all accounts and filtering by consumers underflow predicate.")
     zero_consumers_underflow_accounts = []
-    for account_id_and_info in filter_accounts(chain_connection,
-                                               None,
-                                               None,
-                                               lambda x, y, z: True,
-                                               "\'all accounts\'"):
+    for account_id_and_info in get_all_accounts(chain_connection):
         account_id, account_info = account_id_and_info
         consumers = account_info['consumers']
         reserved = account_info['data']['reserved']
@@ -703,6 +695,14 @@ def query_accounts_with_consumers_counter_underflow(chain_connection):
     return zero_consumers_underflow_accounts
 
 
+def get_all_accounts(chain_connection):
+    return filter_accounts(chain_connection,
+                           None,
+                           None,
+                           lambda x, y, z: True,
+                           "\'all accounts\'")
+
+
 def batch_fix_accounts_consumers_underflow(chain_connection,
                                            input_args,
                                            accounts,
@@ -724,7 +724,7 @@ def batch_fix_accounts_consumers_underflow(chain_connection,
             }), account_ids_chunk))
         batch_call = chain_connection.compose_call(
             call_module='Utility',
-            call_function='batch',
+            call_function='batch_all',
             call_params={
                 'calls': operations_calls
             }
