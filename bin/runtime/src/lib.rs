@@ -919,7 +919,7 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
-        Operations: pallet_operations = 23,
+        Operations: pallet_operations = 255,
     }
 );
 
