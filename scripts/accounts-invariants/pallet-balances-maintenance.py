@@ -676,6 +676,7 @@ def staker_has_consumers_underflow(account_id, consumers, locks, next_keys):
                 log.debug(f"Found an account that has three consumers, staking lock, and next session key: "
                           f"{account_id}")
                 return True
+    return False
 
 
 def has_account_consumer_underflow(account_id_and_info, locks, next_keys):
