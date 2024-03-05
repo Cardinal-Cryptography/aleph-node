@@ -238,7 +238,7 @@ parameter_types! {
     pub const MaxLocks: u32 = 50;
     // We have only 2 reasons for holds - CodeUploadDeposit and StorageDeposit.
     pub const MaxHolds: u32 = 2;
-    pub const MaxFreezes: u32 = 1;
+    pub const MaxFreezes: u32 = 50;
     pub const MaxReserves: u32 = 50;
 }
 
