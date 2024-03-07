@@ -416,7 +416,8 @@ fn given_nominator_account_with_staking_lock_when_fixing_consumers_then_consumer
 }
 
 #[test]
-fn given_validator_account_with_staking_lock_when_fixing_consumers_then_consumers_increase() {
+fn given_validator_with_stash_equal_to_consumer_when_fixing_consumers_then_consumers_does_not_increase(
+) {
     let authority_id = 1_u64;
     let non_authority_id = 2_u64;
     let total_balance_authority = 1000_u128;
@@ -432,6 +433,45 @@ fn given_validator_account_with_staking_lock_when_fixing_consumers_then_consumer
             bonded,
             RewardDestination::Controller
         ));
+        frame_system::Pallet::<TestRuntime>::dec_consumers(&authority_id);
+        assert_eq!(consumers(authority_id), 3);
+        frame_system::Pallet::<TestRuntime>::reset_events();
+        assert_eq!(pallet_operations_events().len(), 0);
+        assert_ok!(
+            crate::Pallet::<TestRuntime>::fix_accounts_consumers_underflow(
+                RuntimeOrigin::signed(non_authority_id),
+                authority_id
+            )
+        );
+        assert_eq!(pallet_operations_events(), []);
+
+        assert_eq!(consumers(authority_id), 3);
+    });
+}
+
+#[test]
+fn given_validator_with_stash_not_equal_to_consumer_when_fixing_consumers_then_consumers_increases()
+{
+    let authority_id = 1_u64;
+    let non_authority_id = 2_u64;
+    let total_balance_authority = 1000_u128;
+    let total_balance_non_authority = 999_u128;
+    new_test_ext(&[
+        (authority_id, true, total_balance_authority),
+        (non_authority_id, false, total_balance_non_authority),
+    ])
+    .execute_with(|| {
+        let bonded = 123_u128;
+        assert_ok!(pallet_staking::Pallet::<TestRuntime>::bond(
+            RuntimeOrigin::signed(authority_id),
+            bonded,
+            RewardDestination::Controller
+        ));
+        // direct manipulation on pallet storage is not possible from end user perspective,
+        // but to mimic that scenario we need to directly set Bonded so stash != controller,
+        // that is not possible to do via pallet staking API anymore
+        pallet_staking::Bonded::<TestRuntime>::set(authority_id, Some(non_authority_id));
+
         frame_system::Pallet::<TestRuntime>::dec_consumers(&authority_id);
         assert_eq!(consumers(authority_id), 3);
         frame_system::Pallet::<TestRuntime>::reset_events();

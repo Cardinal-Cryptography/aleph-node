@@ -11,7 +11,7 @@ use sp_runtime::DispatchError;
 
 use crate::{
     pallet::{Config, Event, Pallet},
-    traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider},
+    traits::{AccountInfoProvider, BalancesProvider, BondedStashProvider, NextKeysSessionProvider},
     LOG_TARGET, STAKING_ID, VESTING_ID,
 };
 
@@ -51,8 +51,21 @@ impl<T: Config> Pallet<T> {
         let has_staking_lock = Self::has_lock(&locks, STAKING_ID);
         let nominator_has_consumers_underflow = consumers == 2 && has_staking_lock;
         let has_next_session_keys = T::NextKeysSessionProvider::has_next_session_keys(who);
-        let validator_has_consumers_underflow =
-            consumers == 3 && has_staking_lock && has_next_session_keys;
+        let stash_different_than_controller = match T::BondedStashProvider::get_controller(who) {
+            Some(controller) => *who != controller,
+            None => {
+                log::warn!(
+                    target: LOG_TARGET,
+                    "Account {:?} has staking lock, but its Bonded is empty!",
+                    HexDisplay::from(&who.encode())
+                );
+                false
+            }
+        };
+        let validator_has_consumers_underflow = consumers == 3
+            && has_staking_lock
+            && has_next_session_keys
+            && stash_different_than_controller;
         vester_has_consumers_underflow
             || nominator_has_consumers_underflow
             || validator_has_consumers_underflow

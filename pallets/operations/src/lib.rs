@@ -26,7 +26,9 @@ pub mod pallet {
     use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
     use crate::{
-        traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider},
+        traits::{
+            AccountInfoProvider, BalancesProvider, BondedStashProvider, NextKeysSessionProvider,
+        },
         STORAGE_VERSION,
     };
 
@@ -35,8 +37,12 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Something that provides information about an account's consumers counter
         type AccountInfoProvider: AccountInfoProvider<AccountId = Self::AccountId, RefCount = u32>;
+        /// Something that provides information about account's balances
         type BalancesProvider: BalancesProvider<AccountId = Self::AccountId>;
+        /// Something that provides information about an account's next session keys
         type NextKeysSessionProvider: NextKeysSessionProvider<AccountId = Self::AccountId>;
+        /// Something that provides information about an account's controller
+        type BondedStashProvider: BondedStashProvider<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -59,8 +65,10 @@ pub mod pallet {
         /// * `consumers`  == 0, `reserved`  > 0
         /// * `consumers`  == 1, `balances.Locks` contain an entry with `id`  == `vesting`
         /// * `consumers`  == 2, `balances.Locks` contain an entry with `id`  == `staking`
-        /// * `consumers`  == 3, `balances.Locks` contain entries with `id`  == `staking`
-        ///    and account id is in `session.nextKeys`
+        /// * `consumers` == 3,
+        ///   `balances.Locks` contain entries with `id`  == `staking`,
+        ///   `staking.bonded(accountId) == accountId`,
+        ///    accountId is in `session.nextKeys`
         ///
         ///	`fix_accounts_consumers_underflow` checks if the account falls into one of above
         /// categories, and increase its `consumers` counter.
