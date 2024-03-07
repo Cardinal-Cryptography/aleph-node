@@ -86,7 +86,7 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                        help='Specify this switch if script should query all accounts that have underflow consumers '
                             'counter, and fix consumers counter by issuing batch calls of '
                             'Operations.fix_accounts_consumers_underflow call.'
-                            'Query operation is possible on all chains, but fix only on AlephNode >= 13.1'
+                            'Query operation is possible on all chains, but fix only on AlephNode >= 13.2'
                             'Default: False')
     group.add_argument('--fix-consumers-counter-overflow',
                        action='store_true',
@@ -634,8 +634,8 @@ def staker_has_consumers_underflow(account_id, consumers, locks, bonded, next_ke
             if consumers == 3 and \
                     account_id in next_keys and \
                     account_id in bonded and bonded[account_id] == account_id:
-                log.debug(f"Found an account that has three consumers, staking lock, and next session key: "
-                          f"{account_id}")
+                log.debug(f"Found an account that has three consumers, staking lock, and next session key, "
+                          f"and that account's stash == controller: {account_id}")
                 return True
     return False
 
@@ -646,7 +646,7 @@ def has_account_consumer_overflow(account_id_and_info, locks, bonded, next_keys)
     """
     account_id, account_info = account_id_and_info
     consumers = account_info['consumers']
-    if account_id in locks and len(locks[account_id]) and get_staking_lock(locks[account_id]) is not None and \
+    if account_id in locks and len(locks[account_id]) > 0 and get_staking_lock(locks[account_id]) is not None and \
             consumers == 4 and \
             account_id in next_keys and \
             account_id in bonded and bonded[account_id] != account_id:
@@ -668,7 +668,7 @@ def has_account_consumer_underflow(account_id_and_info, locks, bonded, next_keys
 
 def query_accounts_with_consumers_counter_overflow(chain_connection):
     """
-    Queries all accounts that have an overflow of consumers counter, which is either of those account categories:
+    Queries all accounts that have an overflow of consumers counter, ie accounts which satisfy below conditions:
     * `consumers` == 4,
       `balances.Locks` contain entries with `id`  == `staking`,
       `staking.bonded(accountId) != accountId`,
