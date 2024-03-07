@@ -1,31 +1,14 @@
 #!/bin/python3
+from common import *
+
 import copy
-import datetime
 import json
-import pathlib
 
 import substrateinterface
 import argparse
-import logging
-import enum
 import os
 
 from substrateinterface.storage import StorageKey
-
-
-class ChainMajorVersion(enum.Enum):
-    PRE_12_MAJOR_VERSION = 65,
-    AT_LEAST_12_MAJOR_VERSION = 68,
-    AT_LEAST_13_1_VERSION = 70,
-
-    @classmethod
-    def from_spec_version(cls, spec_version):
-        if spec_version <= 65:
-            return cls(ChainMajorVersion.PRE_12_MAJOR_VERSION)
-        elif 68 <= spec_version < 70:
-            return cls(ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION)
-        elif spec_version >= 70:
-            return cls(ChainMajorVersion.AT_LEAST_13_1_VERSION)
 
 
 def get_args() -> argparse.Namespace:
@@ -114,18 +97,6 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
     return parser.parse_args()
 
 
-def get_chain_major_version(chain_connection):
-    """
-    Retrieves spec_version from chain and returns an enum whether this is pre 12 version or at least 12 version
-    :param chain_connection: WS handler
-    :return: ChainMajorVersion
-    """
-    runtime_version = chain_connection.get_block_runtime_version(None)
-    spec_version = runtime_version['specVersion']
-    major_version = ChainMajorVersion.from_spec_version(spec_version)
-    return major_version
-
-
 def check_account_invariants(account, chain_major_version, ed):
     """
     This predicate checks whether an accounts meet pallet balances and account reference counters predicates.
@@ -182,40 +153,6 @@ def check_account_invariants(account, chain_major_version, ed):
         consumer_ref_applies_to_suspended_balances_invariant
 
 
-def filter_accounts(chain_connection,
-                    ed,
-                    chain_major_version,
-                    check_accounts_predicate,
-                    check_accounts_predicate_name=""):
-    """
-    Filters out all chain accounts by given predicate.
-    :param chain_connection: WS handler
-    :param ed: existential deposit
-    :param chain_major_version: enum ChainMajorVersion
-    :param check_accounts_predicate: a function that takes three arguments predicate(account, chain_major_version, ed)
-    :param check_accounts_predicate_name: name of the predicate, used for logging reasons only
-    :return: a list which has those chain accounts which returns True on check_accounts_predicate
-    """
-    accounts_that_do_meet_predicate = []
-    # query_map reads state from the **single** block, if block_hash is not None this is top of the chain
-    account_query = chain_connection.query_map(module='System',
-                                               storage_function='Account',
-                                               page_size=1000)
-    total_accounts_count = 0
-
-    for (i, (account_id, info)) in enumerate(account_query):
-        total_accounts_count += 1
-        if check_accounts_predicate(info, chain_major_version, ed):
-            accounts_that_do_meet_predicate.append([account_id.value, info.serialize()])
-        if i % 5000 == 0 and i > 0:
-            log.info(f"Checked {i} accounts")
-
-    log.info(
-        f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
-    log.info(f"Total accounts checked: {total_accounts_count}")
-    return accounts_that_do_meet_predicate
-
-
 def check_if_account_would_be_dust_in_12_version(account, chain_major_version, ed):
     """
     This predicate checks if a valid account in pre-12 version will be invalid in version 12.
@@ -247,95 +184,6 @@ def find_dust_accounts(chain_connection, ed, chain_major_version):
                            chain_major_version=chain_major_version,
                            check_accounts_predicate=check_if_account_would_be_dust_in_12_version,
                            check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'")
-
-
-def format_balance(chain_connection, amount):
-    """
-    Helper method to display underlying U128 Balance type in human-readable form
-    :param chain_connection: WS connection handler (for retrieving token symbol metadata)
-    :param amount: ammount to be formatted
-    :return: balance in human-readable form
-    """
-    decimals = chain_connection.token_decimals or 12
-    amount = format(amount / 10 ** decimals)
-    token = chain_connection.token_symbol
-    return f"{amount} {token}"
-
-
-def batch_transfer(chain_connection,
-                   input_args,
-                   accounts,
-                   amount,
-                   sender_keypair):
-    """
-    Send Balance.Transfer calls in a batch
-    :param chain_connection: WS connection handler
-    :param input_args: script input arguments returned from argparse
-    :param accounts: transfer beneficents
-    :param amount: amount to be transferred
-    :param sender_keypair: keypair of sender account
-    :return: None. Can raise exception in case of SubstrateRequestException thrown
-    """
-    for (i, account_ids_chunk) in enumerate(chunks(accounts, input_args.transfer_calls_in_batch)):
-        balance_calls = list(map(lambda account: chain_connection.compose_call(
-            call_module='Balances',
-            call_function='transfer',
-            call_params={
-                'dest': account,
-                'value': amount,
-            }), account_ids_chunk))
-        batch_call = chain_connection.compose_call(
-            call_module='Utility',
-            call_function='batch',
-            call_params={
-                'calls': balance_calls
-            }
-        )
-
-        extrinsic = chain_connection.create_signed_extrinsic(call=batch_call, keypair=sender_keypair)
-        log.info(f"About to send {len(balance_calls)} transfers, each with {format_balance(chain_connection, amount)} "
-                 f"from {sender_keypair.ss58_address} to below accounts: "
-                 f"{account_ids_chunk}")
-
-        submit_extrinsic(chain_connection, extrinsic, len(balance_calls), args.dry_run)
-
-
-def submit_extrinsic(chain_connection,
-                     extrinsic,
-                     expected_number_of_events,
-                     dry_run):
-    """
-    Submit a signed extrinsic
-    :param chain_connection: WS connection handler
-    :param extrinsic: an ext to be sent
-    :param expected_number_of_events: how many events caller expects to be emitted from chain
-    :param dry_run: boolean whether to actually send ext or not
-    :return: Hash of block extrinsic was included or None for dry-run.
-             Can raise exception in case of SubstrateRequestException thrown when sending ext.
-    """
-    try:
-        log.debug(f"Extrinsic to be sent: {extrinsic}")
-        if not dry_run:
-            receipt = chain_connection.submit_extrinsic(extrinsic, wait_for_inclusion=True)
-            log.info(f"Extrinsic included in block {receipt.block_hash}: "
-                     f"Paid {format_balance(chain_connection, receipt.total_fee_amount)}")
-            if receipt.is_success:
-                log.debug("Extrinsic success.")
-                if len(receipt.triggered_events) < expected_number_of_events:
-                    log.debug(
-                        f"Emitted fewer events than expected: "
-                        f"{len(receipt.triggered_events)} < {expected_number_of_events}")
-                log.debug(f"Emitted events:")
-                for event in receipt.triggered_events:
-                    log.debug(f'* {event.value}')
-            else:
-                log.warning(f"Extrinsic failed with following message: {receipt.error_message}")
-            return receipt.block_hash
-        else:
-            log.info(f"Not sending extrinsic, --dry-run is enabled.")
-    except substrateinterface.exceptions.SubstrateRequestException as e:
-        log.warning(f"Failed to submit extrinsic: {e}")
-        raise e
 
 
 def upgrade_accounts(chain_connection,
@@ -391,14 +239,16 @@ def check_if_account_has_double_providers(account, chain_major_version, ed):
 
 def state_sanity_check(chain_connection,
                        account_id,
-                       set_storage_block_hash):
+                       set_storage_block_hash,
+                       account_info_assert_function):
     """
-    Makes sure AccountInfo data changed only in terms of providers counter by comparing state between block that
+    Makes sure AccountInfo data changed only in terms of given assert function, by comparing state between block that
     setStorage landed vs state of that block parent.
     :param chain_connection WS connection handler
     :param account_id: An account to check
     :param set_storage_block_hash: a hash of a block that contains setStorage
-    :return: None.
+    :param account_info_assert_function: a function that checks for previous and current block state
+    :return: None, but might raise AssertionError.
     """
     set_storage_block_number = chain_connection.get_block_number(set_storage_block_hash)
     parent_block_number = set_storage_block_number - 1
@@ -416,12 +266,31 @@ def state_sanity_check(chain_connection,
                                                     params=[account_id],
                                                     block_hash=set_storage_block_hash).value
     log.debug(f"Account state in the setStorage block: {set_storage_info_state}")
+    account_info_assert_function(account_id, parent_account_info_state, set_storage_block_number,
+                                 set_storage_info_state)
+
+
+def assert_state_different_only_in_providers_counter(account_id, parent_account_info_state, set_storage_block_number,
+                                                     set_storage_info_state):
     assert parent_account_info_state['providers'] == 2, f"Providers before fix for account {account_id} is not 2!"
     assert set_storage_info_state['providers'] == 1, f"Providers after fix for account {account_id} is not 1!"
     changed_state_for_sake_of_assert = copy.deepcopy(parent_account_info_state)
     changed_state_for_sake_of_assert['providers'] = 1
     assert changed_state_for_sake_of_assert == set_storage_info_state, \
         f"Parent account info state is different from set storage state with more than providers counter! " \
+        f"Parent state: {parent_account_info_state} " \
+        f"Set storage state: {set_storage_info_state}" \
+        f"Set storage block number {set_storage_block_number}"
+
+
+def assert_state_different_only_in_consumers_counter(account_id, parent_account_info_state, set_storage_block_number,
+                                                     set_storage_info_state):
+    assert parent_account_info_state['consumers'] - 1 == set_storage_info_state['consumers'], \
+        f"Consumers counter before fix for account {account_id} is not decremented!"
+    changed_state_for_sake_of_assert = copy.deepcopy(parent_account_info_state)
+    changed_state_for_sake_of_assert['consumers'] = set_storage_info_state['consumers']
+    assert changed_state_for_sake_of_assert == set_storage_info_state, \
+        f"Parent account info state is different from set storage state with more than consumers counter! " \
         f"Parent state: {parent_account_info_state} " \
         f"Set storage state: {set_storage_info_state}" \
         f"Set storage block number {set_storage_block_number}"
@@ -456,13 +325,40 @@ def fix_double_providers_count_for_account(chain_connection,
            entry
     """
     log.info(f"Fixing double providers counter for account {account_id}")
+    fix_account_info_with_set_storage(chain_connection=chain_connection,
+                                      account_id=account_id,
+                                      sudo_sender_keypair=sudo_sender_keypair,
+                                      internal_system_account_scale_codec_type=internal_system_account_scale_codec_type,
+                                      input_args=input_args,
+                                      account_info_functor=set_providers_counter_to_one,
+                                      account_info_check_functor=assert_state_different_only_in_providers_counter)
+
+
+def fix_account_info_with_set_storage(chain_connection,
+                                      account_id,
+                                      sudo_sender_keypair,
+                                      internal_system_account_scale_codec_type,
+                                      input_args,
+                                      account_info_functor,
+                                      account_info_check_functor):
+    """
+    General function to fix AccountInfo using System.SetStorage call.
+    :param chain_connection: WS connection handler
+    :param account_id: Account id to which we should fix providers counter
+    :param sudo_sender_keypair Mnemonic phrase of sudo
+    :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
+           entry
+    :param account_info_functor: a function which returns fixed account info
+    :param account_info_check_functor: a function which compares previous and current block states
+    """
     log.info(f"Querying state for account {account_id}")
     result = chain_connection.query('System', 'Account', [account_id])
     log.debug(f"Returned value: {result.value}")
     account_id_and_account_info_data = [(account_id, result.value)]
     raw_key_values = get_raw_key_values(chain_connection,
                                         account_id_and_account_info_data,
-                                        internal_system_account_scale_codec_type)
+                                        internal_system_account_scale_codec_type,
+                                        account_info_functor)
 
     set_storage_call = chain_connection.compose_call(
         call_module='System',
@@ -494,7 +390,8 @@ def fix_double_providers_count_for_account(chain_connection,
     if not input_args.dry_run:
         state_sanity_check(chain_connection,
                            account_id,
-                           block_hash)
+                           block_hash,
+                           account_info_check_functor)
 
 
 def fix_double_providers_count(chain_connection,
@@ -530,7 +427,10 @@ def fix_double_providers_count(chain_connection,
                                                input_args)
 
 
-def get_raw_key_values(chain_connection, account_id_and_data_chunk, internal_system_account_scale_codec_type):
+def get_raw_key_values(chain_connection,
+                       account_id_and_data_chunk,
+                       internal_system_account_scale_codec_type,
+                       account_info_functor):
     """
     Prepares input arguments for System.setStorage calls wth fixed providers counter
     :param chain_connection: WS connection handler. Used for passing metadata when creating storage keys, which
@@ -538,6 +438,7 @@ def get_raw_key_values(chain_connection, account_id_and_data_chunk, internal_sys
     :param account_id_and_data_chunk: A list of tuples (account_id, decoded_account_info)
     :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
            entry
+    :param account_info_functor: function that manipulates input account info and returns corrected data
     :return: List of tuples (system_account_storage_key_hexstring, account_info_raw_value_hexstring) ready to be sent
              to System.setStorage call
     """
@@ -553,9 +454,9 @@ def get_raw_key_values(chain_connection, account_id_and_data_chunk, internal_sys
         account_ids_chunk))
     account_info_chunk = list(
         map(lambda account_id_and_data: account_id_and_data[1], account_id_and_data_chunk))
-    raw_hexstring_values = list(map(lambda account_info: set_providers_counter_to_one(chain_connection,
-                                                                                      account_info,
-                                                                                      internal_system_account_scale_codec_type),
+    raw_hexstring_values = list(map(lambda account_info: account_info_functor(chain_connection,
+                                                                              account_info,
+                                                                              internal_system_account_scale_codec_type),
                                     account_info_chunk))
     raw_key_values = list(zip(system_account_storage_keys_hexstrings, raw_hexstring_values))
     log.info(f"Prepared {len(raw_key_values)} raw key value pairs.")
@@ -581,6 +482,27 @@ def assert_same_data_except_providers_counter(account_data_hexstring,
         f"Providers counter of fixed AccountInfo must be 1"
     assert account_data_hexstring[20:] == account_data_with_fixed_providers_counter_hexstring[20:], \
         f"Last but 21 bytes of original and fixed AccountInfo must be equal"
+
+
+def assert_same_data_except_consumers_counter(account_data_hexstring,
+                                              account_data_with_decremented_consumers_counter_hexstring):
+    """
+    Function makes sure previous and fixed account data is different only in consumers counter
+    :param account_data_hexstring: Hexstring (raw value) representation of original AccountData
+    :param account_data_with_decremented_consumers_counter_hexstring: Hexstring representation (raw value) of
+        AccountData with decremented consumers counter
+    :return: None, but raises AssertionError in case data is different not only in consumers counter
+    """
+    # example hexstring of AccountInfo is that has consumers == 4
+    # 0x1a0000000400000001000000000000008dbc99a42761730200000000000000000094ff113c0000000000000000000000c1015dcaffee71020000000000000000b5985591727f46020000000000000080
+    # difference can be only on byte 12th, which is LSB of consumers counter
+    assert account_data_hexstring[:11] == account_data_with_decremented_consumers_counter_hexstring[:11], \
+        f"First 12 bytes of original and fixed AccountInfo must be equal"
+    assert int(account_data_hexstring[11]) - 1 == int(
+        account_data_with_decremented_consumers_counter_hexstring[11]), \
+        f"Consumers counter of fixed AccountInfo must be decremented"
+    assert account_data_hexstring[12:] == account_data_with_decremented_consumers_counter_hexstring[12:], \
+        f"Last but 12 bytes of original and fixed AccountInfo must be equal"
 
 
 def set_providers_counter_to_one(chain_connection, account_info, internal_system_account_scale_codec_type):
@@ -611,6 +533,31 @@ def set_providers_counter_to_one(chain_connection, account_info, internal_system
     fixed_account_info_hexstring = account_data_with_fixed_providers_counter.to_hex()
     original_encoded_data_hexstring = scale_object.encode(account_info).to_hex()
     assert_same_data_except_providers_counter(original_encoded_data_hexstring,
+                                              fixed_account_info_hexstring)
+    return fixed_account_info_hexstring
+
+
+def decrement_consumers_counter(chain_connection, account_info, internal_system_account_scale_codec_type):
+    """
+    See description of `set_providers_counter_to_one` for more details.
+    :param chain_connection: WS connection handler. Uses for passing metadata when creating storage keys, which
+                             is a valid assumption that it's not going to change during this script execution
+    :param account_info: decoded AccountInfo that has consumers counter overflow
+    :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
+           entry
+    :return: Raw storage value hexstring representation of AccountInfo with decremented consumers counter or
+            AssertionError if consumers is 0.
+    """
+    fixed_account_data = copy.deepcopy(account_info)
+    assert fixed_account_data['consumers'] > 0, f"Consumers counter of account {account_info} must be > 0!"
+    fixed_account_data['consumers'] -= 1
+    scale_object = chain_connection.runtime_config.create_scale_object(
+        type_string=internal_system_account_scale_codec_type, metadata=chain_connection.metadata
+    )
+    account_data_with_fixed_consumers_counter = scale_object.encode(fixed_account_data)
+    fixed_account_info_hexstring = account_data_with_fixed_consumers_counter.to_hex()
+    original_encoded_data_hexstring = scale_object.encode(account_info).to_hex()
+    assert_same_data_except_consumers_counter(original_encoded_data_hexstring,
                                               fixed_account_info_hexstring)
     return fixed_account_info_hexstring
 
@@ -774,14 +721,6 @@ def get_consumers_related_data(chain_connection):
     return bonded, locks, next_keys
 
 
-def get_all_accounts(chain_connection):
-    return filter_accounts(chain_connection,
-                           None,
-                           None,
-                           lambda x, y, z: True,
-                           "\'all accounts\'")
-
-
 def batch_fix_accounts_consumers_underflow(chain_connection,
                                            input_args,
                                            accounts,
@@ -795,10 +734,10 @@ def batch_fix_accounts_consumers_underflow(chain_connection,
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     if input_args.fix_consumers_counter_underflow:
-        if chain_major_version is not ChainMajorVersion.AT_LEAST_13_1_VERSION:
+        if chain_major_version is not ChainMajorVersion.AT_LEAST_13_2_VERSION:
             log.error(
                 f"Fixing underflow consumers account can only be done on AlephNode chains with at least "
-                f"13.1 version. Exiting.")
+                f"13.2 version. Exiting.")
             exit(5)
 
     for (i, account_ids_chunk) in enumerate(chunks(accounts, input_args.fix_consumers_calls_in_batch)):
@@ -824,12 +763,27 @@ def batch_fix_accounts_consumers_underflow(chain_connection,
         submit_extrinsic(chain_connection, extrinsic, len(operations_calls), args.dry_run)
 
 
-def chunks(list_of_elements, n):
+def fix_overflow_consumers_counter_for_account(chain_connection,
+                                               account_id,
+                                               sudo_sender_keypair,
+                                               internal_system_account_scale_codec_type,
+                                               input_args):
     """
-    Lazily split 'list_of_elements' into 'n'-sized chunks.
+    Decrements consumers counter for fiven account id
+    :param chain_connection: WS connection handler
+    :param account_id: Account id to which we should decrement consumers counter
+    :param sudo_sender_keypair Mnemonic phrase of sudo
+    :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
+           entry
     """
-    for i in range(0, len(list_of_elements), n):
-        yield list_of_elements[i:i + n]
+    log.info(f"Decrementing consumers counter for account {account_id}")
+    fix_account_info_with_set_storage(chain_connection=chain_connection,
+                                      account_id=account_id,
+                                      sudo_sender_keypair=sudo_sender_keypair,
+                                      internal_system_account_scale_codec_type=internal_system_account_scale_codec_type,
+                                      input_args=input_args,
+                                      account_info_functor=decrement_consumers_counter,
+                                      account_info_check_functor=assert_state_different_only_in_consumers_counter)
 
 
 def perform_account_sanity_checks(chain_connection,
@@ -854,35 +808,8 @@ def perform_account_sanity_checks(chain_connection,
         log.info(f"All accounts on chain {chain_connection.chain} meet balances invariants.")
 
 
-def save_accounts_to_json_file(json_file_name, accounts):
-    with open(json_file_name, 'w') as f:
-        json.dump(accounts, f)
-        log.info(f"Wrote file '{json_file_name}'")
-
-
-def get_global_logger(input_args):
-    log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-    root_logger = logging.getLogger()
-    root_logger.setLevel(input_args.log_level.upper())
-
-    time_now = datetime.datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
-    script_name_without_extension = pathlib.Path(__file__).stem
-    file_handler = logging.FileHandler(f"{script_name_without_extension}-{time_now}.log")
-    file_handler.setFormatter(log_formatter)
-    file_handler.setLevel(logging.DEBUG)
-    root_logger.addHandler(file_handler)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(log_formatter)
-    console_handler.setLevel(logging.INFO)
-    root_logger.addHandler(console_handler)
-
-    return logging
-
-
 if __name__ == "__main__":
     args = get_args()
-    log = get_global_logger(args)
 
     if args.fix_free_balance or args.upgrade_accounts or args.fix_double_providers_count \
             or args.fix_consumers_counter_underflow or args.fix_consumers_counter_overflow:
@@ -912,7 +839,8 @@ if __name__ == "__main__":
             log.error(f"--fix-double-providers-count can be used only on chains with at least 12 version. Exiting.")
             exit(4)
     if args.fix_consumers_counter_overflow:
-        if chain_major_version not in [ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION, ChainMajorVersion.AT_LEAST_13_1_VERSION]:
+        if chain_major_version not in [ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION,
+                                       ChainMajorVersion.AT_LEAST_13_2_VERSION]:
             log.error(f"--fix-consumers-counter-underflow can be used only on chains with at least 12 version. "
                       f"Exiting.")
             exit(6)
@@ -983,7 +911,7 @@ if __name__ == "__main__":
                                                    accounts=list(accounts_with_consumers_underflow_set))
     if args.fix_consumers_counter_overflow:
         log.info(f"This script is going to query all accounts that have overflow of consumers counter, "
-                 f"and  and decrease this counter by one using System.SetStorage extrinsic, which requires sudo.")
+                 f"and decrease this counter by one using System.SetStorage extrinsic, which requires sudo.")
         sudo_account_keypair = substrateinterface.Keypair.create_from_uri(sender_origin_account_seed)
         log.info(f"Using the following account for System.SetStorage calls: {sudo_account_keypair.ss58_address}")
         accounts_with_consumers_overflow = \
@@ -991,6 +919,13 @@ if __name__ == "__main__":
         log.info(f"Found {len(accounts_with_consumers_overflow)} accounts with consumers overflow.")
         if len(accounts_with_consumers_overflow) > 0:
             save_accounts_to_json_file("accounts_with_consumers_overflow.json", accounts_with_consumers_overflow)
+            internal_system_account_scale_codec_type = get_system_account_metadata_scale_codec_type(chain_ws_connection)
+            for account_id, _ in accounts_with_consumers_overflow:
+                fix_overflow_consumers_counter_for_account(chain_ws_connection,
+                                                           account_id,
+                                                           sudo_account_keypair,
+                                                           internal_system_account_scale_codec_type,
+                                                           args)
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_account_sanity_checks(chain_connection=chain_ws_connection,
