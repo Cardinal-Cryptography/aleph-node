@@ -183,7 +183,7 @@ def find_dust_accounts(chain_connection, ed, chain_major_version):
                            ed=ed,
                            chain_major_version=chain_major_version,
                            check_accounts_predicate=check_if_account_would_be_dust_in_12_version,
-                           check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'")
+                           check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'")[0]
 
 
 def upgrade_accounts(chain_connection,
@@ -413,7 +413,7 @@ def fix_double_providers_count(chain_connection,
                                                 ed=None,
                                                 chain_major_version=chain_major_version,
                                                 check_accounts_predicate=check_if_account_has_double_providers,
-                                                check_accounts_predicate_name="\'double provider count\'")
+                                                check_accounts_predicate_name="\'double provider count\'")[0]
     log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
     if len(double_providers_accounts) > 0:
         save_accounts_to_json_file("double-providers-accounts.json", double_providers_accounts)
@@ -786,9 +786,10 @@ def fix_overflow_consumers_counter_for_account(chain_connection,
                                       account_info_check_functor=assert_state_different_only_in_consumers_counter)
 
 
-def perform_account_sanity_checks(chain_connection,
-                                  ed,
-                                  chain_major_version):
+def perform_accounts_sanity_checks(chain_connection,
+                                   ed,
+                                   chain_major_version,
+                                   total_issuance_from_chain):
     """
     Checks whether all accounts on a chain matches pallet balances invariants
     :param chain_connection: WS connection handler
@@ -796,16 +797,25 @@ def perform_account_sanity_checks(chain_connection,
     :param chain_major_version: enum ChainMajorVersion
     :return:None
     """
-    invalid_accounts = filter_accounts(chain_connection=chain_connection,
-                                       ed=ed,
-                                       chain_major_version=chain_major_version,
-                                       check_accounts_predicate=lambda x, y, z: not check_account_invariants(x, y, z),
-                                       check_accounts_predicate_name="\'incorrect account invariants\'")
+    invalid_accounts, total_issuance_from_accounts = \
+        filter_accounts(chain_connection=chain_connection,
+                        ed=ed,
+                        chain_major_version=chain_major_version,
+                        check_accounts_predicate=lambda x, y, z: not check_account_invariants(x, y, z),
+                        check_accounts_predicate_name="\'incorrect account invariants\'")
     if len(invalid_accounts) > 0:
         log.warning(f"Found {len(invalid_accounts)} accounts that do not meet balances invariants!")
         save_accounts_to_json_file("accounts-with-failed-invariants.json", invalid_accounts)
     else:
         log.info(f"All accounts on chain {chain_connection.chain} meet balances invariants.")
+    total_issuance_from_accounts_human = format_balance(chain_connection, total_issuance_from_accounts)
+    log.info(f"Total issuance computed from accounts: {total_issuance_from_accounts_human}")
+    if total_issuance_from_accounts != total_issuance_from_chain:
+        total_issuance_from_chain_human = format_balance(chain_connection, total_issuance_from_chain)
+        delta_human = format_balance(chain_connection,
+                                     total_issuance_from_chain - total_issuance_from_accounts)
+        log.warning(f"TotalIssuance from chain: {total_issuance_from_chain_human} is different from computed: "
+                    f"{total_issuance_from_accounts_human}, delta: {delta_human}")
 
 
 if __name__ == "__main__":
@@ -844,6 +854,9 @@ if __name__ == "__main__":
             log.error(f"--fix-consumers-counter-underflow can be used only on chains with at least 12 version. "
                       f"Exiting.")
             exit(6)
+
+    total_issuance_from_chain = chain_ws_connection.query('Balances', 'TotalIssuance').value
+    log.info(f"Chain total issuance is {format_balance(chain_ws_connection, total_issuance_from_chain)}")
 
     existential_deposit = chain_ws_connection.get_constant("Balances", "ExistentialDeposit").value
     log.info(f"Existential deposit is {format_balance(chain_ws_connection, existential_deposit)}")
@@ -928,7 +941,8 @@ if __name__ == "__main__":
                                                            args)
 
     log.info(f"Performing pallet balances sanity checks.")
-    perform_account_sanity_checks(chain_connection=chain_ws_connection,
-                                  ed=existential_deposit,
-                                  chain_major_version=chain_major_version)
+    perform_accounts_sanity_checks(chain_connection=chain_ws_connection,
+                                   ed=existential_deposit,
+                                   chain_major_version=chain_major_version,
+                                   total_issuance_from_chain=total_issuance_from_chain)
     log.info(f"DONE")

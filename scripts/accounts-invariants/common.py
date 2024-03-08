@@ -3,7 +3,6 @@
 import enum
 import logging
 import datetime
-import pathlib
 import substrateinterface
 import json
 
@@ -13,8 +12,7 @@ def get_global_logger():
     root_logger.setLevel('DEBUG')
 
     time_now = datetime.datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
-    script_name_without_extension = pathlib.Path(__file__).stem
-    file_handler = logging.FileHandler(f"{script_name_without_extension}-{time_now}.log")
+    file_handler = logging.FileHandler(f"pallet-balances-maintenance-{time_now}.log")
     file_handler.setFormatter(log_formatter)
     file_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(file_handler)
@@ -77,9 +75,13 @@ def filter_accounts(chain_connection,
                                                storage_function='Account',
                                                page_size=1000)
     total_accounts_count = 0
+    total_issuance = 0
 
     for (i, (account_id, info)) in enumerate(account_query):
         total_accounts_count += 1
+        free = info['data']['free'].value
+        reserved = info['data']['reserved'].value
+        total_issuance += free + reserved
         if check_accounts_predicate(info, chain_major_version, ed):
             accounts_that_do_meet_predicate.append([account_id.value, info.serialize()])
         if i % 5000 == 0 and i > 0:
@@ -88,7 +90,7 @@ def filter_accounts(chain_connection,
     log.info(
         f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
     log.info(f"Total accounts checked: {total_accounts_count}")
-    return accounts_that_do_meet_predicate
+    return accounts_that_do_meet_predicate, total_issuance
 
 
 def format_balance(chain_connection, amount):
@@ -185,7 +187,7 @@ def get_all_accounts(chain_connection):
                            None,
                            None,
                            lambda x, y, z: True,
-                           "\'all accounts\'")
+                           "\'all accounts\'")[0]
 
 
 def save_accounts_to_json_file(json_file_name, accounts):
