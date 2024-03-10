@@ -3,7 +3,7 @@ use aleph_client::{
     pallets::{contract::ContractsUserApi, feature_control::FeatureControlApi},
     sp_weights::weight_v2::Weight,
     utility::BlocksApi,
-    TxStatus,
+    AccountId, TxStatus,
 };
 use anyhow::Result;
 use codec::Encode;
@@ -31,7 +31,8 @@ pub async fn fresh_chain_has_verifier_enabled() -> Result<()> {
     let conn = config.get_first_signed_connection().await;
 
     assert_feature_status(IS_ON, &conn).await;
-    assert_contracts_can_use_verifier(&conn).await?;
+    let contract_address = assert_contracts_can_be_deployed(&conn).await?;
+    assert_contract_can_be_called(&conn, contract_address).await?;
 
     Ok(())
 }
@@ -40,9 +41,9 @@ async fn assert_feature_status<Conn: FeatureControlApi>(active: bool, c: &Conn) 
     assert_eq!(c.is_feature_active(FEATURE, None).await, active)
 }
 
-async fn assert_contracts_can_use_verifier<Conn: ContractsUserApi + BlocksApi>(
+async fn assert_contracts_can_be_deployed<Conn: ContractsUserApi + BlocksApi>(
     c: &Conn,
-) -> Result<()> {
+) -> Result<AccountId> {
     let tx_info = c
         .instantiate_with_code(
             compile_contract(),
@@ -60,9 +61,15 @@ async fn assert_contracts_can_use_verifier<Conn: ContractsUserApi + BlocksApi>(
         .find_first::<aleph_client::api::contracts::events::Instantiated>()?
         .unwrap()
         .contract;
+    Ok(address.0)
+}
 
+async fn assert_contract_can_be_called<Conn: ContractsUserApi + BlocksApi>(
+    c: &Conn,
+    contract_address: AccountId,
+) -> Result<()> {
     c.call(
-        address.0,
+        contract_address,
         0,
         GAS_LIMIT,
         None,
