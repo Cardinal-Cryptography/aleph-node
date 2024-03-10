@@ -79,93 +79,93 @@ tiny-bip39 = { version = "1.0" }
 tokio = { version = "1.36" }
 rand_pcg = { version = "0.3.1", default-features = false }
 
-frame-benchmarking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-benchmarking-cli = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-election-provider-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-executive = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-system-rpc-runtime-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-frame-try-runtime = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+frame-benchmarking = { path = "../polkadot-sdk/substrate/frame/benchmarking", default-features = false }
+frame-benchmarking-cli = { path = "../polkadot-sdk/substrate/utils/frame/benchmarking-cli", default-features = false }
+frame-election-provider-support = { path = "../polkadot-sdk/substrate/frame/election-provider-support", default-features = false }
+frame-executive = { path = "../polkadot-sdk/substrate/frame/executive", default-features = false }
+frame-support = { path = "../polkadot-sdk/substrate/frame/support", default-features = false }
+frame-system = { path = "../polkadot-sdk/substrate/frame/system", default-features = false }
+frame-system-rpc-runtime-api = { path = "../polkadot-sdk/substrate/frame/system/rpc/runtime-api", default-features = false }
+frame-try-runtime = { path = "../polkadot-sdk/substrate/frame/try-runtime", default-features = false }
 
-pallet-aura = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-authorship = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-balances = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-contracts-primitives = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-identity = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-multisig = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-nomination-pools = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-nomination-pools-runtime-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-insecure-randomness-collective-flip = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-scheduler = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-session = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-staking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-staking-runtime-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-sudo = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-timestamp = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-transaction-payment = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-transaction-payment-rpc = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-treasury = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-utility = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-vesting = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-pallet-proxy = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+pallet-aura = { path = "../polkadot-sdk/substrate/frame/aura", default-features = false }
+pallet-authorship = { path = "../polkadot-sdk/substrate/frame/authorship", default-features = false }
+pallet-balances = { path = "../polkadot-sdk/substrate/frame/balances", default-features = false }
+pallet-contracts = { path = "../polkadot-sdk/substrate/frame/contracts", default-features = false }
+pallet-contracts-primitives = { path = "../polkadot-sdk/substrate/frame/contracts/primitives", default-features = false }
+pallet-identity = { path = "../polkadot-sdk/substrate/frame/identity", default-features = false }
+pallet-multisig = { path = "../polkadot-sdk/substrate/frame/multisig", default-features = false }
+pallet-nomination-pools = { path = "../polkadot-sdk/substrate/frame/nomination-pools", default-features = false }
+pallet-nomination-pools-runtime-api = { path = "../polkadot-sdk/substrate/frame/nomination-pools/runtime-api", default-features = false }
+pallet-insecure-randomness-collective-flip = { path = "../polkadot-sdk/substrate/frame/insecure-randomness-collective-flip", default-features = false }
+pallet-scheduler = { path = "../polkadot-sdk/substrate/frame/scheduler", default-features = false }
+pallet-session = { path = "../polkadot-sdk/substrate/frame/session", default-features = false }
+pallet-staking = { path = "../polkadot-sdk/substrate/frame/staking", default-features = false }
+pallet-staking-runtime-api = { path = "../polkadot-sdk/substrate/frame/staking/runtime-api", default-features = false }
+pallet-sudo = { path = "../polkadot-sdk/substrate/frame/sudo", default-features = false }
+pallet-timestamp = { path = "../polkadot-sdk/substrate/frame/timestamp", default-features = false }
+pallet-transaction-payment = { path = "../polkadot-sdk/substrate/frame/transaction-payment", default-features = false }
+pallet-transaction-payment-rpc = { path = "../polkadot-sdk/substrate/frame/transaction-payment/rpc", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { path = "../polkadot-sdk/substrate/frame/transaction-payment/rpc/runtime-api", default-features = false }
+pallet-treasury = { path = "../polkadot-sdk/substrate/frame/treasury", default-features = false }
+pallet-utility = { path = "../polkadot-sdk/substrate/frame/utility", default-features = false }
+pallet-vesting = { path = "../polkadot-sdk/substrate/frame/vesting", default-features = false }
+pallet-proxy = { path = "../polkadot-sdk/substrate/frame/proxy", default-features = false }
 
-sc-basic-authorship = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-block-builder = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-chain-spec = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-cli = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-client-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-consensus = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-consensus-aura = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-consensus-slots = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-executor = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-keystore = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-network = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-network-common = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-network-sync = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-rpc = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-rpc-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-service = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-telemetry = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-transaction-pool = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-transaction-pool-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-sc-utils = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
+sc-basic-authorship = { path = "../polkadot-sdk/substrate/client/basic-authorship" }
+sc-block-builder = { path = "../polkadot-sdk/substrate/client/block-builder" }
+sc-chain-spec = { path = "../polkadot-sdk/substrate/client/chain-spec" }
+sc-cli = { path = "../polkadot-sdk/substrate/client/cli" }
+sc-client-api = { path = "../polkadot-sdk/substrate/client/api" }
+sc-consensus = { path = "../polkadot-sdk/substrate/client/consensus/common" }
+sc-consensus-aura = { path = "../polkadot-sdk/substrate/client/consensus/aura" }
+sc-consensus-slots = { path = "../polkadot-sdk/substrate/client/consensus/slots" }
+sc-executor = { path = "../polkadot-sdk/substrate/client/executor" }
+sc-keystore = { path = "../polkadot-sdk/substrate/client/keystore" }
+sc-network = { path = "../polkadot-sdk/substrate/client/network" }
+sc-network-common = { path = "../polkadot-sdk/substrate/client/network/common" }
+sc-network-sync = { path = "../polkadot-sdk/substrate/client/network/sync" }
+sc-rpc = { path = "../polkadot-sdk/substrate/client/rpc" }
+sc-rpc-api = { path = "../polkadot-sdk/substrate/client/rpc-api" }
+sc-service = { path = "../polkadot-sdk/substrate/client/service" }
+sc-telemetry = { path = "../polkadot-sdk/substrate/client/telemetry" }
+sc-transaction-pool = { path = "../polkadot-sdk/substrate/client/transaction-pool" }
+sc-transaction-pool-api = { path = "../polkadot-sdk/substrate/client/transaction-pool/api" }
+sc-utils = { path = "../polkadot-sdk/substrate/client/utils" }
 
-sp-api = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-application-crypto = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-arithmetic = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-blockchain = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-block-builder = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-consensus = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-consensus-aura = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-consensus-slots = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-core = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-inherents = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-io = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-keystore = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-offchain = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-runtime = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-session = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-staking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-state-machine = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-timestamp = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-transaction-pool = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-trie = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
-sp-version = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+sp-api = { path = "../polkadot-sdk/substrate/primitives/api", default-features = false }
+sp-application-crypto = { path = "../polkadot-sdk/substrate/primitives/application-crypto", default-features = false }
+sp-arithmetic = { path = "../polkadot-sdk/substrate/primitives/arithmetic", default-features = false }
+sp-blockchain = { path = "../polkadot-sdk/substrate/primitives/blockchain", default-features = false }
+sp-block-builder = { path = "../polkadot-sdk/substrate/primitives/block-builder", default-features = false }
+sp-consensus = { path = "../polkadot-sdk/substrate/primitives/consensus/common", default-features = false }
+sp-consensus-aura = { path = "../polkadot-sdk/substrate/primitives/consensus/aura", default-features = false }
+sp-consensus-slots = { path = "../polkadot-sdk/substrate/primitives/consensus/slots", default-features = false }
+sp-core = { path = "../polkadot-sdk/substrate/primitives/core", default-features = false }
+sp-inherents = { path = "../polkadot-sdk/substrate/primitives/inherents", default-features = false }
+sp-io = { path = "../polkadot-sdk/substrate/primitives/io", default-features = false }
+sp-keystore = { path = "../polkadot-sdk/substrate/primitives/keystore", default-features = false }
+sp-offchain = { path = "../polkadot-sdk/substrate/primitives/offchain", default-features = false }
+sp-runtime = { path = "../polkadot-sdk/substrate/primitives/runtime", default-features = false }
+sp-runtime-interface = { path = "../polkadot-sdk/substrate/primitives/runtime-interface", default-features = false }
+sp-session = { path = "../polkadot-sdk/substrate/primitives/session", default-features = false }
+sp-staking = { path = "../polkadot-sdk/substrate/primitives/staking", default-features = false }
+sp-state-machine = { path = "../polkadot-sdk/substrate/primitives/state-machine", default-features = false }
+sp-std = { path = "../polkadot-sdk/substrate/primitives/std", default-features = false }
+sp-timestamp = { path = "../polkadot-sdk/substrate/primitives/timestamp", default-features = false }
+sp-transaction-pool = { path = "../polkadot-sdk/substrate/primitives/transaction-pool", default-features = false }
+sp-trie = { path = "../polkadot-sdk/substrate/primitives/trie", default-features = false }
+sp-version = { path = "../polkadot-sdk/substrate/primitives/version", default-features = false }
 
-substrate-build-script-utils = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-frame-rpc-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-prometheus-endpoint = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-test-runtime-client = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-test-runtime = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-test-client = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
-substrate-wasm-builder = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
+substrate-build-script-utils = { path = "../polkadot-sdk/substrate/utils/build-script-utils" }
+substrate-frame-rpc-system = { path = "../polkadot-sdk/substrate/utils/frame/rpc/system" }
+substrate-prometheus-endpoint = { path = "../polkadot-sdk/substrate/utils/prometheus" }
+substrate-test-runtime-client = { path = "../polkadot-sdk/substrate/test-utils/runtime/client" }
+substrate-test-runtime = { path = "../polkadot-sdk/substrate/test-utils/runtime/" }
+substrate-test-client = { path = "../polkadot-sdk/substrate/test-utils/client" }
+substrate-wasm-builder = { path = "../polkadot-sdk/substrate/utils/wasm-builder" }
 
-try-runtime-cli = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
+try-runtime-cli = { path = "../polkadot-sdk/substrate/utils/frame/try-runtime/cli" }
 
 halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "aleph", default-features = false }
 
