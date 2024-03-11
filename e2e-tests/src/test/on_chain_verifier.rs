@@ -23,6 +23,10 @@ const GAS_LIMIT: Weight = Weight {
     proof_size: 50_000_000_000,
 };
 
+/// Copied from `baby-liminal-extension`.
+///
+/// We need just an encoded form of an instance of this struct, and it is way cheaper to copy its
+/// layout than to add a heavy dependency do the current crate.
 #[derive(Debug, Encode)]
 pub struct VerifyArgs {
     pub verification_key_hash: sp_core::H256,
@@ -30,6 +34,8 @@ pub struct VerifyArgs {
     pub public_input: Vec<u8>,
 }
 
+/// Ensure that when a fresh chain is started, the `OnChainVerifier` feature is on, and we can
+/// deploy and call contracts that are using the chain extension.
 #[tokio::test]
 pub async fn fresh_chain_has_verifier_enabled() -> Result<()> {
     let config = setup_test();
@@ -42,6 +48,10 @@ pub async fn fresh_chain_has_verifier_enabled() -> Result<()> {
     Ok(())
 }
 
+/// Check that the verifier feature can be disabled:
+/// - feature status is off
+/// - we cannot call previously deployed contracts that are using chain extension
+/// - we cannot deploy new contracts that are using chain extension
 #[tokio::test]
 pub async fn verifier_can_be_disabled() -> Result<()> {
     let config = setup_test();
@@ -119,10 +129,13 @@ fn compile_contract() -> Vec<u8> {
 }
 
 fn extension_input() -> Vec<u8> {
+    // The extension id for the baby liminal extension is `41`. The `verify` method has id `0`.
+    // Again, we inline these constants just to avoid heavy dependency on the extension itself.
     (41u32 << 16 | 0u32)
         .to_le_bytes()
         .into_iter()
         .chain(
+            // Dumb argument values: we care only about accessing extension, not its behavior.
             VerifyArgs {
                 verification_key_hash: sp_core::H256::zero(),
                 proof: vec![],
