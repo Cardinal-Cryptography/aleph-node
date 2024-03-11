@@ -43,13 +43,14 @@ class ChainMajorVersion(enum.Enum):
             return cls(ChainMajorVersion.AT_LEAST_13_2_VERSION)
 
 
-def get_chain_major_version(chain_connection):
+def get_chain_major_version(chain_connection, block_hash):
     """
     Retrieves spec_version from chain and returns an enum whether this is pre 12 version or at least 12 version
     :param chain_connection: WS handler
+    :param block_hash: Block hash to query state from
     :return: ChainMajorVersion
     """
-    runtime_version = chain_connection.get_block_runtime_version(None)
+    runtime_version = chain_connection.get_block_runtime_version(block_hash)
     spec_version = runtime_version['specVersion']
     major_version = ChainMajorVersion.from_spec_version(spec_version)
     return major_version
@@ -59,7 +60,8 @@ def filter_accounts(chain_connection,
                     ed,
                     chain_major_version,
                     check_accounts_predicate,
-                    check_accounts_predicate_name=""):
+                    check_accounts_predicate_name="",
+                    block_hash=None):
     """
     Filters out all chain accounts by given predicate.
     :param chain_connection: WS handler
@@ -67,13 +69,15 @@ def filter_accounts(chain_connection,
     :param chain_major_version: enum ChainMajorVersion
     :param check_accounts_predicate: a function that takes three arguments predicate(account, chain_major_version, ed)
     :param check_accounts_predicate_name: name of the predicate, used for logging reasons only
+    :param block_hash: A block hash to query state from
     :return: a list which has those chain accounts which returns True on check_accounts_predicate
     """
     accounts_that_do_meet_predicate = []
     # query_map reads state from the **single** block, if block_hash is not None this is top of the chain
     account_query = chain_connection.query_map(module='System',
                                                storage_function='Account',
-                                               page_size=1000)
+                                               page_size=1000,
+                                               block_hash=block_hash)
     total_accounts_count = 0
     total_issuance = 0
 
@@ -182,12 +186,13 @@ def submit_extrinsic(chain_connection,
         raise e
 
 
-def get_all_accounts(chain_connection):
-    return filter_accounts(chain_connection,
-                           None,
-                           None,
-                           lambda x, y, z: True,
-                           "\'all accounts\'")[0]
+def get_all_accounts(chain_connection, block_hash=None):
+    return filter_accounts(chain_connection=chain_connection,
+                           ed=None,
+                           chain_major_version=None,
+                           check_accounts_predicate=lambda x, y, z: True,
+                           check_accounts_predicate_name="\'all accounts\'",
+                           block_hash=block_hash)[0]
 
 
 def save_accounts_to_json_file(json_file_name, accounts):

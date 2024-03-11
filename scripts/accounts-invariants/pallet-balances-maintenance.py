@@ -58,6 +58,10 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         default=10,
                         help='How many consumers underflow accounts to fix in one script run session.'
                              ' Default: 10')
+    parser.add_argument('--block-hash',
+                        type=str,
+                        default='',
+                        help='Block hash from which this script should query state from. Default: chain tip.')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--fix-free-balance',
                        action='store_true',
@@ -173,7 +177,7 @@ def check_if_account_would_be_dust_in_12_version(account, chain_major_version, e
     return free < ed
 
 
-def find_dust_accounts(chain_connection, ed, chain_major_version):
+def find_dust_accounts(chain_connection, ed, chain_major_version, block_hash=None):
     """
     This function finds all accounts that are valid in 11 version, but not on 12 version
     """
@@ -183,14 +187,16 @@ def find_dust_accounts(chain_connection, ed, chain_major_version):
                            ed=ed,
                            chain_major_version=chain_major_version,
                            check_accounts_predicate=check_if_account_would_be_dust_in_12_version,
-                           check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'")[0]
+                           check_accounts_predicate_name="\'account valid in pre-12 version but not in 12 version\'",
+                           block_hash=block_hash)[0]
 
 
 def upgrade_accounts(chain_connection,
                      input_args,
                      ed,
                      chain_major_version,
-                     sender_keypair):
+                     sender_keypair,
+                     block_hash=None):
     """
     Prepare and send Balances.UpgradeAccounts call for all accounts on a chain
     :param chain_connection: WS connection handler
@@ -198,10 +204,11 @@ def upgrade_accounts(chain_connection,
     :param ed: chain existential deposit
     :param chain_major_version: enum ChainMajorVersion
     :param sender_keypair: keypair of sender account
+    :param block_hash: A block hash to query state from
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts.")
-    all_accounts_on_chain = list(map(lambda x: x[0], get_all_accounts(chain_connection)))
+    all_accounts_on_chain = list(map(lambda x: x[0], get_all_accounts(chain_connection, block_hash)))
 
     for (i, account_ids_chunk) in enumerate(chunks(all_accounts_on_chain, input_args.upgrade_accounts_in_batch)):
         upgrade_accounts_call = chain_connection.compose_call(
@@ -315,7 +322,8 @@ def fix_double_providers_count_for_account(chain_connection,
                                            account_id,
                                            sudo_sender_keypair,
                                            internal_system_account_scale_codec_type,
-                                           input_args):
+                                           input_args,
+                                           block_hash=None):
     """
     Fixes double providers counter for a given account id.
     :param chain_connection: WS connection handler
@@ -323,6 +331,7 @@ def fix_double_providers_count_for_account(chain_connection,
     :param sudo_sender_keypair Mnemonic phrase of sudo
     :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
            entry
+    :param block_hash: A block hash to query state from
     """
     log.info(f"Fixing double providers counter for account {account_id}")
     fix_account_info_with_set_storage(chain_connection=chain_connection,
@@ -331,7 +340,8 @@ def fix_double_providers_count_for_account(chain_connection,
                                       internal_system_account_scale_codec_type=internal_system_account_scale_codec_type,
                                       input_args=input_args,
                                       account_info_functor=set_providers_counter_to_one,
-                                      account_info_check_functor=assert_state_different_only_in_providers_counter)
+                                      account_info_check_functor=assert_state_different_only_in_providers_counter,
+                                      block_hash=block_hash)
 
 
 def fix_account_info_with_set_storage(chain_connection,
@@ -340,7 +350,8 @@ def fix_account_info_with_set_storage(chain_connection,
                                       internal_system_account_scale_codec_type,
                                       input_args,
                                       account_info_functor,
-                                      account_info_check_functor):
+                                      account_info_check_functor,
+                                      block_hash=None):
     """
     General function to fix AccountInfo using System.SetStorage call.
     :param chain_connection: WS connection handler
@@ -350,9 +361,13 @@ def fix_account_info_with_set_storage(chain_connection,
            entry
     :param account_info_functor: a function which returns fixed account info
     :param account_info_check_functor: a function which compares previous and current block states
+    :param block_hash: A block hash to query state from
     """
     log.info(f"Querying state for account {account_id}")
-    result = chain_connection.query('System', 'Account', [account_id])
+    result = chain_connection.query(module='System',
+                                    storage_function='Account',
+                                    params=[account_id],
+                                    block_hash=block_hash)
     log.debug(f"Returned value: {result.value}")
     account_id_and_account_info_data = [(account_id, result.value)]
     raw_key_values = get_raw_key_values(chain_connection,
@@ -386,18 +401,19 @@ def fix_account_info_with_set_storage(chain_connection,
     extrinsic = chain_connection.create_signed_extrinsic(call=sudo_unchecked_weight_call,
                                                          keypair=sudo_sender_keypair,
                                                          tip=token_mili_unit)
-    block_hash = submit_extrinsic(chain_connection, extrinsic, 1, input_args.dry_run)
+    set_storage_block_hash = submit_extrinsic(chain_connection, extrinsic, 1, input_args.dry_run)
     if not input_args.dry_run:
         state_sanity_check(chain_connection,
                            account_id,
-                           block_hash,
+                           set_storage_block_hash,
                            account_info_check_functor)
 
 
 def fix_double_providers_count(chain_connection,
                                input_args,
                                chain_major_version,
-                               sudo_sender_keypair):
+                               sudo_sender_keypair,
+                               block_hash=None):
     """
     Queries those accounts using System.Account map which have providers == 2.
     For each such account, performs System.SetStorage with the same data but providers set to 1.
@@ -406,6 +422,7 @@ def fix_double_providers_count(chain_connection,
     :param input_args: script input arguments returned from argparse
     :param chain_major_version: enum ChainMajorVersion
     :param sudo_sender_keypair: sudo keypair of sender account
+    :param block_hash: A block hash to query state from
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts that have double provider counter.")
@@ -413,7 +430,8 @@ def fix_double_providers_count(chain_connection,
                                                 ed=None,
                                                 chain_major_version=chain_major_version,
                                                 check_accounts_predicate=check_if_account_has_double_providers,
-                                                check_accounts_predicate_name="\'double provider count\'")[0]
+                                                check_accounts_predicate_name="\'double provider count\'",
+                                                block_hash=block_hash)[0]
     log.info(f"Found {len(double_providers_accounts)} accounts with double provider counter.")
     if len(double_providers_accounts) > 0:
         save_accounts_to_json_file("double-providers-accounts.json", double_providers_accounts)
@@ -424,7 +442,8 @@ def fix_double_providers_count(chain_connection,
                                                account_id,
                                                sudo_sender_keypair,
                                                internal_system_account_scale_codec_type,
-                                               input_args)
+                                               input_args,
+                                               block_hash)
 
 
 def get_raw_key_values(chain_connection,
@@ -562,7 +581,7 @@ def decrement_consumers_counter(chain_connection, account_info, internal_system_
     return fixed_account_info_hexstring
 
 
-def query_contract_and_code_owners_accounts(chain_connection):
+def query_contract_and_code_owners_accounts(chain_connection, block_hash):
     """
     Returns contract accounts and code owners.
     """
@@ -570,7 +589,10 @@ def query_contract_and_code_owners_accounts(chain_connection):
     contract_accounts = set()
 
     log.info(f"Querying code owners.")
-    code_info_of_query = chain_connection.query_map('Contracts', 'CodeInfoOf', page_size=1000)
+    code_info_of_query = chain_connection.query_map(module='Contracts',
+                                                    storage_function='CodeInfoOf',
+                                                    page_size=1000,
+                                                    block_hash=block_hash)
 
     for (i, (account_id, info)) in enumerate(code_info_of_query):
         code_owners.add(info.serialize()['owner'])
@@ -580,7 +602,10 @@ def query_contract_and_code_owners_accounts(chain_connection):
     log.debug(f"Code owners: {code_owners}")
 
     log.info(f"Querying contract accounts.")
-    contract_info_of_query = chain_connection.query_map('Contracts', 'ContractInfoOf', page_size=1000)
+    contract_info_of_query = chain_connection.query_map(module='Contracts',
+                                                        storage_function='ContractInfoOf',
+                                                        page_size=1000,
+                                                        block_hash=block_hash)
     for (i, (account_id, info)) in enumerate(contract_info_of_query):
         contract_accounts.add(account_id.value)
         if i % 5000 == 0 and i > 0:
@@ -666,22 +691,24 @@ def has_account_consumer_underflow(account_id_and_info, locks, bonded, next_keys
            staker_has_consumers_underflow(account_id, consumers, locks, bonded, next_keys)
 
 
-def query_accounts_with_consumers_counter_overflow(chain_connection):
+def query_accounts_with_consumers_counter_overflow(chain_connection, block_hash=None):
     """
     Queries all accounts that have an overflow of consumers counter, ie accounts which satisfy below conditions:
     * `consumers` == 4,
       `balances.Locks` contain entries with `id`  == `staking`,
       `staking.bonded(accountId) != accountId`,
        accountId is in `session.nextKeys`
+    :param chain_connection: WS connection handler
+    :param block_hash: A block hash to query state from
     """
-    bonded, locks, next_keys = get_consumers_related_data(chain_connection)
+    bonded, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
 
     log.info("Querying all accounts and filtering by consumers overflow predicate.")
-    return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection) if
+    return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection, block_hash) if
             has_account_consumer_overflow(account_id_and_info, locks, bonded, next_keys)]
 
 
-def query_accounts_with_consumers_counter_underflow(chain_connection):
+def query_accounts_with_consumers_counter_underflow(chain_connection, block_hash=None):
     """
     Queries all accounts that have an underflow of consumers counter, which is either of those account categories:
     * `consumers` == 0, `reserved`  > 0
@@ -691,31 +718,44 @@ def query_accounts_with_consumers_counter_underflow(chain_connection):
       `balances.Locks` contain entries with `id`  == `staking`,
       `staking.bonded(accountId) == accountId`,
        accountId is in `session.nextKeys`
+    :param chain_connection: WS connection handler
+    :param block_hash: A block hash to query state from
     """
-    bonded, locks, next_keys = get_consumers_related_data(chain_connection)
+    bonded, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
 
     log.info("Querying all accounts and filtering by consumers underflow predicate.")
-    return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection) if
+    return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection, block_hash) if
             has_account_consumer_underflow(account_id_and_info, locks, bonded, next_keys)]
 
 
-def get_consumers_related_data(chain_connection):
+def get_consumers_related_data(chain_connection, block_hash=None):
     """
     Retrieves chain data that relates to manipulating consumers counter.
+     :param chain_connection: WS connection handler
+     :param block_hash: A block hash to query state from
     """
     log.info("Querying session.nextKeys.")
     next_keys = set()
-    for account_id, _ in chain_connection.query_map("Session", "NextKeys", page_size=1000):
+    for account_id, _ in chain_connection.query_map(module="Session",
+                                                    storage_function="NextKeys",
+                                                    page_size=1000,
+                                                    block_hash=block_hash):
         next_keys.add(account_id.value)
     log.debug(f"Found below accounts in Session.nextKeys: {next_keys}")
     log.info("Querying balances.locks")
     locks = {}
-    for account_id, lock in chain_connection.query_map("Balances", "Locks", page_size=1000):
+    for account_id, lock in chain_connection.query_map(module="Balances",
+                                                       storage_function="Locks",
+                                                       page_size=1000,
+                                                       block_hash=block_hash):
         locks[account_id.value] = lock.value
     log.debug(f"Found below locks: {locks}")
     log.info("Querying staking.bonded")
     bonded = {}
-    for account_id, bond in chain_connection.query_map("Staking", "Bonded", page_size=1000):
+    for account_id, bond in chain_connection.query_map(module="Staking",
+                                                       storage_function="Bonded",
+                                                       page_size=1000,
+                                                       block_hash=block_hash):
         bonded[account_id.value] = bond.value
     log.debug(f"Found below bonds: {bonded}")
     return bonded, locks, next_keys
@@ -767,7 +807,8 @@ def fix_overflow_consumers_counter_for_account(chain_connection,
                                                account_id,
                                                sudo_sender_keypair,
                                                internal_system_account_scale_codec_type,
-                                               input_args):
+                                               input_args,
+                                               block_hash=None):
     """
     Decrements consumers counter for fiven account id
     :param chain_connection: WS connection handler
@@ -775,6 +816,7 @@ def fix_overflow_consumers_counter_for_account(chain_connection,
     :param sudo_sender_keypair Mnemonic phrase of sudo
     :param internal_system_account_scale_codec_type Internal metadata SCALE decoder/encoder type for System.Account
            entry
+    :param block_hash: A block has to query state from
     """
     log.info(f"Decrementing consumers counter for account {account_id}")
     fix_account_info_with_set_storage(chain_connection=chain_connection,
@@ -783,7 +825,8 @@ def fix_overflow_consumers_counter_for_account(chain_connection,
                                       internal_system_account_scale_codec_type=internal_system_account_scale_codec_type,
                                       input_args=input_args,
                                       account_info_functor=decrement_consumers_counter,
-                                      account_info_check_functor=assert_state_different_only_in_consumers_counter)
+                                      account_info_check_functor=assert_state_different_only_in_consumers_counter,
+                                      block_hash=block_hash)
 
 
 def perform_accounts_sanity_checks(chain_connection,
@@ -833,8 +876,12 @@ if __name__ == "__main__":
 
     chain_ws_connection = substrateinterface.SubstrateInterface(args.ws_url)
     log.info(f"Connected to {chain_ws_connection.name}: {chain_ws_connection.chain} {chain_ws_connection.version}")
+    state_block_hash = args.block_hash
+    if state_block_hash == '':
+        state_block_hash = chain_ws_connection.get_chain_head()
+    log.info(f"Script uses block hash {state_block_hash} to query state from.")
 
-    chain_major_version = get_chain_major_version(chain_ws_connection)
+    chain_major_version = get_chain_major_version(chain_ws_connection, state_block_hash)
     log.info(f"Major version of chain connected to is {chain_major_version}")
     if args.fix_free_balance:
         if chain_major_version is not ChainMajorVersion.PRE_12_MAJOR_VERSION:
@@ -855,10 +902,14 @@ if __name__ == "__main__":
                       f"Exiting.")
             exit(6)
 
-    total_issuance_from_chain = chain_ws_connection.query('Balances', 'TotalIssuance').value
+    total_issuance_from_chain = chain_ws_connection.query(module='Balances',
+                                                          storage_function='TotalIssuance',
+                                                          block_hash=state_block_hash).value
     log.info(f"Chain total issuance is {format_balance(chain_ws_connection, total_issuance_from_chain)}")
 
-    existential_deposit = chain_ws_connection.get_constant("Balances", "ExistentialDeposit").value
+    existential_deposit = chain_ws_connection.get_constant(module_name="Balances",
+                                                           constant_name="ExistentialDeposit",
+                                                           block_hash=state_block_hash).value
     log.info(f"Existential deposit is {format_balance(chain_ws_connection, existential_deposit)}")
 
     if args.fix_free_balance:
@@ -866,7 +917,10 @@ if __name__ == "__main__":
         log.info(f"Using following account for transfers: {sender_origin_account_keypair.ss58_address}")
         log.info(f"Will send at most {args.transfer_calls_in_batch} transfers in a batch.")
         log.info(f"Looking for accounts that would be dust in 12 version.")
-        dust_accounts_in_12_version = find_dust_accounts(chain_ws_connection, existential_deposit, chain_major_version)
+        dust_accounts_in_12_version = find_dust_accounts(chain_connection=chain_ws_connection,
+                                                         ed=existential_deposit,
+                                                         chain_major_version=chain_major_version,
+                                                         block_hash=state_block_hash)
         if len(dust_accounts_in_12_version):
             log.info(f"Found {len(dust_accounts_in_12_version)} accounts that will be invalid in 12 version.")
             save_accounts_to_json_file("dust-accounts.json", dust_accounts_in_12_version)
@@ -887,7 +941,8 @@ if __name__ == "__main__":
                          input_args=args,
                          ed=existential_deposit,
                          chain_major_version=chain_major_version,
-                         sender_keypair=sender_origin_account_keypair)
+                         sender_keypair=sender_origin_account_keypair,
+                         block_hash=state_block_hash)
         log.info("Upgrade accounts done.")
     if args.fix_double_providers_count:
         sudo_account_keypair = substrateinterface.Keypair.create_from_uri(sender_origin_account_seed)
@@ -897,17 +952,20 @@ if __name__ == "__main__":
         fix_double_providers_count(chain_connection=chain_ws_connection,
                                    input_args=args,
                                    chain_major_version=chain_major_version,
-                                   sudo_sender_keypair=sudo_account_keypair)
+                                   sudo_sender_keypair=sudo_account_keypair,
+                                   block_hash=state_block_hash)
     if args.fix_consumers_counter_underflow:
         log.info(f"This script is going to query all accounts that have underflow of consumers counter, "
                  f"and fix them using runtime Operations.fix_accounts_consumers_underflow extrinsic.")
         accounts_with_consumers_underflow = \
-            query_accounts_with_consumers_counter_underflow(chain_connection=chain_ws_connection)
+            query_accounts_with_consumers_counter_underflow(chain_connection=chain_ws_connection,
+                                                            block_hash=state_block_hash)
         log.info(f"Found {len(accounts_with_consumers_underflow)} accounts with consumers underflow.")
         if len(accounts_with_consumers_underflow) > 0:
             save_accounts_to_json_file("accounts_with_consumers_underflow.json", accounts_with_consumers_underflow)
             code_owners, contract_accounts = query_contract_and_code_owners_accounts(
-                chain_connection=chain_ws_connection)
+                chain_connection=chain_ws_connection,
+                block_hash=state_block_hash)
             accounts_with_consumers_underflow_set = set(list(map(lambda x: x[0], accounts_with_consumers_underflow)))
             code_owners_intersection = accounts_with_consumers_underflow_set.intersection(code_owners)
             if len(code_owners_intersection):
@@ -928,7 +986,8 @@ if __name__ == "__main__":
         sudo_account_keypair = substrateinterface.Keypair.create_from_uri(sender_origin_account_seed)
         log.info(f"Using the following account for System.SetStorage calls: {sudo_account_keypair.ss58_address}")
         accounts_with_consumers_overflow = \
-            query_accounts_with_consumers_counter_overflow(chain_connection=chain_ws_connection)
+            query_accounts_with_consumers_counter_overflow(chain_connection=chain_ws_connection,
+                                                           block_hash=state_block_hash)
         log.info(f"Found {len(accounts_with_consumers_overflow)} accounts with consumers overflow.")
         if len(accounts_with_consumers_overflow) > 0:
             save_accounts_to_json_file("accounts_with_consumers_overflow.json", accounts_with_consumers_overflow)
@@ -938,7 +997,8 @@ if __name__ == "__main__":
                                                            account_id,
                                                            sudo_account_keypair,
                                                            internal_system_account_scale_codec_type,
-                                                           args)
+                                                           args,
+                                                           block_hash=state_block_hash)
 
     log.info(f"Performing pallet balances sanity checks.")
     perform_accounts_sanity_checks(chain_connection=chain_ws_connection,
