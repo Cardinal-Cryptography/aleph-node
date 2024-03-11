@@ -121,7 +121,7 @@ fn compile_contract() -> Vec<u8> {
     let path = [
         std::env::var("CARGO_MANIFEST_DIR")
             .as_deref()
-            .unwrap_or("e2e-tests"),
+            .unwrap_or("."),
         "/resources/snark_verifying.wat",
     ]
     .concat();
