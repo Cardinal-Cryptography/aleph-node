@@ -1,6 +1,11 @@
+use std::fmt::Debug;
+
 use aleph_client::{
     pallet_feature_control::Feature,
-    pallets::{contract::ContractsUserApi, feature_control::FeatureControlApi},
+    pallets::{
+        contract::ContractsUserApi,
+        feature_control::{FeatureControlApi, FeatureControlSudoApi},
+    },
     sp_weights::weight_v2::Weight,
     utility::BlocksApi,
     AccountId, TxStatus,
@@ -31,8 +36,24 @@ pub async fn fresh_chain_has_verifier_enabled() -> Result<()> {
     let conn = config.get_first_signed_connection().await;
 
     assert_feature_status(IS_ON, &conn).await;
-    let contract_address = assert_contracts_can_be_deployed(&conn).await?;
-    assert_contract_can_be_called(&conn, contract_address).await?;
+    let contract_address = deploy_contract(&conn, None).await?;
+    call_contract(&conn, contract_address).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+pub async fn verifier_can_be_disabled() -> Result<()> {
+    let config = setup_test();
+    let conn = config.create_root_connection().await;
+
+    let contract_address = deploy_contract(&conn, Some(1)).await?;
+
+    conn.disable_feature(FEATURE, TxStatus::Finalized).await?;
+
+    assert_feature_status(IS_OFF, &conn).await;
+    assert_code_was_rejected(call_contract(&conn, contract_address).await);
+    assert_code_was_rejected(deploy_contract(&conn, Some(2)).await);
 
     Ok(())
 }
@@ -41,8 +62,14 @@ async fn assert_feature_status<Conn: FeatureControlApi>(active: bool, c: &Conn) 
     assert_eq!(c.is_feature_active(FEATURE, None).await, active)
 }
 
-async fn assert_contracts_can_be_deployed<Conn: ContractsUserApi + BlocksApi>(
+fn assert_code_was_rejected<T: Debug>(result: Result<T>) {
+    assert!(result.is_err());
+    assert!(format!("{:?}", result).contains("Pallet error Contracts::CodeRejected"))
+}
+
+async fn deploy_contract<Conn: ContractsUserApi + BlocksApi>(
     c: &Conn,
+    salt: Option<u8>,
 ) -> Result<AccountId> {
     let tx_info = c
         .instantiate_with_code(
@@ -51,7 +78,7 @@ async fn assert_contracts_can_be_deployed<Conn: ContractsUserApi + BlocksApi>(
             GAS_LIMIT,
             None,
             vec![],
-            vec![],
+            vec![salt.unwrap_or_default()],
             TxStatus::Finalized,
         )
         .await?;
@@ -64,7 +91,7 @@ async fn assert_contracts_can_be_deployed<Conn: ContractsUserApi + BlocksApi>(
     Ok(address.0)
 }
 
-async fn assert_contract_can_be_called<Conn: ContractsUserApi + BlocksApi>(
+async fn call_contract<Conn: ContractsUserApi + BlocksApi>(
     c: &Conn,
     contract_address: AccountId,
 ) -> Result<()> {
@@ -76,9 +103,8 @@ async fn assert_contract_can_be_called<Conn: ContractsUserApi + BlocksApi>(
         extension_input(),
         TxStatus::Finalized,
     )
-    .await?;
-
-    Ok(())
+    .await
+    .map(|_| ())
 }
 
 fn compile_contract() -> Vec<u8> {
