@@ -1,7 +1,6 @@
 #![allow(clippy::nonminimal_bool)]
 
-use frame_support::dispatch::DispatchResult;
-use frame_support::{traits::LockIdentifier, WeakBoundedVec};
+use frame_support::{dispatch::DispatchResult, traits::LockIdentifier, WeakBoundedVec};
 use pallet_balances::BalanceLock;
 use parity_scale_codec::Encode;
 use sp_core::hexdisplay::HexDisplay;
