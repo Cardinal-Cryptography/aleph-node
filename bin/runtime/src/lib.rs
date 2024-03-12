@@ -1398,6 +1398,11 @@ mod tests {
             pallet_staking::Call::chill_other { controller: _ } => {}
             pallet_staking::Call::force_apply_min_commission { validator_stash: _ } => {}
             pallet_staking::Call::set_min_commission { new: _ } => {}
+            pallet_staking::Call::payout_stakers_by_page {
+                validator_stash: _,
+                era: _,
+                page: _,
+            } => {}
             pallet_staking::Call::__Ignore(..) => {}
         }
     }
