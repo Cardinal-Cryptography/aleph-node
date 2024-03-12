@@ -32,8 +32,11 @@ pub trait BalancesProvider {
     /// Max locks constant used by runtime
     type MaxLocks;
 
-    /// Checks if account has non-zero reserved balance amount (e.g. due to chain identity set)
-    fn is_reserved_not_zero(who: &Self::AccountId) -> bool;
+    /// Returns reserved funds of an account
+    fn is_reserved_zero(who: &Self::AccountId) -> bool;
+
+    /// Returns frozen funds of an account
+    fn is_frozen_zero(who: &Self::AccountId) -> bool;
 
     /// Retrieves account's balance locks (e.g. staking or vesting)
     fn locks(who: &Self::AccountId) -> WeakBoundedVec<BalanceLock<Self::Balance>, Self::MaxLocks>;
@@ -44,8 +47,12 @@ impl<T: pallet_balances::Config<I>, I: 'static> BalancesProvider for pallet_bala
     type Balance = T::Balance;
     type MaxLocks = T::MaxLocks;
 
-    fn is_reserved_not_zero(who: &Self::AccountId) -> bool {
-        !T::AccountStore::get(who).reserved.is_zero()
+    fn is_reserved_zero(who: &Self::AccountId) -> bool {
+        T::AccountStore::get(who).reserved.is_zero()
+    }
+
+    fn is_frozen_zero(who: &Self::AccountId) -> bool {
+        T::AccountStore::get(who).frozen.is_zero()
     }
 
     fn locks(who: &Self::AccountId) -> WeakBoundedVec<BalanceLock<Self::Balance>, Self::MaxLocks> {
@@ -79,6 +86,10 @@ pub trait BondedStashProvider {
     /// Retrieves information about controller of given stash account, or None if account
     /// have not bonded yet
     fn get_controller(stash: &Self::AccountId) -> Option<Self::AccountId>;
+
+    /// Retrieves information about stash of given controller account, or None if account
+    /// have not bonded yet
+    fn get_stash(stash: &Self::AccountId) -> Option<Self::AccountId>;
 }
 
 impl<T> BondedStashProvider for pallet_staking::Pallet<T>
@@ -89,5 +100,9 @@ where
 
     fn get_controller(stash: &Self::AccountId) -> Option<Self::AccountId> {
         pallet_staking::Pallet::<T>::bonded(stash)
+    }
+
+    fn get_stash(stash: &Self::AccountId) -> Option<Self::AccountId> {
+        pallet_staking::Pallet::<T>::ledger(stash).map(|ledger| ledger.stash)
     }
 }

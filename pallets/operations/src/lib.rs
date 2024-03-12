@@ -62,16 +62,13 @@ pub mod pallet {
         /// An account can have an underflow of a `consumers` counter.
         /// Account categories that are impacted by this issue depends on a chain runtime,
         /// but specifically for AlephNode runtime are as follows:
-        /// * `consumers`  == 0, `reserved`  > 0
-        /// * `consumers`  == 1, `balances.Locks` contain an entry with `id`  == `vesting`
-        /// * `consumers`  == 2, `balances.Locks` contain an entry with `id`  == `staking`
-        /// * `consumers` == 3,
-        ///   `balances.Locks` contain entries with `id`  == `staking`,
-        ///   `staking.bonded(accountId) == accountId`,
-        ///    accountId is in `session.nextKeys`
+        /// +1 consumers if reserved > 0 || frozen > 0
+        /// +1 consumers if there is at least one lock (staking or vesting)
+        /// +1 consumers if there's session.nextKeys set, for controller account
+        /// +1 consumers if account bonded
         ///
-        ///	`fix_accounts_consumers_underflow` checks if the account falls into one of above
-        /// categories, and increase its `consumers` counter.
+        ///	`fix_accounts_consumers_underflow` calculates expected consumers counter and comperes
+        /// it with current consumers counter, incrementing by one in case of an underflow
         ///
         /// - `origin`: Must be `Signed`.
         /// - `who`: An account to be fixed
@@ -83,10 +80,10 @@ pub mod pallet {
         pub fn fix_accounts_consumers_underflow(
             origin: OriginFor<T>,
             who: T::AccountId,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             ensure_signed(origin)?;
             Self::fix_underflow_consumer_counter(who)?;
-            Ok(().into())
+            Ok(())
         }
     }
 }
