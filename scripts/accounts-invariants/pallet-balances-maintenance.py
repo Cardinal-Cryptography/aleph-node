@@ -1,4 +1,6 @@
 #!/bin/python3
+import logging
+
 from common import *
 
 import copy
@@ -191,6 +193,19 @@ def find_dust_accounts(chain_connection, ed, chain_major_version, block_hash=Non
                            block_hash=block_hash)[0]
 
 
+def is_account_not_upgraded(account, chain_major_version, ed):
+    """
+    Checks if accounts has LSB flag not set, so it's not upgraded.
+    """
+    assert chain_major_version in [ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION,
+                                   ChainMajorVersion.AT_LEAST_13_2_VERSION], \
+        "Chain major version must be at least 12!"
+
+    flags = account['data']['flags'].value
+    is_account_already_upgraded = flags >= 2 ** 127
+    return not is_account_already_upgraded
+
+
 def upgrade_accounts(chain_connection,
                      input_args,
                      ed,
@@ -198,7 +213,7 @@ def upgrade_accounts(chain_connection,
                      sender_keypair,
                      block_hash=None):
     """
-    Prepare and send Balances.UpgradeAccounts call for all accounts on a chain
+    Prepare and send Balances.UpgradeAccounts call for all accounts on a chain that are not upgraded yet
     :param chain_connection: WS connection handler
     :param input_args: script input arguments returned from argparse
     :param ed: chain existential deposit
@@ -208,9 +223,16 @@ def upgrade_accounts(chain_connection,
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
     log.info("Querying all accounts.")
-    all_accounts_on_chain = list(map(lambda x: x[0], get_all_accounts(chain_connection, block_hash)))
+    not_upgraded_accounts_and_info = filter_accounts(chain_connection=chain_connection,
+                                                     ed=None,
+                                                     chain_major_version=chain_major_version,
+                                                     check_accounts_predicate=is_account_not_upgraded,
+                                                     check_accounts_predicate_name="\'not upgraded accounts\'",
+                                                     block_hash=block_hash)[0]
+    save_accounts_to_json_file("not-upgraded-accounts.json", not_upgraded_accounts_and_info)
+    not_upgraded_accounts = list(map(lambda x: x[0], not_upgraded_accounts_and_info))
 
-    for (i, account_ids_chunk) in enumerate(chunks(all_accounts_on_chain, input_args.upgrade_accounts_in_batch)):
+    for (i, account_ids_chunk) in enumerate(chunks(not_upgraded_accounts, input_args.upgrade_accounts_in_batch)):
         upgrade_accounts_call = chain_connection.compose_call(
             call_module='Balances',
             call_function='upgrade_accounts',
@@ -616,14 +638,14 @@ def query_contract_and_code_owners_accounts(chain_connection, block_hash):
     return code_owners, contract_accounts
 
 
-def no_consumers_zero_reserved(account_id, account_info):
+def reserved_or_frozen_non_zero(account_id, account_info):
     """
     Checks if an account has zero consumers, but non-zero reserved amount.
     """
-    consumers = account_info['consumers']
     reserved = account_info['data']['reserved']
-    if consumers == 0 and reserved > 0:
-        log.debug(f"Found an account that has zero consumers and non-zero reserved: {account_id}")
+    frozen = account_info['data']['frozen']
+    if frozen > 0 or reserved > 0:
+        log.debug(f"Account {account_id} has non-zero reserved or non-zero frozen.")
         return True
     return False
 
@@ -637,32 +659,6 @@ def get_vesting_lock(account_id_locks):
     vesting_lock_encoded_id = "0x76657374696e6720"
     vesting_lock = next(filter(lambda lock: lock['id'] == vesting_lock_encoded_id, account_id_locks), None)
     return vesting_lock is not None
-
-
-def staker_has_consumers_underflow(account_id, consumers, locks, bonded, next_keys):
-    """
-    Checks if an account is a staker or vester that has underflow consumers counter.
-    """
-    if account_id in locks and len(locks[account_id]) > 0:
-        log.debug(f"Account {account_id} has following locks: {locks[account_id]}")
-        vesting_lock = get_vesting_lock(locks[account_id])
-        if vesting_lock is not None and consumers == 1:
-            log.debug(f"Found vesting lock: {vesting_lock}")
-            log.debug(f"Found an account that has one consumer and vesting lock: {account_id}")
-            return True
-        staking_lock = get_staking_lock(locks[account_id])
-        if staking_lock is not None:
-            log.debug(f"Found staking lock: {staking_lock}")
-            if consumers == 2:
-                log.debug(f"Found an account that has two consumers and staking lock: {account_id}")
-                return True
-            if consumers == 3 and \
-                    account_id in next_keys and \
-                    account_id in bonded and bonded[account_id] == account_id:
-                log.debug(f"Found an account that has three consumers, staking lock, and next session key, "
-                          f"and that account's stash == controller: {account_id}")
-                return True
-    return False
 
 
 def has_account_consumer_overflow(account_id_and_info, locks, bonded, next_keys):
@@ -681,14 +677,61 @@ def has_account_consumer_overflow(account_id_and_info, locks, bonded, next_keys)
     return False
 
 
-def has_account_consumer_underflow(account_id_and_info, locks, bonded, next_keys):
+def has_account_consumer_underflow(account_id_and_info, locks, bonded, ledger, next_keys, contract_accounts):
     """
     Returns True if an account has consumers underflow
     """
     account_id, account_info = account_id_and_info
-    consumers = account_info['consumers']
-    return no_consumers_zero_reserved(account_id, account_info) or \
-           staker_has_consumers_underflow(account_id, consumers, locks, bonded, next_keys)
+    current_consumers = account_info['consumers']
+    expected_consumers = get_expected_consumers_counter_in_13_version(account_id,
+                                                                      account_info,
+                                                                      locks,
+                                                                      bonded,
+                                                                      ledger,
+                                                                      next_keys,
+                                                                      contract_accounts)
+    if current_consumers < expected_consumers:
+        log.debug(f"Current consumers counter {current_consumers} is less than expected consumers counter "
+                  f"{expected_consumers}, performing migration for account {account_id}")
+        return True
+    logging.debug(
+        f"Account {account_id} current_consumers counter: {current_consumers}, expected: {expected_consumers}")
+    return False
+
+
+def get_expected_consumers_counter_in_13_version(account_id,
+                                                 account_info,
+                                                 locks,
+                                                 bonded,
+                                                 ledger,
+                                                 next_keys,
+                                                 contract_accounts):
+    expected_consumers = 0
+    if reserved_or_frozen_non_zero(account_id, account_info):
+        expected_consumers += 1
+    if account_id in locks and len(locks[account_id]) > 0:
+        log.debug(f"Account {account_id} has following locks: {locks[account_id]}")
+        has_vesting_lock = get_vesting_lock(locks[account_id]) is not None
+        has_staking_lock = get_staking_lock(locks[account_id]) is not None
+        if has_vesting_lock or has_staking_lock:
+            expected_consumers += 1
+            if has_staking_lock:
+                expected_consumers += 1
+    if account_id in next_keys and \
+            account_id in bonded and bonded[account_id] == account_id:
+        log.debug(f"Found an account that has next session key, and that account's stash == controller: {account_id}")
+        expected_consumers += 1
+    if account_id in ledger:
+        stash_account = ledger[account_id]
+        if stash_account != account_id:
+            log.debug(f"Found a controller account {account_id}, which has different stash: {stash_account}")
+            if stash_account in next_keys:
+                expected_consumers += 1
+    if account_id in contract_accounts:
+        log.debug(f"Found a contract account: {account_id}")
+        # TODO uncomment when pallet operations is able to query contract accounts
+        # expected_consumers += 1
+    return expected_consumers
 
 
 def query_accounts_with_consumers_counter_overflow(chain_connection, block_hash=None):
@@ -701,7 +744,7 @@ def query_accounts_with_consumers_counter_overflow(chain_connection, block_hash=
     :param chain_connection: WS connection handler
     :param block_hash: A block hash to query state from
     """
-    bonded, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
+    bonded, _, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
 
     log.info("Querying all accounts and filtering by consumers overflow predicate.")
     return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection, block_hash) if
@@ -710,22 +753,20 @@ def query_accounts_with_consumers_counter_overflow(chain_connection, block_hash=
 
 def query_accounts_with_consumers_counter_underflow(chain_connection, block_hash=None):
     """
-    Queries all accounts that have an underflow of consumers counter, which is either of those account categories:
-    * `consumers` == 0, `reserved`  > 0
-    * `consumers` == 1, `balances.Locks` contain an entry with `id`  == `vesting`
-    * `consumers` == 2, `balances.Locks` contain an entry with `id`  == `staking`
-    * `consumers` == 3,
-      `balances.Locks` contain entries with `id`  == `staking`,
-      `staking.bonded(accountId) == accountId`,
-       accountId is in `session.nextKeys`
+    Queries all accounts that have an underflow of consumers counter by calculating expected number of consumers and
+    comparing to current consumers counter
+
     :param chain_connection: WS connection handler
     :param block_hash: A block hash to query state from
     """
-    bonded, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
+    bonded, ledger, locks, next_keys = get_consumers_related_data(chain_connection, block_hash)
+    _, contract_accounts = query_contract_and_code_owners_accounts(
+        chain_connection=chain_ws_connection,
+        block_hash=block_hash)
 
     log.info("Querying all accounts and filtering by consumers underflow predicate.")
     return [account_id_and_info for account_id_and_info in get_all_accounts(chain_connection, block_hash) if
-            has_account_consumer_underflow(account_id_and_info, locks, bonded, next_keys)]
+            has_account_consumer_underflow(account_id_and_info, locks, bonded, ledger, next_keys, contract_accounts)]
 
 
 def get_consumers_related_data(chain_connection, block_hash=None):
@@ -758,7 +799,15 @@ def get_consumers_related_data(chain_connection, block_hash=None):
                                                        block_hash=block_hash):
         bonded[account_id.value] = bond.value
     log.debug(f"Found below bonds: {bonded}")
-    return bonded, locks, next_keys
+    log.info("Querying staking.ledger")
+    ledgers = {}
+    for account_id, ledger in chain_connection.query_map(module="Staking",
+                                                         storage_function="Ledger",
+                                                         page_size=1000,
+                                                         block_hash=block_hash):
+        ledgers[account_id.value] = ledger.serialize()['stash']
+    log.debug(f"Found below ledgers: {ledgers}")
+    return bonded, ledgers, locks, next_keys
 
 
 def batch_fix_accounts_consumers_underflow(chain_connection,
@@ -773,13 +822,6 @@ def batch_fix_accounts_consumers_underflow(chain_connection,
     :param sender_keypair: keypair of sender account
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
-    if input_args.fix_consumers_counter_underflow:
-        if chain_major_version is not ChainMajorVersion.AT_LEAST_13_2_VERSION:
-            log.error(
-                f"Fixing underflow consumers account can only be done on AlephNode chains with at least "
-                f"13.2 version. Exiting.")
-            exit(5)
-
     for (i, account_ids_chunk) in enumerate(chunks(accounts, input_args.fix_consumers_calls_in_batch)):
         operations_calls = list(map(lambda account: chain_connection.compose_call(
             call_module='Operations',
@@ -895,11 +937,17 @@ if __name__ == "__main__":
         if chain_major_version is not ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION:
             log.error(f"--fix-double-providers-count can be used only on chains with at least 12 version. Exiting.")
             exit(4)
+    if args.fix_consumers_counter_underflow:
+        if chain_major_version is not ChainMajorVersion.AT_LEAST_13_2_VERSION:
+            log.error(
+                f"Fixing underflow consumers account can only be done on AlephNode chains with at least "
+                f"13.2 version. Exiting.")
+            exit(5)
     if args.fix_consumers_counter_overflow:
-        if chain_major_version not in [ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION,
-                                       ChainMajorVersion.AT_LEAST_13_2_VERSION]:
-            log.error(f"--fix-consumers-counter-underflow can be used only on chains with at least 12 version. "
-                      f"Exiting.")
+        if chain_major_version is not ChainMajorVersion.AT_LEAST_13_2_VERSION:
+            log.error(
+                f"Fixing underflow consumers account can only be done on AlephNode chains with at least "
+                f"13.2 version. Exiting.")
             exit(6)
 
     total_issuance_from_chain = chain_ws_connection.query(module='Balances',

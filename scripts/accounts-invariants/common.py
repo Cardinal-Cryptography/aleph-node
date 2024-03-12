@@ -3,6 +3,7 @@
 import enum
 import logging
 import datetime
+
 import substrateinterface
 import json
 
@@ -37,7 +38,7 @@ class ChainMajorVersion(enum.Enum):
     def from_spec_version(cls, spec_version):
         if spec_version <= 65:
             return cls(ChainMajorVersion.PRE_12_MAJOR_VERSION)
-        elif 68 <= spec_version < 71:
+        elif 68 <= spec_version < 71 or spec_version == 72:
             return cls(ChainMajorVersion.AT_LEAST_12_MAJOR_VERSION)
         elif spec_version >= 71:
             return cls(ChainMajorVersion.AT_LEAST_13_2_VERSION)
