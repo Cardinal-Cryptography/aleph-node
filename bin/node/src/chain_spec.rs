@@ -230,7 +230,6 @@ fn generate_chain_spec_config(
         chain_type,
         move || {
             generate_genesis_config(
-                wasm_binary,
                 authorities.clone(), // Initial PoA authorities, will receive funds
                 sudo_account.clone(), // Sudo account, will also be pre funded
                 rich_accounts.clone(), // Pre-funded accounts
@@ -250,6 +249,8 @@ fn generate_chain_spec_config(
         Some(system_properties(token_symbol)),
         // Extensions
         None,
+        // Code
+        wasm_binary,
     ))
 }
 
@@ -323,7 +324,6 @@ fn configure_chain_spec_fields(
 /// Configure initial storage state for FRAME modules.
 #[allow(clippy::too_many_arguments)]
 fn generate_genesis_config(
-    wasm_binary: &[u8],
     authorities: Vec<AuthorityKeys>,
     sudo_account: AccountId,
     rich_accounts: Option<Vec<AccountId>>,
@@ -361,8 +361,6 @@ fn generate_genesis_config(
 
     RuntimeGenesisConfig {
         system: SystemConfig {
-            // Add Wasm runtime to storage.
-            code: wasm_binary.to_vec(),
             ..Default::default()
         },
         balances: BalancesConfig {
