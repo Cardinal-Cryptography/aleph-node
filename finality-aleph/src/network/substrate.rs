@@ -9,7 +9,7 @@ use sc_network::{
     NotificationSenderT, PeerId, ProtocolName,
 };
 use sc_network_common::ExHashT;
-use sc_network_sync::{SyncingService, SyncEvent, SyncEventStream};
+use sc_network_sync::{SyncEvent, SyncEventStream, SyncingService};
 use sp_runtime::traits::Block;
 
 use crate::network::gossip::{Event, EventStream, NetworkSender, Protocol, RawNetwork};

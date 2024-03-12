@@ -9,7 +9,7 @@ use std::{
 use futures::stream::StreamExt;
 use log::{debug, trace, warn};
 use sc_network::config::FullNetworkConfiguration;
-use sc_network_sync::{SyncEvent, service::syncing_service::ToServiceCommand, SyncingService};
+use sc_network_sync::{service::syncing_service::ToServiceCommand, SyncEvent, SyncingService};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_runtime::traits::{Block, Header};
 

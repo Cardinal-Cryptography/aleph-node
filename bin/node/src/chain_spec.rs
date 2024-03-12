@@ -230,9 +230,9 @@ fn generate_chain_spec_config(
         chain_type,
         move || {
             generate_genesis_config(
-                authorities.clone(), // Initial PoA authorities, will receive funds
-                sudo_account.clone(), // Sudo account, will also be pre funded
-                rich_accounts.clone(), // Pre-funded accounts
+                authorities.clone(),    // Initial PoA authorities, will receive funds
+                sudo_account.clone(),   // Sudo account, will also be pre funded
+                rich_accounts.clone(),  // Pre-funded accounts
                 faucet_account.clone(), // Pre-funded faucet account
                 finality_version,
             )
