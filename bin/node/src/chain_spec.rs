@@ -222,6 +222,7 @@ fn generate_chain_spec_config(
     let faucet_account = chain_params.faucet_account_id();
     let finality_version = chain_params.finality_version();
 
+    #[allow(deprecated)]
     Ok(ChainSpec::from_genesis(
         // Name
         &chain_name,
