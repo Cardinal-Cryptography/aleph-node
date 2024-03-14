@@ -26,7 +26,7 @@ use frame_support::{
         ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
         InstanceFilter, SortedMembers, WithdrawReasons,
     },
-    weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
+    weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, WeightToFee},
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -59,7 +59,7 @@ use sp_runtime::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto, One, OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedU128, RuntimeDebug,
+    ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
@@ -272,11 +272,21 @@ parameter_types! {
     pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
+pub struct DivideFeeBy<const N: Balance>;
+
+impl<const N: Balance> WeightToFee for DivideFeeBy<N> {
+    type Balance = Balance;
+
+    fn weight_to_fee(weight: &Weight) -> Self::Balance {
+        Balance::saturated_from(weight.ref_time()).saturating_div(N)
+    }
+}
+
 impl pallet_transaction_payment::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
-    type LengthToFee = IdentityFee<Balance>;
-    type WeightToFee = IdentityFee<Balance>;
+    type LengthToFee = DivideFeeBy<10>;
+    type WeightToFee = DivideFeeBy<10>;
     type FeeMultiplierUpdate = TargetedFeeAdjustment<
         Self,
         TargetSaturationLevel,
