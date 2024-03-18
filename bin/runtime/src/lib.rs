@@ -261,7 +261,7 @@ parameter_types! {
     // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
     // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
     pub const OperationalFeeMultiplier: u8 = 5;
-    // We expect that on average 25% of the normal capacity will be occupied with normal txs.
+    // We expect that on average 50% of the normal capacity will be occupied with normal txs.
     pub const TargetSaturationLevel: Perquintill = Perquintill::from_percent(50);
     // During 20 blocks the fee may not change more than by 100%. This, together with the
     // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
