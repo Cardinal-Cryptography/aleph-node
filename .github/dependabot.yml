@@ -16,6 +16,10 @@ updates:
           - "*"
     pull-request-branch-name:
       separator: "-"
+    ignore:
+      - dependency-name: "aleph-bft"
+      - dependency-name: "aleph-bft-rmc"
+      - dependency-name: "aleph-bft-types"
 
   - package-ecosystem: github-actions
     directory: /
@@ -36,7 +40,4 @@ updates:
     reviewers:
       - "Marcin-Radecki"
       - "Mikolaj Gasior"
-ignore:
-  - dependency-name: "aleph-bft"
-  - dependency-name: "aleph-bft-rmc"
-  - dependency-name: "aleph-bft-types"
+
