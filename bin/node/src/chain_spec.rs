@@ -2,9 +2,8 @@ use std::{collections::HashSet, str::FromStr, string::ToString};
 
 use aleph_runtime::{
     AccountId, AlephConfig, AuraConfig, BalancesConfig, CommitteeManagementConfig, ElectionsConfig,
-    Feature, FeatureControlConfig, NominationPoolsConfig, Perbill, RuntimeGenesisConfig,
-    SessionConfig, SessionKeys, StakingConfig, SudoConfig, TransactionPaymentConfig,
-    TreasuryConfig, VestingConfig, WASM_BINARY,
+    Feature, FeatureControlConfig, Perbill, RuntimeGenesisConfig, SessionConfig, SessionKeys,
+    StakingConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
@@ -14,7 +13,7 @@ use sc_cli::{
 };
 use sc_service::ChainType;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{json, Number, Value};
+use serde_json::{Number, Value};
 use sp_application_crypto::Ss58Codec;
 use sp_core::{sr25519, Pair};
 
@@ -223,51 +222,37 @@ fn generate_chain_spec_config(
     let faucet_account = chain_params.faucet_account_id();
     let finality_version = chain_params.finality_version();
 
-    let builder = ChainSpec::builder(wasm_binary, None)
-        .with_name(&chain_name)
-        .with_id(&chain_id)
-        .with_chain_type(chain_type)
-        .with_properties(system_properties(token_symbol))
-        .with_genesis_config(generate_genesis_config(
-            authorities.clone(),    // Initial PoA authorities, will receive funds
-            sudo_account.clone(),   // Sudo account, will also be pre funded
-            rich_accounts.clone(),  // Pre-funded accounts
-            faucet_account.clone(), // Pre-funded faucet account
-            finality_version,
-        ));
-    Ok(builder.build())
-
-    // #[allow(deprecated)]
-    // Ok(ChainSpec::from_genesis(
-    //     // Name
-    //     &chain_name,
-    //     // ID
-    //     &chain_id,
-    //     chain_type,
-    //     move || {
-    //         generate_genesis_config(
-    //             authorities.clone(),    // Initial PoA authorities, will receive funds
-    //             sudo_account.clone(),   // Sudo account, will also be pre funded
-    //             rich_accounts.clone(),  // Pre-funded accounts
-    //             faucet_account.clone(), // Pre-funded faucet account
-    //             finality_version,
-    //         )
-    //     },
-    //     // Bootnodes
-    //     vec![],
-    //     // Telemetry
-    //     None,
-    //     // Protocol ID
-    //     None,
-    //     // Fork ID
-    //     None,
-    //     // Properties
-    //     Some(system_properties(token_symbol)),
-    //     // Extensions
-    //     None,
-    //     // Code
-    //     wasm_binary,
-    // ))
+    #[allow(deprecated)]
+    Ok(ChainSpec::from_genesis(
+        // Name
+        &chain_name,
+        // ID
+        &chain_id,
+        chain_type,
+        move || {
+            generate_genesis_config(
+                authorities.clone(),    // Initial PoA authorities, will receive funds
+                sudo_account.clone(),   // Sudo account, will also be pre funded
+                rich_accounts.clone(),  // Pre-funded accounts
+                faucet_account.clone(), // Pre-funded faucet account
+                finality_version,
+            )
+        },
+        // Bootnodes
+        vec![],
+        // Telemetry
+        None,
+        // Protocol ID
+        None,
+        // Fork ID
+        None,
+        // Properties
+        Some(system_properties(token_symbol)),
+        // Extensions
+        None,
+        // Code
+        wasm_binary,
+    ))
 }
 
 /// Given a Vec<AccountIds> returns a unique collection
@@ -338,13 +323,14 @@ fn configure_chain_spec_fields(
 }
 
 /// Configure initial storage state for FRAME modules.
+#[allow(clippy::too_many_arguments)]
 fn generate_genesis_config(
     authorities: Vec<AuthorityKeys>,
     sudo_account: AccountId,
     rich_accounts: Option<Vec<AccountId>>,
     faucet_account: Option<AccountId>,
     finality_version: FinalityVersion,
-) -> Value {
+) -> RuntimeGenesisConfig {
     let special_accounts = {
         let mut all = rich_accounts.unwrap_or_default();
         all.push(sudo_account.clone());
@@ -374,27 +360,30 @@ fn generate_genesis_config(
 
     let accounts_config = configure_chain_spec_fields(unique_accounts_balances, authorities);
 
-    json!({
-        "balances": BalancesConfig {
+    RuntimeGenesisConfig {
+        system: SystemConfig {
+            ..Default::default()
+        },
+        balances: BalancesConfig {
             // Configure endowed accounts with an initial, significant balance
             balances: accounts_config.balances,
         },
-        "aura": AuraConfig {
+        aura: AuraConfig {
             authorities: vec![],
         },
-        "sudo": SudoConfig {
+        sudo: SudoConfig {
             // Assign network admin rights.
             key: Some(sudo_account),
         },
-        "elections": ElectionsConfig {
+        elections: ElectionsConfig {
             reserved_validators: accounts_config.members.clone(),
             non_reserved_validators: vec![],
             committee_seats: Default::default(),
         },
-        "session": SessionConfig {
+        session: SessionConfig {
             keys: accounts_config.keys,
         },
-        "staking": StakingConfig {
+        staking: StakingConfig {
             force_era: Forcing::NotForcing,
             validator_count,
             minimum_validator_count: 4,
@@ -404,26 +393,26 @@ fn generate_genesis_config(
             min_nominator_bond: MIN_NOMINATOR_BOND,
             ..Default::default()
         },
-        "aleph": AlephConfig {
+        aleph: AlephConfig {
             finality_version,
             ..Default::default()
         },
-        "treasury": <TreasuryConfig as Default>::default(),
-        "vesting": VestingConfig { vesting: vec![] },
-        "nomination_pools": <NominationPoolsConfig as Default>::default(),
-        "transaction_payment": <TransactionPaymentConfig as Default>::default(),
-        "committee_management": CommitteeManagementConfig {
+        treasury: Default::default(),
+        vesting: VestingConfig { vesting: vec![] },
+        nomination_pools: Default::default(),
+        transaction_payment: Default::default(),
+        committee_management: CommitteeManagementConfig {
             committee_ban_config: Default::default(),
             session_validators: SessionValidators {
                 committee: accounts_config.members,
                 non_committee: vec![],
             },
         },
-        "feature_control": FeatureControlConfig {
+        feature_control: FeatureControlConfig {
             active_features: vec![Feature::OnChainVerifier],
             ..Default::default()
         },
-    })
+    }
 }
 
 pub fn mainnet_config() -> Result<ChainSpec, String> {
