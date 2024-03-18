@@ -37,5 +37,6 @@ updates:
       - "Marcin-Radecki"
       - "Mikolaj Gasior"
 ignore:
+  - dependency-name: "aleph-bft"
   - dependency-name: "aleph-bft-rmc"
   - dependency-name: "aleph-bft-types"
