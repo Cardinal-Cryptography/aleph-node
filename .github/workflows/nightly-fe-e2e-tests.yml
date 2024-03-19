@@ -57,7 +57,6 @@ jobs:
     needs:
       - get-full-docker-image-path
       - build-and-push-featurenet-node-image
-    # to prevent this job to be skipped when one of the parent jobs is skipped
     if: ${{ !cancelled() }}
     name: Create featurenet from ${{ github.ref }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6
@@ -75,7 +74,6 @@ jobs:
       - create-featurenet
       - build-aleph-e2e-client-image
     name: Runs finalization e2e on FE
-    # to prevent this job to be skipped when one of the parent jobs is skipped
     if: ${{ !cancelled() }}
     env:
       # yamllint disable-line rule:line-length
