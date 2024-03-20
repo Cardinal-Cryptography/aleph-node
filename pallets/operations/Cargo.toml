@@ -18,6 +18,7 @@ pallet-balances = { workspace = true }
 pallet-staking = { workspace = true }
 sp-runtime = { workspace = true }
 sp-core = { workspace = true }
+sp-staking = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
@@ -40,7 +41,7 @@ std = [
     "frame-election-provider-support/std",
     "sp-runtime/std",
     "sp-core/std",
-
+    "sp-staking/std",
 ]
 
 try-runtime = [

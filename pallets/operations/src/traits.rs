@@ -1,6 +1,7 @@
 use frame_support::{traits::StoredMap, WeakBoundedVec};
 use pallet_balances::BalanceLock;
 use sp_runtime::traits::Zero;
+use sp_staking::StakingAccount;
 
 pub trait AccountInfoProvider {
     /// Account id type used by runtime
@@ -102,7 +103,9 @@ where
         pallet_staking::Pallet::<T>::bonded(stash)
     }
 
-    fn get_stash(stash: &Self::AccountId) -> Option<Self::AccountId> {
-        pallet_staking::Pallet::<T>::ledger(stash).map(|ledger| ledger.stash)
+    fn get_stash(controller: &Self::AccountId) -> Option<Self::AccountId> {
+        pallet_staking::Pallet::<T>::ledger(StakingAccount::Controller(controller.clone()))
+            .ok()
+            .map(|ledger| ledger.stash)
     }
 }
