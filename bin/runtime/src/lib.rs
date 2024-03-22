@@ -397,6 +397,7 @@ impl pallet_operations::Config for Runtime {
     type AccountInfoProvider = System;
     type BalancesProvider = Balances;
     type NextKeysSessionProvider = Session;
+    type SetSudo = Sudo;
 }
 
 impl pallet_committee_management::Config for Runtime {

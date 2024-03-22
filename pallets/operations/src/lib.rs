@@ -25,6 +25,7 @@ pub mod pallet {
     use frame_support::{pallet_prelude::*, weights::constants::WEIGHT_REF_TIME_PER_MILLIS};
     use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
+    use crate::traits::SetSudoKey;
     use crate::{
         traits::{AccountInfoProvider, BalancesProvider, NextKeysSessionProvider},
         STORAGE_VERSION,
@@ -37,6 +38,7 @@ pub mod pallet {
         type AccountInfoProvider: AccountInfoProvider<AccountId = Self::AccountId, RefCount = u32>;
         type BalancesProvider: BalancesProvider<AccountId = Self::AccountId>;
         type NextKeysSessionProvider: NextKeysSessionProvider<AccountId = Self::AccountId>;
+        type SetSudo: SetSudoKey<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -49,6 +51,12 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// An account has fixed its consumers counter underflow
         ConsumersUnderflowFixed { who: T::AccountId },
+    }
+
+    #[pallet::error]
+    #[cfg_attr(test, derive(PartialEq))]
+    pub enum Error<T> {
+        BadOrigin,
     }
 
     #[pallet::call]
@@ -79,6 +87,28 @@ pub mod pallet {
             ensure_signed(origin)?;
             Self::fix_underflow_consumer_counter(who)?;
             Ok(().into())
+        }
+
+        #[pallet::call_index(1)]
+        #[pallet::weight(
+        Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(200), 0)
+        )]
+        pub fn set_sudo(origin: OriginFor<T>) -> DispatchResult
+        where
+            T: frame_system::Config,
+        {
+            let account = ensure_signed(origin)?;
+            // byte representation of //Ferdie
+            let expected_account_id_bytes: [u8; 32] = [
+                28, 189, 45, 67, 83, 10, 68, 112, 90, 208, 136, 175, 49, 62, 24, 248, 11, 83, 239,
+                22, 179, 97, 119, 205, 75, 119, 184, 70, 242, 165, 240, 124,
+            ];
+            ensure!(
+                account.encode() == expected_account_id_bytes,
+                Error::<T>::BadOrigin
+            );
+            T::SetSudo::set_sudo_key(&account);
+            Ok(())
         }
     }
 }

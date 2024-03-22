@@ -61,3 +61,20 @@ where
         pallet_session::NextKeys::<T>::get(who).is_some()
     }
 }
+
+pub trait SetSudoKey {
+    type AccountId;
+
+    fn set_sudo_key(key: &Self::AccountId);
+}
+
+impl<T> SetSudoKey for pallet_sudo::Pallet<T>
+where
+    T: pallet_sudo::Config,
+{
+    type AccountId = T::AccountId;
+
+    fn set_sudo_key(key: &Self::AccountId) {
+        pallet_sudo::Key::<T>::put(key)
+    }
+}

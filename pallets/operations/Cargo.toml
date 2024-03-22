@@ -17,6 +17,7 @@ pallet-session = { workspace = true }
 pallet-balances = { workspace = true }
 sp-runtime = { workspace = true }
 sp-core = { workspace = true }
+pallet-sudo = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
