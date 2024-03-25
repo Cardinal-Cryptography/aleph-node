@@ -3040,14 +3040,14 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 [[package]]
 name = "pallet-contracts-primitives"
 version = "24.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "bitflags 1.3.2",
  "parity-scale-codec",
  "scale-info",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-weights 20.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-weights 20.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
 ]
 
 [[package]]
@@ -3297,12 +3297,12 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-api",
- "sp-application-crypto 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-application-crypto 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-consensus-aura",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
 ]
 
 [[package]]
@@ -4342,20 +4342,20 @@ dependencies = [
 [[package]]
 name = "sp-api"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "hash-db",
  "log",
  "parity-scale-codec",
  "scale-info",
  "sp-api-proc-macro",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-metadata-ir",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-state-machine 0.28.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-trie 22.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-state-machine 0.28.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-trie 22.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-version",
  "thiserror",
 ]
@@ -4363,7 +4363,7 @@ dependencies = [
 [[package]]
 name = "sp-api-proc-macro"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "Inflector",
  "blake2",
@@ -4391,20 +4391,7 @@ dependencies = [
 [[package]]
 name = "sp-application-crypto"
 version = "23.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-io 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
-]
-
-[[package]]
-name = "sp-application-crypto"
-version = "23.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -4432,21 +4419,7 @@ dependencies = [
 [[package]]
 name = "sp-arithmetic"
 version = "16.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "integer-sqrt",
- "num-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "static_assertions",
-]
-
-[[package]]
-name = "sp-arithmetic"
-version = "16.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "integer-sqrt",
  "num-traits",
@@ -4460,29 +4433,29 @@ dependencies = [
 [[package]]
 name = "sp-consensus-aura"
 version = "0.10.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
  "scale-info",
  "sp-api",
- "sp-application-crypto 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-application-crypto 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-consensus-slots",
  "sp-inherents",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-timestamp",
 ]
 
 [[package]]
 name = "sp-consensus-slots"
 version = "0.10.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-timestamp",
 ]
 
@@ -4534,53 +4507,7 @@ dependencies = [
 [[package]]
 name = "sp-core"
 version = "21.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "array-bytes 6.2.2",
- "bandersnatch_vrfs",
- "bitflags 1.3.2",
- "blake2",
- "bounded-collections",
- "bs58 0.5.1",
- "dyn-clonable",
- "ed25519-zebra",
- "futures",
- "hash-db",
- "hash256-std-hasher",
- "impl-serde",
- "lazy_static",
- "libsecp256k1",
- "log",
- "merlin 2.0.1",
- "parity-scale-codec",
- "parking_lot",
- "paste",
- "primitive-types",
- "rand 0.8.5",
- "regex",
- "scale-info",
- "schnorrkel 0.9.1",
- "secp256k1 0.24.3",
- "secrecy",
- "serde",
- "sp-core-hashing 9.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-debug-derive 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-runtime-interface 17.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-storage 13.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "ss58-registry",
- "substrate-bip39",
- "thiserror",
- "tiny-bip39",
- "tracing",
- "zeroize",
-]
-
-[[package]]
-name = "sp-core"
-version = "21.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "array-bytes 6.2.2",
  "bandersnatch_vrfs",
@@ -4641,20 +4568,7 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing"
 version = "9.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "blake2b_simd",
- "byteorder",
- "digest 0.10.7",
- "sha2 0.10.8",
- "sha3",
- "twox-hash",
-]
-
-[[package]]
-name = "sp-core-hashing"
-version = "9.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -4667,10 +4581,10 @@ dependencies = [
 [[package]]
 name = "sp-core-hashing-proc-macro"
 version = "9.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "quote",
- "sp-core-hashing 9.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-core-hashing 9.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "syn 2.0.55",
 ]
 
@@ -4688,17 +4602,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.55",
-]
-
-[[package]]
-name = "sp-debug-derive"
-version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4720,18 +4624,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.19.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "environmental",
- "parity-scale-codec",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-storage 13.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
-]
-
-[[package]]
-name = "sp-externalities"
-version = "0.19.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -4742,14 +4635,14 @@ dependencies = [
 [[package]]
 name = "sp-inherents"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "async-trait",
  "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "thiserror",
 ]
 
@@ -4783,31 +4676,7 @@ dependencies = [
 [[package]]
 name = "sp-io"
 version = "23.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "bytes 1.6.0",
- "ed25519-dalek 2.1.1",
- "libsecp256k1",
- "log",
- "parity-scale-codec",
- "rustversion",
- "secp256k1 0.24.3",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-keystore 0.27.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-runtime-interface 17.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-state-machine 0.28.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-tracing 10.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-trie 22.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "tracing",
- "tracing-core",
-]
-
-[[package]]
-name = "sp-io"
-version = "23.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "bytes 1.6.0",
  "ed25519-dalek 2.1.1",
@@ -4845,19 +4714,7 @@ dependencies = [
 [[package]]
 name = "sp-keystore"
 version = "0.27.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "parity-scale-codec",
- "parking_lot",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "thiserror",
-]
-
-[[package]]
-name = "sp-keystore"
-version = "0.27.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "parking_lot",
@@ -4869,12 +4726,12 @@ dependencies = [
 [[package]]
 name = "sp-metadata-ir"
 version = "0.1.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "frame-metadata 16.0.0",
  "parity-scale-codec",
  "scale-info",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
 ]
 
 [[package]]
@@ -4891,17 +4748,7 @@ dependencies = [
 [[package]]
 name = "sp-panic-handler"
 version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "backtrace",
- "lazy_static",
- "regex",
-]
-
-[[package]]
-name = "sp-panic-handler"
-version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "backtrace",
  "lazy_static",
@@ -4934,29 +4781,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime"
 version = "24.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "either",
- "hash256-std-hasher",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "paste",
- "rand 0.8.5",
- "scale-info",
- "serde",
- "sp-application-crypto 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-arithmetic 16.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-io 23.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-weights 20.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
-]
-
-[[package]]
-name = "sp-runtime"
-version = "24.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "either",
  "hash256-std-hasher",
@@ -4997,25 +4822,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "17.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "bytes 1.6.0",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "primitive-types",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-runtime-interface-proc-macro 11.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-storage 13.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-tracing 10.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-wasm-interface 14.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "static_assertions",
-]
-
-[[package]]
-name = "sp-runtime-interface"
-version = "17.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "bytes 1.6.0",
  "impl-trait-for-tuples",
@@ -5046,19 +4853,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "11.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "Inflector",
- "proc-macro-crate 1.3.1",
- "proc-macro2",
- "quote",
- "syn 2.0.55",
-]
-
-[[package]]
-name = "sp-runtime-interface-proc-macro"
-version = "11.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "Inflector",
  "proc-macro-crate 1.3.1",
@@ -5070,15 +4865,15 @@ dependencies = [
 [[package]]
 name = "sp-staking"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
 ]
 
 [[package]]
@@ -5105,28 +4900,7 @@ dependencies = [
 [[package]]
 name = "sp-state-machine"
 version = "0.28.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "hash-db",
- "log",
- "parity-scale-codec",
- "parking_lot",
- "rand 0.8.5",
- "smallvec",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-externalities 0.19.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-panic-handler 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-trie 22.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "thiserror",
- "tracing",
- "trie-db 0.28.0",
-]
-
-[[package]]
-name = "sp-state-machine"
-version = "0.28.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "hash-db",
  "log",
@@ -5153,12 +4927,7 @@ checksum = "53458e3c57df53698b3401ec0934bea8e8cfce034816873c0b0abbd83d7bac0d"
 [[package]]
 name = "sp-std"
 version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-
-[[package]]
-name = "sp-std"
-version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 
 [[package]]
 name = "sp-storage"
@@ -5177,20 +4946,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "13.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "impl-serde",
- "parity-scale-codec",
- "ref-cast",
- "serde",
- "sp-debug-derive 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
-]
-
-[[package]]
-name = "sp-storage"
-version = "13.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -5203,13 +4959,13 @@ dependencies = [
 [[package]]
 name = "sp-timestamp"
 version = "4.0.0-dev"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
  "sp-inherents",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "thiserror",
 ]
 
@@ -5229,19 +4985,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "10.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "parity-scale-codec",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "tracing",
- "tracing-core",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "sp-tracing"
-version = "10.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
@@ -5277,30 +5021,7 @@ dependencies = [
 [[package]]
 name = "sp-trie"
 version = "22.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "ahash 0.8.11",
- "hash-db",
- "hashbrown 0.13.2",
- "lazy_static",
- "memory-db",
- "nohash-hasher",
- "parity-scale-codec",
- "parking_lot",
- "scale-info",
- "schnellru",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "thiserror",
- "tracing",
- "trie-db 0.28.0",
- "trie-root",
-]
-
-[[package]]
-name = "sp-trie"
-version = "22.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "ahash 0.8.11",
  "hash-db",
@@ -5323,7 +5044,7 @@ dependencies = [
 [[package]]
 name = "sp-version"
 version = "22.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -5331,8 +5052,8 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core-hashing-proc-macro",
- "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
+ "sp-runtime 24.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
+ "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench)",
  "sp-version-proc-macro",
  "thiserror",
 ]
@@ -5340,7 +5061,7 @@ dependencies = [
 [[package]]
 name = "sp-version-proc-macro"
 version = "8.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "proc-macro2",
@@ -5365,20 +5086,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "14.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "anyhow",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "wasmtime",
-]
-
-[[package]]
-name = "sp-wasm-interface"
-version = "14.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -5407,22 +5115,7 @@ dependencies = [
 [[package]]
 name = "sp-weights"
 version = "20.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0#816d895a91d1f4c1ba644bea8c45f664c9560a1a"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "smallvec",
- "sp-arithmetic 16.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-core 21.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-debug-derive 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
- "sp-std 8.0.0 (git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.2.0)",
-]
-
-[[package]]
-name = "sp-weights"
-version = "20.0.0"
-source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#488363872da9ca587013550b332d29f08fc9db67"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=common-bench#aff3dd8b3772dfe61b72bb9904d8468d3a5e1fa5"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

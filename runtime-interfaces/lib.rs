@@ -5,7 +5,7 @@
 
 #[sp_runtime_interface::runtime_interface]
 pub trait Now {
-    fn now() -> Result<u64, ()> {
+    fn now() -> Result<i64, ()> {
         #[cfg(not(feature = "std"))]
         unreachable!();
 

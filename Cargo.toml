@@ -13,6 +13,7 @@ members = [
     "pallets/support",
     "primitives",
     "rate-limiter",
+    "runtime-interfaces",
 ]
 
 exclude = [
