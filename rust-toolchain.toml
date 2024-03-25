@@ -1,6 +1,6 @@
 [toolchain]
-channel = "1.70"
-targets = [ "wasm32-unknown-unknown" ]
-components = [ "rustfmt", "clippy", "rust-src" ]
+channel = "1.74"
+targets = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy", "rust-src"]
 profile = "minimal"
 
