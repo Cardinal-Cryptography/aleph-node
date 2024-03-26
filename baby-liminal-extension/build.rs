@@ -24,6 +24,9 @@
 //! and put them in the `benchmark-resources` directory. Changing the build script will trigger the artifacts generation
 //! again. On the other hand, changing any other file in this crate will not be considered as a reason for rerunning.
 //!
+//! Note: if a file for a particular circuit already exists, it will not be generated again. Furthermore, if all files
+//! are present, the trusted setup procedure (the heaviest computation) will also be skipped.
+//!
 //! # What circuits are generated?
 //!
 //! We provide a generic circuit that can be parametrized with the number of instances and the number of rows. More
