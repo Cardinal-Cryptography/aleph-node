@@ -21,10 +21,10 @@ scale-info = { version = "2.6", default-features = false, features = ["derive"],
 
 log = { version = "0.4", default-features = false, optional = true }
 
-frame-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
-sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.2.0", default-features = false, optional = true }
+frame-support = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "common-bench", default-features = false, optional = true }
+frame-system = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "common-bench", default-features = false, optional = true }
+pallet-contracts = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "common-bench", default-features = false, optional = true }
+sp-std = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "common-bench", default-features = false, optional = true }
 
 pallet-baby-liminal = { path = "../pallets/baby-liminal", default-features = false, optional = true }
 

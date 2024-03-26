@@ -1,0 +1,20 @@
+[package]
+name = "aleph-runtime-interfaces"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+sp-runtime-interface = { workspace = true }
+chrono = { version = "0.4.35", default-features = false, features = ["now"] }
+
+[features]
+default = ["std"]
+std = [
+    "sp-runtime-interface/std",
+]

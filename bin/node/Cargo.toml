@@ -16,6 +16,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 name = "aleph-node"
 
 [dependencies]
+aleph-runtime-interfaces = { workspace = true, features = ["std"] }
+
 parity-scale-codec = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 serde = { workspace = true }
