@@ -63,7 +63,7 @@ frame-benchmarking-cli = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 aleph-runtime = { workspace = true }
-aleph-runtime-interfaces = { workspace = true, features = ["std"] }
+aleph-dev-runtime-interfaces = { git = "https://github.com/Cardinal-Cryptography/dev-runtime-interfaces", branch = "common-bench", features = ["std"] }
 finality-aleph = { workspace = true }
 primitives = { workspace = true }
 

@@ -269,11 +269,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph-dev-runtime-interfaces"
+version = "0.1.0"
+source = "git+https://github.com/Cardinal-Cryptography/dev-runtime-interfaces?branch=common-bench#cc99e47c08428c2553e298e13f18ac5f7471f23f"
+dependencies = [
+ "sp-runtime-interface",
+]
+
+[[package]]
 name = "aleph-node"
 version = "0.13.2"
 dependencies = [
+ "aleph-dev-runtime-interfaces",
  "aleph-runtime",
- "aleph-runtime-interfaces",
  "finality-aleph",
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -385,14 +393,6 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
-]
-
-[[package]]
-name = "aleph-runtime-interfaces"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "sp-runtime-interface",
 ]
 
 [[package]]

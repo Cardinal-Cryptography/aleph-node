@@ -13,7 +13,6 @@ members = [
     "pallets/support",
     "primitives",
     "rate-limiter",
-    "runtime-interfaces",
 ]
 
 exclude = [
@@ -171,7 +170,6 @@ substrate-wasm-builder = { git = "https://github.com/Cardinal-Cryptography/polka
 try-runtime-cli = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "common-bench" }
 
 aleph-runtime = { path = "bin/runtime" }
-aleph-runtime-interfaces = { path = "runtime-interfaces", default-features = false }
 finality-aleph = { path = "finality-aleph" }
 network-clique = { path = "clique" }
 rate-limiter = { path = "rate-limiter" }

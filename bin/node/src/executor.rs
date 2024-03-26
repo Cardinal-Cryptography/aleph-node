@@ -9,11 +9,11 @@ pub struct ExecutorDispatch;
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
     #[cfg(feature = "runtime-benchmarks")]
     type ExtendHostFunctions = (
-        aleph_runtime_interfaces::now::HostFunctions,
+        aleph_dev_runtime_interfaces::now::HostFunctions,
         frame_benchmarking::benchmarking::HostFunctions,
     );
     #[cfg(not(feature = "runtime-benchmarks"))]
-    type ExtendHostFunctions = (aleph_runtime_interfaces::now::HostFunctions,);
+    type ExtendHostFunctions = (aleph_dev_runtime_interfaces::now::HostFunctions,);
 
     fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
         aleph_runtime::api::dispatch(method, data)
