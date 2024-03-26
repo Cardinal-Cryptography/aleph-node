@@ -54,7 +54,7 @@ done
 
 # ------------------------ cleaning --------------------------------------------
 function cleanup() {
-  rm -rf "${CHAINSPEC_FILE}"
+   rm -rf "${CHAINSPEC_FILE}"
 }
 
 function sigint_trap() {
@@ -104,7 +104,15 @@ function benchmark_chain_extension() {
   benchmark baby_liminal_extension baby-liminal-extension/src/backend/weights.rs
 }
 
+function benchmark_contracts() {
+  benchmark pallet_contracts ./weights.rs
+}
+
 # ------------------------ main ------------------------------------------------
+
+bootstrap
+benchmark_contracts
+exit 0
 
 if [[ -z "${FEATURE_CONTROL}" && -z "${VK_STORAGE}" && -z "${CHAIN_EXTENSION}" ]] ; then
   echo "No benchmarks selected, exiting."

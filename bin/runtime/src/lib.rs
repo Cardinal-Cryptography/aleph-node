@@ -783,7 +783,11 @@ impl pallet_contracts::Config for Runtime {
     type UnsafeUnstableInterface = ConstBool<false>;
     type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
     type RuntimeHoldReason = RuntimeHoldReason;
-    type Migrations = ();
+    type Migrations = (
+        pallet_contracts::migration::v13::Migration<Runtime>,
+        pallet_contracts::migration::v14::Migration<Runtime, Balances>,
+        pallet_contracts::migration::v15::Migration<Runtime>,
+    );
     type MaxDelegateDependencies = ConstU32<32>;
     type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
     type Debug = ();
@@ -999,6 +1003,7 @@ mod benches {
         [pallet_feature_control, FeatureControl]
         [pallet_vk_storage, VkStorage]
         [baby_liminal_extension, baby_liminal_extension::ChainExtensionBenchmarking<Runtime>]
+        [pallet_contracts, Contracts]
     );
 }
 

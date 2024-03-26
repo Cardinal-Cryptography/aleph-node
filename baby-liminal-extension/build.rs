@@ -59,7 +59,7 @@ fn main() {
 
     // We run benchmarks for up to ~4K gates - this is to be changed for the final version. Now, we keep it low for
     // developer convenience.
-    const CIRCUIT_MAX_K: u32 = 20;
+    const CIRCUIT_MAX_K: u32 = 12;
     // We run a common setup for all generated circuits.
     let params = ParamsKZG::<Bn256>::setup(CIRCUIT_MAX_K, ParamsKZG::<Bn256>::mock_rng());
 
@@ -69,8 +69,8 @@ fn main() {
             .join(format!("{instances}_{row_blowup}_{suf}"))
     };
 
-    const INSTANCES: &[usize] = &[1, 2, 8, 16, 64, 128];
-    const ROW_BLOWUP: &[usize] = &[1, 8, 64, 512, 4096];
+    const INSTANCES: &[usize] = &[1];
+    const ROW_BLOWUP: &[usize] = &[1];
 
     for instances in INSTANCES {
         for row_blowup in ROW_BLOWUP {

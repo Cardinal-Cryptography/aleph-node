@@ -168,4 +168,6 @@ runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "pallet-feature-control/runtime-benchmarks",
     "pallet-vk-storage/runtime-benchmarks",
+    "pallet-contracts/runtime-benchmarks",
+    "baby-liminal-extension/runtime-benchmarks",
 ]
