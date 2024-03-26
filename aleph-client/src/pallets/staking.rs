@@ -19,7 +19,6 @@ use crate::{
     pallet_sudo::pallet::Call::sudo_as,
     pallets::utility::UtilityApi,
     sp_arithmetic::per_things::Perbill,
-    sp_staking::{Exposure, IndividualExposure},
     AccountId, Balance, BlockHash,
     Call::{Staking, Sudo},
     ConnectionApi, EraIndex, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
@@ -60,7 +59,7 @@ pub trait StakingApi {
         era: EraIndex,
         account_id: &AccountId,
         at: Option<BlockHash>,
-    ) -> Exposure<AccountId, Balance>;
+    ) -> Balance;
 
     /// Returns [`eras_reward_points`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.eras_reward_points) for a given era.
     /// * `era` - an era index
@@ -268,24 +267,13 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
         era: EraIndex,
         account_id: &AccountId,
         at: Option<BlockHash>,
-    ) -> Exposure<AccountId, Balance> {
+    ) -> Balance {
         let addrs = api::storage()
             .staking()
-            .eras_stakers(era, Static(account_id.clone()));
+            .eras_stakers_overview(era, Static(account_id.clone()));
 
         let exposure = self.get_storage_entry(&addrs, at).await;
-        Exposure {
-            total: exposure.total,
-            own: exposure.own,
-            others: exposure
-                .others
-                .into_iter()
-                .map(|x| IndividualExposure {
-                    who: x.who.0,
-                    value: x.value,
-                })
-                .collect(),
-        }
+        exposure.total
     }
 
     async fn get_era_reward_points(
@@ -436,7 +424,7 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
         era: EraIndex,
         at: Option<BlockHash>,
     ) -> anyhow::Result<Vec<StorageKey>> {
-        let key_addrs = api::storage().staking().eras_stakers_root();
+        let key_addrs = api::storage().staking().eras_stakers_overview_root();
         let mut key = key_addrs.to_root_bytes();
         extend_with_twox64_concat_hash(&mut key, era);
 
@@ -454,7 +442,7 @@ impl<C: AsConnection + Sync> StakingRawApi for C {
         accounts: &[AccountId],
         _: Option<BlockHash>,
     ) -> Vec<StorageKey> {
-        let key_addrs = api::storage().staking().eras_stakers_root();
+        let key_addrs = api::storage().staking().eras_stakers_overview_root();
         let mut key = key_addrs.to_root_bytes();
         extend_with_twox64_concat_hash(&mut key, era);
         accounts
