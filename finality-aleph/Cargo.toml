@@ -79,6 +79,7 @@ substrate-test-runtime = { workspace = true }
 substrate-test-client = { workspace = true }
 sc-block-builder = { workspace = true }
 sc-basic-authorship = { workspace = true }
+aleph-runtime = { workspace = true }
 
 [features]
 only_legacy = []
