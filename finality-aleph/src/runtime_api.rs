@@ -4,12 +4,12 @@ use std::{
     sync::Arc,
 };
 
-use aleph_runtime::SessionKeys;
 use frame_support::StorageHasher;
 use parity_scale_codec::{Decode, DecodeAll, Encode, Error as DecodeError};
 use sc_client_api::Backend;
 use sp_application_crypto::key_types::AURA;
 use sp_core::twox_128;
+use sp_runtime::impl_opaque_keys;
 use sp_runtime::traits::{Block, OpaqueKeys};
 
 use crate::{
@@ -24,8 +24,6 @@ pub trait RuntimeApi: Clone + Send + Sync + 'static {
     fn next_aura_authorities(&self, at: BlockHash)
         -> Result<Vec<(AccountId, AuraId)>, Self::Error>;
 }
-
-type QueuedKeys = Vec<(AccountId, SessionKeys)>;
 
 pub struct RuntimeApiImpl<C, B, BE>
 where
@@ -136,6 +134,15 @@ impl Display for ApiError {
         }
     }
 }
+
+impl_opaque_keys! {
+    pub struct MySessionKeys {
+        pub aura: AuraId,
+        pub aleph: primitives::AuthorityId,
+    }
+}
+
+type QueuedKeys = Vec<(AccountId, MySessionKeys)>;
 
 impl<C, B, BE> RuntimeApi for RuntimeApiImpl<C, B, BE>
 where
