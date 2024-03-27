@@ -135,14 +135,7 @@ impl Display for ApiError {
     }
 }
 
-impl_opaque_keys! {
-    pub struct MySessionKeys {
-        pub aura: AuraId,
-        pub aleph: primitives::AuthorityId,
-    }
-}
-
-type QueuedKeys = Vec<(AccountId, MySessionKeys)>;
+type QueuedKeys = Vec<(AccountId, primitives::AlephNodeSessionKeys)>;
 
 impl<C, B, BE> RuntimeApi for RuntimeApiImpl<C, B, BE>
 where
