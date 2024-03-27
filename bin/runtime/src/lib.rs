@@ -27,7 +27,7 @@ use frame_support::{
         ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
         InstanceFilter, SortedMembers, WithdrawReasons,
     },
-    weights::constants::WEIGHT_REF_TIME_PER_MILLIS,
+    weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, WeightToFee},
     PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -42,11 +42,12 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use primitives::{
-    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, ApiError as AlephApiError,
-    AuraId, AuthorityId as AlephId, Block as AlephBlock, BlockId as AlephBlockId,
-    BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData, SessionCommittee,
-    SessionIndex, SessionInfoProvider, SessionValidatorError, Version as FinalityVersion,
-    ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods,
+    AlephNodeSessionKeys as SessionKeys, ApiError as AlephApiError, AuraId, AuthorityId as AlephId,
+    Block as AlephBlock, BlockId as AlephBlockId, BlockNumber as AlephBlockNumber,
+    Header as AlephHeader, SessionAuthorityData, SessionCommittee, SessionIndex,
+    SessionInfoProvider, SessionValidatorError, Version as FinalityVersion, ADDRESSES_ENCODING,
+    DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
     DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Nonce, Signature};
@@ -63,7 +64,7 @@ use sp_runtime::{
         IdentityLookup, One, OpaqueKeys,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedU128, RuntimeDebug,
+    ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
 };
 pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
 use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
@@ -101,7 +102,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 70,
+    spec_version: 71,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 18,
@@ -280,8 +281,8 @@ parameter_types! {
     // a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
     // follows polkadot : https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L369
     pub const OperationalFeeMultiplier: u8 = 5;
-    // We expect that on average 25% of the normal capacity will be occupied with normal txs.
-    pub const TargetSaturationLevel: Perquintill = Perquintill::from_percent(25);
+    // We expect that on average 50% of the normal capacity will be occupied with normal txs.
+    pub const TargetSaturationLevel: Perquintill = Perquintill::from_percent(50);
     // During 20 blocks the fee may not change more than by 100%. This, together with the
     // `TargetSaturationLevel` value, results in variability ~0.067. For the corresponding
     // formulas please refer to Substrate code at `frame/transaction-payment/src/lib.rs`.
@@ -291,11 +292,21 @@ parameter_types! {
     pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
+pub struct DivideFeeBy<const N: Balance>;
+
+impl<const N: Balance> WeightToFee for DivideFeeBy<N> {
+    type Balance = Balance;
+
+    fn weight_to_fee(weight: &Weight) -> Self::Balance {
+        Balance::saturated_from(weight.ref_time()).saturating_div(N)
+    }
+}
+
 impl pallet_transaction_payment::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
-    type LengthToFee = IdentityFee<Balance>;
-    type WeightToFee = IdentityFee<Balance>;
+    type LengthToFee = DivideFeeBy<10>;
+    type WeightToFee = DivideFeeBy<10>;
     type FeeMultiplierUpdate = TargetedFeeAdjustment<
         Self,
         TargetSaturationLevel,
@@ -371,13 +382,6 @@ impl pallet_vk_storage::Config for Runtime {
     type StorageCharge = VkStorageCharge;
 }
 
-impl_opaque_keys! {
-    pub struct SessionKeys {
-        pub aura: Aura,
-        pub aleph: Aleph,
-    }
-}
-
 parameter_types! {
     pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const MaximumBanReasonLength: u32 = DEFAULT_BAN_REASON_LENGTH;
@@ -397,6 +401,7 @@ impl pallet_operations::Config for Runtime {
     type AccountInfoProvider = System;
     type BalancesProvider = Balances;
     type NextKeysSessionProvider = Session;
+    type BondedStashProvider = Staking;
 }
 
 impl pallet_committee_management::Config for Runtime {
@@ -423,7 +428,7 @@ impl pallet_session::Config for Runtime {
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type SessionManager = Aleph;
-    type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+    type SessionHandler = (Aura, Aleph);
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
