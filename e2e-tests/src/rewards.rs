@@ -83,9 +83,20 @@ pub async fn download_exposure<S: StakingApi>(
     account_id: &AccountId,
     beginning_of_session_block_hash: BlockHash,
 ) -> Balance {
-    connection
+    let exposure = connection
         .get_exposure(era, account_id, Some(beginning_of_session_block_hash))
-        .await
+        .await;
+    info!(
+        "Validator {} has own exposure of {} and total of {}.",
+        account_id, exposure.own, exposure.total
+    );
+    exposure.others.iter().for_each(|individual_exposure| {
+        info!(
+            "Validator {} has nominator {} exposure {}.",
+            account_id, individual_exposure.who, individual_exposure.value
+        )
+    });
+    exposure.total
 }
 
 fn check_rewards(

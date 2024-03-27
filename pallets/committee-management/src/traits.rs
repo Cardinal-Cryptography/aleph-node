@@ -42,8 +42,7 @@ where
     }
 
     fn elected_validators(era: EraIndex) -> Vec<Self::AccountId> {
-        // pallet_staking::ErasStakers::<T>::iter_key_prefix(era).collect()
-        pallet_staking::ErasStakersOverview::<T>::iter_key_prefix(era).collect()
+        pallet_staking::ErasStakers::<T>::iter_key_prefix(era).collect()
     }
 }
 
@@ -62,11 +61,8 @@ where
 {
     type AccountId = T::AccountId;
     fn validator_totals(era: EraIndex) -> Vec<(Self::AccountId, u128)> {
-        // pallet_staking::ErasStakers::<T>::iter_prefix(era)
-        // .map(|(validator, exposure)| (validator, exposure.total.into()))
-        // .collect()
-        pallet_staking::ErasStakersOverview::<T>::iter_prefix(era)
-            .map(|(validator, overview)| (validator, overview.total.into()))
+        pallet_staking::ErasStakers::<T>::iter_prefix(era)
+            .map(|(validator, exposure)| (validator, exposure.total.into()))
             .collect()
     }
 
