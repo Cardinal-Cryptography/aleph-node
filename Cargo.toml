@@ -113,6 +113,10 @@ pallet-utility = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.
 pallet-vesting = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 pallet-proxy = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 
+frame-system-benchmarking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+pallet-session-benchmarking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+pallet-nomination-pools-benchmarking = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+
 sc-basic-authorship = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
 sc-block-builder = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
 sc-chain-spec = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0" }
@@ -146,6 +150,7 @@ sp-core = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", b
 sp-inherents = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 sp-io = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 sp-keystore = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
+sp-keyring = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 sp-offchain = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 sp-runtime = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }
 sp-runtime-interface = { git = "https://github.com/Cardinal-Cryptography/polkadot-sdk.git", branch = "aleph-v1.3.0", default-features = false }

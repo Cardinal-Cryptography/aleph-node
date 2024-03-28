@@ -1,14 +1,19 @@
 mod pruning_config;
 
+use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use aleph_node::{new_authority, new_partial, Cli, Subcommand};
 use log::info;
 use primitives::HEAP_PAGES;
 use pruning_config::PruningConfigValidator;
 use sc_cli::{clap::Parser, SubstrateCli};
 use sc_network::config::Role;
+use sc_network_sync::service;
 use sc_service::{Configuration, PartialComponents};
 #[cfg(any(feature = "try-runtime", feature = "runtime-benchmarks"))]
 use {aleph_node::ExecutorDispatch, aleph_runtime::Block, sc_executor::NativeExecutionDispatch};
+
+#[cfg(feature = "runtime-benchmarks")]
+use aleph_node::benchmarking::{inherent_benchmark_data, RemarkBuilder};
 
 fn enforce_heap_pages(config: &mut Configuration) {
     config.default_heap_pages = Some(HEAP_PAGES);
@@ -117,10 +122,30 @@ fn main() -> sc_cli::Result<()> {
         Some(Subcommand::Benchmark(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| {
-                if let frame_benchmarking_cli::BenchmarkCmd::Pallet(cmd) = cmd {
-                    cmd.run::<Block, <ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions>(config)
-                } else {
-                    Err(sc_cli::Error::Input("Wrong subcommand".to_string()))
+                match cmd {
+                    frame_benchmarking_cli::BenchmarkCmd::Pallet(cmd) => {
+                        cmd.run::<Block, <ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions>(config)
+                    }
+                    frame_benchmarking_cli::BenchmarkCmd::Overhead(cmd) => {
+                        let PartialComponents {
+                            client,
+                            ..
+                        } = new_partial(&config)?;
+                        let ext_builder = RemarkBuilder::new(client.clone());
+
+                        cmd.run(
+                            config,
+                            client,
+                            inherent_benchmark_data()?,
+                            Vec::new(),
+                            &ext_builder,
+                        )
+                    },
+                    frame_benchmarking_cli::BenchmarkCmd::Machine(cmd) =>
+                        cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
+                    _ => {
+                        Err(sc_cli::Error::Input("Wrong subcommand".to_string()))
+                    }
                 }
             })
         }

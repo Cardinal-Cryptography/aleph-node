@@ -103,7 +103,7 @@ pub mod pallet {
     /// Default value for elections openness.
     #[pallet::type_value]
     pub fn DefaultOpenness<T: Config>() -> ElectionOpenness {
-        ElectionOpenness::Permissioned
+        ElectionOpenness::Permissionless
     }
 
     /// Openness of the elections, whether we allow all candidates that bonded enough tokens or

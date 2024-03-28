@@ -359,6 +359,16 @@ fn generate_genesis_config(
 
     let accounts_config = configure_chain_spec_fields(unique_accounts_balances, authorities);
 
+    #[cfg(not(feature = "runtime-benchmarks"))]
+        let min_val_bond = MIN_VALIDATOR_BOND;
+    #[cfg(not(feature = "runtime-benchmarks"))]
+        let min_nom_bond = MIN_NOMINATOR_BOND;
+
+    #[cfg(feature = "runtime-benchmarks")]
+        let min_val_bond = 1;
+    #[cfg(feature = "runtime-benchmarks")]
+        let min_nom_bond = 1;
+
     RuntimeGenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -387,11 +397,11 @@ fn generate_genesis_config(
         staking: StakingConfig {
             force_era: Forcing::NotForcing,
             validator_count,
-            minimum_validator_count: 4,
+            minimum_validator_count: 1,
             slash_reward_fraction: Perbill::from_percent(10),
             stakers: accounts_config.stakers,
-            min_validator_bond: MIN_VALIDATOR_BOND,
-            min_nominator_bond: MIN_NOMINATOR_BOND,
+            min_validator_bond: min_val_bond,
+            min_nominator_bond: min_nom_bond,
             ..Default::default()
         },
         aleph: AlephConfig {

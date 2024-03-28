@@ -34,6 +34,7 @@ use frame_system::{EnsureRoot, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
+pub use frame_system::Call as SystemCall;
 use pallet_committee_management::SessionAndEraManager;
 pub use pallet_feature_control::Feature;
 use pallet_identity::simple::IdentityInfo;
@@ -301,18 +302,34 @@ impl<const N: Balance> WeightToFee for DivideFeeBy<N> {
     }
 }
 
+
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+	pub FeeMultiplier: Multiplier = Multiplier::one();
+}
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_transaction_payment::ConstFeeMultiplier;
+
+#[cfg(feature = "runtime-benchmarks")]
+type FeeMultiplierUpdate = ConstFeeMultiplier<FeeMultiplier>;
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+
+type FeeMultiplierUpdate =
+TargetedFeeAdjustment<
+    Self,
+    TargetSaturationLevel,
+    FeeVariability,
+    MinimumMultiplier,
+    MaximumMultiplier,
+>;
 impl pallet_transaction_payment::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury>;
     type LengthToFee = DivideFeeBy<10>;
     type WeightToFee = DivideFeeBy<10>;
-    type FeeMultiplierUpdate = TargetedFeeAdjustment<
-        Self,
-        TargetSaturationLevel,
-        FeeVariability,
-        MinimumMultiplier,
-        MaximumMultiplier,
-    >;
+    type FeeMultiplierUpdate = FeeMultiplierUpdate;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
@@ -726,6 +743,9 @@ impl pallet_treasury::Config for Runtime {
     type Paymaster = PayFromAccount<Balances, TreasuryAccount>;
     type BalanceConverter = UnityAssetBalanceConversion;
     type PayoutPeriod = ConstU32<0>;
+
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -997,6 +1017,33 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
+//
+// System: frame_system = 0,
+// RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip = 1,
+// Scheduler: pallet_scheduler = 2,
+// Aura: pallet_aura = 3,
+// Timestamp: pallet_timestamp = 4,
+// Balances: pallet_balances = 5,
+// TransactionPayment: pallet_transaction_payment = 6,
+// Authorship: pallet_authorship = 7,
+// Staking: pallet_staking = 8,
+// History: pallet_session::historical = 9,
+// Session: pallet_session = 10,
+// Aleph: pallet_aleph = 11,
+// Elections: pallet_elections = 12,
+// Treasury: pallet_treasury = 13,
+// Vesting: pallet_vesting = 14,
+// Utility: pallet_utility = 15,
+// Multisig: pallet_multisig = 16,
+// Sudo: pallet_sudo = 17,
+// Contracts: pallet_contracts = 18,
+// NominationPools: pallet_nomination_pools = 19,
+// Identity: pallet_identity = 20,
+// CommitteeManagement: pallet_committee_management = 21,
+// Proxy: pallet_proxy = 22,
+// FeatureControl: pallet_feature_control = 23,
+// VkStorage: pallet_vk_storage = 24,
+// Operations: pallet_operations = 255,
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
     frame_benchmarking::define_benchmarks!(
@@ -1004,6 +1051,16 @@ mod benches {
         [pallet_vk_storage, VkStorage]
         [baby_liminal_extension, baby_liminal_extension::ChainExtensionBenchmarking<Runtime>]
         [pallet_contracts, Contracts]
+        [frame_system, SystemBench<Runtime>]
+        [pallet_timestamp, Timestamp]
+        [pallet_balances, Balances]
+        [pallet_session, SessionBench<Runtime>]
+        [pallet_vesting, Vesting]
+        [pallet_utility, Utility]
+        [pallet_multisig, Multisig]
+        [pallet_sudo, Sudo]
+        [pallet_identity, Identity]
+        [pallet_proxy, Proxy]
     );
 }
 
@@ -1294,6 +1351,9 @@ impl_runtime_apis! {
         ) {
             use frame_benchmarking::{Benchmarking, BenchmarkList};
             use frame_support::traits::StorageInfoTrait;
+			use pallet_session_benchmarking::Pallet as SessionBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -1308,6 +1368,12 @@ impl_runtime_apis! {
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
             use frame_benchmarking::{Benchmarking, BenchmarkBatch};
             use frame_support::traits::WhitelistedStorageKeys;
+			use pallet_session_benchmarking::Pallet as SessionBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+
+            impl pallet_session_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {}
+
 
             let whitelist: Vec<_> = AllPalletsWithSystem::whitelisted_storage_keys();
 

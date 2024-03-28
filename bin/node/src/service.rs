@@ -34,7 +34,7 @@ use crate::{
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
 };
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
+pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullPool = sc_transaction_pool::FullPool<Block, FullClient>;

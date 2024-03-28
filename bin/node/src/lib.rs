@@ -8,6 +8,10 @@ mod resources;
 mod rpc;
 mod service;
 
+
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 pub use cli::{Cli, Subcommand};
 pub use executor::ExecutorDispatch;
 use primitives as aleph_primitives;

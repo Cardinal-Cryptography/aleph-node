@@ -60,6 +60,10 @@ sp-application-crypto = { workspace = true }
 # Benchmarking stuff
 frame-benchmarking = { workspace = true, optional = true }
 
+frame-system-benchmarking = { workspace = true, optional = true }
+pallet-session-benchmarking = { workspace = true, optional = true }
+pallet-nomination-pools-benchmarking = { workspace = true, optional = true}
+
 pallet-aleph = { workspace = true }
 pallet-committee-management= { workspace = true }
 pallet-elections = { workspace = true }
@@ -130,6 +134,9 @@ std = [
     "scale-info/std",
     "sp-application-crypto/std",
     "baby-liminal-extension/runtime-std",
+    "pallet-nomination-pools-benchmarking?/std",
+    "frame-system-benchmarking?/std",
+    "pallet-session-benchmarking?/std",
 ]
 short_session = ["primitives/short_session"]
 try-runtime = [
@@ -168,6 +175,21 @@ runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "pallet-feature-control/runtime-benchmarks",
     "pallet-vk-storage/runtime-benchmarks",
+    "pallet-session-benchmarking/runtime-benchmarks",
+    "frame-system-benchmarking/runtime-benchmarks",
     "pallet-contracts/runtime-benchmarks",
     "baby-liminal-extension/runtime-benchmarks",
+    "pallet-scheduler/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
+    "pallet-treasury/runtime-benchmarks",
+    "pallet-vesting/runtime-benchmarks",
+    "pallet-utility/runtime-benchmarks",
+    "pallet-multisig/runtime-benchmarks",
+    "pallet-sudo/runtime-benchmarks",
+    "pallet-nomination-pools-benchmarking/runtime-benchmarks",
+    "pallet-nomination-pools/runtime-benchmarks",
+    "pallet-proxy/runtime-benchmarks",
+    "pallet-identity/runtime-benchmarks",
 ]

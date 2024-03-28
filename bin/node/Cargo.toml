@@ -67,6 +67,10 @@ aleph-runtime-interfaces = { workspace = true }
 finality-aleph = { workspace = true }
 primitives = { workspace = true }
 
+frame-system = { workspace = true }
+sp-keyring = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+
 # These dependencies are used for the node's RPCs
 jsonrpsee = { workspace = true, features = ["server"] }
 sc-rpc = { workspace = true }

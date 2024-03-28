@@ -277,6 +277,7 @@ dependencies = [
  "finality-aleph",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-system",
  "futures",
  "hex",
  "hex-literal",
@@ -284,6 +285,7 @@ dependencies = [
  "libp2p",
  "log",
  "pallet-staking",
+ "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "primitives",
@@ -317,6 +319,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-io",
+ "sp-keyring",
  "sp-keystore",
  "sp-runtime",
  "sp-timestamp",
@@ -337,6 +340,7 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "pallet-aleph",
@@ -352,11 +356,13 @@ dependencies = [
  "pallet-insecure-randomness-collective-flip",
  "pallet-multisig",
  "pallet-nomination-pools",
+ "pallet-nomination-pools-benchmarking",
  "pallet-nomination-pools-runtime-api",
  "pallet-operations",
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-session-benchmarking",
  "pallet-staking",
  "pallet-staking-runtime-api",
  "pallet-sudo",
@@ -2884,6 +2890,21 @@ dependencies = [
  "sp-std",
  "sp-version",
  "sp-weights",
+]
+
+[[package]]
+name = "frame-system-benchmarking"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -5529,6 +5550,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bags-list"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
+dependencies = [
+ "aquamarine",
+ "docify",
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
 name = "pallet-balances"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
@@ -5734,6 +5777,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-nomination-pools-benchmarking"
+version = "1.0.0"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "pallet-bags-list",
+ "pallet-nomination-pools",
+ "pallet-staking",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-nomination-pools-runtime-api"
 version = "1.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
@@ -5785,6 +5848,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
 dependencies = [
  "docify",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -5819,6 +5883,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-session-benchmarking"
+version = "4.0.0-dev"
+source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "pallet-staking",
+ "parity-scale-codec",
+ "rand 0.8.5",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/Cardinal-Cryptography/polkadot-sdk.git?branch=aleph-v1.3.0#239f33a83e8c162e298cda39849eb6602c704fe9"
@@ -5831,6 +5912,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-session",
  "parity-scale-codec",
+ "rand_chacha 0.2.2",
  "scale-info",
  "serde",
  "sp-application-crypto",
