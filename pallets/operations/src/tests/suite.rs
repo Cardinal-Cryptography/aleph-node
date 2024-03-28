@@ -284,7 +284,7 @@ fn given_bonded_accounts_balance_when_fixing_consumers_then_accounts_do_not_chan
                 authority_id
             )
         );
-        assert_eq!(consumers(authority_id), 4);
+        assert_eq!(consumers(authority_id), 3);
 
         assert_ok!(pallet_staking::Pallet::<TestRuntime>::bond(
             RuntimeOrigin::signed(non_authority_id),
@@ -298,7 +298,7 @@ fn given_bonded_accounts_balance_when_fixing_consumers_then_accounts_do_not_chan
                 non_authority_id
             )
         );
-        assert_eq!(consumers(non_authority_id), 3);
+        assert_eq!(consumers(non_authority_id), 2);
     });
 }
 
@@ -469,7 +469,7 @@ fn given_validator_with_stash_not_equal_to_controller_when_fixing_consumers_then
         pallet_staking::Ledger::<TestRuntime>::set(non_authority_id, Some(ledger));
 
         frame_system::Pallet::<TestRuntime>::dec_consumers(&authority_id);
-        assert_eq!(consumers(authority_id), 3);
+        assert_eq!(consumers(authority_id), 2);
         assert_eq!(consumers(non_authority_id), 0);
         frame_system::Pallet::<TestRuntime>::reset_events();
         assert_eq!(pallet_operations_events().len(), 0);
@@ -480,7 +480,7 @@ fn given_validator_with_stash_not_equal_to_controller_when_fixing_consumers_then
             )
         );
         assert_eq!(pallet_operations_events().len(), 0);
-        assert_eq!(consumers(authority_id), 3);
+        assert_eq!(consumers(authority_id), 2);
 
         assert_ok!(
             crate::Pallet::<TestRuntime>::fix_accounts_consumers_underflow(

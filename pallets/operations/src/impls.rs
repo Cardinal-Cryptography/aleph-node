@@ -25,7 +25,6 @@ impl<T: Config> Pallet<T> {
         let has_vesting_lock = Self::has_vesting_lock(&who);
         let has_staking_lock = Self::has_staking_lock(&who);
         if has_staking_lock || has_vesting_lock {
-            expected_consumers += 1;
             if has_staking_lock {
                 expected_consumers += 1;
             }
