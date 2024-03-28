@@ -24,10 +24,8 @@ impl<T: Config> Pallet<T> {
         }
         let has_vesting_lock = Self::has_vesting_lock(&who);
         let has_staking_lock = Self::has_staking_lock(&who);
-        if has_staking_lock || has_vesting_lock {
-            if has_staking_lock {
-                expected_consumers += 1;
-            }
+        if (has_staking_lock || has_vesting_lock) && has_staking_lock {
+            expected_consumers += 1;
         }
         if Self::has_next_session_keys_and_account_is_controller(&who) {
             expected_consumers += 1;

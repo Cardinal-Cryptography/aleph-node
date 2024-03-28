@@ -74,8 +74,20 @@ pub trait StakingApi {
     /// Returns [`minimum_validator_count`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.minimum_validator_count).
     /// * `at` - optional hash of a block to query state from
     async fn get_minimum_validator_count(&self, at: Option<BlockHash>) -> u32;
+
     /// Returns [`SessionsPerEra`](https://paritytech.github.io/substrate/master/pallet_staking/trait.Config.html#associatedtype.SessionsPerEra) const.
     async fn get_session_per_era(&self) -> anyhow::Result<u32>;
+
+    /// Returns [`ClaimedRewards`](https://paritytech.github.io/polkadot-sdk/master/pallet_staking/type.ClaimedRewards.html) for a given era and validator.
+    /// * `era` - an era index
+    /// * `validator` - account ID of the validator
+    /// * `at` - optional hash of a block to query state from
+    async fn get_claimed_rewards(
+        &self,
+        era: u32,
+        validator: AccountId,
+        at: Option<BlockHash>,
+    ) -> Vec<u32>;
 }
 
 /// Pallet staking api
@@ -388,6 +400,18 @@ impl<C: ConnectionApi + AsConnection> StakingApi for C {
             .constants()
             .at(&addrs)
             .map_err(|e| e.into())
+    }
+
+    async fn get_claimed_rewards(
+        &self,
+        era: u32,
+        validator: AccountId,
+        at: Option<BlockHash>,
+    ) -> Vec<u32> {
+        let addrs = api::storage()
+            .staking()
+            .claimed_rewards(era, Static(validator));
+        self.get_storage_entry(&addrs, at).await
     }
 }
 

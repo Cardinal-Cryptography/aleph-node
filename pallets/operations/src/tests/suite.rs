@@ -366,9 +366,12 @@ fn given_non_staking_account_with_vesting_lock_when_fixing_consumers_then_consum
                 non_authority_id
             )
         );
-        assert_eq!(pallet_operations_events(), []);
+        assert_eq!(
+            pallet_operations_events(),
+            [crate::Event::ConsumersUnderflowFixed { who: 2 }]
+        );
 
-        assert_eq!(consumers(non_authority_id), 0);
+        assert_eq!(consumers(non_authority_id), 1);
     });
 }
 
@@ -399,9 +402,12 @@ fn given_nominator_account_with_staking_lock_when_fixing_consumers_then_consumer
                 non_authority_id
             )
         );
-        assert_eq!(pallet_operations_events(), []);
+        assert_eq!(
+            pallet_operations_events(),
+            [crate::Event::ConsumersUnderflowFixed { who: 2 }]
+        );
 
-        assert_eq!(consumers(non_authority_id), 1);
+        assert_eq!(consumers(non_authority_id), 2);
     });
 }
 
