@@ -1982,9 +1982,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                188u8, 120u8, 53u8, 125u8, 197u8, 181u8, 64u8, 86u8, 7u8, 174u8, 66u8, 29u8, 151u8,
-                60u8, 133u8, 107u8, 119u8, 235u8, 160u8, 135u8, 73u8, 232u8, 164u8, 246u8, 105u8,
-                123u8, 222u8, 151u8, 79u8, 179u8, 239u8, 172u8,
+                13u8, 191u8, 147u8, 152u8, 183u8, 94u8, 225u8, 44u8, 83u8, 155u8, 47u8, 5u8, 252u8,
+                85u8, 38u8, 212u8, 100u8, 81u8, 18u8, 210u8, 107u8, 64u8, 170u8, 4u8, 72u8, 159u8,
+                30u8, 247u8, 164u8, 105u8, 92u8, 86u8,
             ]
     }
     pub mod system {
@@ -8644,7 +8644,7 @@ pub mod api {
                 #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
                 #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
                 pub struct SetKeys {
-                    pub keys: runtime_types::aleph_runtime::SessionKeys,
+                    pub keys: runtime_types::primitives::AlephNodeSessionKeys,
                     pub proof: ::std::vec::Vec<::core::primitive::u8>,
                 }
                 impl ::subxt::blocks::StaticExtrinsic for SetKeys {
@@ -8675,7 +8675,7 @@ pub mod api {
                 #[doc = "See [`Pallet::set_keys`]."]
                 pub fn set_keys(
                     &self,
-                    keys: runtime_types::aleph_runtime::SessionKeys,
+                    keys: runtime_types::primitives::AlephNodeSessionKeys,
                     proof: ::std::vec::Vec<::core::primitive::u8>,
                 ) -> ::subxt::tx::Payload<types::SetKeys> {
                     ::subxt::tx::Payload::new_static(
@@ -8815,7 +8815,7 @@ pub mod api {
                     ::subxt::storage::address::StaticStorageMapKey,
                     ::std::vec::Vec<(
                         ::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>,
-                        runtime_types::aleph_runtime::SessionKeys,
+                        runtime_types::primitives::AlephNodeSessionKeys,
                     )>,
                     ::subxt::storage::address::Yes,
                     ::subxt::storage::address::Yes,
@@ -8865,7 +8865,7 @@ pub mod api {
                     >,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::aleph_runtime::SessionKeys,
+                    runtime_types::primitives::AlephNodeSessionKeys,
                     ::subxt::storage::address::Yes,
                     (),
                     ::subxt::storage::address::Yes,
@@ -8888,7 +8888,7 @@ pub mod api {
                     &self,
                 ) -> ::subxt::storage::address::Address<
                     ::subxt::storage::address::StaticStorageMapKey,
-                    runtime_types::aleph_runtime::SessionKeys,
+                    runtime_types::primitives::AlephNodeSessionKeys,
                     (),
                     (),
                     ::subxt::storage::address::Yes,
@@ -9147,10 +9147,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            85u8, 84u8, 174u8, 207u8, 155u8, 49u8, 246u8, 139u8, 225u8, 250u8,
-                            225u8, 21u8, 12u8, 156u8, 21u8, 42u8, 28u8, 89u8, 33u8, 139u8, 135u8,
-                            229u8, 255u8, 158u8, 215u8, 254u8, 243u8, 24u8, 252u8, 222u8, 113u8,
-                            185u8,
+                            69u8, 247u8, 130u8, 92u8, 88u8, 174u8, 181u8, 86u8, 77u8, 198u8, 149u8,
+                            69u8, 130u8, 21u8, 247u8, 56u8, 119u8, 245u8, 65u8, 120u8, 4u8, 118u8,
+                            109u8, 84u8, 91u8, 80u8, 241u8, 162u8, 173u8, 27u8, 249u8, 226u8,
                         ],
                     )
                 }
@@ -18923,23 +18922,6 @@ pub mod api {
                 #[codec(index = 18)]
                 Contracts(runtime_types::pallet_contracts::pallet::HoldReason),
             }
-            #[derive(
-                :: subxt :: ext :: codec :: Decode,
-                :: subxt :: ext :: codec :: Encode,
-                :: subxt :: ext :: scale_decode :: DecodeAsType,
-                :: subxt :: ext :: scale_encode :: EncodeAsType,
-                Clone,
-                Debug,
-                Eq,
-                PartialEq,
-            )]
-            # [codec (crate = :: subxt :: ext :: codec)]
-            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
-            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
-            pub struct SessionKeys {
-                pub aura: runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public,
-                pub aleph: runtime_types::primitives::app::Public,
-            }
         }
         pub mod bounded_collections {
             use super::runtime_types;
@@ -23161,7 +23143,7 @@ pub mod api {
                     #[codec(index = 0)]
                     #[doc = "See [`Pallet::set_keys`]."]
                     set_keys {
-                        keys: runtime_types::aleph_runtime::SessionKeys,
+                        keys: runtime_types::primitives::AlephNodeSessionKeys,
                         proof: ::std::vec::Vec<::core::primitive::u8>,
                     },
                     #[codec(index = 1)]
@@ -24849,6 +24831,23 @@ pub mod api {
                 #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
                 #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
                 pub struct Public(pub runtime_types::sp_core::ed25519::Public);
+            }
+            #[derive(
+                :: subxt :: ext :: codec :: Decode,
+                :: subxt :: ext :: codec :: Encode,
+                :: subxt :: ext :: scale_decode :: DecodeAsType,
+                :: subxt :: ext :: scale_encode :: EncodeAsType,
+                Clone,
+                Debug,
+                Eq,
+                PartialEq,
+            )]
+            # [codec (crate = :: subxt :: ext :: codec)]
+            #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+            #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+            pub struct AlephNodeSessionKeys {
+                pub aura: runtime_types::sp_consensus_aura::sr25519::app_sr25519::Public,
+                pub aleph: runtime_types::primitives::app::Public,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
