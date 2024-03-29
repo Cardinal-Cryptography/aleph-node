@@ -154,7 +154,7 @@ pub const LEGACY_FINALITY_VERSION: u16 = 2;
 /// Percentage of validator performance that is treated as 100% performance
 pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
-/// Amount of non-finalized blocks that halts block production
+/// Number of non-finalized blocks that halts block production
 pub const DEFAULT_MAX_NON_FINALIZED_BLOCKS: u32 = 20;
 
 /// Hold set of validators that produce blocks and set of validators that participate in finality
