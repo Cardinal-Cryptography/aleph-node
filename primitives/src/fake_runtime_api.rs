@@ -38,7 +38,9 @@ use crate::{
     Version as FinalityVersion,
 };
 
+#[cfg(feature = "std")]
 pub mod fake_runtime {
+
     pub struct Runtime;
 
     use super::*;
