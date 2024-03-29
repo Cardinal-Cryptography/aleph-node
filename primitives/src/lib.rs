@@ -95,7 +95,7 @@ pub type SessionCount = u32;
 /// Block Count type
 pub type BlockCount = u32;
 
-/// Default number of heap pages that gives limit of 256MB for a runtime instance since each page is 64KB
+/// Default number of heap pages. That gives a limit of 256MB for a runtime instance, since each page is 64KB
 pub const HEAP_PAGES: u64 = 4096;
 
 /// How much execution time fits in a single block
