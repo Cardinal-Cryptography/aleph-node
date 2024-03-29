@@ -136,7 +136,7 @@ pub const ADDRESSES_ENCODING: u8 = 42;
 /// ABFT unit creation delay (in ms)
 pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
 
-/// Committe Size for new chains
+/// Committee Size for new chains
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
 
 pub const DEFAULT_CLEAN_SESSION_COUNTER_DELAY: SessionCount = 960;
