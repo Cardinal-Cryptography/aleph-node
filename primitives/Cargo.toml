@@ -46,8 +46,18 @@ std = [
     "sp-std/std",
     "sp-staking/std",
     "sp-consensus-aura/std",
+    "sp-version/std",
+    "sp-block-builder/std",
+    "sp-offchain/std",
+    "sp-transaction-pool/std",
+    "sp-session/std",
+    "sp-inherents/std",
 
     "frame-support/std",
     "frame-system-rpc-runtime-api/std",
+
+    "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-transaction-payment/std",
+
 ]
 short_session = []
