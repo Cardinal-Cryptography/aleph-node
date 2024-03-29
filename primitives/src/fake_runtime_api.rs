@@ -29,6 +29,7 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult,
 };
+use sp_std::vec::Vec;
 use sp_version::RuntimeVersion;
 
 use crate::{
