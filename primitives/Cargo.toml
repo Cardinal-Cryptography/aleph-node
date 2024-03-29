@@ -20,8 +20,8 @@ sp-std = { workspace = true }
 sp-staking = { workspace = true }
 sp-consensus-aura = { workspace = true }
 
-frame-support = { workspace = true, optional = true }
-frame-system-rpc-runtime-api = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system-rpc-runtime-api = { workspace = true }
 
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
