@@ -26,7 +26,7 @@ pub type TestClient = client::Client<
     Backend,
     client::LocalCallExecutor<TBlock, Backend, ExecutorDispatch>,
     TBlock,
-    fake_runtime_api::RuntimeApi,
+    fake_runtime_api::fake_runtime::RuntimeApi,
 >;
 
 /// A `test-runtime` extensions to `TestClientBuilder`.

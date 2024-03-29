@@ -12,7 +12,9 @@ use finality_aleph::{
     SubstrateNetwork, SyncOracle, TracingBlockImport, ValidatorAddressCache,
 };
 use log::warn;
-use primitives::{fake_runtime_api::RuntimeApi, AlephSessionApi, Block, MAX_BLOCK_SIZE};
+use primitives::{
+    fake_runtime_api::fake_runtime::RuntimeApi, AlephSessionApi, Block, MAX_BLOCK_SIZE,
+};
 use sc_basic_authorship::ProposerFactory;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
