@@ -1070,10 +1070,6 @@ impl_runtime_apis! {
         ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
         }
-        // TODO check if it's needed, it exists in polkadot-sdk 1.4.0 fake_runtime.rs
-        // fn query_info(_: <Block as BlockT>::Extrinsic, _: u32) -> RuntimeDispatchInfo<Balance> {
-        //     unimplemented!()
-        // }
         fn query_fee_details(
             uxt: <Block as BlockT>::Extrinsic,
             len: u32,

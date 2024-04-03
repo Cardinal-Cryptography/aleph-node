@@ -321,7 +321,6 @@ pub struct VersionChange {
     pub session: SessionIndex,
 }
 
-// TODO this should be moved to separate crate pallet-aleph-session-api
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi {
         fn next_session_authorities() -> Result<Vec<AuthorityId>, ApiError>;
