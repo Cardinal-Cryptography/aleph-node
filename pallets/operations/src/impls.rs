@@ -9,7 +9,7 @@ use sp_runtime::DispatchError;
 use crate::{
     pallet::{Config, Event, Pallet},
     traits::{AccountInfoProvider, BalancesProvider, BondedStashProvider, NextKeysSessionProvider},
-    LOG_TARGET, STAKING_ID, VESTING_ID,
+    LOG_TARGET, STAKING_ID,
 };
 
 impl<T: Config> Pallet<T> {
