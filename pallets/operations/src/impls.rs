@@ -22,7 +22,6 @@ impl<T: Config> Pallet<T> {
         if Self::reserved_or_frozen_non_zero(&who) {
             expected_consumers += 1;
         }
-        let has_vesting_lock = Self::has_vesting_lock(&who);
         let has_staking_lock = Self::has_staking_lock(&who);
         if has_staking_lock {
             expected_consumers += 1;
@@ -50,11 +49,6 @@ impl<T: Config> Pallet<T> {
 
     fn reserved_or_frozen_non_zero(who: &T::AccountId) -> bool {
         !T::BalancesProvider::is_reserved_zero(who) || !T::BalancesProvider::is_frozen_zero(who)
-    }
-
-    fn has_vesting_lock(who: &T::AccountId) -> bool {
-        let locks = T::BalancesProvider::locks(who);
-        Self::has_lock(&locks, VESTING_ID)
     }
 
     fn has_staking_lock(who: &T::AccountId) -> bool {
