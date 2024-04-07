@@ -80,28 +80,6 @@ where
         }
     }
 
-    // /// Returns a list of connected peers with some additional information.
-    // // TODO(A0-3886): This shouldn't need to return the substrate type after replacing RPCs.
-    // pub fn peers_info(&self) -> Vec<(PeerId, ExtendedPeerInfo<B>)>
-    // where
-    //     B: Block<Hash = BlockHash>,
-    //     B::Header: Header<Number = BlockNumber>,
-    // {
-    //     self.peers
-    //         .iter()
-    //         .map(|(id, info)| {
-    //             (
-    //                 *id,
-    //                 ExtendedPeerInfo {
-    //                     roles: info.role,
-    //                     best_hash: Default::default(),
-    //                     best_number: 0,
-    //                 },
-    //             )
-    //         })
-    //         .collect()
-    // }
-
     fn verify_connection(
         &self,
         peer_id: PeerId,
