@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  main:
+  feature-gated-builds:
     name: Feature-gated builds
     runs-on: [self-hosted, Linux, X64, large]
     env:
@@ -31,3 +31,18 @@ jobs:
 
       - name: aleph-node with runtime-benchmarks
         run: cargo check --profile production -p aleph-node --features runtime-benchmarks --locked
+
+  slack-notification:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [feature-gated-builds]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
