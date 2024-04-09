@@ -10,8 +10,9 @@ use sc_service::Configuration;
     feature = "try-runtime"
 )))]
 pub mod aleph_executor {
-    use super::Configuration;
     use sc_executor::WasmExecutor;
+
+    use super::Configuration;
 
     type ExtendHostFunctions = (
         sp_io::SubstrateHostFunctions,
@@ -30,8 +31,9 @@ pub mod aleph_executor {
     feature = "try-runtime"
 ))]
 pub mod aleph_executor {
-    use super::Configuration;
     use sc_executor::NativeElseWasmExecutor;
+
+    use super::Configuration;
 
     pub struct ExecutorDispatch;
 
