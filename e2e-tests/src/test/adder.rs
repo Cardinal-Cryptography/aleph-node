@@ -171,12 +171,13 @@ impl AdderInstance {
     }
 
     pub async fn get<C: ConnectionApi>(&self, conn: &C) -> Result<u32> {
-        self.contract.contract_read0(conn, "get").await
+        self.contract.read_api().read0(conn, "get").await
     }
 
     pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<TxInfo> {
         self.contract
-            .contract_exec(conn, "add", &[value.to_string()])
+            .exec_api()
+            .exec(conn, "add", &[value.to_string()])
             .await
     }
 
@@ -194,11 +195,14 @@ impl AdderInstance {
             },
         );
 
-        self.contract.contract_exec(conn, "set_name", &[name]).await
+        self.contract
+            .exec_api()
+            .exec(conn, "set_name", &[name])
+            .await
     }
 
     pub async fn get_name<C: ConnectionApi>(&self, conn: &C) -> Result<Option<String>> {
-        let res: Option<String> = self.contract.contract_read0(conn, "get_name").await?;
+        let res: Option<String> = self.contract.read_api().read0(conn, "get_name").await?;
         Ok(res.map(|name| name.replace('\0', "")))
     }
 }
