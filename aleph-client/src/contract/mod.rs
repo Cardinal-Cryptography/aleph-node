@@ -51,7 +51,7 @@ use anyhow::{anyhow, Context, Result};
 use contract_transcode::ContractMessageTranscoder;
 pub use convertible_value::ConvertibleValue;
 use log::info;
-use pallet_contracts_primitives::ContractExecResult;
+use pallet_contracts::ContractExecResult;
 
 use crate::{
     connections::TxInfo,
