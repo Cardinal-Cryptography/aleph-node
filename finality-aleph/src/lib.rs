@@ -96,13 +96,13 @@ pub fn peers_set_config(
     naming: ProtocolNaming,
     protocol: Protocol,
 ) -> sc_network::config::NonDefaultSetConfig {
-    let mut config = sc_network::config::NonDefaultSetConfig::new(
+    let (config, _) = sc_network::config::NonDefaultSetConfig::new(
         naming.protocol_name(&protocol),
+        naming.fallback_protocol_names(&protocol),
         max_message_size(protocol),
+        None,
+        sc_network::config::SetConfig::default(),
     );
-
-    config.set_config = sc_network::config::SetConfig::default();
-    config.add_fallback_names(naming.fallback_protocol_names(&protocol));
     config
 }
 
