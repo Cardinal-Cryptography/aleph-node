@@ -9,7 +9,7 @@ use sc_service::Configuration;
     feature = "local-debugging",
     feature = "try-runtime"
 )))]
-pub mod executor {
+pub mod aleph_executor {
     use super::Configuration;
     use sc_executor::WasmExecutor;
 
@@ -29,7 +29,7 @@ pub mod executor {
     feature = "local-debugging",
     feature = "try-runtime"
 ))]
-pub mod executor {
+pub mod aleph_executor {
     use super::Configuration;
     use sc_executor::NativeElseWasmExecutor;
 

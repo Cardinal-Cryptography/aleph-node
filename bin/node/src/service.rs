@@ -35,7 +35,7 @@ use crate::{
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
 };
 
-type AlephExecutor = aleph_executor::executor::Executor;
+type AlephExecutor = aleph_executor::aleph_executor::Executor;
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
@@ -104,7 +104,7 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
         })
         .transpose()?;
 
-    let executor = aleph_executor::executor::get_executor(config);
+    let executor = aleph_executor::aleph_executor::get_executor(config);
 
     let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, AlephExecutor>(

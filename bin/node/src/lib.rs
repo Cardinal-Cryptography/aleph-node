@@ -13,7 +13,7 @@ mod service;
     feature = "local-debugging",
     feature = "try-runtime"
 ))]
-pub use executor::executor::ExecutorDispatch;
+pub use executor::aleph_executor::ExecutorDispatch;
 
 pub use cli::{Cli, Subcommand};
 pub use service::{new_authority, new_partial};

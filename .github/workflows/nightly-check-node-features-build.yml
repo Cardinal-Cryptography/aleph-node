@@ -1,6 +1,6 @@
 ---
 # This workflow checks node build with various features
-name: Feature-gated builds
+name: Nightly feature-gated builds
 on:
   workflow_dispatch:
   schedule:
