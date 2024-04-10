@@ -1,5 +1,3 @@
-use std::{fmt::Debug, str::FromStr, sync::Arc};
-
 use aleph_client::{
     contract::{
         event::{get_contract_events, listen_contract_events},
@@ -7,11 +5,15 @@ use aleph_client::{
     },
     contract_transcode::Value,
     pallets::system::SystemApi,
-    AccountId, ConnectionApi, SignedConnectionApi, TxInfo,
+    utility::BlocksApi,
+    AccountId, BlockHash, ConnectionApi, SignedConnectionApi, TxInfo,
 };
 use anyhow::{anyhow, Context, Result};
 use assert2::assert;
 use futures::{channel::mpsc::unbounded, StreamExt};
+use std::thread::sleep;
+use std::time::Duration;
+use std::{fmt::Debug, str::FromStr, sync::Arc};
 
 use crate::{config::setup_test, test::helpers::basic_test_context};
 
@@ -139,6 +141,35 @@ pub async fn adder_dry_run_failure() -> Result<()> {
     Ok(())
 }
 
+/// Test read only contract calls.
+#[tokio::test]
+pub async fn adder_readonly_calls() -> Result<()> {
+    let config = setup_test();
+
+    let (conn, _authority, account) = basic_test_context(config).await?;
+
+    let contract = AdderInstance::new(
+        &config.test_case_params.adder,
+        &config.test_case_params.adder_metadata,
+    )?;
+
+    let base = contract.get(&conn).await?;
+    let block_with_state_0 = conn
+        .get_block_hash(conn.get_best_block().await?.unwrap())
+        .await
+        .unwrap()
+        .unwrap();
+    let block_with_state_1 = contract.add(&account.sign(&conn), 1).await?.block_hash;
+    let block_with_state_2 = contract.add(&account.sign(&conn), 1).await?.block_hash;
+
+    assert_eq!(contract.get_at(&conn, block_with_state_0).await?, base);
+    assert_eq!(contract.get_at(&conn, block_with_state_1).await?, base + 1);
+    assert_eq!(contract.get_at(&conn, block_with_state_2).await?, base + 2);
+    assert_eq!(contract.get(&conn).await?, base + 2);
+
+    Ok(())
+}
+
 #[derive(Debug)]
 struct AdderInstance {
     contract: ContractInstance,
@@ -172,6 +203,10 @@ impl AdderInstance {
 
     pub async fn get<C: ConnectionApi>(&self, conn: &C) -> Result<u32> {
         self.contract.read_api().read0(conn, "get").await
+    }
+
+    pub async fn get_at<C: ConnectionApi>(&self, conn: &C, at: BlockHash) -> Result<u32> {
+        self.contract.read_api().at(at).read0(conn, "get").await
     }
 
     pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<TxInfo> {
