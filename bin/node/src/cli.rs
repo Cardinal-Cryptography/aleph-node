@@ -3,12 +3,9 @@ use sc_cli::{
     PurgeChainCmd, RunCmd, SubstrateCli,
 };
 
-use crate::{
-    aleph_cli::AlephCli,
-    chain_spec,
-    chain_spec::{mainnet_config, testnet_config, BootstrapChainCmd},
-    commands::{BootstrapNodeCmd, ConvertChainspecToRawCmd},
-};
+use crate::chain_spec::commands::BootstrapChainCmd;
+use crate::chain_spec::{mainnet_config, testnet_config, ConvertChainspecToRawCmd};
+use crate::{aleph_cli::AlephCli, chain_spec};
 
 #[derive(Debug, Parser)]
 #[clap(subcommand_negates_reqs(true), version(env!("SUBSTRATE_CLI_IMPL_VERSION")))]
@@ -69,14 +66,10 @@ pub enum Subcommand {
     #[command(subcommand)]
     Key(sc_cli::KeySubcommand),
 
-    /// Populate authorities keystore and generate chainspec in JSON format (printed to stdout)
-    /// Use `--raw` to produce the so called raw chainspec
+    /// Generates keystore (libp2p key and session keys), and generates chainspec to stdout
     BootstrapChain(BootstrapChainCmd),
 
-    /// Generate and print to stdout keys for a single node
-    BootstrapNode(BootstrapNodeCmd),
-
-    /// Takes a chainspec and generates a corresponfing raw chainspec
+    /// Takes a chainspec and generates a corresponding raw chainspec
     ConvertChainspecToRaw(ConvertChainspecToRawCmd),
 
     /// Validate blocks.
