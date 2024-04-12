@@ -10,7 +10,6 @@ use sc_chain_spec::ChainType;
 use sc_cli::clap::{self, Args, Parser};
 use sc_cli::{Error, KeystoreParams};
 use sc_service::BasePath;
-use serde::{Deserialize, Serialize};
 use sp_application_crypto::Ss58Codec;
 use std::io::Write;
 

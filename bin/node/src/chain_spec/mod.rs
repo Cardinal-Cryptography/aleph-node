@@ -9,6 +9,8 @@ use std::str::FromStr;
 mod builder;
 mod cli;
 
+pub use cli::ChainParams;
+
 pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";
 pub const CHAINTYPE_LIVE: &str = "live";

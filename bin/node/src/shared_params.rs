@@ -1,4 +1,4 @@
-use sc_cli::clap::{self, Args, Parser};
+use sc_cli::clap::{self, Args};
 use sc_service::BasePath;
 use std::path::PathBuf;
 

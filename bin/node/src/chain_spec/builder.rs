@@ -1,25 +1,16 @@
-use std::{str::FromStr, string::ToString};
+use std::string::ToString;
 
 use crate::chain_spec::cli::ChainParams;
 use crate::chain_spec::AlephNodeChainSpec;
 use crate::commands::AuthorityKeys;
 use aleph_runtime::{Feature, Perbill, WASM_BINARY};
-use libp2p::PeerId;
 use pallet_staking::{Forcing, StakerStatus};
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
-    AccountId, AlephNodeSessionKeys as SessionKeys, AuraId, AuthorityId as AlephId,
-    Version as FinalityVersion, ADDRESSES_ENCODING, LEGACY_FINALITY_VERSION, TOKEN_DECIMALS,
+    AccountId, AlephNodeSessionKeys as SessionKeys, Version as FinalityVersion, ADDRESSES_ENCODING,
+    TOKEN_DECIMALS,
 };
-use sc_cli::{
-    clap::{self, Args},
-    Error as CliError,
-};
-use sc_service::ChainType;
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
-use sp_application_crypto::Ss58Codec;
-use sp_core::{sr25519, Pair};
 
 fn to_account_ids(authorities: &[AuthorityKeys]) -> impl Iterator<Item = AccountId> + '_ {
     authorities.iter().map(|auth| auth.account_id.clone())
@@ -74,7 +65,10 @@ pub fn build_chain_spec(
 /// Calculate initial endowments such that total issuance is kept approximately constant.
 fn calculate_initial_endowment(accounts: &[AccountId]) -> u128 {
     let total_issuance = 300_000_000u128 * 10u128.pow(TOKEN_DECIMALS);
-    total_issuance / (accounts.len() as u128)
+    // due to known issue https://github.com/paritytech/polkadot-sdk/pull/2987/files,
+    // we need to make sure returned number is un u64 range, otherwise serde_json::json macro fails
+    // this is fixed in polkadot-sdk 1.6.0
+    total_issuance / (accounts.len() as u128) / 10
 }
 
 /// Configure initial storage state for FRAME modules.
@@ -86,10 +80,13 @@ fn generate_genesis_config(
     faucet_account: Option<AccountId>,
     finality_version: FinalityVersion,
 ) -> serde_json::Value {
-    let mut endowed_accounts = rich_accounts
-        .unwrap_or_default()
-        .into_iter()
-        .chain([sudo_account.clone()])
+    let mut endowed_accounts = to_account_ids(&authorities)
+        .chain(
+            rich_accounts
+                .unwrap_or_default()
+                .into_iter()
+                .chain([sudo_account.clone()]),
+        )
         .collect::<Vec<_>>();
     if let Some(faucet_account) = faucet_account {
         endowed_accounts.push(faucet_account);
@@ -98,12 +95,14 @@ fn generate_genesis_config(
     endowed_accounts.dedup();
     let initial_endowement = calculate_initial_endowment(&endowed_accounts);
 
+    let initial_balances = endowed_accounts
+        .into_iter()
+        .map(|account| (account, initial_endowement))
+        .collect::<Vec<_>>();
+
     serde_json::json!({
         "balances": {
-            "balances": endowed_accounts
-                        .into_iter()
-                        .map(|account| (account, initial_endowement))
-                        .collect::<Vec<_>>(),
+            "balances": initial_balances,
         },
         "sudo": {
             "key": Some(sudo_account),
@@ -152,7 +151,7 @@ fn generate_genesis_config(
             "finalityVersion": finality_version,
         },
         "committeeManagement": {
-            "session_validators": {
+            "sessionValidators": {
                 "committee": to_account_ids(&authorities).collect::<Vec<_>>(),
             },
         },

@@ -4,11 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use chain_spec::DEFAULT_CHAIN_ID;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use primitives::{AccountId, AuraId, AuthorityId as AlephId};
 use sc_cli::{
-    clap::{self, Args, Parser},
+    clap::{self, Parser},
     Error, KeystoreParams,
 };
 use sc_keystore::LocalKeystore;
@@ -17,7 +16,9 @@ use serde::{Deserialize, Serialize};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_keystore::Keystore;
 
-use crate::chain_spec::{self, account_id_from_string, AlephNodeChainSpec, SerializablePeerId};
+use crate::chain_spec::{
+    account_id_from_string, AlephNodeChainSpec, ChainParams, SerializablePeerId,
+};
 use crate::shared_params::SharedParams;
 
 /// returns Aura key, if absent a new key is generated
@@ -138,9 +139,8 @@ pub struct BootstrapNodeCmd {
     #[clap(flatten)]
     pub keystore_params: KeystoreParams,
 
-    /// Chain ID is a short identifier of the chain
-    #[arg(long, value_name = "ID", default_value = DEFAULT_CHAIN_ID)]
-    chain_id: String,
+    #[clap(flatten)]
+    pub chain_params: ChainParams,
 
     #[clap(flatten)]
     pub shared_params: SharedParams,
@@ -152,7 +152,7 @@ impl BootstrapNodeCmd {
         let base_path = self.shared_params.base_path();
         let backup_dir = self.shared_params.backup_dir();
         let node_key_file = self.shared_params.node_key_file();
-        let chain_id = self.chain_id.as_str();
+        let chain_id = self.chain_params.chain_id();
 
         bootstrap_backup(base_path.path(), backup_dir);
 
