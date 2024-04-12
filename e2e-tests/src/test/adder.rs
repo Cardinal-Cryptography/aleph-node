@@ -1,18 +1,17 @@
 use aleph_client::{
     contract::{
         event::{get_contract_events, listen_contract_events},
-        ContractInstance,
+        ContractInstance, ExecCallParams, ReadonlyCallParams,
     },
     contract_transcode::Value,
     pallets::system::SystemApi,
+    sp_weights::weight_v2::Weight,
     utility::BlocksApi,
     AccountId, BlockHash, ConnectionApi, SignedConnectionApi, TxInfo,
 };
 use anyhow::{anyhow, Context, Result};
 use assert2::assert;
 use futures::{channel::mpsc::unbounded, StreamExt};
-use std::thread::sleep;
-use std::time::Duration;
 use std::{fmt::Debug, str::FromStr, sync::Arc};
 
 use crate::{config::setup_test, test::helpers::basic_test_context};
@@ -170,6 +169,64 @@ pub async fn adder_readonly_calls() -> Result<()> {
     Ok(())
 }
 
+/// Test setting gas limits for contract calls.
+#[tokio::test]
+pub async fn adder_setting_gas_limits() -> Result<()> {
+    let config = setup_test();
+    let (conn, _authority, account) = basic_test_context(config).await?;
+    let contract = AdderInstance::new(
+        &config.test_case_params.adder,
+        &config.test_case_params.adder_metadata,
+    )?;
+
+    let dry_run_result = contract
+        .contract
+        .exec_dry_run(
+            &conn,
+            account.account_id().clone(),
+            "add",
+            &["1"],
+            Default::default(),
+        )
+        .await?;
+    let gas_required = dry_run_result.gas_required;
+
+    assert!(contract
+        .add_with_params(
+            &account.sign(&conn),
+            1,
+            ExecCallParams::new().gas_limit(Weight::new(
+                gas_required.ref_time() - 1,
+                gas_required.proof_size()
+            ))
+        )
+        .await
+        .is_err());
+    assert!(contract
+        .add_with_params(
+            &account.sign(&conn),
+            1,
+            ExecCallParams::new().gas_limit(Weight::new(
+                gas_required.ref_time(),
+                gas_required.proof_size() - 1
+            ))
+        )
+        .await
+        .is_err());
+    assert!(contract
+        .add_with_params(
+            &account.sign(&conn),
+            1,
+            ExecCallParams::new().gas_limit(Weight::new(
+                gas_required.ref_time(),
+                gas_required.proof_size()
+            ))
+        )
+        .await
+        .is_ok());
+    Ok(())
+}
+
 #[derive(Debug)]
 struct AdderInstance {
     contract: ContractInstance,
@@ -202,17 +259,27 @@ impl AdderInstance {
     }
 
     pub async fn get<C: ConnectionApi>(&self, conn: &C) -> Result<u32> {
-        self.contract.read_api().read0(conn, "get").await
+        self.contract.read0(conn, "get", Default::default()).await
     }
 
     pub async fn get_at<C: ConnectionApi>(&self, conn: &C, at: BlockHash) -> Result<u32> {
-        self.contract.read_api().at(at).read0(conn, "get").await
+        self.contract
+            .read0(conn, "get", ReadonlyCallParams::new().at(at))
+            .await
     }
 
     pub async fn add<S: SignedConnectionApi>(&self, conn: &S, value: u32) -> Result<TxInfo> {
+        self.add_with_params(conn, value, Default::default()).await
+    }
+
+    pub async fn add_with_params<S: SignedConnectionApi>(
+        &self,
+        conn: &S,
+        value: u32,
+        params: ExecCallParams,
+    ) -> Result<TxInfo> {
         self.contract
-            .exec_api()
-            .exec(conn, "add", &[value.to_string()])
+            .exec(conn, "add", &[value.to_string()], params)
             .await
     }
 
@@ -231,13 +298,15 @@ impl AdderInstance {
         );
 
         self.contract
-            .exec_api()
-            .exec(conn, "set_name", &[name])
+            .exec(conn, "set_name", &[name], Default::default())
             .await
     }
 
     pub async fn get_name<C: ConnectionApi>(&self, conn: &C) -> Result<Option<String>> {
-        let res: Option<String> = self.contract.read_api().read0(conn, "get_name").await?;
+        let res: Option<String> = self
+            .contract
+            .read0(conn, "get_name", Default::default())
+            .await?;
         Ok(res.map(|name| name.replace('\0', "")))
     }
 }

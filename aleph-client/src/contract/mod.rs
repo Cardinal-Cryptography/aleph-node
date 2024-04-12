@@ -25,18 +25,20 @@
 //!     }
 //!
 //!     async fn transfer(&self, conn: &SignedConnection, to: AccountId, amount: Balance) -> Result<TxInfo> {
-//!         self.contract.exec_api().exec(
+//!         self.contract.exec(
 //!             conn,
 //!             "PSP22::transfer",
 //!             vec![to.to_string().as_str(), amount.to_string().as_str(), "0x00"].as_slice(),
+//!             Default::default()
 //!         ).await
 //!     }
 //!
 //!     async fn balance_of(&self, conn: &Connection, account: AccountId) -> Result<Balance> {
-//!         self.contract.read_api().read(
+//!         self.contract.read(
 //!             conn,
 //!             "PSP22::balance_of",
 //!             &vec![account.to_string().as_str()],
+//!             Default::default()
 //!         ).await?
 //!     }
 //! }
@@ -69,126 +71,53 @@ pub struct ContractInstance {
 }
 
 /// Builder for read only contract call
-pub struct ReadonlyContractCallBuilder<'a> {
-    instance: &'a ContractInstance,
+#[derive(Debug, Clone, Default)]
+pub struct ReadonlyCallParams {
     at: Option<BlockHash>,
-    sender: AccountId,
+    sender: Option<AccountId>,
 }
 
-impl<'a> ReadonlyContractCallBuilder<'a> {
+impl ReadonlyCallParams {
+    /// Creates a new instance of `ReadonlyCallParams`.
+    pub fn new() -> Self {
+        Default::default()
+    }
     /// Sets the block hash to execute the call at. If not set, by default the latest block is used.
-    pub fn at(&mut self, at: BlockHash) -> &mut Self {
+    pub fn at(mut self, at: BlockHash) -> Self {
         self.at = Some(at);
         self
     }
 
     /// Overriders `sender` of the contract call as if it was executed by them. If not set,
     /// by default the contract address is used.
-    pub fn override_sender(&mut self, sender: AccountId) -> &mut Self {
-        self.sender = sender;
+    pub fn sender(mut self, sender: AccountId) -> Self {
+        self.sender = Some(sender);
         self
-    }
-
-    /// Reads the value of a read-only, 0-argument call via RPC.
-    pub async fn read0<T: TryFrom<ConvertibleValue, Error = anyhow::Error>, C: ConnectionApi>(
-        &self,
-        conn: &C,
-        message: &str,
-    ) -> Result<T> {
-        self.read::<String, T, C>(conn, message, &[]).await
-    }
-
-    /// Reads the value of a read-only call via RPC.
-    pub async fn read<
-        S: AsRef<str> + Debug,
-        T: TryFrom<ConvertibleValue, Error = anyhow::Error>,
-        C: ConnectionApi,
-    >(
-        &self,
-        conn: &C,
-        message: &str,
-        args: &[S],
-    ) -> Result<T> {
-        let result = self
-            .instance
-            .dry_run(conn, message, args, self.sender.clone(), 0, self.at)
-            .await?
-            .result
-            .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
-
-        let decoded = self.instance.decode(message, result.data)?;
-        ConvertibleValue(decoded).try_into()?
     }
 }
 
 /// Builder for a contract call that will be submitted to chain
-pub struct ExecCallBuilder<'a> {
-    instance: &'a ContractInstance,
+#[derive(Debug, Clone, Default)]
+pub struct ExecCallParams {
     value: Balance,
-    max_gas: Option<u64>,
-    max_proof_size: Option<u64>,
+    max_gas: Option<Weight>,
 }
 
-impl<'a> ExecCallBuilder<'a> {
+impl ExecCallParams {
+    /// Creates a new instance of `ExecCallParams`.
+    pub fn new() -> Self {
+        Default::default()
+    }
     /// Sets the `value` balance to send with the call.
-    pub fn value(&mut self, value: Balance) -> &mut Self {
+    pub fn value(mut self, value: Balance) -> Self {
         self.value = value;
         self
     }
 
-    /// Sets the `ref_time` parameter of `gas_limit` in the call.
-    pub fn max_gas_override(&mut self, max_gas_override: u64) -> &mut Self {
-        self.max_gas = Some(max_gas_override);
+    /// Sets the `gas_limit` in the call.
+    pub fn gas_limit(mut self, max_gas: Weight) -> Self {
+        self.max_gas = Some(max_gas);
         self
-    }
-
-    /// Sets the `proof_size` parameter of `gas_limit` in the call.
-    pub fn max_proof_size_override(&mut self, max_proof_size_override: u64) -> &mut Self {
-        self.max_proof_size = Some(max_proof_size_override);
-        self
-    }
-
-    /// Executes a 0-argument contract call sending the given amount of value with it.
-    pub async fn exec0<C: SignedConnectionApi>(&self, conn: &C, message: &str) -> Result<TxInfo> {
-        self.exec::<C, String>(conn, message, &[]).await
-    }
-
-    /// Executes a contract call sending the given amount of value with it.
-    pub async fn exec<C: SignedConnectionApi, S: AsRef<str> + Debug>(
-        &self,
-        conn: &C,
-        message: &str,
-        args: &[S],
-    ) -> Result<TxInfo> {
-        let dry_run_result = self
-            .instance
-            .dry_run(
-                conn,
-                message,
-                args,
-                conn.account_id().clone(),
-                self.value,
-                None,
-            )
-            .await?;
-
-        let data = self.instance.encode(message, args)?;
-        conn.call(
-            self.instance.address.clone(),
-            self.value,
-            Weight {
-                ref_time: self
-                    .max_gas
-                    .unwrap_or(dry_run_result.gas_required.ref_time()),
-                proof_size: self
-                    .max_proof_size
-                    .unwrap_or(dry_run_result.gas_required.proof_size()),
-            },
-            None,
-            data,
-            TxStatus::Finalized,
-        )
-        .await
     }
 }
 
@@ -206,35 +135,114 @@ impl ContractInstance {
         &self.address
     }
 
-    /// Returns read-only contract call builder. By default, it will use latest block's state
-    /// and contract's self address as a sender.
-    pub fn read_api(&self) -> ReadonlyContractCallBuilder {
-        ReadonlyContractCallBuilder {
-            instance: self,
-            at: None,
-            sender: self.address.clone(),
-        }
+    /// Reads the value of a read-only, 0-argument call via RPC.
+    pub async fn read0<T: TryFrom<ConvertibleValue, Error = anyhow::Error>, C: ConnectionApi>(
+        &self,
+        conn: &C,
+        message: &str,
+        params: ReadonlyCallParams,
+    ) -> Result<T> {
+        self.read::<String, T, C>(conn, message, &[], params).await
     }
 
-    /// Returns a builder for a contract call that will be submitted to chain. By default, it sends:
-    /// - zero `value` amount with the call,
-    /// - `gas_limit` is equal to the one calculated during the dry-run,
-    pub fn exec_api(&self) -> ExecCallBuilder {
-        ExecCallBuilder {
-            instance: self,
-            value: 0,
-            max_gas: None,
-            max_proof_size: None,
-        }
+    /// Reads the value of a read-only call via RPC.
+    pub async fn read<
+        S: AsRef<str> + Debug,
+        T: TryFrom<ConvertibleValue, Error = anyhow::Error>,
+        C: ConnectionApi,
+    >(
+        &self,
+        conn: &C,
+        message: &str,
+        args: &[S],
+        params: ReadonlyCallParams,
+    ) -> Result<T> {
+        let sender = params.sender.unwrap_or(self.address.clone());
+
+        let result = self
+            .dry_run_any(conn, message, args, sender, 0, None, params.at)
+            .await?
+            .result
+            .map_err(|e| anyhow!("Contract exec failed {:?}", e))?;
+
+        let decoded = self.decode(message, result.data)?;
+        ConvertibleValue(decoded).try_into()?
     }
 
-    async fn dry_run<S: AsRef<str> + Debug, C: ConnectionApi>(
+    /// Executes a 0-argument contract call sending with a given params.
+    pub async fn exec0<C: SignedConnectionApi>(
+        &self,
+        conn: &C,
+        message: &str,
+        params: ExecCallParams,
+    ) -> Result<TxInfo> {
+        self.exec::<C, String>(conn, message, &[], params).await
+    }
+
+    /// Executes a contract with a given params.
+    pub async fn exec<C: SignedConnectionApi, S: AsRef<str> + Debug>(
+        &self,
+        conn: &C,
+        message: &str,
+        args: &[S],
+        params: ExecCallParams,
+    ) -> Result<TxInfo> {
+        let dry_run_result = self
+            .exec_dry_run(
+                conn,
+                conn.account_id().clone(),
+                message,
+                args,
+                params.clone(),
+            )
+            .await?;
+
+        let data = self.encode(message, args)?;
+        conn.call(
+            self.address.clone(),
+            params.value,
+            params.max_gas.unwrap_or(Weight::new(
+                dry_run_result.gas_required.ref_time(),
+                dry_run_result.gas_required.proof_size(),
+            )),
+            None,
+            data,
+            TxStatus::Finalized,
+        )
+        .await
+    }
+
+    /// Dry-runs contract call with the given params. Useful to measure gas or to check if
+    /// the call will likely fail or not.
+    pub async fn exec_dry_run<C: ConnectionApi, S: AsRef<str> + Debug>(
+        &self,
+        conn: &C,
+        sender: AccountId,
+        message: &str,
+        args: &[S],
+        params: ExecCallParams,
+    ) -> Result<ContractExecResult<Balance, EventRecord>> {
+        self.dry_run_any(
+            conn,
+            message,
+            args,
+            sender,
+            params.value,
+            params.max_gas,
+            None,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn dry_run_any<S: AsRef<str> + Debug, C: ConnectionApi>(
         &self,
         conn: &C,
         message: &str,
         args: &[S],
         sender: AccountId,
         value: Balance,
+        gas_limit: Option<Weight>,
         at: Option<BlockHash>,
     ) -> Result<ContractExecResult<Balance, EventRecord>> {
         let payload = self.encode(message, args)?;
@@ -242,7 +250,7 @@ impl ContractInstance {
             origin: sender,
             dest: self.address.clone(),
             value,
-            gas_limit: None,
+            gas_limit,
             input_data: payload,
             storage_deposit_limit: None,
         };
