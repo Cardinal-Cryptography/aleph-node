@@ -257,7 +257,7 @@ if [[ -z "${DONT_BOOTSTRAP}" ]]; then
   validator_ids_string="${validator_ids_string//${IFS:0:1}/,}"
 
   info "Creating chainspec and generating keystore for validators accounts."
-  "${ALEPH_NODE}" bootstrap-chain --base-path "${BASE_PATH}" --account-ids "${validator_ids_string}" --chain-type local > "${BASE_PATH}/chainspec.json"
+  "${ALEPH_NODE}" bootstrap-chain --raw --base-path "${BASE_PATH}" --account-ids "${validator_ids_string}" --chain-type local > "${BASE_PATH}/chainspec.json"
 
   info "Generating keystores for ${RPC_NODES} RPC nodes"
   for i in $(seq 0 "$(( RPC_NODES - 1 ))"); do
