@@ -1,17 +1,22 @@
-use crate::chain_spec::builder::build_chain_spec;
-use crate::chain_spec::{
-    CHAINTYPE_DEV, CHAINTYPE_LIVE, CHAINTYPE_LOCAL, DEFAULT_CHAIN_ID, DEFAULT_SUDO_ACCOUNT,
-};
-use crate::commands::{authority_keys, bootstrap_backup, open_keystore};
-use crate::shared_params::SharedParams;
-use primitives::Version as FinalityVersion;
-use primitives::{AccountId, LEGACY_FINALITY_VERSION};
+use std::io::Write;
+
+use primitives::{AccountId, Version as FinalityVersion, LEGACY_FINALITY_VERSION};
 use sc_chain_spec::ChainType;
-use sc_cli::clap::{self, Args, Parser};
-use sc_cli::{Error, KeystoreParams};
+use sc_cli::{
+    clap::{self, Args, Parser},
+    Error, KeystoreParams,
+};
 use sc_service::BasePath;
 use sp_application_crypto::Ss58Codec;
-use std::io::Write;
+
+use crate::{
+    chain_spec::{
+        builder::build_chain_spec, CHAINTYPE_DEV, CHAINTYPE_LIVE, CHAINTYPE_LOCAL,
+        DEFAULT_CHAIN_ID, DEFAULT_SUDO_ACCOUNT,
+    },
+    commands::{authority_keys, bootstrap_backup, open_keystore},
+    shared_params::SharedParams,
+};
 
 #[derive(Debug, Args, Clone)]
 pub struct ChainParams {

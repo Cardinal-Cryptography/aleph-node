@@ -16,10 +16,10 @@ use serde::{Deserialize, Serialize};
 use sp_application_crypto::{key_types, Ss58Codec};
 use sp_keystore::Keystore;
 
-use crate::chain_spec::{
-    account_id_from_string, AlephNodeChainSpec, ChainParams, SerializablePeerId,
+use crate::{
+    chain_spec::{account_id_from_string, AlephNodeChainSpec, ChainParams, SerializablePeerId},
+    shared_params::SharedParams,
 };
-use crate::shared_params::SharedParams;
 
 /// returns Aura key, if absent a new key is generated
 fn aura_key(keystore: &impl Keystore) -> AuraId {

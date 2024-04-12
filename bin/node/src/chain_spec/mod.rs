@@ -1,10 +1,10 @@
+use std::str::FromStr;
+
 use libp2p::PeerId;
 use primitives::AccountId;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use sp_application_crypto::Pair;
 use sp_core::sr25519;
-use std::str::FromStr;
 
 mod builder;
 mod cli;

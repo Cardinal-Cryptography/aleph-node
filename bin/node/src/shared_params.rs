@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use sc_cli::clap::{self, Args};
 use sc_service::BasePath;
-use std::path::PathBuf;
 
 pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
