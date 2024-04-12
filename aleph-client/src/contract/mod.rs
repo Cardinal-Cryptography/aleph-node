@@ -125,12 +125,26 @@ impl<'a> ReadonlyContractCallBuilder<'a> {
 pub struct ExecCallBuilder<'a> {
     instance: &'a ContractInstance,
     value: Balance,
+    max_gas: Option<u64>,
+    max_proof_size: Option<u64>,
 }
 
 impl<'a> ExecCallBuilder<'a> {
     /// Sets the `value` balance to send with the call.
     pub fn value(&mut self, value: Balance) -> &mut Self {
         self.value = value;
+        self
+    }
+
+    /// Sets the `ref_time` parameter of `gas_limit` in the call.
+    pub fn max_gas_override(&mut self, max_gas_override: u64) -> &mut Self {
+        self.max_gas = Some(max_gas_override);
+        self
+    }
+
+    /// Sets the `proof_size` parameter of `gas_limit` in the call.
+    pub fn max_proof_size_override(&mut self, max_proof_size_override: u64) -> &mut Self {
+        self.max_proof_size = Some(max_proof_size_override);
         self
     }
 
@@ -163,8 +177,12 @@ impl<'a> ExecCallBuilder<'a> {
             self.instance.address.clone(),
             self.value,
             Weight {
-                ref_time: dry_run_result.gas_required.ref_time(),
-                proof_size: dry_run_result.gas_required.proof_size(),
+                ref_time: self
+                    .max_gas
+                    .unwrap_or(dry_run_result.gas_required.ref_time()),
+                proof_size: self
+                    .max_proof_size
+                    .unwrap_or(dry_run_result.gas_required.proof_size()),
             },
             None,
             data,
@@ -198,12 +216,15 @@ impl ContractInstance {
         }
     }
 
-    /// Returns a builder for a contract call that will be submitted to chain. By default, it sends
-    /// zero `value` amount with the call.
+    /// Returns a builder for a contract call that will be submitted to chain. By default, it sends:
+    /// - zero `value` amount with the call,
+    /// - `gas_limit` is equal to the one calculated during the dry-run,
     pub fn exec_api(&self) -> ExecCallBuilder {
         ExecCallBuilder {
             instance: self,
             value: 0,
+            max_gas: None,
+            max_proof_size: None,
         }
     }
 
