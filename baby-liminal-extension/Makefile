@@ -6,7 +6,7 @@ TEST_TOOLCHAIN = nightly-2024-02-14 # needed for unstable features regarding con
 test: test-frontend test-backend ## Run all tests
 
 test-frontend: ## Run frontend tests
-	cargo test --release $(AT_TEST_CONTRACT) || exit 1
+	cargo +$(TEST_TOOLCHAIN) test --release $(AT_TEST_CONTRACT) || exit 1
 
 test-backend: ## Run backend tests
 	cargo +$(TEST_TOOLCHAIN) test --release --features runtime-std || exit 1
