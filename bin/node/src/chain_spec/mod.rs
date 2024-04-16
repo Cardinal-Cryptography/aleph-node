@@ -3,8 +3,7 @@ mod cli;
 pub mod commands;
 mod keystore;
 
-pub use commands::BootstrapChainCmd;
-pub use commands::ConvertChainspecToRawCmd;
+pub use commands::{BootstrapChainCmd, ConvertChainspecToRawCmd};
 
 pub const CHAINTYPE_DEV: &str = "dev";
 pub const CHAINTYPE_LOCAL: &str = "local";

@@ -1,10 +1,10 @@
-use crate::chain_spec::parse_account_id;
-use crate::chain_spec::parse_chaintype;
-use crate::chain_spec::{CHAINTYPE_LIVE, DEFAULT_CHAIN_ID, DEFAULT_SUDO_ACCOUNT_ALICE};
-use primitives::Version as FinalityVersion;
-use primitives::{AccountId, LEGACY_FINALITY_VERSION};
+use primitives::{AccountId, Version as FinalityVersion, LEGACY_FINALITY_VERSION};
 use sc_chain_spec::ChainType;
 use sc_cli::clap::{self, Args};
+
+use crate::chain_spec::{
+    parse_account_id, parse_chaintype, CHAINTYPE_LIVE, DEFAULT_CHAIN_ID, DEFAULT_SUDO_ACCOUNT_ALICE,
+};
 
 #[derive(Debug, Args, Clone)]
 pub struct ChainSpecParams {

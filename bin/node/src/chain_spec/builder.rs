@@ -1,8 +1,5 @@
 use std::string::ToString;
 
-use crate::chain_spec::cli::ChainSpecParams;
-use crate::chain_spec::keystore::AccountSessionKeys;
-use crate::chain_spec::AlephNodeChainSpec;
 use aleph_runtime::{Feature, WASM_BINARY};
 use pallet_staking::{Forcing, StakerStatus};
 use primitives::{
@@ -12,6 +9,8 @@ use primitives::{
 };
 use serde_json::{Number, Value};
 use sp_runtime::Perbill;
+
+use crate::chain_spec::{cli::ChainSpecParams, keystore::AccountSessionKeys, AlephNodeChainSpec};
 
 fn to_account_ids(authorities: &[AccountSessionKeys]) -> impl Iterator<Item = AccountId> + '_ {
     authorities.iter().map(|auth| auth.account_id.clone())

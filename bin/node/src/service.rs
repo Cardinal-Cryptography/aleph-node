@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::chain_spec::DEFAULT_BACKUP_FOLDER;
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
     ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock, Protocol,
@@ -31,6 +30,7 @@ use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 
 use crate::{
     aleph_cli::AlephCli,
+    chain_spec::DEFAULT_BACKUP_FOLDER,
     executor::aleph_executor,
     rpc::{create_full as create_full_rpc, FullDeps as RpcFullDeps},
 };

@@ -3,9 +3,13 @@ use sc_cli::{
     PurgeChainCmd, RunCmd, SubstrateCli,
 };
 
-use crate::chain_spec::commands::BootstrapChainCmd;
-use crate::chain_spec::{mainnet_config, testnet_config, ConvertChainspecToRawCmd};
-use crate::{aleph_cli::AlephCli, chain_spec};
+use crate::{
+    aleph_cli::AlephCli,
+    chain_spec,
+    chain_spec::{
+        commands::BootstrapChainCmd, mainnet_config, testnet_config, ConvertChainspecToRawCmd,
+    },
+};
 
 #[derive(Debug, Parser)]
 #[clap(subcommand_negates_reqs(true), version(env!("SUBSTRATE_CLI_IMPL_VERSION")))]

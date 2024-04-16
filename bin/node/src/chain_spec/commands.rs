@@ -6,13 +6,14 @@ use sc_cli::{
 };
 use sc_service::config::BasePath;
 
-use crate::chain_spec::builder::build_chain_spec_json;
-use crate::chain_spec::cli::ChainSpecParams;
-use crate::chain_spec::keystore::{
-    create_abft_backup_dir, create_account_session_keys, create_p2p_key, open_keystore,
+use crate::chain_spec::{
+    builder::build_chain_spec_json,
+    cli::ChainSpecParams,
+    keystore::{
+        create_abft_backup_dir, create_account_session_keys, create_p2p_key, open_keystore,
+    },
+    AlephNodeChainSpec, DEFAULT_BACKUP_FOLDER,
 };
-use crate::chain_spec::AlephNodeChainSpec;
-use crate::chain_spec::DEFAULT_BACKUP_FOLDER;
 
 /// This command generates session keys and libp2p key for all input accounts.
 /// Those keys are written to the keystore in a given base path. It also generates a chainspec.
