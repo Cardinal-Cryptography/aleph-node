@@ -50,7 +50,11 @@ impl BootstrapChainCmd {
         let backup_dir = &self.backup_dir;
         let node_key_file = &self.node_key_file;
         let chain_id = self.chain_spec_params.chain_id();
-        let authorities = self.chain_spec_params.authorities_account_ids();
+        let account_ids = self.chain_spec_params.account_ids();
+        let mut authorities = self.chain_spec_params.authorities_account_ids();
+        if authorities.is_empty() {
+            authorities = account_ids.clone();
+        }
 
         let account_session_keys = self
             .chain_spec_params
