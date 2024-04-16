@@ -264,6 +264,7 @@ if [[ -z "${DONT_BOOTSTRAP}" ]]; then
 
   info "Populating keystore for all accounts with session keys and libp2p key, and generating chainspec"
   "${ALEPH_NODE}" bootstrap-chain \
+    --raw \
     --base-path "${BASE_PATH}" \
     --account-ids "${all_account_ids_string}" \
     --authorities-account-ids "${validator_ids_string}" \
