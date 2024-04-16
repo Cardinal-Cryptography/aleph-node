@@ -69,6 +69,9 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rust-src
 
+      - name: (temp fix) Install Nightly Rust Toolchain - add component rust-src
+        run: rustup component add rust-src --toolchain nightly-2024-02-14
+
       - name: Run unit tests for chain extension
         working-directory: baby-liminal-extension
         run: make test
