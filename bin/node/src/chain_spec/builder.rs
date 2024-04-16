@@ -70,7 +70,6 @@ fn calculate_initial_endowment(accounts: &[AccountId]) -> u128 {
 }
 
 /// Configure initial storage state for FRAME modules.
-#[allow(clippy::too_many_arguments)]
 fn generate_genesis_config(
     account_session_keys: Vec<AccountSessionKeys>,
     sudo_account: AccountId,
