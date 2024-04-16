@@ -144,7 +144,7 @@ fn generate_genesis_config(
             "finalityVersion": finality_version,
         },
         "committeeManagement": {
-            "session_validators": {
+            "sessionValidators": {
                 "committee": to_account_ids(&account_session_keys).collect::<Vec<_>>(),
             },
         },

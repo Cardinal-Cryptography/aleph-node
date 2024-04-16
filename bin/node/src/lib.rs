@@ -6,6 +6,7 @@ mod executor;
 mod resources;
 mod rpc;
 mod service;
+mod shared_params;
 
 pub use cli::{Cli, Subcommand};
 #[cfg(any(
