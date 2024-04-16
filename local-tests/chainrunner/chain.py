@@ -49,7 +49,7 @@ class Chain:
         All other flags are taken from kwargs"""
         self.new(binary, validators, nonvalidators)
         nonvalidators = nonvalidators or []
-        all_accounts = validators + nonvalidators
+        all_accounts = list(validators) + list(nonvalidators)
 
         binary = check_file(binary)
         cmd = [binary, 'bootstrap-chain',
