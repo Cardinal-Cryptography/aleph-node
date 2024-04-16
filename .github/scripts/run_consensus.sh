@@ -23,7 +23,7 @@ NODE_IMAGE=${NODE_IMAGE:-"aleph-node:latest"}
 LOGS_OUTPUT_FILE=${LOGS_OUTPUT_FILE:=""}
 
 # ------------------------ argument parsing and usage -----------------------
-b
+
 function usage {
    cat << EOF
 Usage
