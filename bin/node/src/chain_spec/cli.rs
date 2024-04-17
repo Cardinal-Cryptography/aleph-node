@@ -24,12 +24,13 @@ pub struct ChainSpecParams {
     #[arg(long, default_value = "DZERO")]
     token_symbol: String,
 
-    /// all account ids that needs to have session keys generated when bootstraping chain (comma delimeted)
+    /// all account ids that needs to have session keys generated when bootstraping chain (comma delimited)
     #[arg(long, value_delimiter = ',', value_parser = parse_account_id, num_args = 1..)]
     account_ids: Vec<AccountId>,
 
     /// AccountIds of authorities forming the committee at the genesis (comma delimited)
-    /// If empty, then `--account-ids` are used as authorities
+    /// If empty, then `--account-ids` are used as authorities.
+    /// If not empty, it should ba a subset of `--account-ids`.
     #[arg(long, value_delimiter = ',', value_parser = parse_account_id, num_args = 1..)]
     authorities_account_ids: Vec<AccountId>,
 
