@@ -11,6 +11,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       RUSTC_WRAPPER: sccache
+      CARGO_LOG: cargo::sources::git::utils=trace
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4

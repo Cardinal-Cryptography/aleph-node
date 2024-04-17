@@ -36,6 +36,7 @@ jobs:
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
+      CARGO_LOG: cargo::sources::git::utils=trace
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
