@@ -61,7 +61,7 @@ get_current_block() {
 
 initialize
 copy_chainspec
-get_snapshot
+# get_snapshot
 
 get_target_block
 
@@ -74,10 +74,10 @@ chmod +x aleph-node
     --bootnodes "${BOOT_NODES}" \
     --node-key-file "${BASE_PATH}/p2p_secret" \
     ${DB_ARG} \
-    --no-mdns 1>/dev/null 2>/dev/null &
+    --no-mdns 1>/dev/null 2> "${BASE_PATH}/aleph-node.log" &
 
 echo "Waiting a moment for the node to start up..."
-sleep 5m
+sleep 10m
 
 get_current_block
 echo "Syncing to ${TARGET_BLOCK} starting at ${CURRENT_BLOCK}."
