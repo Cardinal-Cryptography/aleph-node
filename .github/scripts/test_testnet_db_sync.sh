@@ -61,7 +61,7 @@ get_current_block() {
 
 initialize
 copy_chainspec
-# get_snapshot
+get_snapshot
 
 get_target_block
 

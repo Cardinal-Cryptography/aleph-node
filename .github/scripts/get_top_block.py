@@ -12,7 +12,7 @@ while connection_attempts < 30:
         number = chain.get_block()['header']['number']
         print(number)
         sys.exit(0)
-    except ConnectionRefusedError:
+    except Exception:
         connection_attempts += 1
         time.sleep(10)
 raise ConnectionRefusedError
