@@ -3,10 +3,12 @@ use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use futures::stream::{Fuse, Stream, StreamExt};
 use log::{error, trace, warn};
+use parking_lot::Mutex;
 use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
-    NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
-    NotificationSenderT, PeerId, ProtocolName,
+    multiaddr::Protocol as MultiaddressProtocol, Event as LegacySubstrateEvent, Multiaddr,
+    NetworkEventStream as _, NetworkPeers, NetworkService,
+    PeerId, ProtocolName,
+    service::traits::{NotificationEvent as SubstrateEvent, ValidationResult},
 };
 use sc_network_common::ExHashT;
 use sc_network_sync::{SyncEvent, SyncEventStream, SyncingService};
@@ -101,7 +103,7 @@ impl fmt::Display for SenderError {
 impl std::error::Error for SenderError {}
 
 pub struct SubstrateNetworkSender {
-    notification_sender: Box<dyn NotificationSenderT>,
+    message_sink: Box<dyn sc_network::service::traits::MessageSink>,
     peer_id: PeerId,
 }
 
@@ -113,18 +115,17 @@ impl NetworkSender for SubstrateNetworkSender {
         &'a self,
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
     ) -> Result<(), SenderError> {
-        self.notification_sender
-            .ready()
-            .await
-            .map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))?
-            .send(data.into())
-            .map_err(|_| SenderError::LostConnectionToPeerReady(self.peer_id))
+        self.message_sink.send_async_notification(
+            data.into()
+        ).await.map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))
     }
 }
 
 pub struct NetworkEventStream<B: Block, H: ExHashT> {
-    stream: Fuse<Pin<Box<dyn Stream<Item = SubstrateEvent> + Send>>>,
+    stream: Fuse<Pin<Box<dyn Stream<Item = LegacySubstrateEvent> + Send>>>,
     sync_stream: Fuse<Pin<Box<dyn Stream<Item = SyncEvent> + Send>>>,
+    sync_notification_service: Box<dyn sc_network::config::NotificationService>,
+    authentication_notification_service: Box<dyn sc_network::config::NotificationService>,
     naming: ProtocolNaming,
     network: Arc<NetworkService<B, H>>,
 }
@@ -133,11 +134,67 @@ pub struct NetworkEventStream<B: Block, H: ExHashT> {
 impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
     async fn next_event(&mut self) -> Option<Event<PeerId>> {
         use Event::*;
-        use SubstrateEvent::*;
         use SyncEvent::*;
         loop {
             tokio::select! {
+                Some(event) = self.sync_notification_service.next_event() => {
+                    use SubstrateEvent::*;
+                    match event {
+                        ValidateInboundSubstream {
+                            peer: _,
+                            handshake: _,
+                            result_tx,
+                        } => {
+                            let _ = result_tx.send(ValidationResult::Accept);
+                            continue
+                        },
+                        NotificationStreamOpened {
+                            peer,
+                            ..
+                        } => return Some(StreamOpened(peer, Protocol::BlockSync)),
+                        NotificationStreamClosed {
+                            peer,
+                        } => return Some(StreamClosed(peer, Protocol::BlockSync)),
+                        NotificationReceived {
+                            peer,
+                            notification,
+                        } => return Some(Messages(
+                            peer,
+                            vec![(Protocol::BlockSync, notification.into())],
+                        )),
+                    }
+                },
+
+                Some(event) = self.authentication_notification_service.next_event() => {
+                    use SubstrateEvent::*;
+                    match event {
+                        ValidateInboundSubstream {
+                            peer: _,
+                            handshake: _,
+                            result_tx,
+                        } => {
+                            let _ = result_tx.send(ValidationResult::Accept);
+                            continue
+                        },
+                        NotificationStreamOpened {
+                            peer,
+                            ..
+                        } => return Some(StreamOpened(peer, Protocol::Authentication)),
+                        NotificationStreamClosed {
+                            peer,
+                        } => return Some(StreamClosed(peer, Protocol::Authentication)),
+                        NotificationReceived {
+                            peer,
+                            notification,
+                        } => return Some(Messages(
+                            peer,
+                            vec![(Protocol::Authentication, notification.into())],
+                        )),
+                    }
+                },
+
                 Some(event) = self.stream.next() => {
+                    use LegacySubstrateEvent::*;
                     match event {
                         NotificationStreamOpened {
                             remote, protocol, ..
@@ -167,6 +224,7 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                         Dht(_) => continue,
                     }
                 },
+
                 Some(event) = self.sync_stream.next() => {
                     match event {
                         PeerConnected(remote) => {
@@ -206,6 +264,7 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                         }
                     }
                 },
+
                 else => return None,
             }
         }
@@ -213,11 +272,34 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
 }
 
 /// A wrapper around the substrate network that includes information about protocol names.
-#[derive(Clone)]
 pub struct SubstrateNetwork<B: Block, H: ExHashT> {
     network: Arc<NetworkService<B, H>>,
     sync_network: Arc<SyncingService<B>>,
     naming: ProtocolNaming,
+    sync_notification_service: Mutex<Box<dyn sc_network::config::NotificationService>>,
+    authentication_notification_service: Mutex<Box<dyn sc_network::config::NotificationService>>,
+}
+
+impl<B: Block, H: ExHashT> Clone for SubstrateNetwork<B, H> {
+    fn clone(&self) -> Self {
+        Self {
+            network: self.network.clone(),
+            sync_network: self.sync_network.clone(),
+            naming: self.naming.clone(),
+            sync_notification_service: Mutex::new(
+                self.sync_notification_service
+                    .lock()
+                    .clone()
+                    .expect("should clone"),
+            ),
+            authentication_notification_service: Mutex::new(
+                self.authentication_notification_service
+                    .lock()
+                    .clone()
+                    .expect("should clone"),
+            ),
+        }
+    }
 }
 
 impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
@@ -226,11 +308,15 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
         network: Arc<NetworkService<B, H>>,
         sync_network: Arc<SyncingService<B>>,
         naming: ProtocolNaming,
+        sync_notification_service: Box<dyn sc_network::config::NotificationService>,
+        authentication_notification_service: Box<dyn sc_network::config::NotificationService>,
     ) -> Self {
         SubstrateNetwork {
             network,
             sync_network,
             naming,
+            sync_notification_service: Mutex::new(sync_notification_service),
+            authentication_notification_service: Mutex::new(authentication_notification_service),
         }
     }
 
@@ -241,6 +327,8 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
                 .sync_network
                 .event_stream("aleph-syncing-network")
                 .fuse(),
+            sync_notification_service: self.sync_notification_service.lock().clone().expect("should clone"),
+            authentication_notification_service: self.authentication_notification_service.lock().clone().expect("should clone"),
             naming: self.naming.clone(),
             network: self.network.clone(),
         }
@@ -258,12 +346,10 @@ impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
         protocol: Protocol,
     ) -> Result<Self::NetworkSender, Self::SenderError> {
         Ok(SubstrateNetworkSender {
-            // Currently method `notification_sender` does not distinguish whether we are not connected to the peer
-            // or there is no such protocol so we need to have this worthless `SenderError::CannotCreateSender` error here
-            notification_sender: self
-                .network
-                .notification_sender(peer_id, self.naming.protocol_name(&protocol))
-                .map_err(|_| SenderError::CannotCreateSender(peer_id, protocol))?,
+            message_sink: match protocol {
+                Protocol::Authentication => &self.authentication_notification_service,
+                Protocol::BlockSync => &self.sync_notification_service,
+            }.lock().message_sink(&peer_id).expect("should return a sink"),
             peer_id,
         })
     }

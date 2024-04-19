@@ -224,7 +224,12 @@ fn get_validator_address_cache(aleph_config: &AlephCli) -> Option<ValidatorAddre
 fn get_net_config(
     config: &Configuration,
     client: &Arc<FullClient>,
-) -> (FullNetworkConfiguration, ProtocolNaming) {
+) -> (
+    FullNetworkConfiguration,
+    ProtocolNaming,
+    Box<dyn sc_network::config::NotificationService>,
+    Box<dyn sc_network::config::NotificationService>,
+) {
     let genesis_hash = client
         .block_hash(0)
         .ok()
@@ -236,16 +241,20 @@ fn get_net_config(
     };
     let protocol_naming = ProtocolNaming::new(chain_prefix);
     let mut net_config = FullNetworkConfiguration::new(&config.network);
-    net_config.add_notification_protocol(finality_aleph::peers_set_config(
-        protocol_naming.clone(),
-        Protocol::Authentication,
-    ));
-    net_config.add_notification_protocol(finality_aleph::peers_set_config(
-        protocol_naming.clone(),
-        Protocol::BlockSync,
-    ));
 
-    (net_config, protocol_naming)
+    let (config, authentication_notification_service) =
+        finality_aleph::peers_set_config(protocol_naming.clone(), Protocol::Authentication);
+    net_config.add_notification_protocol(config);
+    let (config, sync_notification_service) =
+        finality_aleph::peers_set_config(protocol_naming.clone(), Protocol::BlockSync);
+    net_config.add_notification_protocol(config);
+
+    (
+        net_config,
+        protocol_naming,
+        authentication_notification_service,
+        sync_notification_service,
+    )
 }
 
 fn get_proposer_factory(
@@ -324,7 +333,13 @@ pub fn new_authority(
     )?;
 
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
-    let (net_config, protocol_naming) = get_net_config(&config, &service_components.client);
+
+    let (
+        net_config,
+        protocol_naming,
+        authentication_notification_service,
+        sync_notification_service,
+    ) = get_net_config(&config, &service_components.client);
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
@@ -385,7 +400,13 @@ pub fn new_authority(
 
     let rate_limiter_config = get_rate_limit_config(&aleph_config);
 
-    let substrate_network = SubstrateNetwork::new(network, sync_network, protocol_naming);
+    let substrate_network = SubstrateNetwork::new(
+        network,
+        sync_network,
+        protocol_naming,
+        sync_notification_service,
+        authentication_notification_service,
+    );
     // Network event stream needs to be created before starting the network,
     // otherwise some events might be missed.
     let network_event_stream = substrate_network.event_stream();

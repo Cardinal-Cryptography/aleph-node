@@ -95,15 +95,17 @@ fn max_message_size(protocol: Protocol) -> u64 {
 pub fn peers_set_config(
     naming: ProtocolNaming,
     protocol: Protocol,
-) -> sc_network::config::NonDefaultSetConfig {
-    let (config, _) = sc_network::config::NonDefaultSetConfig::new(
+) -> (
+    sc_network::config::NonDefaultSetConfig,
+    Box<dyn sc_network::config::NotificationService>,
+) {
+    sc_network::config::NonDefaultSetConfig::new(
         naming.protocol_name(&protocol),
         naming.fallback_protocol_names(&protocol),
         max_message_size(protocol),
         None,
         sc_network::config::SetConfig::default(),
-    );
-    config
+    )
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
