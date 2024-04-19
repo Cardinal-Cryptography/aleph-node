@@ -18,9 +18,7 @@ const MAX_QUEUE_SIZE: usize = 16;
 
 use crate::{
     network::{
-        gossip::{
-            metrics::Metrics, Event, EventStream, Network, NetworkSender, Protocol, RawNetwork,
-        },
+        gossip::{metrics::Metrics, Event, EventStream, Network, Protocol, RawNetwork},
         Data,
     },
     SpawnHandle, STATUS_REPORT_INTERVAL,
@@ -41,7 +39,7 @@ enum Command<D: Data, P: Clone + Debug + Eq + Hash + Send + 'static> {
 ///   2. Various forms of (dis)connecting, keeping track of all currently connected nodes.
 /// 3. Outgoing messages, sending them out, using 1.2. to broadcast.
 pub struct Service<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> {
-    network: N,
+    _network: N,
     messages_from_authentication_user: mpsc::UnboundedReceiver<Command<AD, N::PeerId>>,
     messages_from_block_sync_user: mpsc::UnboundedReceiver<Command<BSD, N::PeerId>>,
     messages_for_authentication_user: mpsc::UnboundedSender<(AD, N::PeerId)>,
@@ -170,7 +168,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         };
         (
             Service {
-                network,
+                _network: network,
                 messages_from_authentication_user,
                 messages_from_block_sync_user,
                 messages_for_authentication_user,
@@ -208,35 +206,19 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
         peer_id: N::PeerId,
         mut receiver: mpsc::Receiver<D>,
         protocol: Protocol,
+        sink: Box<dyn sc_network::service::traits::MessageSink>,
     ) -> impl Future<Output = ()> + Send + 'static {
-        let network = self.network.clone();
         let metrics = self.metrics.clone();
         async move {
-            let mut sender = None;
             loop {
                 if let Some(data) = receiver.next().await {
                     metrics.report_message_popped_from_peer_sender_queue(protocol);
-                    let s = if let Some(s) = sender.as_mut() {
-                        s
-                    } else {
-                        match network.sender(peer_id.clone(), protocol) {
-                            Ok(s) => sender.insert(s),
-                            Err(e) => {
-                                debug!(
-                                    target: LOG_TARGET,
-                                    "Failed creating sender. Dropping message: {}", e
-                                );
-                                continue;
-                            }
-                        }
-                    };
                     let maybe_timer = metrics.start_sending_in(protocol);
-                    if let Err(e) = s.send(data.encode()).await {
+                    if let Err(e) = sink.send_async_notification(data.encode()).await {
                         debug!(
                             target: LOG_TARGET,
-                            "Failed sending data to peer. Dropping sender and message: {}", e
+                            "Failed sending data to peer. Waiting for the receiver to be closed: {}", e
                         );
-                        sender = None;
                     }
                     if let Some(timer) = maybe_timer {
                         timer.observe_duration();
@@ -434,7 +416,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
     fn handle_network_event(&mut self, event: Event<N::PeerId>) -> Result<(), ()> {
         use Event::*;
         match event {
-            StreamOpened(peer, protocol) => {
+            StreamOpened(peer, protocol, sink) => {
                 trace!(
                     target: LOG_TARGET,
                     "StreamOpened event for peer {:?} and the protocol {:?}.",
@@ -448,7 +430,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
                         self.authentication_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
                             "aleph/network/authentication_peer_sender",
-                            self.peer_sender(peer, rx, Protocol::Authentication),
+                            self.peer_sender(peer, rx, Protocol::Authentication, sink),
                         );
                     }
                     Protocol::BlockSync => {
@@ -457,7 +439,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
                         self.block_sync_peer_senders.insert(peer.clone(), tx);
                         self.spawn_handle.spawn(
                             "aleph/network/sync_peer_sender",
-                            self.peer_sender(peer, rx, Protocol::BlockSync),
+                            self.peer_sender(peer, rx, Protocol::BlockSync, sink),
                         );
                     }
                 };

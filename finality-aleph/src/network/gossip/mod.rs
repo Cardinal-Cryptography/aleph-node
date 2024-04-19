@@ -69,9 +69,13 @@ pub trait NetworkSender: Send + Sync + 'static {
     ) -> Result<(), Self::SenderError>;
 }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub enum Event<P> {
-    StreamOpened(P, Protocol),
+    StreamOpened(
+        P,
+        Protocol,
+        Box<dyn sc_network::service::traits::MessageSink>,
+    ),
     StreamClosed(P, Protocol),
     Messages(P, Vec<(Protocol, Bytes)>),
 }

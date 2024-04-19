@@ -2,13 +2,12 @@ use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::stream::{Fuse, Stream, StreamExt};
-use log::{error, trace, warn};
+use log::{error, info, trace, warn};
 use parking_lot::Mutex;
 use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as LegacySubstrateEvent, Multiaddr,
-    NetworkEventStream as _, NetworkPeers, NetworkService,
-    PeerId, ProtocolName,
+    multiaddr::Protocol as MultiaddressProtocol,
     service::traits::{NotificationEvent as SubstrateEvent, ValidationResult},
+    Multiaddr, NetworkPeers, NetworkService, PeerId, ProtocolName,
 };
 use sc_network_common::ExHashT;
 use sc_network_sync::{SyncEvent, SyncEventStream, SyncingService};
@@ -28,7 +27,6 @@ const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
 pub struct ProtocolNaming {
     authentication_name: ProtocolName,
     block_sync_name: ProtocolName,
-    protocols_by_name: HashMap<ProtocolName, Protocol>,
 }
 
 impl ProtocolNaming {
@@ -44,7 +42,6 @@ impl ProtocolNaming {
         ProtocolNaming {
             authentication_name,
             block_sync_name,
-            protocols_by_name,
         }
     }
 
@@ -61,18 +58,12 @@ impl ProtocolNaming {
     pub fn fallback_protocol_names(&self, _protocol: &Protocol) -> Vec<ProtocolName> {
         Vec::new()
     }
-
-    /// Attempts to convert the protocol name to a protocol.
-    fn to_protocol(&self, protocol_name: &str) -> Option<Protocol> {
-        self.protocols_by_name.get(protocol_name).copied()
-    }
 }
 
 #[derive(Debug)]
 pub enum SenderError {
     CannotCreateSender(PeerId, Protocol),
     LostConnectionToPeer(PeerId),
-    LostConnectionToPeerReady(PeerId),
 }
 
 impl fmt::Display for SenderError {
@@ -88,12 +79,6 @@ impl fmt::Display for SenderError {
                 write!(
                     f,
                     "Lost connection to peer {peer_id:?} while preparing sender"
-                )
-            }
-            SenderError::LostConnectionToPeerReady(peer_id) => {
-                write!(
-                    f,
-                    "Lost connection to peer {peer_id:?} after sender was ready"
                 )
             }
         }
@@ -115,14 +100,14 @@ impl NetworkSender for SubstrateNetworkSender {
         &'a self,
         data: impl Into<Vec<u8>> + Send + Sync + 'static,
     ) -> Result<(), SenderError> {
-        self.message_sink.send_async_notification(
-            data.into()
-        ).await.map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))
+        self.message_sink
+            .send_async_notification(data.into())
+            .await
+            .map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))
     }
 }
 
 pub struct NetworkEventStream<B: Block, H: ExHashT> {
-    stream: Fuse<Pin<Box<dyn Stream<Item = LegacySubstrateEvent> + Send>>>,
     sync_stream: Fuse<Pin<Box<dyn Stream<Item = SyncEvent> + Send>>>,
     sync_notification_service: Box<dyn sc_network::config::NotificationService>,
     authentication_notification_service: Box<dyn sc_network::config::NotificationService>,
@@ -141,27 +126,43 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                     use SubstrateEvent::*;
                     match event {
                         ValidateInboundSubstream {
-                            peer: _,
+                            peer,
                             handshake: _,
                             result_tx,
                         } => {
+                            info!(target: "aleph-network", "ValidateInboundStream Sync from peer {peer:?}");
                             let _ = result_tx.send(ValidationResult::Accept);
                             continue
                         },
                         NotificationStreamOpened {
                             peer,
                             ..
-                        } => return Some(StreamOpened(peer, Protocol::BlockSync)),
+                        } => {
+                            info!(target: "aleph-network", "NotificationStreamOpened Sync from peer {peer:?}");
+                            match self.sync_notification_service.message_sink(&peer) {
+                                Some(sink) => return Some(StreamOpened(peer, Protocol::BlockSync, sink)),
+                                None => {
+                                    warn!(target: "aleph-network", "Received NotificationStreamOpened from peer {peer:?} in BlockSync protocol, but could not create MessageSink.");
+                                    continue;
+                                }
+                            }
+                        },
                         NotificationStreamClosed {
                             peer,
-                        } => return Some(StreamClosed(peer, Protocol::BlockSync)),
+                        } => {
+                            info!(target: "aleph-network", "NotificationStreamClosed Sync from peer {peer:?}");
+                            return Some(StreamClosed(peer, Protocol::BlockSync));
+                        },
                         NotificationReceived {
                             peer,
                             notification,
-                        } => return Some(Messages(
-                            peer,
-                            vec![(Protocol::BlockSync, notification.into())],
-                        )),
+                        } => {
+                            info!(target: "aleph-network", "NotificationReceived Sync from peer {peer:?}");
+                            return Some(Messages(
+                                peer,
+                                vec![(Protocol::BlockSync, notification.into())],
+                            ));
+                        },
                     }
                 },
 
@@ -169,59 +170,43 @@ impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
                     use SubstrateEvent::*;
                     match event {
                         ValidateInboundSubstream {
-                            peer: _,
+                            peer,
                             handshake: _,
                             result_tx,
                         } => {
+                            info!(target: "aleph-network", "ValidateInboundStream Authentication from peer {peer:?}");
                             let _ = result_tx.send(ValidationResult::Accept);
                             continue
                         },
                         NotificationStreamOpened {
                             peer,
                             ..
-                        } => return Some(StreamOpened(peer, Protocol::Authentication)),
+                        } => {
+                            info!(target: "aleph-network", "NotificationStreamOpened Authentication from peer {peer:?}");
+                            match self.authentication_notification_service.message_sink(&peer) {
+                                Some(sink) => return Some(StreamOpened(peer, Protocol::Authentication, sink)),
+                                None => {
+                                    warn!(target: "aleph-network", "Received NotificationStreamOpened from peer {peer:?} in Authentication protocol, but could not create MessageSink.");
+                                    continue;
+                                }
+                            }
+                        },
                         NotificationStreamClosed {
                             peer,
-                        } => return Some(StreamClosed(peer, Protocol::Authentication)),
+                        } => {
+                            info!(target: "aleph-network", "NotificationStreamClosed Authentication from peer {peer:?}");
+                            return Some(StreamClosed(peer, Protocol::Authentication));
+                        },
                         NotificationReceived {
                             peer,
                             notification,
-                        } => return Some(Messages(
-                            peer,
-                            vec![(Protocol::Authentication, notification.into())],
-                        )),
-                    }
-                },
-
-                Some(event) = self.stream.next() => {
-                    use LegacySubstrateEvent::*;
-                    match event {
-                        NotificationStreamOpened {
-                            remote, protocol, ..
-                        } => match self.naming.to_protocol(protocol.as_ref()) {
-                            Some(protocol) => return Some(StreamOpened(remote, protocol)),
-                            None => continue,
-                        },
-                        NotificationStreamClosed { remote, protocol } => {
-                            match self.naming.to_protocol(protocol.as_ref()) {
-                                Some(protocol) => return Some(StreamClosed(remote, protocol)),
-                                None => continue,
-                            }
-                        }
-                        NotificationsReceived { messages, remote } => {
+                        } => {
+                            info!(target: "aleph-network", "NotificationReceived Authentication from peer {peer:?}");
                             return Some(Messages(
-                                remote,
-                                messages
-                                    .into_iter()
-                                    .filter_map(|(protocol, data)| {
-                                        self.naming
-                                            .to_protocol(protocol.as_ref())
-                                            .map(|protocol| (protocol, data))
-                                    })
-                                    .collect(),
+                                peer,
+                                vec![(Protocol::Authentication, notification.into())],
                             ));
-                        }
-                        Dht(_) => continue,
+                        },
                     }
                 },
 
@@ -322,13 +307,20 @@ impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
 
     pub fn event_stream(&self) -> NetworkEventStream<B, H> {
         NetworkEventStream {
-            stream: self.network.event_stream("aleph-network").fuse(),
             sync_stream: self
                 .sync_network
                 .event_stream("aleph-syncing-network")
                 .fuse(),
-            sync_notification_service: self.sync_notification_service.lock().clone().expect("should clone"),
-            authentication_notification_service: self.authentication_notification_service.lock().clone().expect("should clone"),
+            sync_notification_service: self
+                .sync_notification_service
+                .lock()
+                .clone()
+                .expect("should clone"),
+            authentication_notification_service: self
+                .authentication_notification_service
+                .lock()
+                .clone()
+                .expect("should clone"),
             naming: self.naming.clone(),
             network: self.network.clone(),
         }
@@ -349,7 +341,10 @@ impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
             message_sink: match protocol {
                 Protocol::Authentication => &self.authentication_notification_service,
                 Protocol::BlockSync => &self.sync_notification_service,
-            }.lock().message_sink(&peer_id).expect("should return a sink"),
+            }
+            .lock()
+            .message_sink(&peer_id)
+            .ok_or(SenderError::CannotCreateSender(peer_id, protocol))?,
             peer_id,
         })
     }
