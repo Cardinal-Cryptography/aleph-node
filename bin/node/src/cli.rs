@@ -3,13 +3,10 @@ use sc_cli::{
     PurgeChainCmd, RunCmd, SubstrateCli,
 };
 
-use crate::{
-    aleph_cli::AlephCli,
-    chain_spec,
-    chain_spec::{
-        commands::BootstrapChainCmd, mainnet_config, testnet_config, ConvertChainspecToRawCmd,
-    },
-};
+pub type AlephNodeChainSpec = sc_service::GenericChainSpec<()>;
+
+use crate::aleph_cli::AlephCli;
+use crate::resources::{mainnet_chainspec, testnet_chainspec};
 
 #[derive(Debug, Parser)]
 #[clap(subcommand_negates_reqs(true), version(env!("SUBSTRATE_CLI_IMPL_VERSION")))]
@@ -22,6 +19,14 @@ pub struct Cli {
 
     #[command(flatten)]
     pub run: RunCmd,
+}
+
+pub fn mainnet_config() -> Result<AlephNodeChainSpec, String> {
+    AlephNodeChainSpec::from_json_bytes(mainnet_chainspec())
+}
+
+pub fn testnet_config() -> Result<AlephNodeChainSpec, String> {
+    AlephNodeChainSpec::from_json_bytes(testnet_chainspec())
 }
 
 impl SubstrateCli for Cli {
@@ -58,7 +63,7 @@ impl SubstrateCli for Cli {
             "mainnet" => mainnet_config(),
 
             "testnet" => testnet_config(),
-            _ => chain_spec::AlephNodeChainSpec::from_json_file(id.into()),
+            _ => AlephNodeChainSpec::from_json_file(id.into()),
         };
         Ok(Box::new(chainspec?))
     }
@@ -69,12 +74,6 @@ pub enum Subcommand {
     /// Key management cli utilities
     #[command(subcommand)]
     Key(sc_cli::KeySubcommand),
-
-    /// Generates keystore (libp2p key and session keys), and generates chainspec to stdout
-    BootstrapChain(BootstrapChainCmd),
-
-    /// Takes a chainspec and generates a corresponding raw chainspec
-    ConvertChainspecToRaw(ConvertChainspecToRawCmd),
 
     /// Validate blocks.
     CheckBlock(sc_cli::CheckBlockCmd),

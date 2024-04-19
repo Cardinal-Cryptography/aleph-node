@@ -18,8 +18,6 @@ fn main() -> sc_cli::Result<()> {
     let pruning_config_validation_result = PruningConfigValidator::process(&mut cli);
 
     match &cli.subcommand {
-        Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
-        Some(Subcommand::ConvertChainspecToRaw(cmd)) => cmd.run(),
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::CheckBlock(cmd)) => {
             let runner = cli.create_runner(cmd)?;

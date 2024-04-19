@@ -5,14 +5,14 @@ use sc_cli::{
     Error, KeystoreParams,
 };
 use sc_service::config::BasePath;
-
+use primitives::DEFAULT_BACKUP_FOLDER;
 use crate::chain_spec::{
     builder::build_chain_spec_json,
     cli::ChainSpecParams,
     keystore::{
         create_abft_backup_dir, create_account_session_keys, create_p2p_key, open_keystore,
     },
-    AlephNodeChainSpec, DEFAULT_BACKUP_FOLDER,
+    AlephNodeChainSpec,
 };
 
 /// This command generates session keys and libp2p key for all input accounts.
