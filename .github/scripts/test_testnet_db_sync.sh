@@ -76,9 +76,6 @@ chmod +x aleph-node
     ${DB_ARG} \
     --no-mdns 1>/dev/null 2> "${BASE_PATH}/aleph-node.log" &
 
-echo "Waiting a moment for the node to start up..."
-sleep 10m
-
 get_current_block
 echo "Syncing to ${TARGET_BLOCK} starting at ${CURRENT_BLOCK}."
 

@@ -14,6 +14,6 @@ while connection_attempts < 30:
         sys.exit(0)
     except Exception:
         connection_attempts += 1
-        time.sleep(10)
+        time.sleep(60)
 raise ConnectionRefusedError
 
