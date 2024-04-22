@@ -1,10 +1,9 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use futures::{channel::mpsc, StreamExt};
+use futures::channel::mpsc;
 use parity_scale_codec::{Decode, Encode, Output};
 use sc_keystore::LocalKeystore;
 use sp_keystore::Keystore as _;
-use tokio::time::timeout;
 
 use crate::{
     aleph_primitives::KEY_TYPE,
