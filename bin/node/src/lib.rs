@@ -9,7 +9,7 @@ mod service;
 pub use cli::{Cli, Subcommand};
 #[cfg(any(
     feature = "runtime-benchmarks",
-    feature = "local-debugging",
+    feature = "aleph-native-runtime",
     feature = "try-runtime"
 ))]
 pub use executor::aleph_executor::ExecutorDispatch;

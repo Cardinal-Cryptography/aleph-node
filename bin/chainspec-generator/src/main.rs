@@ -20,7 +20,7 @@ pub enum Subcommand {
 }
 
 fn main() -> sc_cli::Result<()> {
-    let mut cli = Cli::parse();
+    let cli = Cli::parse();
 
     match &cli.subcommand {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),

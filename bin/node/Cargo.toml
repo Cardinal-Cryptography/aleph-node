@@ -48,8 +48,6 @@ sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
 sp-transaction-pool = { workspace = true }
 
-try-runtime-cli = { workspace = true, optional = true }
-
 frame-benchmarking-cli = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 
@@ -68,6 +66,7 @@ substrate-frame-rpc-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 
 aleph-runtime = { workspace = true, optional = true }
+try-runtime-cli = { workspace = true, optional = true }
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }
@@ -87,10 +86,10 @@ std = [
     "aleph-runtime-interfaces/std",
 ]
 runtime-benchmarks = [
+    "aleph-runtime-native",
     "frame-benchmarking",
     "frame-benchmarking-cli/runtime-benchmarks",
     "aleph-runtime?/runtime-benchmarks",
-
 ]
 rocksdb = [
     "sc-cli/rocksdb",
@@ -98,10 +97,15 @@ rocksdb = [
     "sc-service/rocksdb",
 ]
 try-runtime = [
+    "aleph-runtime-native",
+    "dep:try-runtime-cli",
     "aleph-runtime?/try-runtime",
+    "try-runtime-cli?/try-runtime",
+]
+aleph-runtime-native = [
+    "dep:aleph-runtime"
 ]
 
 only_legacy = [
     "finality-aleph/only_legacy"
 ]
-local-debugging = ["aleph-runtime"]
