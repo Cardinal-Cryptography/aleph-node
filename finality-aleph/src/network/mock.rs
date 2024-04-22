@@ -67,7 +67,8 @@ pub struct Channel<T>(
     pub Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<T>>>,
 );
 
-const TIMEOUT_FAIL: Duration = Duration::from_secs(10);
+// TODO: integrate new Substrate network API properly
+// const TIMEOUT_FAIL: Duration = Duration::from_secs(10);
 
 impl<T> Channel<T> {
     pub fn new() -> Self {
@@ -75,21 +76,23 @@ impl<T> Channel<T> {
         Channel(tx, Arc::new(tokio::sync::Mutex::new(rx)))
     }
 
-    pub async fn next(&mut self) -> Option<T> {
-        timeout(TIMEOUT_FAIL, self.1.lock().await.next())
-            .await
-            .ok()
-            .flatten()
-    }
+    // TODO: integrate new Substrate network API properly
+    // pub async fn next(&mut self) -> Option<T> {
+    //     timeout(TIMEOUT_FAIL, self.1.lock().await.next())
+    //         .await
+    //         .ok()
+    //         .flatten()
+    // }
 
-    pub async fn take(&mut self, n: usize) -> Vec<T> {
-        timeout(
-            TIMEOUT_FAIL,
-            self.1.lock().await.by_ref().take(n).collect::<Vec<_>>(),
-        )
-        .await
-        .unwrap_or_default()
-    }
+    // TODO: integrate new Substrate network API properly
+    // pub async fn take(&mut self, n: usize) -> Vec<T> {
+    //     timeout(
+    //         TIMEOUT_FAIL,
+    //         self.1.lock().await.by_ref().take(n).collect::<Vec<_>>(),
+    //     )
+    //     .await
+    //     .unwrap_or_default()
+    // }
 
     pub async fn try_next(&self) -> Option<T> {
         self.1.lock().await.try_next().unwrap_or(None)

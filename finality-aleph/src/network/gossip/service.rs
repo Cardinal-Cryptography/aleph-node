@@ -545,7 +545,7 @@ impl<N: RawNetwork, ES: EventStream<N::PeerId>, AD: Data, BSD: Data> Service<N, 
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, iter};
+    use std::collections::HashSet;
 
     use futures::channel::oneshot;
     use network_clique::mock::{random_peer_id, MockPublicKey};
@@ -556,7 +556,7 @@ mod tests {
     use super::{Error, SendError, Service};
     use crate::network::{
         gossip::{
-            mock::{MockEvent, MockEventStream, MockRawNetwork, MockSenderError},
+            mock::{MockEvent, MockEventStream, MockRawNetwork},
             Network,
         },
         mock::MockData,
