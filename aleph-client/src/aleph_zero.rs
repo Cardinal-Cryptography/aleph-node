@@ -34,7 +34,7 @@ pub mod api {
         "VkStorage",
         "Operations",
     ];
-    pub static RUNTIME_APIS: [&str; 13usize] = [
+    pub static RUNTIME_APIS: [&str; 14usize] = [
         "Core",
         "Metadata",
         "BlockBuilder",
@@ -48,6 +48,7 @@ pub mod api {
         "NominationPoolsApi",
         "StakingApi",
         "ContractsApi",
+        "GenesisBuilder",
     ];
     #[doc = r" The error type returned when there is a runtime issue."]
     pub type DispatchError = runtime_types::sp_runtime::DispatchError;
@@ -117,6 +118,9 @@ pub mod api {
             }
             pub fn contracts_api(&self) -> contracts_api::ContractsApi {
                 contracts_api::ContractsApi
+            }
+            pub fn genesis_builder(&self) -> genesis_builder::GenesisBuilder {
+                genesis_builder::GenesisBuilder
             }
         }
         pub mod core {
@@ -1775,6 +1779,93 @@ pub mod api {
                 }
             }
         }
+        pub mod genesis_builder {
+            use super::{root_mod, runtime_types};
+            #[doc = " API to interact with GenesisConfig for the runtime"]
+            pub struct GenesisBuilder;
+            impl GenesisBuilder {
+                #[doc = " Creates the default `GenesisConfig` and returns it as a JSON blob."]
+                #[doc = ""]
+                #[doc = " This function instantiates the default `GenesisConfig` struct for the runtime and serializes it into a JSON"]
+                #[doc = " blob. It returns a `Vec<u8>` containing the JSON representation of the default `GenesisConfig`."]
+                pub fn create_default_config(
+                    &self,
+                ) -> ::subxt::runtime_api::Payload<
+                    types::CreateDefaultConfig,
+                    ::std::vec::Vec<::core::primitive::u8>,
+                > {
+                    ::subxt::runtime_api::Payload::new_static(
+                        "GenesisBuilder",
+                        "create_default_config",
+                        types::CreateDefaultConfig {},
+                        [
+                            238u8, 5u8, 139u8, 81u8, 184u8, 155u8, 221u8, 118u8, 190u8, 76u8,
+                            229u8, 67u8, 132u8, 89u8, 83u8, 80u8, 56u8, 171u8, 169u8, 64u8, 123u8,
+                            20u8, 129u8, 159u8, 28u8, 135u8, 84u8, 52u8, 192u8, 98u8, 104u8, 214u8,
+                        ],
+                    )
+                }
+                #[doc = " Build `GenesisConfig` from a JSON blob not using any defaults and store it in the storage."]
+                #[doc = ""]
+                #[doc = " This function deserializes the full `GenesisConfig` from the given JSON blob and puts it into the storage."]
+                #[doc = " If the provided JSON blob is incorrect or incomplete or the deserialization fails, an error is returned."]
+                #[doc = " It is recommended to log any errors encountered during the process."]
+                #[doc = ""]
+                #[doc = " Please note that provided json blob must contain all `GenesisConfig` fields, no defaults will be used."]
+                pub fn build_config(
+                    &self,
+                    json: ::std::vec::Vec<::core::primitive::u8>,
+                ) -> ::subxt::runtime_api::Payload<
+                    types::BuildConfig,
+                    ::core::result::Result<(), ::std::string::String>,
+                > {
+                    ::subxt::runtime_api::Payload::new_static(
+                        "GenesisBuilder",
+                        "build_config",
+                        types::BuildConfig { json },
+                        [
+                            6u8, 98u8, 68u8, 125u8, 157u8, 26u8, 107u8, 86u8, 213u8, 227u8, 26u8,
+                            229u8, 122u8, 161u8, 229u8, 114u8, 123u8, 192u8, 66u8, 231u8, 148u8,
+                            175u8, 5u8, 185u8, 248u8, 88u8, 40u8, 122u8, 230u8, 209u8, 170u8,
+                            254u8,
+                        ],
+                    )
+                }
+            }
+            pub mod types {
+                use super::runtime_types;
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct CreateDefaultConfig {}
+                #[derive(
+                    :: subxt :: ext :: codec :: Decode,
+                    :: subxt :: ext :: codec :: Encode,
+                    :: subxt :: ext :: scale_decode :: DecodeAsType,
+                    :: subxt :: ext :: scale_encode :: EncodeAsType,
+                    Clone,
+                    Debug,
+                    Eq,
+                    PartialEq,
+                )]
+                # [codec (crate = :: subxt :: ext :: codec)]
+                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
+                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
+                pub struct BuildConfig {
+                    pub json: ::std::vec::Vec<::core::primitive::u8>,
+                }
+            }
+        }
     }
     pub struct ConstantsApi;
     impl ConstantsApi {
@@ -1982,9 +2073,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                116u8, 191u8, 7u8, 172u8, 8u8, 169u8, 214u8, 139u8, 190u8, 99u8, 38u8, 198u8,
-                123u8, 8u8, 223u8, 146u8, 228u8, 62u8, 142u8, 211u8, 151u8, 109u8, 250u8, 209u8,
-                232u8, 123u8, 123u8, 22u8, 244u8, 165u8, 78u8, 92u8,
+                64u8, 107u8, 30u8, 142u8, 155u8, 105u8, 159u8, 30u8, 106u8, 235u8, 38u8, 55u8,
+                24u8, 49u8, 72u8, 165u8, 214u8, 109u8, 77u8, 69u8, 219u8, 187u8, 34u8, 212u8, 51u8,
+                232u8, 137u8, 191u8, 113u8, 236u8, 109u8, 47u8,
             ]
     }
     pub mod system {
@@ -9186,9 +9277,9 @@ pub mod api {
                         "NextAuthorities",
                         vec![],
                         [
-                            202u8, 85u8, 93u8, 109u8, 55u8, 135u8, 201u8, 26u8, 123u8, 92u8, 190u8,
-                            31u8, 195u8, 248u8, 180u8, 98u8, 66u8, 66u8, 34u8, 170u8, 234u8, 66u8,
-                            161u8, 158u8, 57u8, 50u8, 184u8, 197u8, 97u8, 241u8, 13u8, 223u8,
+                            238u8, 54u8, 231u8, 67u8, 117u8, 72u8, 58u8, 10u8, 65u8, 124u8, 75u8,
+                            242u8, 38u8, 58u8, 187u8, 3u8, 20u8, 68u8, 195u8, 77u8, 44u8, 200u8,
+                            113u8, 240u8, 66u8, 240u8, 197u8, 212u8, 167u8, 16u8, 51u8, 50u8,
                         ],
                     )
                 }
