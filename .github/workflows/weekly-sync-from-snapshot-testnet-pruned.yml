@@ -48,14 +48,14 @@ jobs:
         if: ${{ failure() }}
         shell: bash
         run: |
-          tar -czvf logs.tar.gz running/aleph-node.log
+          tar -czvf aleph-node-logs.tar.gz running/aleph-node.log
 
       - name: Upload logs from failed e2e test
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          path: running/aleph-node.log.tar.gz
-          name: aleph-node.log.tar.gz
+          path: running/aleph-node-logs.tar.gz
+          name: aleph-node-logs.tar.gz
           if-no-files-found: error
           retention-days: 7
 
