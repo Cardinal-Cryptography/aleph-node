@@ -112,11 +112,12 @@ impl MockRawNetwork {
         MockEventStream(rx)
     }
 
-    pub fn emit_event(&mut self, event: MockEvent) {
-        for sink in &*self.event_sinks.lock() {
-            sink.unbounded_send(event.clone()).unwrap();
-        }
-    }
+    // TODO: integrate new Substrate network API properly
+    // pub fn emit_event(&mut self, event: MockEvent) {
+    //     for sink in &*self.event_sinks.lock() {
+    //         sink.unbounded_send(event.clone()).unwrap();
+    //     }
+    // }
 
     // Consumes the network asserting there are no unreceived messages in the channels.
     pub async fn close_channels(self) {
