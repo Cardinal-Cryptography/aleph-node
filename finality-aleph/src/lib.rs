@@ -74,7 +74,8 @@ pub use crate::{
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        Protocol, ProtocolNaming, SubstrateNetwork, SubstrateNetworkEventStream,
+        NotificationServices, Protocol, ProtocolNaming, SubstrateNetworkEventStream,
+        SubstratePeerId,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -103,6 +104,7 @@ pub fn peers_set_config(
         naming.protocol_name(&protocol),
         naming.fallback_protocol_names(&protocol),
         max_message_size(protocol),
+        // we do not use custom handshake
         None,
         sc_network::config::SetConfig::default(),
     )
@@ -281,7 +283,6 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC, T> {
-    pub network: SubstrateNetwork<AlephBlock, AlephHash>,
     pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
