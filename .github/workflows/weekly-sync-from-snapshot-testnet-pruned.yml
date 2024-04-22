@@ -54,7 +54,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          path: running/aleph-node-logs.tar.gz
+          path: aleph-node-logs.tar.gz
           name: aleph-node-logs.tar.gz
           if-no-files-found: error
           retention-days: 7
