@@ -32,7 +32,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release -p aleph-node
+          cargo build --release -p aleph-node --features only_legacy
 
       # this is required for some workflows, yet ideally it should not be required
       - name: Upload binary to GH Artifacts

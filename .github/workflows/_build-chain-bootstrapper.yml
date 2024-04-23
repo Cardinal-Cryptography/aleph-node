@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: |
           cargo build --release -p chain-bootstrapper \
-            --features "short_session enable_treasury_proposals only_legacy"
+            --features "short_session enable_treasury_proposals"
 
       - name: Upload binary to GH Artifacts
         uses: actions/upload-artifact@v4

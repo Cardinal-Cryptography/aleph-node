@@ -10,6 +10,7 @@ struct Cli {
     pub subcommand: Option<Subcommand>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, ClapSubcommand)]
 pub enum Subcommand {
     /// Generates keystore (libp2p key and session keys), and generates chainspec to stdout
@@ -27,7 +28,7 @@ fn main() -> sc_cli::Result<()> {
         Some(Subcommand::ConvertChainspecToRaw(cmd)) => cmd.run(),
 
         None => {
-            Err(format!("Command was required!").into())
+            Err("Command was required!".into())
         }
     }
 }
