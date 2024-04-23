@@ -63,14 +63,14 @@ runs:
       shell: bash
       run: docker load -i aleph-node.tar
 
-    - name: Download chain-booststrapper image
+    - name: Download chain-bootstrapper image
       uses: actions/download-artifact@v4
       with:
         name: chain-bootstrapper-image
 
-    - name: Load chain-booststrapper image
+    - name: Load chain-bootstrapper image
       shell: bash
-      run: docker load -i chain-booststrapper.tar
+      run: docker load -i chain-bootstrapper.tar
 
     - name: Run consensus party
       shell: bash
