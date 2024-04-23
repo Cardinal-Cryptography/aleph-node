@@ -38,9 +38,9 @@ jobs:
     name: Check production node and runtime
     uses: ./.github/workflows/_check-production-node-and-runtime.yml
 
-  build-test-node-and-runtime:
-    name: Build test node and runtime
-    uses: ./.github/workflows/_build-test-node-and-runtime.yml
+  build-test-node:
+    name: Build test node
+    uses: ./.github/workflows/_build-test-node.yml
     with:
       ref: ${{ github.ref }}
 
@@ -60,7 +60,7 @@ jobs:
   run-e2e-finalization-test:
     name: Run e2e finalization test
     needs:
-      - build-test-node-and-runtime
+      - build-test-node
       - build-aleph-e2e-client-image
       - build-chain-bootstrapper
     runs-on: ubuntu-20.04
