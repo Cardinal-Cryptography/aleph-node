@@ -1,11 +1,12 @@
 use std::{io::Write, path::PathBuf};
 
+use primitives::DEFAULT_BACKUP_FOLDER;
 use sc_cli::{
     clap::{self, Parser},
     Error, KeystoreParams,
 };
 use sc_service::config::BasePath;
-use primitives::DEFAULT_BACKUP_FOLDER;
+
 use crate::chain_spec::{
     builder::build_chain_spec_json,
     cli::ChainSpecParams,

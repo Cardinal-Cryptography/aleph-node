@@ -5,8 +5,10 @@ use sc_cli::{
 
 pub type AlephNodeChainSpec = sc_service::GenericChainSpec<()>;
 
-use crate::aleph_cli::AlephCli;
-use crate::resources::{mainnet_chainspec, testnet_chainspec};
+use crate::{
+    aleph_cli::AlephCli,
+    resources::{mainnet_chainspec, testnet_chainspec},
+};
 
 #[derive(Debug, Parser)]
 #[clap(subcommand_negates_reqs(true), version(env!("SUBSTRATE_CLI_IMPL_VERSION")))]

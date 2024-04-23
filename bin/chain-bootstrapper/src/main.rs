@@ -1,7 +1,7 @@
 mod chain_spec;
 
-use sc_cli::{
-    clap::{self, Parser, Subcommand as ClapSubcommand}};
+use sc_cli::clap::{self, Parser, Subcommand as ClapSubcommand};
+
 use crate::chain_spec::{BootstrapChainCmd, ConvertChainspecToRawCmd};
 
 #[derive(Parser)]
@@ -27,8 +27,6 @@ fn main() -> sc_cli::Result<()> {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
         Some(Subcommand::ConvertChainspecToRaw(cmd)) => cmd.run(),
 
-        None => {
-            Err("Command was required!".into())
-        }
+        None => Err("Command was required!".into()),
     }
 }

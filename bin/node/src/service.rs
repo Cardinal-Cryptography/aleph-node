@@ -6,14 +6,15 @@ use std::{
 };
 
 use finality_aleph::{
-    AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter, ChannelProvider,
-    Justification, JustificationTranslator, MillisecsPerBlock, Protocol, ProtocolNaming,
-    RateLimiterConfig, RedirectingBlockImport, run_validator_node, SessionPeriod, SubstrateChainStatus,
+    run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
+    ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock, Protocol,
+    ProtocolNaming, RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus,
     SubstrateNetwork, SyncOracle, TracingBlockImport, ValidatorAddressCache,
 };
 use log::warn;
 use primitives::{
-    AlephSessionApi, Block, fake_runtime_api::fake_runtime::RuntimeApi, MAX_BLOCK_SIZE, DEFAULT_BACKUP_FOLDER
+    fake_runtime_api::fake_runtime::RuntimeApi, AlephSessionApi, Block, DEFAULT_BACKUP_FOLDER,
+    MAX_BLOCK_SIZE,
 };
 use sc_basic_authorship::ProposerFactory;
 use sc_client_api::{BlockBackend, HeaderBackend};
@@ -21,12 +22,12 @@ use sc_consensus::ImportQueue;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
 use sc_network::config::FullNetworkConfiguration;
-use sc_service::{Configuration, error::Error as ServiceError, TaskManager, TFullClient};
+use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_consensus::DisableProofRecording;
-use sp_consensus_aura::{Slot, sr25519::AuthorityPair as AuraPair};
+use sp_consensus_aura::{sr25519::AuthorityPair as AuraPair, Slot};
 
 use crate::{
     aleph_cli::AlephCli,
