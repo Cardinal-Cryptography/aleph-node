@@ -39,8 +39,8 @@ jobs:
       - name: aleph-node with try-runtime
         run: cargo check --profile production -p aleph-node --features try-runtime --locked
 
-      - name: aleph-node with aleph-native-runtime
-        run: cargo check --profile dev -p aleph-node --features aleph-native-runtime --locked
+      - name: aleph-node with aleph-runtime-native
+        run: cargo check --profile dev -p aleph-node --features aleph-runtime-native --locked
 
       - name: chain-bootstrapper with try-runtime
         run: cargo check --profile production -p chain-bootstrapper --features try-runtime --locked

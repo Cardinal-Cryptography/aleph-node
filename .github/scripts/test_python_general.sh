@@ -45,12 +45,12 @@ done
 # relative paths should be improved in python scripts CI, as it matters that below line is
 pushd local-tests/ > /dev/null
 
-if [[ ! -x "${ALEPH_NODE_BINARY}" ]]; then
-  echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}, or it's not executable."
+if [[ ! -f "${ALEPH_NODE_BINARY}" ]]; then
+  echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}"
   exit 1
 fi
-if [[ ! -x "${CHAIN_BOOTSTRAPPER_IMAGE}" ]]; then
-  echo "Error: chain-bootstrapper binary does not exist at given path ${CHAIN_BOOTSTRAPPER_IMAGE}, or it's not executable."
+if [[ ! -f "${CHAIN_BOOTSTRAPPER_IMAGE}" ]]; then
+  echo "Error: chain-bootstrapper binary does not exist at given path ${CHAIN_BOOTSTRAPPER_IMAGE}"
   exit 1
 fi
 if [[ -z "${TESTCASE}" ]]; then
