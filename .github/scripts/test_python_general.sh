@@ -8,8 +8,10 @@ function usage(){
   cat << EOF
 Usage:
    $0
-    --aleph-node BINARY]
-      path to aleph-node-binary
+    --aleph-node BINARY
+      path to aleph-node binary
+    --chain-bootstrapper BINARY
+      path to chain-bootstrapper binary
     --testcase NAME
       name of python file in local-tests directory to run
 EOF
@@ -20,6 +22,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --aleph-node)
       ALEPH_NODE_BINARY="$2"
+      shift;shift
+      ;;
+    --chain-bootstrapper)
+      CHAIN_BOOTSTRAPPER="$2"
       shift;shift
       ;;
     --testcase)
@@ -39,8 +45,12 @@ done
 # relative paths should be improved in python scripts CI, as it matters that below line is
 pushd local-tests/ > /dev/null
 
-if [[ ! -f "${ALEPH_NODE_BINARY}" ]]; then
-  echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}."
+if [[ ! -x "${ALEPH_NODE_BINARY}" ]]; then
+  echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}, or it's not executable."
+  exit 1
+fi
+if [[ ! -x "${CHAIN_BOOTSTRAPPER}" ]]; then
+  echo "Error: chain-bootstrapper binary does not exist at given path ${CHAIN_BOOTSTRAPPER}, or it's not executable."
   exit 1
 fi
 if [[ -z "${TESTCASE}" ]]; then
@@ -56,6 +66,7 @@ if [[ ! -x "${file_name_to_run}" ]]; then
 fi
 
 chmod +x "${ALEPH_NODE_BINARY}"
+chmod +x "${CHAIN_BOOTSTRAPPER}"
 echo "Installing python requirements"
 pip install -r requirements.txt
 
@@ -65,6 +76,7 @@ pip install -r requirements.txt
 # first buffered and that you can see the output of your application.
 export PYTHONUNBUFFERED=y
 export ALEPH_NODE_BINARY
+export CHAIN_BOOTSTRAPPER
 export WORKDIR=$(mktemp -d)
 eval "./${file_name_to_run}"
 popd > /dev/null

@@ -1260,7 +1260,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "chainspec-generator"
+name = "chain-bootstrapper"
 version = "0.1.0"
 dependencies = [
  "aleph-runtime",

@@ -20,6 +20,7 @@ MIN_VALIDATOR_COUNT=${MIN_VALIDATOR_COUNT:-4}
 DOCKER_COMPOSE=${DOCKER_COMPOSE:-docker/docker-compose.yml}
 OVERRIDE_DOCKER_COMPOSE=${OVERRIDE_DOCKER_COMPOSE:-""}
 NODE_IMAGE=${NODE_IMAGE:-"aleph-node:latest"}
+CHAIN_BOOTSTRAPPER=${CHAIN_BOOTSTRAPPER:-"chain-bootstrapper:latest"}
 LOGS_OUTPUT_FILE=${LOGS_OUTPUT_FILE:=""}
 
 # ------------------------ argument parsing and usage -----------------------
@@ -81,8 +82,8 @@ function generate_chainspec() {
   local validator_ids_comma_separated="${validators//${IFS:0:1}/,}"
 
   echo "Generate chainspec and keystores for accounts: ${account_ids_comma_separated[@]}"
-  docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${NODE_IMAGE}" \
-  -c "aleph-node bootstrap-chain --base-path /data --account-ids ${account_ids_comma_separated} --authorities-account-ids ${validator_ids_comma_separated}  > /data/chainspec.json"
+  docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${CHAIN_BOOTSTRAPPER}" \
+  -c "bootstrap-chain --base-path /data --account-ids ${account_ids_comma_separated} --authorities-account-ids ${validator_ids_comma_separated}  > /data/chainspec.json"
 }
 
 function generate_bootnode_peer_id() {

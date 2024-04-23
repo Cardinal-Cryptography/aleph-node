@@ -40,7 +40,7 @@ set -euo pipefail
 # ------------------------ constants --------------------------------------
 
 ALEPH_NODE="target/release/aleph-node"
-CHAINSPEC_GENERATOR="target/release/chainspec-generator"
+CHAINSPEC_GENERATOR="target/release/chain-bootstrapper"
 NODE_P2P_PORT_RANGE_START=30333
 NODE_VALIDATOR_PORT_RANGE_START=30343
 NODE_RPC_PORT_RANGE_START=9944
@@ -228,9 +228,9 @@ if ! killall -9 aleph-node 2> /dev/null; then
 fi
 
 if [[ -z "${DONT_BUILD_ALEPH_NODE}" ]]; then
-  info "Building testing aleph-node binary (short session) and chainspec-generator binary."
+  info "Building testing aleph-node binary (short session) and chain-bootstrapper binary."
   cargo build --release -p aleph-node
-  cargo build --release -p chainspec-generator --features "short_session enable_treasury_proposals"
+  cargo build --release -p chain-bootstrapper --features "short_session enable_treasury_proposals"
 elif [[ ! -x "${ALEPH_NODE}" || ! -x "${CHAINSPEC_GENERATOR}" ]]; then
   error "${ALEPH_NODE} or ${CHAINSPEC_GENERATOR} does not exist or it's not an executable file!"
 fi

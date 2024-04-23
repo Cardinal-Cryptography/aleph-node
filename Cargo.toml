@@ -6,7 +6,7 @@ members = [
     "baby-liminal-extension",
     "bin/node",
     "bin/runtime",
-    "bin/chainspec-generator",
+    "bin/chain-bootstrapper",
     "clique",
     "finality-aleph",
     "pallets/aleph",

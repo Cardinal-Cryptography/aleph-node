@@ -29,11 +29,20 @@ jobs:
       - name: aleph-runtime with try-runtime
         run: cargo check --profile production -p aleph-runtime --features try-runtime --locked
 
+      - name: aleph-runtime with runtime-benchmarks
+        run: cargo check --profile production -p aleph-runtime --features runtime-benchmarks --locked
+
       - name: aleph-node with runtime-benchmarks
         run: cargo check --profile production -p aleph-node --features runtime-benchmarks --locked
 
+      - name: aleph-node with try-runtime
+        run: cargo check --profile production -p aleph-node --features try-runtime --locked
+
       - name: aleph-node with aleph-native-runtime
         run: cargo check --profile dev -p aleph-node --features aleph-native-runtime --locked
+
+      - name: chain-bootstrapper with try-runtime
+        run: cargo check --profile production -p chain-bootstrapper --features try-runtime --locked
 
   slack-notification:
     name: Slack notification

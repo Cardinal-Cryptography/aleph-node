@@ -1,18 +1,18 @@
 ---
-#  This workflow builds test version of aleph-node and aleph-runtime, ie with some
-#  features enabled. Those binaries MUST NOT be used in the production.
-name: Build test node and runtime
+# This workflow builds chain-bootstrapper binary, dedicated fer generating chainspecs for
+# test and dev chains
+name: Build chain-bootstrapper
 on:
   workflow_call:
     inputs:
       ref:
-        description: 'git ref: hash, branch, tag to build test aleph-node binary from'
+        description: 'git ref: hash, branch, tag to build chain-bootstrapper binary from'
         type: string
         required: true
 
 jobs:
-  build-artifacts:
-    name: Build test node and runtime
+  main:
+    name: Build chain-bootstrapper
     runs-on: [self-hosted, Linux, X64, large]
     env:
       RUST_BACKTRACE: full
@@ -33,32 +33,31 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Build test binary and runtime
+      - name: Build
         run: |
-          cargo build --release -p aleph-node \
+          cargo build --release -p chain-bootstrapper \
             --features "short_session enable_treasury_proposals only_legacy"
 
-      # this is required for some workflows, yet ideally it should not be required
-      - name: Upload test binary to GH Artifacts
+      - name: Upload binary to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aleph-test-node
-          path: target/release/aleph-node
+          name: chain-bootstrapper
+          path: target/release/chain-bootstrapper
           if-no-files-found: error
           retention-days: 7
 
-      - name: Build test docker image
+      - name: Build docker
         id: build-image
         run: |
-          chmod +x target/release/aleph-node
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-          docker save -o aleph-node.tar aleph-node:latest
+          chmod +x target/release/chain-bootstrapper
+          docker build --tag chain-bootstrapper:latest -f ./bin/chain-bootstrapper/Dockerfile .
+          docker save -o chain-bootstrapper.tar chain-bootstrapper:latest
 
-      # this is solely required by action/run-e2e-test.yml, also it should not be required
-      - name: Upload test docker image
+      # this is required by action/run-e2e-test.yml
+      - name: Upload docker image to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aleph-test-docker
-          path: aleph-node.tar
+          name: chain-bootstrapper
+          path: chain-bootstrapper.tar
           if-no-files-found: error
           retention-days: 7
