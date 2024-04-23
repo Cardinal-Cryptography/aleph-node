@@ -66,7 +66,7 @@ pub enum BranchKnowledge {
 }
 
 // Only needed for backwards compatible decoding.
-// TODO(A0-JIRAOUTAGE): Remove this when removing v3 data.
+// TODO(A0-4270): Remove this when removing v3 data.
 #[derive(Clone, Debug, Encode, Decode)]
 enum MaybeHeader<UH: UnverifiedHeader> {
     Header(UH),
