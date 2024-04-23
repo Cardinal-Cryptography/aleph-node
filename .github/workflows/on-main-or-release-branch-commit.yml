@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/_push-node-image-to-ecr.yml
     secrets: inherit
     with:
-      binary-artifact-name: chain-bootstrapper-image
+      binary-artifact-name: chain-bootstrapper
       docker-image-name: chain-bootstrapper
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
