@@ -43,7 +43,9 @@ jobs:
         id: build-image
         run: |
           chmod +x target/release/${{ inputs.binary-name }}
-          docker build --tag ${{ inputs.docker-image-name }}:latest -f ${{ inputs.docker-file-path }} .
+          docker build \
+            --tag ${{ inputs.docker-image-name }}:latest \
+            -f ${{ inputs.docker-file-path }} .
 
       - name: Login to Public Amazon ECR
         id: login-public-ecr
