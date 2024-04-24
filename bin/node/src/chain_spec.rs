@@ -20,7 +20,7 @@ use sp_core::{sr25519, Pair};
 use crate::aleph_primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
     AuraId, AuthorityId as AlephId, SessionValidators, Version as FinalityVersion,
-    ADDRESSES_ENCODING, LEGACY_FINALITY_VERSION, TOKEN_DECIMALS,
+    ADDRESSES_ENCODING, CURRENT_FINALITY_VERSION, TOKEN_DECIMALS,
 };
 
 pub const CHAINTYPE_DEV: &str = "dev";
@@ -140,7 +140,7 @@ pub struct ChainParams {
     faucet_account_id: Option<AccountId>,
 
     /// Finality version at chain inception.
-    #[arg(long, default_value = LEGACY_FINALITY_VERSION.to_string())]
+    #[arg(long, default_value = CURRENT_FINALITY_VERSION.to_string())]
     finality_version: FinalityVersion,
 }
 
