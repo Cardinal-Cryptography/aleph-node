@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
       shift;shift
       ;;
     --chain-bootstrapper)
-      CHAIN_BOOTSTRAPPER_IMAGE="$2"
+      CHAIN_BOOTSTRAPPER="$2"
       shift;shift
       ;;
     --testcase)
@@ -49,8 +49,8 @@ if [[ ! -f "${ALEPH_NODE_BINARY}" ]]; then
   echo "Error: aleph-node binary does not exist at given path ${ALEPH_NODE_BINARY}"
   exit 1
 fi
-if [[ ! -f "${CHAIN_BOOTSTRAPPER_IMAGE}" ]]; then
-  echo "Error: chain-bootstrapper binary does not exist at given path ${CHAIN_BOOTSTRAPPER_IMAGE}"
+if [[ ! -f "${CHAIN_BOOTSTRAPPER}" ]]; then
+  echo "Error: chain-bootstrapper binary does not exist at given path ${CHAIN_BOOTSTRAPPER}"
   exit 1
 fi
 if [[ -z "${TESTCASE}" ]]; then
@@ -66,7 +66,7 @@ if [[ ! -x "${file_name_to_run}" ]]; then
 fi
 
 chmod +x "${ALEPH_NODE_BINARY}"
-chmod +x "${CHAIN_BOOTSTRAPPER_IMAGE}"
+chmod +x "${CHAIN_BOOTSTRAPPER}"
 echo "Installing python requirements"
 pip install -r requirements.txt
 
@@ -76,7 +76,7 @@ pip install -r requirements.txt
 # first buffered and that you can see the output of your application.
 export PYTHONUNBUFFERED=y
 export ALEPH_NODE_BINARY
-export CHAIN_BOOTSTRAPPER_IMAGE
+export CHAIN_BOOTSTRAPPER
 export WORKDIR=$(mktemp -d)
 eval "./${file_name_to_run}"
 popd > /dev/null
