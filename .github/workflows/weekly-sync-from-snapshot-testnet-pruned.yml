@@ -39,7 +39,10 @@ jobs:
           name: aleph-production-node
 
       - name: Download snapshot and test sync
-        timeout-minutes: 210
+        # 40 minutes for pruned snapshot download
+        # 60 minutes for pruned node to boot up
+        # 30 minutes for snapshot sync
+        timeout-minutes: 130
         run: |
           ./.github/scripts/test_testnet_db_sync.sh \
             --pruned
