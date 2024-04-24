@@ -11,7 +11,7 @@
 #   consensus size.
 
 
-set -euo pipefail
+set -euox pipefail
 
 # ------------------------ constants --------------------------------------
 
@@ -163,12 +163,12 @@ else
   exit 1
 fi
 
-if docker inspect ${CHAIN_BOOTSTRAPPER_IMAGE} > /dev/null; then
-  echo "chain-bootstrapper image tag ${CHAIN_BOOTSTRAPPER_IMAGE} found locally"
+if docker inspect ${NODE_IMAGE} > /dev/null; then
+  echo "aleph-node image tag ${NODE_IMAGE} found locally"
 else
-  echo "${CHAIN_BOOTSTRAPPER_IMAGE} not found locally."
+  echo "${NODE_IMAGE} not found locally."
   echo "Build image first with:"
-  echo "docker build -t ${CHAIN_BOOTSTRAPPER_IMAGE} -f bin/chain-bootstrapper/Dockerfile ."
+  echo "docker build -t ${NODE_IMAGE} -f docker/Dockerfile ."
   exit 1
 fi
 
