@@ -20,6 +20,7 @@ while [[ $# -gt 0 ]]; do
             DB_ARG="--enable-pruning"
             SOURCE_CHAINSPEC="./bin/node/src/resources/mainnet_chainspec.json"
             BOOT_NODES=/dns4/bootnode-eu-central-1-0.azero.dev/tcp/30333/p2p/12D3KooWEF1Eo7uFZWdqFsTPP7CehpRt5NeXFwCe3157qpoU5aqd/dns4/bootnode-eu-west-1-0.azero.dev/tcp/30333/p2p/12D3KooWPhi8Qvzvc8iJ4CeQj2vptjc5FTrodKPmra1NS1qfftjr/dns4/bootnode-eu-west-2-0.azero.dev/tcp/30333/p2p/12D3KooWDfUzU64WURE77tXYM9H94xQFAEL6ULQYhzegKsZXjEkC/dns4/bootnode-us-east-1-0.azero.dev/tcp/30333/p2p/12D3KooWFQSGvQii2gRGB5T4M6TXhM83JV4bTEhubCBpdoR6Rkwk/dns4/bootnode-us-east-2-0.azero.dev/tcp/30333/p2p/12D3KooWJnEGVVmnXhVNxV6KWe3EsDPNvPFNcYbQ6amFVGECVAGB
+            DB_PATH="chains/mainnet/"
             TARGET_CHAIN="wss://ws.azero.dev"
             shift;;
         *)
