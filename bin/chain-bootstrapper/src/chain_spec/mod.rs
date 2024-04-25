@@ -12,7 +12,6 @@ pub const CHAINTYPE_LIVE: &str = "live";
 pub const DEFAULT_CHAIN_ID: &str = "a0dnet1";
 pub const DEFAULT_SUDO_ACCOUNT_ALICE: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
-// move to primitives
 pub type AlephNodeChainSpec = sc_service::GenericChainSpec<()>;
 
 use primitives::AccountId;
