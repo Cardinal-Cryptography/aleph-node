@@ -9,6 +9,10 @@ on:
         description: 'git ref: hash, branch, tag to build chain-bootstrapper binary from'
         type: string
         required: true
+      production:
+        description: 'set to true to use production profile'
+        type: boolean
+        required: true
 
 jobs:
   main:
@@ -17,6 +21,8 @@ jobs:
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
+      CARGO_FOLDER: ${{ inputs.production == true && 'production' || 'release' }}
+      ARTIFACT_NAME_SUFFIX: ${{ inputs.production == true && 'release' || 'test' }}
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -33,31 +39,40 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Build
+      - name: Build without production profile
+        if: ${{ inputs.production != true }}
         run: |
           cargo build --release -p chain-bootstrapper \
             --features "short_session enable_treasury_proposals"
 
+      - name: Build with production profile
+        if: ${{ inputs.production == true }}
+        run: |
+          cargo build --profile production -p chain-bootstrapper
+
       - name: Upload binary to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chain-bootstrapper
-          path: target/release/chain-bootstrapper
+          name: chain-bootstrapper-${{ env.ARTIFACT_NAME_SUFFIX }}
+          path: target/${{ env.CARGO_FOLDER }}/chain-bootstrapper
           if-no-files-found: error
           retention-days: 7
 
       - name: Build docker
         id: build-image
         run: |
-          chmod +x target/release/chain-bootstrapper
+          chmod +x  target/${{ env.CARGO_FOLDER }}/chain-bootstrapper
+          if [[ ${{ inputs.production }} == true ]]; then
+            mkdir -p target/release
+            mv target/production/chain-bootstrapper target/release/
+          fi
           docker build --tag chain-bootstrapper:latest -f ./bin/chain-bootstrapper/Dockerfile .
           docker save -o chain-bootstrapper.tar chain-bootstrapper:latest
 
-      # this is required by action/run-e2e-test.yml
       - name: Upload docker image to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chain-bootstrapper-image
+          name: chain-bootstrapper-image-${{ env.ARTIFACT_NAME_SUFFIX }}
           path: chain-bootstrapper.tar
           if-no-files-found: error
           retention-days: 7

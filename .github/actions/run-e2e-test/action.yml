@@ -38,6 +38,10 @@ inputs:
   aleph-e2e-client-image:
     description: 'aleph-e2e-client image'
     required: true
+  chain-bootstrapper-image:
+    description: 'chain-bootstrapper image'
+    required: false
+    default: chain-bootstrapper-image-test
   timeout-minutes:
     description: 'The maximum number of minutes to let a test run before it is canceled and
       considered failed'
@@ -66,7 +70,7 @@ runs:
     - name: Download chain-bootstrapper image
       uses: actions/download-artifact@v4
       with:
-        name: chain-bootstrapper-image
+        name: ${{ inputs.chain-bootstrapper-image }}
 
     - name: Load chain-bootstrapper image
       shell: bash

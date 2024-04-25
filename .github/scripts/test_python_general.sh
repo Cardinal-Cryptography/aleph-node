@@ -77,6 +77,8 @@ pip install -r requirements.txt
 export PYTHONUNBUFFERED=y
 export ALEPH_NODE_BINARY
 export CHAIN_BOOTSTRAPPER
+export RUST_LOG=debug
 export WORKDIR=$(mktemp -d)
+echo "WORKDIR is ${WORKDIR}"
 eval "./${file_name_to_run}"
 popd > /dev/null

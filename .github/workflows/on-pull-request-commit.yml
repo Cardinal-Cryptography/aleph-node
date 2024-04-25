@@ -49,6 +49,7 @@ jobs:
     uses: ./.github/workflows/_build-chain-bootstrapper.yml
     with:
       ref: ${{ github.ref }}
+      production: false
 
   build-aleph-e2e-client-image:
     name: Build aleph-e2e-client image

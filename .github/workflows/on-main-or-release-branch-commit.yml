@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/_build-chain-bootstrapper.yml
     with:
       ref: ${{ github.ref }}
+      production: true
 
   push-chain-bootstrapper-image-to-ecr:
     name: Push chain-bootstrapper docker image to ECR
@@ -26,7 +27,7 @@ jobs:
     uses: ./.github/workflows/_push-node-image-to-ecr.yml
     secrets: inherit
     with:
-      binary-artifact-name: chain-bootstrapper
+      binary-artifact-name: chain-bootstrapper-release
       docker-image-name: chain-bootstrapper
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
