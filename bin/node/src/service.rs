@@ -14,8 +14,10 @@ use finality_aleph::{
 };
 use log::warn;
 use primitives::{
-    fake_runtime_api::fake_runtime::RuntimeApi, AlephSessionApi, Block, MAX_BLOCK_SIZE,
+    Block, MAX_BLOCK_SIZE,
 };
+use pallet_aleph_runtime_api::AlephSessionApi;
+use fake_runtime_api::fake_runtime::RuntimeApi;
 use sc_basic_authorship::ProposerFactory;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;

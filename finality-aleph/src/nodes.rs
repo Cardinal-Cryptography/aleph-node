@@ -10,9 +10,11 @@ use sc_keystore::{Keystore, LocalKeystore};
 use sc_transaction_pool_api::TransactionPool;
 use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
+use pallet_aleph_runtime_api::AlephSessionApi;
+
 
 use crate::{
-    aleph_primitives::{AlephSessionApi, AuraId, Block},
+    aleph_primitives::{AuraId, Block},
     block::{
         substrate::{JustificationTranslator, SubstrateFinalizationInfo, VerifierCache},
         BlockchainEvents, ChainStatus, FinalizationStatus, Justification,

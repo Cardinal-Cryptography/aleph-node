@@ -16,11 +16,12 @@ use sp_runtime::{
 use sp_std::vec::Vec;
 use sp_version::RuntimeVersion;
 
-use crate::{
+use primitives::{
     AccountId, ApiError as AlephApiError, AuraId, AuthorityId as AlephId, Balance, Block, Nonce,
     SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError,
     Version as FinalityVersion,
 };
+use pallet_aleph_runtime_api::*;
 
 #[cfg(feature = "std")]
 pub mod fake_runtime {

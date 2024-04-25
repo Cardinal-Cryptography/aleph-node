@@ -10,9 +10,10 @@ use sc_client_api::Backend;
 use sp_application_crypto::key_types::AURA;
 use sp_core::twox_128;
 use sp_runtime::traits::{Block, OpaqueKeys};
+use pallet_aleph_runtime_api::AlephSessionApi;
 
 use crate::{
-    aleph_primitives::{AccountId, AlephSessionApi, AuraId},
+    aleph_primitives::{AccountId, AuraId},
     BlockHash, ClientForAleph,
 };
 
