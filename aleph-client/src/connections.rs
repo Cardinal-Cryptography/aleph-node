@@ -190,7 +190,9 @@ pub trait SignedConnectionApi: ConnectionApi {
     fn signer(&self) -> &KeyPair;
 
     /// Tries to convert [`SignedConnection`] as [`RootConnection`]
-    async fn try_as_root(&self) -> anyhow::Result<RootConnection>;
+    async fn try_as_root(&self) -> anyhow::Result<RootConnection> {
+        Err(anyhow!("This connenction is not upgradeable to root"))
+    }
 }
 
 /// Extensions to Signed Connections
