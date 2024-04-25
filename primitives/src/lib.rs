@@ -319,8 +319,6 @@ pub struct VersionChange {
     pub session: SessionIndex,
 }
 
-
-
 pub trait BanHandler {
     type AccountId;
     /// returns whether the account can be banned

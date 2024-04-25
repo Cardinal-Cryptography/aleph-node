@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use fake_runtime_api::fake_runtime::RuntimeApi;
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
     ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock,
@@ -13,11 +14,8 @@ use finality_aleph::{
     TracingBlockImport, ValidatorAddressCache,
 };
 use log::warn;
-use primitives::{
-    Block, MAX_BLOCK_SIZE,
-};
 use pallet_aleph_runtime_api::AlephSessionApi;
-use fake_runtime_api::fake_runtime::RuntimeApi;
+use primitives::{Block, MAX_BLOCK_SIZE};
 use sc_basic_authorship::ProposerFactory;
 use sc_client_api::{BlockBackend, HeaderBackend};
 use sc_consensus::ImportQueue;
