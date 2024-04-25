@@ -9,13 +9,16 @@ DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/
 DB_PATH="chains/testnet/"
 DB_ARG="--database paritydb"
 TOP_BLOCK_SCRIPT="./.github/scripts/get_top_block.py"
+SOURCE_CHAINSPEC="./bin/node/src/resources/testnet_chainspec.json"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -p | --pruned)
             echo "Using pruned DB."
-            DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
+            DB_SNAPSHOT_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
             DB_ARG="--enable-pruning"
+            SOURCE_CHAINSPEC="./bin/node/src/resources/mainnet_chainspec.json"
+            BOOT_NODES=/dns4/bootnode-eu-central-1-0.azero.dev/tcp/30333/p2p/12D3KooWEF1Eo7uFZWdqFsTPP7CehpRt5NeXFwCe3157qpoU5aqd/dns4/bootnode-eu-west-1-0.azero.dev/tcp/30333/p2p/12D3KooWPhi8Qvzvc8iJ4CeQj2vptjc5FTrodKPmra1NS1qfftjr/dns4/bootnode-eu-west-2-0.azero.dev/tcp/30333/p2p/12D3KooWDfUzU64WURE77tXYM9H94xQFAEL6ULQYhzegKsZXjEkC/dns4/bootnode-us-east-1-0.azero.dev/tcp/30333/p2p/12D3KooWFQSGvQii2gRGB5T4M6TXhM83JV4bTEhubCBpdoR6Rkwk/dns4/bootnode-us-east-2-0.azero.dev/tcp/30333/p2p/12D3KooWJnEGVVmnXhVNxV6KWe3EsDPNvPFNcYbQ6amFVGECVAGB
             shift;;
         *)
             echo "Unrecognized argument: $1"
@@ -46,7 +49,7 @@ get_snapshot () {
 
 copy_chainspec () {
     echo "Copying the chainspec...   "
-    cp ./bin/node/src/resources/testnet_chainspec.json "${CHAINSPEC}"
+    cp "${SOURCE_CHAINSPEC}" "${CHAINSPEC}"
 }
 
 get_target_block() {
