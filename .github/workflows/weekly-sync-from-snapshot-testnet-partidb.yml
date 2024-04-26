@@ -1,11 +1,12 @@
 ---
-# This workflow performs sync to Testnet from a pruned snapshot using the latest main version.
+# This workflow performs sync to Testnet from a ParityDB non-pruned snapshot using the latest
+# main version.
 
-name: Weekly sync from snapshot test, pruned
+name: Weekly sync from snapshot test, ParityDB non-pruned
 on:
-  # At 03:00 on Tuesday
+  # At 03:00 on Wednesday
   schedule:
-    - cron: '0 3 * * 2'
+    - cron: '0 3 * * 3'
   workflow_dispatch:
 
 concurrency:
@@ -39,13 +40,9 @@ jobs:
           name: aleph-production-node
 
       - name: Download snapshot and test sync
-        # 40 minutes for pruned snapshot download
-        # 60 minutes for pruned node to boot up
-        # 30 minutes for snapshot sync
-        timeout-minutes: 130
+        timeout-minutes: 360
         run: |
-          ./.github/scripts/test_testnet_db_sync.sh \
-            --pruned
+          ./.github/scripts/test_paritydb_db_sync.sh --testnet
 
       - name: Archive logs from failed test
         if: ${{ failure() }}
@@ -61,7 +58,6 @@ jobs:
           name: aleph-node-logs.tar.gz
           if-no-files-found: error
           retention-days: 7
-
 
   slack-notification:
     name: Slack notification
