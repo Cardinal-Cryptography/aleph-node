@@ -14,10 +14,6 @@ on:
         type: string
         required: true
 
-concurrency:
-  group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: false
-
 jobs:
   check-vars-and-secrets:
     name: Check vars and secrets
