@@ -230,7 +230,9 @@ fi
 if [[ -z "${DONT_BUILD_ALEPH_NODE}" ]]; then
   info "Building testing aleph-node binary (short session) and chain-bootstrapper binary."
   cargo build --release -p aleph-node
-  cargo build --release -p chain-bootstrapper --features "short_session enable_treasury_proposals"
+  if [[ -z "${DONT_BOOTSTRAP}" ]]; then
+    cargo build --release -p chain-bootstrapper --features "short_session enable_treasury_proposals"
+  fi
 elif [[ ! -x "${ALEPH_NODE}" || ! -x "${CHAINSPEC_GENERATOR}" ]]; then
   error "${ALEPH_NODE} or ${CHAINSPEC_GENERATOR} does not exist or it's not an executable file!"
 fi
