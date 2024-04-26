@@ -1,12 +1,16 @@
 ---
-# This workflow performs sync to Testnet from a pruned ParityDB snapshot using the latest main version.
+# This workflow performs sync to Mainnet from a pruned ParityDB snapshot using the latest main version.
 
-name: Weekly sync from snapshot, Testnet, ParityDB pruned
+name: Weekly sync from snapshot, Mainnet, ParityDB pruned
 on:
   # At 03:00 on Tuesday
   schedule:
     - cron: '0 3 * * 2'
   workflow_dispatch:
+  # testing, remove before merge
+  push:
+    branches:
+      - A0-4265
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -19,4 +23,4 @@ jobs:
     secrets: inherit
     with:
       timeout: 110
-      args: --testnet --pruned
+      args: --mainnet --pruned

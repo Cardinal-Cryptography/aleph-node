@@ -1,8 +1,8 @@
 ---
-# This workflow performs sync to Testnet from a ParityDB non-pruned snapshot using the latest
+# This workflow performs sync to Mainnet from a ParityDB non-pruned snapshot using the latest
 # main version.
 
-name: Weekly sync from snapshot test, Testnet, ParityDB non-pruned
+name: Weekly sync from snapshot test, Mainnet, ParityDB non-pruned
 on:
   # At 03:00 on Wednesday
   schedule:
@@ -20,4 +20,4 @@ jobs:
     secrets: inherit
     with:
       timeout: 360
-      args: --testnet
+      args: --mainnet

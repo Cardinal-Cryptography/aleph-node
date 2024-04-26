@@ -43,7 +43,7 @@ jobs:
       - name: Download snapshot and test sync
         timeout-minutes: ${{ inputs.timeout }}
         run: |
-          ./.github/scripts/test_paritydb_db_sync.sh ${{ inputs.args }}
+          ./.github/scripts/test_parity_db_sync.sh ${{ inputs.args }}
 
       - name: Archive logs from failed test
         if: ${{ failure() }}
