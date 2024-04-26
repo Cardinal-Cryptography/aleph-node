@@ -42,16 +42,11 @@ pub struct Service<
     PeerId: Clone + Debug + Eq + Hash + Send + 'static,
     ES: EventStream<PeerId>,
     AD: Data,
-    BSD: Data,
 > {
     messages_from_authentication_user: mpsc::UnboundedReceiver<Command<AD, PeerId>>,
-    messages_from_block_sync_user: mpsc::UnboundedReceiver<Command<BSD, PeerId>>,
     messages_for_authentication_user: mpsc::UnboundedSender<(AD, PeerId)>,
-    messages_for_block_sync_user: mpsc::UnboundedSender<(BSD, PeerId)>,
     authentication_connected_peers: HashSet<PeerId>,
     authentication_peer_senders: HashMap<PeerId, mpsc::Sender<AD>>,
-    block_sync_connected_peers: HashSet<PeerId>,
-    block_sync_peer_senders: HashMap<PeerId, mpsc::Sender<BSD>>,
     spawn_handle: SpawnHandle,
     metrics: Metrics,
     timestamp_of_last_log_that_channel_is_full: HashMap<(PeerId, Protocol), Instant>,
@@ -84,7 +79,6 @@ impl Display for Error {
 pub enum GossipServiceError {
     NetworkStreamTerminated,
     AuthorizationStreamTerminated,
-    BlockSyncStreamTerminated,
     UnableToForwardMessageToUser,
 }
 
@@ -94,9 +88,6 @@ impl fmt::Display for GossipServiceError {
             GossipServiceError::NetworkStreamTerminated => write!(f, "Network event stream ended."),
             GossipServiceError::AuthorizationStreamTerminated => {
                 write!(f, "Authentication user message stream ended.")
-            }
-            GossipServiceError::BlockSyncStreamTerminated => {
-                write!(f, "Block sync user message stream ended.")
             }
             GossipServiceError::UnableToForwardMessageToUser => {
                 write!(f, "Cannot forward messages to user.")
@@ -146,28 +137,18 @@ enum SendError {
     SendingFailed,
 }
 
-impl<
-        PeerId: Clone + Debug + Eq + Hash + Send + 'static,
-        ES: EventStream<PeerId>,
-        AD: Data,
-        BSD: Data,
-    > Service<PeerId, ES, AD, BSD>
+impl<PeerId: Clone + Debug + Eq + Hash + Send + 'static, ES: EventStream<PeerId>, AD: Data>
+    Service<PeerId, ES, AD>
 {
     pub fn new(
         network_event_stream: ES,
         spawn_handle: SpawnHandle,
         metrics_registry: Option<Registry>,
-    ) -> (
-        Self,
-        impl Network<AD, Error = Error, PeerId = PeerId>,
-        impl Network<BSD, Error = Error, PeerId = PeerId>,
-    ) {
+    ) -> (Self, impl Network<AD, Error = Error, PeerId = PeerId>) {
         let (messages_for_authentication_user, messages_from_authentication_service) =
             mpsc::unbounded();
-        let (messages_for_block_sync_user, messages_from_block_sync_service) = mpsc::unbounded();
         let (messages_for_authentication_service, messages_from_authentication_user) =
             mpsc::unbounded();
-        let (messages_for_block_sync_service, messages_from_block_sync_user) = mpsc::unbounded();
         let metrics = match Metrics::new(metrics_registry) {
             Ok(metrics) => metrics,
             Err(e) => {
@@ -178,15 +159,11 @@ impl<
         (
             Service {
                 messages_from_authentication_user,
-                messages_from_block_sync_user,
                 messages_for_authentication_user,
-                messages_for_block_sync_user,
                 spawn_handle,
                 metrics,
                 authentication_connected_peers: HashSet::new(),
                 authentication_peer_senders: HashMap::new(),
-                block_sync_connected_peers: HashSet::new(),
-                block_sync_peer_senders: HashMap::new(),
                 timestamp_of_last_log_that_channel_is_full: HashMap::new(),
                 network_event_stream,
             },
@@ -194,19 +171,11 @@ impl<
                 messages_from_service: messages_from_authentication_service,
                 messages_for_service: messages_for_authentication_service,
             },
-            ServiceInterface {
-                messages_from_service: messages_from_block_sync_service,
-                messages_for_service: messages_for_block_sync_service,
-            },
         )
     }
 
     fn get_authentication_sender(&mut self, peer: &PeerId) -> Option<&mut mpsc::Sender<AD>> {
         self.authentication_peer_senders.get_mut(peer)
-    }
-
-    fn get_block_sync_sender(&mut self, peer: &PeerId) -> Option<&mut mpsc::Sender<BSD>> {
-        self.block_sync_peer_senders.get_mut(peer)
     }
 
     fn peer_sender<D: Data>(
@@ -290,35 +259,6 @@ impl<
         }
     }
 
-    fn send_to_block_sync_peer(&mut self, data: BSD, peer: PeerId) -> Result<(), SendError> {
-        match self.get_block_sync_sender(&peer) {
-            Some(sender) => {
-                match sender.try_send(data) {
-                    Err(e) => {
-                        if e.is_full() {
-                            self.possibly_log_that_channel_is_full(
-                                peer.clone(),
-                                Protocol::BlockSync,
-                            );
-                        }
-                        // Receiver can also be dropped when thread cannot send to peer. In case receiver is dropped this entry will be removed by Event::NotificationStreamClosed
-                        // No need to remove the entry here
-                        if e.is_disconnected() {
-                            trace!(target: LOG_TARGET, "Failed sending data to peer because peer_sender receiver is dropped: {:?}", peer);
-                        }
-                        Err(SendError::SendingFailed)
-                    }
-                    Ok(_) => {
-                        self.metrics
-                            .report_message_pushed_to_peer_sender_queue(Protocol::BlockSync);
-                        Ok(())
-                    }
-                }
-            }
-            None => Err(SendError::MissingSender),
-        }
-    }
-
     fn send_authentication_data(&mut self, data: AD, peer_id: PeerId) {
         trace!(
             target: LOG_TARGET,
@@ -333,24 +273,10 @@ impl<
         }
     }
 
-    fn send_block_sync_data(&mut self, data: BSD, peer_id: PeerId) {
-        trace!(
-            target: LOG_TARGET,
-            "Sending block sync data to peer {:?}.",
-            peer_id,
-        );
-        if let Err(e) = self.send_to_block_sync_peer(data, peer_id.clone()) {
-            debug!(
-                target: LOG_TARGET,
-                "Failed to send to peer{:?}, {:?}", peer_id, e
-            );
-        }
-    }
-
     fn protocol_peers(&self, protocol: Protocol) -> &HashSet<PeerId> {
         match protocol {
             Protocol::Authentication => &self.authentication_connected_peers,
-            Protocol::BlockSync => &self.block_sync_connected_peers,
+            Protocol::BlockSync => panic!(),
         }
     }
 
@@ -388,36 +314,10 @@ impl<
         self.send_authentication_data(data, peer_id);
     }
 
-    fn send_to_random_block_sync(&mut self, data: BSD, peer_ids: HashSet<PeerId>) {
-        trace!(
-            target: LOG_TARGET,
-            "Sending block sync data to random peer among {:?}.",
-            peer_ids,
-        );
-        let peer_id = match self.random_peer(&peer_ids, Protocol::BlockSync) {
-            Some(peer_id) => peer_id.clone(),
-            None => {
-                debug!(
-                    target: LOG_TARGET,
-                    "Failed to send block sync message to random peer, no peers are available."
-                );
-                return;
-            }
-        };
-        self.send_block_sync_data(data, peer_id);
-    }
-
     fn broadcast_authentication(&mut self, data: AD) {
         let peers = self.protocol_peers(Protocol::Authentication).clone();
         for peer in peers {
             self.send_authentication_data(data.clone(), peer);
-        }
-    }
-
-    fn broadcast_block_sync(&mut self, data: BSD) {
-        let peers = self.protocol_peers(Protocol::BlockSync).clone();
-        for peer in peers {
-            self.send_block_sync_data(data.clone(), peer);
         }
     }
 
@@ -441,15 +341,7 @@ impl<
                             self.peer_sender(peer, rx, Protocol::Authentication, sink),
                         );
                     }
-                    Protocol::BlockSync => {
-                        let (tx, rx) = mpsc::channel(MAX_QUEUE_SIZE);
-                        self.block_sync_connected_peers.insert(peer.clone());
-                        self.block_sync_peer_senders.insert(peer.clone(), tx);
-                        self.spawn_handle.spawn(
-                            "aleph/network/sync_peer_sender",
-                            self.peer_sender(peer, rx, Protocol::BlockSync, sink),
-                        );
-                    }
+                    Protocol::BlockSync => (),
                 };
             }
             StreamClosed(peer, protocol) => {
@@ -464,10 +356,7 @@ impl<
                         self.authentication_connected_peers.remove(&peer);
                         self.authentication_peer_senders.remove(&peer);
                     }
-                    Protocol::BlockSync => {
-                        self.block_sync_connected_peers.remove(&peer);
-                        self.block_sync_peer_senders.remove(&peer);
-                    }
+                    Protocol::BlockSync => (),
                 }
             }
             Messages(peer_id, messages) => {
@@ -485,18 +374,7 @@ impl<
                                 )
                             }
                         },
-                        Protocol::BlockSync => match BSD::decode(&mut &data[..]) {
-                            Ok(data) => self
-                                .messages_for_block_sync_user
-                                .unbounded_send((data, peer_id.clone()))
-                                .map_err(|_| ())?,
-                            Err(e) => {
-                                warn!(
-                                    target: LOG_TARGET,
-                                    "Error decoding block sync protocol message: {}", e
-                                )
-                            }
-                        },
+                        Protocol::BlockSync => (),
                     };
                 }
             }
@@ -510,10 +388,6 @@ impl<
         status.push_str(&format!(
             "authentication connected peers - {:?}; ",
             self.authentication_connected_peers.len()
-        ));
-        status.push_str(&format!(
-            "block sync connected peers - {:?}; ",
-            self.block_sync_connected_peers.len()
         ));
 
         info!(target: LOG_TARGET, "{}", status);
@@ -534,13 +408,6 @@ impl<
                         Command::Broadcast(message) => self.broadcast_authentication(message),
                         Command::SendToRandom(message, peer_ids) => self.send_to_random_authentication(message, peer_ids),
                         Command::Send(message, peer_id) => self.send_authentication_data(message, peer_id),
-                    }
-                },
-                maybe_message = self.messages_from_block_sync_user.next() => {
-                    match maybe_message.ok_or(Error::BlockSyncStreamTerminated)? {
-                        Command::Broadcast(message) => self.broadcast_block_sync(message),
-                        Command::SendToRandom(message, peer_ids) => self.send_to_random_block_sync(message, peer_ids),
-                        Command::Send(message, peer_id) => self.send_block_sync_data(message, peer_id),
                     }
                 },
                 _ = status_ticker.tick() => {

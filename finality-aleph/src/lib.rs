@@ -283,6 +283,7 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC, T> {
+    pub block_sync_notifications: Box<dyn sc_network::config::NotificationService>,
     pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,

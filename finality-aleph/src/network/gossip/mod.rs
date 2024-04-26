@@ -12,8 +12,10 @@ use crate::network::Data;
 mod metrics;
 #[cfg(test)]
 pub mod mock;
+mod notifications;
 mod service;
 
+pub use notifications::Service as NotificationsService;
 pub use service::{Error, Service};
 
 #[async_trait::async_trait]

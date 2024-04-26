@@ -23,9 +23,10 @@ use crate::{
     metrics::{run_chain_state_metrics, transaction_pool::TransactionPoolWrapper},
     network::{
         address_cache::validator_address_cache_updater,
+        gossip::NotificationsService,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        GossipService,
+        GossipService, Protocol,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -62,6 +63,7 @@ where
     TP: TransactionPool<Block = Block> + 'static,
 {
     let AlephConfig {
+        block_sync_notifications,
         network_event_stream,
         client,
         chain_status,
@@ -131,7 +133,7 @@ where
         }
     });
 
-    let (gossip_network_service, authentication_network, block_sync_network) =
+    let (gossip_network_service, authentication_network) =
         GossipService::new(network_event_stream, spawn_handle.clone(), registry.clone());
     let gossip_network_task = async move {
         match gossip_network_service.run().await {
@@ -176,6 +178,8 @@ where
         }
     });
 
+    let block_sync_network =
+        NotificationsService::new(Protocol::BlockSync, block_sync_notifications);
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {

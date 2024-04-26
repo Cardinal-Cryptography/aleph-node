@@ -336,7 +336,7 @@ pub fn new_authority(
 
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
 
-    let (net_config, protocol_naming, notifications) =
+    let (net_config, protocol_naming, mut notifications) =
         get_net_config(&config, &service_components.client);
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -398,6 +398,7 @@ pub fn new_authority(
 
     let rate_limiter_config = get_rate_limit_config(&aleph_config);
 
+    let block_sync_notifications = notifications.sync.clone().expect("should clone");
     // Network event stream needs to be created before starting the network,
     // otherwise some events might be missed.
     let network_event_stream =
@@ -409,6 +410,7 @@ pub fn new_authority(
     } = get_aleph_runtime_vars(&service_components.client);
 
     let aleph_config = AlephConfig {
+        block_sync_notifications,
         network_event_stream,
         client: service_components.client,
         chain_status,

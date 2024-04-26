@@ -2,7 +2,7 @@ use parity_scale_codec::Codec;
 
 pub mod address_cache;
 pub mod data;
-mod gossip;
+pub mod gossip;
 #[cfg(test)]
 pub mod mock;
 pub mod session;
