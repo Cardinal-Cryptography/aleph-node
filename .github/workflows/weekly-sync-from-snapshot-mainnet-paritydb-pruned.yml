@@ -4,14 +4,10 @@
 
 name: Weekly sync from snapshot, Mainnet, ParityDB pruned
 on:
-  # At 03:00 on Tuesday
+  # At 03:00 on Wednesday and Saturday
   schedule:
-    - cron: '0 3 * * 2'
+    - cron: '0 3 * * 3,6'
   workflow_dispatch:
-  # testing, remove before merge
-  push:
-    branches:
-      - A0-4265
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -23,5 +19,5 @@ jobs:
     uses: ./.github/workflows/_weekly-sync-from-snapshot.yml
     secrets: inherit
     with:
-      timeout: 110
+      timeout: 60
       args: --mainnet --pruned

@@ -6,7 +6,7 @@ import time
 from substrateinterface import SubstrateInterface
 connection_attempts = 0
 
-while connection_attempts < 30:
+while connection_attempts < 15:
     try:
         chain = SubstrateInterface(url=argv[1])
         number = chain.get_block()['header']['number']

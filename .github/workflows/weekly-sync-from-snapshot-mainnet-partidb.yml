@@ -4,9 +4,9 @@
 
 name: Weekly sync from snapshot test, Mainnet, ParityDB non-pruned
 on:
-  # At 03:00 on Wednesday
+  # At 03:00 on Wednesday and Saturday
   schedule:
-    - cron: '0 3 * * 3'
+    - cron: '0 3 * * 3,6'
   workflow_dispatch:
 
 concurrency:
@@ -19,5 +19,5 @@ jobs:
     uses: ./.github/workflows/_weekly-sync-from-snapshot.yml
     secrets: inherit
     with:
-      timeout: 360
+      timeout: 300
       args: --mainnet
