@@ -7,11 +7,11 @@ on:
     inputs:
       timeout:
         description: "Test timeout in minutes"
-        type: string
+        type: number
         required: true
       args:
         description: "Test arguments passed to bash test runner"
-        type: number
+        type: string
         required: true
 
 jobs:
