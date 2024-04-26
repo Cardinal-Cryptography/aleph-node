@@ -1,5 +1,6 @@
 ---
-# This workflow performs sync to Testnet from a pruned ParityDB snapshot using the latest main version.
+# This workflow performs sync to Testnet from a pruned ParityDB snapshot using the latest
+# main version.
 
 name: Weekly sync from snapshot, Testnet, ParityDB pruned
 on:

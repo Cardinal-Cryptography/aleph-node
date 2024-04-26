@@ -1,5 +1,6 @@
 ---
-# This workflow performs sync to Mainnet from a pruned ParityDB snapshot using the latest main version.
+# This workflow performs sync to Mainnet from a pruned ParityDB snapshot using the latest
+# main version.
 
 name: Weekly sync from snapshot, Mainnet, ParityDB pruned
 on:
