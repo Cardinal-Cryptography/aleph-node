@@ -96,6 +96,7 @@ impl fmt::Display for SyncNetworkServiceError {
     }
 }
 
+/// Service responsible for handling network events emitted by the base sync protocol.
 pub struct SyncNetworkService<B: Block, H: ExHashT> {
     sync_stream: Fuse<Pin<Box<dyn Stream<Item = SyncEvent> + Send>>>,
     naming: ProtocolNaming,
@@ -115,38 +116,38 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
         }
     }
 
+    fn protocols(&self) -> [Protocol; 2] {
+        [Protocol::Authentication, Protocol::BlockSync]
+    }
+
     fn peer_connected(&mut self, remote: PeerId) {
         let multiaddress: Multiaddr =
             iter::once(MultiaddressProtocol::P2p(remote.into())).collect();
-        trace!(target: "aleph-network", "Connected event from address {:?}", multiaddress);
-        if let Err(e) = self.network.add_peers_to_reserved_set(
-            self.naming.protocol_name(&Protocol::Authentication),
-            iter::once(multiaddress.clone()).collect(),
-        ) {
-            error!(target: "aleph-network", "add_reserved failed for authentications: {}", e);
-        }
-        if let Err(e) = self.network.add_peers_to_reserved_set(
-            self.naming.protocol_name(&Protocol::BlockSync),
-            iter::once(multiaddress).collect(),
-        ) {
-            error!(target: "aleph-network", "add_reserved failed for block sync: {}", e);
+        trace!(target: LOG_TARGET, "Connected event from address {:?}", multiaddress);
+
+        for protocol in self.protocols() {
+            let name = self.naming.protocol_name(&protocol);
+            if let Err(e) = self
+                .network
+                .add_peers_to_reserved_set(name.clone(), iter::once(multiaddress.clone()).collect())
+            {
+                error!(target: LOG_TARGET, "add_reserved failed for {}: {}", name, e);
+            }
         }
     }
 
     fn peer_disconnected(&mut self, remote: PeerId) {
-        trace!(target: "aleph-network", "Disconnected event for peer {:?}", remote);
+        trace!(target: LOG_TARGET, "Disconnected event for peer {:?}", remote);
         let addresses: Vec<_> = iter::once(remote).collect();
-        if let Err(e) = self.network.remove_peers_from_reserved_set(
-            self.naming.protocol_name(&Protocol::Authentication),
-            addresses.clone(),
-        ) {
-            warn!(target: "aleph-network", "Error while removing peer from Protocol::Authentication reserved set: {}", e)
-        }
-        if let Err(e) = self.network.remove_peers_from_reserved_set(
-            self.naming.protocol_name(&Protocol::BlockSync),
-            addresses,
-        ) {
-            warn!(target: "aleph-network", "Error while removing peer from Protocol::BlockSync reserved set: {}", e)
+
+        for protocol in self.protocols() {
+            let name = self.naming.protocol_name(&protocol);
+            if let Err(e) = self
+                .network
+                .remove_peers_from_reserved_set(name.clone(), addresses.clone())
+            {
+                warn!(target: LOG_TARGET, "Error while removing peer from {} reserved set: {}", name, e)
+            }
         }
     }
 
@@ -164,22 +165,20 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
     }
 }
 
+/// A thin wrapper around sc_network::config::NotificationService that stores a list
+/// of all currently connected peers, and introduces a few convenience methods to
+/// allow broadcasting messages and sending data to random peers.
 pub struct NotificationService {
-    protocol: Protocol,
-    connected_peers: HashSet<PeerId>,
     service: Box<dyn sc_network::config::NotificationService>,
+    connected_peers: HashSet<PeerId>,
     last_status_report: time::Instant,
 }
 
 impl NotificationService {
-    pub fn new(
-        protocol: Protocol,
-        service: Box<dyn sc_network::config::NotificationService>,
-    ) -> Self {
+    pub fn new(service: Box<dyn sc_network::config::NotificationService>) -> Self {
         Self {
-            protocol,
-            connected_peers: HashSet::new(),
             service,
+            connected_peers: HashSet::new(),
             last_status_report: time::Instant::now(),
         }
     }
@@ -217,11 +216,8 @@ impl NotificationService {
     fn status_report(&self) {
         let mut status = String::from("Network status report: ");
         status.push_str(&format!(
-            "{:?} connected peers - {:?}; ",
-            match self.protocol {
-                Protocol::Authentication => "authentication",
-                Protocol::BlockSync => "block sync",
-            },
+            "{} connected peers - {:?}; ",
+            self.service.protocol(),
             self.connected_peers.len()
         ));
         info!(target: LOG_TARGET, "{}", status);
