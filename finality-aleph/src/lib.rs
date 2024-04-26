@@ -74,8 +74,7 @@ pub use crate::{
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        NotificationServices, Protocol, ProtocolNaming, SubstrateNetworkEventStream,
-        SubstratePeerId,
+        Protocol, ProtocolNaming, SubstratePeerId, SyncNetworkService,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -283,8 +282,9 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC, T> {
+    pub authentication_notifications: Box<dyn sc_network::config::NotificationService>,
     pub block_sync_notifications: Box<dyn sc_network::config::NotificationService>,
-    pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
+    pub sync_network_service: SyncNetworkService<AlephBlock, AlephHash>,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,

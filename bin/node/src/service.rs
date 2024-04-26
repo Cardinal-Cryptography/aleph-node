@@ -7,10 +7,9 @@ use std::{
 
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
-    ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock,
-    NotificationServices, Protocol, ProtocolNaming, RateLimiterConfig, RedirectingBlockImport,
-    SessionPeriod, SubstrateChainStatus, SubstrateNetworkEventStream, SyncOracle,
-    TracingBlockImport, ValidatorAddressCache,
+    ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock, Protocol,
+    ProtocolNaming, RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus,
+    SyncNetworkService, SyncOracle, TracingBlockImport, ValidatorAddressCache,
 };
 use log::warn;
 use primitives::{
@@ -228,7 +227,8 @@ fn get_net_config(
 ) -> (
     FullNetworkConfiguration,
     ProtocolNaming,
-    NotificationServices,
+    Box<dyn sc_network::config::NotificationService>,
+    Box<dyn sc_network::config::NotificationService>,
 ) {
     let genesis_hash = client
         .block_hash(0)
@@ -252,10 +252,8 @@ fn get_net_config(
     (
         net_config,
         protocol_naming,
-        NotificationServices {
-            authentication: authentication_notification_service,
-            sync: sync_notification_service,
-        },
+        authentication_notification_service,
+        sync_notification_service,
     )
 }
 
@@ -336,7 +334,7 @@ pub fn new_authority(
 
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
 
-    let (net_config, protocol_naming, mut notifications) =
+    let (net_config, protocol_naming, authentication_notifications, block_sync_notifications) =
         get_net_config(&config, &service_components.client);
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -398,11 +396,9 @@ pub fn new_authority(
 
     let rate_limiter_config = get_rate_limit_config(&aleph_config);
 
-    let block_sync_notifications = notifications.sync.clone().expect("should clone");
     // Network event stream needs to be created before starting the network,
     // otherwise some events might be missed.
-    let network_event_stream =
-        SubstrateNetworkEventStream::new(network, sync_network, protocol_naming, notifications);
+    let sync_network_service = SyncNetworkService::new(network, sync_network, protocol_naming);
 
     let AlephRuntimeVars {
         millisecs_per_block,
@@ -410,8 +406,9 @@ pub fn new_authority(
     } = get_aleph_runtime_vars(&service_components.client);
 
     let aleph_config = AlephConfig {
+        authentication_notifications,
         block_sync_notifications,
-        network_event_stream,
+        sync_network_service,
         client: service_components.client,
         chain_status,
         import_queue_handle,

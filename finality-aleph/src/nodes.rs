@@ -23,10 +23,9 @@ use crate::{
     metrics::{run_chain_state_metrics, transaction_pool::TransactionPoolWrapper},
     network::{
         address_cache::validator_address_cache_updater,
-        gossip::NotificationsService,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        GossipService, Protocol,
+        NotificationService, Protocol,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -63,8 +62,9 @@ where
     TP: TransactionPool<Block = Block> + 'static,
 {
     let AlephConfig {
+        authentication_notifications,
         block_sync_notifications,
-        network_event_stream,
+        sync_network_service,
         client,
         chain_status,
         mut import_queue_handle,
@@ -133,14 +133,12 @@ where
         }
     });
 
-    let (gossip_network_service, authentication_network) =
-        GossipService::new(network_event_stream, spawn_handle.clone(), registry.clone());
     let gossip_network_task = async move {
-        match gossip_network_service.run().await {
-            Ok(_) => error!(target: LOG_TARGET, "GossipNetwork finished."),
+        match sync_network_service.run().await {
+            Ok(_) => error!(target: LOG_TARGET, "SyncNetworkService finished."),
             Err(err) => error!(
                 target: LOG_TARGET,
-                "GossipNetwork finished with error: {err}."
+                "SyncNetworkService finished with error: {err}."
             ),
         }
     };
@@ -179,7 +177,7 @@ where
     });
 
     let block_sync_network =
-        NotificationsService::new(Protocol::BlockSync, block_sync_notifications);
+        NotificationService::new(Protocol::BlockSync, block_sync_notifications);
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
@@ -232,6 +230,8 @@ where
         ),
     );
 
+    let authentication_network =
+        NotificationService::new(Protocol::Authentication, authentication_notifications);
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
         network_identity,
         validator_network,
