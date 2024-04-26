@@ -11,7 +11,7 @@ on:
         required: true
       args:
         description: "Test arguments passed to bash test runner"
-        type: string
+        type: number
         required: true
 
 jobs:
