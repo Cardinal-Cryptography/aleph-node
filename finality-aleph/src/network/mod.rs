@@ -15,9 +15,7 @@ use std::{
 };
 
 use network_clique::{AddressingInformation, NetworkIdentity, PeerId};
-pub use substrate::{
-    PeerId as SubstratePeerId, Protocol, ProtocolNaming, ProtocolNetwork, SyncNetworkService,
-};
+pub use substrate::{PeerId as SubstratePeerId, ProtocolNetwork, SyncNetworkService};
 
 /// A basic alias for properties we expect basic data to satisfy.
 pub trait Data: Clone + Codec + Send + Sync + 'static {}

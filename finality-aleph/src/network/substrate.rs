@@ -1,7 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::{Debug, Display, Error as FmtError, Formatter},
-    hash::Hash,
     iter,
     pin::Pin,
     sync::Arc,
@@ -28,60 +27,6 @@ use crate::{
 
 const LOG_TARGET: &str = "aleph-network";
 
-/// Name of the network protocol used by Aleph Zero to disseminate validator
-/// authentications.
-const AUTHENTICATION_PROTOCOL_NAME: &str = "/auth/0";
-
-/// Name of the network protocol used by Aleph Zero to synchronize the block state.
-const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
-
-/// Protocols used by the network.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub enum Protocol {
-    /// The authentication protocol is used for validator discovery.
-    Authentication,
-    /// The block synchronization protocol.
-    BlockSync,
-}
-
-/// Convert protocols to their names and vice versa.
-#[derive(Clone)]
-pub struct ProtocolNaming {
-    authentication_name: ProtocolName,
-    block_sync_name: ProtocolName,
-}
-
-impl ProtocolNaming {
-    /// Create a new protocol naming scheme with the given chain prefix.
-    pub fn new(chain_prefix: String) -> Self {
-        let authentication_name: ProtocolName =
-            format!("{chain_prefix}{AUTHENTICATION_PROTOCOL_NAME}").into();
-        let mut protocols_by_name = HashMap::new();
-        protocols_by_name.insert(authentication_name.clone(), Protocol::Authentication);
-        let block_sync_name: ProtocolName =
-            format!("{chain_prefix}{BLOCK_SYNC_PROTOCOL_NAME}").into();
-        protocols_by_name.insert(block_sync_name.clone(), Protocol::BlockSync);
-        ProtocolNaming {
-            authentication_name,
-            block_sync_name,
-        }
-    }
-
-    /// Returns the canonical name of the protocol.
-    pub fn protocol_name(&self, protocol: &Protocol) -> ProtocolName {
-        use Protocol::*;
-        match protocol {
-            Authentication => self.authentication_name.clone(),
-            BlockSync => self.block_sync_name.clone(),
-        }
-    }
-
-    /// Returns the fallback names of the protocol.
-    pub fn fallback_protocol_names(&self, _protocol: &Protocol) -> Vec<ProtocolName> {
-        Vec::new()
-    }
-}
-
 #[derive(Debug)]
 pub enum SyncNetworkServiceError {
     NetworkStreamTerminated,
@@ -98,25 +43,21 @@ impl Display for SyncNetworkServiceError {
 /// Service responsible for handling network events emitted by the base sync protocol.
 pub struct SyncNetworkService<B: Block, H: ExHashT> {
     sync_stream: Fuse<Pin<Box<dyn Stream<Item = SyncEvent> + Send>>>,
-    naming: ProtocolNaming,
     network: Arc<NetworkService<B, H>>,
+    protocol_names: Vec<ProtocolName>,
 }
 
 impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
     pub fn new(
         network: Arc<NetworkService<B, H>>,
         sync_network: Arc<SyncingService<B>>,
-        naming: ProtocolNaming,
+        protocol_names: Vec<ProtocolName>,
     ) -> Self {
         Self {
             sync_stream: sync_network.event_stream("aleph-syncing-network").fuse(),
-            naming,
             network,
+            protocol_names,
         }
-    }
-
-    fn protocols(&self) -> [Protocol; 2] {
-        [Protocol::Authentication, Protocol::BlockSync]
     }
 
     fn peer_connected(&mut self, remote: PeerId) {
@@ -124,8 +65,7 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
             iter::once(MultiaddressProtocol::P2p(remote.into())).collect();
         trace!(target: LOG_TARGET, "Connected event from address {:?}", multiaddress);
 
-        for protocol in self.protocols() {
-            let name = self.naming.protocol_name(&protocol);
+        for name in &self.protocol_names {
             if let Err(e) = self
                 .network
                 .add_peers_to_reserved_set(name.clone(), iter::once(multiaddress.clone()).collect())
@@ -139,8 +79,7 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
         trace!(target: LOG_TARGET, "Disconnected event for peer {:?}", remote);
         let addresses: Vec<_> = iter::once(remote).collect();
 
-        for protocol in self.protocols() {
-            let name = self.naming.protocol_name(&protocol);
+        for name in &self.protocol_names {
             if let Err(e) = self
                 .network
                 .remove_peers_from_reserved_set(name.clone(), addresses.clone())
@@ -180,6 +119,10 @@ impl ProtocolNetwork {
             connected_peers: HashSet::new(),
             last_status_report: time::Instant::now(),
         }
+    }
+
+    pub fn name(&self) -> ProtocolName {
+        self.service.protocol().clone()
     }
 
     fn random_peer<'a>(&'a self, peer_ids: &'a HashSet<PeerId>) -> Option<&'a PeerId> {
