@@ -21,8 +21,6 @@ use sc_client_api::{
 };
 use sc_consensus::BlockImport;
 use sc_keystore::LocalKeystore;
-use sc_network::config::FullNetworkConfiguration;
-use sc_service::Configuration;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block};
@@ -37,9 +35,8 @@ use crate::{
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
     block::UnverifiedHeader,
     compatibility::{Version, Versioned},
-    network::{data::split::Split, session::MAX_MESSAGE_SIZE as MAX_AUTHENTICATION_MESSAGE_SIZE},
+    network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
-    sync::MAX_MESSAGE_SIZE as MAX_BLOCK_SYNC_MESSAGE_SIZE,
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
 };
 
@@ -76,7 +73,7 @@ pub use crate::{
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        ProtocolNetwork, SubstratePeerId, SyncNetworkService,
+        NetConfig, ProtocolNetwork, SubstratePeerId, SyncNetworkService,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -85,64 +82,6 @@ pub use crate::{
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
-
-/// Name of the network protocol used by Aleph Zero to disseminate validator
-/// authentications.
-const AUTHENTICATION_PROTOCOL_NAME: &str = "/auth/0";
-
-/// Name of the network protocol used by Aleph Zero to synchronize the block state.
-const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
-
-pub struct NetConfig {
-    pub net_config: FullNetworkConfiguration,
-    pub authentication_network: ProtocolNetwork,
-    pub block_sync_network: ProtocolNetwork,
-}
-
-impl NetConfig {
-    fn add_protocol(
-        chain_prefix: &str,
-        protocol_name: &str,
-        max_message_size: u64,
-        net_config: &mut FullNetworkConfiguration,
-    ) -> ProtocolNetwork {
-        let (config, notifications) = sc_network::config::NonDefaultSetConfig::new(
-            // full protocol name
-            format!("{chain_prefix}{protocol_name}").into(),
-            // no fallback names
-            vec![],
-            max_message_size,
-            // we do not use custom handshake
-            None,
-            sc_network::config::SetConfig::default(),
-        );
-        net_config.add_notification_protocol(config);
-        ProtocolNetwork::new(notifications)
-    }
-
-    pub fn new(config: &Configuration, chain_prefix: &str) -> Self {
-        let mut net_config = FullNetworkConfiguration::new(&config.network);
-
-        let authentication_network = Self::add_protocol(
-            chain_prefix,
-            AUTHENTICATION_PROTOCOL_NAME,
-            MAX_AUTHENTICATION_MESSAGE_SIZE,
-            &mut net_config,
-        );
-        let block_sync_network = Self::add_protocol(
-            chain_prefix,
-            BLOCK_SYNC_PROTOCOL_NAME,
-            MAX_BLOCK_SYNC_MESSAGE_SIZE,
-            &mut net_config,
-        );
-
-        Self {
-            net_config,
-            authentication_network,
-            block_sync_network,
-        }
-    }
-}
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
