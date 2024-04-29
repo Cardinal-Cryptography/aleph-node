@@ -1,7 +1,6 @@
-use core::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Error as FmtError, Formatter},
     hash::Hash,
     iter,
     pin::Pin,
@@ -88,8 +87,8 @@ pub enum SyncNetworkServiceError {
     NetworkStreamTerminated,
 }
 
-impl fmt::Display for SyncNetworkServiceError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl Display for SyncNetworkServiceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
             Self::NetworkStreamTerminated => write!(f, "Network event stream ended."),
         }
@@ -229,8 +228,8 @@ pub enum ProtocolNetworkError {
     NetworkStreamTerminated,
 }
 
-impl fmt::Display for ProtocolNetworkError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl Display for ProtocolNetworkError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
             ProtocolNetworkError::NetworkStreamTerminated => {
                 write!(f, "Notifications event stream ended.")
