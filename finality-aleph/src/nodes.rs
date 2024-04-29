@@ -25,7 +25,6 @@ use crate::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        NotificationService,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -62,8 +61,8 @@ where
     TP: TransactionPool<Block = Block> + 'static,
 {
     let AlephConfig {
-        authentication_notifications,
-        block_sync_notifications,
+        authentication_network,
+        block_sync_network,
         sync_network_service,
         client,
         chain_status,
@@ -176,7 +175,6 @@ where
         }
     });
 
-    let block_sync_network = NotificationService::new(block_sync_notifications);
     let session_info = SessionBoundaryInfo::new(session_period);
     let genesis_header = match chain_status.finalized_at(0) {
         Ok(FinalizationStatus::FinalizedWithJustification(justification)) => {
@@ -229,7 +227,6 @@ where
         ),
     );
 
-    let authentication_network = NotificationService::new(authentication_notifications);
     let (connection_manager_service, connection_manager) = ConnectionManager::new(
         network_identity,
         validator_network,

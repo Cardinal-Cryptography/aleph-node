@@ -16,7 +16,7 @@ use std::{
 
 use network_clique::{AddressingInformation, NetworkIdentity, PeerId};
 pub use substrate::{
-    NotificationService, PeerId as SubstratePeerId, Protocol, ProtocolNaming, SyncNetworkService,
+    PeerId as SubstratePeerId, Protocol, ProtocolNaming, ProtocolNetwork, SyncNetworkService,
 };
 
 /// A basic alias for properties we expect basic data to satisfy.

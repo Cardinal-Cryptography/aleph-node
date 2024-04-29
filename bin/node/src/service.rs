@@ -8,8 +8,9 @@ use std::{
 use finality_aleph::{
     run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics, BlockImporter,
     ChannelProvider, Justification, JustificationTranslator, MillisecsPerBlock, Protocol,
-    ProtocolNaming, RateLimiterConfig, RedirectingBlockImport, SessionPeriod, SubstrateChainStatus,
-    SyncNetworkService, SyncOracle, TracingBlockImport, ValidatorAddressCache,
+    ProtocolNaming, ProtocolNetwork, RateLimiterConfig, RedirectingBlockImport, SessionPeriod,
+    SubstrateChainStatus, SyncNetworkService, SyncOracle, TracingBlockImport,
+    ValidatorAddressCache,
 };
 use log::warn;
 use primitives::{
@@ -221,15 +222,14 @@ fn get_validator_address_cache(aleph_config: &AlephCli) -> Option<ValidatorAddre
         .then(ValidatorAddressCache::new)
 }
 
-fn get_net_config(
-    config: &Configuration,
-    client: &Arc<FullClient>,
-) -> (
-    FullNetworkConfiguration,
-    ProtocolNaming,
-    Box<dyn sc_network::config::NotificationService>,
-    Box<dyn sc_network::config::NotificationService>,
-) {
+struct NetConfig {
+    pub net_config: FullNetworkConfiguration,
+    pub protocol_naming: ProtocolNaming,
+    pub authentication_network: ProtocolNetwork,
+    pub block_sync_network: ProtocolNetwork,
+}
+
+fn get_net_config(config: &Configuration, client: &Arc<FullClient>) -> NetConfig {
     let genesis_hash = client
         .block_hash(0)
         .ok()
@@ -242,19 +242,19 @@ fn get_net_config(
     let protocol_naming = ProtocolNaming::new(chain_prefix);
     let mut net_config = FullNetworkConfiguration::new(&config.network);
 
-    let (config, authentication_notification_service) =
+    let (config, authentication_notifications) =
         finality_aleph::peers_set_config(protocol_naming.clone(), Protocol::Authentication);
     net_config.add_notification_protocol(config);
-    let (config, sync_notification_service) =
+    let (config, block_sync_notifications) =
         finality_aleph::peers_set_config(protocol_naming.clone(), Protocol::BlockSync);
     net_config.add_notification_protocol(config);
 
-    (
+    NetConfig {
         net_config,
         protocol_naming,
-        authentication_notification_service,
-        sync_notification_service,
-    )
+        authentication_network: ProtocolNetwork::new(authentication_notifications),
+        block_sync_network: ProtocolNetwork::new(block_sync_notifications),
+    }
 }
 
 fn get_proposer_factory(
@@ -334,8 +334,12 @@ pub fn new_authority(
 
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
 
-    let (net_config, protocol_naming, authentication_notifications, block_sync_notifications) =
-        get_net_config(&config, &service_components.client);
+    let NetConfig {
+        net_config,
+        protocol_naming,
+        authentication_network,
+        block_sync_network,
+    } = get_net_config(&config, &service_components.client);
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
@@ -406,8 +410,8 @@ pub fn new_authority(
     } = get_aleph_runtime_vars(&service_components.client);
 
     let aleph_config = AlephConfig {
-        authentication_notifications,
-        block_sync_notifications,
+        authentication_network,
+        block_sync_network,
         sync_network_service,
         client: service_components.client,
         chain_status,

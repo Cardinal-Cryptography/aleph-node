@@ -168,13 +168,13 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
 /// A thin wrapper around sc_network::config::NotificationService that stores a list
 /// of all currently connected peers, and introduces a few convenience methods to
 /// allow broadcasting messages and sending data to random peers.
-pub struct NotificationService {
+pub struct ProtocolNetwork {
     service: Box<dyn sc_network::config::NotificationService>,
     connected_peers: HashSet<PeerId>,
     last_status_report: time::Instant,
 }
 
-impl NotificationService {
+impl ProtocolNetwork {
     pub fn new(service: Box<dyn sc_network::config::NotificationService>) -> Self {
         Self {
             service,
@@ -225,14 +225,14 @@ impl NotificationService {
 }
 
 #[derive(Debug)]
-pub enum NotificationServiceError {
+pub enum ProtocolNetworkError {
     NetworkStreamTerminated,
 }
 
-impl fmt::Display for NotificationServiceError {
+impl fmt::Display for ProtocolNetworkError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            NotificationServiceError::NetworkStreamTerminated => {
+            ProtocolNetworkError::NetworkStreamTerminated => {
                 write!(f, "Notifications event stream ended.")
             }
         }
@@ -240,8 +240,8 @@ impl fmt::Display for NotificationServiceError {
 }
 
 #[async_trait::async_trait]
-impl<D: Data> GossipNetwork<D> for NotificationService {
-    type Error = NotificationServiceError;
+impl<D: Data> GossipNetwork<D> for ProtocolNetwork {
+    type Error = ProtocolNetworkError;
     type PeerId = PeerId;
 
     fn send_to(&mut self, data: D, peer_id: PeerId) -> Result<(), Self::Error> {
