@@ -8,6 +8,7 @@ use std::{
 
 use futures::stream::{Fuse, Stream, StreamExt};
 use log::{debug, error, info, trace, warn};
+use parity_scale_codec::DecodeAll;
 use rand::{seq::IteratorRandom, thread_rng};
 pub use sc_network::PeerId;
 use sc_network::{
@@ -70,7 +71,7 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
                 .network
                 .add_peers_to_reserved_set(name.clone(), iter::once(multiaddress.clone()).collect())
             {
-                error!(target: LOG_TARGET, "add_reserved failed for {}: {}", name, e);
+                error!(target: LOG_TARGET, "add_peers_to_reserved_set failed for {}: {}", name, e);
             }
         }
     }
@@ -84,7 +85,7 @@ impl<B: Block, H: ExHashT> SyncNetworkService<B, H> {
                 .network
                 .remove_peers_from_reserved_set(name.clone(), addresses.clone())
             {
-                warn!(target: LOG_TARGET, "Error while removing peer from {} reserved set: {}", name, e)
+                error!(target: LOG_TARGET, "remove_peers_from_reserved_set failed for {}: {}", name, e)
             }
         }
     }
@@ -217,7 +218,8 @@ impl<D: Data> GossipNetwork<D> for ProtocolNetwork {
 
     fn broadcast(&mut self, data: D) -> Result<(), Self::Error> {
         for peer in self.connected_peers.clone() {
-            self.send_to(data.clone(), peer)?;
+            // in the current version send_to never returns an error
+            let _ = self.send_to(data.clone(), peer);
         }
         Ok(())
     }
@@ -234,7 +236,7 @@ impl<D: Data> GossipNetwork<D> for ProtocolNetwork {
                 maybe_event = self.service.next_event() => {
                     let event = maybe_event.ok_or(Self::Error::NetworkStreamTerminated)?;
                     if let Some((message, peer_id)) = self.handle_network_event(event) {
-                        match D::decode(&mut &message[..]) {
+                        match D::decode_all(&mut &message[..]) {
                             Ok(message) => return Ok((message, peer_id)),
                             Err(e) => {
                                 warn!(

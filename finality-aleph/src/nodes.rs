@@ -132,7 +132,7 @@ where
         }
     });
 
-    let gossip_network_task = async move {
+    let sync_network_task = async move {
         match sync_network_service.run().await {
             Ok(_) => error!(target: LOG_TARGET, "SyncNetworkService finished."),
             Err(err) => error!(
@@ -245,8 +245,8 @@ where
     debug!(target: LOG_TARGET, "Sync has started.");
 
     spawn_handle.spawn("aleph/connection_manager", connection_manager_task);
-    spawn_handle.spawn("aleph/gossip_network", gossip_network_task);
-    debug!(target: LOG_TARGET, "Gossip network has started.");
+    spawn_handle.spawn("aleph/sync_network", sync_network_task);
+    debug!(target: LOG_TARGET, "Sync network has started.");
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
