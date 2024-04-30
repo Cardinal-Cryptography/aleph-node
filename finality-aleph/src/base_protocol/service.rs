@@ -130,7 +130,7 @@ where
                 handshake,
                 result_tx,
             } => {
-                let result = match self.handler.accept_inbound(peer, handshake) {
+                let result = match self.handler.verify_inbound_connection(peer, handshake) {
                     Ok(()) => ValidationResult::Accept,
                     Err(e) => {
                         debug!(target: LOG_TARGET, "Rejecting incoming substream: {}.", e);
@@ -153,7 +153,7 @@ where
                 Ok(()) => {
                     let multiaddress: Multiaddr =
                         iter::once(MultiaddressProtocol::P2p(peer.into())).collect();
-                    trace!(target: LOG_TARGET, "Connected event from address {:?}.", multiaddress);
+                    trace!(target: LOG_TARGET, "Connect event from address {:?}.", multiaddress);
                     for name in &self.protocol_names {
                         if let Err(e) = self.network.add_peers_to_reserved_set(
                             name.clone(),
@@ -166,7 +166,7 @@ where
                 Err(e) => debug!(target:LOG_TARGET, "Failed to accept connection: {}.", e),
             },
             NotificationStreamClosed { peer } => {
-                trace!(target: LOG_TARGET, "Disconnected event for peer {:?}", peer);
+                trace!(target: LOG_TARGET, "Disconnect event for peer {:?}", peer);
                 let addresses: Vec<_> = iter::once(peer).collect();
                 for name in &self.protocol_names {
                     if let Err(e) = self

@@ -54,13 +54,20 @@ pub enum ConnectError {
     BadHandshakeGenesis(BlockHash),
     /// The peer is already connected.
     AlreadyConnected(PeerId),
-    /// There are too many peer of this type already connected.
-    TooManyPeers(Role, Direction),
+    /// There are too many full peers already connected in the given direction.
+    TooManyFullPeers(Direction),
+    /// There are too many light peers already connected.
+    TooManyLightPeers,
 }
 
 impl ConnectError {
     fn too_many_peers(peer: PeerInfo) -> Self {
-        ConnectError::TooManyPeers(peer.role, peer.direction)
+        use ConnectError::*;
+        use Role::*;
+        match peer.role {
+            Full => TooManyFullPeers(peer.direction),
+            Light => TooManyLightPeers,
+        }
     }
 }
 
@@ -71,14 +78,15 @@ impl Display for ConnectError {
             BadlyEncodedHandshake(e) => write!(f, "failed to decode handshake: {}", e),
             BadHandshakeGenesis(genesis) => write!(f, "peer has different genesis {}", genesis),
             AlreadyConnected(peer_id) => write!(f, "peer {} already connected", peer_id),
-            TooManyPeers(role, direction) => {
-                write!(f, "too many {:?} nodes connected {:?}", role, direction)
+            TooManyFullPeers(direction) => {
+                write!(f, "too many full nodes connected {:?}", direction)
             }
+            TooManyLightPeers => write!(f, "too many light nodes connected"),
         }
     }
 }
 
-struct ConnectionLimiter {
+struct ConnectionLimits {
     num_full_in_peers: usize,
     num_full_out_peers: usize,
     num_light_peers: usize,
@@ -87,7 +95,7 @@ struct ConnectionLimiter {
     max_light_peers: usize,
 }
 
-impl ConnectionLimiter {
+impl ConnectionLimits {
     pub fn new(net_config: &NetworkConfiguration) -> Self {
         // It is assumed that `default_peers_set.out_peers` only refers to full nodes, but
         // `default_peers_set.in_peers` refers to both full and light nodes.
@@ -97,7 +105,7 @@ impl ConnectionLimiter {
             (net_config.default_peers_set_num_full as usize).saturating_sub(max_full_out_peers);
         let max_light_peers =
             (net_config.default_peers_set.in_peers as usize).saturating_sub(max_full_in_peers);
-        ConnectionLimiter {
+        ConnectionLimits {
             num_full_in_peers: 0,
             num_full_out_peers: 0,
             num_light_peers: 0,
@@ -140,8 +148,8 @@ where
 {
     reserved_nodes: HashSet<PeerId>,
     peers: HashMap<PeerId, PeerInfo>,
-    // the limiter ignores the nodes which belong to `reserved_nodes`
-    limiter: ConnectionLimiter,
+    // the limits ignore the nodes which belong to `reserved_nodes`
+    limits: ConnectionLimits,
     genesis_hash: B::Hash,
 }
 
@@ -158,12 +166,12 @@ where
             .iter()
             .map(|reserved| reserved.peer_id)
             .collect();
-        let limiter = ConnectionLimiter::new(net_config);
+        let limits = ConnectionLimits::new(net_config);
 
         Handler {
             reserved_nodes,
             peers: HashMap::new(),
-            limiter,
+            limits,
             genesis_hash,
         }
     }
@@ -190,7 +198,7 @@ where
 
         let peer = PeerInfo::new(handshake.roles.into(), direction);
 
-        match self.is_reserved(&peer_id) || self.limiter.allowed(&peer) {
+        match self.is_reserved(&peer_id) || self.limits.allowed(&peer) {
             true => Ok(peer),
             false => Err(ConnectError::too_many_peers(peer)),
         }
@@ -206,7 +214,7 @@ where
         let peer = self.verify_connection(peer_id, handshake, direction)?;
 
         if !self.is_reserved(&peer_id) {
-            self.limiter.add(&peer);
+            self.limits.add(&peer);
         }
 
         self.peers.insert(peer_id, peer);
@@ -222,14 +230,14 @@ where
             .ok_or(DisconnectError::PeerWasNotConnected)?;
 
         if !self.is_reserved(&peer_id) {
-            self.limiter.remove(&peer)
+            self.limits.remove(&peer)
         }
 
         Ok(())
     }
 
     /// Checks whether an inbound peer would be accepted.
-    pub fn accept_inbound(
+    pub fn verify_inbound_connection(
         &mut self,
         peer_id: PeerId,
         handshake: Vec<u8>,
