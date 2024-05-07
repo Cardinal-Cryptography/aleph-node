@@ -11,10 +11,17 @@ use sp_runtime::traits::{Block, Header};
 
 use crate::{BlockHash, BlockNumber};
 
+// NOTE: `set_config` will be ignored by `protocol.rs` as the base
+// protocol is still hardcoded into the peerset.
+const DUMMY_SET_CONFIG: SetConfig = SetConfig {
+    in_peers: 0,
+    out_peers: 0,
+    reserved_nodes: Vec::new(),
+    non_reserved_mode: NonReservedPeerMode::Deny,
+};
+
 /// Generate a config for the base protocol and the notification service that should be passed to its service.
-pub fn generate_config<B>(
-    genesis_hash: B::Hash,
-) -> (NonDefaultSetConfig, Box<dyn NotificationService>)
+pub fn setup<B>(genesis_hash: B::Hash) -> (NonDefaultSetConfig, Box<dyn NotificationService>)
 where
     B: Block<Hash = BlockHash>,
     B::Header: Header<Number = BlockNumber>,
@@ -42,13 +49,6 @@ where
                 genesis_hash,
             ),
         )),
-        // NOTE: `set_config` will be ignored by `protocol.rs` as the base
-        // protocol is still hardcoded into the peerset.
-        SetConfig {
-            in_peers: 0,
-            out_peers: 0,
-            reserved_nodes: Vec::new(),
-            non_reserved_mode: NonReservedPeerMode::Deny,
-        },
+        DUMMY_SET_CONFIG,
     )
 }
