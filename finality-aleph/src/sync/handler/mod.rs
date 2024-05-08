@@ -879,7 +879,10 @@ mod tests {
         },
         session::{SessionBoundaryInfo, SessionId},
         sync::{
-            data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
+            data::{
+                BranchKnowledge::{self, *},
+                NetworkData, Request, ResponseItem, ResponseItems, State,
+            },
             forest::{ExtensionRequest, Interest},
             handler::Action,
             Justification, MockPeerId,
