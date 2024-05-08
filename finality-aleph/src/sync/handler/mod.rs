@@ -2741,8 +2741,8 @@ mod tests {
         }
 
         // Import H0, ..., H49.
-        for i in 0..50 {
-            let block = MockBlock::new(branches[i][0].clone(), true);
+        for branch in branches.iter().take(50) {
+            let block = MockBlock::new(branch[0].clone(), true);
             backend.import_block(block, false);
             match notifier.next().await {
                 Ok(BlockImported(header)) => {
@@ -2780,8 +2780,8 @@ mod tests {
         }
 
         // Import H0', ..., H24'.
-        for i in 0..25 {
-            let block = MockBlock::new(branches[i][1].clone(), true);
+        for branch in branches.iter().take(25) {
+            let block = MockBlock::new(branch[1].clone(), true);
             backend.import_block(block, false);
             match notifier.next().await {
                 Ok(BlockImported(header)) => {
@@ -2795,9 +2795,9 @@ mod tests {
 
         // H0', ..., H24' shouldn't be required anymore
         let interest_provider = handler.interest_provider();
-        for i in 0..24 {
+        for branch in branches.iter().take(25) {
             assert!(matches!(
-                interest_provider.get(&branches[i][1].id()),
+                interest_provider.get(&branch[1].id()),
                 Interest::Uninterested
             ));
         }
