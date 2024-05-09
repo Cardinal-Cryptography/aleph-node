@@ -197,6 +197,9 @@ function run_node() {
 if [[ "${VALIDATORS}" -lt 1 ]]; then
   error "Number of validators should be at least 1!"
 fi
+if [[ "${VALIDATORS}" -lt 4 ]]; then
+  warning "AlephBFT is only supported for more than 4 nodes."
+fi
 if [[ "${RPC_NODES}" -lt 1 ]]; then
   error "Number of RPC nodes should be at least 1!"
 fi
