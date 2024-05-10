@@ -879,10 +879,7 @@ mod tests {
         },
         session::{SessionBoundaryInfo, SessionId},
         sync::{
-            data::{
-                BranchKnowledge::{self, *},
-                NetworkData, Request, ResponseItem, ResponseItems, State,
-            },
+            data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             forest::{ExtensionRequest, Interest},
             handler::Action,
             Justification, MockPeerId,
@@ -2720,7 +2717,7 @@ mod tests {
             .collect();
         let interest_provider = handler.interest_provider();
 
-        // Verify initial interests in H0, H0', ..., H99, H99',
+        // Verify initial interests in H0, H0', ..., H99, H99'.
         for (i, branch) in branches.iter().enumerate() {
             assert!(matches!(
                 interest_provider.get(&branch[0].id()),
@@ -2806,7 +2803,7 @@ mod tests {
         for (i, branch) in branches.iter().enumerate() {
             let response = handler.handle_request(Request::new(
                 branch[1].clone(),
-                BranchKnowledge::TopImported(branch[0].id()),
+                TopImported(branch[0].id()),
                 State::new(
                     MockJustification::for_header(MockHeader::genesis()),
                     branch[1].clone(),
@@ -2847,7 +2844,7 @@ mod tests {
         for (i, branch) in branches.iter().enumerate() {
             let response = handler.handle_request(Request::new(
                 branch[1].clone(),
-                BranchKnowledge::TopImported(branch[0].id()),
+                TopImported(branch[0].id()),
                 State::new(
                     MockJustification::for_header(MockHeader::genesis()),
                     branch[1].clone(),
@@ -2858,18 +2855,18 @@ mod tests {
                 match response {
                     Ok((Action::Response(res), None)) => {
                         assert_eq!(res.len(), 2);
-                        match res[0].clone() {
+                        match &res[0] {
                             ResponseItem::Justification(justification) => {
                                 assert_eq!(
-                                    justification,
+                                    *justification,
                                     MockJustification::for_header(branches[0][0].clone())
                                 );
                             }
                             _ => panic!("should be justification"),
                         }
-                        match res[1].clone() {
+                        match &res[1] {
                             ResponseItem::Block(block) => {
-                                assert_eq!(block, MockBlock::new(branches[0][1].clone(), true));
+                                assert_eq!(*block, MockBlock::new(branches[0][1].clone(), true));
                             }
                             _ => panic!("should be block"),
                         }
