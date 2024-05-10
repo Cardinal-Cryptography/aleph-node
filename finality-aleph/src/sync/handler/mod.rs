@@ -2882,4 +2882,80 @@ mod tests {
             }
         }
     }
+
+    #[tokio::test]
+    async fn two_blocks() {
+        let (mut h1, mut b1, mut n1, genesis) = setup();
+        let (mut h2, mut b2, mut n2, g2) = setup();
+
+        assert_eq!(genesis, g2);
+
+        // make h1 aware of 2 headers
+        let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
+
+        // import the corresponding 2 blocks in h1
+        for h in branch.clone() {
+            let block = MockBlock::new(h.clone(), true);
+            b1.import_block(block, false);
+            match n1.next().await {
+                Ok(BlockImported(header)) => {
+                    h1
+                        .block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+
+        // pass justifications for 2 blocks in h1
+        for h in branch.clone() {
+            assert!(matches!(
+                h1.handle_justification(
+                    MockJustification::for_header(h.clone()),
+                    Some(0)
+                ),
+                Ok(true)
+            ));
+        }
+        consume_branch_finalized_notifications(&mut n1, &branch);
+
+        // pass the state of h1 to h2
+        let state = h1.state().unwrap();
+        let (state_action, eq_proof) = h2.handle_state(state, 1).unwrap();
+        
+        // h2 should want to receive the chain extension
+        println!("state action {:?}", state_action);
+        assert!(matches!(state_action, HandleStateAction::ExtendChain));
+        assert!(matches!(eq_proof, None));
+
+        // h1 gets the ChainExtension request
+        let state_h2 = h2.state().unwrap();
+        let action = h1.handle_chain_extension_request(state_h2).unwrap();
+
+        // the response should contian the blocks and justifications in proper order
+        use SimplifiedItem::{J, B};
+        let items = match action {
+            Action::Response(items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(items.clone()),
+                    vec![J(1), B(1), J(2), B(2)],
+                );
+                items
+            },
+            _ => panic!("should be response"),
+        };
+
+        // the result should be handled correctly, blocks should get imported
+        let result = h2.handle_request_response(items, 1);
+        for _ in 0..2 {
+            match n2.next().await {
+                Ok(BlockImported(header)) => {
+                    h2
+                        .block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+    }
 }
