@@ -2903,10 +2903,10 @@ mod tests {
         let (mut h1, mut b1, mut n1, genesis) = setup();
         let (mut h2, _, _, _) = setup();
 
-        // make h1 aware of 2 headers
+        // Make h1 aware of 2 headers.
         let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
 
-        // import the corresponding 2 blocks in h1
+        // Import the corresponding 2 blocks in h1.
         for h in branch.clone() {
             let block = MockBlock::new(h.clone(), true);
             b1.import_block(block, false);
@@ -2919,11 +2919,11 @@ mod tests {
             }
         }
 
-        // h1 gets the ChainExtension request
+        // h1 gets the ChainExtension request.
         let state_h2 = h2.state().unwrap();
         let action = h1.handle_chain_extension_request(state_h2).unwrap();
 
-        // the response should contian the blocks and justifications in proper order
+        // The response should contian the two blocks.
         use SimplifiedItem::B;
         let items = match action {
             Action::Response(items) => {
@@ -2936,7 +2936,7 @@ mod tests {
             _ => panic!("should be response"),
         };
 
-        // the result should be handled correctly, blocks should get imported
+        // The result should be handled correctly, blocks should get imported.
         let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
         assert!(!new_justified);
         assert!(equivocations.is_empty());
