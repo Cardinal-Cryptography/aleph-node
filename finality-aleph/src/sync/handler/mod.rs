@@ -643,6 +643,11 @@ where
         (new_highest, None)
     }
 
+    /// Processes the given `header` passed by `peer`. May return an error which indicates that the header couldn't
+    /// have been verified correctly, forest couldn't have been updated with the header, or the corresponding block
+    /// is not needed to be imported. If the block is not importable from the perspective of the forest, we can
+    /// ignore it if we detect that the handler processes a sequence of block imports which is indicated by
+    /// `last_imported` being the id of the parent of the block of the `header`.
     fn handle_header(
         &mut self,
         header: UnverifiedHeaderFor<J>,
@@ -655,7 +660,9 @@ where
                 header: h,
                 maybe_equivocation_proof,
             }) => {
-                maybe_equivocation_proof.map(|proof| equivocation_proofs.push(proof));
+                if let Some(proof) = maybe_equivocation_proof {
+                    equivocation_proofs.push(proof);
+                }
                 h
             }
             Err(e) => return Err(e),
@@ -681,9 +688,9 @@ where
     /// dropped. Equivocated headers are processed in the same way as the ordinary ones.
     /// In any case, the Handler finishes in a sane state.
     ///
-    /// Note that this method does not verify nor import blocks. The received blocks
-    /// are stored in a buffer, and might be silently discarded in the future
-    /// if the import fails.
+    /// Note that this method does not import blocks. The received blocks are stored in a buffer,
+    /// and might be silently discarded in the future if the import fails. Headers of the blocks
+    /// are processed as if they came in the response themselves.
     pub fn handle_request_response(
         &mut self,
         response_items: ResponseItems<B, J>,
@@ -2931,8 +2938,8 @@ mod tests {
 
         // the result should be handled correctly, blocks should get imported
         let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
-        assert_eq!(new_justified, false);
+        assert!(!new_justified);
         assert!(equivocations.is_empty());
-        assert!(matches!(maybe_error, None));
+        assert!(maybe_error.is_none());
     }
 }
