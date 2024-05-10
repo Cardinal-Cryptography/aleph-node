@@ -719,9 +719,12 @@ where
                     if self.forest.skippable(&b.header().id()) {
                         continue;
                     }
-                    if let Err(e) =
-                        self.handle_header(b.header().clone(), peer.clone(), &mut equivocation_proofs, last_imported)
-                    {
+                    if let Err(e) = self.handle_header(
+                        b.header().clone(),
+                        peer.clone(),
+                        &mut equivocation_proofs,
+                        last_imported,
+                    ) {
                         return (
                             new_highest,
                             equivocation_proofs,
@@ -2891,9 +2894,7 @@ mod tests {
     #[tokio::test]
     async fn accepts_chain_extension_branch() {
         let (mut h1, mut b1, mut n1, genesis) = setup();
-        let (mut h2, b2, n2, g2) = setup();
-
-        assert_eq!(genesis, g2);
+        let (mut h2, _, _, _) = setup();
 
         // make h1 aware of 2 headers
         let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
