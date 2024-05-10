@@ -34,6 +34,8 @@ pub use own_protocols::Networks;
 use rpc::spawn_rpc_service;
 use transactions::spawn_transaction_handler;
 
+const SPAWN_CATEGORY: Option<&str> = Some("networking");
+
 /// Components created when spawning the network.
 pub struct NetworkOutput<TP: TransactionPool + 'static> {
     pub authentication_network: ProtocolNetwork,
@@ -45,6 +47,7 @@ pub struct NetworkOutput<TP: TransactionPool + 'static> {
 }
 
 /// Start everything necessary to run the inter-node network and return the interfaces for it.
+/// This includes everything in the base network, the base protocol service, and services for handling transactions and RPCs.
 // TODO(A0-3576): This code should be used.
 #[allow(dead_code)]
 pub fn network<TP, BE, C>(
@@ -94,7 +97,7 @@ where
         network.clone(),
         events_from_network,
     );
-    spawn_handle.spawn("base-protocol", Some("networking"), async move {
+    spawn_handle.spawn("base-protocol", SPAWN_CATEGORY, async move {
         if let Err(e) = base_service.run().await {
             error!(target: LOG_TARGET, "Base protocol service finished with error: {e}.");
         }
@@ -109,7 +112,6 @@ where
         spawn_handle,
     )?;
     let rpc_interface = spawn_rpc_service(network, syncing_service.clone(), client, spawn_handle);
-    // TODO: continue here and add rpcs + transactions, also return them
     Ok(NetworkOutput {
         block_sync_network,
         authentication_network,

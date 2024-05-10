@@ -18,7 +18,9 @@ use sp_runtime::traits::{Block, Header};
 use substrate_prometheus_endpoint::Registry;
 
 use crate::{
-    network::build::{own_protocols::Networks, transactions::build_transactions_prototype},
+    network::build::{
+        own_protocols::Networks, transactions::build_transactions_prototype, SPAWN_CATEGORY,
+    },
     BlockHash, BlockNumber, ClientForAleph,
 };
 
@@ -39,7 +41,7 @@ fn spawn_state_request_handler<B: Block, BE: Backend<B>, C: ClientForAleph<B, BE
     let (service, protocol_config) =
     // The None is the fork id, which we don't have.
         StateRequestHandler::new(protocol_id, None, client, num_peer_hint);
-    spawn_handle.spawn("state-request-handler", Some("networking"), service.run());
+    spawn_handle.spawn("state-request-handler", SPAWN_CATEGORY, service.run());
     full_network_config.add_request_response_protocol(protocol_config);
 }
 
@@ -54,7 +56,7 @@ fn spawn_light_client_request_handler<B: Block, BE: Backend<B>, C: ClientForAlep
         LightClientRequestHandler::new(protocol_id, None, client.clone());
     spawn_handle.spawn(
         "light-client-request-handler",
-        Some("networking"),
+        SPAWN_CATEGORY,
         handler.run(),
     );
     full_network_config.add_request_response_protocol(protocol_config);
@@ -113,14 +115,14 @@ where
             .collect(),
     );
     let peer_store = peer_store_service.handle();
-    spawn_handle.spawn("peer-store", Some("networking"), peer_store_service.run());
+    spawn_handle.spawn("peer-store", SPAWN_CATEGORY, peer_store_service.run());
 
     let network_params = NetworkParams::<B> {
         role: Role::Full,
         executor: {
             let spawn_handle = spawn_handle.clone();
             Box::new(move |fut| {
-                spawn_handle.spawn("libp2p-node", Some("networking"), fut);
+                spawn_handle.spawn("libp2p-node", SPAWN_CATEGORY, fut);
             })
         },
         network_config: full_network_config,
@@ -135,6 +137,6 @@ where
 
     let network_service = NetworkWorker::new(network_params)?;
     let network = network_service.service().clone();
-    spawn_handle.spawn_blocking("network-worker", Some("networking"), network_service.run());
+    spawn_handle.spawn_blocking("network-worker", SPAWN_CATEGORY, network_service.run());
     Ok((network, networks, transactions_prototype))
 }

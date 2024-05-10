@@ -8,7 +8,7 @@ use sc_service::{build_system_rpc_future, SpawnTaskHandle};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
 use sp_runtime::traits::Block;
 
-use crate::ClientForAleph;
+use crate::{network::build::SPAWN_CATEGORY, ClientForAleph};
 
 /// Spawn the RPC handling service and return the interface for submitting requests to it.
 pub fn spawn_rpc_service<B: Block, BE: Backend<B>, C: ClientForAleph<B, BE>>(
@@ -20,7 +20,7 @@ pub fn spawn_rpc_service<B: Block, BE: Backend<B>, C: ClientForAleph<B, BE>>(
     let (rpcs_for_handling, rpcs_from_user) = tracing_unbounded("mpsc_system_rpc", 10_000);
     spawn_handle.spawn(
         "system-rpc-handler",
-        Some("networking"),
+        SPAWN_CATEGORY,
         build_system_rpc_future(
             Role::Full,
             network,

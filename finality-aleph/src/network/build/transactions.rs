@@ -13,7 +13,7 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_runtime::traits::Block;
 use substrate_prometheus_endpoint::Registry;
 
-use crate::{BlockHash, ClientForAleph};
+use crate::{network::build::SPAWN_CATEGORY, BlockHash, ClientForAleph};
 
 /// Build a transaction prototype, that can later be used to build the transaction handler,
 /// and update the network config with the appropriate protocol.
@@ -50,7 +50,7 @@ pub fn spawn_transaction_handler<
     )?;
     spawn_handle.spawn(
         "network-transactions-handler",
-        Some("networking"),
+        SPAWN_CATEGORY,
         transaction_service.run(),
     );
     Ok(transaction_interface)
