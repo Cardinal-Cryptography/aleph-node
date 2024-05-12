@@ -742,10 +742,8 @@ where
                         );
                     }
                     last_imported = Some(b.header().id());
-                    match self.import_block(b, false) {
-                        Ok(Some(proof)) => equivocation_proofs.push(proof),
-                        Ok(None) => (),
-                        Err(e) => return (new_highest, equivocation_proofs, Some(e)),
+                    if let Err(e) = self.import_block(b, false) {
+                        return (new_highest, equivocation_proofs, Some(e));
                     }
                 }
             }
@@ -2901,7 +2899,7 @@ mod tests {
     #[tokio::test]
     async fn accepts_chain_extension_branch() {
         let (mut h1, mut b1, mut n1, genesis) = setup();
-        let (mut h2, _, _, _) = setup();
+        let (mut h2, _b2, _n2, _genesis) = setup();
 
         // Make h1 aware of 2 headers.
         let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
@@ -2919,6 +2917,8 @@ mod tests {
             }
         }
 
+        println!("kurcze 1");
+
         // h1 gets the ChainExtension request.
         let state_h2 = h2.state().unwrap();
         let action = h1.handle_chain_extension_request(state_h2).unwrap();
@@ -2935,6 +2935,8 @@ mod tests {
             }
             _ => panic!("should be response"),
         };
+
+        println!("kurcze 2");
 
         // The result should be handled correctly, blocks should get imported.
         let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
