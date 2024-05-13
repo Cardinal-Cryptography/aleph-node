@@ -65,6 +65,7 @@ jobs:
     with:
       featurenet-name: 'ops-finalization-e2e'
       aleph-node-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
+      # yamllint disable-line rule:line-length
       chain-bootstrapper-image: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
       validators: '6'
       expiration: '3h'

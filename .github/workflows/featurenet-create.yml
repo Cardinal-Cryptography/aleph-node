@@ -109,6 +109,7 @@ jobs:
       fqdn-image: ${{ steps.get-fqdns.outputs.fqdn-image }}
       ref: ${{ steps.get-fqdns.outputs.ref }}
       image-exists: ${{ steps.get-fqdns.outputs.image-exists }}
+      # yamllint disable-line rule:line-length
       chain-bootstrapper-image-exists: ${{ steps.get-fqdns.outputs.chain-bootstrapper-image-exists }}
       chain-bootstrapper-fqdn-image: ${{ steps.get-fqdns.outputs.chain-bootstrapper-fqdn-image }}
     steps:
@@ -149,7 +150,9 @@ jobs:
     uses: ./.github/workflows/_push-image-to-ecr.yml
     secrets: inherit
     with:
+      # yamllint disable-line rule:line-length
       binary-artifact-name: chain-bootstrapper-${{ inputs.short-session && 'release' || 'production' }}
+      # yamllint disable-line rule:line-length
       docker-image-name: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
@@ -164,6 +167,7 @@ jobs:
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
       aleph-node-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
+      # yamllint disable-line rule:line-length
       chain-bootstrapper-image: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
       validators: ${{ inputs.validators }}
       expiration: ${{ inputs.expiration }}

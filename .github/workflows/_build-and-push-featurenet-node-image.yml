@@ -40,6 +40,6 @@ jobs:
     secrets: inherit
     with:
       binary-artifact-name: aleph-${{ inputs.short-session == true && 'test' || 'production' }}-node
-      docker-image-name:  ${{ inputs.fqdn-image }}
+      docker-image-name: ${{ inputs.fqdn-image }}
       binary-name: aleph-node
       docker-file-path: ./docker/Dockerfile

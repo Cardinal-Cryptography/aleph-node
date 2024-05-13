@@ -21,6 +21,7 @@ jobs:
       fqdn-image: ${{ steps.get-fqdns.outputs.fqdn-image }}
       ref: ${{ steps.get-fqdns.outputs.ref }}
       image-exists: ${{ steps.get-fqdns.outputs.image-exists }}
+      # yamllint disable-line rule:line-length
       chain-bootstrapper-image-exists: ${{ steps.get-fqdns.outputs.chain-bootstrapper-image-exists }}
       chain-bootstrapper-fqdn-image: ${{ steps.get-fqdns.outputs.chain-bootstrapper-fqdn-image }}
     steps:
@@ -48,7 +49,9 @@ jobs:
     secrets: inherit
     with:
       binary-artifact-name: chain-bootstrapper-release
+      # yamllint disable-line rule:line-length
       docker-image-name: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
+      # yamllint disable-line rule:line-length
       docker-image-name-latest: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image-latest }}
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
@@ -104,8 +107,9 @@ jobs:
     secrets: inherit
     with:
       binary-artifact-name: aleph-production-node
-      docker-image-name:  ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
-      docker-image-name-latest:  ${{ needs.get-full-docker-image-path.outputs.fqdn-image-latest }}
+      docker-image-name: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
+      # yamllint disable-line rule:line-length
+      docker-image-name-latest: ${{ needs.get-full-docker-image-path.outputs.fqdn-image-latest }}
       binary-name: aleph-node
       docker-file-path: ./docker/Dockerfile
 
