@@ -652,7 +652,7 @@ where
         }
         if !self.forest.importable(&h.id())
             && !last_imported
-                .map(|id| h.parent_id().map(|p_id| id == p_id).unwrap_or(false))
+                .and_then(|id| h.parent_id().map(|p_id| id == p_id))
                 .unwrap_or(false)
         {
             return Err(Error::HeaderNotRequired(h.id()));
