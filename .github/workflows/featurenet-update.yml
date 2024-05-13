@@ -74,18 +74,20 @@ jobs:
     needs: [check-vars-and-secrets]
     runs-on: ubuntu-20.04
     outputs:
-      fqdn-image: ${{ steps.get-aleph-node-fqdn-image.outputs.fqdn-image }}
-      ref: ${{ steps.get-aleph-node-fqdn-image.outputs.ref }}
-      image-exists: ${{ steps.get-aleph-node-fqdn-image.outputs.image-exists }}
+      fqdn-image: ${{ steps.get-fqdns.outputs.fqdn-image }}
+      ref: ${{ steps.get-fqdns.outputs.ref }}
+      image-exists: ${{ steps.get-fqdns.outputs.image-exists }}
     steps:
       - name: Get aleph-node fqdn path
-        id: get-aleph-node-fqdn-image
+        id: get-fqdns
         uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: ${{ inputs.ref }}
           test-binary: ${{ inputs.short-session == true && 'true' || 'false' }}
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
+          ecr-chain-bootstrapper-repo: ${{ vars.ECR_CHAIN_BOOTSTRAPPER_REPO }}
+          only-aleph-nope-production-repo: 'false'
 
   build-and-push-featurenet-node-image:
     needs: [get-full-docker-image-path]
