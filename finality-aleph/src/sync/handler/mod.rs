@@ -2612,11 +2612,8 @@ mod tests {
             .block_imported(header)
             .expect("correct")
             .expect("known");
-        match result.get(0).expect("the header is there") {
-            ResponseItem::Header(header) => assert_eq!(header, block.header()),
-            other => panic!("expected header item, got {:?}", other),
-        }
-        match result.get(1).expect("the block is there") {
+        assert_eq!(result.len(), 1);
+        match result.first().expect("the block is there") {
             ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
             other => panic!("expected block item, got {:?}", other),
         }
