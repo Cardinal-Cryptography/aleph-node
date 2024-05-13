@@ -118,6 +118,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
         with:
           ref: ${{ inputs.ref }}
+          test-binary: ${{ inputs.short-session == true && 'true' || 'false' }}
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
           ecr-chain-bootstrapper-repo: ${{ vars.ECR_CHAIN_BOOTSTRAPPER_REPO }}
