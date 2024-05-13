@@ -473,26 +473,6 @@ where
         }
     }
 
-    /// Check for equivocations and then send the block to the block importer.
-    /// It's important to pass every incoming block through this function, as the block importer
-    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
-    /// The knowledge of authorship of the block is passed further to the block importer.
-    fn import_block(
-        &mut self,
-        block: B,
-        own_block: bool,
-    ) -> Result<
-        Option<<V as HeaderVerifier<J::Header>>::EquivocationProof>,
-        <Self as HandlerTypes>::Error,
-    > {
-        let VerifiedHeader {
-            maybe_equivocation_proof,
-            ..
-        } = self.verify_header(block.header().clone(), own_block)?;
-        self.block_importer.import_block(block, own_block);
-        Ok(maybe_equivocation_proof)
-    }
-
     fn verify_header(
         &mut self,
         header: UnverifiedHeaderFor<J>,
@@ -742,9 +722,7 @@ where
                         );
                     }
                     last_imported = Some(b.header().id());
-                    if let Err(e) = self.import_block(b, false) {
-                        return (new_highest, equivocation_proofs, Some(e));
-                    }
+                    self.block_importer.import_block(b, false);
                 }
             }
         }
@@ -868,8 +846,9 @@ where
         self.forest.extension_request()
     }
 
-    /// Handle a block freshly created by this node.
-    /// Imports it and possibly returns an equivocation proof.
+    /// Handle a block freshly created by this node. Imports it and possibly returns an equivocation proof.
+    /// It's important to pass every own incoming block through this function, as the block importer
+    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
     pub fn handle_own_block(
         &mut self,
         block: B,
@@ -877,7 +856,12 @@ where
         Option<<V as HeaderVerifier<J::Header>>::EquivocationProof>,
         <Self as HandlerTypes>::Error,
     > {
-        self.import_block(block, true)
+        let VerifiedHeader {
+            maybe_equivocation_proof,
+            ..
+        } = self.verify_header(block.header().clone(), true)?;
+        self.block_importer.import_block(block, true);
+        Ok(maybe_equivocation_proof)
     }
 }
 
