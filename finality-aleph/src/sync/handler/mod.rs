@@ -2883,7 +2883,7 @@ mod tests {
     #[tokio::test]
     async fn accepts_chain_extension_branch() {
         let (mut h1, mut b1, mut n1, genesis) = setup();
-        let (mut h2, _b2, _n2, _genesis) = setup();
+        let (mut h2, _b2, mut n2, _genesis) = setup();
 
         // Make h1 aware of 2 headers.
         let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
@@ -2918,10 +2918,23 @@ mod tests {
             _ => panic!("should be response"),
         };
 
-        // The result should be handled correctly, blocks should get imported.
+        // The result should be handled correctly.
         let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
         assert!(!new_justified);
         assert!(equivocations.is_empty());
         assert!(maybe_error.is_none());
+
+        // h2 should trigger block imports.
+        for h in branch.clone() {
+            match n2.next().await {
+                Ok(BlockImported(header)) => {
+                    assert_eq!(header, h);
+                    h2.block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+        assert_eq!(h2.state().unwrap().favourite_block(), branch[1]);
     }
 }
