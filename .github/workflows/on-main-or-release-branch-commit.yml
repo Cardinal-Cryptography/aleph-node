@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Get FQDNs
         id: get-fqdns
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v6
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-4268
         with:
           ref: ${{ github.ref }}
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
