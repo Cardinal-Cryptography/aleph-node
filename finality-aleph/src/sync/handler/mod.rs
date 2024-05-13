@@ -2917,8 +2917,6 @@ mod tests {
             }
         }
 
-        println!("kurcze 1");
-
         // h1 gets the ChainExtension request.
         let state_h2 = h2.state().unwrap();
         let action = h1.handle_chain_extension_request(state_h2).unwrap();
@@ -2935,8 +2933,6 @@ mod tests {
             }
             _ => panic!("should be response"),
         };
-
-        println!("kurcze 2");
 
         // The result should be handled correctly, blocks should get imported.
         let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
