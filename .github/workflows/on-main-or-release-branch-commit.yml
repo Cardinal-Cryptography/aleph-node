@@ -99,7 +99,7 @@ jobs:
     name: Store production node and runtime in Mainnet bucket
     runs-on: ubuntu-20.04
     needs:
-      - build-production-node
+      - build-production-aleph-node
       - build-production-aleph-node
     steps:
       - name: Checkout aleph-node source code

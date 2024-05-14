@@ -56,7 +56,7 @@ jobs:
 
       - name: Get binary artifact name
         id: get-artifact-name-binary
-        run: | 
+        run: |
           echo "name=aleph-node-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
 
       - name: Upload binary to GH Artifacts

@@ -55,8 +55,8 @@ jobs:
 
   run-recover-after-abft-update-test:
     needs:
-     - build-test-aleph-node
-     - build-chain-bootstrapper-test
+      - build-test-aleph-node
+      - build-chain-bootstrapper-test
     name: Run recovery test after abft update
     runs-on: [self-hosted, Linux, X64, medium]
     steps:

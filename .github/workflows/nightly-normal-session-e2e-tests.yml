@@ -38,6 +38,7 @@ jobs:
     name: Build synthetic node
     uses: ./.github/workflows/_build-synthetic-node.yml
     with:
+      # yamllint disable-line rule:line-length
       aleph-node-image-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
 
   build-chain-bootstrapper-production:
@@ -280,7 +281,7 @@ jobs:
 
   run-major-sync-test:
     needs:
-      - build-production-node
+      - build-production-aleph-node
       - build-chain-bootstrapper-production
     name: Run major sync test
     runs-on: ubuntu-20.04
@@ -310,7 +311,7 @@ jobs:
 
   run-force-reorg-test:
     needs:
-      - build-production-node
+      - build-production-aleph-node
       - build-chain-bootstrapper-production
     name: Run force reorgs test
     runs-on: [self-hosted, Linux, X64, medium]
