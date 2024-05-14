@@ -359,7 +359,7 @@ where
 
     /// Updates the provided header, returns:
     /// 1. If required is set whether it became a new explicitly required.
-    /// 2. Otherwise whether it's a new header above the favourite block.
+    /// 2. Otherwise whether it's a new header with a number greater than the favourite block.
     pub fn update_header(
         &mut self,
         header: &J::Header,
