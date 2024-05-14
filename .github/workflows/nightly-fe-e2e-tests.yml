@@ -43,21 +43,58 @@ jobs:
           ecr-prod-node-repo: ${{ vars.ECR_ALEPH_NODE_REPO }}
           ecr-chain-bootstrapper-repo: ${{ vars.ECR_CHAIN_BOOTSTRAPPER_REPO }}
 
-  build-and-push-featurenet-node-image:
-    needs: [get-full-docker-image-path]
+  build-aleph-node:
+    name: Build aleph-node
     if: ${{ needs.get-full-docker-image-path.outputs.image-exists != 'true' }}
-    name: Build and push PR test docker image from ${{ github.ref }}
-    uses: ./.github/workflows/_build-and-push-featurenet-node-image.yml
+    needs: [get-full-docker-image-path]
+    uses: ./.github/workflows/_build-aleph-node.yml
     with:
       ref: ${{ needs.get-full-docker-image-path.outputs.ref }}
-      fqdn-image: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
-      short-session: false
+      production: true
+
+  push-aleph-node-image-to-ecr:
+    name: Build and push aleph-node image to ECR
+    if: ${{ needs.get-full-docker-image-path.outputs.image-exists != 'true' }}
+    needs:
+      - get-full-docker-image-path
+      - build-aleph-node
+    uses: ./.github/workflows/_push-image-to-ecr.yml
     secrets: inherit
+    with:
+      binary-artifact-name: ${{ needs.build-aleph-node.outputs.artifact-name-binary }}
+      docker-image-name: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
+      binary-name: aleph-node
+      docker-file-path: ./docker/Dockerfile
+
+  build-chain-bootstrapper:
+    needs: [get-full-docker-image-path]
+    if: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-image-exists != 'true' }}
+    name: Build chain-bootstrapper
+    uses: ./.github/workflows/_build-chain-bootstrapper.yml
+    with:
+      ref: ${{ needs.get-full-docker-image-path.outputs.ref }}
+      production: ${{ !inputs.short-session }}
+
+  push-chain-bootstrapper-image-to-ecr:
+    name: Push chain-bootstrapper docker image to ECR
+    if: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-image-exists != 'true' }}
+    needs:
+      - get-full-docker-image-path
+      - build-chain-bootstrapper
+    uses: ./.github/workflows/_push-image-to-ecr.yml
+    secrets: inherit
+    with:
+      binary-artifact-name: ${{ needs.build-chain-bootstrapper.outputs.artifact-name-binary }}
+      # yamllint disable-line rule:line-length
+      docker-image-name: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
+      binary-name: chain-bootstrapper
+      docker-file-path: ./bin/chain-bootstrapper/Dockerfile
 
   create-featurenet:
     needs:
       - get-full-docker-image-path
-      - build-and-push-featurenet-node-image
+      - push-aleph-node-image-to-ecr
+      - push-chain-bootstrapper-image-to-ecr
     if: ${{ !cancelled() }}
     name: Create featurenet from ${{ github.ref }}
     uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v6

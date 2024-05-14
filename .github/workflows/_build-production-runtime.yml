@@ -1,17 +1,17 @@
 ---
-#  This workflow builds production version of aleph-node and aleph-runtime
-name: Build production node and runtime
+#  This workflow builds production version of aleph-runtime
+name: Build production runtime
 on:
   workflow_call:
     inputs:
       ref:
-        description: 'git ref: hash, branch, tag to build production aleph-node binary from'
+        description: 'git ref: hash, branch, tag to build production aleph-runtime from'
         type: string
         required: true
 
 jobs:
   main:
-    name: Build production node and runtime
+    name: Build
     runs-on: [self-hosted, Linux, X64, large]
     env:
       RUST_BACKTRACE: full
@@ -32,21 +32,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Build production aleph-node
-        run: cargo build --profile production -p aleph-node
-
-      - name: Upload release binary to GH artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: aleph-production-node
-          path: target/production/aleph-node
-          if-no-files-found: error
-          retention-days: 7
-
       - name: Build production aleph-runtime
         run: cargo build --profile production -p aleph-runtime
 
-      # required by _check-runtime-determinism.yml workflow
       - name: Upload release runtime to GH artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -44,7 +44,9 @@ jobs:
       production: true
 
   push-chain-bootstrapper-image-to-ecr:
-    needs: [build-chain-bootstrapper, get-full-docker-image-path]
+    needs:
+      - build-chain-bootstrapper
+      - get-full-docker-image-path
     name: Push chain-bootstrapper docker image to ECR
     uses: ./.github/workflows/_push-image-to-ecr.yml
     secrets: inherit
@@ -74,21 +76,31 @@ jobs:
       push: true
     secrets: inherit
 
-  build-production-node-and-runtime:
+  build-production-aleph-node:
+    needs: [check-vars-and-secrets]
+    name: Build production aleph-node
+    uses: ./.github/workflows/_build-aleph-node.yml
+    with:
+      ref: ${{ github.ref }}
+      production: true
+
+  build-production-runtime:
     needs: [check-vars-and-secrets]
     name: Build production node and runtime
-    uses: ./.github/workflows/_build-production-node-and-runtime.yml
+    uses: ./.github/workflows/_build-production-runtime.yml
     with:
       ref: ${{ github.ref }}
 
   check-runtime-determinism:
-    needs: [build-production-node-and-runtime]
+    needs: [build-production-runtime]
     uses: ./.github/workflows/_check-runtime-determimism.yml
 
   store-production-node-and-runtime-in-mainnet-s3:
     name: Store production node and runtime in Mainnet bucket
     runs-on: ubuntu-20.04
-    needs: [build-production-node-and-runtime]
+    needs:
+      - build-production-node
+      - build-production-aleph-node
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -103,13 +115,14 @@ jobs:
 
   push-production-node-image-to-ecr:
     name: Push production node docker image to ECR
-    needs: [build-production-node-and-runtime, get-full-docker-image-path]
+    needs:
+      - build-production-aleph-node
+      - get-full-docker-image-path
     uses: ./.github/workflows/_push-image-to-ecr.yml
     secrets: inherit
     with:
-      binary-artifact-name: aleph-production-node
+      binary-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
       docker-image-name: ${{ needs.get-full-docker-image-path.outputs.fqdn-image }}
-      # yamllint disable-line rule:line-length
       docker-image-name-latest: ${{ needs.get-full-docker-image-path.outputs.fqdn-image-latest }}
       binary-name: aleph-node
       docker-file-path: ./docker/Dockerfile
