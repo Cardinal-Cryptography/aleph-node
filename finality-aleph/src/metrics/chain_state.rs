@@ -10,10 +10,9 @@ use sc_client_api::{
     BlockBackend, BlockImportNotification, FinalityNotification, FinalityNotifications,
     ImportNotifications,
 };
-use sp_api::{BlockT, HeaderT};
 use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
 use sp_runtime::{
-    traits::{Extrinsic, Zero},
+    traits::{Block as BlockT, Extrinsic, Header as HeaderT, Zero},
     Saturating,
 };
 use substrate_prometheus_endpoint::{
@@ -86,7 +85,7 @@ impl ChainStateMetrics {
             reorgs: register(
                 Histogram::with_opts(
                     HistogramOpts::new("aleph_reorgs", "Number of reorgs by length")
-                        .buckets(vec![1., 2., 3., 5., 10.]),
+                        .buckets(vec![1., 2., 4., 9.]),
                 )?,
                 &registry,
             )?,

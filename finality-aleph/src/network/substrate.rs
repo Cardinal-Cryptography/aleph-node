@@ -1,270 +1,171 @@
-use std::{collections::HashMap, fmt, iter, pin::Pin, sync::Arc};
-
-use async_trait::async_trait;
-use futures::stream::{Fuse, Stream, StreamExt};
-use log::{error, trace, warn};
-use sc_network::{
-    multiaddr::Protocol as MultiaddressProtocol, Event as SubstrateEvent, Multiaddr,
-    NetworkEventStream as _, NetworkNotification, NetworkPeers, NetworkService,
-    NotificationSenderT, PeerId, ProtocolName,
+use std::{
+    collections::HashSet,
+    fmt::{Debug, Display, Error as FmtError, Formatter},
 };
-use sc_network_common::ExHashT;
-use sc_network_sync::{SyncEvent, SyncEventStream, SyncingService};
-use sp_runtime::traits::Block;
 
-use crate::network::gossip::{Event, EventStream, NetworkSender, Protocol, RawNetwork};
+use log::{debug, info, trace, warn};
+use parity_scale_codec::DecodeAll;
+use rand::{seq::IteratorRandom, thread_rng};
+pub use sc_network::PeerId;
+use sc_network::{
+    service::traits::{NotificationEvent as SubstrateEvent, ValidationResult},
+    ProtocolName,
+};
+use tokio::time;
 
-/// Name of the network protocol used by Aleph Zero to disseminate validator
-/// authentications.
-const AUTHENTICATION_PROTOCOL_NAME: &str = "/auth/0";
+use crate::{
+    network::{Data, GossipNetwork, LOG_TARGET},
+    STATUS_REPORT_INTERVAL,
+};
 
-/// Name of the network protocol used by Aleph Zero to synchronize the block state.
-const BLOCK_SYNC_PROTOCOL_NAME: &str = "/sync/0";
-
-/// Convert protocols to their names and vice versa.
-#[derive(Clone)]
-pub struct ProtocolNaming {
-    authentication_name: ProtocolName,
-    block_sync_name: ProtocolName,
-    protocols_by_name: HashMap<ProtocolName, Protocol>,
+/// A thin wrapper around sc_network::config::NotificationService that stores a list
+/// of all currently connected peers, and introduces a few convenience methods to
+/// allow broadcasting messages and sending data to random peers.
+pub struct ProtocolNetwork {
+    service: Box<dyn sc_network::config::NotificationService>,
+    connected_peers: HashSet<PeerId>,
+    last_status_report: time::Instant,
 }
 
-impl ProtocolNaming {
-    /// Create a new protocol naming scheme with the given chain prefix.
-    pub fn new(chain_prefix: String) -> Self {
-        let authentication_name: ProtocolName =
-            format!("{chain_prefix}{AUTHENTICATION_PROTOCOL_NAME}").into();
-        let mut protocols_by_name = HashMap::new();
-        protocols_by_name.insert(authentication_name.clone(), Protocol::Authentication);
-        let block_sync_name: ProtocolName =
-            format!("{chain_prefix}{BLOCK_SYNC_PROTOCOL_NAME}").into();
-        protocols_by_name.insert(block_sync_name.clone(), Protocol::BlockSync);
-        ProtocolNaming {
-            authentication_name,
-            block_sync_name,
-            protocols_by_name,
+impl ProtocolNetwork {
+    pub fn new(service: Box<dyn sc_network::config::NotificationService>) -> Self {
+        Self {
+            service,
+            connected_peers: HashSet::new(),
+            last_status_report: time::Instant::now(),
         }
     }
 
-    /// Returns the canonical name of the protocol.
-    pub fn protocol_name(&self, protocol: &Protocol) -> ProtocolName {
-        use Protocol::*;
-        match protocol {
-            Authentication => self.authentication_name.clone(),
-            BlockSync => self.block_sync_name.clone(),
+    pub fn name(&self) -> ProtocolName {
+        self.service.protocol().clone()
+    }
+
+    fn random_peer<'a>(&'a self, peer_ids: &'a HashSet<PeerId>) -> Option<&'a PeerId> {
+        peer_ids
+            .intersection(&self.connected_peers)
+            .choose(&mut thread_rng())
+            .or_else(|| self.connected_peers.iter().choose(&mut thread_rng()))
+    }
+
+    fn handle_network_event(&mut self, event: SubstrateEvent) -> Option<(Vec<u8>, PeerId)> {
+        use SubstrateEvent::*;
+        match event {
+            ValidateInboundSubstream {
+                peer: _,
+                handshake: _,
+                result_tx,
+            } => {
+                let _ = result_tx.send(ValidationResult::Accept);
+                None
+            }
+            NotificationStreamOpened { peer, .. } => {
+                self.connected_peers.insert(peer);
+                None
+            }
+            NotificationStreamClosed { peer } => {
+                self.connected_peers.remove(&peer);
+                None
+            }
+            NotificationReceived { peer, notification } => Some((notification, peer)),
         }
     }
 
-    /// Returns the fallback names of the protocol.
-    pub fn fallback_protocol_names(&self, _protocol: &Protocol) -> Vec<ProtocolName> {
-        Vec::new()
-    }
-
-    /// Attempts to convert the protocol name to a protocol.
-    fn to_protocol(&self, protocol_name: &str) -> Option<Protocol> {
-        self.protocols_by_name.get(protocol_name).copied()
+    fn status_report(&self) {
+        let mut status = String::from("Network status report: ");
+        status.push_str(&format!(
+            "{} connected peers - {:?}; ",
+            self.service.protocol(),
+            self.connected_peers.len()
+        ));
+        info!(target: LOG_TARGET, "{}", status);
     }
 }
 
 #[derive(Debug)]
-pub enum SenderError {
-    CannotCreateSender(PeerId, Protocol),
-    LostConnectionToPeer(PeerId),
-    LostConnectionToPeerReady(PeerId),
+pub enum ProtocolNetworkError {
+    NetworkStreamTerminated,
 }
 
-impl fmt::Display for SenderError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for ProtocolNetworkError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
-            SenderError::CannotCreateSender(peer_id, protocol) => {
-                write!(
-                    f,
-                    "Can not create sender to peer {peer_id:?} with protocol {protocol:?}"
-                )
-            }
-            SenderError::LostConnectionToPeer(peer_id) => {
-                write!(
-                    f,
-                    "Lost connection to peer {peer_id:?} while preparing sender"
-                )
-            }
-            SenderError::LostConnectionToPeerReady(peer_id) => {
-                write!(
-                    f,
-                    "Lost connection to peer {peer_id:?} after sender was ready"
-                )
+            ProtocolNetworkError::NetworkStreamTerminated => {
+                write!(f, "Notifications event stream ended.")
             }
         }
     }
 }
 
-impl std::error::Error for SenderError {}
-
-pub struct SubstrateNetworkSender {
-    notification_sender: Box<dyn NotificationSenderT>,
-    peer_id: PeerId,
-}
-
-#[async_trait]
-impl NetworkSender for SubstrateNetworkSender {
-    type SenderError = SenderError;
-
-    async fn send<'a>(
-        &'a self,
-        data: impl Into<Vec<u8>> + Send + Sync + 'static,
-    ) -> Result<(), SenderError> {
-        self.notification_sender
-            .ready()
-            .await
-            .map_err(|_| SenderError::LostConnectionToPeer(self.peer_id))?
-            .send(data.into())
-            .map_err(|_| SenderError::LostConnectionToPeerReady(self.peer_id))
-    }
-}
-
-pub struct NetworkEventStream<B: Block, H: ExHashT> {
-    stream: Fuse<Pin<Box<dyn Stream<Item = SubstrateEvent> + Send>>>,
-    sync_stream: Fuse<Pin<Box<dyn Stream<Item = SyncEvent> + Send>>>,
-    naming: ProtocolNaming,
-    network: Arc<NetworkService<B, H>>,
-}
-
-#[async_trait]
-impl<B: Block, H: ExHashT> EventStream<PeerId> for NetworkEventStream<B, H> {
-    async fn next_event(&mut self) -> Option<Event<PeerId>> {
-        use Event::*;
-        use SubstrateEvent::*;
-        use SyncEvent::*;
-        loop {
-            tokio::select! {
-                Some(event) = self.stream.next() => {
-                    match event {
-                        NotificationStreamOpened {
-                            remote, protocol, ..
-                        } => match self.naming.to_protocol(protocol.as_ref()) {
-                            Some(protocol) => return Some(StreamOpened(remote, protocol)),
-                            None => continue,
-                        },
-                        NotificationStreamClosed { remote, protocol } => {
-                            match self.naming.to_protocol(protocol.as_ref()) {
-                                Some(protocol) => return Some(StreamClosed(remote, protocol)),
-                                None => continue,
-                            }
-                        }
-                        NotificationsReceived { messages, remote } => {
-                            return Some(Messages(
-                                remote,
-                                messages
-                                    .into_iter()
-                                    .filter_map(|(protocol, data)| {
-                                        self.naming
-                                            .to_protocol(protocol.as_ref())
-                                            .map(|protocol| (protocol, data))
-                                    })
-                                    .collect(),
-                            ));
-                        }
-                        Dht(_) => continue,
-                    }
-                },
-                Some(event) = self.sync_stream.next() => {
-                    match event {
-                        PeerConnected(remote) => {
-                            let multiaddress: Multiaddr =
-                                iter::once(MultiaddressProtocol::P2p(remote.into())).collect();
-                            trace!(target: "aleph-network", "Connected event from address {:?}", multiaddress);
-                            if let Err(e) = self.network.add_peers_to_reserved_set(
-                                self.naming.protocol_name(&Protocol::Authentication),
-                                iter::once(multiaddress.clone()).collect(),
-                            ) {
-                                error!(target: "aleph-network", "add_reserved failed for authentications: {}", e);
-                            }
-                            if let Err(e) = self.network.add_peers_to_reserved_set(
-                                self.naming.protocol_name(&Protocol::BlockSync),
-                                iter::once(multiaddress).collect(),
-                            ) {
-                                error!(target: "aleph-network", "add_reserved failed for block sync: {}", e);
-                            }
-                            continue;
-                        }
-                        PeerDisconnected(remote) => {
-                            trace!(target: "aleph-network", "Disconnected event for peer {:?}", remote);
-                            let addresses: Vec<_> = iter::once(remote).collect();
-                            if let Err(e) = self.network.remove_peers_from_reserved_set(
-                                self.naming.protocol_name(&Protocol::Authentication),
-                                addresses.clone(),
-                            ) {
-                                warn!(target: "aleph-network", "Error while removing peer from Protocol::Authentication reserved set: {}", e)
-                            }
-                            if let Err(e) = self.network.remove_peers_from_reserved_set(
-                                self.naming.protocol_name(&Protocol::BlockSync),
-                                addresses,
-                            ) {
-                                warn!(target: "aleph-network", "Error while removing peer from Protocol::BlockSync reserved set: {}", e)
-                            }
-                            continue;
-                        }
-                    }
-                },
-                else => return None,
-            }
-        }
-    }
-}
-
-/// A wrapper around the substrate network that includes information about protocol names.
-#[derive(Clone)]
-pub struct SubstrateNetwork<B: Block, H: ExHashT> {
-    network: Arc<NetworkService<B, H>>,
-    sync_network: Arc<SyncingService<B>>,
-    naming: ProtocolNaming,
-}
-
-impl<B: Block, H: ExHashT> SubstrateNetwork<B, H> {
-    /// Create a new substrate network wrapper.
-    pub fn new(
-        network: Arc<NetworkService<B, H>>,
-        sync_network: Arc<SyncingService<B>>,
-        naming: ProtocolNaming,
-    ) -> Self {
-        SubstrateNetwork {
-            network,
-            sync_network,
-            naming,
-        }
-    }
-
-    pub fn event_stream(&self) -> NetworkEventStream<B, H> {
-        NetworkEventStream {
-            stream: self.network.event_stream("aleph-network").fuse(),
-            sync_stream: self
-                .sync_network
-                .event_stream("aleph-syncing-network")
-                .fuse(),
-            naming: self.naming.clone(),
-            network: self.network.clone(),
-        }
-    }
-}
-
-impl<B: Block, H: ExHashT> RawNetwork for SubstrateNetwork<B, H> {
-    type SenderError = SenderError;
-    type NetworkSender = SubstrateNetworkSender;
+#[async_trait::async_trait]
+impl<D: Data> GossipNetwork<D> for ProtocolNetwork {
+    type Error = ProtocolNetworkError;
     type PeerId = PeerId;
 
-    fn sender(
-        &self,
-        peer_id: Self::PeerId,
-        protocol: Protocol,
-    ) -> Result<Self::NetworkSender, Self::SenderError> {
-        Ok(SubstrateNetworkSender {
-            // Currently method `notification_sender` does not distinguish whether we are not connected to the peer
-            // or there is no such protocol so we need to have this worthless `SenderError::CannotCreateSender` error here
-            notification_sender: self
-                .network
-                .notification_sender(peer_id, self.naming.protocol_name(&protocol))
-                .map_err(|_| SenderError::CannotCreateSender(peer_id, protocol))?,
+    fn send_to(&mut self, data: D, peer_id: PeerId) -> Result<(), Self::Error> {
+        trace!(
+            target: LOG_TARGET,
+            "Sending block sync data to peer {:?}.",
             peer_id,
-        })
+        );
+        self.service.send_sync_notification(&peer_id, data.encode());
+        Ok(())
+    }
+
+    fn send_to_random(&mut self, data: D, peer_ids: HashSet<PeerId>) -> Result<(), Self::Error> {
+        trace!(
+            target: LOG_TARGET,
+            "Sending data to random peer among {:?}.",
+            peer_ids,
+        );
+        let peer_id = match self.random_peer(&peer_ids) {
+            Some(peer_id) => *peer_id,
+            None => {
+                debug!(
+                    target: LOG_TARGET,
+                    "Failed to send message to random peer, no peers are available."
+                );
+                return Ok(());
+            }
+        };
+        self.send_to(data, peer_id)
+    }
+
+    fn broadcast(&mut self, data: D) -> Result<(), Self::Error> {
+        for peer in self.connected_peers.clone() {
+            // in the current version send_to never returns an error
+            let _ = self.send_to(data.clone(), peer);
+        }
+        Ok(())
+    }
+
+    async fn next(&mut self) -> Result<(D, PeerId), Self::Error> {
+        let mut status_ticker = time::interval_at(
+            self.last_status_report
+                .checked_add(STATUS_REPORT_INTERVAL)
+                .unwrap_or(time::Instant::now()),
+            STATUS_REPORT_INTERVAL,
+        );
+        loop {
+            tokio::select! {
+                maybe_event = self.service.next_event() => {
+                    let event = maybe_event.ok_or(Self::Error::NetworkStreamTerminated)?;
+                    if let Some((message, peer_id)) = self.handle_network_event(event) {
+                        match D::decode_all(&mut &message[..]) {
+                            Ok(message) => return Ok((message, peer_id)),
+                            Err(e) => {
+                                warn!(
+                                    target: LOG_TARGET,
+                                    "Error decoding message: {}", e
+                                )
+                            },
+                        }
+                    }
+                },
+                _ = status_ticker.tick() => {
+                    self.status_report();
+                    self.last_status_report = time::Instant::now();
+                },
+            }
+        }
     }
 }

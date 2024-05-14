@@ -15,9 +15,10 @@ use futures::{
 };
 use parity_scale_codec::{Decode, Encode, Output};
 use primitives as aleph_primitives;
-use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Hash as AlephHash};
+use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber};
 use sc_client_api::{
-    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, StorageProvider,
+    Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, ProofProvider,
+    StorageProvider,
 };
 use sc_consensus::BlockImport;
 use sc_keystore::LocalKeystore;
@@ -35,15 +36,13 @@ use crate::{
     aggregation::{CurrentRmcNetworkData, LegacyRmcNetworkData},
     block::UnverifiedHeader,
     compatibility::{Version, Versioned},
-    network::{data::split::Split, session::MAX_MESSAGE_SIZE as MAX_AUTHENTICATION_MESSAGE_SIZE},
+    network::data::split::Split,
     session::{SessionBoundaries, SessionBoundaryInfo, SessionId},
-    sync::MAX_MESSAGE_SIZE as MAX_BLOCK_SYNC_MESSAGE_SIZE,
     VersionedTryFromError::{ExpectedNewGotOld, ExpectedOldGotNew},
 };
 
 mod abft;
 mod aggregation;
-mod base_protocol;
 mod block;
 mod compatibility;
 mod crypto;
@@ -74,7 +73,7 @@ pub use crate::{
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        Protocol, ProtocolNaming, SubstrateNetwork, SubstrateNetworkEventStream,
+        build_network, BuildNetworkOutput, ProtocolNetwork, SubstratePeerId,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -83,28 +82,6 @@ pub use crate::{
 
 /// Constant defining how often components of finality-aleph should report their state
 const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(20);
-
-fn max_message_size(protocol: Protocol) -> u64 {
-    match protocol {
-        Protocol::Authentication => MAX_AUTHENTICATION_MESSAGE_SIZE,
-        Protocol::BlockSync => MAX_BLOCK_SYNC_MESSAGE_SIZE,
-    }
-}
-
-/// Returns a NonDefaultSetConfig for the specified protocol.
-pub fn peers_set_config(
-    naming: ProtocolNaming,
-    protocol: Protocol,
-) -> sc_network::config::NonDefaultSetConfig {
-    let mut config = sc_network::config::NonDefaultSetConfig::new(
-        naming.protocol_name(&protocol),
-        max_message_size(protocol),
-    );
-
-    config.set_config = sc_network::config::SetConfig::default();
-    config.add_fallback_names(naming.fallback_protocol_names(&protocol));
-    config
-}
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Encode, Decode)]
 pub struct MillisecsPerBlock(pub u64);
@@ -222,6 +199,8 @@ pub trait ClientForAleph<B, BE>:
     + BlockchainEvents<B>
     + BlockBackend<B>
     + StorageProvider<B, BE>
+    + ProofProvider<B>
+    + 'static
 where
     BE: Backend<B>,
     B: Block,
@@ -240,7 +219,9 @@ where
         + BlockchainEvents<B>
         + BlockImport<B, Error = sp_consensus::Error>
         + BlockBackend<B>
-        + StorageProvider<B, BE>,
+        + StorageProvider<B, BE>
+        + ProofProvider<B>
+        + 'static,
 {
 }
 
@@ -279,8 +260,8 @@ pub struct RateLimiterConfig {
 }
 
 pub struct AlephConfig<C, SC, T> {
-    pub network: SubstrateNetwork<AlephBlock, AlephHash>,
-    pub network_event_stream: SubstrateNetworkEventStream<AlephBlock, AlephHash>,
+    pub authentication_network: ProtocolNetwork,
+    pub block_sync_network: ProtocolNetwork,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
