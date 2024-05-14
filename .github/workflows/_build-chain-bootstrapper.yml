@@ -23,6 +23,8 @@ jobs:
       RUSTC_WRAPPER: sccache
       CARGO_FOLDER: ${{ inputs.production == true && 'production' || 'release' }}
       ARTIFACT_NAME_SUFFIX: ${{ inputs.production == true && 'release' || 'test' }}
+    outputs:
+      artifact-name: ${{ steps.get-artifact-name.outputs.name }}
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -69,10 +71,15 @@ jobs:
           docker build --tag chain-bootstrapper:latest -f ./bin/chain-bootstrapper/Dockerfile .
           docker save -o chain-bootstrapper.tar chain-bootstrapper:latest
 
+      - name: Get artifact name
+        id: get-artifact-name
+        run: |
+          echo "name=chain-bootstrapper-image-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
+
       - name: Upload docker image to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chain-bootstrapper-image-${{ env.ARTIFACT_NAME_SUFFIX }}
+          name: ${{ steps.get-artifact-name.outputs.name }}
           path: chain-bootstrapper.tar
           if-no-files-found: error
           retention-days: 7
