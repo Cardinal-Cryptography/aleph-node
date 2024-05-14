@@ -24,7 +24,8 @@ jobs:
       CARGO_FOLDER: ${{ inputs.production == true && 'production' || 'release' }}
       ARTIFACT_NAME_SUFFIX: ${{ inputs.production == true && 'release' || 'test' }}
     outputs:
-      artifact-name: ${{ steps.get-artifact-name.outputs.name }}
+      artifact-name-binary: ${{ steps.get-artifact-name-binary.outputs.name }}
+      artifact-name-image: ${{ steps.get-artifact-name-image.outputs.name }}
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -52,10 +53,15 @@ jobs:
         run: |
           cargo build --profile production -p chain-bootstrapper
 
+      - name: Get binary artifact name
+        id: get-artifact-name-binary
+        run: |
+          echo "name=chain-bootstrapper-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
+
       - name: Upload binary to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chain-bootstrapper-${{ env.ARTIFACT_NAME_SUFFIX }}
+          name: ${{ steps.get-artifact-name-binary.outputs.name }}
           path: target/${{ env.CARGO_FOLDER }}/chain-bootstrapper
           if-no-files-found: error
           retention-days: 7
@@ -71,15 +77,15 @@ jobs:
           docker build --tag chain-bootstrapper:latest -f ./bin/chain-bootstrapper/Dockerfile .
           docker save -o chain-bootstrapper.tar chain-bootstrapper:latest
 
-      - name: Get artifact name
-        id: get-artifact-name
+      - name: Get image artifact name
+        id: get-artifact-name-image
         run: |
           echo "name=chain-bootstrapper-image-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
 
       - name: Upload docker image to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.get-artifact-name.outputs.name }}
+          name: ${{ steps.get-artifact-name-image.outputs.name }}
           path: chain-bootstrapper.tar
           if-no-files-found: error
           retention-days: 7
