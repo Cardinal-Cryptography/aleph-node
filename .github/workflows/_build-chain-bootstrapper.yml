@@ -13,7 +13,13 @@ on:
         description: 'set to true to use production profile'
         type: boolean
         required: true
-
+    outputs:
+      artifact-name-binary:
+        description: 'Name of artifact chain-bootstrapper binary'
+        value: ${{ jobs.main.outputs.artifact-name-binary }}
+      artifact-name-image:
+        description: 'Name of artifact chain-bootstrapper image'
+        value: ${{ jobs.main.outputs.artifact-name-image }}
 jobs:
   main:
     name: Build chain-bootstrapper
