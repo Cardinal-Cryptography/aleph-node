@@ -1,8 +1,10 @@
 mod chain_spec;
 
 use sc_chain_spec::ChainSpec;
-use sc_cli::clap::{self, Parser, Subcommand as ClapSubcommand};
-use sc_cli::SubstrateCli;
+use sc_cli::{
+    clap::{self, Parser, Subcommand as ClapSubcommand},
+    SubstrateCli,
+};
 
 use crate::chain_spec::{BootstrapChainCmd, ConvertChainspecToRawCmd};
 
@@ -63,7 +65,6 @@ fn main() -> sc_cli::Result<()> {
         Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
         Some(Subcommand::ConvertChainspecToRaw(cmd)) => cmd.run(),
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
-
 
         None => Err("Command was required!".into()),
     }
