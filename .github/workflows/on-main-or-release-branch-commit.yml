@@ -24,6 +24,9 @@ jobs:
       # yamllint disable-line rule:line-length
       chain-bootstrapper-image-exists: ${{ steps.get-fqdns.outputs.chain-bootstrapper-image-exists }}
       chain-bootstrapper-fqdn-image: ${{ steps.get-fqdns.outputs.chain-bootstrapper-fqdn-image }}
+      # yamllint disable-line rule:line-length
+      chain-bootstrapper-fqdn-image-latest: ${{ steps.get-fqdns.outputs.chain-bootstrapper-fqdn-image-latest }}
+
     steps:
       - name: Get FQDNs
         id: get-fqdns

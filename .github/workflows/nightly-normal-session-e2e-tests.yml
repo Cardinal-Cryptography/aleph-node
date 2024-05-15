@@ -292,13 +292,13 @@ jobs:
       - name: Download node binary from GH artifact
         uses: actions/download-artifact@v4
         with:
-          name: aleph-production-node
+          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
           path: target/release/
 
       - name: Download chain-bootstrapper from GH artifacts
         uses: actions/download-artifact@v4
         with:
-          name: chain-bootstrapper-release
+          name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
           path: target/release/
 
       - name: Run test
@@ -322,13 +322,13 @@ jobs:
       - name: Download node binary from GH artifact
         uses: actions/download-artifact@v4
         with:
-          name: aleph-production-node
+          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
           path: target/release/
 
       - name: Download chain-bootstrapper from GH artifacts
         uses: actions/download-artifact@v4
         with:
-          name: chain-bootstrapper-release
+          name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
           path: target/release/
 
       - name: Run test
