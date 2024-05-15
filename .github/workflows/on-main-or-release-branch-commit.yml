@@ -6,7 +6,6 @@ on:
     branches:
       - main
       - 'release-*'
-      - A0-4268
 
 jobs:
   check-vars-and-secrets:
@@ -60,22 +59,22 @@ jobs:
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
 
-#  build-and-push-cliain:
-#    needs: [check-vars-and-secrets]
-#    name: Build and push cliain
-#    uses: ./.github/workflows/_build-and-push-cliain.yml
-#    secrets: inherit
-#    with:
-#      check-only: false
-#
-#  build-aleph-e2e-client-image:
-#    needs: [check-vars-and-secrets]
-#    name: Build aleph-e2e-client image
-#    uses: ./.github/workflows/_build-aleph-e2e-client-image.yml
-#    with:
-#      ref: ${{ github.ref }}
-#      push: true
-#    secrets: inherit
+  build-and-push-cliain:
+    needs: [check-vars-and-secrets]
+    name: Build and push cliain
+    uses: ./.github/workflows/_build-and-push-cliain.yml
+    secrets: inherit
+    with:
+      check-only: false
+
+  build-aleph-e2e-client-image:
+    needs: [check-vars-and-secrets]
+    name: Build aleph-e2e-client image
+    uses: ./.github/workflows/_build-aleph-e2e-client-image.yml
+    with:
+      ref: ${{ github.ref }}
+      push: true
+    secrets: inherit
 
   build-production-aleph-node:
     needs: [check-vars-and-secrets]
@@ -87,7 +86,7 @@ jobs:
 
   build-production-runtime:
     needs: [check-vars-and-secrets]
-    name: Build production node and runtime
+    name: Build production runtime
     uses: ./.github/workflows/_build-production-runtime.yml
     with:
       ref: ${{ github.ref }}
@@ -132,31 +131,31 @@ jobs:
       binary-name: aleph-node
       docker-file-path: ./docker/Dockerfile
 
-#  send-slack-notification-release:
-#    name: Send Slack notification about workflow status
-#    runs-on: ubuntu-20.04
-#    if: always() && startsWith(github.ref_name, 'release-')
-#    needs: [push-production-node-image-to-ecr]
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Send Slack message
-#        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
-#        with:
-#          notify-on: "always"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
-#
-#  send-slack-notification-main:
-#    name: Send Slack notification about workflow status
-#    runs-on: ubuntu-20.04
-#    if: always() && github.ref_name == 'main'
-#    needs: [push-production-node-image-to-ecr]
-#    steps:
-#      - name: Send Slack message
-#        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
-#        with:
-#          notify-on: "failure"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+  send-slack-notification-release:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    if: always() && startsWith(github.ref_name, 'release-')
+    needs: [push-production-node-image-to-ecr]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        with:
+          notify-on: "always"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+
+  send-slack-notification-main:
+    name: Send Slack notification about workflow status
+    runs-on: ubuntu-20.04
+    if: always() && github.ref_name == 'main'
+    needs: [push-production-node-image-to-ecr]
+    steps:
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
