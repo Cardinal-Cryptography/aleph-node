@@ -6,6 +6,8 @@ use std::{
 use parity_scale_codec::{DecodeAll, Error as CodecError};
 use sc_network::{config::NetworkConfiguration, service::traits::Direction, PeerId};
 use sc_network_common::{role::Roles, sync::message::BlockAnnouncesHandshake};
+use sc_network_sync::types::ExtendedPeerInfo;
+use sp_core::H256;
 use sp_runtime::traits::{Block, Header, Saturating};
 
 use crate::{BlockHash, BlockNumber};
@@ -28,6 +30,15 @@ impl From<Roles> for Role {
     }
 }
 
+impl From<Role> for Roles {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::Full => Roles::FULL,
+            Role::Light => Roles::LIGHT,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct PeerInfo {
     role: Role,
@@ -37,6 +48,21 @@ struct PeerInfo {
 impl PeerInfo {
     pub fn new(role: Role, direction: Direction) -> Self {
         PeerInfo { role, direction }
+    }
+}
+
+impl<B> From<PeerInfo> for ExtendedPeerInfo<B>
+where
+    B: Block<Hash = BlockHash>,
+    B::Header: Header<Number = BlockNumber>,
+{
+    fn from(peer_info: PeerInfo) -> Self {
+        ExtendedPeerInfo {
+            roles: peer_info.role.into(),
+            // this is never actually inspected, so return dummy values
+            best_hash: H256([0; 32]),
+            best_number: 0,
+        }
     }
 }
 
@@ -255,5 +281,13 @@ where
     ) -> Result<(), ConnectError> {
         self.verify_connection(peer_id, handshake, Direction::Inbound)
             .map(|_| ())
+    }
+
+    /// Return information about connected peers. Mostly dummy, although the roles and number of peers match.
+    pub fn peers_info(&self) -> Vec<(PeerId, ExtendedPeerInfo<B>)> {
+        self.peers
+            .iter()
+            .map(|(peer_id, peer_info)| (*peer_id, peer_info.clone().into()))
+            .collect()
     }
 }
