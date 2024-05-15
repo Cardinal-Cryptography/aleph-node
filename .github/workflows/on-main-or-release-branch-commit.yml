@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - build-production-aleph-node
-      - build-production-aleph-runtime
+      - build-production-runtime
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
           # yamllint disable-line rule:line-length
           aleph-node-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
           # yamllint disable-line rule:line-length
-          aleph-runtime-artifact-name: ${{ needs.build-production-aleph-runtime.outputs.aleph-runtime-artifact-name }}
+          aleph-runtime-artifact-name: ${{ needs.build-production-runtime.outputs.aleph-runtime-artifact-name }}
           aws-access-key-id: ${{ secrets.AWS_MAINNET_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_SECRET_ACCESS_KEY }}
           aws-bucket: ${{ secrets.CI_MAINNET_S3BUCKET_NAME }}
