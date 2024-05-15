@@ -61,9 +61,9 @@ jobs:
 
       - name: Push image to ECR
         run: |
-          docker push '${{ inputs.docker-image-name }}'
+          # docker push '${{ inputs.docker-image-name }}'
           if [[ '${{ steps.get-ref-properties.outputs.branch }}' -eq 'main' && \
                  '${{ inputs.docker-image-name-latest }}' != '' ]]; then
             docker tag '${{ inputs.docker-image-name }}' '${{ inputs.docker-image-name-latest }}'
-            docker push '${{ inputs.docker-image-name-latest }}'
+            # docker push '${{ inputs.docker-image-name-latest }}'
           fi
