@@ -8,6 +8,10 @@ on:
         description: 'git ref: hash, branch, tag to build production aleph-runtime from'
         type: string
         required: true
+    outputs:
+      aleph-runtime-artifact-name:
+        description: 'Name of artifact aleph-runtime'
+        value: ${{ jobs.main.outputs.aleph-runtime-artifact-name }}
 
 jobs:
   main:
@@ -16,6 +20,8 @@ jobs:
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
+    outputs:
+      aleph-runtime-artifact-name: ${{ steps.get-artifact-name.outputs.name }}
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
@@ -35,10 +41,15 @@ jobs:
       - name: Build production aleph-runtime
         run: cargo build --profile production -p aleph-runtime
 
+      - name: get aleph-runtime artifact name
+        id: get-artifact-name
+        run: |
+          echo "name=aleph-production-runtime" >> $GITHUB_OUTPUT
+
       - name: Upload release runtime to GH artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aleph-production-runtime
+          name: ${{ steps.get-artifact-name.outputs.name }}
           path: target/production/wbuild/aleph-runtime/aleph_runtime.compact.compressed.wasm
           if-no-files-found: error
           retention-days: 7
