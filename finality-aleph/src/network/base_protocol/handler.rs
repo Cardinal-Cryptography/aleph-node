@@ -51,6 +51,10 @@ impl PeerInfo {
     }
 }
 
+// the peer info is never actually inspected, so return dummy values
+const DUMMY_HASH: H256 = H256([0; 32]);
+const DUMMY_NUMBER: u32 = 0;
+
 impl<B> From<PeerInfo> for ExtendedPeerInfo<B>
 where
     B: Block<Hash = BlockHash>,
@@ -59,9 +63,8 @@ where
     fn from(peer_info: PeerInfo) -> Self {
         ExtendedPeerInfo {
             roles: peer_info.role.into(),
-            // this is never actually inspected, so return dummy values
-            best_hash: H256([0; 32]),
-            best_number: 0,
+            best_hash: DUMMY_HASH,
+            best_number: DUMMY_NUMBER,
         }
     }
 }
