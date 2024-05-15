@@ -718,6 +718,8 @@ where
 mod tests {
     use std::collections::HashSet;
 
+    use futures::FutureExt;
+
     use super::{DatabaseIO, Error, HandleStateAction, HandleStateAction::*, Handler};
     use crate::{
         block::{
@@ -1113,6 +1115,44 @@ mod tests {
             Some(Error::HeaderVerifier(_)) => (),
             e => panic!("should return Verifier error, {e:?}"),
         };
+    }
+
+    #[tokio::test]
+    async fn stops_handling_response_upon_block_with_incorrect_header() {
+        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let branch = grow_light_branch(&mut handler, &genesis, 10, 4);
+        let mut response = branch_response(
+            branch.clone(),
+            BranchResponseContent {
+                headers: false,
+                blocks: true,
+                justifications: false,
+            },
+        );
+
+        // put invalid child of block at position 7 in the response at position 8
+        let mut invalid_header = MockHeader::random_child(&branch[7]);
+        invalid_header.invalidate();
+        let invalid_block = MockBlock::new(invalid_header.clone(), true);
+        response.insert(8, ResponseItem::Block(invalid_block));
+
+        let (new_justified, eq_proofs, maybe_err) = handler.handle_request_response(response, 7);
+        assert!(!new_justified);
+        assert!(eq_proofs.is_empty());
+        assert!(matches!(maybe_err, Some(Error::HeaderVerifier(_))));
+
+        // first 8 blocks should be imported
+        for header in branch.iter().take(8) {
+            match notifier.next().await {
+                Ok(BlockImported(h)) => {
+                    assert_eq!(h, *header);
+                }
+                _ => panic!("should notify about imported block"),
+            };
+        }
+
+        // no other block should be imported
+        assert!(notifier.next().now_or_never().is_none());
     }
 
     #[tokio::test]
