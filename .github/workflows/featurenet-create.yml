@@ -77,6 +77,10 @@ on:
         type: string
         required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+      finality-version:
+        description: 'Finality version to start FE with. Must be a cardinal number'
+        type: number
+        required: false
 
 jobs:
   validate-inputs:
@@ -145,3 +149,4 @@ jobs:
       internal: ${{ inputs.internal && true || false }}
       delete-first: true
       sudo-account-id: ${{ inputs.sudo-account-id }}
+      finality-version: ${{ inputs.finality-version }}
