@@ -20,7 +20,7 @@ use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver};
 use sp_runtime::traits::{Block, Header};
 
 use crate::{
-    base_protocol::{handler::Handler, LOG_TARGET},
+    network::base_protocol::{handler::Handler, LOG_TARGET},
     BlockHash, BlockNumber,
 };
 
@@ -70,7 +70,7 @@ where
         protocol_names: Vec<ProtocolName>,
         network: Arc<NetworkService<B, BlockHash>>,
         events_from_network: Box<dyn NotificationService>,
-    ) -> (Self, SyncingService<B>) {
+    ) -> (Self, Arc<SyncingService<B>>) {
         let (commands_for_service, commands_from_user) =
             tracing_unbounded("mpsc_base_protocol", 100_000);
         (
@@ -81,12 +81,12 @@ where
                 commands_from_user,
                 events_from_network,
             },
-            SyncingService::new(
+            Arc::new(SyncingService::new(
                 commands_for_service,
                 // We don't care about this one, so a dummy value.
                 Arc::new(AtomicUsize::new(0)),
                 major_sync,
-            ),
+            )),
         )
     }
 
@@ -96,13 +96,13 @@ where
             EventStream(_) => {
                 warn!(target: LOG_TARGET, "We don't support sending downstream events to users, yet someone requested them.")
             }
-            PeersInfo(_) => {
-                // This unfortunately will happen when someone calls the appropriate RPC.
-                // Almost no one uses it though, and supporting it would be too much of a pain.
-                debug!(
-                    target: LOG_TARGET,
-                    "Failed to send response to peers info request - call unsupported."
-                );
+            PeersInfo(response) => {
+                if response.send(self.handler.peers_info()).is_err() {
+                    debug!(
+                        target: LOG_TARGET,
+                        "Failed to send response to peers info request."
+                    );
+                }
             }
             BestSeenBlock(response) => {
                 if response.send(None).is_err() {
@@ -167,6 +167,9 @@ where
             },
             NotificationStreamClosed { peer } => {
                 trace!(target: LOG_TARGET, "Disconnect event for peer {:?}", peer);
+                if let Err(e) = self.handler.on_peer_disconnect(peer) {
+                    warn!(target: LOG_TARGET, "Problem removing disconnecting peer: {e}.");
+                }
                 let addresses: Vec<_> = iter::once(peer).collect();
                 for name in &self.protocol_names {
                     if let Err(e) = self

@@ -192,9 +192,8 @@ where
     I: PeerId,
     J: Justification,
 {
-    /// Creates a new forest and returns whether we have too many nonfinalized blocks in the DB.
-    //TODO(A0-2984): the latter part of the result should be removed after legacy sync is excised
-    pub fn new<B, CS>(chain_status: &CS) -> Result<(Self, bool), InitializationError<B, J, CS>>
+    /// Creates a new forest.
+    pub fn new<B, CS>(chain_status: &CS) -> Result<Self, InitializationError<B, J, CS>>
     where
         B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
@@ -222,17 +221,14 @@ where
                 .children(id)
                 .map_err(InitializationError::ChainStatus)?;
             for header in children.iter() {
-                if let Err(e) = forest.update_body(header) {
-                    match e {
-                        Error::TooNew => return Ok((forest, true)),
-                        e => return Err(InitializationError::Error(e)),
-                    }
-                }
+                forest
+                    .update_body(header)
+                    .map_err(InitializationError::Error)?;
             }
             deque.extend(children.into_iter().map(|header| header.id()));
         }
 
-        Ok((forest, false))
+        Ok(forest)
     }
 
     fn special_state(&self, id: &BlockId) -> Option<SpecialState> {
@@ -359,25 +355,25 @@ where
 
     /// Updates the provided header, returns:
     /// 1. If required is set whether it became a new explicitly required.
-    /// 2. Otherwise whether it's a new descendant of the highest justified.
+    /// 2. Otherwise whether it's a new header with a number greater than the favourite block.
     pub fn update_header(
         &mut self,
         header: &J::Header,
         holder: Option<I>,
         required: bool,
     ) -> Result<bool, Error> {
-        let (id, parent_id) = self.process_header(header)?;
-        let mut new_descendant = parent_id == self.root.id();
+        let (id, _) = self.process_header(header)?;
+        let mut new_above = id.number() > self.favourite.id().number();
         self.insert_id(id.clone(), holder.clone())?;
         if let VertexHandleMut::Candidate(mut entry) = self.get_mut(&id) {
             if !entry.get_mut().vertex.insert_header(header.clone(), holder) {
-                new_descendant = false;
+                new_above = false;
             }
             self.connect_parent(&id);
         }
         match required {
             true => Ok(self.set_explicitly_required(&id)),
-            false => Ok(new_descendant),
+            false => Ok(new_above),
         }
     }
 
@@ -723,8 +719,7 @@ mod tests {
             .expect("should return genesis")
             .header()
             .clone();
-        let (forest, too_many_nonfinalized) = Forest::new(&backend).expect("should initialize");
-        assert!(!too_many_nonfinalized);
+        let forest = Forest::new(&backend).expect("should initialize");
         (header, forest)
     }
 
@@ -773,10 +768,10 @@ mod tests {
         let grandchild = child.random_child();
         let grandpeer_id = rand::random();
         assert!(
-            !forest
+            forest
                 .update_header(&grandchild, Some(grandpeer_id), false)
                 .expect("header was correct"),
-            "should not count as a child of the favourite",
+            "should count as above the favourite",
         );
         assert!(forest.try_finalize(&1).is_none());
         assert!(matches!(
@@ -1220,9 +1215,12 @@ mod tests {
         let favourite_block = fork_branch.last().expect("the fork is not empty");
         let fork_child = favourite_block.random_child();
         let fork_child_peer_id = rand::random();
-        assert!(!forest
-            .update_header(&fork_child, Some(fork_child_peer_id), false)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(&fork_child, Some(fork_child_peer_id), false)
+                .expect("header was correct"),
+            "header is above favourite"
+        );
         let fork_child_know_most = HashSet::from([fork_child_peer_id]);
         let know_most = fork_child_know_most.clone();
         assert_eq!(forest.extension_request(), FavouriteBlock { know_most });
@@ -1271,9 +1269,12 @@ mod tests {
         assert!(forest.importable(&header.id()));
         let header = &branch[1];
         let peer_id = rand::random();
-        assert!(!forest
-            .update_header(header, Some(peer_id), false)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(header, Some(peer_id), false)
+                .expect("header was correct"),
+            "header is above favourite"
+        );
         assert!(matches!(
             forest.request_interest(&header.id()),
             Uninterested
@@ -1291,9 +1292,12 @@ mod tests {
         assert!(forest.importable(&header.id()));
         let header = &branch[2];
         let peer_id = rand::random();
-        assert!(!forest
-            .update_header(header, Some(peer_id), false)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(header, Some(peer_id), false)
+                .expect("header was correct"),
+            "header above favourite"
+        );
         for header in branch.iter().take(3) {
             assert!(forest.importable(&header.id()));
         }
@@ -1320,9 +1324,12 @@ mod tests {
         // skip branch[1]
         let header = &branch[2];
         let peer_id = rand::random();
-        assert!(!forest
-            .update_header(header, Some(peer_id), false)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(header, Some(peer_id), false)
+                .expect("header was correct"),
+            "header is above favourite"
+        );
         assert!(matches!(
             forest.request_interest(&header.id()),
             Uninterested
@@ -1350,9 +1357,12 @@ mod tests {
         // fill the gap
         let header = &branch[1];
         let peer_id = rand::random();
-        assert!(!forest
-            .update_header(header, Some(peer_id), false)
-            .expect("header was correct"));
+        assert!(
+            forest
+                .update_header(header, Some(peer_id), false)
+                .expect("header was correct"),
+            "header above favourite"
+        );
         for header in branch.iter().take(3) {
             assert!(matches!(
                 forest.request_interest(&header.id()),
@@ -1510,10 +1520,10 @@ mod tests {
         for header in branch.iter().take(HUGE_BRANCH_LENGTH - 1) {
             let peer_id = rand::random();
             assert!(
-                !forest
+                forest
                     .update_header(header, Some(peer_id), false)
-                    .expect("header was correct")
-                    || header.id().number() == initial_header.id().number() + 1
+                    .expect("header was correct"),
+                "header is above favourite"
             );
             assert!(matches!(
                 forest.request_interest(&header.id()),

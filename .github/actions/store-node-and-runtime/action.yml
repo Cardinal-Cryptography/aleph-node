@@ -53,7 +53,7 @@ runs:
         path: target
 
     - name: Configure AWS credentials for S3 AWS
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v4
       env:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
