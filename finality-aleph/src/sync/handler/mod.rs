@@ -2792,4 +2792,78 @@ mod tests {
         }
         assert_eq!(h2.state().unwrap().favourite_block(), branch[1]);
     }
+
+    #[tokio::test]
+    async fn headers_above_favourite_trigger_chain_extension_request() {
+        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let branch = import_branch(&mut backend, 10);
+        for header in branch {
+            handler
+                .block_imported(header)
+                .expect("block imported should succeed");
+        }
+
+        let branch1 = grow_light_branch(&mut handler, &genesis, 11, 3);
+        let branch2 = grow_light_branch(&mut handler, &genesis, 30, 3);
+        let header1 = branch1.last().unwrap(); // 11
+        let header2 = branch2.last().unwrap(); // 30
+
+        let state1 = State::new(
+            MockJustification::for_header(MockHeader::genesis()),
+            header1.clone(),
+        );
+        let state2 = State::new(
+            MockJustification::for_header(MockHeader::genesis()),
+            header2.clone(),
+        );
+
+        let (action1, eq_proofs1) = handler
+            .handle_state(state1, 1)
+            .expect("handle state should succeed");
+        let (action2, eq_proofs2) = handler
+            .handle_state(state2, 2)
+            .expect("handle state should succeed");
+
+        assert!(eq_proofs1.is_none());
+        assert!(eq_proofs2.is_none());
+        assert!(matches!(action1, HandleStateAction::ExtendChain));
+        assert!(matches!(action2, HandleStateAction::ExtendChain));
+    }
+
+    #[tokio::test]
+    async fn headers_below_favourite_dont_trigger_chain_extension_request() {
+        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let branch = import_branch(&mut backend, 10);
+        for header in branch {
+            handler
+                .block_imported(header)
+                .expect("block imported should succeed");
+        }
+
+        let branch1 = grow_light_branch(&mut handler, &genesis, 10, 3);
+        let branch2 = grow_light_branch(&mut handler, &genesis, 10, 3);
+        let header1 = branch1.last().unwrap(); // 10
+        let header2 = branch2.first().unwrap(); // 1
+
+        let state1 = State::new(
+            MockJustification::for_header(MockHeader::genesis()),
+            header1.clone(),
+        );
+        let state2 = State::new(
+            MockJustification::for_header(MockHeader::genesis()),
+            header2.clone(),
+        );
+
+        let (action1, eq_proofs1) = handler
+            .handle_state(state1, 1)
+            .expect("handle state should succeed");
+        let (action2, eq_proofs2) = handler
+            .handle_state(state2, 2)
+            .expect("handle state should succeed");
+
+        assert!(eq_proofs1.is_none());
+        assert!(eq_proofs2.is_none());
+        assert!(matches!(action1, HandleStateAction::Noop));
+        assert!(matches!(action2, HandleStateAction::Noop));
+    }
 }
