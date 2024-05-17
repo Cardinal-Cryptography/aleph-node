@@ -2795,16 +2795,16 @@ mod tests {
 
     #[tokio::test]
     async fn headers_above_favourite_trigger_chain_extension_request() {
-        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let (mut h1, mut backend, _notifier, genesis) = setup();
+        let (mut h2, _backend, _notifier, _genesis) = setup();
         let branch = import_branch(&mut backend, 10);
         for header in branch {
-            handler
-                .block_imported(header)
+            h1.block_imported(header)
                 .expect("block imported should succeed");
         }
 
-        let branch1 = grow_light_branch(&mut handler, &genesis, 11, 3);
-        let branch2 = grow_light_branch(&mut handler, &genesis, 30, 3);
+        let branch1 = grow_light_branch(&mut h2, &genesis, 11, 3);
+        let branch2 = grow_light_branch(&mut h2, &genesis, 30, 3);
         let header1 = branch1.last().unwrap(); // 11
         let header2 = branch2.last().unwrap(); // 30
 
@@ -2817,10 +2817,10 @@ mod tests {
             header2.clone(),
         );
 
-        let (action1, eq_proofs1) = handler
+        let (action1, eq_proofs1) = h1
             .handle_state(state1, 1)
             .expect("handle state should succeed");
-        let (action2, eq_proofs2) = handler
+        let (action2, eq_proofs2) = h1
             .handle_state(state2, 2)
             .expect("handle state should succeed");
 
@@ -2832,16 +2832,16 @@ mod tests {
 
     #[tokio::test]
     async fn headers_below_favourite_dont_trigger_chain_extension_request() {
-        let (mut handler, mut backend, _notifier, genesis) = setup();
+        let (mut h1, mut backend, _notifier, genesis) = setup();
+        let (mut h2, _backend, _notifier, _genesis) = setup();
         let branch = import_branch(&mut backend, 10);
         for header in branch {
-            handler
-                .block_imported(header)
+            h1.block_imported(header)
                 .expect("block imported should succeed");
         }
 
-        let branch1 = grow_light_branch(&mut handler, &genesis, 10, 3);
-        let branch2 = grow_light_branch(&mut handler, &genesis, 10, 3);
+        let branch1 = grow_light_branch(&mut h2, &genesis, 10, 3);
+        let branch2 = grow_light_branch(&mut h2, &genesis, 10, 3);
         let header1 = branch1.last().unwrap(); // 10
         let header2 = branch2.first().unwrap(); // 1
 
@@ -2854,10 +2854,10 @@ mod tests {
             header2.clone(),
         );
 
-        let (action1, eq_proofs1) = handler
+        let (action1, eq_proofs1) = h1
             .handle_state(state1, 1)
             .expect("handle state should succeed");
-        let (action2, eq_proofs2) = handler
+        let (action2, eq_proofs2) = h1
             .handle_state(state2, 2)
             .expect("handle state should succeed");
 
