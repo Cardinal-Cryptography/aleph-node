@@ -1,8 +1,11 @@
 //! Runtime API definition for pallet aleph.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use primitives::{
+    AccountId, ApiError, AuthorityId, SessionAuthorityData, SessionCommittee, SessionIndex,
+    SessionValidatorError, Version,
+};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use primitives::{AuthorityId, SessionAuthorityData, ApiError, Version, SessionIndex, AccountId, SessionCommittee, SessionValidatorError};
 
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi {

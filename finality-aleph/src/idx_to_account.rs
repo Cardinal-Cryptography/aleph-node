@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use pallet_aleph_runtime_api::AlephSessionApi;
 use primitives::{AccountId, AuraId, BlockHash, BlockNumber};
 use sc_client_api::Backend;
 use sp_consensus_aura::AuraApi;
@@ -12,8 +13,6 @@ use crate::{
     session_map::{AuthorityProvider, AuthorityProviderImpl},
     ClientForAleph,
 };
-use pallet_aleph_runtime_api::AlephSessionApi;
-
 
 pub trait ValidatorIndexToAccountIdConverter {
     fn account(&self, session: SessionId, validator_index: NodeIndex) -> Option<AccountId>;

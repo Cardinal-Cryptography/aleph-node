@@ -2,6 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
 
 use futures::StreamExt;
 use log::{debug, error, trace};
+use pallet_aleph_runtime_api::AlephSessionApi;
 use sc_client_api::{Backend, FinalityNotification};
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_consensus_aura::AuraApi;
@@ -10,12 +11,9 @@ use tokio::sync::{
     oneshot::{Receiver as OneShotReceiver, Sender as OneShotSender},
     RwLock,
 };
-use pallet_aleph_runtime_api::AlephSessionApi;
 
 use crate::{
-    aleph_primitives::{
-        AccountId, AuraId, BlockHash, BlockNumber, SessionAuthorityData,
-    },
+    aleph_primitives::{AccountId, AuraId, BlockHash, BlockNumber, SessionAuthorityData},
     runtime_api::RuntimeApi,
     session::SessionBoundaryInfo,
     ClientForAleph, SessionId, SessionPeriod,
