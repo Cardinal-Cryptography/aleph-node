@@ -3,7 +3,7 @@ use std::{collections::HashSet, marker::PhantomData, sync::Arc};
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{debug, info, trace, warn};
-use network_clique::SpawnHandleT;
+use network_clique::SpawnHandleExt;
 use pallet_aleph_runtime_api::AlephSessionApi;
 use sc_keystore::{Keystore, LocalKeystore};
 use sp_application_crypto::RuntimeAppPublic;
