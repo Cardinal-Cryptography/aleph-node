@@ -105,7 +105,12 @@ impl<SH: SpawnHandleT> SpawnHandleExt for SH {
             task.await;
             let _ = tx.send(());
         });
-        Box::pin(rx.map_err(|_| ()))
+        Box::pin(rx.map_err(move |_| {
+            warn!(
+                target: LOG_TARGET,
+                "Task '{name}' exited early."
+            )
+        }))
     }
 }
 
