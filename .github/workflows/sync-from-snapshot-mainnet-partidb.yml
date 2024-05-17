@@ -19,7 +19,7 @@ concurrency:
 jobs:
   main:
     name: Test sync
-    uses: ./.github/workflows/_weekly-sync-from-snapshot.yml
+    uses: ./.github/workflows/_sync-from-snapshot.yml
     secrets: inherit
     with:
       timeout: 300
