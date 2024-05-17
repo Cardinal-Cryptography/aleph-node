@@ -1,6 +1,6 @@
 use std::{default::Default, path::PathBuf, time::Duration};
 
-use futures::{stream::once, StreamExt};
+use futures::FutureExt;
 use futures_timer::Delay;
 use log::{debug, error, info, trace, warn};
 use primitives::AuthorityId;
@@ -181,12 +181,11 @@ where
         };
         let mut check_session_status = Delay::new(SESSION_STATUS_CHECK_PERIOD);
         let next_session_id = SessionId(session_id.0 + 1);
-        let mut start_next_session_network = once(
-            self.session_authorities
-                .subscribe_to_insertion(next_session_id)
-                .await,
-        )
-        .fuse();
+        let mut start_next_session_network = self
+            .session_authorities
+            .subscribe_to_insertion(next_session_id)
+            .await
+            .fuse();
 
         loop {
             tokio::select! {
@@ -198,12 +197,12 @@ where
                     }
                     check_session_status.reset(SESSION_STATUS_CHECK_PERIOD);
                 },
-                Some(next_session_authority_data) = start_next_session_network.next() => {
+                next_session_authority_data = &mut start_next_session_network => {
                     let next_session_authority_data = match next_session_authority_data {
                         Ok(data) => data,
                         Err(e) => {
                             warn!(target: "aleph-party", "Error with subscription {:?}", e);
-                            start_next_session_network = once(self.session_authorities.subscribe_to_insertion(next_session_id).await).fuse();
+                            start_next_session_network = self.session_authorities.subscribe_to_insertion(next_session_id).await.fuse();
                             continue;
                         },
                     };
