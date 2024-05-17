@@ -1,5 +1,5 @@
 ---
-# This workflow performs sync to Testnet from a ParityDB snapshot using the latest main version.
+# This workflow performs live chain (Mainnet or Testnet) sync from a ParityDB snapshot, using the latest main version.
 
 name: Weekly sync from snapshot test
 on:

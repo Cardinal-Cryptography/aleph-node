@@ -2,7 +2,7 @@
 # This workflow performs sync to Testnet from a pruned ParityDB snapshot using the latest
 # main version.
 
-name: Weekly sync from snapshot, Testnet, ParityDB pruned
+name: Sync from snapshot, Testnet, ParityDB pruned
 on:
   # At 03:00 on Wednesday and Saturday
   schedule:

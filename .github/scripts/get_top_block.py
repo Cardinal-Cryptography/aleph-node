@@ -12,7 +12,8 @@ while connection_attempts < 15:
         number = chain.get_block()['header']['number']
         print(number)
         sys.exit(0)
-    except Exception:
+    except Exception as e:
+        print("An error occurred: " + str(e), file=sys.stderr)
         connection_attempts += 1
         time.sleep(60)
 raise ConnectionRefusedError
