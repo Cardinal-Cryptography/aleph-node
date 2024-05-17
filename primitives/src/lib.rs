@@ -136,7 +136,7 @@ pub const TOKEN: u128 = 10u128.pow(TOKEN_DECIMALS);
 pub const ADDRESSES_ENCODING: u8 = 42;
 
 /// ABFT unit creation delay (in ms)
-pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 300;
+pub const DEFAULT_UNIT_CREATION_DELAY: u64 = 200;
 
 /// Committee Size for new chains
 pub const DEFAULT_COMMITTEE_SIZE: u32 = 4;
@@ -158,6 +158,9 @@ pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
 
 /// Number of non-finalized blocks that halts block production
 pub const DEFAULT_MAX_NON_FINALIZED_BLOCKS: u32 = 20;
+
+/// A relative folder where to store ABFT backups
+pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 
 /// Hold set of validators that produce blocks and set of validators that participate in finality
 /// during session.

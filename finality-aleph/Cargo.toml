@@ -23,6 +23,7 @@ current-aleph-aggregator = { path = "../aggregator", package = "aggregator" }
 rate-limiter = { package = "rate-limiter", path = "../rate-limiter" }
 
 async-trait = { workspace = true }
+array-bytes = { workspace = true }
 bytes = { workspace = true }
 derive_more = { workspace = true }
 env_logger = { workspace = true }
@@ -53,6 +54,9 @@ sc-keystore = { workspace = true }
 sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
+sc-network-light = { workspace = true }
+sc-network-transactions = { workspace = true }
+sc-rpc = { workspace = true }
 sc-service = { workspace = true }
 sc-telemetry = { workspace = true }
 sc-transaction-pool = { workspace = true }

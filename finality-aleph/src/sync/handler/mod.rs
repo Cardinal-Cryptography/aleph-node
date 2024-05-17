@@ -1,7 +1,5 @@
 use core::marker::PhantomData;
 use std::{
-    cmp::max,
-    collections::VecDeque,
     fmt::{Debug, Display, Error as FmtError, Formatter},
     iter,
 };
@@ -22,7 +20,7 @@ use crate::{
         handler::request_handler::RequestHandler,
         PeerId,
     },
-    BlockId, BlockNumber, SyncOracle,
+    BlockId, SyncOracle,
 };
 
 mod request_handler;
@@ -88,113 +86,6 @@ pub trait HandlerTypes {
     type Error;
 }
 
-// This is only required because we don't control block imports
-// and thus we can get notifications about blocks being imported that
-// don't fit in the forest. This struct lets us work around this by
-// manually syncing the forest after such an event.
-//TODO(A0-2984): remove this after legacy sync is excised
-enum MissedImportData {
-    AllGood,
-    MissedImports {
-        highest_missed: BlockNumber,
-        last_sync: BlockNumber,
-    },
-}
-
-enum TrySyncError<B, J, CS>
-where
-    J: Justification,
-    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
-    CS: ChainStatus<B, J>,
-{
-    ChainStatus(CS::Error),
-    Forest(ForestError),
-}
-
-impl MissedImportData {
-    pub fn new() -> Self {
-        Self::AllGood
-    }
-
-    pub fn update<B, J, CS>(
-        &mut self,
-        missed: BlockNumber,
-        chain_status: &CS,
-    ) -> Result<(), CS::Error>
-    where
-        J: Justification,
-        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
-        CS: ChainStatus<B, J>,
-    {
-        use MissedImportData::*;
-        match self {
-            AllGood => {
-                *self = MissedImports {
-                    highest_missed: missed,
-                    last_sync: chain_status.top_finalized()?.header().id().number(),
-                }
-            }
-            MissedImports { highest_missed, .. } => *highest_missed = max(*highest_missed, missed),
-        }
-        Ok(())
-    }
-
-    pub fn try_sync<B, I, J, CS>(
-        &mut self,
-        chain_status: &CS,
-        forest: &mut Forest<I, J>,
-    ) -> Result<(), TrySyncError<B, J, CS>>
-    where
-        J: Justification,
-        B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
-        I: PeerId,
-        CS: ChainStatus<B, J>,
-    {
-        use MissedImportData::*;
-        if let MissedImports {
-            highest_missed,
-            last_sync,
-        } = self
-        {
-            let top_finalized = chain_status
-                .top_finalized()
-                .map_err(TrySyncError::ChainStatus)?
-                .header()
-                .id();
-            // we don't want this to happen too often, but it also cannot be too close to the max forest size, thus semi-random weird looking threshold
-            if top_finalized.number() - *last_sync <= 1312 {
-                return Ok(());
-            }
-            let mut to_import = VecDeque::from(
-                chain_status
-                    .children(top_finalized.clone())
-                    .map_err(TrySyncError::ChainStatus)?,
-            );
-            while let Some(header) = to_import.pop_front() {
-                if header.id().number() > *highest_missed {
-                    break;
-                }
-                // we suppress all errors except `TooNew` since we are likely trying to mark things that are already marked and they would be throwing a lot of stuff
-                match forest.update_body(&header) {
-                    Ok(()) => (),
-                    Err(ForestError::TooNew) => {
-                        *last_sync = top_finalized.number();
-                        return Ok(());
-                    }
-                    Err(e) => return Err(TrySyncError::Forest(e)),
-                }
-                to_import.extend(
-                    chain_status
-                        .children(header.id())
-                        .map_err(TrySyncError::ChainStatus)?,
-                );
-            }
-            *self = AllGood;
-        }
-        Ok(())
-    }
-}
-
 /// Handler for data incoming from the network.
 pub struct Handler<B, I, J, CS, V, F, BI>
 where
@@ -212,7 +103,6 @@ where
     forest: Forest<I, J>,
     session_info: SessionBoundaryInfo,
     block_importer: BI,
-    missed_import_data: MissedImportData,
     sync_oracle: SyncOracle,
     phantom: PhantomData<B>,
 }
@@ -340,23 +230,6 @@ where
     }
 }
 
-impl<B, J, CS, V, F> From<TrySyncError<B, J, CS>> for Error<B, J, CS, V, F>
-where
-    J: Justification,
-    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
-    CS: ChainStatus<B, J>,
-    V: JustificationVerifier<J> + HeaderVerifier<J::Header>,
-    F: Finalizer<J>,
-{
-    fn from(e: TrySyncError<B, J, CS>) -> Self {
-        use TrySyncError::*;
-        match e {
-            ChainStatus(e) => Error::ChainStatus(e),
-            Forest(e) => Error::Forest(e),
-        }
-    }
-}
-
 impl<B, J, CS, V, F> From<RequestHandlerError<CS::Error>> for Error<B, J, CS, V, F>
 where
     J: Justification,
@@ -406,21 +279,7 @@ where
             block_importer,
             ..
         } = database_io;
-        let (forest, too_many_nonfinalized) =
-            Forest::new(&chain_status).map_err(Error::ForestInitialization)?;
-        let mut missed_import_data = MissedImportData::new();
-        if too_many_nonfinalized {
-            missed_import_data
-                .update(
-                    chain_status
-                        .best_block()
-                        .map_err(Error::ChainStatus)?
-                        .id()
-                        .number(),
-                    &chain_status,
-                )
-                .map_err(Error::ChainStatus)?;
-        }
+        let forest = Forest::new(&chain_status).map_err(Error::ForestInitialization)?;
         Ok(Handler {
             chain_status,
             verifier,
@@ -429,7 +288,6 @@ where
             session_info,
             block_importer,
             sync_oracle,
-            missed_import_data,
             phantom: PhantomData,
         })
     }
@@ -465,32 +323,10 @@ where
                     number += 1;
                 }
                 None => {
-                    self.missed_import_data
-                        .try_sync(&self.chain_status, &mut self.forest)?;
                     return Ok(());
                 }
             };
         }
-    }
-
-    /// Check for equivocations and then send the block to the block importer.
-    /// It's important to pass every incoming block through this function, as the block importer
-    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
-    /// The knowledge of authorship of the block is passed further to the block importer.
-    fn import_block(
-        &mut self,
-        block: B,
-        own_block: bool,
-    ) -> Result<
-        Option<<V as HeaderVerifier<J::Header>>::EquivocationProof>,
-        <Self as HandlerTypes>::Error,
-    > {
-        let VerifiedHeader {
-            maybe_equivocation_proof,
-            ..
-        } = self.verify_header(block.header().clone(), own_block)?;
-        self.block_importer.import_block(block, own_block);
-        Ok(maybe_equivocation_proof)
     }
 
     fn verify_header(
@@ -510,14 +346,7 @@ where
         &mut self,
         header: J::Header,
     ) -> Result<Option<ResponseItems<B, J>>, <Self as HandlerTypes>::Error> {
-        if let Err(e) = self.forest.update_body(&header) {
-            if matches!(e, ForestError::TooNew | ForestError::ParentNotImported) {
-                self.missed_import_data
-                    .update(header.id().number(), &self.chain_status)
-                    .map_err(Error::ChainStatus)?;
-            }
-            return Err(e.into());
-        }
+        self.forest.update_body(&header)?;
         self.try_finalize()?;
         Ok(match self.verifier.own_block(&header) {
             true => match self.chain_status.block(header.id()) {
@@ -643,6 +472,43 @@ where
         (new_highest, None)
     }
 
+    /// Processes the given `header` passed by `peer`. May return an error which indicates that the header couldn't
+    /// have been verified correctly, forest couldn't have been updated with the header, or the corresponding block
+    /// is not needed to be imported. If the block is not importable from the perspective of the forest, we can
+    /// ignore it if we detect that the handler processes a sequence of block imports which is indicated by
+    /// `last_imported` being the id of the parent of the block of the `header`.
+    fn handle_header(
+        &mut self,
+        header: UnverifiedHeaderFor<J>,
+        peer: I,
+        equivocation_proofs: &mut Vec<V::EquivocationProof>,
+        last_imported: Option<BlockId>,
+    ) -> Result<(), <Self as HandlerTypes>::Error> {
+        let h = match self.verify_header(header, false) {
+            Ok(VerifiedHeader {
+                header: h,
+                maybe_equivocation_proof,
+            }) => {
+                if let Some(proof) = maybe_equivocation_proof {
+                    equivocation_proofs.push(proof);
+                }
+                h
+            }
+            Err(e) => return Err(e),
+        };
+        if let Err(e) = self.forest.update_header(&h, Some(peer), false) {
+            return Err(Error::Forest(e));
+        }
+        if !self.forest.importable(&h.id())
+            && !last_imported
+                .and_then(|id| h.parent_id().map(|p_id| id == p_id))
+                .unwrap_or(false)
+        {
+            return Err(Error::HeaderNotRequired(h.id()));
+        }
+        Ok(())
+    }
+
     /// Handle a request response returning whether it resulted in a new highest justified block,
     /// a list of detected equivocations, and possibly an error.
     ///
@@ -651,9 +517,9 @@ where
     /// dropped. Equivocated headers are processed in the same way as the ordinary ones.
     /// In any case, the Handler finishes in a sane state.
     ///
-    /// Note that this method does not verify nor import blocks. The received blocks
-    /// are stored in a buffer, and might be silently discarded in the future
-    /// if the import fails.
+    /// Note that this method does not import blocks. The received blocks are stored in a buffer,
+    /// and might be silently discarded in the future if the import fails. Headers of the blocks
+    /// are processed as if they came in the response themselves.
     pub fn handle_request_response(
         &mut self,
         response_items: ResponseItems<B, J>,
@@ -666,7 +532,7 @@ where
         let mut equivocation_proofs = vec![];
         let mut new_highest = false;
         // Lets us import descendands of importable blocks, useful for favourite blocks.
-        let mut last_imported_block: Option<BlockId> = None;
+        let mut last_imported: Option<BlockId> = None;
         for item in response_items {
             match item {
                 ResponseItem::Justification(j) => {
@@ -679,56 +545,33 @@ where
                     if self.forest.skippable(&h.id()) {
                         continue;
                     }
-                    let h = match self.verify_header(h, false) {
-                        Ok(VerifiedHeader {
-                            header: h,
-                            maybe_equivocation_proof: Some(proof),
-                        }) => {
-                            equivocation_proofs.push(proof);
-                            h
-                        }
-                        Ok(VerifiedHeader {
-                            header: h,
-                            maybe_equivocation_proof: None,
-                        }) => h,
-                        Err(e) => return (new_highest, equivocation_proofs, Some(e)),
-                    };
-                    if let Err(e) = self.forest.update_header(&h, Some(peer.clone()), false) {
-                        return (new_highest, equivocation_proofs, Some(Error::Forest(e)));
-                    }
-                    if !self.forest.importable(&h.id()) {
-                        return (
-                            new_highest,
-                            equivocation_proofs,
-                            Some(Error::HeaderNotRequired(h.id())),
-                        );
+                    if let Err(e) =
+                        self.handle_header(h, peer.clone(), &mut equivocation_proofs, None)
+                    {
+                        return (new_highest, equivocation_proofs, Some(e));
                     }
                 }
                 ResponseItem::Block(b) => {
                     if self.forest.skippable(&b.header().id()) {
                         continue;
                     }
-                    match self.forest.importable(&b.header().id())
-                        || last_imported_block
-                            .map(|id| id == b.header().id())
-                            .unwrap_or(false)
-                    {
-                        true => {
-                            last_imported_block = Some(b.header().id());
-                            match self.import_block(b, false) {
-                                Ok(Some(proof)) => equivocation_proofs.push(proof),
-                                Ok(None) => (),
-                                Err(e) => return (new_highest, equivocation_proofs, Some(e)),
-                            }
-                        }
-                        false => {
-                            return (
-                                new_highest,
-                                equivocation_proofs,
-                                Some(Error::BlockNotImportable(b.header().id())),
-                            )
-                        }
-                    };
+                    if let Err(e) = self.handle_header(
+                        b.header().clone(),
+                        peer.clone(),
+                        &mut equivocation_proofs,
+                        last_imported,
+                    ) {
+                        return (
+                            new_highest,
+                            equivocation_proofs,
+                            Some(match e {
+                                Error::HeaderNotRequired(id) => Error::BlockNotImportable(id),
+                                _ => e,
+                            }),
+                        );
+                    }
+                    last_imported = Some(b.header().id());
+                    self.block_importer.import_block(b, false);
                 }
             }
         }
@@ -780,8 +623,8 @@ where
                     maybe_equivocation_proof,
                 } = self.verify_header(state.favourite_block(), false)?;
                 maybe_proof = maybe_equivocation_proof;
-                let new_descendant = self.forest.update_header(&header, Some(peer), false)?;
-                HandleStateAction::maybe_extend(higher_justification || new_descendant)
+                let new_above = self.forest.update_header(&header, Some(peer), false)?;
+                HandleStateAction::maybe_extend(higher_justification || new_above)
             }
             // same session
             Some(0) => match remote_top_number >= local_top_number {
@@ -794,8 +637,8 @@ where
                     maybe_proof = maybe_equivocation_proof;
                     let higher_justification =
                         self.handle_justification(state.top_justification(), Some(peer.clone()))?;
-                    let new_descendant = self.forest.update_header(&header, Some(peer), false)?;
-                    HandleStateAction::maybe_extend(higher_justification || new_descendant)
+                    let new_above = self.forest.update_header(&header, Some(peer), false)?;
+                    HandleStateAction::maybe_extend(higher_justification || new_above)
                 }
                 // remote top justification lower than ours, we can send a response
                 false => HandleStateAction::response(local_top.into_unverified(), None),
@@ -852,8 +695,9 @@ where
         self.forest.extension_request()
     }
 
-    /// Handle a block freshly created by this node.
-    /// Imports it and possibly returns an equivocation proof.
+    /// Handle a block freshly created by this node. Imports it and possibly returns an equivocation proof.
+    /// It's important to pass every own incoming block through this function, as the block importer
+    /// will accept equivocated headers, and then notify us by sending back a VERIFIED header.
     pub fn handle_own_block(
         &mut self,
         block: B,
@@ -861,7 +705,12 @@ where
         Option<<V as HeaderVerifier<J::Header>>::EquivocationProof>,
         <Self as HandlerTypes>::Error,
     > {
-        self.import_block(block, true)
+        let VerifiedHeader {
+            maybe_equivocation_proof,
+            ..
+        } = self.verify_header(block.header().clone(), true)?;
+        self.block_importer.import_block(block, true);
+        Ok(maybe_equivocation_proof)
     }
 }
 
@@ -2612,11 +2461,8 @@ mod tests {
             .block_imported(header)
             .expect("correct")
             .expect("known");
-        match result.get(0).expect("the header is there") {
-            ResponseItem::Header(header) => assert_eq!(header, block.header()),
-            other => panic!("expected header item, got {:?}", other),
-        }
-        match result.get(1).expect("the block is there") {
+        assert_eq!(result.len(), 1);
+        match result.first().expect("the block is there") {
             ResponseItem::Block(block_item) => assert_eq!(block_item.header(), block.header()),
             other => panic!("expected block item, got {:?}", other),
         }
@@ -2670,34 +2516,240 @@ mod tests {
         );
     }
 
-    //TODO(A0-2984): remove this after legacy sync is excised
     #[tokio::test]
-    async fn works_with_overzealous_imports() {
+    async fn handles_wide_fork_scenario() {
         let (mut handler, mut backend, mut notifier, genesis) = setup();
-        let branch: Vec<_> = genesis.random_branch().take(2137).collect();
-        for header in branch.iter() {
-            let block = MockBlock::new(header.clone(), true);
+
+        // H0' H1' H2' ... H99'
+        // |   |   |       |
+        // H0  H1  H2  ... H99
+        // |   |   |       |
+        // G ---------------
+        //
+        // Make handler aware of headers H0, H0', ..., H99, H99', where Hi' is passed by peer i.
+        let branches: Vec<_> = (0..100)
+            .map(|i| grow_light_branch(&mut handler, &genesis, 2, i))
+            .collect();
+        let interest_provider = handler.interest_provider();
+
+        // Verify initial interests in H0, H0', ..., H99, H99'.
+        for (i, branch) in branches.iter().enumerate() {
+            assert!(matches!(
+                interest_provider.get(&branch[0].id()),
+                Interest::Uninterested
+            ));
+            match interest_provider.get(&branch[1].id()) {
+                Interest::Required {
+                    know_most,
+                    branch_knowledge,
+                    ..
+                } => {
+                    assert_eq!(know_most.len(), 1);
+                    assert!(know_most.contains(&(i as u32)));
+                    assert_eq!(branch_knowledge, TopImported(genesis.clone()))
+                }
+                _ => panic!("should be required"),
+            }
+        }
+
+        // Import H0, ..., H49.
+        for branch in branches.iter().take(50) {
+            let block = MockBlock::new(branch[0].clone(), true);
             backend.import_block(block, false);
             match notifier.next().await {
                 Ok(BlockImported(header)) => {
-                    // we ignore failures, as we expect some
-                    let _ = handler.block_imported(header);
+                    handler
+                        .block_imported(header)
+                        .expect("block imported should succeed");
                 }
                 _ => panic!("should notify about imported block"),
             }
         }
-        for header in branch.iter() {
-            let justification = MockJustification::for_header(header.clone());
-            handler
-                .handle_justification_from_user(justification)
-                .expect("should work");
-            match notifier.next().await {
-                Ok(BlockFinalized(finalized_header)) => assert_eq!(
-                    header, &finalized_header,
-                    "should finalize the current header"
-                ),
-                _ => panic!("should notify about finalized block"),
+
+        // Verify interests in H0, H0', ..., H99, H99' after import.
+        let interest_provider = handler.interest_provider();
+        for (i, branch) in branches.iter().enumerate() {
+            assert!(matches!(
+                interest_provider.get(&branch[0].id()),
+                Interest::Uninterested
+            ));
+            match interest_provider.get(&branch[1].id()) {
+                Interest::Required {
+                    know_most,
+                    branch_knowledge,
+                    ..
+                } => {
+                    assert_eq!(know_most.len(), 1);
+                    assert!(know_most.contains(&(i as u32)));
+                    if i < 50 {
+                        assert_eq!(branch_knowledge, TopImported(branch[0].id()))
+                    } else {
+                        assert_eq!(branch_knowledge, TopImported(genesis.clone()))
+                    }
+                }
+                _ => panic!("should be required"),
             }
         }
+
+        // Import H0', ..., H24'.
+        for branch in branches.iter().take(25) {
+            let block = MockBlock::new(branch[1].clone(), true);
+            backend.import_block(block, false);
+            match notifier.next().await {
+                Ok(BlockImported(header)) => {
+                    handler
+                        .block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+
+        // H0', ..., H24' shouldn't be required anymore
+        let interest_provider = handler.interest_provider();
+        for branch in branches.iter().take(25) {
+            assert!(matches!(
+                interest_provider.get(&branch[1].id()),
+                Interest::Uninterested
+            ));
+        }
+
+        // Verify responses to requests for H0', ..., H99'.
+        for (i, branch) in branches.iter().enumerate() {
+            let response = handler.handle_request(Request::new(
+                branch[1].clone(),
+                TopImported(branch[0].id()),
+                State::new(
+                    MockJustification::for_header(MockHeader::genesis()),
+                    branch[1].clone(),
+                ),
+            ));
+            if i < 25 {
+                // We have the block so we should respond with it.
+                match response {
+                    Ok((Action::Response(res), None)) => {
+                        assert_eq!(res.len(), 1);
+                        match res[0].clone() {
+                            ResponseItem::Block(block) => {
+                                assert_eq!(block, MockBlock::new(branches[i][1].clone(), true));
+                            }
+                            _ => panic!("should be block"),
+                        }
+                    }
+                    _ => panic!("should be action"),
+                }
+            } else {
+                // We don't have the block, and its corresponding vertex in forest has already been
+                // set to ExplicitlyRequired, so we take Action::None, instead of Action::RequestBlock.
+                assert!(matches!(response, Ok((Action::Noop, None))));
+            }
+        }
+
+        // Justification comes for H0.
+        assert!(matches!(
+            handler.handle_justification(
+                MockJustification::for_header(branches[0][0].clone()),
+                Some(0)
+            ),
+            Ok(true)
+        ));
+        consume_branch_finalized_notifications(&mut notifier, &vec![branches[0][0].clone()]).await;
+
+        // Verify responses to requests for H0', ..., H99'.
+        for (i, branch) in branches.iter().enumerate() {
+            let response = handler.handle_request(Request::new(
+                branch[1].clone(),
+                TopImported(branch[0].id()),
+                State::new(
+                    MockJustification::for_header(MockHeader::genesis()),
+                    branch[1].clone(),
+                ),
+            ));
+            if i == 0 {
+                // We have the requested block and the justification for its parent, so we respond with both.
+                match response {
+                    Ok((Action::Response(res), None)) => {
+                        assert_eq!(res.len(), 2);
+                        match &res[0] {
+                            ResponseItem::Justification(justification) => {
+                                assert_eq!(
+                                    *justification,
+                                    MockJustification::for_header(branches[0][0].clone())
+                                );
+                            }
+                            _ => panic!("should be justification"),
+                        }
+                        match &res[1] {
+                            ResponseItem::Block(block) => {
+                                assert_eq!(*block, MockBlock::new(branches[0][1].clone(), true));
+                            }
+                            _ => panic!("should be block"),
+                        }
+                    }
+                    _ => panic!("should be action"),
+                }
+            } else {
+                // The branch is conflicting with the previously finalized block on branch 0, so we take no action.
+                assert!(matches!(response, Ok((Action::Noop, None))));
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn accepts_chain_extension_branch() {
+        let (mut h1, mut b1, mut n1, genesis) = setup();
+        let (mut h2, _b2, mut n2, _genesis) = setup();
+
+        // Make h1 aware of 2 headers.
+        let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
+
+        // Import the corresponding 2 blocks in h1.
+        for h in branch.clone() {
+            let block = MockBlock::new(h.clone(), true);
+            b1.import_block(block, false);
+            match n1.next().await {
+                Ok(BlockImported(header)) => {
+                    h1.block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+
+        // h1 gets the ChainExtension request.
+        let state_h2 = h2.state().unwrap();
+        let action = h1.handle_chain_extension_request(state_h2).unwrap();
+
+        // The response should contian the two blocks.
+        use SimplifiedItem::B;
+        let items = match action {
+            Action::Response(items) => {
+                assert_eq!(
+                    SimplifiedItem::from_response_items(items.clone()),
+                    vec![B(1), B(2)],
+                );
+                items
+            }
+            _ => panic!("should be response"),
+        };
+
+        // The result should be handled correctly.
+        let (new_justified, equivocations, maybe_error) = h2.handle_request_response(items, 1);
+        assert!(!new_justified);
+        assert!(equivocations.is_empty());
+        assert!(maybe_error.is_none());
+
+        // h2 should trigger block imports.
+        for h in branch.clone() {
+            match n2.next().await {
+                Ok(BlockImported(header)) => {
+                    assert_eq!(header, h);
+                    h2.block_imported(header)
+                        .expect("block imported should succeed");
+                }
+                _ => panic!("should notify about imported block"),
+            }
+        }
+        assert_eq!(h2.state().unwrap().favourite_block(), branch[1]);
     }
 }

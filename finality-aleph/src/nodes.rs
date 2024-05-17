@@ -25,7 +25,6 @@ use crate::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
         tcp::{new_tcp_network, KEY_TYPE},
-        GossipService,
     },
     party::{
         impls::ChainStateImpl, manager::NodeSessionManagerImpl, ConsensusParty,
@@ -62,7 +61,8 @@ where
     TP: TransactionPool<Block = Block> + 'static,
 {
     let AlephConfig {
-        network_event_stream,
+        authentication_network,
+        block_sync_network,
         client,
         chain_status,
         mut import_queue_handle,
@@ -130,18 +130,6 @@ where
             ),
         }
     });
-
-    let (gossip_network_service, authentication_network, block_sync_network) =
-        GossipService::new(network_event_stream, spawn_handle.clone(), registry.clone());
-    let gossip_network_task = async move {
-        match gossip_network_service.run().await {
-            Ok(_) => error!(target: LOG_TARGET, "GossipNetwork finished."),
-            Err(err) => error!(
-                target: LOG_TARGET,
-                "GossipNetwork finished with error: {err}."
-            ),
-        }
-    };
 
     let map_updater = SessionMapUpdater::new(
         AuthorityProviderImpl::new(client.clone(), RuntimeApiImpl::new(client.clone())),
@@ -246,8 +234,7 @@ where
     debug!(target: LOG_TARGET, "Sync has started.");
 
     spawn_handle.spawn("aleph/connection_manager", connection_manager_task);
-    spawn_handle.spawn("aleph/gossip_network", gossip_network_task);
-    debug!(target: LOG_TARGET, "Gossip network has started.");
+    debug!(target: LOG_TARGET, "Sync network has started.");
 
     let party = ConsensusParty::new(ConsensusPartyParams {
         session_authorities,
