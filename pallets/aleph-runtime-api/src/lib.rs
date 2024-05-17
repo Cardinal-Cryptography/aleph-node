@@ -6,6 +6,7 @@ use primitives::{
     SessionValidatorError, Version,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
     pub trait AlephSessionApi {
