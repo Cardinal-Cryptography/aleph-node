@@ -92,4 +92,4 @@ jobs:
         with:
           test-case: token_transfer
           # yamllint disable-line rule:line-length
-          aleph-e2e-client-image:  ${{ needs.build-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}
+          aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.aleph-e2e-client-image }}
