@@ -19,8 +19,11 @@ mod task_queue;
 mod tasks;
 mod ticker;
 
+mod select_chain;
+
 pub use data::MAX_MESSAGE_SIZE;
 pub use handler::DatabaseIO;
+pub use select_chain::{select_chain_state_handler, FavouriteSelectChain};
 pub use service::{Service, IO};
 
 const LOG_TARGET: &str = "aleph-block-sync";

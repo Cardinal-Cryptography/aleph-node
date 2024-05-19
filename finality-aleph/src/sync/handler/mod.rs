@@ -26,8 +26,13 @@ use crate::{
 mod request_handler;
 pub use request_handler::{block_to_response, Action, RequestHandlerError};
 
-use crate::sync::data::{ResponseItem, ResponseItems};
-
+use crate::{
+    sync::{
+        data::{ResponseItem, ResponseItems},
+        select_chain::SelectChainStateHandler,
+    },
+    BlockHash,
+};
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
@@ -272,6 +277,7 @@ where
         verifier: V,
         sync_oracle: SyncOracle,
         session_info: SessionBoundaryInfo,
+        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
     ) -> Result<Self, <Self as HandlerTypes>::Error> {
         let DatabaseIO {
             chain_status,
@@ -279,7 +285,8 @@ where
             block_importer,
             ..
         } = database_io;
-        let forest = Forest::new(&chain_status).map_err(Error::ForestInitialization)?;
+        let forest = Forest::new(&chain_status, select_chain_handler)
+            .map_err(Error::ForestInitialization)?;
         Ok(Handler {
             chain_status,
             verifier,

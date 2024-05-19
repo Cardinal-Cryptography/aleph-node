@@ -11,8 +11,8 @@ use static_assertions::const_assert;
 use crate::{
     aleph_primitives::DEFAULT_SESSION_PERIOD,
     block::{Block, ChainStatus, Header, Justification, UnverifiedHeaderFor},
-    sync::{data::BranchKnowledge, BlockId, PeerId},
-    BlockNumber,
+    sync::{data::BranchKnowledge, select_chain::SelectChainStateHandler, BlockId, PeerId},
+    BlockHash, BlockNumber,
 };
 
 mod vertex;
@@ -183,6 +183,7 @@ where
     root: J::Header,
     root_children: HashSet<BlockId>,
     compost_bin: HashSet<BlockId>,
+    select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
 }
 
 type Edge = (BlockId, BlockId);
@@ -193,7 +194,10 @@ where
     J: Justification,
 {
     /// Creates a new forest.
-    pub fn new<B, CS>(chain_status: &CS) -> Result<Self, InitializationError<B, J, CS>>
+    pub fn new<B, CS>(
+        chain_status: &CS,
+        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
+    ) -> Result<Self, InitializationError<B, J, CS>>
     where
         B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
@@ -212,6 +216,7 @@ where
             root: top_finalized.clone(),
             root_children: HashSet::new(),
             compost_bin: HashSet::new(),
+            select_chain_handler,
         };
 
         // Populate the forest
@@ -405,9 +410,12 @@ where
                 if update_favourite {
                     if parent_id == self.favourite.id() {
                         self.favourite = header.clone();
+                        self.select_chain_handler.update_favourite(header.clone());
                     }
                     self.imported_leaves.remove(&parent_id);
                     self.imported_leaves.insert(id, header.clone());
+                    self.select_chain_handler
+                        .update_leaves(header.id().hash(), parent_id.hash());
                 }
                 Ok(())
             }
@@ -471,11 +479,14 @@ where
             .map(|(_, header)| header)
             .unwrap_or(&self.root)
             .clone();
+        self.select_chain_handler
+            .update_favourite(self.favourite.clone());
     }
 
     fn prune(&mut self, id: &BlockId) {
         if let Some(VertexWithChildren { children, .. }) = self.vertices.remove(id) {
             self.imported_leaves.remove(id);
+            self.select_chain_handler.remove(id.hash());
             self.compost_bin.insert(id.clone());
             for child in children {
                 self.prune(&child);

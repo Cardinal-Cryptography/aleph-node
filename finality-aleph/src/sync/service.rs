@@ -22,12 +22,13 @@ use crate::{
         handler::{Action, DatabaseIO, Error as HandlerError, HandleStateAction, Handler},
         message_limiter::{Error as MsgLimiterError, MsgLimiter},
         metrics::{Event, Metrics},
+        select_chain::SelectChainStateHandler,
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
         BlockId, JustificationSubmissions, RequestBlocks, LOG_TARGET,
     },
-    SyncOracle, STATUS_REPORT_INTERVAL,
+    BlockHash, SyncOracle, STATUS_REPORT_INTERVAL,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
@@ -170,6 +171,7 @@ where
         session_info: SessionBoundaryInfo,
         io: IO<B, J, N, CE, CS, F, BI>,
         metrics_registry: Option<Registry>,
+        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
     ) -> Result<(Self, impl RequestBlocks<B::UnverifiedHeader>), HandlerError<B, J, CS, V, F>> {
         let IO {
             network,
@@ -180,7 +182,13 @@ where
             database_io,
         } = io;
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(database_io, verifier, sync_oracle, session_info)?;
+        let handler = Handler::new(
+            database_io,
+            verifier,
+            sync_oracle,
+            session_info,
+            select_chain_handler,
+        )?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);
         let chain_extension_ticker = Ticker::new(TICK_PERIOD, CHAIN_EXTENSION_COOLDOWN);

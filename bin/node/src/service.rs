@@ -7,9 +7,9 @@ use std::{
 
 use finality_aleph::{
     build_network, run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics,
-    BlockImporter, BuildNetworkOutput, ChannelProvider, Justification, JustificationTranslator,
-    MillisecsPerBlock, RateLimiterConfig, RedirectingBlockImport, SessionPeriod,
-    SubstrateChainStatus, SyncOracle, TracingBlockImport, ValidatorAddressCache,
+    BlockImporter, BuildNetworkOutput, ChannelProvider, FavouriteSelectChain, Justification,
+    JustificationTranslator, MillisecsPerBlock, RateLimiterConfig, RedirectingBlockImport,
+    SessionPeriod, SubstrateChainStatus, SyncOracle, TracingBlockImport, ValidatorAddressCache,
 };
 use log::warn;
 use primitives::{
@@ -269,11 +269,26 @@ pub fn new_authority(
     let slot_duration = sc_consensus_aura::slot_duration(&*service_components.client)?;
     let (block_import, block_rx) = RedirectingBlockImport::new(service_components.client.clone());
 
+    let genesis_hash = service_components
+        .client
+        .hash(0)
+        .ok()
+        .flatten()
+        .expect("Genesis block exists.");
+    let genesis_header = service_components
+        .client
+        .header(genesis_hash)
+        .ok()
+        .flatten()
+        .expect("Genesis block exists.");
+
+    let select_chain = FavouriteSelectChain::new(genesis_header);
+
     let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
         StartAuraParams {
             slot_duration,
             client: service_components.client.clone(),
-            select_chain: service_components.select_chain.clone(),
+            select_chain: select_chain.clone(),
             block_import,
             proposer_factory,
             create_inherent_data_providers: move |_, ()| async move {
@@ -385,7 +400,7 @@ pub fn new_authority(
         client: service_components.client,
         chain_status,
         import_queue_handle,
-        select_chain: service_components.select_chain,
+        select_chain,
         session_period,
         millisecs_per_block,
         spawn_handle: service_components.task_manager.spawn_handle().into(),
