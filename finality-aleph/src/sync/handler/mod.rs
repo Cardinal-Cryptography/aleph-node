@@ -26,12 +26,9 @@ use crate::{
 mod request_handler;
 pub use request_handler::{block_to_response, Action, RequestHandlerError};
 
-use crate::{
-    sync::{
-        data::{ResponseItem, ResponseItems},
-        select_chain::SelectChainStateHandler,
-    },
-    BlockHash,
+use crate::sync::{
+    data::{ResponseItem, ResponseItems},
+    select_chain::SelectChainStateHandler,
 };
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
@@ -277,7 +274,7 @@ where
         verifier: V,
         sync_oracle: SyncOracle,
         session_info: SessionBoundaryInfo,
-        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
+        select_chain_handler: SelectChainStateHandler<J::Header>,
     ) -> Result<Self, <Self as HandlerTypes>::Error> {
         let DatabaseIO {
             chain_status,

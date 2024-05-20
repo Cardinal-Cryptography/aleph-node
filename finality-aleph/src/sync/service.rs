@@ -28,7 +28,7 @@ use crate::{
         ticker::Ticker,
         BlockId, JustificationSubmissions, RequestBlocks, LOG_TARGET,
     },
-    BlockHash, SyncOracle, STATUS_REPORT_INTERVAL,
+    SyncOracle, STATUS_REPORT_INTERVAL,
 };
 
 const BROADCAST_COOLDOWN: Duration = Duration::from_millis(600);
@@ -171,7 +171,7 @@ where
         session_info: SessionBoundaryInfo,
         io: IO<B, J, N, CE, CS, F, BI>,
         metrics_registry: Option<Registry>,
-        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
+        select_chain_handler: SelectChainStateHandler<J::Header>,
     ) -> Result<(Self, impl RequestBlocks<B::UnverifiedHeader>), HandlerError<B, J, CS, V, F>> {
         let IO {
             network,

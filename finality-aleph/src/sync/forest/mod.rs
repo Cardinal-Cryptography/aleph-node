@@ -12,7 +12,7 @@ use crate::{
     aleph_primitives::DEFAULT_SESSION_PERIOD,
     block::{Block, ChainStatus, Header, Justification, UnverifiedHeaderFor},
     sync::{data::BranchKnowledge, select_chain::SelectChainStateHandler, BlockId, PeerId},
-    BlockHash, BlockNumber,
+    BlockNumber,
 };
 
 mod vertex;
@@ -183,7 +183,7 @@ where
     root: J::Header,
     root_children: HashSet<BlockId>,
     compost_bin: HashSet<BlockId>,
-    select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
+    select_chain_handler: SelectChainStateHandler<J::Header>,
 }
 
 type Edge = (BlockId, BlockId);
@@ -196,7 +196,7 @@ where
     /// Creates a new forest.
     pub fn new<B, CS>(
         chain_status: &CS,
-        select_chain_handler: SelectChainStateHandler<J::Header, BlockHash>,
+        select_chain_handler: SelectChainStateHandler<J::Header>,
     ) -> Result<Self, InitializationError<B, J, CS>>
     where
         B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
@@ -414,8 +414,6 @@ where
                     }
                     self.imported_leaves.remove(&parent_id);
                     self.imported_leaves.insert(id, header.clone());
-                    self.select_chain_handler
-                        .update_leaves(header.id().hash(), parent_id.hash());
                 }
                 Ok(())
             }
@@ -486,7 +484,6 @@ where
     fn prune(&mut self, id: &BlockId) {
         if let Some(VertexWithChildren { children, .. }) = self.vertices.remove(id) {
             self.imported_leaves.remove(id);
-            self.select_chain_handler.remove(id.hash());
             self.compost_bin.insert(id.clone());
             for child in children {
                 self.prune(&child);
