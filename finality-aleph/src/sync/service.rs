@@ -744,6 +744,7 @@ where
                     debug!(target: LOG_TARGET, "Received new justification from user: {:?}.", justification);
                     self.handle_justification_from_user(justification);
                 },
+
                 maybe_header = self.block_requests_from_user.next() => {
                     let header = maybe_header.ok_or(Error::BlockRequestChannelClosed)?;
                     debug!(target: LOG_TARGET, "Received new internal block request from user: {:?}.", header);
@@ -755,6 +756,7 @@ where
                     debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
                     self.handle_own_block(block);
                 },
+
                 _ = status_ticker.tick() => {
                     info!(target: LOG_TARGET, "{}", self.handler.status());
                 },
