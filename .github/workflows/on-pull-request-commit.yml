@@ -80,7 +80,7 @@ jobs:
   run-e2e-token-transfer-test:
     name: Run e2e token transfer test
     needs:
-      - build-test-node
+      - build-test-aleph-node
       - build-aleph-e2e-client-image
       - build-chain-bootstrapper
     runs-on: ubuntu-20.04
