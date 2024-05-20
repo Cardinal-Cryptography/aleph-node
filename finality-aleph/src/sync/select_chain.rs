@@ -32,22 +32,18 @@ pub fn select_chain_state_handler<B: Block>(
         error!(target: LOG_TARGET, "StateWriter unexpectly finished");
     });
 
-    SelectChainStateHandler { events_sender: rx }
-}
-
-enum Events<Header> {
-    NewFavourite(Header),
+    SelectChainStateHandler { favourite_sender: rx }
 }
 
 pub struct SelectChainStateHandler<Header> {
-    events_sender: Sender<Events<Header>>,
+    favourite_sender: Sender<Header>,
 }
 
 impl<Header> SelectChainStateHandler<Header> {
     pub fn update_favourite(&self, new_favourite: Header) {
         match self
-            .events_sender
-            .try_send(Events::NewFavourite(new_favourite))
+            .favourite_sender
+            .try_send(new_favourite)
         {
             Err(TrySendError::Full(_)) => {
                 warn!(target: LOG_TARGET, "SelectChainStateHandler channel full, skipping one notification")
@@ -58,21 +54,19 @@ impl<Header> SelectChainStateHandler<Header> {
 }
 
 pub struct StateWriter<B: Block> {
-    events: Receiver<Events<<B as Block>::Header>>,
+    events: Receiver<<B as Block>::Header>,
     favourite: Arc<RwLock<<B as Block>::Header>>,
 }
 
 impl<B: Block> StateWriter<B> {
     async fn run(&mut self) {
         loop {
-            match self
+            let new = self
                 .events
                 .recv()
                 .await
-                .expect("we hold the second end & its never ending stream.")
-            {
-                Events::NewFavourite(new) => self.update_favourite(new),
-            }
+                .expect("we hold the second end & its never ending stream.");
+            self.update_favourite(new);
         }
     }
 
