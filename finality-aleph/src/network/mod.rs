@@ -30,6 +30,7 @@ impl<D: Clone + Codec + Send + Sync + 'static> Data for D {}
 /// Interface for the gossip network. This represents a P2P network and a lot of the properties of
 /// this interface result from that. In particular we might know the ID of a given peer, but not be
 /// connected to them directly.
+///
 pub trait GossipNetwork<D: Data>: Send + 'static {
     type Error: Display + Send;
     type PeerId: Clone + Debug + Eq + Hash + Send + 'static;
