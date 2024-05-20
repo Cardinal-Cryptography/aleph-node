@@ -13,6 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-pr-title:
+    name: Check PR title
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check PR title
+        uses: Cardinal-Cryptography/github-actions/check-pr-title@L1-223
+        with:
+          pr-title: ${{ github.event.pull_request.title }}
+          regex: '(A0|L1)-[0-9]+$'
+
   code-formatting:
     name: Check code formatting
     uses: ./.github/workflows/_check-code-formatting.yml
