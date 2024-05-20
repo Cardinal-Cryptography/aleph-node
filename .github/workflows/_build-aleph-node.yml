@@ -40,10 +40,10 @@ jobs:
 
       - name: Call action get-ref-properties
         id: get-ref-properties
-        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v6
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v7
 
       - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v6
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v7
 
       - name: Build test aleph-node
         if: ${{ inputs.production != true }}

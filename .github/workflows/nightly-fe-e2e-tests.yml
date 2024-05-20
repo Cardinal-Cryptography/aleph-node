@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Get aleph-node fqdn path from ${{ github.ref }}
         id: get-fqdns
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-4268
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v7
         with:
           ref: ${{ github.ref }}
           test-binary: 'false'
@@ -100,7 +100,7 @@ jobs:
       - push-chain-bootstrapper-image-to-ecr
     if: ${{ !cancelled() }}
     name: Create featurenet from ${{ github.ref }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-4268
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v7
     secrets: inherit
     with:
       featurenet-name: 'ops-finalization-e2e'
@@ -147,7 +147,7 @@ jobs:
     needs:
       - runs-finalization-e2e-test-on-fe
     name: Delete featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v6
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-delete.yml@v7
     secrets: inherit
     with:
       featurenet-name: 'ops-finalization-e2e'
@@ -161,7 +161,7 @@ jobs:
       github.event_name != 'workflow_dispatch'
     steps:
       - name: Send Slack message
-        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
         with:
           notify-on: "failure"
         env:

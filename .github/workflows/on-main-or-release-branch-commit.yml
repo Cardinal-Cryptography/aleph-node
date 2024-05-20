@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Get FQDNs
         id: get-fqdns
-        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@A0-4268
+        uses: Cardinal-Cryptography/github-actions/get-aleph-node-fqdn-image@v7
         with:
           ref: ${{ github.ref }}
           ecr-dev-node-repo: ${{ vars.ECR_DEV_ALEPH_NODE_REPO }}
@@ -144,7 +144,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Send Slack message
-        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
         with:
           notify-on: "always"
         env:
@@ -157,7 +157,7 @@ jobs:
     needs: [push-production-node-image-to-ecr]
     steps:
       - name: Send Slack message
-        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
         with:
           notify-on: "failure"
         env:

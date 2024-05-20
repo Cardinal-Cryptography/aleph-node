@@ -38,7 +38,7 @@ runs:
 
     - name: Call action get-ref-properties
       id: get-ref-properties
-      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v6
+      uses: Cardinal-Cryptography/github-actions/get-ref-properties@v7
 
     - name: Download binary from GH artifacts
       uses: actions/download-artifact@v4
@@ -66,7 +66,7 @@ runs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Copy aleph-node binary to S3 AWS bucket
-      uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@v6
+      uses: Cardinal-Cryptography/github-actions/copy-file-to-s3@v7
       with:
         source-path: target
         source-filename: aleph-node
