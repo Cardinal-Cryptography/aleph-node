@@ -723,6 +723,7 @@ mod tests {
     use std::collections::HashSet;
 
     use futures::FutureExt;
+    use tokio::sync::mpsc::Receiver;
 
     use super::{DatabaseIO, Error, HandleStateAction, HandleStateAction::*, Handler};
     use crate::{
@@ -737,6 +738,7 @@ mod tests {
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             forest::{ExtensionRequest, Interest},
             handler::Action,
+            select_chain::SelectChainStateHandler,
             Justification, MockPeerId,
         },
         BlockId, BlockNumber, SessionPeriod, SyncOracle,
@@ -753,19 +755,22 @@ mod tests {
         Backend,
         impl ChainStatusNotifier<MockHeader>,
         BlockId,
+        Receiver<MockHeader>,
     ) {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
+        let (tx, sc_handler) = SelectChainStateHandler::new();
         let handler = Handler::new(
             database_io,
             verifier,
             SyncOracle::new().0,
             SESSION_BOUNDARY_INFO,
+            sc_handler,
         )
         .expect("mock backend works");
         let genesis = backend.top_finalized().expect("genesis").header().id();
-        (handler, backend, notifier, genesis)
+        (handler, backend, notifier, genesis, tx)
     }
 
     fn import_branch(backend: &mut Backend, branch_length: usize) -> Vec<MockHeader> {
@@ -981,7 +986,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_response_twice() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
         let response = branch_response(
             branch.clone(),
@@ -1002,7 +1007,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_long_response_after_handling_short_one() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
 
         let short_response = branch_response(
@@ -1034,7 +1039,7 @@ mod tests {
 
     #[tokio::test]
     async fn handles_multiple_overlapping_responses() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 35, 4);
 
         // 15 blocks and justifications -> top is 15, new highest justification
@@ -1099,7 +1104,7 @@ mod tests {
 
     #[tokio::test]
     async fn handles_response_with_incorrect_headers() {
-        let (mut handler, _backend, _notifier, genesis) = setup();
+        let (mut handler, _backend, _notifier, genesis, _tx) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
         let mut response = branch_response(
             branch,
@@ -1123,7 +1128,7 @@ mod tests {
 
     #[tokio::test]
     async fn stops_handling_response_upon_block_with_incorrect_header() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let branch = grow_light_branch(&mut handler, &genesis, 10, 4);
         let mut response = branch_response(
             branch.clone(),
@@ -1161,7 +1166,7 @@ mod tests {
 
     #[tokio::test]
     async fn detects_equivocated_response() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let mut branch = grow_light_branch(&mut handler, &genesis, 15, 4);
         for header in branch.iter_mut() {
             header.make_equivocated();
@@ -1189,7 +1194,7 @@ mod tests {
 
     #[tokio::test]
     async fn finalizes_with_justification_gaps() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let mut bottom = genesis;
         let peer_id = 0;
         for session in 0.. {
@@ -1239,7 +1244,7 @@ mod tests {
 
     #[tokio::test]
     async fn skips_justification_gap_with_last_of_current_session_only() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
         let last_block_of_first_session = SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(0));
         let last_block_of_second_session =
             SESSION_BOUNDARY_INFO.last_block_of_session(SessionId(1));
@@ -1325,7 +1330,7 @@ mod tests {
 
     #[test]
     fn creates_dangling_branch() {
-        let (mut handler, _backend, _notifier, _genesis) = setup();
+        let (mut handler, _backend, _notifier, _genesis, _tx) = setup();
         let peer_id = 0;
         let (bottom, top) = create_dangling_branch(&mut handler, 25, 10, peer_id);
         assert_dangling_branch_required(&handler, &top, &bottom, HashSet::from_iter(vec![peer_id]));
@@ -1333,7 +1338,7 @@ mod tests {
 
     #[tokio::test]
     async fn uninterested_in_dangling_branch() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
@@ -1382,7 +1387,7 @@ mod tests {
 
     #[tokio::test]
     async fn uninterested_in_dangling_branch_when_connected_below_finalized() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
@@ -1458,7 +1463,7 @@ mod tests {
 
     #[tokio::test]
     async fn uninterested_in_dangling_branch_when_connected_to_composted_header() {
-        let (mut handler, _backend, mut notifier, genesis) = setup();
+        let (mut handler, _backend, mut notifier, genesis, _tx) = setup();
 
         // grow the branch that will be finalized
         let branch = grow_light_branch(&mut handler, &genesis, 15, 4);
@@ -1559,8 +1564,8 @@ mod tests {
 
     #[tokio::test]
     async fn syncs_to_a_long_trunk() {
-        let (mut handler, mut backend, mut notifier, _genesis) = setup();
-        let (mut syncing_handler, _syncing_backend, mut syncing_notifier, genesis) = setup();
+        let (mut handler, mut backend, mut notifier, _genesis, _tx) = setup();
+        let (mut syncing_handler, _syncing_backend, mut syncing_notifier, genesis, _tx) = setup();
         let _top_main = grow_trunk(&mut handler, &mut backend, &mut notifier, &genesis, 2345).await;
         let peer_id = 0;
         let syncing_peer_id = 1;
@@ -1648,7 +1653,7 @@ mod tests {
 
     #[test]
     fn finalizes_imported_and_justified() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let header = import_branch(&mut backend, 1)[0].clone();
         handler
             .block_imported(header.clone())
@@ -1666,7 +1671,7 @@ mod tests {
 
     #[test]
     fn requests_missing_justifications_without_blocks() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let peer = rand::random();
         // skip the first justification, now every next added justification
         // should make us want to request a chain extension
@@ -1683,7 +1688,7 @@ mod tests {
 
     #[test]
     fn requests_missing_justifications_with_blocks() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 5)
             .into_iter()
@@ -1710,11 +1715,13 @@ mod tests {
         // header already imported, Handler should initialize Forest properly
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
+        let (_tx, sc_handler) = SelectChainStateHandler::new();
         let mut handler = Handler::new(
             database_io,
             verifier,
             SyncOracle::new().0,
             SessionBoundaryInfo::new(SessionPeriod(20)),
+            sc_handler,
         )
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
@@ -1731,7 +1738,7 @@ mod tests {
 
     #[test]
     fn finalizes_justified_and_imported() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let header = import_branch(&mut backend, 1)[0].clone();
         let justification = MockJustification::for_header(header.clone());
         let peer = rand::random();
@@ -1747,7 +1754,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_large_difference() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 43)
@@ -1782,7 +1789,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_medium_difference() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 23)
@@ -1817,7 +1824,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_small_difference() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
         let peer = rand::random();
         let justifications: Vec<MockJustification> = import_branch(&mut backend, 13)
@@ -1851,7 +1858,7 @@ mod tests {
 
     #[test]
     fn handles_state_with_incorrect_headers() {
-        let (mut handler, backend, _keep, genesis) = setup();
+        let (mut handler, backend, _keep, genesis, _tx) = setup();
         let peer = rand::random();
         let mut header = genesis.random_child();
         header.invalidate();
@@ -1883,8 +1890,8 @@ mod tests {
             State::new(top_justification, favourite_block.clone())
         }
 
-        let (mut handler_a, mut backend_a, _keep, _genesis) = setup();
-        let (mut handler_b, mut backend_b, _keep, _genesis) = setup();
+        let (mut handler_a, mut backend_a, _keep, _genesis, _tx) = setup();
+        let (mut handler_b, mut backend_b, _keep, _genesis, _tx) = setup();
 
         let peer = rand::random();
 
@@ -2051,7 +2058,7 @@ mod tests {
 
     #[test]
     fn handles_request_too_far_into_future() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (justifications, _) = setup_request_tests(&mut handler, &mut backend, 100, 100);
@@ -2092,7 +2099,7 @@ mod tests {
     #[test]
     fn handles_request_with_lowest_id() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
@@ -2176,7 +2183,7 @@ mod tests {
     #[test]
     fn handles_request_with_top_imported() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let initial_state = handler.state().expect("state works");
 
         let (_, blocks) = setup_request_tests(&mut handler, &mut backend, 100, 20);
@@ -2219,7 +2226,7 @@ mod tests {
     #[test]
     fn handles_chain_extension_request_for_just_blocks() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
 
         let (justifications, blocks) = setup_request_tests(&mut handler, &mut backend, 30, 20);
 
@@ -2247,7 +2254,7 @@ mod tests {
     #[test]
     fn handles_chain_extension_request_with_justifications() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let remote_state = handler.state().expect("state should work");
 
         setup_request_tests(&mut handler, &mut backend, 30, 20);
@@ -2312,7 +2319,7 @@ mod tests {
     #[test]
     fn handles_forked_chain_extension_request() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
 
         let (justifications, _) = setup_request_tests(&mut handler, &mut backend, 30, 20);
 
@@ -2384,7 +2391,7 @@ mod tests {
     #[test]
     fn handles_ancient_chain_extension_request() {
         use SimplifiedItem::*;
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
 
         let remote_state = handler.state().expect("state should work");
 
@@ -2469,7 +2476,7 @@ mod tests {
 
     #[test]
     fn handles_new_internal_request() {
-        let (mut handler, mut backend, _keep, _genesis) = setup();
+        let (mut handler, mut backend, _keep, _genesis, _tx) = setup();
         let _ = handler.state().expect("state works");
         let headers = import_branch(&mut backend, 2);
 
@@ -2489,7 +2496,7 @@ mod tests {
 
     #[test]
     fn broadcasts_own_block() {
-        let (mut handler, backend, _keep, _genesis) = setup();
+        let (mut handler, backend, _keep, _genesis, _tx) = setup();
         let mut header = backend
             .top_finalized()
             .expect("mock backend works")
@@ -2514,7 +2521,7 @@ mod tests {
 
     #[test]
     fn detects_equivocated_own_block() {
-        let (mut handler, backend, _keep, _genesis) = setup();
+        let (mut handler, backend, _keep, _genesis, _tx) = setup();
         let mut header = backend
             .top_finalized()
             .expect("mock backend works")
@@ -2533,7 +2540,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_broadcast_block() {
-        let (mut handler, backend, mut notifier, _genesis) = setup();
+        let (mut handler, backend, mut notifier, _genesis, _tx) = setup();
         let mut header = backend
             .top_finalized()
             .expect("mock backend works")
@@ -2562,7 +2569,7 @@ mod tests {
 
     #[tokio::test]
     async fn handles_wide_fork_scenario() {
-        let (mut handler, mut backend, mut notifier, genesis) = setup();
+        let (mut handler, mut backend, mut notifier, genesis, _tx) = setup();
 
         // H0' H1' H2' ... H99'
         // |   |   |       |
@@ -2741,8 +2748,8 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_chain_extension_branch() {
-        let (mut h1, mut b1, mut n1, genesis) = setup();
-        let (mut h2, _b2, mut n2, _genesis) = setup();
+        let (mut h1, mut b1, mut n1, genesis, _tx) = setup();
+        let (mut h2, _b2, mut n2, _genesis, _tx) = setup();
 
         // Make h1 aware of 2 headers.
         let branch = grow_light_branch(&mut h1, &genesis, 2, 0);
@@ -2799,8 +2806,8 @@ mod tests {
 
     #[tokio::test]
     async fn headers_above_favourite_trigger_chain_extension_request() {
-        let (mut h1, mut backend, _notifier, genesis) = setup();
-        let (mut h2, _backend, _notifier, _genesis) = setup();
+        let (mut h1, mut backend, _notifier, genesis, _tx) = setup();
+        let (mut h2, _backend, _notifier, _genesis, _tx) = setup();
         let branch = import_branch(&mut backend, 10);
         for header in branch {
             h1.block_imported(header)
@@ -2836,8 +2843,8 @@ mod tests {
 
     #[tokio::test]
     async fn headers_below_favourite_dont_trigger_chain_extension_request() {
-        let (mut h1, mut backend, _notifier, genesis) = setup();
-        let (mut h2, _backend, _notifier, _genesis) = setup();
+        let (mut h1, mut backend, _notifier, genesis, _tx) = setup();
+        let (mut h2, _backend, _notifier, _genesis, _tx) = setup();
         let branch = import_branch(&mut backend, 10);
         for header in branch {
             h1.block_imported(header)

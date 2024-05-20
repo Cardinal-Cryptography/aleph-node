@@ -17,7 +17,7 @@ pub fn select_chain_state_handler<B: Block>(
     select_chain: FavouriteSelectChain<B>,
     spawn_handle: &SpawnHandle,
 ) -> SelectChainStateHandler<B::Header> {
-    let (rx, tx) = channel(CHANNEL_SIZE as usize);
+    let (tx, handler) = SelectChainStateHandler::new();
 
     let favourite = select_chain.favourite;
 
@@ -32,7 +32,7 @@ pub fn select_chain_state_handler<B: Block>(
         error!(target: LOG_TARGET, "StateWriter unexpectly finished");
     });
 
-    SelectChainStateHandler { favourite_sender: rx }
+    handler
 }
 
 pub struct SelectChainStateHandler<Header> {
@@ -40,15 +40,19 @@ pub struct SelectChainStateHandler<Header> {
 }
 
 impl<Header> SelectChainStateHandler<Header> {
+    pub fn new() -> (Receiver<Header>, Self) {
+        let (rx, tx) = channel(CHANNEL_SIZE as usize);
+
+        (
+            tx,
+            Self {
+                favourite_sender: rx,
+            },
+        )
+    }
     pub fn update_favourite(&self, new_favourite: Header) {
-        match self
-            .favourite_sender
-            .try_send(new_favourite)
-        {
-            Err(TrySendError::Full(_)) => {
-                warn!(target: LOG_TARGET, "SelectChainStateHandler channel full, skipping one notification")
-            }
-            _ => (),
+        if let Err(TrySendError::Full(_)) = self.favourite_sender.try_send(new_favourite) {
+            warn!(target: LOG_TARGET, "SelectChainStateHandler channel full, skipping one notification")
         }
     }
 }
