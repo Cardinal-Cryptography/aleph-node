@@ -708,12 +708,12 @@ where
         };
     }
 
-    fn report_sync_status(&mut self) {
+    fn report_sync_state_change(&mut self) {
         let prev_status = self.major_sync_last_status;
         let new_status = self.handler.major_sync();
         match (prev_status, new_status) {
-            (false, true) => info!(target: LOG_TARGET, "Switched to major-sync mode."),
-            (true, false) => info!(target: LOG_TARGET, "Disabled major-sync mode."),
+            (false, true) => info!(target: LOG_TARGET, "Switched to major sync state."),
+            (true, false) => info!(target: LOG_TARGET, "No longer in major sync state."),
             _ => {}
         }
         self.major_sync_last_status = new_status;
@@ -727,7 +727,7 @@ where
 
         let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
         loop {
-            self.report_sync_status();
+            self.report_sync_state_change();
 
             tokio::select! {
                 maybe_data = self.network.next() => {
