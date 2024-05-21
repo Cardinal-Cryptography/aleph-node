@@ -119,7 +119,7 @@ jobs:
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
     name: Update featurenet
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@A0-4278
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-update.yml@v7
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
