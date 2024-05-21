@@ -43,10 +43,6 @@ on:
         type: string
         required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
-      finality-version:
-        description: 'Finality version to start FE with. Must be a cardinal number'
-        type: number
-        required: false
   workflow_call:
     inputs:
       featurenet-name:
@@ -83,9 +79,8 @@ on:
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
       finality-version:
         description: 'Finality version to start FE with. Must be a cardinal number'
-        type: number
+        type: string
         required: false
-
 jobs:
   validate-inputs:
     name: Validate inputs
