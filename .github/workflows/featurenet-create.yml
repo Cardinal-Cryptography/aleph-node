@@ -43,6 +43,11 @@ on:
         type: string
         required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+      finality-version:
+        description: 'Finality version to start FE with. If specified, it must be a cardinal number.
+        If not specified, it will be generated from the runtime.'
+        type: string
+        required: false
   workflow_call:
     inputs:
       featurenet-name:
