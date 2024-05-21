@@ -697,8 +697,6 @@ where
 mod tests {
     use std::collections::HashSet;
 
-    use tokio::sync::mpsc::Receiver;
-
     use super::{Error, ExtensionRequest::*, Forest, Interest::*, MAX_DEPTH};
     use crate::{
         block::{
@@ -706,12 +704,10 @@ mod tests {
             ChainStatus, Header,
         },
         session::SessionBoundaryInfo,
-        sync::{
-            data::BranchKnowledge::*, select_chain::SelectChainStateHandler, Justification,
-            MockPeerId,
-        },
+        sync::{data::BranchKnowledge::*, Justification, MockPeerId},
         BlockNumber, SessionPeriod,
     };
+
     type MockForest = Forest<MockPeerId, MockJustification>;
 
     const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));

@@ -44,7 +44,7 @@ type FullProposerFactory = ProposerFactory<FullPool, FullClient, DisableProofRec
 type ServiceComponents = sc_service::PartialComponents<
     FullClient,
     FullBackend,
-    FullSelectChain,
+    FavouriteSelectChain,
     FullImportQueue,
     FullPool,
     (

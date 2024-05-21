@@ -27,6 +27,7 @@ mod request_handler;
 pub use request_handler::{block_to_response, Action, RequestHandlerError};
 
 use crate::sync::data::{ResponseItem, ResponseItems};
+
 /// Handles for interacting with the blockchain database.
 pub struct DatabaseIO<B, J, CS, F, BI>
 where
@@ -723,7 +724,6 @@ mod tests {
     use std::collections::HashSet;
 
     use futures::FutureExt;
-    use tokio::sync::mpsc::Receiver;
 
     use super::{DatabaseIO, Error, HandleStateAction, HandleStateAction::*, Handler};
     use crate::{
@@ -738,7 +738,6 @@ mod tests {
             data::{BranchKnowledge::*, NetworkData, Request, ResponseItem, ResponseItems, State},
             forest::{ExtensionRequest, Interest},
             handler::Action,
-            select_chain::SelectChainStateHandler,
             Justification, MockPeerId,
         },
         BlockId, BlockNumber, SessionPeriod, SyncOracle,
@@ -759,7 +758,6 @@ mod tests {
         let (backend, notifier) = Backend::setup(SESSION_BOUNDARY_INFO);
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
-        let (tx, sc_handler) = SelectChainStateHandler::new();
         let handler = Handler::new(
             database_io,
             verifier,
@@ -1713,13 +1711,11 @@ mod tests {
         // header already imported, Handler should initialize Forest properly
         let verifier = backend.clone();
         let database_io = DatabaseIO::new(backend.clone(), backend.clone(), backend.clone());
-        let (_tx, sc_handler) = SelectChainStateHandler::new();
         let mut handler = Handler::new(
             database_io,
             verifier,
             SyncOracle::new().0,
             SessionBoundaryInfo::new(SessionPeriod(20)),
-            sc_handler,
         )
         .expect("mock backend works");
         let justification = MockJustification::for_header(header);
