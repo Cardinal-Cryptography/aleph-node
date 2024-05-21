@@ -15,7 +15,7 @@ use futures::{
 };
 use parity_scale_codec::{Decode, Encode, Output};
 use primitives as aleph_primitives;
-use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber};
+use primitives::{AuthorityId, Block as AlephBlock, BlockHash, BlockNumber, Header as AlephHeader};
 use sc_client_api::{
     Backend, BlockBackend, BlockchainEvents, Finalizer, LockImportRun, ProofProvider,
     StorageProvider,
@@ -77,7 +77,7 @@ pub use crate::{
     },
     nodes::run_validator_node,
     session::SessionPeriod,
-    sync::{select_chain_state_handler, FavouriteSelectChain},
+    sync::FavouriteSelectChain,
     sync_oracle::SyncOracle,
 };
 
@@ -266,7 +266,10 @@ pub struct AlephConfig<C, T> {
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
-    pub select_chain: FavouriteSelectChain<AlephBlock>,
+    pub select_chain: (
+        FavouriteSelectChain<AlephBlock>,
+        mpsc::UnboundedReceiver<oneshot::Sender<AlephHeader>>,
+    ),
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<LocalKeystore>,
     pub justification_channel_provider: ChannelProvider<Justification>,

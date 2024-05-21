@@ -1,6 +1,10 @@
 use std::{collections::HashSet, fmt::Display, time::Duration};
 
-use futures::{channel::mpsc, stream::FusedStream, StreamExt};
+use futures::{
+    channel::{mpsc, oneshot},
+    stream::FusedStream,
+    StreamExt,
+};
 use log::{debug, error, info, trace, warn};
 use substrate_prometheus_endpoint::Registry;
 use tokio::time;
@@ -22,7 +26,6 @@ use crate::{
         handler::{Action, DatabaseIO, Error as HandlerError, HandleStateAction, Handler},
         message_limiter::{Error as MsgLimiterError, MsgLimiter},
         metrics::{Event, Metrics},
-        select_chain::SelectChainStateHandler,
         task_queue::TaskQueue,
         tasks::{Action as TaskAction, RequestTask},
         ticker::Ticker,
@@ -89,6 +92,7 @@ pub enum Error<NetworkError, ChainEventError> {
     JustificationChannelClosed,
     BlockRequestChannelClosed,
     CreatorChannelClosed,
+    FavouriteRequestChannelClosed,
 }
 
 impl<NetworkError, ChainEventError> Display for Error<NetworkError, ChainEventError>
@@ -109,6 +113,9 @@ where
                 write!(f, "Channel with internal block request from user closed.")
             }
             Error::CreatorChannelClosed => write!(f, "Channel with own blocks closed."),
+            Error::FavouriteRequestChannelClosed => {
+                write!(f, "Channel with favourite requests closed.")
+            }
         }
     }
 }
@@ -135,6 +142,7 @@ where
     block_requests_from_user: mpsc::UnboundedReceiver<B::UnverifiedHeader>,
     blocks_from_creator: mpsc::UnboundedReceiver<B>,
     metrics: Metrics,
+    favourite_block_request: mpsc::UnboundedReceiver<oneshot::Sender<J::Header>>,
 }
 
 impl<J: Justification> JustificationSubmissions<J> for mpsc::UnboundedSender<J::Unverified> {
@@ -171,7 +179,7 @@ where
         session_info: SessionBoundaryInfo,
         io: IO<B, J, N, CE, CS, F, BI>,
         metrics_registry: Option<Registry>,
-        select_chain_handler: SelectChainStateHandler<J::Header>,
+        favourite_block_request: mpsc::UnboundedReceiver<oneshot::Sender<J::Header>>,
     ) -> Result<(Self, impl RequestBlocks<B::UnverifiedHeader>), HandlerError<B, J, CS, V, F>> {
         let IO {
             network,
@@ -182,13 +190,7 @@ where
             database_io,
         } = io;
         let network = VersionWrapper::new(network);
-        let handler = Handler::new(
-            database_io,
-            verifier,
-            sync_oracle,
-            session_info,
-            select_chain_handler,
-        )?;
+        let handler = Handler::new(database_io, verifier, sync_oracle, session_info)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);
         let chain_extension_ticker = Ticker::new(TICK_PERIOD, CHAIN_EXTENSION_COOLDOWN);
@@ -213,6 +215,7 @@ where
                 blocks_from_creator,
                 block_requests_from_user,
                 metrics,
+                favourite_block_request,
             },
             block_requests_for_sync,
         ))
@@ -756,6 +759,17 @@ where
                     debug!(target: LOG_TARGET, "Received new own block: {:?}.", block.header().id());
                     self.handle_own_block(block);
                 },
+
+                maybe_favourite_block_sender = self.favourite_block_request.next() => {
+                    let favourite_block_sender = maybe_favourite_block_sender.ok_or(Error::FavouriteRequestChannelClosed)?;
+                    let favourite = self.handler.favourite_block();
+                    if let Err(_) = favourite_block_sender.send(favourite) {
+                        warn!(
+                            target: LOG_TARGET,
+                            "Error sending favourite block on request."
+                        );
+                    }
+                }
 
                 _ = status_ticker.tick() => {
                     info!(target: LOG_TARGET, "{}", self.handler.status());

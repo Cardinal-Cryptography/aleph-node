@@ -30,7 +30,6 @@ use crate::{
         ConsensusPartyParams,
     },
     runtime_api::RuntimeApiImpl,
-    select_chain_state_handler,
     session::SessionBoundaryInfo,
     session_map::{AuthorityProviderImpl, FinalityNotifierImpl, SessionMapUpdater},
     sync::{DatabaseIO as SyncDatabaseIO, Service as SyncService, IO as SyncIO},
@@ -91,6 +90,8 @@ where
         Mnemonic::new(MnemonicType::Words12, Language::English).phrase(),
         keystore.clone(),
     );
+
+    let (select_chain, favourite_request_tx) = select_chain;
 
     debug!(
         target: LOG_TARGET,
@@ -188,13 +189,12 @@ where
         justification_channel_provider.into_receiver(),
         block_rx,
     );
-    let select_chain_handler = select_chain_state_handler(select_chain.clone(), &spawn_handle);
     let (sync_service, request_block) = match SyncService::new(
         verifier.clone(),
         session_info.clone(),
         sync_io,
         registry.clone(),
-        select_chain_handler,
+        favourite_request_tx,
     ) {
         Ok(x) => x,
         Err(e) => panic!("Failed to initialize Sync service: {e}"),

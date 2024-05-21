@@ -269,20 +269,7 @@ pub fn new_authority(
     let slot_duration = sc_consensus_aura::slot_duration(&*service_components.client)?;
     let (block_import, block_rx) = RedirectingBlockImport::new(service_components.client.clone());
 
-    let genesis_hash = service_components
-        .client
-        .hash(0)
-        .ok()
-        .flatten()
-        .expect("Genesis block exists.");
-    let genesis_header = service_components
-        .client
-        .header(genesis_hash)
-        .ok()
-        .flatten()
-        .expect("Genesis block exists.");
-
-    let select_chain = FavouriteSelectChain::new(genesis_header);
+    let (select_chain, tx) = FavouriteSelectChain::new();
 
     let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
         StartAuraParams {
@@ -400,7 +387,7 @@ pub fn new_authority(
         client: service_components.client,
         chain_status,
         import_queue_handle,
-        select_chain,
+        select_chain: (select_chain, tx),
         session_period,
         millisecs_per_block,
         spawn_handle: service_components.task_manager.spawn_handle().into(),

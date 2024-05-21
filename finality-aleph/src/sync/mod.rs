@@ -14,16 +14,15 @@ mod forest;
 mod handler;
 mod message_limiter;
 mod metrics;
+mod select_chain;
 mod service;
 mod task_queue;
 mod tasks;
 mod ticker;
 
-mod select_chain;
-
 pub use data::MAX_MESSAGE_SIZE;
 pub use handler::DatabaseIO;
-pub use select_chain::{select_chain_state_handler, FavouriteSelectChain};
+pub use select_chain::FavouriteSelectChain;
 pub use service::{Service, IO};
 
 const LOG_TARGET: &str = "aleph-block-sync";

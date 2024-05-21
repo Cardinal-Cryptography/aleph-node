@@ -11,7 +11,7 @@ use static_assertions::const_assert;
 use crate::{
     aleph_primitives::DEFAULT_SESSION_PERIOD,
     block::{Block, ChainStatus, Header, Justification, UnverifiedHeaderFor},
-    sync::{data::BranchKnowledge, select_chain::SelectChainStateHandler, BlockId, PeerId},
+    sync::{data::BranchKnowledge, BlockId, PeerId},
     BlockNumber,
 };
 
@@ -183,7 +183,6 @@ where
     root: J::Header,
     root_children: HashSet<BlockId>,
     compost_bin: HashSet<BlockId>,
-    select_chain_handler: SelectChainStateHandler<J::Header>,
 }
 
 type Edge = (BlockId, BlockId);
@@ -194,10 +193,7 @@ where
     J: Justification,
 {
     /// Creates a new forest.
-    pub fn new<B, CS>(
-        chain_status: &CS,
-        select_chain_handler: SelectChainStateHandler<J::Header>,
-    ) -> Result<Self, InitializationError<B, J, CS>>
+    pub fn new<B, CS>(chain_status: &CS) -> Result<Self, InitializationError<B, J, CS>>
     where
         B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
         CS: ChainStatus<B, J>,
@@ -216,7 +212,6 @@ where
             root: top_finalized.clone(),
             root_children: HashSet::new(),
             compost_bin: HashSet::new(),
-            select_chain_handler,
         };
 
         // Populate the forest
@@ -410,7 +405,6 @@ where
                 if update_favourite {
                     if parent_id == self.favourite.id() {
                         self.favourite = header.clone();
-                        self.select_chain_handler.update_favourite(header.clone());
                     }
                     self.imported_leaves.remove(&parent_id);
                     self.imported_leaves.insert(id, header.clone());
@@ -477,8 +471,6 @@ where
             .map(|(_, header)| header)
             .unwrap_or(&self.root)
             .clone();
-        self.select_chain_handler
-            .update_favourite(self.favourite.clone());
     }
 
     fn prune(&mut self, id: &BlockId) {
@@ -724,21 +716,20 @@ mod tests {
 
     const SESSION_BOUNDARY_INFO: SessionBoundaryInfo = SessionBoundaryInfo::new(SessionPeriod(20));
 
-    fn setup() -> (MockHeader, MockForest, Receiver<MockHeader>) {
+    fn setup() -> (MockHeader, MockForest) {
         let (backend, _) = Backend::setup(SESSION_BOUNDARY_INFO);
         let header = backend
             .top_finalized()
             .expect("should return genesis")
             .header()
             .clone();
-        let (tx, handler) = SelectChainStateHandler::new();
-        let forest = Forest::new(&backend, handler).expect("should initialize");
-        (header, forest, tx)
+        let forest = Forest::new(&backend).expect("should initialize");
+        (header, forest)
     }
 
     #[test]
     fn initially_empty() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         assert!(forest.try_finalize(&1).is_none());
         assert!(matches!(
             forest.request_interest(&initial_header.id()),
@@ -751,7 +742,7 @@ mod tests {
 
     #[test]
     fn accepts_first_unimportant_header() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
         assert!(forest
@@ -766,7 +757,7 @@ mod tests {
 
     #[test]
     fn accepts_unimportant_descendant_of_unimportant_header() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
         assert!(forest
@@ -802,7 +793,7 @@ mod tests {
 
     #[test]
     fn accepts_first_important_header() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
         assert!(forest
@@ -820,7 +811,7 @@ mod tests {
 
     #[test]
     fn accepts_important_descendant_of_important_header() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let peer_id = rand::random();
         assert!(forest
@@ -859,7 +850,7 @@ mod tests {
 
     #[test]
     fn rejects_parentless_header() {
-        let (_, mut forest, _tx) = setup();
+        let (_, mut forest) = setup();
         let parentless = MockHeader::random_parentless(43);
         let peer_id = rand::random();
         assert!(matches!(
@@ -870,7 +861,7 @@ mod tests {
 
     #[test]
     fn accepts_first_justification() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
         assert!(forest
@@ -892,7 +883,7 @@ mod tests {
 
     #[test]
     fn accepts_descendand_justification() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
         assert!(forest
@@ -939,7 +930,7 @@ mod tests {
 
     #[test]
     fn unimportant_parent_of_justification_importable() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let first_child = initial_header.random_child();
         let peer_id = rand::random();
         assert!(forest
@@ -987,7 +978,7 @@ mod tests {
 
     #[test]
     fn ignores_genesis_justification() {
-        let (_, mut forest, _tx) = setup();
+        let (_, mut forest) = setup();
         let parentless = MockJustification::for_header(MockHeader::random_parentless(0));
         let peer_id = rand::random();
         assert!(matches!(
@@ -998,7 +989,7 @@ mod tests {
 
     #[test]
     fn rejects_parentless_justification() {
-        let (_, mut forest, _tx) = setup();
+        let (_, mut forest) = setup();
         let parentless = MockJustification::for_header(MockHeader::random_parentless(43));
         let peer_id = rand::random();
         assert!(matches!(
@@ -1009,7 +1000,7 @@ mod tests {
 
     #[test]
     fn accepts_first_body() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         forest.update_body(&child).expect("header was correct");
         assert!(forest.try_finalize(&1).is_none());
@@ -1021,7 +1012,7 @@ mod tests {
 
     #[test]
     fn rejects_body_when_parent_unimported() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = initial_header.random_child();
         let grandchild = child.random_child();
         assert!(forest
@@ -1043,7 +1034,7 @@ mod tests {
 
     #[test]
     fn finalizes_first_block() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
         assert!(forest
@@ -1070,7 +1061,7 @@ mod tests {
 
     #[test]
     fn required_becomes_highest_finalized() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let peer_id = rand::random();
         assert!(
@@ -1089,7 +1080,7 @@ mod tests {
 
     #[test]
     fn non_required_becomes_highest_finalized() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let grandchild = child.header().random_child();
         let peer_id = rand::random();
@@ -1115,7 +1106,7 @@ mod tests {
 
     #[test]
     fn ancestor_does_not_become_highest_finalized() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let grandchild = MockJustification::for_header(child.header().random_child());
         let peer_id = rand::random();
@@ -1135,7 +1126,7 @@ mod tests {
 
     #[test]
     fn prunes_forks() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let child = MockJustification::for_header(initial_header.random_child());
         let fork_child = initial_header.random_child();
         let peer_id = rand::random();
@@ -1178,7 +1169,7 @@ mod tests {
 
     #[test]
     fn uninterested_in_forks() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let fork_branch: Vec<_> = initial_header.random_branch().take(2).collect();
         for header in &fork_branch {
             let peer_id = rand::random();
@@ -1213,7 +1204,7 @@ mod tests {
 
     #[test]
     fn picks_new_favourite() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let fork_branch: Vec<_> = initial_header.random_branch().take(2).collect();
         for header in &fork_branch {
             forest.update_body(header).expect("header was correct");
@@ -1268,7 +1259,7 @@ mod tests {
 
     #[test]
     fn updates_importability_on_parent_connect() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let branch: Vec<_> = initial_header.random_branch().take(4).collect();
         let header = &branch[0];
         let peer_id = rand::random();
@@ -1322,7 +1313,7 @@ mod tests {
 
     #[test]
     fn finds_ancestors() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let branch: Vec<_> = initial_header.random_branch().take(4).collect();
         let header = &branch[0];
         let peer_id = rand::random();
@@ -1411,7 +1402,7 @@ mod tests {
 
     #[test]
     fn finalizes_huge_branch() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let justifications: Vec<_> = initial_header
             .random_branch()
             .map(MockJustification::for_header)
@@ -1443,7 +1434,7 @@ mod tests {
 
     #[test]
     fn finalizes_huge_branch_with_justification_holes() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let justifications: Vec<_> = initial_header
             .random_branch()
             .map(MockJustification::for_header)
@@ -1482,7 +1473,7 @@ mod tests {
 
     #[test]
     fn prunes_huge_branch() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let fork: Vec<_> = initial_header
             .random_branch()
             .take(HUGE_BRANCH_LENGTH)
@@ -1525,7 +1516,7 @@ mod tests {
 
     #[test]
     fn updates_interest_on_huge_branch() {
-        let (initial_header, mut forest, _tx) = setup();
+        let (initial_header, mut forest) = setup();
         let branch: Vec<_> = initial_header
             .random_branch()
             .take(HUGE_BRANCH_LENGTH)

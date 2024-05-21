@@ -1,94 +1,29 @@
-use std::sync::Arc;
+use std::fmt::Debug;
 
-use log::{error, info, warn};
-use network_clique::SpawnHandleT;
-use parking_lot::RwLock;
+use futures::channel::{mpsc, oneshot};
+use log::debug;
 use sp_consensus::{Error, SelectChain};
 use sp_runtime::traits::Block as BlockT;
-use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
 
-use crate::{Block, BlockHash, SpawnHandle};
+use crate::{Block, BlockHash};
 
-// It never should grow that much
-const CHANNEL_SIZE: u32 = 1024;
 const LOG_TARGET: &str = "aleph-select-chain";
-
-pub fn select_chain_state_handler<B: Block>(
-    select_chain: FavouriteSelectChain<B>,
-    spawn_handle: &SpawnHandle,
-) -> SelectChainStateHandler<B::Header> {
-    let (tx, handler) = SelectChainStateHandler::new();
-
-    let favourite = select_chain.favourite;
-
-    let mut state_writer = StateWriter::<B> {
-        events: tx,
-        favourite,
-    };
-
-    spawn_handle.spawn("aleph/state_writer", async move {
-        info!(target: LOG_TARGET, "starting up StateWriter");
-        state_writer.run().await;
-        error!(target: LOG_TARGET, "StateWriter unexpectly finished");
-    });
-
-    handler
-}
-
-pub struct SelectChainStateHandler<Header> {
-    favourite_sender: Sender<Header>,
-}
-
-impl<Header> SelectChainStateHandler<Header> {
-    pub fn new() -> (Receiver<Header>, Self) {
-        let (rx, tx) = channel(CHANNEL_SIZE as usize);
-
-        (
-            tx,
-            Self {
-                favourite_sender: rx,
-            },
-        )
-    }
-    pub fn update_favourite(&self, new_favourite: Header) {
-        if let Err(TrySendError::Full(_)) = self.favourite_sender.try_send(new_favourite) {
-            warn!(target: LOG_TARGET, "SelectChainStateHandler channel full, skipping one notification")
-        }
-    }
-}
-
-pub struct StateWriter<B: Block> {
-    events: Receiver<<B as Block>::Header>,
-    favourite: Arc<RwLock<<B as Block>::Header>>,
-}
-
-impl<B: Block> StateWriter<B> {
-    async fn run(&mut self) {
-        loop {
-            let new = self
-                .events
-                .recv()
-                .await
-                .expect("we hold the second end & its never ending stream.");
-            self.update_favourite(new);
-        }
-    }
-
-    fn update_favourite(&self, new_favourite: <B as Block>::Header) {
-        *self.favourite.write() = new_favourite;
-    }
-}
 
 #[derive(Clone)]
 pub struct FavouriteSelectChain<B: Block> {
-    favourite: Arc<RwLock<<B as Block>::Header>>,
+    favourite_block_request: mpsc::UnboundedSender<oneshot::Sender<B::Header>>,
 }
 
 impl<B: Block> FavouriteSelectChain<B> {
-    pub fn new(favourite: <B as Block>::Header) -> Self {
-        Self {
-            favourite: Arc::new(RwLock::new(favourite)),
-        }
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<oneshot::Sender<B::Header>>) {
+        let (rx, tx) = mpsc::unbounded();
+
+        (
+            Self {
+                favourite_block_request: rx,
+            },
+            tx,
+        )
     }
 }
 
@@ -97,15 +32,24 @@ impl<B, H> SelectChain<B> for FavouriteSelectChain<B>
 where
     B: BlockT<Header = H, Hash = BlockHash>,
     B: Block<Header = H, Hash = BlockHash>,
-    H: Sync + Send + Clone,
+    H: Sync + Send + Clone + Debug,
 {
     async fn leaves(&self) -> Result<Vec<<B as BlockT>::Hash>, Error> {
         // this is never used in the current version
-        Ok(vec![])
+        Ok(Vec::new())
     }
 
     async fn best_chain(&self) -> Result<<B as BlockT>::Header, Error> {
-        let best = self.favourite.read();
+        let (rx, tx) = oneshot::channel();
+
+        self.favourite_block_request
+            .unbounded_send(rx)
+            .expect("The second end of the channel should be operational");
+        let best = tx
+            .await
+            .expect("The second end of the channel should be operational");
+
+        debug!(target: LOG_TARGET, "Best chain: {:?}", best);
 
         Ok(best.clone())
     }
