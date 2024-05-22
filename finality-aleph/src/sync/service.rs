@@ -717,6 +717,16 @@ where
         };
     }
 
+    fn send_favourite_block(&self, favourite_block_sender: oneshot::Sender<J::Header>) {
+        let favourite = self.handler.favourite_block();
+        if favourite_block_sender.send(favourite).is_err() {
+            warn!(
+                target: LOG_TARGET,
+                "Error sending favourite block on request."
+            );
+        }
+    }
+
     /// Stay synchronized.
     pub async fn run(mut self) -> Result<(), Error<N::Error, CE::Error>> {
         if self.blocks_from_creator.is_terminated() {
@@ -761,14 +771,9 @@ where
                 },
 
                 maybe_favourite_block_sender = self.favourite_block_request.next() => {
-                    let favourite_block_sender = maybe_favourite_block_sender.ok_or(Error::FavouriteRequestChannelClosed)?;
-                    let favourite = self.handler.favourite_block();
-                    if let Err(_) = favourite_block_sender.send(favourite) {
-                        warn!(
-                            target: LOG_TARGET,
-                            "Error sending favourite block on request."
-                        );
-                    }
+                    let favourite_block_sender = maybe_favourite_block_sender
+                        .ok_or(Error::FavouriteRequestChannelClosed)?;
+                    self.send_favourite_block(favourite_block_sender);
                 }
 
                 _ = status_ticker.tick() => {
