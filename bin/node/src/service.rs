@@ -7,9 +7,10 @@ use std::{
 
 use finality_aleph::{
     build_network, run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics,
-    BlockImporter, BuildNetworkOutput, ChannelProvider, FavouriteSelectChain, Justification,
-    JustificationTranslator, MillisecsPerBlock, RateLimiterConfig, RedirectingBlockImport,
-    SessionPeriod, SubstrateChainStatus, SyncOracle, TracingBlockImport, ValidatorAddressCache,
+    BlockImporter, BuildNetworkOutput, ChannelProvider, FavouriteSelectChainProvider,
+    Justification, JustificationTranslator, MillisecsPerBlock, RateLimiterConfig,
+    RedirectingBlockImport, SessionPeriod, SubstrateChainStatus, SyncOracle, TracingBlockImport,
+    ValidatorAddressCache,
 };
 use log::warn;
 use primitives::{
@@ -21,7 +22,9 @@ use sc_client_api::HeaderBackend;
 use sc_consensus::{ImportQueue, Link};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_slots::BackoffAuthoringBlocksStrategy;
-use sc_service::{error::Error as ServiceError, Configuration, TFullClient, TaskManager};
+use sc_service::{
+    error::Error as ServiceError, Configuration, KeystoreContainer, TFullClient, TaskManager,
+};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_api::ProvideRuntimeApi;
 use sp_arithmetic::traits::BaseArithmetic;
@@ -37,23 +40,21 @@ use crate::{
 type AlephExecutor = aleph_executor::Executor;
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, AlephExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
-type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullPool = sc_transaction_pool::FullPool<Block, FullClient>;
 type FullImportQueue = sc_consensus::DefaultImportQueue<Block>;
 type FullProposerFactory = ProposerFactory<FullPool, FullClient, DisableProofRecording>;
-type ServiceComponents = sc_service::PartialComponents<
-    FullClient,
-    FullBackend,
-    FullSelectChain,
-    FullImportQueue,
-    FullPool,
-    (
-        ChannelProvider<Justification>,
-        Option<Telemetry>,
-        AllBlockMetrics,
-    ),
->;
-
+pub struct ServiceComponents {
+    pub client: Arc<FullClient>,
+    pub backend: Arc<FullBackend>,
+    pub task_manager: TaskManager,
+    pub select_chain_provider: FavouriteSelectChainProvider<Block>,
+    pub import_queue: FullImportQueue,
+    pub transaction_pool: Arc<FullPool>,
+    pub keystore_container: KeystoreContainer,
+    pub justification_channel_provider: ChannelProvider<Justification>,
+    pub telemetry: Option<Telemetry>,
+    pub metrics: AllBlockMetrics,
+}
 struct LimitNonfinalized(u32);
 
 impl<N: BaseArithmetic> BackoffAuthoringBlocksStrategy<N> for LimitNonfinalized {
@@ -121,7 +122,7 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
 
     let client: Arc<TFullClient<_, _, _>> = Arc::new(client);
 
-    let select_chain = sc_consensus::LongestChain::new(backend.clone());
+    let select_chain_provider = FavouriteSelectChainProvider::new();
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
@@ -174,15 +175,17 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
         },
     )?;
 
-    Ok(sc_service::PartialComponents {
+    Ok(ServiceComponents {
         client,
         backend,
         task_manager,
         import_queue,
         keystore_container,
-        select_chain,
+        select_chain_provider,
         transaction_pool,
-        other: (justification_channel_provider, telemetry, metrics),
+        justification_channel_provider,
+        telemetry,
+        metrics,
     })
 }
 
@@ -269,13 +272,11 @@ pub fn new_authority(
     let slot_duration = sc_consensus_aura::slot_duration(&*service_components.client)?;
     let (block_import, block_rx) = RedirectingBlockImport::new(service_components.client.clone());
 
-    let (select_chain, tx) = FavouriteSelectChain::new();
-
     let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
         StartAuraParams {
             slot_duration,
             client: service_components.client.clone(),
-            select_chain: select_chain.clone(),
+            select_chain: service_components.select_chain_provider.select_chain(),
             block_import,
             proposer_factory,
             create_inherent_data_providers: move |_, ()| async move {
@@ -296,7 +297,7 @@ pub fn new_authority(
             justification_sync_link: (),
             block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
             max_block_proposal_slot_portion: None,
-            telemetry: service_components.other.1.as_ref().map(|x| x.handle()),
+            telemetry: service_components.telemetry.as_ref().map(|x| x.handle()),
             compatibility_mode: Default::default(),
         },
     )?;
@@ -331,7 +332,9 @@ pub fn new_authority(
         let pool = service_components.transaction_pool.clone();
         let sync_oracle = sync_oracle.clone();
         let validator_address_cache = validator_address_cache.clone();
-        let import_justification_tx = service_components.other.0.get_sender();
+        let import_justification_tx = service_components
+            .justification_channel_provider
+            .get_sender();
         let chain_status = chain_status.clone();
         Box::new(move |deny_unsafe, _| {
             let deps = RpcFullDeps {
@@ -366,7 +369,7 @@ pub fn new_authority(
         system_rpc_tx,
         tx_handler_controller,
         config,
-        telemetry: service_components.other.1.as_mut(),
+        telemetry: service_components.telemetry.as_mut(),
     })?;
 
     service_components
@@ -387,14 +390,14 @@ pub fn new_authority(
         client: service_components.client,
         chain_status,
         import_queue_handle,
-        select_chain: (select_chain, tx),
+        select_chain_provider: service_components.select_chain_provider,
         session_period,
         millisecs_per_block,
         spawn_handle: service_components.task_manager.spawn_handle().into(),
         keystore: service_components.keystore_container.local_keystore(),
-        justification_channel_provider: service_components.other.0,
+        justification_channel_provider: service_components.justification_channel_provider,
         block_rx,
-        metrics: service_components.other.2,
+        metrics: service_components.metrics,
         registry: prometheus_registry,
         unit_creation_delay: aleph_config.unit_creation_delay(),
         backup_saving_path: backup_path,

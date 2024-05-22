@@ -64,7 +64,7 @@ where
         client,
         chain_status,
         mut import_queue_handle,
-        select_chain,
+        select_chain_provider,
         spawn_handle,
         keystore,
         metrics,
@@ -90,8 +90,6 @@ where
         Mnemonic::new(MnemonicType::Words12, Language::English).phrase(),
         keystore.clone(),
     );
-
-    let (select_chain, favourite_request_tx) = select_chain;
 
     debug!(
         target: LOG_TARGET,
@@ -189,12 +187,14 @@ where
         justification_channel_provider.into_receiver(),
         block_rx,
     );
+    let select_chain = select_chain_provider.select_chain();
+    let favourite_block_user_requests = select_chain_provider.favourite_block_user_requests();
     let (sync_service, request_block) = match SyncService::new(
         verifier.clone(),
         session_info.clone(),
         sync_io,
         registry.clone(),
-        favourite_request_tx,
+        favourite_block_user_requests,
     ) {
         Ok(x) => x,
         Err(e) => panic!("Failed to initialize Sync service: {e}"),

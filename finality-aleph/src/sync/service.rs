@@ -724,7 +724,7 @@ where
         if favourite_block_sender.send(favourite).is_err() {
             warn!(
                 target: LOG_TARGET,
-                "Error sending favourite block on request."
+                "Failed to respond with favourite header to user."
             );
         }
     }
