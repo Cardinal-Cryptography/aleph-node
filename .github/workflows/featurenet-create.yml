@@ -187,7 +187,7 @@ jobs:
     # to prevent this job to be skipped when on of the parent jobs is skipped
     if: ${{ !cancelled() }}
     name: Create featurenet from ${{ inputs.ref }}
-    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@A0-4278-fixes
+    uses: Cardinal-Cryptography/github-actions/.github/workflows/_featurenet-create.yml@v7
     secrets: inherit
     with:
       featurenet-name: ${{ inputs.featurenet-name }}
