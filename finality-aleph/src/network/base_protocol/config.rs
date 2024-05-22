@@ -23,7 +23,7 @@ const DUMMY_SET_CONFIG: SetConfig = SetConfig {
 // which is expected by the base protocol to inform other protocols about peers.
 // Other than that we send no messages.
 // This value provides a wide margin, I tested it works with just 1024, but 4KB is not a problem.
-const MAX_MESSAGE_SIZE: u32 = 4 * 1024;
+const MAX_MESSAGE_SIZE: u64 = 4 * 1024;
 
 /// Generate a config for the base protocol and the notification service that should be passed to its service.
 pub fn setup<B>(genesis_hash: B::Hash) -> (NonDefaultSetConfig, Box<dyn NotificationService>)
