@@ -33,6 +33,7 @@ jobs:
       validators: '8'
       internal: true
       short-session: false
+      finality-version: '3'
 
   update-featurenet-to-main:
     needs: [create-featurenet-from-testnet]
@@ -63,7 +64,7 @@ jobs:
       github.event_name != 'workflow_dispatch'
     steps:
       - name: Send Slack message
-        uses: Cardinal-Cryptography/github-actions/slack-notification@v6
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
         with:
           notify-on: "failure"
         env:
