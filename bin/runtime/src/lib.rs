@@ -79,7 +79,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 73,
+    spec_version: 14_000_000,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 18,
@@ -1085,7 +1085,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl primitives::AlephSessionApi<Block> for Runtime {
+    impl pallet_aleph_runtime_api::AlephSessionApi<Block> for Runtime {
         fn millisecs_per_block() -> u64 {
             MILLISECS_PER_BLOCK
         }
