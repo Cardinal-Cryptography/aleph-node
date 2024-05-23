@@ -1,13 +1,16 @@
 ---
-# This workflow performs sync to Testnet from a ParityDB non-pruned snapshot using the latest
+# This workflow performs sync to Testnet from a RocksDB snapshot using the latest
 # main version.
 
-name: Sync from snapshot test, Testnet, ParityDB non-pruned
+name: Sync from snapshot test, Testnet, RocksDB
 on:
-  # At 01:00 on Wednesday and Saturday
+  # At 00:00 on Wednesday and Saturday
   schedule:
     - cron: '0 1 * * 3,6'
   workflow_dispatch:
+  push:
+    branches:
+      - A0-4265-non-parity-db-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -19,5 +22,5 @@ jobs:
     uses: ./.github/workflows/_sync-from-snapshot.yml
     secrets: inherit
     with:
-      timeout: 300
+      timeout: 480
       args: --testnet

@@ -20,4 +20,4 @@ jobs:
     secrets: inherit
     with:
       timeout: 60
-      args: --testnet --pruned
+      args: --testnet --parity-db --pruned

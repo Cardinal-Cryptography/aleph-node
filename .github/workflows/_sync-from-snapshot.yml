@@ -1,5 +1,5 @@
 ---
-# This workflow performs live chain (Mainnet or Testnet) sync from a ParityDB snapshot,
+# This workflow performs live chain (Mainnet or Testnet) sync from a db snapshot,
 # using the latest main version.
 
 name: Weekly sync from snapshot test
@@ -42,10 +42,10 @@ jobs:
         with:
           name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
 
-      - name: Download snapshot and test sync
+      - name: Download snapshot and test db sync
         timeout-minutes: ${{ inputs.timeout }}
         run: |
-          ./.github/scripts/test_parity_db_sync.sh ${{ inputs.args }}
+          ./.github/scripts/test_db_sync.sh ${{ inputs.args }}
 
       - name: Archive logs from failed test
         if: ${{ failure() }}
