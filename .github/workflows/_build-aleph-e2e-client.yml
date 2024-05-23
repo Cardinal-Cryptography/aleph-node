@@ -58,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.get-artifact-name-binary.outputs.name }}
-          path: target/release/aleph-e2e-client
+          path: e2e-tests/target/release/aleph-e2e-client
           if-no-files-found: error
           retention-days: 7
 
