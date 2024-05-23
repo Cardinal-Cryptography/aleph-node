@@ -52,7 +52,7 @@ jobs:
       - name: Get binary artifact name
         id: get-artifact-name-binary
         run: |
-          echo "name=aleph-e2e-client >> $GITHUB_OUTPUT
+          echo "name=aleph-e2e-client" >> $GITHUB_OUTPUT
 
       - name: Upload binary to GH Artifacts
         uses: actions/upload-artifact@v4
