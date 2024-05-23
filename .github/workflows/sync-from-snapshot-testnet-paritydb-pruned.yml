@@ -41,11 +41,12 @@ jobs:
       shell: bash
       env:
         S3_BUCKET: '${{ secrets.AWS_TESTNET_S3_DB_SNAPSHOT_BUCKET }}'
+        S3_URL: 'http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com'
       run: |
         current_day=$(date "+%Y-%m-%d")
         echo "<meta http-equiv=\"refresh\" content=\"0;url=${S3_URL}/${{ env.S3_BUCKET }}/db_backup_parity_pruned_${current_day}.tar.gz\">" | \
           aws s3 cp - s3://${{ env.S3_BUCKET }}/latest-parity-pruned.html \
-            --website-redirect s3://${{ env.S3_BUCKET }}/${current_day}/db_backup_parity_pruned_${current_day}.tar.gz
+            --website-redirect ${{ env.S3_URL }}/${current_day}/db_backup_parity_pruned_${current_day}.tar.gz
 
   slack-notification:
     name: Slack notification
