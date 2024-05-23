@@ -52,6 +52,7 @@ jobs:
       # yamllint disable-line rule:line-length
       artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
       artifact-aleph-node-image: ${{ needs.build-test-aleph-node.outputs.artifact-name-image }}
+      # yamllint disable-line rule:line-length
       artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-test.outputs.artifact-name-image }}
 
   run-recover-after-abft-update-test:
