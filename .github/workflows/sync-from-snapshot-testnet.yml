@@ -8,9 +8,6 @@ on:
   schedule:
     - cron: '0 1 * * 3,6'
   workflow_dispatch:
-  push:
-    branches:
-      - A0-4265-non-parity-db-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
