@@ -46,3 +46,18 @@ jobs:
         echo "<meta http-equiv=\"refresh\" content=\"0;url=${S3_URL}/${{ env.S3_BUCKET }}/db_backup_parity_pruned_${current_day}.tar.gz\">" | \
           aws s3 cp - s3://${{ env.S3_BUCKET }}/latest-parity-pruned.html \
             --website-redirect s3://${{ env.S3_BUCKET }}/${current_day}/db_backup_parity_pruned_${current_day}.tar.gz
+
+  slack-notification:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [mark-snapshot-as-latest]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
