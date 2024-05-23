@@ -1,4 +1,5 @@
 mod all_block;
+mod best_block_related_metrics;
 mod chain_state;
 mod finality_rate;
 mod timing;
