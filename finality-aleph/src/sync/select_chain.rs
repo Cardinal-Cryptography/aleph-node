@@ -42,6 +42,17 @@ where
     }
 }
 
+impl<B: Block, H> Default for FavouriteSelectChainProvider<B>
+where
+    B: BlockT<Header = H, Hash = BlockHash>,
+    B: Block<Header = H, Hash = BlockHash>,
+    H: Sync + Send + Clone + Debug + 'static,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B: Block> FavouriteSelectChainInner<B> {
     pub fn new() -> (Self, mpsc::UnboundedReceiver<oneshot::Sender<B::Header>>) {
         let (rx, tx) = mpsc::unbounded();

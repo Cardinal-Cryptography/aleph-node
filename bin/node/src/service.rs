@@ -121,7 +121,7 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
 
     let client: Arc<TFullClient<_, _, _>> = Arc::new(client);
 
-    let select_chain_provider = FavouriteSelectChainProvider::new();
+    let select_chain_provider = FavouriteSelectChainProvider::default();
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
