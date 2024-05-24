@@ -29,6 +29,8 @@ jobs:
     name: Mark working snapshot as latest
     needs: [test-sync]
     runs-on: ubuntu-20.04
+    env:
+      AWS_REGION: us-east-1
     steps:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
