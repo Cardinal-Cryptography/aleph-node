@@ -8,59 +8,16 @@ on:
   schedule:
     - cron: '0 22 * * 3,6'
   workflow_dispatch:
-  push:
-    branches:
-      - A0-4265-non-parity-db-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
-  test-sync:
+  main:
     name: Test sync
     uses: ./.github/workflows/_sync-from-snapshot.yml
     secrets: inherit
     with:
       timeout: 60
       args: --testnet --parity-db --pruned
-
-  mark-snapshot-as-latest:
-    name: Mark working snapshot as latest
-    needs: [test-sync]
-    runs-on: ubuntu-20.04
-    env:
-      AWS_REGION: us-east-1
-    steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_TESTNET_S3_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_TESTNET_S3_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Mark snapshot as latest
-      shell: bash
-      env:
-        S3_BUCKET: '${{ secrets.AWS_TESTNET_S3_DB_SNAPSHOT_BUCKET }}'
-        S3_URL: 'http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com'
-      run: |
-        current_day=$(date "+%Y-%m-%d")
-        echo "<meta http-equiv=\"refresh\" content=\"0;url=${S3_URL}/${{ env.S3_BUCKET }}/db_backup_parity_pruned_${current_day}.tar.gz\">" | \
-          aws s3 cp - s3://${{ env.S3_BUCKET }}/latest-parity-pruned.html \
-            --website-redirect ${{ env.S3_URL }}/${current_day}/db_backup_parity_pruned_${current_day}.tar.gz
-
-  slack-notification:
-    name: Slack notification
-    runs-on: ubuntu-20.04
-    needs: [mark-snapshot-as-latest]
-    if: >
-      !cancelled() &&
-      github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Send Slack message
-        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
-        with:
-          notify-on: "failure"
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

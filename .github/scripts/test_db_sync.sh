@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euox pipefail
 echo "Starting db sync test."
 
 PARITY_DB="false"
@@ -42,23 +42,25 @@ else
     DB_PATH="chains/testnet/"
     TARGET_CHAIN="wss://ws.test.azero.dev"
 fi
+
+DB_ARG=""
 if [[ "${PRUNING}" == "true" || "${PARITY_DB}" == "true" ]]; then
     if [[ "${PRUNING}" == "true" ]]; then
-       DB_ARG="--database paritydb --enable-pruning"
+        DB_ARG="--database paritydb --enable-pruning"
     else
         DB_ARG="--database paritydb"
     fi
     if [[ "${ENV}" == "mainnet" ]]; then
         if [[ "${PRUNING}" == "true" ]]; then
-          DB_SNAPSHOT_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
+            DB_SNAPSHOT_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
         else
-          DB_SNAPSHOT_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity.html"
+            DB_SNAPSHOT_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity.html"
         fi
     else
         if [[ "${PRUNING}" == "true" ]]; then
             DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity-pruned.html"
         else
-             DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity.html"
+            DB_SNAPSHOT_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com/latest-parity.html"
         fi
     fi
 else
