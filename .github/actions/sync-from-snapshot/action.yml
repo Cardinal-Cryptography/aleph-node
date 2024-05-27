@@ -5,10 +5,6 @@ inputs:
   aleph-node-artifact-name:
     required: true
     description: 'Name of artifact aleph-node binary'
-  timeout:
-    description: "Test timeout in minutes"
-    type: number
-    required: true
   args:
     description: "Test arguments passed to bash test runner"
     type: string
@@ -58,7 +54,7 @@ runs:
         echo "snapshot-day=${snapshot_day}" >> $GITHUB_OUTPUT
 
     - name: Download snapshot and test db sync
-      timeout-minutes: ${{ inputs.timeout }}
+      shell: bash
       run: |
         ./.github/scripts/test_db_sync.sh \
           ${{ inputs.args }} \

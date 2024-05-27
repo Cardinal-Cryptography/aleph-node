@@ -37,10 +37,10 @@ jobs:
 
       - name: Test sync
         uses: ./.github/actions/sync-from-snapshot
+        timeout-minutes: 300
         with:
           # yamllint disable-line rule:line-length
           aleph-node-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
-          timeout: 300
           args: --testnet --parity-db
           aws-access-key-id: ${{ secrets.AWS_TESTNET_S3_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_TESTNET_S3_SECRET_ACCESS_KEY }}
