@@ -62,7 +62,7 @@ ARGS=(
   --runtime-cache-size "${RUNTIME_CACHE_SIZE}"
   --max-runtime-instances "${MAX_RUNTIME_INSTANCES}"
   --detailed-log-output
-  --max-subscriptions-per-connections "${MAX_SUBSCRIPTIONS_PER_CONNECTION}"
+  --rpc-max-subscriptions-per-connection "${MAX_SUBSCRIPTIONS_PER_CONNECTION}"
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
