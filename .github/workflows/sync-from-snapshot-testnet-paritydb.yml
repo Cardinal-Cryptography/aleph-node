@@ -44,4 +44,18 @@ jobs:
           args: --testnet --parity-db
           aws-access-key-id: ${{ secrets.AWS_TESTNET_S3_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_TESTNET_S3_SECRET_ACCESS_KEY }}
-          slack-webhook: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+
+  slack-notification:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [test-sync]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}

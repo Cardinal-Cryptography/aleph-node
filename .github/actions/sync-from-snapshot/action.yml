@@ -25,10 +25,6 @@ inputs:
     description: 'AWS Secret Access Key to be used when storing artifacts'
     required: true
     type: string
-  slack-webhook:
-    description: 'Slack webhook url to send notification to.'
-    required: true
-    type: string
 
 runs:
   using: "composite"
