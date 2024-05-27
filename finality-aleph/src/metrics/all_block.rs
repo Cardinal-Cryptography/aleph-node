@@ -154,8 +154,8 @@ impl AllBlockMetrics {
         }
     }
 
-    pub fn report_importing(&self, block_id: BlockId) {
-        self.report_checkpoint(block_id, Checkpoint::Importing, None);
+    pub fn report_importing(&self, block_id: BlockId, own: bool) {
+        self.report_checkpoint(block_id, Checkpoint::Importing, Some(own));
     }
 
     fn report_imported(&self, block_id: BlockId, own: bool) {
@@ -181,7 +181,7 @@ impl AllBlockMetrics {
             block_id.hash(),
             block_id.number(),
             checkpoint,
-            None,
+            is_own,
         );
     }
 }

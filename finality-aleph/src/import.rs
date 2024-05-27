@@ -19,48 +19,6 @@ use crate::{
     BlockId,
 };
 
-/// A wrapper around a block import that also marks the start and end of the import of every block
-/// in the metrics, if provided.
-#[derive(Clone)]
-pub struct TracingBlockImport<I>
-where
-    I: BlockImport<Block> + Send + Sync,
-{
-    inner: I,
-    metrics: AllBlockMetrics,
-}
-
-impl<I> TracingBlockImport<I>
-where
-    I: BlockImport<Block> + Send + Sync,
-{
-    pub fn new(inner: I, metrics: AllBlockMetrics) -> Self {
-        TracingBlockImport { inner, metrics }
-    }
-}
-
-#[async_trait::async_trait]
-impl<I> BlockImport<Block> for TracingBlockImport<I>
-where
-    I: BlockImport<Block> + Send + Sync,
-{
-    type Error = I::Error;
-
-    async fn check_block(
-        &mut self,
-        block: BlockCheckParams<Block>,
-    ) -> Result<ImportResult, Self::Error> {
-        self.inner.check_block(block).await
-    }
-
-    async fn import_block(
-        &mut self,
-        block: BlockImportParams<Block>,
-    ) -> Result<ImportResult, Self::Error> {
-        self.inner.import_block(block).await
-    }
-}
-
 /// A wrapper around a block import that also extracts any present justifications and sends them to
 /// our components which will process them further and possibly finalize the block.
 #[derive(Clone)]

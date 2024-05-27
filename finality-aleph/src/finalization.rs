@@ -11,7 +11,6 @@ use sp_runtime::{
 
 use crate::{
     aleph_primitives::{BlockHash, BlockNumber},
-    metrics::{AllBlockMetrics, Checkpoint},
     BlockId,
 };
 
@@ -26,7 +25,6 @@ where
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
     client: Arc<C>,
-    metrics: AllBlockMetrics,
     phantom: PhantomData<(B, BE)>,
 }
 
@@ -36,10 +34,9 @@ where
     BE: Backend<B>,
     C: HeaderBackend<B> + LockImportRun<B, BE> + Finalizer<B, BE>,
 {
-    pub(crate) fn new(client: Arc<C>, metrics: AllBlockMetrics) -> Self {
+    pub(crate) fn new(client: Arc<C>) -> Self {
         AlephFinalizer {
             client,
-            metrics,
             phantom: PhantomData,
         }
     }

@@ -98,8 +98,7 @@ impl BlockImport<Block> for BlockImporter {
             import_existing: false,
             state: None,
         };
-        self.metrics
-            .report_block(BlockId::new(hash, number), Checkpoint::Importing, Some(own));
+        self.metrics.report_importing((hash, number).into(), own);
         self.importer.import_blocks(origin, vec![incoming_block]);
     }
 }

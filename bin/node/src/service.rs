@@ -10,7 +10,7 @@ use finality_aleph::{
     build_network, run_validator_node, AlephBlockImport, AlephConfig, AllBlockMetrics,
     BlockImporter, BuildNetworkOutput, ChannelProvider, Justification, JustificationTranslator,
     MillisecsPerBlock, RateLimiterConfig, RedirectingBlockImport, SessionPeriod,
-    SubstrateChainStatus, SyncOracle, TracingBlockImport, ValidatorAddressCache,
+    SubstrateChainStatus, SyncOracle, ValidatorAddressCache,
 };
 use log::warn;
 use pallet_aleph_runtime_api::AlephSessionApi;

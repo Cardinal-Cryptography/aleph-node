@@ -68,7 +68,7 @@ pub use crate::{
         substrate::{BlockImporter, Justification, JustificationTranslator, SubstrateChainStatus},
         BlockId,
     },
-    import::{AlephBlockImport, RedirectingBlockImport, TracingBlockImport},
+    import::{AlephBlockImport, RedirectingBlockImport},
     justification::AlephJustification,
     metrics::{AllBlockMetrics, DefaultClock, FinalityRateMetrics, TimingBlockMetrics},
     network::{
