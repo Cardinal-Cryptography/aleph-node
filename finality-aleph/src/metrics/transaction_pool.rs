@@ -10,24 +10,25 @@ use substrate_prometheus_endpoint::{
     register, Counter, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 
-use crate::metrics::exponential_buckets_two_sided;
+use crate::metrics::{exponential_buckets_two_sided, timing::Clock};
 
 // Size of transaction cache: 32B (Hash) + 16B (Instant) * `100_000` is approximately 4.8MB
 const TRANSACTION_CACHE_SIZE: usize = 100_000;
 const BUCKETS_FACTOR: f64 = 1.4;
 
 #[derive(Clone)]
-pub enum TransactionPoolMetrics<TxHash> {
+pub enum TransactionPoolMetrics<TxHash, C> {
     Prometheus {
         time_till_block_inclusion: Histogram,
         transactions_not_seen_in_the_pool: Counter<U64>,
         cache: Arc<Mutex<LruCache<TxHash, Instant>>>,
+        clock: C,
     },
     Noop,
 }
 
-impl<TxHash: std::hash::Hash + Eq> TransactionPoolMetrics<TxHash> {
-    pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
+impl<TxHash: std::hash::Hash + Eq, C: Clock> TransactionPoolMetrics<TxHash, C> {
+    pub fn new(registry: Option<&Registry>, clock: C) -> Result<Self, PrometheusError> {
         let registry = match registry {
             None => return Ok(Self::Noop),
             Some(registry) => registry,
@@ -57,17 +58,18 @@ impl<TxHash: std::hash::Hash + Eq> TransactionPoolMetrics<TxHash> {
                 NonZeroUsize::new(TRANSACTION_CACHE_SIZE)
                     .expect("the cache size is a non-zero constant"),
             ))),
+            clock,
         })
     }
 
     pub fn report_in_pool(&self, hash: TxHash) {
-        if let Self::Prometheus { cache, .. } = self {
+        if let Self::Prometheus { cache, clock, .. } = self {
             // Putting new transaction can evict the oldest one. However, even if the
             // removed transaction was actually still in the pool, we don't have
             // any guarantees that it would be eventually included in the block.
             // Therefore, we ignore such transaction.
             let cache = &mut *cache.lock();
-            cache.put(hash, Instant::now());
+            cache.put(hash, clock.now());
         }
     }
 
@@ -76,6 +78,7 @@ impl<TxHash: std::hash::Hash + Eq> TransactionPoolMetrics<TxHash> {
             time_till_block_inclusion,
             transactions_not_seen_in_the_pool,
             cache,
+            ..
         } = self
         {
             let cache = &mut *cache.lock();
@@ -125,6 +128,7 @@ pub mod test {
     use crate::{
         metrics::{
             all_block::{Hashing, TxHash},
+            timing::DefaultClock,
             transaction_pool::TransactionPoolMetrics,
         },
         testing::mocks::{TBlock, THash, TestClient, TestClientBuilderExt},
@@ -244,7 +248,7 @@ pub mod test {
     // Transaction pool metrics tests
     struct TestSetup {
         pub pool: TestTransactionPoolSetup,
-        pub metrics: TransactionPoolMetrics<THash>,
+        pub metrics: TransactionPoolMetrics<THash, DefaultClock>,
         pub block_import_notifications:
             Box<dyn Stream<Item = BlockImportNotification<TBlock>> + Unpin>,
         pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
@@ -270,7 +274,8 @@ pub mod test {
             let pool_import_notifications = pool.import_notification_stream();
 
             let registry = Registry::new();
-            let metrics = TransactionPoolMetrics::new(Some(&registry)).expect("metrics");
+            let metrics =
+                TransactionPoolMetrics::new(Some(&registry), DefaultClock).expect("metrics");
 
             TestSetup {
                 pool,

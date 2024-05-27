@@ -59,7 +59,7 @@ pub struct SloMetrics {
     timing_metrics: TimingBlockMetrics,
     finality_rate_metrics: FinalityRateMetrics,
     best_block_related_metrics: BestBlockRelatedMetrics<SubstrateChainStatus>,
-    transaction_metrics: TransactionPoolMetrics<TxHash>,
+    transaction_metrics: TransactionPoolMetrics<TxHash, DefaultClock>,
     chain_status: SubstrateChainStatus,
 }
 
@@ -87,10 +87,11 @@ impl SloMetrics {
                     BestBlockRelatedMetrics::Noop
                 },
             );
-        let transaction_metrics = TransactionPoolMetrics::new(registry).unwrap_or_else(|e| {
-            warn_creation_failed("transaction pool", e);
-            TransactionPoolMetrics::Noop
-        });
+        let transaction_metrics = TransactionPoolMetrics::new(registry, DefaultClock)
+            .unwrap_or_else(|e| {
+                warn_creation_failed("transaction pool", e);
+                TransactionPoolMetrics::Noop
+            });
 
         SloMetrics {
             timing_metrics,
