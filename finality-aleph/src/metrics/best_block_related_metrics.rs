@@ -1,24 +1,25 @@
-use primitives::{Block, BlockNumber, Header, HeaderT};
-use sp_blockchain::{lowest_common_ancestor, HeaderMetadata};
 use substrate_prometheus_endpoint::{
     register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 
-use crate::BlockId;
+use crate::{block::TreePathAnalyzer, BlockId};
 
-pub enum BestBlockRelatedMetrics<R> {
+pub enum BestBlockRelatedMetrics<TPA> {
     Prometheus {
         top_finalized_block: Gauge<U64>,
         best_block: Gauge<U64>,
         reorgs: Histogram,
-        best_block_header: Header,
-        reorg_detector: R,
+        best_block_id: BlockId,
+        tree_path_analyzer: TPA,
     },
     Noop,
 }
 
-impl<R: ReorgDetector> BestBlockRelatedMetrics<R> {
-    pub fn new(registry: Option<Registry>, reorg_detector: R) -> Result<Self, PrometheusError> {
+impl<TPA: TreePathAnalyzer> BestBlockRelatedMetrics<TPA> {
+    pub fn new(
+        registry: Option<Registry>,
+        tree_path_analyzer: TPA,
+    ) -> Result<Self, PrometheusError> {
         let registry = match registry {
             Some(registry) => registry,
             None => return Ok(Self::Noop),
@@ -37,32 +38,32 @@ impl<R: ReorgDetector> BestBlockRelatedMetrics<R> {
                 )?,
                 &registry,
             )?,
-            best_block_header: Header::new(
-                0,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            reorg_detector,
+            best_block_id: (Default::default(), 0u32).into(),
+            tree_path_analyzer,
         })
     }
 
-    pub fn report_best_block_imported(&self, header: Header) {
+    pub fn report_best_block_imported(&self, block_id: BlockId) {
         if let Self::Prometheus {
             best_block,
             reorgs,
-            reorg_detector,
-            best_block_header,
+            tree_path_analyzer,
+            best_block_id,
             ..
         } = self
         {
-            if let Some(reorg_len) =
-                reorg_detector.retracted_path_length(&header, best_block_header)
+            best_block.set(block_id.number() as u64);
+            match tree_path_analyzer
+                .retracted_path_length(&(block_id.hash(), block_id.number()).into(), best_block_id)
             {
-                reorgs.observe(reorg_len as f64);
+                Ok(0) => {}
+                Ok(reorg_len) => {
+                    reorgs.observe(reorg_len as f64);
+                }
+                Err(e) => {
+                    log::debug!("Failed to calculate reorg length: {:?}", e);
+                }
             }
-            best_block.set(*header.number() as u64)
         }
     }
 
@@ -82,44 +83,17 @@ impl<R: ReorgDetector> BestBlockRelatedMetrics<R> {
     }
 }
 
-pub trait ReorgDetector {
-    fn retracted_path_length(&self, from: &Header, to: &Header) -> Option<BlockNumber>;
-}
-
-struct ReorgDetectorImpl<'a, BE: HeaderMetadata<Block>> {
-    backend: &'a BE,
-}
-
-impl<'a, BE: HeaderMetadata<Block>> ReorgDetector for ReorgDetectorImpl<'a, BE> {
-    fn retracted_path_length(&self, from: &Header, to: &Header) -> Option<BlockNumber> {
-        if from.hash() == to.hash() || from.hash() == *to.parent_hash() {
-            // Quit early when no change or the best is a child of the previous best.
-            return None;
-        }
-        let lca = lowest_common_ancestor(self.backend, from.hash(), to.hash()).ok()?;
-        let len = from.number().saturating_sub(lca.number);
-        if len == 0 {
-            return None;
-        }
-        Some(len)
-    }
-}
-
 #[cfg(test)]
 mod test {
-
-    use std::{collections::HashMap, sync::Arc};
-
-    use futures::{FutureExt, Stream};
-    use parity_scale_codec::Encode;
-    use sc_block_builder::BlockBuilderBuilder;
-    use sc_client_api::{BlockchainEvents, HeaderBackend};
-    use substrate_test_runtime_client::AccountKeyring;
+    use std::sync::Arc;
 
     use super::*;
-    use crate::testing::{
-        client_chain_builder::ClientChainBuilder,
-        mocks::{TBlock, THash, TestClient, TestClientBuilder, TestClientBuilderExt},
+    use crate::{
+        block::UnverifiedHeader,
+        testing::{
+            client_chain_builder::ClientChainBuilder,
+            mocks::{TestClient, TestClientBuilder, TestClientBuilderExt},
+        },
     };
 
     #[tokio::test]
@@ -151,5 +125,53 @@ mod test {
 
         assert_eq!(client.chain_info().best_number, 2);
         assert_eq!(client.chain_info().finalized_hash, chain_b[0].header.hash());
+    }
+
+    impl TreePathAnalyzer for TestClient {
+        type Error = sp_blockchain::Error;
+
+        fn lowest_common_ancestor(&self, a: &BlockId, b: &BlockId) -> Result<BlockId, Self::Error> {
+            return sp_blockchain::lowest_common_ancestor(self, a.hash(), b.hash())
+                .map(|id| BlockId::new(id.hash, id.number));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_reorg_detection() {
+        let client = Arc::new(TestClientBuilder::new().build());
+        let client_builder = Arc::new(TestClientBuilder::new().build());
+        let mut chain_builder = ClientChainBuilder::new(client.clone(), client_builder);
+
+        let a = chain_builder
+            .build_and_import_branch_above(&chain_builder.genesis_hash(), 5)
+            .await;
+        let b = chain_builder
+            .build_and_import_branch_above(&a[0].header.hash(), 3)
+            .await;
+        let c = chain_builder
+            .build_and_import_branch_above(&a[2].header.hash(), 2)
+            .await;
+
+        //                  - C0 - C1
+        //                /
+        // G - A0 - A1 - A2 - A3 - A4
+        //      \
+        //        - B0 - B1 - B2
+
+        for (prev, new_best, expected) in [
+            (&a[1], &a[2], Some(0)),
+            (&a[1], &a[4], Some(0)),
+            (&a[1], &a[1], Some(0)),
+            (&a[2], &b[0], Some(2)),
+            (&b[0], &a[2], Some(1)),
+            (&c[1], &b[2], Some(4)),
+        ] {
+            assert_eq!(
+                client
+                    .retracted_path_length(&prev.header.id(), &new_best.header.id())
+                    .ok(),
+                expected,
+            );
+        }
     }
 }

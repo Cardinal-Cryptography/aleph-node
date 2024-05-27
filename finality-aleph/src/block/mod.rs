@@ -256,3 +256,18 @@ pub trait BestBlockSelector<H: Header>: Sync + Send + Clone {
     /// Return header of the leaf that should be considered the best block.
     async fn select_best(&self) -> Result<H, Self::Error>;
 }
+
+pub trait TreePathAnalyzer: Sync {
+    type Error: Display + Debug;
+
+    fn lowest_common_ancestor(&self, a: &BlockId, b: &BlockId) -> Result<BlockId, Self::Error>;
+
+    fn retracted_path_length(
+        &self,
+        from: &BlockId,
+        to: &BlockId,
+    ) -> Result<BlockNumber, Self::Error> {
+        let lca = self.lowest_common_ancestor(from, to)?;
+        Ok(from.number().saturating_sub(lca.number()))
+    }
+}

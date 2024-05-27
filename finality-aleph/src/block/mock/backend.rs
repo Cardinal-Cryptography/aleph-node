@@ -12,11 +12,12 @@ use crate::{
         mock::{MockBlock, MockHeader, MockJustification, MockNotification},
         Block, BlockImport, BlockStatus, ChainStatus, ChainStatusNotifier,
         EquivocationProof as EquivocationProofT, FinalizationStatus, Finalizer, Header,
-        HeaderVerifier, Justification as JustificationT, JustificationVerifier, VerifiedHeader,
+        HeaderVerifier, Justification as JustificationT, JustificationVerifier, TreePathAnalyzer,
+        VerifiedHeader,
     },
     nodes::VERIFIER_CACHE_SIZE,
     session::{SessionBoundaryInfo, SessionId},
-    BlockId, BlockNumber,
+    BlockId, BlockNumber, SubstrateChainStatus,
 };
 
 #[derive(Clone, Debug)]

@@ -7,50 +7,14 @@ use std::{
 use futures::StreamExt;
 use lru::LruCache;
 use parking_lot::Mutex;
-use sc_transaction_pool_api::{ImportNotificationStream, TransactionFor, TransactionPool};
-use sp_runtime::traits::Member;
+use sc_transaction_pool_api::{ImportNotificationStream, TransactionFor, TransactionPool, TxHash};
+use sp_core::H256;
+use sp_runtime::{traits::Member, OpaqueExtrinsic};
 use substrate_prometheus_endpoint::{
-    register, Counter, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
+    register, Counter, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 
 use crate::metrics::exponential_buckets_two_sided;
-
-#[async_trait::async_trait]
-pub trait TransactionPoolInfoProvider {
-    type TxHash: Member + std::hash::Hash;
-    type Extrinsic: sp_runtime::traits::Extrinsic;
-    async fn next_transaction(&mut self) -> Option<Self::TxHash>;
-
-    fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash;
-}
-
-pub struct TransactionPoolWrapper<T: TransactionPool> {
-    pool: Arc<T>,
-    import_notification_stream: ImportNotificationStream<T::Hash>,
-}
-
-impl<T: TransactionPool> TransactionPoolWrapper<T> {
-    pub fn new(pool: Arc<T>) -> Self {
-        Self {
-            pool: pool.clone(),
-            import_notification_stream: pool.import_notification_stream(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<T: TransactionPool> TransactionPoolInfoProvider for TransactionPoolWrapper<T> {
-    type TxHash = T::Hash;
-    type Extrinsic = TransactionFor<T>;
-
-    async fn next_transaction(&mut self) -> Option<Self::TxHash> {
-        self.import_notification_stream.next().await
-    }
-
-    fn hash_of(&self, extrinsic: &Self::Extrinsic) -> Self::TxHash {
-        self.pool.hash_of(extrinsic)
-    }
-}
 
 // Size of transaction cache: 32B (Hash) + 16B (Instant) * `100_000` is approximately 4.8MB
 const TRANSACTION_CACHE_SIZE: usize = 100_000;
@@ -138,13 +102,13 @@ impl<TxHash: std::hash::Hash + Eq> TransactionPoolMetrics<TxHash> {
 pub mod test {
     use std::{
         collections::HashMap,
-        num::NonZeroUsize,
+        hash::Hash,
         sync::Arc,
         time::{Duration, Instant},
     };
 
+    use frame_support::Hashable;
     use futures::{future, FutureExt, Stream, StreamExt};
-    use lru::LruCache;
     use parity_scale_codec::Encode;
     use sc_basic_authorship::ProposerFactory;
     use sc_block_builder::BlockBuilderBuilder;
@@ -153,9 +117,10 @@ pub mod test {
         HeaderBackend,
     };
     use sc_transaction_pool::{BasicPool, FullChainApi};
-    use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
+    use sc_transaction_pool_api::{
+        ImportNotificationStream, MaintainedTransactionPool, TransactionPool,
+    };
     use sp_consensus::{BlockOrigin, DisableProofRecording, Environment, Proposer as _};
-    use sp_core::H256;
     use sp_runtime::{traits::Block as BlockT, transaction_validity::TransactionSource};
     use substrate_prometheus_endpoint::{Histogram, Registry};
     use substrate_test_client::TestClientBuilder;
@@ -163,8 +128,9 @@ pub mod test {
     use substrate_test_runtime_client::{AccountKeyring, ClientBlockImportExt, ClientExt};
 
     use crate::{
-        metrics::transaction_pool::{
-            TransactionPoolInfoProvider, TransactionPoolMetrics, TransactionPoolWrapper,
+        metrics::{
+            all_block::{Hashing, TxHash},
+            transaction_pool::TransactionPoolMetrics,
         },
         testing::mocks::{TBlock, THash, TestClient, TestClientBuilderExt},
     };
@@ -177,7 +143,6 @@ pub mod test {
         pub client: Arc<TestClient>,
         pub pool: Arc<FullTransactionPool>,
         pub proposer_factory: TProposerFactory,
-        pub transaction_pool_info_provider: TransactionPoolWrapper<BasicPool<TChainApi, TBlock>>,
     }
 
     impl TestTransactionPoolSetup {
@@ -190,7 +155,6 @@ pub mod test {
                 spawner.clone(),
                 client.clone(),
             );
-            let transaction_pool_info_provider = TransactionPoolWrapper::new(pool.clone());
 
             let proposer_factory =
                 ProposerFactory::new(spawner, client.clone(), pool.clone(), None, None);
@@ -199,8 +163,11 @@ pub mod test {
                 client,
                 pool,
                 proposer_factory,
-                transaction_pool_info_provider,
             }
+        }
+
+        pub fn import_notification_stream(&self) -> ImportNotificationStream<TxHash> {
+            self.pool.import_notification_stream()
         }
 
         pub async fn propose_block(&mut self, at: THash, weight_limit: Option<usize>) -> TBlock {
@@ -282,11 +249,11 @@ pub mod test {
     // Transaction pool metrics tests
     struct TestSetup {
         pub pool: TestTransactionPoolSetup,
-        pub metrics: TransactionPoolMetrics<H256>,
-        pub cache: LruCache<THash, Instant>,
+        pub metrics: TransactionPoolMetrics<THash>,
         pub block_import_notifications:
             Box<dyn Stream<Item = BlockImportNotification<TBlock>> + Unpin>,
         pub finality_notifications: Box<dyn Stream<Item = FinalityNotification<TBlock>> + Unpin>,
+        pub pool_import_notifications: ImportNotificationStream<TxHash>,
     }
 
     #[derive(PartialEq, Eq, Hash, Debug)]
@@ -305,17 +272,17 @@ pub mod test {
             let finality_notifications = Box::new(client.finality_notification_stream().fuse());
 
             let pool = TestTransactionPoolSetup::new(client);
+            let pool_import_notifications = pool.import_notification_stream();
 
             let registry = Registry::new();
             let metrics = TransactionPoolMetrics::new(Some(&registry)).expect("metrics");
-            let cache = LruCache::new(NonZeroUsize::new(10).expect("cache"));
 
             TestSetup {
                 pool,
                 metrics,
-                cache,
                 block_import_notifications,
                 finality_notifications,
+                pool_import_notifications,
             }
         }
 
@@ -346,20 +313,15 @@ pub mod test {
                     .expect("block should exist")
                     .expect("block should have body");
                 for xt in body {
-                    let hash = self.pool.pool.hash_of(&xt);
+                    let hash = xt.using_encoded(|x| <Hashing as sp_runtime::traits::Hash>::hash(x));
                     self.metrics.report_in_block(hash);
                 }
                 block_imported_notifications += 1;
             }
-            while let Some(finality) = self.finality_notifications.next().now_or_never() {
+            while self.finality_notifications.next().now_or_never().is_some() {
                 finality_notifications += 1;
             }
-            while let Some(transaction) = self
-                .pool
-                .transaction_pool_info_provider
-                .next_transaction()
-                .now_or_never()
-            {
+            while let Some(transaction) = self.pool_import_notifications.next().now_or_never() {
                 self.metrics
                     .report_in_pool(transaction.expect("stream should not end"));
                 transaction_notifications += 1;

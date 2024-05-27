@@ -11,6 +11,7 @@ use sc_keystore::{Keystore, LocalKeystore};
 use sc_transaction_pool_api::TransactionPool;
 use sp_consensus::SelectChain;
 use sp_consensus_aura::AuraApi;
+use sp_core::H256;
 
 use crate::{
     aleph_primitives::{AuraId, Block},
@@ -21,7 +22,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
-    metrics::{run_chain_state_metrics, transaction_pool::TransactionPoolWrapper},
+    metrics::{run_metrics_service, AllBlockMetrics, SloMetrics},
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},
@@ -59,7 +60,7 @@ where
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
     SC: SelectChain<Block> + 'static,
-    TP: TransactionPool<Block = Block> + 'static,
+    TP: TransactionPool<Block = Block, Hash = H256> + 'static,
 {
     let AlephConfig {
         authentication_network,
@@ -70,7 +71,6 @@ where
         select_chain,
         spawn_handle,
         keystore,
-        metrics,
         registry,
         unit_creation_delay,
         session_period,
@@ -146,22 +146,22 @@ where
 
     let chain_events = client.chain_status_notifier();
 
-    let client_for_slo_metrics = client.clone();
-    let registry_for_slo_metrics = registry.clone();
-    spawn_handle.spawn("aleph/slo-metrics", async move {
-        if let Err(err) = run_chain_state_metrics(
-            client_for_slo_metrics.as_ref(),
-            client_for_slo_metrics.every_import_notification_stream(),
-            client_for_slo_metrics.finality_notification_stream(),
-            registry_for_slo_metrics,
-            TransactionPoolWrapper::new(transaction_pool),
-        )
-        .await
-        {
-            error!(
-                target: LOG_TARGET,
-                "ChainStateMetrics service finished with err: {err}."
-            );
+    let slo_metrics = SloMetrics::new(registry.as_ref(), chain_status.clone());
+    let metrics = slo_metrics.all_block_metrics().clone();
+
+    spawn_handle.spawn("aleph/slo-metrics", {
+        let client = client.clone();
+        async move {
+            if let Err(e) = run_metrics_service(
+                &slo_metrics,
+                &mut client.import_notification_stream(),
+                &mut client.finality_notification_stream(),
+                &mut transaction_pool.import_notification_stream(),
+            )
+            .await
+            {
+                error!(target: LOG_TARGET, "Metrics service finished with error: {e}.");
+            }
         }
     });
 

@@ -16,7 +16,7 @@ use crate::{
     block::{
         substrate::{Justification, LOG_TARGET},
         BlockHash, BlockStatus, ChainStatus, FinalizationStatus, Header, HeaderBackend,
-        Justification as _,
+        Justification as _, TreePathAnalyzer,
     },
     justification::backwards_compatible_decode,
     BlockId,
@@ -280,5 +280,21 @@ impl HeaderBackend<AlephHeader> for SubstrateChainStatus {
             }
             Err(e) => Err(Self::Error::Backend(e)),
         }
+    }
+}
+
+impl TreePathAnalyzer for SubstrateChainStatus {
+    type Error = sp_blockchain::Error;
+
+    fn lowest_common_ancestor(&self, a: &BlockId, b: &BlockId) -> Result<BlockId, Self::Error> {
+        return sp_blockchain::lowest_common_ancestor(
+            self.backend.blockchain(),
+            a.hash(),
+            b.hash(),
+        )
+        .map(|id| BlockId {
+            hash: id.hash,
+            number: id.number,
+        });
     }
 }

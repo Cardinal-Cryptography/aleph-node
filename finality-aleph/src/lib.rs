@@ -270,7 +270,6 @@ pub struct AlephConfig<C, SC, T> {
     pub keystore: Arc<LocalKeystore>,
     pub justification_channel_provider: ChannelProvider<Justification>,
     pub block_rx: mpsc::UnboundedReceiver<AlephBlock>,
-    pub metrics: AllBlockMetrics,
     pub registry: Option<Registry>,
     pub session_period: SessionPeriod,
     pub millisecs_per_block: MillisecsPerBlock,

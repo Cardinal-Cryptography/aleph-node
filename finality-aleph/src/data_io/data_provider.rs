@@ -334,8 +334,7 @@ impl<UH: UnverifiedHeader> DataProvider<UH> {
 
         if let Some(data) = &data_to_propose {
             let top_block = data.head_proposal.top_block();
-            self.metrics
-                .report_block(top_block, Checkpoint::Proposed, None);
+            self.metrics.report_proposed(top_block);
             debug!(target: LOG_TARGET, "Outputting {:?} in get_data", data);
         };
 

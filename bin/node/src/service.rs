@@ -46,11 +46,7 @@ type ServiceComponents = sc_service::PartialComponents<
     FullSelectChain,
     FullImportQueue,
     FullPool,
-    (
-        ChannelProvider<Justification>,
-        Option<Telemetry>,
-        AllBlockMetrics,
-    ),
+    (ChannelProvider<Justification>, Option<Telemetry>),
 >;
 
 struct LimitNonfinalized(u32);
@@ -130,16 +126,13 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
         client.clone(),
     );
 
-    let metrics = AllBlockMetrics::new(config.prometheus_registry());
-
     let justification_channel_provider = ChannelProvider::new();
-    let tracing_block_import = TracingBlockImport::new(client.clone(), metrics.clone());
     let justification_translator = JustificationTranslator::new(
         SubstrateChainStatus::new(backend.clone())
             .map_err(|e| ServiceError::Other(format!("failed to set up chain status: {e}")))?,
     );
     let aleph_block_import = AlephBlockImport::new(
-        tracing_block_import,
+        client.clone(),
         justification_channel_provider.get_sender(),
         justification_translator,
     );
@@ -181,7 +174,7 @@ pub fn new_partial(config: &Configuration) -> Result<ServiceComponents, ServiceE
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (justification_channel_provider, telemetry, metrics),
+        other: (justification_channel_provider, telemetry),
     })
 }
 
@@ -391,7 +384,6 @@ pub fn new_authority(
         keystore: service_components.keystore_container.local_keystore(),
         justification_channel_provider: service_components.other.0,
         block_rx,
-        metrics: service_components.other.2,
         registry: prometheus_registry,
         unit_creation_delay: aleph_config.unit_creation_delay(),
         backup_saving_path: backup_path,

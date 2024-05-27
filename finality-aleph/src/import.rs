@@ -57,27 +57,7 @@ where
         &mut self,
         block: BlockImportParams<Block>,
     ) -> Result<ImportResult, Self::Error> {
-        let post_hash = block.post_hash();
-        let number = *block.post_header().number();
-        let is_own = block.origin == BlockOrigin::Own;
-        // Self-created blocks are imported without using the import queue,
-        // so we need to report them here.
-        self.metrics.report_block(
-            BlockId::new(post_hash, number),
-            Checkpoint::Importing,
-            Some(is_own),
-        );
-
-        let result = self.inner.import_block(block).await;
-
-        if let Ok(ImportResult::Imported(_)) = &result {
-            self.metrics.report_block(
-                BlockId::new(post_hash, number),
-                Checkpoint::Imported,
-                Some(is_own),
-            );
-        }
-        result
+        self.inner.import_block(block).await
     }
 }
 
