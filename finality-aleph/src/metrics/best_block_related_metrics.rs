@@ -131,8 +131,8 @@ mod test {
         type Error = sp_blockchain::Error;
 
         fn lowest_common_ancestor(&self, a: &BlockId, b: &BlockId) -> Result<BlockId, Self::Error> {
-            return sp_blockchain::lowest_common_ancestor(self, a.hash(), b.hash())
-                .map(|id| BlockId::new(id.hash, id.number));
+            sp_blockchain::lowest_common_ancestor(self, a.hash(), b.hash())
+                .map(|id| BlockId::new(id.hash, id.number))
         }
     }
 

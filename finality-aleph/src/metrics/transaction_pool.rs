@@ -308,7 +308,7 @@ pub mod test {
                     .expect("block should exist")
                     .expect("block should have body");
                 for xt in body {
-                    let hash = xt.using_encoded(|x| <Hashing as sp_runtime::traits::Hash>::hash(x));
+                    let hash = xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash);
                     self.metrics.report_in_block(hash);
                 }
                 block_imported_notifications += 1;

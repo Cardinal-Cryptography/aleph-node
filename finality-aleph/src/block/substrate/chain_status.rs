@@ -287,14 +287,11 @@ impl TreePathAnalyzer for SubstrateChainStatus {
     type Error = sp_blockchain::Error;
 
     fn lowest_common_ancestor(&self, a: &BlockId, b: &BlockId) -> Result<BlockId, Self::Error> {
-        return sp_blockchain::lowest_common_ancestor(
-            self.backend.blockchain(),
-            a.hash(),
-            b.hash(),
+        sp_blockchain::lowest_common_ancestor(self.backend.blockchain(), a.hash(), b.hash()).map(
+            |id| BlockId {
+                hash: id.hash,
+                number: id.number,
+            },
         )
-        .map(|id| BlockId {
-            hash: id.hash,
-            number: id.number,
-        });
     }
 }

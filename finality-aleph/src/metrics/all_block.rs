@@ -56,73 +56,16 @@ pub type Hashing = sp_runtime::traits::HashingFor<Block>;
 pub type TxHash = <Hashing as sp_runtime::traits::Hash>::Output;
 
 pub struct SloMetrics {
-    all_block_metrics: AllBlockMetrics,
-    transaction_metrics: TransactionPoolMetrics<TxHash>,
+    timing_metrics: TimingBlockMetrics,
+    finality_rate_metrics: FinalityRateMetrics,
     best_block_related_metrics: BestBlockRelatedMetrics<SubstrateChainStatus>,
+    transaction_metrics: TransactionPoolMetrics<TxHash>,
     chain_status: SubstrateChainStatus,
 }
 
 impl SloMetrics {
     pub fn new(registry: Option<&Registry>, chain_status: SubstrateChainStatus) -> Self {
         let warn_creation_failed = |name, e| warn!(target: LOG_TARGET, "Failed to register Prometheus {name} metrics: {e:?}.");
-        let all_block_metrics = AllBlockMetrics::new(registry);
-        let best_block_related_metrics =
-            BestBlockRelatedMetrics::new(registry.cloned(), chain_status.clone()).unwrap_or_else(
-                |e| {
-                    warn_creation_failed("best block related", e);
-                    BestBlockRelatedMetrics::Noop
-                },
-            );
-        let transaction_metrics = TransactionPoolMetrics::new(registry).unwrap_or_else(|e| {
-            warn_creation_failed("transaction pool", e);
-            TransactionPoolMetrics::Noop
-        });
-
-        SloMetrics {
-            all_block_metrics,
-            best_block_related_metrics,
-            transaction_metrics,
-            chain_status,
-        }
-    }
-
-    pub fn all_block_metrics(&self) -> &AllBlockMetrics {
-        &self.all_block_metrics
-    }
-
-    pub fn report_transaction_in_pool(&self, hash: TxHash) {
-        self.transaction_metrics.report_in_pool(hash);
-    }
-
-    pub fn report_block_imported(&self, block_id: BlockId, is_new_best: bool, own: bool) {
-        if is_new_best {
-            self.best_block_related_metrics
-                .report_best_block_imported(block_id.clone());
-        }
-        if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
-            for xt in block.extrinsics() {
-                self.transaction_metrics
-                    .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));
-            }
-        }
-        self.all_block_metrics.report_imported(block_id, own);
-    }
-
-    pub fn report_block_finalized(&self, block_id: BlockId) {
-        self.best_block_related_metrics
-            .report_block_finalized(block_id.clone());
-        self.all_block_metrics.report_finalized(block_id);
-    }
-}
-
-#[derive(Clone)]
-pub struct AllBlockMetrics {
-    timing_metrics: TimingBlockMetrics<DefaultClock>,
-    finality_rate_metrics: FinalityRateMetrics,
-}
-
-impl AllBlockMetrics {
-    pub fn new(registry: Option<&Registry>) -> Self {
         let timing_metrics = TimingBlockMetrics::new(registry, DefaultClock).unwrap_or_else(|e| {
             warn!(
                 target: LOG_TARGET,
@@ -137,40 +80,60 @@ impl AllBlockMetrics {
             );
             FinalityRateMetrics::Noop
         });
-        AllBlockMetrics {
+        let best_block_related_metrics =
+            BestBlockRelatedMetrics::new(registry.cloned(), chain_status.clone()).unwrap_or_else(
+                |e| {
+                    warn_creation_failed("best block related", e);
+                    BestBlockRelatedMetrics::Noop
+                },
+            );
+        let transaction_metrics = TransactionPoolMetrics::new(registry).unwrap_or_else(|e| {
+            warn_creation_failed("transaction pool", e);
+            TransactionPoolMetrics::Noop
+        });
+
+        SloMetrics {
             timing_metrics,
             finality_rate_metrics,
+            best_block_related_metrics,
+            transaction_metrics,
+            chain_status,
         }
     }
 
-    pub fn report_importing(&self, block_id: BlockId, own: bool) {
-        self.report_checkpoint(block_id, Checkpoint::Importing, Some(own));
+    pub fn timing_metrics(&self) -> &TimingBlockMetrics {
+        &self.timing_metrics
     }
 
-    fn report_imported(&self, block_id: BlockId, own: bool) {
-        self.report_checkpoint(block_id, Checkpoint::Imported, Some(own));
+    pub fn report_transaction_in_pool(&self, hash: TxHash) {
+        self.transaction_metrics.report_in_pool(hash);
     }
 
-    pub fn report_proposed(&self, block_id: BlockId) {
-        self.report_checkpoint(block_id, Checkpoint::Proposed, None);
-    }
-
-    pub fn report_ordered(&self, block_id: BlockId) {
-        self.report_checkpoint(block_id, Checkpoint::Ordered, None);
-    }
-
-    fn report_finalized(&self, block_id: BlockId) {
-        self.report_checkpoint(block_id, Checkpoint::Finalized, None);
-    }
-
-    fn report_checkpoint(&self, block_id: BlockId, checkpoint: Checkpoint, is_own: Option<bool>) {
+    pub fn report_block_imported(&self, block_id: BlockId, is_new_best: bool, own: bool) {
         self.timing_metrics
-            .report_block(block_id.hash(), checkpoint);
-        self.finality_rate_metrics.report_block(
-            block_id.hash(),
-            block_id.number(),
-            checkpoint,
-            is_own,
-        );
+            .report_block(block_id.hash(), Checkpoint::Imported);
+        if own {
+            self.finality_rate_metrics
+                .report_own_imported(block_id.clone());
+        }
+        if is_new_best {
+            self.best_block_related_metrics
+                .report_best_block_imported(block_id.clone());
+        }
+        if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
+            for xt in block.extrinsics() {
+                self.transaction_metrics
+                    .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));
+            }
+        }
+    }
+
+    pub fn report_block_finalized(&self, block_id: BlockId) {
+        self.timing_metrics
+            .report_block(block_id.hash(), Checkpoint::Finalized);
+        self.finality_rate_metrics
+            .report_finalized(block_id.clone());
+        self.best_block_related_metrics
+            .report_block_finalized(block_id.clone());
     }
 }

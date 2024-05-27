@@ -147,7 +147,7 @@ where
     let chain_events = client.chain_status_notifier();
 
     let slo_metrics = SloMetrics::new(registry.as_ref(), chain_status.clone());
-    let metrics = slo_metrics.all_block_metrics().clone();
+    let timing_metrics = slo_metrics.timing_metrics().clone();
 
     spawn_handle.spawn("aleph/slo-metrics", {
         let client = client.clone();
@@ -180,7 +180,7 @@ where
         genesis_header,
     );
     let finalizer = AlephFinalizer::new(client.clone());
-    import_queue_handle.attach_metrics(metrics.clone());
+    import_queue_handle.attach_metrics(timing_metrics.clone());
 
     let justifications_for_sync = justification_channel_provider.get_sender();
     let sync_io = SyncIO::new(
@@ -256,7 +256,7 @@ where
             justifications_for_sync,
             JustificationTranslator::new(chain_status.clone()),
             request_block,
-            metrics,
+            timing_metrics,
             spawn_handle,
             connection_manager,
             keystore,
