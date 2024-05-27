@@ -11,10 +11,6 @@ on:
   schedule:
     - cron: '0 20 * * 3,6'
   workflow_dispatch:
-  # remove before merge
-  push:
-    branches:
-      - A0-4265-non-parity-db-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -54,17 +50,17 @@ jobs:
           # remove before merge
           snapshot-day: 2024-05-26
 
-#  slack-notification:
-#    name: Slack notification
-#    runs-on: ubuntu-20.04
-#    needs: [test-sync]
-#    if: >
-#      !cancelled() &&
-#      github.event_name != 'workflow_dispatch'
-#    steps:
-#      - name: Send Slack message
-#        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
-#        with:
-#          notify-on: "failure"
-#        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+  slack-notification:
+    name: Slack notification
+    runs-on: ubuntu-20.04
+    needs: [test-sync]
+    if: >
+      !cancelled() &&
+      github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Send Slack message
+        uses: Cardinal-Cryptography/github-actions/slack-notification@v7
+        with:
+          notify-on: "failure"
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
