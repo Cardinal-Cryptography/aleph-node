@@ -18,12 +18,19 @@ on:
         description: "Day in date format %Y-%m-%d. If not given, current date is assumed."
         type: string
         required: false
+      aws-access-key-id:
+        description: 'AWS Access Key ID to be used when storing artifacts'
+        required: true
+        type: string
+      aws-secret-access-key:
+        description: 'AWS Secret Access Key to be used when storing artifacts'
+        required: true
+        type: string
+      slack-webhook:
+        description: 'Slack webhook url to send notification to.'
+        required: true
+        type: string
 jobs:
-  check-vars-and-secrets:
-    name: Check vars and secrets
-    uses: ./.github/workflows/_check-vars-and-secrets.yml
-    secrets: inherit
-
   get-snapshot-day:
     name: Get snapshot day
     runs-on: ubuntu-20.04
@@ -57,7 +64,6 @@ jobs:
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
     env:
       AWS_REGION: us-east-1
-      S3_BUCKET: '${{ secrets.AWS_TESTNET_S3_DB_SNAPSHOT_BUCKET }}'
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -70,8 +76,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_TESTNET_S3_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_TESTNET_S3_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ inputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download snapshot and test db sync
@@ -97,6 +103,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+# uncomment before merge
 #  slack-notification:
 #    name: Slack notification
 #    runs-on: ubuntu-20.04
@@ -110,4 +117,4 @@ jobs:
 #        with:
 #          notify-on: "failure"
 #        env:
-#          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+#          SLACK_WEBHOOK: ${{ inputs.slack-webhook }}

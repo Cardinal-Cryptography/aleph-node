@@ -8,6 +8,7 @@ on:
   schedule:
     - cron: '0 20 * * 3,6'
   workflow_dispatch:
+  # remove before merge
   push:
     branches:
       - A0-4265-non-parity-db-tests
@@ -29,4 +30,8 @@ jobs:
     with:
       timeout: 60
       args: --testnet --parity-db --pruned
+      aws-access-key-id: ${{ secrets.AWS_TESTNET_S3_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_TESTNET_S3_SECRET_ACCESS_KEY }}
+      slack-webhook: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+      # remove before merge
       snapshot-day: 2024-05-26

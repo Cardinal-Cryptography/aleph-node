@@ -7,6 +7,7 @@ PRUNING="false"
 ENV="mainnet"
 SNAPSHOT_DAY=""
 MARK_SNAPSHOT_AS_LATEST=""
+S3_BUCKET=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -43,14 +44,6 @@ if [[ "${PRUNING}" == "true" && "${PARITY_DB}" == "false" ]]; then
     exit 1
 fi
 
-if [[ "${MARK_SNAPSHOT_AS_LATEST}" == "true" ]]; then
-    if [[ -z "${S3_BUCKET}" ]]; then
-        echo "Error! When --mark-snapshot-as-latest is specified, env S3_BUCKET must exists."
-        exit 2
-    fi
-fi
-
-
 BASE_PATH="running/"
 CHAINSPEC="${BASE_PATH}/chainspec.json"
 TOP_BLOCK_SCRIPT="./.github/scripts/get_top_block.py"
@@ -61,12 +54,14 @@ if [[ "${ENV}" == "mainnet" ]]; then
     DB_PATH="chains/mainnet/"
     TARGET_CHAIN="wss://ws.azero.dev"
     S3_URL="http://db.azero.dev.s3-website.eu-central-1.amazonaws.com"
+    S3_BUCKET="db.azero.dev"
 else
     SOURCE_CHAINSPEC="./bin/node/src/resources/testnet_chainspec.json"
     BOOT_NODES=/dns4/bootnode-eu-central-1-0.test.azero.dev/tcp/30333/p2p/12D3KooWRkGLz4YbVmrsWK75VjFTs8NvaBu42xhAmQaP4KeJpw1L/dns4/bootnode-eu-west-1-0.test.azero.dev/tcp/30333/p2p/12D3KooWFVXnvJdPuGnGYMPn5qLQAQYwmRBgo6SmEQsKZSrDoo2k/dns4/bootnode-eu-west-2-0.test.azero.dev/tcp/30333/p2p/12D3KooWAkqYFFKMEJn6fnPjYnbuBBsBZq6fRFJZYR6rxnuCZWCC/dns4/bootnode-us-east-1-0.test.azero.dev/tcp/30333/p2p/12D3KooWQFkkFr5aM5anGEiUCQiGUdRyWgrdpvSjBgWAUS9srLE4/dns4/bootnode-us-east-2-0.test.azero.dev/tcp/30333/p2p/12D3KooWD5s2dkifJua69RbLwEREDdJjsNHvavNRGxdCvzhoeaLc
     DB_PATH="chains/testnet/"
     TARGET_CHAIN="wss://ws.test.azero.dev"
     S3_URL="http://db.test.azero.dev.s3-website.eu-central-1.amazonaws.com"
+    S3_BUCKET="db.test.azero.dev"
 fi
 
 DB_ARG=""
