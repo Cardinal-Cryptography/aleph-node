@@ -35,7 +35,6 @@ MAX_RUNTIME_INSTANCES=${MAX_RUNTIME_INSTANCES:-8}
 BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
 DATABASE_ENGINE=${DATABASE_ENGINE:-}
 PRUNING_ENABLED=${PRUNING_ENABLED:-false}
-MAX_SUBSCRIPTIONS_PER_CONNECTION=${MAX_SUBSCRIPTIONS_PER_CONNECTION:-2000000}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -62,7 +61,6 @@ ARGS=(
   --runtime-cache-size "${RUNTIME_CACHE_SIZE}"
   --max-runtime-instances "${MAX_RUNTIME_INSTANCES}"
   --detailed-log-output
-  --rpc-max-subscriptions-per-connection "${MAX_SUBSCRIPTIONS_PER_CONNECTION}"
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
@@ -137,6 +135,10 @@ ARGS+=(--public-validator-addresses "${PUBLIC_VALIDATOR_ADDRESS}")
 
 if [[ -n "${UNIT_CREATION_DELAY:-}" ]]; then
   ARGS+=(--unit-creation-delay="${UNIT_CREATION_DELAY}")
+fi
+
+if [[ -n "${MAX_SUBSCRIPTIONS_PER_CONNECTION:-}" ]]; then
+  ARGS+=(--rpc-max-subscriptions-per-connection ${MAX_SUBSCRIPTIONS_PER_CONNECTION})
 fi
 
 echo "${CUSTOM_ARGS}" | xargs aleph-node "${ARGS[@]}"
