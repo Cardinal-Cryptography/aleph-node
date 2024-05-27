@@ -22,16 +22,16 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-#  build-production-aleph-node:
-#    needs: [check-vars-and-secrets]
-#    name: Build production aleph-node
-#    uses: ./.github/workflows/_build-aleph-node.yml
-#    with:
-#      ref: ${{ github.ref }}
-#      production: true
+  build-production-aleph-node:
+    needs: [check-vars-and-secrets]
+    name: Build production aleph-node
+    uses: ./.github/workflows/_build-aleph-node.yml
+    with:
+      ref: ${{ github.ref }}
+      production: true
 
   test-sync:
-#    needs: [build-production-aleph-node]
+    needs: [build-production-aleph-node]
     name: Download snapshot and run
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
     steps:
