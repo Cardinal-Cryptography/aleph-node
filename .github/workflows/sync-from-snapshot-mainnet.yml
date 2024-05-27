@@ -46,5 +46,5 @@ jobs:
           timeout: 800
           args: --mainnet
           aws-access-key-id: ${{ secrets.AWS_MAINNET_S3_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_mAINNET_S3_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_MAINNET_S3_SECRET_ACCESS_KEY }}
           slack-webhook: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
