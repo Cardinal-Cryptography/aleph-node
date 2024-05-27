@@ -35,6 +35,7 @@ MAX_RUNTIME_INSTANCES=${MAX_RUNTIME_INSTANCES:-8}
 BACKUP_PATH=${BACKUP_PATH:-${BASE_PATH}/backup-stash}
 DATABASE_ENGINE=${DATABASE_ENGINE:-}
 PRUNING_ENABLED=${PRUNING_ENABLED:-false}
+MAX_SUBSCRIPTIONS_PER_CONNECTION=${MAX_SUBSCRIPTIONS_PER_CONNECTION:-2000000}
 
 if [[ "true" == "$PURGE_BEFORE_START" ]]; then
   echo "Purging chain (${CHAIN}) at path ${BASE_PATH}"
@@ -61,6 +62,7 @@ ARGS=(
   --runtime-cache-size "${RUNTIME_CACHE_SIZE}"
   --max-runtime-instances "${MAX_RUNTIME_INSTANCES}"
   --detailed-log-output
+  --max-subscriptions-per-connections "${MAX_SUBSCRIPTIONS_PER_CONNECTION}"
 )
 
 if [[ -n "${BOOT_NODES:-}" ]]; then
