@@ -1,40 +1,30 @@
 use std::fmt::Debug;
 
 use derive_more::Display;
-use frame_support::Hashable;
-use futures::{channel::mpsc, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 use log::warn;
 use parity_scale_codec::Encode;
 use primitives::Block;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
-use sc_transaction_pool_api::ImportNotificationStream as PoolImportNotificationStream;
 use sp_consensus::BlockOrigin;
-use sp_core::H256;
-use sp_runtime::{
-    traits,
-    traits::{Block as _, HashingFor},
-    OpaqueExtrinsic,
-};
-use substrate_prometheus_endpoint::{PrometheusError, Registry};
+use sp_runtime::traits::Block as _;
+use substrate_prometheus_endpoint::Registry;
 
-use super::{finality_rate::FinalityRateMetrics, timing::DefaultClock, Checkpoint};
+use super::{finality_rate::FinalityRateMetrics, timing::DefaultClock};
 use crate::{
-    block::{
-        BlockchainEvents, ChainStatus, ChainStatusNotifier, Header, TreePathAnalyzer,
-        UnverifiedHeader,
-    },
+    block::ChainStatus,
     metrics::{
-        best_block_related_metrics::BestBlockRelatedMetrics,
-        transaction_pool::TransactionPoolMetrics, LOG_TARGET,
+        best_block_related_metrics::BestBlockRelatedMetrics, timing::Checkpoint,
+        transaction_pool::TransactionPoolMetrics, TimingBlockMetrics, LOG_TARGET,
     },
-    BlockId, SubstrateChainStatus, TimingBlockMetrics,
+    BlockId, SubstrateChainStatus,
 };
 
 #[derive(Debug, Display)]
 pub enum Error {
-    BlockImportStreamClosed,
-    FinalityNotificationStreamClosed,
-    TransactionPoolStreamClosed,
+    BlockImport,
+    FinalityNotification,
+    TransactionPool,
 }
 
 pub async fn run_metrics_service<TS: Stream<Item = TxHash> + Unpin>(
@@ -46,23 +36,23 @@ pub async fn run_metrics_service<TS: Stream<Item = TxHash> + Unpin>(
     loop {
         tokio::select! {
             maybe_block = import_notifications.next() => {
-                let block = maybe_block.ok_or(Error::BlockImportStreamClosed)?;
+                let block = maybe_block.ok_or(Error::BlockImport)?;
                 metrics.report_block_imported((block.hash, block.header.number).into(), block.is_new_best, block.origin == BlockOrigin::Own);
             },
             maybe_block = finality_notifications.next() => {
-                let block = maybe_block.ok_or(Error::FinalityNotificationStreamClosed)?;
+                let block = maybe_block.ok_or(Error::FinalityNotification)?;
                 metrics.report_block_finalized((block.hash, block.header.number).into());
             },
 
             maybe_tx = transaction_pool_stream.next() => {
-                let tx = maybe_tx.ok_or(Error::TransactionPoolStreamClosed)?;
+                let tx = maybe_tx.ok_or(Error::TransactionPool)?;
                 metrics.report_transaction_in_pool(tx);
             },
         }
     }
 }
 
-pub type Hashing = traits::HashingFor<Block>;
+pub type Hashing = sp_runtime::traits::HashingFor<Block>;
 pub type TxHash = <Hashing as sp_runtime::traits::Hash>::Output;
 
 pub struct SloMetrics {
@@ -111,9 +101,8 @@ impl SloMetrics {
         }
         if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
             for xt in block.extrinsics() {
-                self.transaction_metrics.report_in_block(
-                    xt.using_encoded(|x| <Hashing as sp_runtime::traits::Hash>::hash(x)),
-                );
+                self.transaction_metrics
+                    .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));
             }
         }
         self.all_block_metrics.report_imported(block_id, own);

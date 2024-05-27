@@ -5,7 +5,7 @@ use sp_runtime::traits::{CheckedSub, Header as _, One};
 use crate::{
     aleph_primitives::{Block, Header},
     block::{Block as BlockT, BlockId, BlockImport, Header as HeaderT, UnverifiedHeader},
-    metrics::{AllBlockMetrics, Checkpoint},
+    metrics::AllBlockMetrics,
 };
 
 mod chain_status;
@@ -19,7 +19,7 @@ pub use justification::{
     InnerJustification, Justification, JustificationTranslator, TranslateError,
 };
 pub use status_notifier::SubstrateChainStatusNotifier;
-pub use verification::{SessionVerifier, SubstrateFinalizationInfo, VerifierCache};
+pub use verification::{SubstrateFinalizationInfo, VerifierCache};
 
 use crate::block::{BestBlockSelector, BlockchainEvents};
 

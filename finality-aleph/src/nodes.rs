@@ -22,7 +22,7 @@ use crate::{
     crypto::AuthorityPen,
     finalization::AlephFinalizer,
     idx_to_account::ValidatorIndexToAccountIdConverterImpl,
-    metrics::{run_metrics_service, AllBlockMetrics, SloMetrics},
+    metrics::{run_metrics_service, SloMetrics},
     network::{
         address_cache::validator_address_cache_updater,
         session::{ConnectionManager, ConnectionManagerConfig},

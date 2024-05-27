@@ -5,10 +5,8 @@ mod timing;
 pub mod transaction_pool;
 
 pub use all_block::{run_metrics_service, AllBlockMetrics, SloMetrics};
-pub use finality_rate::FinalityRateMetrics;
-use log::error;
 use substrate_prometheus_endpoint::{exponential_buckets, prometheus};
-pub use timing::{Checkpoint, DefaultClock, TimingBlockMetrics};
+pub use timing::TimingBlockMetrics;
 
 const LOG_TARGET: &str = "aleph-metrics";
 

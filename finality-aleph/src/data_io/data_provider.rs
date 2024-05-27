@@ -9,7 +9,7 @@ use crate::{
     aleph_primitives::BlockNumber,
     block::{BestBlockSelector, Header, HeaderBackend, UnverifiedHeader},
     data_io::{proposal::UnvalidatedAlephProposal, AlephData, MAX_DATA_BRANCH_LEN},
-    metrics::{AllBlockMetrics, Checkpoint},
+    metrics::AllBlockMetrics,
     party::manager::Runnable,
     BlockId, SessionBoundaries,
 };

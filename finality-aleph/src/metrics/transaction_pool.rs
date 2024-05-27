@@ -4,12 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures::StreamExt;
 use lru::LruCache;
 use parking_lot::Mutex;
-use sc_transaction_pool_api::{ImportNotificationStream, TransactionFor, TransactionPool, TxHash};
-use sp_core::H256;
-use sp_runtime::{traits::Member, OpaqueExtrinsic};
 use substrate_prometheus_endpoint::{
     register, Counter, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
@@ -55,7 +51,7 @@ impl<TxHash: std::hash::Hash + Eq> TransactionPoolMetrics<TxHash> {
             )?,
             transactions_not_seen_in_the_pool: register(
                 Counter::new("aleph_transactions_not_seen_in_the_pool", "no help")?,
-                &registry,
+                registry,
             )?,
             cache: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(TRANSACTION_CACHE_SIZE)
@@ -107,7 +103,6 @@ pub mod test {
         time::{Duration, Instant},
     };
 
-    use frame_support::Hashable;
     use futures::{future, FutureExt, Stream, StreamExt};
     use parity_scale_codec::Encode;
     use sc_basic_authorship::ProposerFactory;

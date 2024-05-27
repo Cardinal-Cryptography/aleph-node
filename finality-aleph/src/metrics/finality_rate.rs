@@ -8,8 +8,7 @@ use sc_service::Arc;
 use sp_core::{bounded_vec::BoundedVec, ConstU32};
 use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
-use super::Checkpoint;
-use crate::metrics::LOG_TARGET;
+use crate::metrics::{timing::Checkpoint, LOG_TARGET};
 
 const MAX_CACHE_SIZE: usize = 1800;
 const MAX_INNER_SIZE: u32 = 64;
@@ -116,7 +115,7 @@ mod tests {
     use primitives::{BlockHash, BlockNumber};
     use substrate_prometheus_endpoint::{Counter, Registry, U64};
 
-    use crate::{metrics::finality_rate::ImportedHashesCache, FinalityRateMetrics};
+    use super::{FinalityRateMetrics, ImportedHashesCache};
 
     type FinalityRateMetricsInternals = (Counter<U64>, Counter<U64>, ImportedHashesCache);
 

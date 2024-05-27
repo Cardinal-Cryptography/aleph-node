@@ -17,7 +17,7 @@ use crate::{
     },
     nodes::VERIFIER_CACHE_SIZE,
     session::{SessionBoundaryInfo, SessionId},
-    BlockId, BlockNumber, SubstrateChainStatus,
+    BlockId, BlockNumber,
 };
 
 #[derive(Clone, Debug)]

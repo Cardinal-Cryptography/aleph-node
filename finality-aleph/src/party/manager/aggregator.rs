@@ -19,7 +19,7 @@ use crate::{
     },
     crypto::Signature,
     justification::AlephJustification,
-    metrics::{AllBlockMetrics, Checkpoint},
+    metrics::AllBlockMetrics,
     network::data::Network,
     party::{
         manager::aggregator::AggregatorVersion::{Current, Legacy},
