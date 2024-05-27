@@ -31,23 +31,6 @@ on:
         required: true
         type: string
 jobs:
-  get-snapshot-day:
-    name: Get snapshot day
-    runs-on: ubuntu-20.04
-    outputs:
-      snapshot-day: ${{ steps.get-day.outputs.snapshot-day }}
-    steps:
-      - name: Get snapshot day
-        id: get-day
-        shell: bash
-        run: | 
-          if [[ '${{ inputs.snapshot-day }}' == "" ]]; then
-            snapshot_day=$(date "+%Y-%m-%d")
-          else
-            snapshot_day='${{ inputs.snapshot-day }}'
-          fi
-          echo "snapshot-day=${snapshot_day}" >> $GITHUB_OUTPUT
-
   build-production-aleph-node:
     needs: [check-vars-and-secrets]
     name: Build production aleph-node
@@ -59,7 +42,6 @@ jobs:
   get-snapshot-and-sync:
     needs:
       - build-production-aleph-node
-      - get-snapshot-day
     name: Download snapshot and run
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
     env:
@@ -80,12 +62,23 @@ jobs:
           aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get snapshot day
+        id: get-snapshot-day
+        shell: bash
+        run: |
+          if [[ '${{ inputs.snapshot-day }}' == "" ]]; then
+            snapshot_day=$(date "+%Y-%m-%d")
+          else
+            snapshot_day='${{ inputs.snapshot-day }}'
+          fi
+          echo "snapshot-day=${snapshot_day}" >> $GITHUB_OUTPUT
+
       - name: Download snapshot and test db sync
         timeout-minutes: ${{ inputs.timeout }}
         run: |
           ./.github/scripts/test_db_sync.sh \
             ${{ inputs.args }} \
-            --snapshot-day ${{ needs.get-snapshot-day.outputs.snapshot-day }} \
+            --snapshot-day ${{ steps.get-snapshot-day.outputs.snapshot-day }} \
             --mark-snapshot-as-latest
 
       - name: Archive logs from failed test

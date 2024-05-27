@@ -22,13 +22,29 @@ jobs:
     uses: ./.github/workflows/_check-vars-and-secrets.yml
     secrets: inherit
 
-  test-sync:
-    name: Test sync
+  build-production-aleph-node:
     needs: [check-vars-and-secrets]
-    uses: ./.github/workflows/_sync-from-snapshot.yml
+    name: Build production aleph-node
+    uses: ./.github/workflows/_build-aleph-node.yml
     with:
-      timeout: 800
-      args: --mainnet
-      aws-access-key-id: ${{ secrets.AWS_MAINNET_S3_ACCESS_KEY_ID }}
-      aws-secret-access-key: ${{ secrets.AWS_mAINNET_S3_SECRET_ACCESS_KEY }}
-      slack-webhook: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
+      ref: ${{ github.ref }}
+      production: true
+
+  test-sync:
+    needs: [build-production-aleph-node]
+    name: Download snapshot and run
+    runs-on: [self-hosted, Linux, X64, medium-1000GB]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Test sync
+        uses: ./.github/actions/sync-from-snapshot
+        with:
+          # yamllint disable-line rule:line-length
+          aleph-node-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
+          timeout: 800
+          args: --mainnet
+          aws-access-key-id: ${{ secrets.AWS_MAINNET_S3_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_mAINNET_S3_SECRET_ACCESS_KEY }}
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK_DEV_ONDUTY }}
