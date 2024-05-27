@@ -41,17 +41,17 @@ jobs:
           fi
           echo "snapshot-day=${snapshot_day}" >> $GITHUB_OUTPUT
 
-#  build-production-aleph-node:
-#    needs: [check-vars-and-secrets]
-#    name: Build production aleph-node
-#    uses: ./.github/workflows/_build-aleph-node.yml
-#    with:
-#      ref: ${{ github.ref }}
-#      production: true
+  build-production-aleph-node:
+    needs: [check-vars-and-secrets]
+    name: Build production aleph-node
+    uses: ./.github/workflows/_build-aleph-node.yml
+    with:
+      ref: ${{ github.ref }}
+      production: true
 
   get-snapshot-and-sync:
     needs:
-#      - build-production-aleph-node
+      - build-production-aleph-node
       - get-snapshot-day
     name: Download snapshot and run
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
@@ -62,10 +62,10 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-#      - name: Download aleph-node from artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
+      - name: Download aleph-node from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
