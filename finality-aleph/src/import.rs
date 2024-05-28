@@ -6,9 +6,10 @@ use std::{
 use futures::channel::mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender};
 use log::{debug, warn};
 use sc_consensus::{
-    BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
+    BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
+    JustificationImport,
 };
-use sp_consensus::Error as ConsensusError;
+use sp_consensus::{BlockOrigin, Error as ConsensusError, SelectChain};
 use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
 use crate::{
@@ -17,6 +18,76 @@ use crate::{
     justification::{backwards_compatible_decode, DecodeError},
     BlockId,
 };
+
+/// Constructs block import specific for aleph consensus.
+pub fn get_aleph_block_import<I, SC>(
+    inner: I,
+    justification_tx: UnboundedSender<Justification>,
+    translator: JustificationTranslator,
+    select_chain: SC,
+) -> impl BlockImport<Block, Error = I::Error> + JustificationImport<Block, Error = ConsensusError> + Clone
+where
+    I: BlockImport<Block> + Send + Sync + Clone,
+    SC: SelectChain<Block> + Send + Sync,
+{
+    let favourite_marker_import = FavouriteMarkerBlockImport::new(inner, select_chain);
+
+    AlephBlockImport::new(favourite_marker_import, justification_tx, translator)
+}
+
+/// A wrapper around a block import that also checks if the newly imported block is potentially
+/// a new favourite block.
+#[derive(Clone)]
+struct FavouriteMarkerBlockImport<I, SC>
+where
+    I: BlockImport<Block> + Send + Sync,
+    SC: SelectChain<Block> + Send + Sync,
+{
+    inner: I,
+    select_chain: SC,
+}
+
+impl<I, SC> FavouriteMarkerBlockImport<I, SC>
+where
+    I: BlockImport<Block> + Send + Sync,
+    SC: SelectChain<Block> + Send + Sync,
+{
+    pub fn new(inner: I, select_chain: SC) -> Self {
+        Self {
+            inner,
+            select_chain,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<I, SC> BlockImport<Block> for FavouriteMarkerBlockImport<I, SC>
+where
+    I: BlockImport<Block> + Send + Sync,
+    SC: SelectChain<Block> + Send + Sync,
+{
+    type Error = I::Error;
+
+    async fn check_block(
+        &mut self,
+        block: BlockCheckParams<Block>,
+    ) -> Result<ImportResult, Self::Error> {
+        self.inner.check_block(block).await
+    }
+
+    async fn import_block(
+        &mut self,
+        mut block: BlockImportParams<Block>,
+    ) -> Result<ImportResult, Self::Error> {
+        if let Ok(best) = self.select_chain.best_chain().await {
+            block.fork_choice = Some(ForkChoiceStrategy::Custom(
+                best.hash() == *block.header.parent_hash(),
+            ));
+        }
+
+        self.inner.import_block(block).await
+    }
+}
 
 /// A wrapper around a block import that also extracts any present justifications and sends them to
 /// our components which will process them further and possibly finalize the block.

@@ -68,7 +68,7 @@ pub use crate::{
         substrate::{BlockImporter, Justification, JustificationTranslator, SubstrateChainStatus},
         BlockId,
     },
-    import::{AlephBlockImport, RedirectingBlockImport},
+    import::{get_aleph_block_import, AlephBlockImport, RedirectingBlockImport},
     justification::AlephJustification,
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
@@ -76,6 +76,7 @@ pub use crate::{
     },
     nodes::run_validator_node,
     session::SessionPeriod,
+    sync::FavouriteSelectChainProvider,
     sync_oracle::SyncOracle,
 };
 
@@ -258,13 +259,13 @@ pub struct RateLimiterConfig {
     pub alephbft_bit_rate_per_connection: usize,
 }
 
-pub struct AlephConfig<C, SC, T> {
+pub struct AlephConfig<C, T> {
     pub authentication_network: ProtocolNetwork,
     pub block_sync_network: ProtocolNetwork,
     pub client: Arc<C>,
     pub chain_status: SubstrateChainStatus,
     pub import_queue_handle: BlockImporter,
-    pub select_chain: SC,
+    pub select_chain_provider: FavouriteSelectChainProvider<AlephBlock>,
     pub spawn_handle: SpawnHandle,
     pub keystore: Arc<LocalKeystore>,
     pub justification_channel_provider: ChannelProvider<Justification>,
