@@ -64,23 +64,24 @@ else
     S3_BUCKET="db.test.azero.dev"
 fi
 
-DB_ARG=""
+declare -a DB_ARG
 S3_SNAPSHOT_PREFIX=""
-LATEST_SNAPSHOT_FILE_NAME=""
-if [[ "${PRUNING}" == "true" || "${PARITY_DB}" == "true" ]]; then
-    if [[ "${PRUNING}" == "true" ]]; then
-        DB_ARG="--database paritydb --enable-pruning"
-        S3_SNAPSHOT_PREFIX="db_backup_parity_pruned"
-        LATEST_SNAPSHOT_FILE_NAME="latest-parity-pruned.html"
-    else
-        DB_ARG="--database paritydb"
-        S3_SNAPSHOT_PREFIX="db_backup_parity"
-        LATEST_SNAPSHOT_FILE_NAME="latest-parity.html"
-    fi
-else
-    S3_SNAPSHOT_PREFIX="db_backup"
-    LATEST_SNAPSHOT_FILE_NAME="latest.html"
+LATEST_SNAPSHOT_NAME=""
+if [[ "${PARITY_DB}" == "true" ]]; then
+    DB_ARG+=("--database paritydb")
+    S3_SNAPSHOT_PREFIX="db_backup_parity"
+    LATEST_SNAPSHOT_NAME="latest-parity.html"
 fi
+if [[ "${PRUNING}" == "true" ]]; then
+    DB_ARG+=("--enable-pruning")
+    S3_SNAPSHOT_PREFIX="db_backup_parity_pruned"
+    LATEST_SNAPSHOT_NAME="latest-parity-pruned.html"
+fi
+if [[ "${PARITY_DB}" != "true" && "${PRUNING}" != "true" ]]; then
+    S3_SNAPSHOT_PREFIX="db_backup"
+    LATEST_SNAPSHOT_NAME="latest.html"
+fi
+
 if [[ -z "${SNAPSHOT_DAY}" ]]; then
     SNAPSHOT_DAY=$(date "+%Y-%m-%d")
 fi
@@ -135,7 +136,7 @@ chmod +x aleph-node
     --name sync-from-snapshot-tester \
     --bootnodes "${BOOT_NODES}" \
     --node-key-file "${BASE_PATH}/p2p_secret" \
-    ${DB_ARG} \
+    ${DB_ARG[*]} \
     --no-mdns 1>/dev/null 2> "${BASE_PATH}/aleph-node.log" &
 
 get_current_block
@@ -149,7 +150,7 @@ done
 
 if [[ "${MARK_SNAPSHOT_AS_LATEST}" == "true" ]]; then
   echo "<meta http-equiv=\"refresh\" content=\"0;url=${S3_URL}/${SNAPSHOT_DAY}/${S3_SNAPSHOT_PREFIX}_${SNAPSHOT_DAY}.tar.gz\">" | \
-    aws s3 cp - "s3://${S3_BUCKET}/${LATEST_SNAPSHOT_FILE_NAME}" \
+    aws s3 cp - "s3://${S3_BUCKET}/${LATEST_SNAPSHOT_NAME}" \
       --website-redirect "${S3_URL}/${SNAPSHOT_DAY}/${S3_SNAPSHOT_PREFIX}_${SNAPSHOT_DAY}.tar.gz"
 fi
 
