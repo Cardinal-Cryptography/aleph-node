@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use derive_more::Display;
 use futures::{Stream, StreamExt};
-use log::warn;
+use log::{info, warn};
 use parity_scale_codec::Encode;
 use primitives::Block;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
@@ -33,6 +33,10 @@ pub async fn run_metrics_service<TS: Stream<Item = TxHash> + Unpin>(
     finality_notifications: &mut FinalityNotifications<Block>,
     transaction_pool_stream: &mut TS,
 ) -> Result<(), Error> {
+    if metrics.is_noop() {
+        info!(target: LOG_TARGET, "Stopping metrics service: metrics were disabled.");
+        return Ok(());
+    }
     loop {
         tokio::select! {
             maybe_block = import_notifications.next() => {
@@ -100,6 +104,16 @@ impl SloMetrics {
             transaction_metrics,
             chain_status,
         }
+    }
+
+    pub fn is_noop(&self) -> bool {
+        matches!(self.timing_metrics, TimingBlockMetrics::Noop)
+            && matches!(self.finality_rate_metrics, FinalityRateMetrics::Noop)
+            && matches!(
+                self.best_block_related_metrics,
+                BestBlockRelatedMetrics::Noop
+            )
+            && matches!(self.transaction_metrics, TransactionPoolMetrics::Noop)
     }
 
     pub fn timing_metrics(&self) -> &TimingBlockMetrics {
