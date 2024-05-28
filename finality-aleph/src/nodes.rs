@@ -178,7 +178,6 @@ where
     );
     let finalizer = AlephFinalizer::new(client.clone());
     import_queue_handle.attach_metrics(timing_metrics.clone());
-
     let justifications_for_sync = justification_channel_provider.get_sender();
     let sync_io = SyncIO::new(
         SyncDatabaseIO::new(chain_status.clone(), finalizer, import_queue_handle),

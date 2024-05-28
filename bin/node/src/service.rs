@@ -41,7 +41,6 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullPool = sc_transaction_pool::FullPool<Block, FullClient>;
 type FullImportQueue = sc_consensus::DefaultImportQueue<Block>;
 type FullProposerFactory = ProposerFactory<FullPool, FullClient, DisableProofRecording>;
-
 pub struct ServiceComponents {
     pub client: Arc<FullClient>,
     pub backend: Arc<FullBackend>,
