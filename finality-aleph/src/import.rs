@@ -9,7 +9,7 @@ use sc_consensus::{
     BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
     JustificationImport,
 };
-use sp_consensus::{BlockOrigin, Error as ConsensusError, SelectChain};
+use sp_consensus::{Error as ConsensusError, SelectChain};
 use sp_runtime::{traits::Header as HeaderT, Justification as SubstrateJustification};
 
 use crate::{

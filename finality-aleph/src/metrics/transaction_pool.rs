@@ -127,7 +127,7 @@ pub mod test {
 
     use crate::{
         metrics::{
-            all_block::{Hashing, TxHash},
+            slo::{Hashing, TxHash},
             timing::DefaultClock,
             transaction_pool::TransactionPoolMetrics,
         },

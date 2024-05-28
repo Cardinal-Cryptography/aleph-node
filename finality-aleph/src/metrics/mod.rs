@@ -1,10 +1,10 @@
-mod all_block;
 mod best_block_related_metrics;
 mod finality_rate;
+mod slo;
 mod timing;
 pub mod transaction_pool;
 
-pub use all_block::{run_metrics_service, SloMetrics};
+pub use slo::{run_metrics_service, SloMetrics};
 pub use timing::Checkpoint;
 pub type TimingBlockMetrics = timing::TimingBlockMetrics<DefaultClock>;
 use substrate_prometheus_endpoint::{exponential_buckets, prometheus};

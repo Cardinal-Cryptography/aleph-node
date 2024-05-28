@@ -10,7 +10,6 @@ use sc_client_api::Backend;
 use sc_keystore::{Keystore, LocalKeystore};
 use sc_transaction_pool_api::TransactionPool;
 use sp_consensus_aura::AuraApi;
-use sp_core::H256;
 
 use crate::{
     aleph_primitives::{AuraId, Block},
@@ -58,7 +57,7 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
-    TP: TransactionPool<Block = Block, Hash = H256> + 'static,
+    TP: TransactionPool<Block = Block, Hash = primitives::Hash> + 'static,
 {
     let AlephConfig {
         authentication_network,
