@@ -1,4 +1,4 @@
-mod best_block_related_metrics;
+mod best_block_related;
 mod finality_rate;
 mod slo;
 mod timing;

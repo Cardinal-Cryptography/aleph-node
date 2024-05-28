@@ -7,14 +7,14 @@ use parity_scale_codec::Encode;
 use primitives::Block;
 use sc_client_api::{FinalityNotifications, ImportNotifications};
 use sp_consensus::BlockOrigin;
-use sp_runtime::traits::Block as _;
+use sp_runtime::traits::{Block as _, Extrinsic};
 use substrate_prometheus_endpoint::Registry;
 
 use super::{finality_rate::FinalityRateMetrics, timing::DefaultClock};
 use crate::{
     block::ChainStatus,
     metrics::{
-        best_block_related_metrics::BestBlockRelatedMetrics, timing::Checkpoint,
+        best_block_related::BestBlockRelatedMetrics, timing::Checkpoint,
         transaction_pool::TransactionPoolMetrics, TimingBlockMetrics, LOG_TARGET,
     },
     BlockId, SubstrateChainStatus,
@@ -123,8 +123,11 @@ impl SloMetrics {
         }
         if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
             for xt in block.extrinsics() {
-                self.transaction_metrics
-                    .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));
+                if let Some(true) = xt.is_signed() {
+                    self.transaction_metrics.report_in_block(
+                        xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash),
+                    );
+                }
             }
         }
     }

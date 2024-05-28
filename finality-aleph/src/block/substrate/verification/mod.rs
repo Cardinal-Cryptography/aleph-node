@@ -20,6 +20,7 @@ mod cache;
 mod verifier;
 
 pub use cache::VerifierCache;
+pub use verifier::SessionVerifier;
 
 /// Supplies finalized number. Will be unified together with other traits we used in A0-1839.
 pub trait FinalizationInfo: Clone + Send + Sync + 'static {
