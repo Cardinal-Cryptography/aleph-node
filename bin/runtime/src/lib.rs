@@ -897,56 +897,54 @@ impl pallet_feature_control::Config for Runtime {
 }
 
 parameter_types! {
-    pub const DissallowPermissionlessEnterDuration: AlephBlockNumber = 0;
-    pub const DissallowPermissionlessExtendDuration: AlephBlockNumber = 0;
+    pub const DisallowPermissionlessEnterDuration: AlephBlockNumber = 0;
+    pub const DisallowPermissionlessExtendDuration: AlephBlockNumber = 0;
 
     // Safe mode on enter will last 900 block, which equals to 1 session
     pub const RootEnterDuration: AlephBlockNumber = 900;
-    // Safe mode on exted will last additional 900 block, which equals to 1 session
+    // Safe mode on extend will last additional 900 block, which equals to 1 session
     pub const RootExtendDuration: AlephBlockNumber = 900;
 
-    pub const DissallowPermissionlessEntering: Option<Balance> = None;
-    pub const DissallowPermissionlessExtending: Option<Balance> = None;
-    pub const DissallowPermissionlessRelease: Option<AlephBlockNumber> = None;
+    pub const DisallowPermissionlessEntering: Option<Balance> = None;
+    pub const DisallowPermissionlessExtending: Option<Balance> = None;
+    pub const DisallowPermissionlessRelease: Option<AlephBlockNumber> = None;
 }
 
 /// Calls that can bypass the safe-mode pallet.
 pub struct SafeModeWhitelistedCalls;
 impl Contains<RuntimeCall> for SafeModeWhitelistedCalls {
     fn contains(call: &RuntimeCall) -> bool {
-        match call {
-            RuntimeCall::System(_) | RuntimeCall::SafeMode(_) | RuntimeCall::Timestamp(_) => true,
-            _ => false,
-        }
+        matches!(
+            call,
+            RuntimeCall::System(_) | RuntimeCall::SafeMode(_) | RuntimeCall::Timestamp(_)
+        )
     }
 }
+
 impl pallet_safe_mode::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type RuntimeHoldReason = RuntimeHoldReason;
     type WhitelistedCalls = SafeModeWhitelistedCalls;
-    type EnterDuration = DissallowPermissionlessEnterDuration;
-    type ExtendDuration = DissallowPermissionlessExtendDuration;
-    type EnterDepositAmount = DissallowPermissionlessEntering;
-    type ExtendDepositAmount = DissallowPermissionlessExtending;
+    type EnterDuration = DisallowPermissionlessEnterDuration;
+    type ExtendDuration = DisallowPermissionlessExtendDuration;
+    type EnterDepositAmount = DisallowPermissionlessEntering;
+    type ExtendDepositAmount = DisallowPermissionlessExtending;
     type ForceEnterOrigin = EnsureRootWithSuccess<AccountId, RootEnterDuration>;
     type ForceExtendOrigin = EnsureRootWithSuccess<AccountId, RootExtendDuration>;
     type ForceExitOrigin = EnsureRoot<AccountId>;
     type ForceDepositOrigin = EnsureRoot<AccountId>;
     type Notify = ();
-    type ReleaseDelay = DissallowPermissionlessRelease;
+    type ReleaseDelay = DisallowPermissionlessRelease;
     type WeightInfo = pallet_safe_mode::weights::SubstrateWeight<Runtime>;
 }
 
-/// Calls that can bypass the safe-mode pallet.
+/// Calls that can bypass the tx-pause pallet.
 /// We always allow system calls and timestamp since it is required for block production
 pub struct TxPauseWhitelistedCalls;
 impl Contains<RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
     fn contains(full_name: &RuntimeCallNameOf<Runtime>) -> bool {
-        match full_name.0.as_slice() {
-            b"System" | b"Timestamp" => true,
-            _ => false,
-        }
+        matches!(full_name.0.as_slice(), b"System" | b"Timestamp")
     }
 }
 
