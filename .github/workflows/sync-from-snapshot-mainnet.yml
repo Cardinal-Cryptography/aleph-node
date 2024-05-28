@@ -8,6 +8,7 @@
 name: Sync from snapshot test, Mainnet, RocksDB
 on:
   # At 22:00 on Wednesday and Saturday
+  # Time corresponds with a snapshot creation time
   schedule:
     - cron: '0 22 * * 3,6'
   workflow_dispatch:
@@ -37,13 +38,13 @@ jobs:
     needs: [build-production-aleph-node]
     name: Download snapshot and run
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
+    timeout-minutes: 500
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Test sync
         uses: ./.github/actions/sync-from-snapshot
-        timeout-minutes: 800
         with:
           # yamllint disable-line rule:line-length
           aleph-node-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}

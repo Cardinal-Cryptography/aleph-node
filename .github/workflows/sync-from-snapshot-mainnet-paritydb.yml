@@ -8,12 +8,10 @@
 name: Sync from snapshot test, Mainnet, ParityDB non-pruned
 on:
   # At 21:00 on Wednesday and Saturday
+  # Time corresponds with a snapshot creation time
   schedule:
     - cron: '0 21 * * 3,6'
   workflow_dispatch:
-  push:
-    branches:
-      - A0-4265-non-parity-db-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -37,21 +35,19 @@ jobs:
     needs: [build-production-aleph-node]
     name: Download snapshot and run
     runs-on: [self-hosted, Linux, X64, medium-1000GB]
+    timeout-minutes: 240
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Test sync
         uses: ./.github/actions/sync-from-snapshot
-        timeout-minutes: 300
         with:
           # yamllint disable-line rule:line-length
           aleph-node-artifact-name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
           args: --mainnet --parity-db
           aws-access-key-id: ${{ secrets.AWS_MAINNET_S3_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_S3_SECRET_ACCESS_KEY }}
-          # remove before merge
-          snapshot-day: 2024-05-26
 
   slack-notification:
     name: Slack notification
