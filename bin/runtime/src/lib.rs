@@ -915,7 +915,7 @@ pub struct SafeModeWhitelistedCalls;
 impl Contains<RuntimeCall> for SafeModeWhitelistedCalls {
     fn contains(call: &RuntimeCall) -> bool {
         match call {
-            RuntimeCall::System(_) | RuntimeCall::SafeMode(_)  | RuntimeCall::Timestamp(_)  => true,
+            RuntimeCall::System(_) | RuntimeCall::SafeMode(_) | RuntimeCall::Timestamp(_) => true,
             _ => false,
         }
     }
