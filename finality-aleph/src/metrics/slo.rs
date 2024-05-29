@@ -136,12 +136,10 @@ impl SloMetrics {
                 .report_best_block_imported(block_id.clone());
         }
         if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
-            for xt in block.extrinsics() {
-                if let Some(true) = xt.is_signed() {
-                    self.transaction_metrics.report_in_block(
-                        xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash),
-                    );
-                }
+            /// Skip inherents - there is always one, namely the timestamp inherent.
+            for xt in block.extrinsics().iter().skip(1) {
+                self.transaction_metrics
+                    .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));
             }
         }
     }
