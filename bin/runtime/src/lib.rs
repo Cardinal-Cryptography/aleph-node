@@ -916,7 +916,10 @@ impl Contains<RuntimeCall> for SafeModeWhitelistedCalls {
     fn contains(call: &RuntimeCall) -> bool {
         matches!(
             call,
-            RuntimeCall::System(_) | RuntimeCall::SafeMode(_) | RuntimeCall::Timestamp(_)
+            RuntimeCall::Sudo(_)
+                | RuntimeCall::System(_)
+                | RuntimeCall::SafeMode(_)
+                | RuntimeCall::Timestamp(_)
         )
     }
 }
@@ -944,7 +947,7 @@ impl pallet_safe_mode::Config for Runtime {
 pub struct TxPauseWhitelistedCalls;
 impl Contains<RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
     fn contains(full_name: &RuntimeCallNameOf<Runtime>) -> bool {
-        matches!(full_name.0.as_slice(), b"System" | b"Timestamp")
+        matches!(full_name.0.as_slice(), b"Sudo" | b"System" | b"Timestamp")
     }
 }
 
