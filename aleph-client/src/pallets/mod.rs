@@ -18,6 +18,8 @@ pub mod fee;
 pub mod multisig;
 /// Pallet Proxy API
 pub mod proxy;
+/// Pallet safe-mode API
+pub mod safe_mode;
 /// Pallet session API
 pub mod session;
 /// Pallet staking API
@@ -34,5 +36,3 @@ pub mod utility;
 pub mod vesting;
 /// Pallet vk storage API
 pub mod vk_storage;
-/// Pallet safe-mode API
-pub mod safe_mode;

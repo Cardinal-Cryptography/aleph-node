@@ -1,8 +1,11 @@
-use crate::{api, AsConnection, BlockHash, BlockNumber, ConnectionApi, connections::TxInfo, RootConnection, SignedConnectionApi, SudoCall, TxStatus};
-use crate::aleph_runtime::RuntimeCall::SafeMode;
-
-use crate::pallet_safe_mode::pallet::Call::{force_enter, force_exit, force_extend};
-
+use crate::{
+    aleph_runtime::RuntimeCall::SafeMode,
+    api,
+    connections::TxInfo,
+    pallet_safe_mode::pallet::Call::{force_enter, force_exit, force_extend},
+    AsConnection, BlockHash, BlockNumber, ConnectionApi, RootConnection, SignedConnectionApi,
+    SudoCall, TxStatus,
+};
 
 /// Pallet SafeMode API which does not require sudo.
 #[async_trait::async_trait]
@@ -18,41 +21,24 @@ pub trait SafeModeApi {
 #[async_trait::async_trait]
 pub trait SafeModeUserApi {
     /// API for [`enter`](https://paritytech.github.io/polkadot-sdk/master/pallet_safe_mode/pallet/struct.Pallet.html#method.enter) call.
-    async fn enter(
-        &self,
-        status: TxStatus,
-    ) -> anyhow::Result<TxInfo>;
+    async fn enter(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 
     /// API for [`extend`](https://paritytech.github.io/polkadot-sdk/master/pallet_safe_mode/pallet/struct.Pallet.html#method.extend) call.
-    async fn extend(
-        &self,
-        status: TxStatus,
-    ) -> anyhow::Result<TxInfo>;
+    async fn extend(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 }
-
 
 /// Pallet SafeMode API that requires sudo.
 #[async_trait::async_trait]
 pub trait SafeModeSudoApi {
     /// API for [`force_enter`](https://paritytech.github.io/polkadot-sdk/master/pallet_safe_mode/pallet/struct.Pallet.html#method.force_enter) call.
-    async fn force_enter(
-        &self,
-        status: TxStatus,
-    ) -> anyhow::Result<TxInfo>;
+    async fn force_enter(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 
     /// API for [`force_extend`](https://paritytech.github.io/polkadot-sdk/master/pallet_safe_mode/pallet/struct.Pallet.html#method.force_extend) call.
-    async fn force_extend(
-        &self,
-        status: TxStatus,
-    ) -> anyhow::Result<TxInfo>;
+    async fn force_extend(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 
     /// API for [`force_exit`](https://paritytech.github.io/polkadot-sdk/master/pallet_safe_mode/pallet/struct.Pallet.html#method.force_exit) call.
-    async fn force_exit(
-        &self,
-        status: TxStatus,
-    ) -> anyhow::Result<TxInfo>;
+    async fn force_exit(&self, status: TxStatus) -> anyhow::Result<TxInfo>;
 }
-
 
 #[async_trait::async_trait]
 impl<C: ConnectionApi + AsConnection> SafeModeApi for C {
@@ -66,18 +52,18 @@ impl<C: ConnectionApi + AsConnection> SafeModeApi for C {
         let enter_duration_addrs = api::constants().safe_mode().enter_duration();
         let extend_duration_addrs = api::constants().safe_mode().extend_duration();
 
-        let enter_duration =
-            self.as_connection()
-                .as_client()
-                .constants()
-                .at(&enter_duration_addrs)
-                .expect("Constant should be set on chain");
-        let extend_duration =
-            self.as_connection()
-                .as_client()
-                .constants()
-                .at(&extend_duration_addrs)
-                .expect("Constant should be set on chain");
+        let enter_duration = self
+            .as_connection()
+            .as_client()
+            .constants()
+            .at(&enter_duration_addrs)
+            .expect("Constant should be set on chain");
+        let extend_duration = self
+            .as_connection()
+            .as_client()
+            .constants()
+            .at(&extend_duration_addrs)
+            .expect("Constant should be set on chain");
 
         (enter_duration, extend_duration)
     }
