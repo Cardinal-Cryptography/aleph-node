@@ -34,3 +34,5 @@ pub mod utility;
 pub mod vesting;
 /// Pallet vk storage API
 pub mod vk_storage;
+/// Pallet safe-mode API
+pub mod safe_mode;
