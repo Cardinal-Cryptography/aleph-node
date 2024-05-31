@@ -900,10 +900,10 @@ parameter_types! {
     pub const DisallowPermissionlessEnterDuration: AlephBlockNumber = 0;
     pub const DisallowPermissionlessExtendDuration: AlephBlockNumber = 0;
 
-    // Safe mode on enter will last 900 block, which equals to 1 session
-    pub const RootEnterDuration: AlephBlockNumber = 900;
-    // Safe mode on extend will last additional 900 block, which equals to 1 session
-    pub const RootExtendDuration: AlephBlockNumber = 900;
+    // Safe mode on enter will last 1 session
+    pub const RootEnterDuration: AlephBlockNumber = DEFAULT_SESSION_PERIOD;
+    // Safe mode on extend will 1 session
+    pub const RootExtendDuration: AlephBlockNumber = DEFAULT_SESSION_PERIOD;
 
     pub const DisallowPermissionlessEntering: Option<Balance> = None;
     pub const DisallowPermissionlessExtending: Option<Balance> = None;
