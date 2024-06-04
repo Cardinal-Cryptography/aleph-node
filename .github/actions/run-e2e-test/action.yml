@@ -90,7 +90,7 @@ runs:
       shell: bash
       run: docker load -i aleph-e2e-client.tar
 
-    - name: Check finalization before e2e test
+    - name: Wait for the finalization before e2e test
       shell: bash
       run: |
         export TIMEOUT_MINUTES="5m"
