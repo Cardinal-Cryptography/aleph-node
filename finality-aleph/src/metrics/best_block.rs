@@ -1,4 +1,5 @@
-use primitives::BlockNumber;
+use crate::BlockNumber;
+use std::error::Error;
 use substrate_prometheus_endpoint::{
     register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
@@ -12,7 +13,7 @@ pub enum BestBlockMetrics {
         best_block: Gauge<U64>,
         reorgs: Histogram,
         best_block_id: BlockId,
-        chain_state: SubstrateChainStatus,
+        chain_status: SubstrateChainStatus,
     },
     Noop,
 }
@@ -20,7 +21,7 @@ pub enum BestBlockMetrics {
 impl BestBlockMetrics {
     pub fn new(
         registry: Option<Registry>,
-        chain_state: SubstrateChainStatus,
+        chain_status: SubstrateChainStatus,
     ) -> Result<Self, PrometheusError> {
         let registry = match registry {
             Some(registry) => registry,
@@ -47,18 +48,30 @@ impl BestBlockMetrics {
                 &registry,
             )?,
             best_block_id: (Default::default(), 0u32).into(),
-            chain_state,
+            chain_status,
         })
     }
 
-    pub fn report_best_block_imported(&self, block_id: BlockId, reorg_len: BlockNumber) {
+    pub fn report_best_block_imported(&mut self, block_id: BlockId) {
         if let Self::Prometheus {
-            best_block, reorgs, ..
+            best_block,
+            ref mut best_block_id,
+            reorgs,
+            chain_status,
+            ..
         } = self
         {
+            let reorg_len = retracted_path_length(chain_status, &best_block_id, &block_id);
             best_block.set(block_id.number() as u64);
-            if reorg_len > 0 {
-                reorgs.observe(reorg_len as f64);
+            *best_block_id = block_id;
+            match reorg_len {
+                Ok(0) => {}
+                Ok(reorg_len) => {
+                    reorgs.observe(reorg_len as f64);
+                }
+                Err(e) => {
+                    log::warn!("Failed to calculate reorg length: {:?}", e);
+                }
             }
         }
     }
@@ -72,4 +85,15 @@ impl BestBlockMetrics {
             top_finalized_block.set(block_id.number() as u64);
         }
     }
+}
+
+fn retracted_path_length(
+    chain_status: &SubstrateChainStatus,
+    from: &BlockId,
+    to: &BlockId,
+) -> Result<BlockNumber, Box<dyn Error>> {
+    let lca = chain_status
+        .lowest_common_ancestor(from, to)
+        .map_err(|e| Box::new(e))?;
+    Ok(from.number().saturating_sub(lca.number()))
 }

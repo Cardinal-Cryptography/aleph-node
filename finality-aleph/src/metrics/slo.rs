@@ -1,7 +1,7 @@
 use futures::{Stream, StreamExt};
 use log::warn;
 use parity_scale_codec::Encode;
-use primitives::{Block, BlockNumber};
+use primitives::Block;
 use sp_runtime::traits::Block as _;
 use substrate_prometheus_endpoint::Registry;
 
@@ -91,13 +91,7 @@ impl SloMetrics {
         self.transaction_metrics.report_in_pool(hash);
     }
 
-    pub fn report_block_imported(
-        &self,
-        block_id: BlockId,
-        is_new_best: bool,
-        reorg_len: BlockNumber,
-        own: bool,
-    ) {
+    pub fn report_block_imported(&mut self, block_id: BlockId, is_new_best: bool, own: bool) {
         self.timing_metrics
             .report_block(block_id.hash(), Checkpoint::Imported);
         if own {
@@ -106,10 +100,10 @@ impl SloMetrics {
         }
         if is_new_best {
             self.best_block_related_metrics
-                .report_best_block_imported(block_id.clone(), reorg_len);
+                .report_best_block_imported(block_id.clone());
         }
         if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
-            // Skip inherents - there is always one, namely the timestamp inherent.
+            // Skip inherents - there is always exactly one, namely the timestamp inherent.
             for xt in block.extrinsics().iter().skip(1) {
                 self.transaction_metrics
                     .report_in_block(xt.using_encoded(<Hashing as sp_runtime::traits::Hash>::hash));

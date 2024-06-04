@@ -20,7 +20,7 @@ use crate::{
         handler::request_handler::RequestHandler,
         PeerId,
     },
-    BlockId, BlockNumber, SyncOracle,
+    BlockId, SyncOracle,
 };
 
 mod request_handler;
@@ -134,13 +134,6 @@ type HandleInternalRequestOutput<J, V> = (
     bool,
     Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
 );
-pub struct BlockImportedOutput<
-    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
-    J: Justification,
-> {
-    pub block_to_broadcast: Option<ResponseItems<B, J>>,
-    pub reorg: Option<BlockNumber>,
-}
 
 impl<B, J> HandleStateAction<B, J>
 where
@@ -303,9 +296,7 @@ where
         self.forest.status()
     }
 
-    fn try_finalize(&mut self) -> Result<Option<BlockNumber>, <Self as HandlerTypes>::Error> {
-        let prev_favourite = self.favourite_block().id();
-        let mut reorg = None;
+    fn try_finalize(&mut self) -> Result<(), <Self as HandlerTypes>::Error> {
         let mut number = self
             .chain_status
             .top_finalized()
@@ -320,7 +311,6 @@ where
                 self.finalizer
                     .finalize(justification)
                     .map_err(Error::Finalizer)?;
-                self.update_reorgs(&mut reorg, &prev_favourite, number);
                 number += 1;
             }
             number = self
@@ -331,24 +321,12 @@ where
                     self.finalizer
                         .finalize(justification)
                         .map_err(Error::Finalizer)?;
-                    self.update_reorgs(&mut reorg, &prev_favourite, number);
                     number += 1;
                 }
                 None => {
-                    return Ok(reorg);
+                    return Ok(());
                 }
             };
-        }
-    }
-
-    fn update_reorgs(
-        &self,
-        reorg: &mut Option<BlockNumber>,
-        prev_favourite: &BlockId,
-        number: BlockNumber,
-    ) {
-        if reorg.is_none() && prev_favourite != &self.favourite_block().id() {
-            *reorg = Some(prev_favourite.number() - number);
         }
     }
 
@@ -369,18 +347,14 @@ where
     pub fn block_imported(
         &mut self,
         header: J::Header,
-    ) -> Result<BlockImportedOutput<B, J>, <Self as HandlerTypes>::Error> {
+    ) -> Result<Option<ResponseItems<B, J>>, <Self as HandlerTypes>::Error> {
         self.forest.update_body(&header)?;
-        let reorg = self.try_finalize()?;
-        Ok(BlockImportedOutput {
-            block_to_broadcast: match self.verifier.own_block(&header) {
-                true => match self.chain_status.block(header.id()) {
-                    Ok(Some(block)) => Some(block_to_response(block)),
-                    _ => return Err(Error::MissingImportedBlock(header.id())),
-                },
-                false => None,
+        Ok(match self.verifier.own_block(&header) {
+            true => match self.chain_status.block(header.id()) {
+                Ok(Some(block)) => Some(block_to_response(block)),
+                _ => return Err(Error::MissingImportedBlock(header.id())),
             },
-            reorg,
+            false => None,
         })
     }
 
@@ -2536,7 +2510,6 @@ mod tests {
         let result = handler
             .block_imported(header)
             .expect("correct")
-            .block_to_broadcast
             .expect("known");
         assert_eq!(result.len(), 1);
         match result.first().expect("the block is there") {
@@ -2581,7 +2554,6 @@ mod tests {
         let broadcast = handler
             .block_imported(header)
             .expect("correct")
-            .block_to_broadcast
             .expect("known");
         match handler.handle_request_response(broadcast, rand::random()) {
             (true, _, _) => panic!("block unexpectedly changed top finalized"),

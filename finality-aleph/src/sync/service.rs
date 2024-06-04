@@ -24,10 +24,7 @@ use crate::{
             VersionedNetworkData,
         },
         forest::ExtensionRequest,
-        handler::{
-            Action, BlockImportedOutput, DatabaseIO, Error as HandlerError, HandleStateAction,
-            Handler,
-        },
+        handler::{Action, DatabaseIO, Error as HandlerError, HandleStateAction, Handler},
         message_limiter::{Error as MsgLimiterError, MsgLimiter},
         metrics::{Event, Metrics},
         task_queue::TaskQueue,
@@ -590,14 +587,10 @@ where
             BlockImported(header) => {
                 trace!(target: LOG_TARGET, "Handling a new imported block.");
                 let mut own_block = false;
-                let mut reorg = None;
                 let id = header.id();
                 self.metrics.report_event(Event::HandleBlockImported);
                 match self.handler.block_imported(header) {
-                    Ok(BlockImportedOutput {
-                        block_to_broadcast,
-                        reorg: maybe_reorg,
-                    }) => {
+                    Ok(block_to_broadcast) => {
                         if let Some(broadcast) = block_to_broadcast {
                             own_block = true;
                             if let Err(e) = self
@@ -610,7 +603,6 @@ where
                                 )
                             }
                         }
-                        reorg = maybe_reorg;
                     }
                     Err(e) => {
                         self.metrics.report_event_error(Event::HandleBlockImported);
@@ -621,12 +613,8 @@ where
                     }
                 }
                 let is_new_best = id == self.handler.favourite_block().id();
-                self.slo_metrics.report_block_imported(
-                    id,
-                    is_new_best,
-                    reorg.unwrap_or(0),
-                    own_block,
-                );
+                self.slo_metrics
+                    .report_block_imported(id, is_new_best, own_block);
             }
             BlockFinalized(header) => {
                 trace!(target: LOG_TARGET, "Handling a new finalized block.");
