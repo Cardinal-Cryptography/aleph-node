@@ -723,7 +723,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: safe_mode_operations_are_disabled_for_users
-          follow-up-finalization-check: true
           artifact-aleph-e2e-client-image: ${{ inputs.artifact-aleph-e2e-client-image }}
           artifact-aleph-node-image: ${{ inputs.artifact-aleph-node-image }}
           artifact-chain-bootstrapper-image: ${{ inputs.artifact-chain-bootstrapper-image }}
@@ -740,7 +739,6 @@ jobs:
         uses: ./.github/actions/run-e2e-test
         with:
           test-case: safe_mode_is_configured_correctly
-          follow-up-finalization-check: true
           artifact-aleph-e2e-client-image: ${{ inputs.artifact-aleph-e2e-client-image }}
           artifact-aleph-node-image: ${{ inputs.artifact-aleph-node-image }}
           artifact-chain-bootstrapper-image: ${{ inputs.artifact-chain-bootstrapper-image }}
