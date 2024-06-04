@@ -85,7 +85,8 @@ if [[ -n "${OUT_LATENCY:-}" ]]; then
     ARGS+=(-e OUT_LATENCY)
 fi
 timeout_duration="${TIMEOUT_MINUTES:-20m}"
-echo "Running test, logs will be shown when tests finishes or after ${timeout_duration} timeout."
+echo "Running e2e test ${TEST_CASES}"
+echo "Logs will be shown when tests finishes or after ${timeout_duration} timeout."
 # a hack to set global timeout on a e2e testcase run
 # we can't do that on GH yaml level due to https://github.com/actions/runner/issues/1979
 docker_service=$(docker run -v "$(pwd)/contracts:/contracts" -v "$(pwd)/docker/data:/data" -v "$(pwd)/e2e-tests:/e2e-tests" -d "${ARGS[@]}" \
