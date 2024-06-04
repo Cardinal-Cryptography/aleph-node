@@ -35,11 +35,11 @@ impl FinalityRateMetrics {
 
         Ok(FinalityRateMetrics::Prometheus {
             own_finalized: register(
-                Counter::new("aleph_own_finalized_blocks", "no help")?,
+                Counter::new("aleph_own_finalized_blocks", "Number of self-produced blocks that became finalized")?,
                 registry,
             )?,
             own_hopeless: register(
-                Counter::new("aleph_own_hopeless_blocks", "no help")?,
+                Counter::new("aleph_own_hopeless_blocks", "Number of self-produced blocks, such that some alternative block with the same block number was finalized")?,
                 registry,
             )?,
             imported_cache: Arc::new(Mutex::new(LruCache::new(

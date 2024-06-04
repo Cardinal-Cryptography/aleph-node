@@ -51,7 +51,15 @@ impl<TxHash: std::hash::Hash + Eq, C: Clock> TransactionPoolMetrics<TxHash, C> {
                 registry,
             )?,
             transactions_not_seen_in_the_pool: register(
-                Counter::new("aleph_transactions_not_seen_in_the_pool", "no help")?,
+                Counter::new(
+                    "aleph_transactions_not_seen_in_the_pool",
+                    "\
+                Number of transactions that were reported to be in block before reporting of \
+                being in the ready queue in the transaction pool. This could happen \
+                for many reasons, e.g. when a transaction has been added to the future pool, \
+                has been submitted locally, or because of a race condition \
+                (especially probable when there is an increased transaction load)",
+                )?,
                 registry,
             )?,
             cache: Arc::new(Mutex::new(LruCache::new(

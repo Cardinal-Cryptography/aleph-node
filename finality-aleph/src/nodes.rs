@@ -147,18 +147,13 @@ where
     let timing_metrics = slo_metrics.timing_metrics().clone();
 
     spawn_handle.spawn("aleph/slo-metrics", {
-        let client = client.clone();
+        let slo_metrics = slo_metrics.clone();
         async move {
-            if let Err(e) = run_metrics_service(
+            run_metrics_service(
                 &slo_metrics,
-                &mut client.import_notification_stream(),
-                &mut client.finality_notification_stream(),
                 &mut transaction_pool.import_notification_stream(),
             )
-            .await
-            {
-                error!(target: LOG_TARGET, "Metrics service finished with error: {e}.");
-            }
+            .await;
         }
     });
 
@@ -194,6 +189,7 @@ where
         session_info.clone(),
         sync_io,
         registry.clone(),
+        slo_metrics,
         favourite_block_user_requests,
     ) {
         Ok(x) => x,

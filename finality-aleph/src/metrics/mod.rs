@@ -1,15 +1,13 @@
-mod best_block_related;
+mod best_block;
 mod finality_rate;
 mod slo;
 mod timing;
 pub mod transaction_pool;
 
 pub use slo::{run_metrics_service, SloMetrics};
-pub use timing::Checkpoint;
+pub use timing::{Checkpoint, DefaultClock};
 pub type TimingBlockMetrics = timing::TimingBlockMetrics<DefaultClock>;
 use substrate_prometheus_endpoint::{exponential_buckets, prometheus};
-
-use crate::metrics::timing::DefaultClock;
 
 const LOG_TARGET: &str = "aleph-metrics";
 

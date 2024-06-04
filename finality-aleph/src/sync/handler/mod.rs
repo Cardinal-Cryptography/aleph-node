@@ -4,6 +4,8 @@ use std::{
     iter,
 };
 
+use primitives::BlockNumber;
+
 use crate::{
     block::{
         Block, BlockImport, ChainStatus, Finalizer, Header, HeaderVerifier, Justification,
@@ -134,6 +136,13 @@ type HandleInternalRequestOutput<J, V> = (
     bool,
     Option<<V as HeaderVerifier<<J as Justification>::Header>>::EquivocationProof>,
 );
+pub struct BlockImportedOutput<
+    B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
+    J: Justification,
+> {
+    pub block_to_broadcast: Option<ResponseItems<B, J>>,
+    pub reorg: Option<BlockNumber>,
+}
 
 impl<B, J> HandleStateAction<B, J>
 where
@@ -296,7 +305,9 @@ where
         self.forest.status()
     }
 
-    fn try_finalize(&mut self) -> Result<(), <Self as HandlerTypes>::Error> {
+    fn try_finalize(&mut self) -> Result<Option<BlockNumber>, <Self as HandlerTypes>::Error> {
+        let prev_favourite = self.favourite_block().id();
+        let mut reorg = None;
         let mut number = self
             .chain_status
             .top_finalized()
@@ -305,28 +316,41 @@ where
             .id()
             .number()
             + 1;
+
         loop {
             while let Some(justification) = self.forest.try_finalize(&number) {
-                self.finalizer
-                    .finalize(justification)
-                    .map_err(Error::Finalizer)?;
-                number += 1;
+                self.level_up(justification, &prev_favourite, &mut number, &mut reorg)?;
             }
             number = self
                 .session_info
                 .last_block_of_session(self.session_info.session_id_from_block_num(number));
             match self.forest.try_finalize(&number) {
                 Some(justification) => {
-                    self.finalizer
-                        .finalize(justification)
-                        .map_err(Error::Finalizer)?;
-                    number += 1;
+                    self.level_up(justification, &prev_favourite, &mut number, &mut reorg)?;
                 }
                 None => {
-                    return Ok(());
+                    return Ok(reorg);
                 }
             };
         }
+    }
+
+    fn level_up(
+        &self,
+        justification: J,
+        prev_favourite: &BlockId,
+        number: &mut BlockNumber,
+        reorg: &mut Option<BlockNumber>,
+    ) -> Result<(), <Self as HandlerTypes>::Error> {
+        self.finalizer
+            .finalize(justification)
+            .map_err(Error::Finalizer)?;
+
+        if reorg.is_none() && prev_favourite != &self.favourite_block().id() {
+            *reorg = Some(prev_favourite.number() - *number);
+        }
+        *number += 1;
+        Ok(())
     }
 
     fn verify_header(
@@ -341,19 +365,23 @@ where
     }
 
     /// Inform the handler that a block has been imported.
-    /// If we are the author, this method prepares the block for broadcast and returns it.
+    /// Returns possibly block to broadcast, if we are the author, and
+    /// the reorg length if occurred.
     pub fn block_imported(
         &mut self,
         header: J::Header,
-    ) -> Result<Option<ResponseItems<B, J>>, <Self as HandlerTypes>::Error> {
+    ) -> Result<BlockImportedOutput<B, J>, <Self as HandlerTypes>::Error> {
         self.forest.update_body(&header)?;
-        self.try_finalize()?;
-        Ok(match self.verifier.own_block(&header) {
-            true => match self.chain_status.block(header.id()) {
-                Ok(Some(block)) => Some(block_to_response(block)),
-                _ => return Err(Error::MissingImportedBlock(header.id())),
+        let reorg = self.try_finalize()?;
+        Ok(BlockImportedOutput {
+            block_to_broadcast: match self.verifier.own_block(&header) {
+                true => match self.chain_status.block(header.id()) {
+                    Ok(Some(block)) => Some(block_to_response(block)),
+                    _ => return Err(Error::MissingImportedBlock(header.id())),
+                },
+                false => None,
             },
-            false => None,
+            reorg,
         })
     }
 
@@ -2509,6 +2537,7 @@ mod tests {
         let result = handler
             .block_imported(header)
             .expect("correct")
+            .block_to_broadcast
             .expect("known");
         assert_eq!(result.len(), 1);
         match result.first().expect("the block is there") {
@@ -2553,6 +2582,7 @@ mod tests {
         let broadcast = handler
             .block_imported(header)
             .expect("correct")
+            .block_to_broadcast
             .expect("known");
         match handler.handle_request_response(broadcast, rand::random()) {
             (true, _, _) => panic!("block unexpectedly changed top finalized"),
