@@ -96,6 +96,8 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
+pub const DAYS: u32 = 24 * 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
+
 pub const BLOCKS_PER_HOUR: u32 = 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
 
 pub const MILLI_AZERO: Balance = TOKEN / 1000;
@@ -154,6 +156,7 @@ impl frame_system::Config for Runtime {
     type AccountId = AccountId;
     /// The aggregated dispatch type that is available for extrinsics.
     type RuntimeCall = RuntimeCall;
+    /// The aggregated Task type.
     type RuntimeTask = RuntimeTask;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = AccountIdLookup<AccountId, ()>;
@@ -577,7 +580,7 @@ impl pallet_staking::Config for Runtime {
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
     type MaxUnlockingChunks = ConstU32<16>;
-    type MaxControllersInDeprecationBatch = ConstU32<64>;
+    type MaxControllersInDeprecationBatch = ConstU32<4084>;
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
     type CurrencyBalance = Balance;
@@ -791,7 +794,7 @@ impl pallet_identity::Config for Runtime {
     type OffchainSignature = Signature;
     type SigningPublicKey = <Signature as Verify>::Signer;
     type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
-    type PendingUsernameExpiration = ConstU32<{ 7 * 24 * 60 * 60 * 1000 }>;
+    type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
     type MaxSuffixLength = ConstU32<7>;
     type MaxUsernameLength = ConstU32<32>;
     type WeightInfo = pallet_identity::weights::SubstrateWeight<Self>;
