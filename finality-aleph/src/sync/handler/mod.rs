@@ -4,8 +4,6 @@ use std::{
     iter,
 };
 
-use primitives::BlockNumber;
-
 use crate::{
     block::{
         Block, BlockImport, ChainStatus, Finalizer, Header, HeaderVerifier, Justification,
@@ -22,7 +20,7 @@ use crate::{
         handler::request_handler::RequestHandler,
         PeerId,
     },
-    BlockId, SyncOracle,
+    BlockId, BlockNumber, SyncOracle,
 };
 
 mod request_handler;
@@ -319,14 +317,22 @@ where
 
         loop {
             while let Some(justification) = self.forest.try_finalize(&number) {
-                self.level_up(justification, &prev_favourite, &mut number, &mut reorg)?;
+                self.finalizer
+                    .finalize(justification)
+                    .map_err(Error::Finalizer)?;
+                self.update_reorgs(&mut reorg, &prev_favourite, number);
+                number += 1;
             }
             number = self
                 .session_info
                 .last_block_of_session(self.session_info.session_id_from_block_num(number));
             match self.forest.try_finalize(&number) {
                 Some(justification) => {
-                    self.level_up(justification, &prev_favourite, &mut number, &mut reorg)?;
+                    self.finalizer
+                        .finalize(justification)
+                        .map_err(Error::Finalizer)?;
+                    self.update_reorgs(&mut reorg, &prev_favourite, number);
+                    number += 1;
                 }
                 None => {
                     return Ok(reorg);
@@ -335,22 +341,15 @@ where
         }
     }
 
-    fn level_up(
+    fn update_reorgs(
         &self,
-        justification: J,
-        prev_favourite: &BlockId,
-        number: &mut BlockNumber,
         reorg: &mut Option<BlockNumber>,
-    ) -> Result<(), <Self as HandlerTypes>::Error> {
-        self.finalizer
-            .finalize(justification)
-            .map_err(Error::Finalizer)?;
-
+        prev_favourite: &BlockId,
+        number: BlockNumber,
+    ) {
         if reorg.is_none() && prev_favourite != &self.favourite_block().id() {
-            *reorg = Some(prev_favourite.number() - *number);
+            *reorg = Some(prev_favourite.number() - number);
         }
-        *number += 1;
-        Ok(())
     }
 
     fn verify_header(
