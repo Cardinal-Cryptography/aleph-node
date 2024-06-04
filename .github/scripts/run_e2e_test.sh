@@ -102,4 +102,9 @@ fi
 echo "Test exited with exit code ${docker_exit_code}"
 echo "Logs from test:"
 docker logs "${docker_service}"
+
+if docker logs "${docker_service}" 2>&1 | grep -q "^running 0 tests"; then
+  echo "No e2e testcase run. This is most likely an error."
+  exit 1
+fi
 exit "${docker_exit_code}"
