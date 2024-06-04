@@ -341,13 +341,13 @@ where
     }
 
     /// Inform the handler that a block has been imported.
-    /// Returns possibly block to broadcast, if we are the author, and
-    /// the reorg length if occurred.
+    /// If we are the author, this method prepares the block for broadcast and returns it.
     pub fn block_imported(
         &mut self,
         header: J::Header,
     ) -> Result<Option<ResponseItems<B, J>>, <Self as HandlerTypes>::Error> {
         self.forest.update_body(&header)?;
+        self.try_finalize()?;
         Ok(match self.verifier.own_block(&header) {
             true => match self.chain_status.block(header.id()) {
                 Ok(Some(block)) => Some(block_to_response(block)),
