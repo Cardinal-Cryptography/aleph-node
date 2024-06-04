@@ -17,7 +17,7 @@ use aleph_client::{
 use crate::config::setup_test;
 
 fn should_be_err<T, R>(result: Result<T, R>, msg: &str) {
-    if let Ok(_) = result {
+    if result.is_ok() {
         panic!("{}", msg);
     }
 }
