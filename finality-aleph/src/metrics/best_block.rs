@@ -1,10 +1,10 @@
-use crate::BlockNumber;
 use std::error::Error;
+
 use substrate_prometheus_endpoint::{
     register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
 };
 
-use crate::{BlockId, SubstrateChainStatus};
+use crate::{BlockId, BlockNumber, SubstrateChainStatus};
 
 #[derive(Clone)]
 pub enum BestBlockMetrics {
@@ -61,7 +61,7 @@ impl BestBlockMetrics {
             ..
         } = self
         {
-            let reorg_len = retracted_path_length(chain_status, &best_block_id, &block_id);
+            let reorg_len = retracted_path_length(chain_status, best_block_id, &block_id);
             best_block.set(block_id.number() as u64);
             *best_block_id = block_id;
             match reorg_len {
@@ -94,6 +94,6 @@ fn retracted_path_length(
 ) -> Result<BlockNumber, Box<dyn Error>> {
     let lca = chain_status
         .lowest_common_ancestor(from, to)
-        .map_err(|e| Box::new(e))?;
+        .map_err(Box::new)?;
     Ok(from.number().saturating_sub(lca.number()))
 }
