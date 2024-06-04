@@ -305,7 +305,6 @@ where
             .id()
             .number()
             + 1;
-
         loop {
             while let Some(justification) = self.forest.try_finalize(&number) {
                 self.finalizer
