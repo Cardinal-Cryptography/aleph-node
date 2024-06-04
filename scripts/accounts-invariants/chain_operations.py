@@ -3,6 +3,8 @@
 import substrateinterface
 import json
 import logging
+from tqdm import tqdm
+import sys
 
 log = logging.getLogger()
 
@@ -32,15 +34,16 @@ def filter_accounts(chain_connection,
     total_accounts_count = 0
     total_issuance = 0
 
-    for (i, (account_id, info)) in enumerate(account_query):
+    for (i, (account_id, info)) in tqdm(iterable=enumerate(account_query),
+                                        desc="Accounts checked",
+                                        unit="",
+                                        file=sys.stdout):
         total_accounts_count += 1
         free = info['data']['free'].value
         reserved = info['data']['reserved'].value
         total_issuance += free + reserved
         if check_accounts_predicate(info, chain_major_version, ed):
             accounts_that_do_meet_predicate.append([account_id.value, info.serialize()])
-        if i % 5000 == 0 and i > 0:
-            log.info(f"Checked {i} accounts")
 
     log.info(
         f"Total accounts that match given predicate {check_accounts_predicate_name} is {len(accounts_that_do_meet_predicate)}")
