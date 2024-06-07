@@ -113,7 +113,7 @@ def find_block_hash_with_imbalance(chain_connection, start_block_hash, end_block
         log.info(f"Finding first block that contributed to total issuance imbalance in range "
                  f"[{start_block_number}; {end_block_number}]")
 
-        mid_range_block_number = start_block_number + math.floor((end_block_number - start_block_number) / 2)
+        mid_range_block_number = start_block_number + (end_block_number - start_block_number) // 2
         mid_range_block_hash = chain_connection.get_block_hash(mid_range_block_number)
         log.info(f"Mid-range block hash: {mid_range_block_hash}, number: {mid_range_block_number}")
         mid_total_issuance_imbalance = get_total_issuance_imbalance(chain_connection, mid_range_block_hash)
