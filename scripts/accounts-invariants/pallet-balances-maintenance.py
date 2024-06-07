@@ -340,9 +340,6 @@ if __name__ == "__main__":
             log.error(f"When specifying "
                       f"--fix-consumers-counter-underflow, env SENDER_ACCOUNT must exists. Exiting.")
             exit(1)
-    if args.check_total_issuance and not args.start_range_block_hash:
-        log.error(f"--start-range-block-hash must be set when --check-total-issuance is set. Exiting.")
-        exit(2)
     if args.dry_run:
         log.info(f"Dry-run mode is enabled.")
 
@@ -404,6 +401,10 @@ if __name__ == "__main__":
                                      block_hash=state_block_hash)
         delta = total_issuance_from_chain - total_issuance_from_accounts
         if delta != 0:
+            if not args.start_range_block_hash:
+                log.error(f"--start-range-block-hash must be set when --check-total-issuance is set "
+                          f"to perform further actions. Exiting.")
+                sys.exit(2)
             log.warning(f"Total issuance retrieved from the chain storage is different than aggregated sum over"
                         f" all accounts. Finding first block when it happened.")
             first_block_hash_imbalance = find_block_hash_with_imbalance(chain_connection=chain_ws_connection,

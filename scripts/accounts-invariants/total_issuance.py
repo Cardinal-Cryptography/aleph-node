@@ -1,6 +1,6 @@
 import logging
 import itertools
-import math
+import functools
 
 from chain_operations import format_balance, get_all_accounts
 
@@ -59,11 +59,7 @@ def calculate_total_issuance(account_infos):
         return free + reserved
 
     return \
-        list(itertools.accumulate(
-            account_infos,
-            lambda total_issuance, account_info: total_issuance + get_account_total_balance(account_info),
-            initial=0
-        ))[-1]
+        functools.reduce(lambda x, account_info: x + get_account_total_balance(account_info), account_infos, 0)
 
 
 def get_total_issuance_from_storage(chain_connection, block_hash):
