@@ -5,7 +5,7 @@ use std::{
 
 use hex::ToHex;
 use sc_client_api::HeaderBackend;
-use sc_consensus_aura::standalone::PreDigestLookupError;
+use sc_consensus_aura::standalone::{PreDigestLookupError, SealVerificationError};
 use sp_consensus_slots::Slot;
 
 use crate::{
@@ -74,6 +74,19 @@ impl Display for HeaderVerificationError {
     }
 }
 
+impl<Header> From<SealVerificationError<Header>> for HeaderVerificationError {
+    fn from(value: SealVerificationError<Header>) -> Self {
+        match value {
+            SealVerificationError::Deferred(_, slot) => Self::HeaderTooNew(slot),
+            SealVerificationError::Unsealed => Self::MissingSeal,
+            SealVerificationError::BadSeal => Self::IncorrectSeal,
+            SealVerificationError::BadSignature => Self::IncorrectAuthority,
+            SealVerificationError::SlotAuthorNotFound => Self::MissingAuthorityData,
+            SealVerificationError::InvalidPreDigest(err) => Self::PreDigestLookupError(err),
+        }
+    }
+}
+
 pub struct EquivocationProof {
     header_a: Header,
     header_b: Header,
@@ -126,6 +139,12 @@ impl From<SessionVerificationError> for VerificationError {
 impl From<CacheError> for VerificationError {
     fn from(e: CacheError) -> Self {
         VerificationError::Cache(e)
+    }
+}
+
+impl From<HeaderVerificationError> for VerificationError {
+    fn from(value: HeaderVerificationError) -> Self {
+        Self::HeaderVerification(value)
     }
 }
 
