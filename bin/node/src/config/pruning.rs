@@ -8,13 +8,13 @@ use crate::Cli;
 /// Anything greater than 900, which is one normal length session, should be enough.
 /// We need to be able to read back state from previous session to retrieve the list of authorities for a session.
 const MINIMAL_STATE_PRUNING: u32 = 901;
-const_assert!(MINIMAL_STATE_PRUNING >= DEFAULT_SESSION_PERIOD);
+const_assert!(MINIMAL_STATE_PRUNING > DEFAULT_SESSION_PERIOD);
 
 const DEFAULT_STATE_PRUNING: DatabasePruningMode = DatabasePruningMode::Archive;
 
 const DEFAULT_BLOCKS_PRUNING: DatabasePruningMode = DatabasePruningMode::ArchiveCanonical;
 
-/// Max value for the state-pruning after which RocksDB backend complains about possible memory consumption.
+/// Max value for the state-pruning after which RocksDB backend complains about its memory consumption.
 /// Setting to some greater value can cause out-of-memory errors.
 const ROCKSDB_PRUNING_THRESHOLD: u32 = 1000;
 const_assert!(MINIMAL_STATE_PRUNING <= ROCKSDB_PRUNING_THRESHOLD);
