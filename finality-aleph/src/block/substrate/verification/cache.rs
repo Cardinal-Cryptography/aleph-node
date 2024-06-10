@@ -1,4 +1,5 @@
 use std::{
+    cmp::min,
     collections::{hash_map::Entry, HashMap, HashSet},
     fmt::{Debug, Display, Error as FmtError, Formatter},
 };
@@ -84,6 +85,7 @@ fn download_data<AP: AuthorityProvider>(
     authority_provider: &AP,
     session_id: SessionId,
     session_info: &SessionBoundaryInfo,
+    best_finalized: BlockNumber,
 ) -> Result<CachedData, CacheError> {
     let (session_verifier, aura_authorities, authority_accounts) = match session_id {
         SessionId(0) => (
@@ -94,8 +96,10 @@ fn download_data<AP: AuthorityProvider>(
         SessionId(id) => {
             let last_block_of_previous_session =
                 session_info.last_block_of_session(SessionId(id - 1));
+            let best_finalized_within_bounds = min(last_block_of_previous_session, best_finalized);
+
             let (authority_accounts, aura_authorities) = match authority_provider
-                .next_aura_authorities(last_block_of_previous_session)
+                .next_aura_authorities(best_finalized_within_bounds)
                 .map(|auths| auths.into_iter().unzip())
             {
                 Some((acc, auth)) => (Some(acc), Some(auth)),
@@ -103,7 +107,7 @@ fn download_data<AP: AuthorityProvider>(
             };
 
             (
-                authority_provider.next_authority_data(last_block_of_previous_session),
+                authority_provider.next_authority_data(best_finalized_within_bounds),
                 aura_authorities,
                 authority_accounts,
             )
@@ -227,6 +231,7 @@ where
                 &self.authority_provider,
                 session_id,
                 &self.session_info,
+                best_finalized,
             )?),
         })
     }
