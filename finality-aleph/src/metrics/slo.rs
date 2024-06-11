@@ -56,8 +56,8 @@ impl SloMetrics {
             );
             FinalityRateMetrics::Noop
         });
-        let best_block_metrics =
-            BestBlockMetrics::new(registry.cloned(), chain_status.clone()).unwrap_or_else(|e| {
+        let best_block_metrics = BestBlockMetrics::new(registry.cloned(), chain_status.clone())
+            .unwrap_or_else(|e| {
                 warn_creation_failed("best block related", e);
                 BestBlockMetrics::Noop
             });
