@@ -34,7 +34,7 @@ pub type TxHash = <Hashing as sp_runtime::traits::Hash>::Output;
 pub struct SloMetrics {
     timing_metrics: TimingBlockMetrics,
     finality_rate_metrics: FinalityRateMetrics,
-    best_block_related_metrics: BestBlockMetrics,
+    best_block_metrics: BestBlockMetrics,
     transaction_metrics: TransactionPoolMetrics<TxHash, DefaultClock>,
     chain_status: SubstrateChainStatus,
 }
@@ -70,7 +70,7 @@ impl SloMetrics {
         SloMetrics {
             timing_metrics,
             finality_rate_metrics,
-            best_block_related_metrics,
+            best_block_metrics: best_block_related_metrics,
             transaction_metrics,
             chain_status,
         }
@@ -79,7 +79,7 @@ impl SloMetrics {
     pub fn is_noop(&self) -> bool {
         matches!(self.timing_metrics, TimingBlockMetrics::Noop)
             && matches!(self.finality_rate_metrics, FinalityRateMetrics::Noop)
-            && matches!(self.best_block_related_metrics, BestBlockMetrics::Noop)
+            && matches!(self.best_block_metrics, BestBlockMetrics::Noop)
             && matches!(self.transaction_metrics, TransactionPoolMetrics::Noop)
     }
 
@@ -99,7 +99,7 @@ impl SloMetrics {
                 .report_own_imported(block_id.clone());
         }
         if is_new_best {
-            self.best_block_related_metrics
+            self.best_block_metrics
                 .report_best_block_imported(block_id.clone());
         }
         if let Ok(Some(block)) = self.chain_status.block(block_id.clone()) {
@@ -116,7 +116,7 @@ impl SloMetrics {
             .report_block(block_id.hash(), Checkpoint::Finalized);
         self.finality_rate_metrics
             .report_finalized(block_id.clone());
-        self.best_block_related_metrics
+        self.best_block_metrics
             .report_block_finalized(block_id.clone());
     }
 }

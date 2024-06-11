@@ -590,20 +590,19 @@ where
                 let id = header.id();
                 self.metrics.report_event(Event::HandleBlockImported);
                 match self.handler.block_imported(header) {
-                    Ok(block_to_broadcast) => {
-                        if let Some(broadcast) = block_to_broadcast {
-                            own_block = true;
-                            if let Err(e) = self
-                                .network
-                                .broadcast(NetworkData::RequestResponse(broadcast))
-                            {
-                                warn!(
-                                    target: LOG_TARGET,
-                                    "Error broadcasting newly created block: {}.", e
-                                )
-                            }
-                        }
+                    Ok(Some(broadcast)) => {
+                        own_block = true;
+                        if let Err(e) = self
+                            .network
+                            .broadcast(NetworkData::RequestResponse(broadcast))
+                        {
+                            warn!(
+                                target: LOG_TARGET,
+                                "Error broadcasting newly created block: {}.", e
+                            )
+                        };
                     }
+                    Ok(None) => (),
                     Err(e) => {
                         self.metrics.report_event_error(Event::HandleBlockImported);
                         error!(

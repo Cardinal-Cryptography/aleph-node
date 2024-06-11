@@ -5,6 +5,7 @@ use futures::channel::oneshot;
 use log::{debug, error};
 use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
 use pallet_aleph_runtime_api::AlephSessionApi;
+use primitives::TransactionHash;
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sc_keystore::{Keystore, LocalKeystore};
@@ -57,7 +58,7 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
-    TP: TransactionPool<Block = Block, Hash = primitives::Hash> + 'static,
+    TP: TransactionPool<Block = Block, Hash = TransactionHash> + 'static,
 {
     let AlephConfig {
         authentication_network,
