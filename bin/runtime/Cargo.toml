@@ -40,6 +40,8 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-vesting = { workspace = true }
+pallet-safe-mode = { workspace = true }
+pallet-tx-pause = { workspace = true }
 
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
@@ -125,6 +127,8 @@ std = [
     "sp-io/std",
     "scale-info/std",
     "sp-application-crypto/std",
+    "pallet-safe-mode/std",
+    "pallet-tx-pause/std",
 ]
 short_session = ["primitives/short_session"]
 try-runtime = [
@@ -154,6 +158,8 @@ try-runtime = [
     "pallet-utility/try-runtime",
     "pallet-committee-management/try-runtime",
     "pallet-proxy/try-runtime",
+    "pallet-safe-mode/try-runtime",
+    "pallet-tx-pause/try-runtime",
 ]
 enable_treasury_proposals = []
 runtime-benchmarks = [

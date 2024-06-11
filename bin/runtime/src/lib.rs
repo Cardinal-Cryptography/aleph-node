@@ -26,13 +26,13 @@ use frame_support::{
     sp_runtime::Perquintill,
     traits::{
         tokens::{PayFromAccount, UnityAssetBalanceConversion},
-        ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation,
+        ConstBool, ConstU32, Contains, EqualPrivilegeOnly, EstimateNextSessionRotation, InsideBoth,
         InstanceFilter, SortedMembers, WithdrawReasons,
     },
     weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, WeightToFee},
     PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSignedBy};
+use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSignedBy};
 #[cfg(feature = "try-runtime")]
 use frame_try_runtime::UpgradeCheckSelect;
 pub use pallet_balances::Call as BalancesCall;
@@ -61,7 +61,7 @@ use sp_runtime::{
     create_runtime_str, generic,
     traits::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, Convert, ConvertInto,
-        IdentityLookup, One, OpaqueKeys,
+        IdentityLookup, One, OpaqueKeys, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
@@ -93,6 +93,8 @@ pub fn native_version() -> NativeVersion {
         can_author_with: Default::default(),
     }
 }
+
+pub const DAYS: u32 = 24 * 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
 
 pub const BLOCKS_PER_HOUR: u32 = 60 * 60 * 1000 / (MILLISECS_PER_BLOCK as u32);
 
@@ -129,7 +131,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = frame_support::traits::Everything;
+    type BaseCallFilter = InsideBoth<SafeMode, TxPause>;
     /// Block & extrinsics weights: base values and limits.
     type BlockWeights = BlockWeights;
     /// The maximum length of a block (in bytes).
@@ -138,6 +140,8 @@ impl frame_system::Config for Runtime {
     type AccountId = AccountId;
     /// The aggregated dispatch type that is available for extrinsics.
     type RuntimeCall = RuntimeCall;
+    /// The aggregated Task type.
+    type RuntimeTask = RuntimeTask;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = AccountIdLookup<AccountId, ()>;
     /// The type for storing how many extrinsics an account has signed.
@@ -478,6 +482,7 @@ impl pallet_staking::WeightInfo for PayoutStakersDecreasedWeightInfo {
         (force_new_era(), SubstrateStakingWeights, Weight),
         (force_new_era_always(), SubstrateStakingWeights, Weight),
         (set_invulnerables(v: u32), SubstrateStakingWeights, Weight),
+        (deprecate_controller_batch(i: u32), SubstrateStakingWeights, Weight),
         (force_unstake(s: u32), SubstrateStakingWeights, Weight),
         (
             cancel_deferred_slash(s: u32),
@@ -544,6 +549,7 @@ impl pallet_staking::Config for Runtime {
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
     type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Runtime>;
     type MaxUnlockingChunks = ConstU32<16>;
+    type MaxControllersInDeprecationBatch = ConstU32<4084>;
     type BenchmarkingConfig = StakingBenchmarkingConfig;
     type WeightInfo = PayoutStakersDecreasedWeightInfo;
     type CurrencyBalance = Balance;
@@ -585,6 +591,7 @@ impl pallet_vesting::Config for Runtime {
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
     type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+    type BlockNumberProvider = System;
     // Maximum number of vesting schedules an account may have at a given moment
     // follows polkadot https://github.com/paritytech/polkadot/blob/9ce5f7ef5abb1a4291454e8c9911b304d80679f9/runtime/polkadot/src/lib.rs#L980
     const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -753,6 +760,12 @@ impl pallet_identity::Config for Runtime {
     type Slashed = Treasury;
     type ForceOrigin = EnsureRoot<AccountId>;
     type RegistrarOrigin = EnsureRoot<AccountId>;
+    type OffchainSignature = Signature;
+    type SigningPublicKey = <Signature as Verify>::Signer;
+    type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
+    type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
+    type MaxSuffixLength = ConstU32<7>;
+    type MaxUsernameLength = ConstU32<32>;
     type WeightInfo = pallet_identity::weights::SubstrateWeight<Self>;
     type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 }
@@ -859,6 +872,71 @@ impl pallet_proxy::Config for Runtime {
     type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+parameter_types! {
+    pub const DisallowPermissionlessEnterDuration: AlephBlockNumber = 0;
+    pub const DisallowPermissionlessExtendDuration: AlephBlockNumber = 0;
+
+    // Safe mode on enter will last 1 session
+    pub const RootEnterDuration: AlephBlockNumber = DEFAULT_SESSION_PERIOD;
+    // Safe mode on extend will 1 session
+    pub const RootExtendDuration: AlephBlockNumber = DEFAULT_SESSION_PERIOD;
+
+    pub const DisallowPermissionlessEntering: Option<Balance> = None;
+    pub const DisallowPermissionlessExtending: Option<Balance> = None;
+    pub const DisallowPermissionlessRelease: Option<AlephBlockNumber> = None;
+}
+
+/// Calls that can bypass the safe-mode pallet.
+pub struct SafeModeWhitelistedCalls;
+impl Contains<RuntimeCall> for SafeModeWhitelistedCalls {
+    fn contains(call: &RuntimeCall) -> bool {
+        matches!(
+            call,
+            RuntimeCall::Sudo(_)
+                | RuntimeCall::System(_)
+                | RuntimeCall::SafeMode(_)
+                | RuntimeCall::Timestamp(_)
+        )
+    }
+}
+
+impl pallet_safe_mode::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type WhitelistedCalls = SafeModeWhitelistedCalls;
+    type EnterDuration = DisallowPermissionlessEnterDuration;
+    type ExtendDuration = DisallowPermissionlessExtendDuration;
+    type EnterDepositAmount = DisallowPermissionlessEntering;
+    type ExtendDepositAmount = DisallowPermissionlessExtending;
+    type ForceEnterOrigin = EnsureRootWithSuccess<AccountId, RootEnterDuration>;
+    type ForceExtendOrigin = EnsureRootWithSuccess<AccountId, RootExtendDuration>;
+    type ForceExitOrigin = EnsureRoot<AccountId>;
+    type ForceDepositOrigin = EnsureRoot<AccountId>;
+    type Notify = ();
+    type ReleaseDelay = DisallowPermissionlessRelease;
+    type WeightInfo = pallet_safe_mode::weights::SubstrateWeight<Runtime>;
+}
+
+/// Calls that can bypass the tx-pause pallet.
+/// We always allow system calls and timestamp since it is required for block production
+pub struct TxPauseWhitelistedCalls;
+impl Contains<RuntimeCallNameOf<Runtime>> for TxPauseWhitelistedCalls {
+    fn contains(full_name: &RuntimeCallNameOf<Runtime>) -> bool {
+        matches!(full_name.0.as_slice(), b"Sudo" | b"System" | b"Timestamp")
+    }
+}
+
+impl pallet_tx_pause::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type PauseOrigin = EnsureRoot<AccountId>;
+    type UnpauseOrigin = EnsureRoot<AccountId>;
+    type WhitelistedCalls = TxPauseWhitelistedCalls;
+    type MaxNameLen = ConstU32<256>;
+    type WeightInfo = pallet_tx_pause::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub struct Runtime {
@@ -885,6 +963,8 @@ construct_runtime!(
         Identity: pallet_identity = 20,
         CommitteeManagement: pallet_committee_management = 21,
         Proxy: pallet_proxy = 22,
+        SafeMode: pallet_safe_mode = 23,
+        TxPause: pallet_tx_pause = 24,
         Operations: pallet_operations = 255,
     }
 );

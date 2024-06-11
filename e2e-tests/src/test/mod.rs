@@ -40,6 +40,7 @@ mod high_latency;
 mod lenient_threshold;
 mod proxy;
 mod rewards;
+mod safe_mode;
 mod staking;
 mod sync;
 mod transfer;
