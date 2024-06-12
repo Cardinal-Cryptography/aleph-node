@@ -62,7 +62,7 @@ for p in ${packages[@]}; do
 
   # for some particular packages, run unit tests
   # those packages had been a port of workspace previously
-  if [[ "$p" == "feature-control" || "$p" == "vk-storage" ]]; then
+  if [[ "$p" == "pallets/feature-control" || "$p" == "pallets/vk-storage" ]]; then
     cargo test
   fi
   popd
