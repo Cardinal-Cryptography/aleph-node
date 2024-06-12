@@ -1,12 +1,16 @@
 import json
 import logging
+import pprint
 
 log = logging.getLogger()
 
 
 def save_accounts_to_json_file(json_file_name, accounts):
+    log.info(f"Saving accounts to json file {json_file_name}")
     with open(json_file_name, 'w') as f:
-        json.dump(accounts, f)
+        log.info(f"Generating pretty print...")
+        pretty_json_str = pprint.pformat(accounts, compact=True).replace("'",'"')
+        f.write(pretty_json_str)
         log.info(f"Wrote file '{json_file_name}'")
 
 

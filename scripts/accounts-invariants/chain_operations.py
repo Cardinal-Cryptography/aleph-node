@@ -77,7 +77,7 @@ def batch_fix_accounts_consumers_counter(chain_connection,
     :param sender_keypair: keypair of sender account
     :return: None. Can raise exception in case of SubstrateRequestException thrown
     """
-    for (i, account_ids_chunk) in tqdm(iterable=enumerate(chunks(accounts, input_args.fix_consumers_calls_in_batch)),
+    for (i, account_ids_chunk) in tqdm(iterable=enumerate(chunks(accounts, input_args.fix_accounts_in_batch)),
                                        desc="Accounts checked",
                                        unit="",
                                        file=sys.stdout):
