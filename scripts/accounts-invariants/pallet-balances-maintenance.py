@@ -46,7 +46,7 @@ Accounts that do not satisfy those checks are written to accounts-with-failed-in
                         type=int,
                         default=10,
                         help='How many accounts to fix in one script run session.'
-                             ' Default: 100')
+                             ' Default: 10')
     parser.add_argument('--block-hash',
                         type=str,
                         default='',
