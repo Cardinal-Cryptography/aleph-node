@@ -1,6 +1,6 @@
 use std::string::ToString;
 
-use aleph_runtime::{WASM_BINARY};
+use aleph_runtime::WASM_BINARY;
 use pallet_staking::{Forcing, StakerStatus};
 use primitives::{
     staking::{MIN_NOMINATOR_BOND, MIN_VALIDATOR_BOND},
