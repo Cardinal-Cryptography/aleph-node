@@ -55,15 +55,14 @@ for p in ${packages[@]}; do
       --rm public.ecr.aws/p6e8q1z1/ink-dev:2.0.0 cargo contract check
   elif [[ "$p" =~ baby-liminal-extension ]]; then
     make clippy
+    make test
   else
     cargo clippy -- --no-deps -D warnings
   fi
 
   # for some particular packages, run unit tests
   # those packages had been a port of workspace previously
-  if [[ "$p" == "baby-liminal-extension" \
-      || "$p" == "feature-control" \
-      || "$p" == "vk-storage" ]]; then
+  if [[ "$p" == "feature-control" || "$p" == "vk-storage" ]]; then
     cargo test
   fi
   popd
