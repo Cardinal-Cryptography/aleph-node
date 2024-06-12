@@ -1430,6 +1430,7 @@ mod tests {
                 page: _,
             } => {}
             pallet_staking::Call::update_payee { controller: _ } => {}
+            pallet_staking::Call::deprecate_controller_batch { controllers: _ } => {}
             pallet_staking::Call::__Ignore(..) => {}
         }
     }

@@ -56,5 +56,11 @@ for p in ${packages[@]}; do
   else
     cargo clippy -- --no-deps -D warnings
   fi
+
+  # for some particular packages, run unit tests
+  # those packages had been a port of workspace previously
+  if [[ "$p" =~ baby-liminal-extension ]]; then
+    cargo test
+  fi
   popd
 done

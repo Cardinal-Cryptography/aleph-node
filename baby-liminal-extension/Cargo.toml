@@ -43,7 +43,6 @@ aleph-runtime = { path = "../bin/runtime" }
 halo2_proofs = { git = "https://github.com/Cardinal-Cryptography/pse-halo2", branch = "aleph", features = ["mock-kzg-params", "multicore"]  }
 
 [features]
-default = ["runtime-std"]
 # This is an artificial feature that is used by 3rd party crates in macro expansions.
 std = []
 
