@@ -35,11 +35,6 @@ jobs:
         id: get-ref-properties
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v7
 
-      - name: Change working directory to aleph-client
-        shell: bash
-        run: |
-          cd aleph-client
-
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v7
         with:
@@ -77,4 +72,5 @@ jobs:
       - name: Check metadata
         shell: bash
         run: |
+          cd aleph-client
           ./check-runtime-metadata.sh
