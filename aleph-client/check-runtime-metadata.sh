@@ -2,9 +2,9 @@
 
 echo "This script must be run from the aleph-client directory."
 
-  subxt codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
-    --substitute-type 'sp_core::crypto::AccountId32=::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>' \
-    | rustfmt --edition=2021 --config-path rustfmt.toml > aleph_zero.rs;
+subxt codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
+  --substitute-type 'sp_core::crypto::AccountId32=::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>' \
+  | rustfmt --edition=2021 --config-path rustfmt.toml > aleph_zero.rs;
 
 diff -y -W 200 --suppress-common-lines aleph_zero.rs src/aleph_zero.rs
 diff_exit_code=$?
