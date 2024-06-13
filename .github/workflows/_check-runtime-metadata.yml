@@ -43,7 +43,8 @@ jobs:
       - name: Build subx-cli
         shell: bash
         run: |
-          cargo install subxt-cli
+          # same version as in aleph-client's Cargo.toml
+          cargo install subxt-cli --version 0.30.1
 
       - name: Download node docker image
         uses: actions/download-artifact@v4
