@@ -11,7 +11,10 @@ use sp_consensus_slots::Slot;
 use crate::{
     aleph_primitives::{AccountId, AuraId, Block, BlockNumber, Header},
     block::{
-        substrate::verification::{cache::CacheError, verifier::SessionVerificationError},
+        substrate::{
+            verification::{cache::CacheError, verifier::SessionVerificationError},
+            FinalizationInfo,
+        },
         EquivocationProof as EquivocationProofT, Header as HeaderT,
     },
 };
@@ -21,11 +24,6 @@ mod verifier;
 
 pub use cache::VerifierCache;
 pub use verifier::SessionVerifier;
-
-/// Supplies finalized number. Will be unified together with other traits we used in A0-1839.
-pub trait FinalizationInfo: Clone + Send + Sync + 'static {
-    fn finalized_number(&self) -> BlockNumber;
-}
 
 /// Substrate specific implementation of `FinalizationInfo`
 pub struct SubstrateFinalizationInfo<BE: HeaderBackend<Block>>(Arc<BE>);

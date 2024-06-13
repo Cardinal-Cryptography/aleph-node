@@ -1,5 +1,4 @@
 use std::{
-    cmp::min,
     collections::{hash_map::Entry, HashMap, HashSet},
     fmt::{Debug, Display, Error as FmtError, Formatter},
 };
@@ -23,7 +22,7 @@ use crate::{
         BlockId, Header as HeaderT, HeaderVerifier, JustificationVerifier, VerifiedHeader,
     },
     session::{SessionBoundaryInfo, SessionId},
-    session_map::AuthorityProvider,
+    session_map::{AuthorityProvider, FinalizedBlocksProvider},
 };
 
 // How many slots in the future (according to the system time) can the verified header be.
@@ -81,45 +80,50 @@ struct CachedData {
     authority_accounts: Option<Vec<AccountId>>,
 }
 
-fn download_data<AP: AuthorityProvider>(
+fn download_data<AP, BP>(
     authority_provider: &AP,
+    session_block_provider: &BP,
     session_id: SessionId,
-    session_info: &SessionBoundaryInfo,
-    best_finalized: BlockNumber,
-) -> Result<CachedData, CacheError> {
-    let (session_verifier, aura_authorities, authority_accounts) = match session_id {
-        SessionId(0) => (
-            authority_provider.authority_data(0),
-            authority_provider.aura_authorities(0),
-            None,
-        ),
+) -> Result<CachedData, CacheError>
+where
+    AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider,
+{
+    let authority_data = match session_id {
+        SessionId(0) => CachedData {
+            session_verifier: authority_provider
+                .authority_data(0)
+                .ok_or(CacheError::UnknownAuthorities(session_id))?
+                .into(),
+            aura_authorities: authority_provider
+                .aura_authorities(0)
+                .ok_or(CacheError::UnknownAuraAuthorities(session_id))?,
+            authority_accounts: None,
+        },
         SessionId(id) => {
-            let last_block_of_previous_session =
-                session_info.last_block_of_session(SessionId(id - 1));
-            let best_finalized_within_bounds = min(last_block_of_previous_session, best_finalized);
+            let previous_session = SessionId(id - 1);
+            let finalized_block_from_previous_session = session_block_provider
+                .available_finalized_block(previous_session)
+                .ok_or(CacheError::UnknownAuthorities(session_id))?;
 
-            let (authority_accounts, aura_authorities) = match authority_provider
-                .next_aura_authorities(best_finalized_within_bounds)
-                .map(|auths| auths.into_iter().unzip())
-            {
-                Some((acc, auth)) => (Some(acc), Some(auth)),
-                None => (None, None),
-            };
+            let authority_data = authority_provider
+                .next_authority_data(finalized_block_from_previous_session)
+                .ok_or(CacheError::UnknownAuthorities(session_id))?;
 
-            (
-                authority_provider.next_authority_data(best_finalized_within_bounds),
+            let (authority_accounts, aura_authorities) = authority_provider
+                .next_aura_authorities(finalized_block_from_previous_session)
+                .ok_or(CacheError::UnknownAuraAuthorities(session_id))?
+                .into_iter()
+                .unzip();
+
+            CachedData {
+                session_verifier: authority_data.into(),
                 aura_authorities,
-                authority_accounts,
-            )
+                authority_accounts: Some(authority_accounts),
+            }
         }
     };
-    Ok(CachedData {
-        session_verifier: session_verifier
-            .ok_or(CacheError::UnknownAuthorities(session_id))?
-            .into(),
-        aura_authorities: aura_authorities.ok_or(CacheError::UnknownAuraAuthorities(session_id))?,
-        authority_accounts,
-    })
+    Ok(authority_data)
 }
 
 // Equivocations only happen per time slot _and_ session..
@@ -131,9 +135,10 @@ type SessionSlot = (SessionId, Slot);
 /// Highest session verifier this cache returns is for the session after the current finalization session.
 /// Lowest session verifier this cache returns is for `top_returned_session` - `cache_size`.
 #[derive(Clone)]
-pub struct VerifierCache<AP, FI, H>
+pub struct VerifierCache<AP, BP, FI, H>
 where
     AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider,
     FI: FinalizationInfo,
     H: HeaderT,
 {
@@ -143,15 +148,17 @@ where
     session_info: SessionBoundaryInfo,
     finalization_info: FI,
     authority_provider: AP,
+    session_block_provider: BP,
     cache_size: usize,
     /// Lowest currently available session.
     lower_bound: SessionId,
     genesis_header: H,
 }
 
-impl<AP, FI, H> VerifierCache<AP, FI, H>
+impl<AP, BP, FI, H> VerifierCache<AP, BP, FI, H>
 where
     AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider + Clone,
     FI: FinalizationInfo,
     H: HeaderT,
 {
@@ -159,6 +166,7 @@ where
         session_info: SessionBoundaryInfo,
         finalization_info: FI,
         authority_provider: AP,
+        session_block_provider: BP,
         cache_size: usize,
         genesis_header: H,
     ) -> Self {
@@ -169,6 +177,7 @@ where
             session_info,
             finalization_info,
             authority_provider,
+            session_block_provider,
             cache_size,
             lower_bound: SessionId(0),
             genesis_header,
@@ -229,9 +238,8 @@ where
             Entry::Occupied(occupied) => occupied.into_mut(),
             Entry::Vacant(vacant) => vacant.insert(download_data(
                 &self.authority_provider,
+                &self.session_block_provider,
                 session_id,
-                &self.session_info,
-                best_finalized,
             )?),
         })
     }
@@ -245,9 +253,10 @@ where
     }
 }
 
-impl<AP, FS> VerifierCache<AP, FS, Header>
+impl<AP, BP, FS> VerifierCache<AP, BP, FS, Header>
 where
     AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider,
     FS: FinalizationInfo,
 {
     /// Returns the list of Aura authorities for a given session. Updates cache if necessary.
@@ -345,9 +354,10 @@ where
     }
 }
 
-impl<AP, FS> JustificationVerifier<Justification> for VerifierCache<AP, FS, Header>
+impl<AP, BP, FS> JustificationVerifier<Justification> for VerifierCache<AP, BP, FS, Header>
 where
     AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider,
     FS: FinalizationInfo,
 {
     type Error = VerificationError;
@@ -371,9 +381,10 @@ where
     }
 }
 
-impl<AP, FS> HeaderVerifier<Header> for VerifierCache<AP, FS, Header>
+impl<AP, BP, FS> HeaderVerifier<Header> for VerifierCache<AP, BP, FS, Header>
 where
     AP: AuthorityProvider,
+    BP: FinalizedBlocksProvider,
     FS: FinalizationInfo,
 {
     type Error = VerificationError;
@@ -451,22 +462,37 @@ mod tests {
         aleph_primitives::SessionAuthorityData,
         block::mock::MockHeader,
         session::{testing::authority_data, SessionBoundaryInfo, SessionId},
+        session_map::FinalizedBlocksProvider,
         SessionPeriod,
     };
 
     const SESSION_PERIOD: u32 = 30;
     const CACHE_SIZE: usize = 3;
 
-    type TestVerifierCache = VerifierCache<MockAuthorityProvider, MockFinalizationInfo, MockHeader>;
+    type TestVerifierCache = VerifierCache<
+        MockAuthorityProvider,
+        MockFinalizationInfo,
+        MockFinalizationInfo,
+        MockHeader,
+    >;
 
     #[derive(Clone)]
     struct MockFinalizationInfo {
         finalized_number: Arc<Mutex<BlockNumber>>,
+        session_info: SessionBoundaryInfo,
     }
 
     impl FinalizationInfo for MockFinalizationInfo {
         fn finalized_number(&self) -> BlockNumber {
             *self.finalized_number.lock().expect("mutex works")
+        }
+    }
+
+    impl FinalizedBlocksProvider for MockFinalizationInfo {
+        fn available_finalized_block(&self, session_id: SessionId) -> Option<BlockNumber> {
+            let finalized_block = self.finalized_number();
+            let first_block_in_session = self.session_info.first_block_of_session(session_id);
+            (first_block_in_session >= finalized_block).then_some(first_block_in_session.into())
         }
     }
 
@@ -543,14 +569,19 @@ mod tests {
     }
 
     fn setup_test(max_session_n: u32, finalized_number: Arc<Mutex<u32>>) -> TestVerifierCache {
-        let finalization_info = MockFinalizationInfo { finalized_number };
+        let session_info = SessionBoundaryInfo::new(SessionPeriod(SESSION_PERIOD));
+        let finalization_info = MockFinalizationInfo {
+            finalized_number,
+            session_info: session_info.clone(),
+        };
         let authority_provider = MockAuthorityProvider::new(max_session_n);
         let genesis_header = MockHeader::random_parentless(0);
 
         VerifierCache::new(
-            SessionBoundaryInfo::new(SessionPeriod(SESSION_PERIOD)),
-            finalization_info,
+            session_info,
+            finalization_info.clone(),
             authority_provider,
+            finalization_info,
             CACHE_SIZE,
             genesis_header,
         )
