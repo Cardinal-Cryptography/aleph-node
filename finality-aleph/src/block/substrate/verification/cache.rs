@@ -492,7 +492,7 @@ mod tests {
         fn available_finalized_block(&self, session_id: SessionId) -> Option<BlockNumber> {
             let finalized_block = self.finalized_number();
             let first_block_in_session = self.session_info.first_block_of_session(session_id);
-            (first_block_in_session >= finalized_block).then_some(first_block_in_session.into())
+            (first_block_in_session >= finalized_block).then_some(first_block_in_session)
         }
     }
 
