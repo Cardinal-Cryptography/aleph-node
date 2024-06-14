@@ -64,7 +64,6 @@ use sp_runtime::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, Convert, ConvertInto,
         IdentityLookup, One, OpaqueKeys, Verify,
     },
-
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
 };
