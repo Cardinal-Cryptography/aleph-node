@@ -12,7 +12,7 @@ mod version_upgrade;
 mod vesting;
 
 use aleph_client::{keypair_from_string, Connection, RootConnection, SignedConnection};
-pub use commands::{Command, VkStorage};
+pub use commands::{Command};
 pub use contracts::{
     call, code_info, instantiate, instantiate_with_code, remove_code, upload_code,
 };
