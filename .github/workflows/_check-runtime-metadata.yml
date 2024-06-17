@@ -67,8 +67,8 @@ jobs:
       - name: Run consensus party
         shell: bash
         run: |
-          ./.github/scripts/run_consensus.sh -n 1
-          sleep 30
+          ./.github/scripts/run_consensus.sh -n 4
+          sleep 60
 
       - name: Check metadata
         shell: bash
