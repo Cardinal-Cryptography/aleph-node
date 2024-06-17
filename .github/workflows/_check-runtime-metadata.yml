@@ -19,7 +19,7 @@ on:
         required: true
 jobs:
   build-subxt:
-    name: Check runtime metadata
+    name: Build subxt
     runs-on: [self-hosted, Linux, X64, large]
     env:
       RUST_BACKTRACE: full

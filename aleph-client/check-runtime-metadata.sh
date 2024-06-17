@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
-
 echo "This script must be run from the aleph-client directory."
 SUBXT_BINARY=${SUBXT_BINARY:-"subxt"}
 
