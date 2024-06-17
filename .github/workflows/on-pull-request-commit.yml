@@ -76,7 +76,7 @@ jobs:
       - check-if-runtime-code-changed
       - build-test-aleph-node
       - build-chain-bootstrapper
-    if: ${{ needs.check-if-runtime-code-changed.outputs.runtime-changed == 'true' }}
+    # if: ${{ needs.check-if-runtime-code-changed.outputs.runtime-changed == 'true' }}
     uses: ./.github/workflows/_check-runtime-metadata.yml
     with:
       ref: ${{ github.ref }}
