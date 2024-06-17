@@ -104,5 +104,6 @@ jobs:
       - name: Check metadata
         shell: bash
         run: |
+          chmod +x subxt
           cd aleph-client
           SUBXT_BINARY=../subxt ./check-runtime-metadata.sh
