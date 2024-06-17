@@ -20,7 +20,8 @@ on:
 jobs:
   main:
     name: Check runtime metadata
-    runs-on: [self-hosted, Linux, X64, large]
+    #runs-on: [self-hosted, Linux, X64, large]
+    runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -40,7 +41,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Build subx-cli
+      - name: Build subxt-cli
         shell: bash
         run: |
           # same version as in aleph-client's Cargo.toml
@@ -67,7 +68,7 @@ jobs:
       - name: Run consensus party
         shell: bash
         run: |
-          ./.github/scripts/run_consensus.sh -n 4
+          ./.github/scripts/run_consensus.sh -n 1
           sleep 60
 
       - name: Check metadata
