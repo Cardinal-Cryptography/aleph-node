@@ -18,10 +18,9 @@ on:
         type: string
         required: true
 jobs:
-  main:
+  build-subxt:
     name: Check runtime metadata
-    #runs-on: [self-hosted, Linux, X64, large]
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, Linux, X64, large]
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
@@ -47,6 +46,31 @@ jobs:
           # same version as in aleph-client's Cargo.toml
           cargo install subxt-cli --version 0.30.1
 
+      - name: Get subxt-cli path
+        id: get-subxt-path
+        shell: bash
+        run: |
+          subxt_path=$(which subxt)
+          echo "path=${subxt_path}" >> $GITHUB_OUTPUT
+
+      - name: Upload subxt binary to GH artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: subxt-binary
+          path: ${{ steps.get-subxt-path.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+  check-metadata:
+    name: Check runtime metadata
+    needs: [build-subxt]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download node docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: subxt-binary
+
       - name: Download node docker image
         uses: actions/download-artifact@v4
         with:
@@ -69,10 +93,10 @@ jobs:
         shell: bash
         run: |
           ./.github/scripts/run_consensus.sh -n 1
-          sleep 60
+          sleep 30
 
       - name: Check metadata
         shell: bash
         run: |
           cd aleph-client
-          ./check-runtime-metadata.sh
+          SUBXT_BINARY=../subxt ./check-runtime-metadata.sh

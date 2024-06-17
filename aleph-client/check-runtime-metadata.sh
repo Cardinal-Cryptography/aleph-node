@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
-echo "This script must be run from the aleph-client directory."
+set -x
 
-subxt codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
+echo "This script must be run from the aleph-client directory."
+SUBXT_BINARY=${SUBXT_BINARY:-"subxt"}
+
+"${SUBXT_BINARY}" codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
   --substitute-type 'sp_core::crypto::AccountId32=::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>' \
   | rustfmt --edition=2021 --config-path rustfmt.toml > aleph_zero.rs;
 
