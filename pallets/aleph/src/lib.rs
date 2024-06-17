@@ -68,12 +68,6 @@ pub mod pallet {
         DEFAULT_FINALITY_VERSION
     }
 
-    /// Default value for `NextAuthorities` storage.
-    #[pallet::type_value]
-    pub(crate) fn DefaultNextAuthorities<T: Config>() -> Vec<T::AuthorityId> {
-        T::NextSessionAuthorityProvider::next_authorities()
-    }
-
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
@@ -81,7 +75,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> =
-        StorageValue<_, Vec<T::AuthorityId>, ValueQuery, DefaultNextAuthorities<T>>;
+        StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     /// Set of account ids that will be used as authorities in the next session
     #[pallet::storage]
