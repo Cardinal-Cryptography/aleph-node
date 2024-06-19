@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use parity_scale_codec::{Decode, Encode};
 use sc_keystore::{Keystore, LocalKeystore};

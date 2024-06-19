@@ -223,7 +223,8 @@ where
         self.send_justification(BlockId::new(hash, number), justification)
             .map_err(|error| match error {
                 Send(e) => ConsensusError::ClientImport(format!(
-                    "Could not send justification {:?} to ConsensusParty ", (*e).into_inner()
+                    "Could not send justification {:?} to ConsensusParty ",
+                    (*e).into_inner()
                 )),
                 Consensus(e) => *e,
                 Decode(e) => ConsensusError::ClientImport(format!(
