@@ -74,8 +74,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
-    pub(super) type NextAuthorities<T: Config> =
-        StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
+    pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     /// Set of account ids that will be used as authorities in the next session
     #[pallet::storage]
