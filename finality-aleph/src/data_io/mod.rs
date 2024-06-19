@@ -18,6 +18,8 @@ mod status_provider;
 pub use chain_info::{ChainInfoProvider, SubstrateChainInfoProvider};
 pub use data_interpreter::OrderedDataInterpreter;
 pub use data_provider::{ChainTracker, DataProvider};
+#[cfg(test)]
+pub use data_store::DataStoreConfig;
 pub use data_store::DataStore;
 pub use proposal::UnvalidatedAlephProposal;
 
