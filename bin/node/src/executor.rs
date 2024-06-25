@@ -14,9 +14,7 @@ pub mod aleph_executor {
 
     use super::Configuration;
 
-    type ExtendHostFunctions = (
-        sp_io::SubstrateHostFunctions,
-    );
+    type ExtendHostFunctions = (sp_io::SubstrateHostFunctions,);
     pub type Executor = WasmExecutor<ExtendHostFunctions>;
 
     pub fn get_executor(config: &Configuration) -> Executor {
@@ -38,9 +36,7 @@ pub mod aleph_executor {
 
     impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
         #[cfg(feature = "runtime-benchmarks")]
-        type ExtendHostFunctions = (
-            frame_benchmarking::benchmarking::HostFunctions,
-        );
+        type ExtendHostFunctions = (frame_benchmarking::benchmarking::HostFunctions,);
 
         #[cfg(not(feature = "runtime-benchmarks"))]
         type ExtendHostFunctions = ();
