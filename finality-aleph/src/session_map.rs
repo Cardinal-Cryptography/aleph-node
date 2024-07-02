@@ -748,7 +748,7 @@ mod tests {
             assert_eq!(
                 session_map.get(SessionId(i)).await,
                 None,
-                "Session {i:?} should not be avalable yet"
+                "Session {i:?} should not be available yet"
             );
         }
 
