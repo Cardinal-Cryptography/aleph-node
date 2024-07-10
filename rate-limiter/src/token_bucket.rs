@@ -23,7 +23,7 @@ where
 pub struct DefaultTimeProvider {}
 
 impl DefaultTimeProvider {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {}
     }
 }
@@ -31,6 +31,12 @@ impl DefaultTimeProvider {
 impl TimeProvider for DefaultTimeProvider {
     fn now(&mut self) -> Instant {
         Instant::now()
+    }
+}
+
+impl Default for DefaultTimeProvider {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -58,7 +64,7 @@ impl<T> std::fmt::Debug for TokenBucket<T> {
 impl TokenBucket {
     /// Constructs a instance of [`TokenBucket`] with given target rate-per-second.
     pub fn new(rate_per_second: usize) -> Self {
-        let mut time_provider = DefaultTimeProvider::new();
+        let mut time_provider = DefaultTimeProvider::default();
         TokenBucket {
             rate_per_second,
             available: rate_per_second,
