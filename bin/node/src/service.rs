@@ -234,12 +234,12 @@ fn get_proposer_factory(
 
 fn get_rate_limit_config(aleph_config: &AlephCli) -> RateLimiterConfig {
     RateLimiterConfig {
-        alephbft_bit_rate: aleph_config
-            .alephbft_bit_rate()
+        alephbft_network_bit_rate: aleph_config
+            .alephbft_network_bit_rate()
             .try_into()
             .unwrap_or(usize::MAX),
-        substrate_bit_rate: aleph_config
-            .substrate_bit_rate()
+        substrate_network_bit_rate: aleph_config
+            .substrate_network_bit_rate()
             .try_into()
             .unwrap_or(usize::MAX),
     }
@@ -302,7 +302,7 @@ pub fn new_authority(
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
     let rate_limiter_config = get_rate_limit_config(&aleph_config);
     let network_config = finality_aleph::SubstrateNetworkConfig {
-        substrate_bit_rate: rate_limiter_config.substrate_bit_rate,
+        substrate_network_bit_rate: rate_limiter_config.substrate_network_bit_rate,
         network_config: config.network.clone(),
     };
 
