@@ -72,7 +72,8 @@ pub use crate::{
     justification::AlephJustification,
     network::{
         address_cache::{ValidatorAddressCache, ValidatorAddressingInfo},
-        build_network, BuildNetworkOutput, ProtocolNetwork, SubstratePeerId,
+        build_network, BuildNetworkOutput, ProtocolNetwork, SubstrateNetworkConfig,
+        SubstratePeerId,
     },
     nodes::run_validator_node,
     session::SessionPeriod,
@@ -255,8 +256,10 @@ type Hasher = abft::HashWrapper<BlakeTwo256>;
 
 #[derive(Clone)]
 pub struct RateLimiterConfig {
-    /// Maximum bit-rate per node in bytes per second of the alephbft validator network.
-    pub alephbft_bit_rate_per_connection: usize,
+    /// Maximum bit-rate in bytes per second of the alephbft validator network.
+    pub alephbft_bit_rate: usize,
+    /// Maximum bit-rate in bytes per second of the substrate network (shared by sync, gossip, etc.).
+    pub substrate_bit_rate: usize,
 }
 
 pub struct AlephConfig<C, T> {

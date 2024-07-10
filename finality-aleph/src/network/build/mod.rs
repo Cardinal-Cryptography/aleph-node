@@ -1,6 +1,8 @@
 use std::sync::{atomic::AtomicBool, Arc};
 
+use libp2p::core::transport::Transport;
 use log::error;
+use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
 use sc_network::{
     config::{NetworkConfiguration, ProtocolId},
@@ -28,11 +30,14 @@ mod base;
 mod own_protocols;
 mod rpc;
 mod transactions;
+pub mod transport;
 
 use base::network as base_network;
 use own_protocols::Networks;
 use rpc::spawn_rpc_service;
 use transactions::spawn_transaction_handler;
+
+use self::transport::RateLimitedStreamMuxer;
 
 const SPAWN_CATEGORY: Option<&str> = Some("networking");
 
@@ -47,10 +52,17 @@ pub struct NetworkOutput<TP: TransactionPool + 'static> {
     pub system_rpc_tx: TracingUnboundedSender<RpcRequest<TP::Block>>,
 }
 
+pub struct SubstrateNetworkConfig {
+    /// Maximum bit-rate in bytes per second of the substrate network (shared by sync, gossip, etc.).
+    pub substrate_bit_rate: usize,
+    /// Configuration of the network service.
+    pub network_config: NetworkConfiguration,
+}
+
 /// Start everything necessary to run the inter-node network and return the interfaces for it.
 /// This includes everything in the base network, the base protocol service, and services for handling transactions and RPCs.
 pub fn network<TP, BE, C>(
-    network_config: &NetworkConfiguration,
+    network_config: SubstrateNetworkConfig,
     protocol_id: ProtocolId,
     client: Arc<C>,
     major_sync: Arc<AtomicBool>,
@@ -72,6 +84,24 @@ where
         .expect("Genesis block exists.");
     let (base_protocol_config, events_from_network) =
         setup_base_protocol::<TP::Block>(genesis_hash);
+
+    let network_rate_limit = network_config.substrate_bit_rate;
+    let rate_limiter = SleepingRateLimiter::new(network_rate_limit);
+    let transport_builder = move |config: sc_network::transport::NetworkConfig| {
+        let default_transport = sc_network::transport::build_transport(
+            config.keypair,
+            config.memory_only,
+            config.muxer_window_size,
+            config.muxer_maximum_buffer_size,
+        );
+        default_transport.map(move |(peer_id, stream_muxer), _| {
+            (
+                peer_id,
+                RateLimitedStreamMuxer::new(stream_muxer, rate_limiter),
+            )
+        })
+    };
+
     let (
         network,
         Networks {
@@ -80,7 +110,8 @@ where
         },
         transaction_prototype,
     ) = base_network(
-        network_config,
+        &network_config.network_config,
+        transport_builder,
         protocol_id,
         client.clone(),
         spawn_handle,
@@ -91,7 +122,7 @@ where
     let (base_service, syncing_service) = BaseProtocolService::new(
         major_sync,
         genesis_hash,
-        network_config,
+        &network_config.network_config,
         protocol_names,
         network.clone(),
         events_from_network,
