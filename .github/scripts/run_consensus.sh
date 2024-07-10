@@ -67,7 +67,7 @@ function generate_account_ids() {
   local account_ids=()
   for node_index in $(seq 0 "${validators_count}"); do
     echo "Generating account ${node_index} from key //${node_index}" >&2
-    account_ids+=($(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" "${NODE_IMAGE}" \
+    account_ids+=($(docker run --rm --mount type=bind,source=/home/zbyszko/Dev/alephzero/aleph.ng/aleph-node/docker/data,target=/data --entrypoint "/bin/sh" "${NODE_IMAGE}" \
        -c "aleph-node key inspect //$node_index | grep \"SS58 Address:\" | awk \"{print \\\$3;}\""))
   done
   echo ${account_ids[*]}
@@ -82,15 +82,15 @@ function generate_chainspec() {
   local validator_ids_comma_separated="${validators//${IFS:0:1}/,}"
 
   echo "Generate chainspec and keystores for accounts: ${account_ids_comma_separated[@]}"
-  docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${CHAIN_BOOTSTRAPPER_IMAGE}" \
-  -c "chain-bootstrapper bootstrap-chain --base-path /data --account-ids ${account_ids_comma_separated} --authorities-account-ids ${validator_ids_comma_separated} --raw > /data/chainspec.json"
+  docker run --rm --mount type=bind,source=/home/zbyszko/Dev/alephzero/aleph.ng/aleph-node/docker/data,target=/data --entrypoint "/bin/sh" -e RUST_LOG=debug "${CHAIN_BOOTSTRAPPER_IMAGE}" \
+  -c "chain-bootstrapper bootstrap-chain --base-path /data --account-ids ${account_ids_comma_separated} --authorities-account-ids ${validator_ids_comma_separated}  > /data/chainspec.json"
 }
 
 function generate_bootnode_peer_id() {
   local bootnode_account="$1"
 
   echo "Generate bootnode peer id..."
-  export BOOTNODE_PEER_ID=$(docker run --rm -v $(pwd)/docker/data:/data --entrypoint "/bin/sh" \
+  export BOOTNODE_PEER_ID=$(docker run --rm --mount type=bind,source=/home/zbyszko/Dev/alephzero/aleph.ng/aleph-node/docker/data,target=/data --entrypoint "/bin/sh" \
      -e RUST_LOG=info "${NODE_IMAGE}" \
      -c "aleph-node key inspect-node-key --file /data/${bootnode_account}/p2p_secret")
 }

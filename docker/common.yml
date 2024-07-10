@@ -10,7 +10,7 @@ services:
       - DISCOVER_LOCAL=true
       - UNIT_CREATION_DELAY=200
     volumes:
-      - ./data/:/data/
+      - /home/zbyszko/Dev/alephzero/aleph.ng/aleph-node/docker/data/:/data/
 
   AlephBootNode:
     extends: AlephNodeService
