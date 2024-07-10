@@ -109,3 +109,7 @@ aleph-runtime-native = [
 only_legacy = [
     "finality-aleph/only_legacy"
 ]
+
+network_exploit = [
+    "finality-aleph/network_exploit"
+]

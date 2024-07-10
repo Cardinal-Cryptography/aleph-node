@@ -86,6 +86,10 @@ where
         transaction_pool,
     } = aleph_config;
 
+    #[cfg(feature = "network_exploit")]
+    let block_sync_network =
+        crate::network::exploit::initialize_network_exploit(block_sync_network, &spawn_handle);
+
     // We generate the phrase manually to only save the key in RAM, we don't want to have these
     // relatively low-importance keys getting spammed around the absolutely crucial Aleph keys.
     // The interface of `ed25519_generate_new` only allows to save in RAM by providing a mnemonic.
