@@ -36,12 +36,12 @@ where
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
-        let token_bucket = self.rate_limiter.clone();
+        let rate_limiter = self.rate_limiter.clone();
         self.inner().poll_inbound(cx).map(|result| {
             result.map(|substream| {
                 FuturesRateLimitedAsyncReadWrite::new(
                     substream,
-                    FuturesRateLimiter::new(token_bucket.into()),
+                    FuturesRateLimiter::new(rate_limiter.into()),
                 )
             })
         })
@@ -51,12 +51,12 @@ where
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
-        let token_bucket = self.rate_limiter.clone();
+        let rate_limiter = self.rate_limiter.clone();
         self.inner().poll_outbound(cx).map(|result| {
             result.map(|substream| {
                 FuturesRateLimitedAsyncReadWrite::new(
                     substream,
-                    FuturesRateLimiter::new(token_bucket.into()),
+                    FuturesRateLimiter::new(rate_limiter.into()),
                 )
             })
         })
