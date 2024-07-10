@@ -30,14 +30,14 @@ mod base;
 mod own_protocols;
 mod rpc;
 mod transactions;
-pub mod transport;
+mod transport;
 
 use base::network as base_network;
 use own_protocols::Networks;
 use rpc::spawn_rpc_service;
 use transactions::spawn_transaction_handler;
+use transport::RateLimitedStreamMuxer;
 
-use self::transport::RateLimitedStreamMuxer;
 
 const SPAWN_CATEGORY: Option<&str> = Some("networking");
 
