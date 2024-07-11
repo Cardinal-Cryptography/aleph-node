@@ -32,6 +32,15 @@ jobs:
       ref: ${{ github.ref }}
       production: true
 
+  build-aleph-node-with-sync-exploit:
+    needs: [check-vars-and-secrets]
+    name: Build aleph-node with sync-network exploit
+    uses: ./.github/workflows/_build-aleph-node.yml
+    with:
+      ref: ${{ github.ref }}
+      production: false
+      custom-flags: '--features network_exploit'
+
   build-synthetic-node:
     needs: [build-production-aleph-node]
     name: Build synthetic node
@@ -300,6 +309,36 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
+          path: target/release/
+
+      - name: Download chain-bootstrapper from GH artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
+          path: target/release/
+
+      - name: Run test
+        timeout-minutes: 65
+        run: |
+          ./.github/scripts/test_python_general.sh \
+            --aleph-node ../target/release/aleph-node \
+            --chain-bootstrapper ../target/release/chain-bootstrapper \
+            --testcase test_major_sync
+
+  run-sync-network-exploit:
+    needs:
+      - build-aleph-node-with-sync-exploit
+      - build-chain-bootstrapper-production
+    name: Run sync network exploit
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download node binary from GH artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-aleph-node-with-sync-exploit.outputs.artifact-name-binary }}
           path: target/release/
 
       - name: Download chain-bootstrapper from GH artifacts

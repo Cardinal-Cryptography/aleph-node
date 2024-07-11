@@ -13,6 +13,10 @@ on:
         description: 'Set to true to build production binary, otherwise set to false'
         type: boolean
         required: true
+      custom-flags:
+        description: 'string consisting of all custom flags for the `cargo build` command, e.g. --features <some_feature_name>'
+        type: string
+        required: false
     outputs:
       artifact-name-binary:
         description: 'Name of artifact aleph-node binary'
@@ -49,7 +53,7 @@ jobs:
       - name: Build test aleph-node
         if: ${{ inputs.production != true }}
         run: |
-          cargo build --release -p aleph-node --features only_legacy
+          cargo build --release -p aleph-node --features only_legacy ${{custom-flags}}
 
       - name: Build production aleph-node
         if: ${{ inputs.production == true }}
