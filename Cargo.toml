@@ -17,6 +17,7 @@ members = [
     "pallets/support",
     "primitives",
     "rate-limiter",
+    "e2e-tests",
 ]
 
 exclude = [
@@ -25,7 +26,7 @@ exclude = [
     "bin/cliain",
     "bin/finalizer",
     "contracts/adder",
-    "e2e-tests",
+    # "e2e-tests",
     "flooder",
     "scripts/synthetic-network/synthetic-link",
 ]
