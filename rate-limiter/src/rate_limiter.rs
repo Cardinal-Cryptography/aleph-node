@@ -1,10 +1,8 @@
-use std::{
-    sync::{Arc, Mutex},
-    task::ready,
-};
+use std::{sync::Arc, task::ready};
 
 use futures::{future::BoxFuture, FutureExt};
 use log::trace;
+use parking_lot::Mutex;
 use tokio::{io::AsyncRead, time::sleep};
 
 use crate::{token_bucket::TokenBucket, LOG_TARGET};
@@ -46,13 +44,7 @@ impl SleepingRateLimiter {
             read_size
         );
 
-        let delay = {
-            let mut rate_limiter_lock = match self.rate_limiter.lock() {
-                Ok(guard) => guard,
-                Err(err) => err.into_inner(),
-            };
-            rate_limiter_lock.rate_limit(read_size)
-        };
+        let delay = self.rate_limiter.lock().rate_limit(read_size);
 
         if let Some(delay) = delay {
             trace!(
