@@ -3,7 +3,7 @@ use std::{sync::Arc, task::ready};
 use futures::{future::BoxFuture, FutureExt};
 use log::trace;
 use parking_lot::Mutex;
-use tokio::{io::AsyncRead, time::sleep};
+use tokio::{io::AsyncRead, time::sleep_until};
 
 use crate::{token_bucket::TokenBucket, LOG_TARGET};
 
@@ -53,7 +53,7 @@ impl SleepingRateLimiter {
                 delay,
                 read_size
             );
-            sleep(delay).await;
+            sleep_until(delay.into()).await;
         }
 
         self
