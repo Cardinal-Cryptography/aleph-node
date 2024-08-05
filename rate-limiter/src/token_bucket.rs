@@ -75,15 +75,14 @@ where
         }
     }
 
-    fn calculate_delay(&self) -> Instant {
+    fn calculate_delay(&self) -> Option<Instant> {
         if self.rate_per_second == 0 {
-            // ~2024 years of delay
-            return self.last_update + Duration::from_secs(60 * 60 * 24 * 365 * 2024);
+            return None;
         }
         let delay_micros = (self.requested - self.rate_per_second)
             .saturating_mul(1_000_000)
             .saturating_div(self.rate_per_second);
-        self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX))
+        Some(self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX)))
     }
 
     fn update_units(&mut self, now: Instant) -> usize {
@@ -106,7 +105,7 @@ where
 
     /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
     /// configured rate limit.
-    pub fn rate_limit(&mut self, requested: usize) -> Option<Instant> {
+    pub fn rate_limit(&mut self, requested: usize) -> Option<Option<Instant>> {
         trace!(
             target: LOG_TARGET,
             "TokenBucket called for {} of requested bytes. Internal state: {:?}.",
