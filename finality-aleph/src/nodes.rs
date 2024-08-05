@@ -97,7 +97,7 @@ where
     debug!(
         target: LOG_TARGET,
         "Initializing rate-limiter for the validator-network with {} byte(s) per second.",
-        rate_limiter_config.alephbft_network_bit_rate
+        rate_limiter_config.alephbft_network_bit_rate_per_connection
     );
 
     let (dialer, listener, network_identity) = new_tcp_network(
@@ -109,7 +109,7 @@ where
     .expect("we should have working networking");
 
     let alephbft_rate_limiter =
-        SleepingRateLimiter::new(rate_limiter_config.alephbft_network_bit_rate);
+        SleepingRateLimiter::new(rate_limiter_config.alephbft_network_bit_rate_per_connection);
     let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.clone());
     let listener = RateLimitingListener::new(listener, alephbft_rate_limiter);
 
