@@ -52,7 +52,7 @@ pub struct AlephCli {
     alephbft_network_bit_rate_per_connection: u64,
 
     /// Maximum bit-rate per connection in bytes per second of the substrate network.
-    #[clap(long, default_value_t = 64 * 1024)]
+    #[clap(long, default_value_t = 1024 * 1024)]
     substrate_network_bit_rate_per_connection: u64,
 
     /// Don't spend some extra time to collect more debugging data (e.g. validator network details).
