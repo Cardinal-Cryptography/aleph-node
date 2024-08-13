@@ -19,29 +19,31 @@ use crate::{
     STATUS_REPORT_INTERVAL,
 };
 
+pub type BoxedNotificationService = Box<dyn sc_network::config::NotificationService>;
+
 /// A thin wrapper around sc_network::config::NotificationService that stores a list
 /// of all currently connected peers, and introduces a few convenience methods to
 /// allow broadcasting messages and sending data to random peers.
 pub struct ProtocolNetwork {
-    service: Box<dyn sc_network::config::NotificationService>,
+    service: BoxedNotificationService,
     connected_peers: HashSet<PeerId>,
     last_status_report: time::Instant,
 }
 
-impl Borrow<Box<dyn sc_network::config::NotificationService>> for ProtocolNetwork {
-    fn borrow(&self) -> &Box<dyn sc_network::config::NotificationService> {
+impl Borrow<BoxedNotificationService> for ProtocolNetwork {
+    fn borrow(&self) -> &BoxedNotificationService {
         &self.service
     }
 }
 
-impl BorrowMut<Box<dyn sc_network::config::NotificationService>> for ProtocolNetwork {
-    fn borrow_mut(&mut self) -> &mut Box<dyn sc_network::config::NotificationService> {
+impl BorrowMut<BoxedNotificationService> for ProtocolNetwork {
+    fn borrow_mut(&mut self) -> &mut BoxedNotificationService {
         &mut self.service
     }
 }
 
 impl ProtocolNetwork {
-    pub fn new(service: Box<dyn sc_network::config::NotificationService>) -> Self {
+    pub fn new(service: BoxedNotificationService) -> Self {
         Self {
             service,
             connected_peers: HashSet::new(),
