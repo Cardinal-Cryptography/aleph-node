@@ -49,6 +49,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             synthetic_network_urls: env::var("SYNTHETIC_URLS")
                 .ok()
                 .map(|s| s.split(',').map(|s| s.to_string()).collect()),
+            finalization_wait: get_env("FINALIZATION_WAIT"),
         },
     }
 });
