@@ -1,0 +1,66 @@
+# Network flooding exploit.
+
+## Description
+
+aleph-node can be flooded with huge amount of requests and we should create a solution that tacles this problem.
+
+Flooding both aleph-bft or the new sync protocol (socket based and substrate based networks respectively) with huge amount of
+correct but repeated data, can cause out-of-memory type of errors and crashes. This is mainly due to usage of
+`unbounded-channels` through out substrate's and our network code. Previous version of the sync algorithm/protocol was using the
+`reputation` mechanism which suppose to help fixing this type of issues. Unfortunetly, thanks to its design, we were still able
+to crash a node simply by sending a lot of correct data. In this document we will try to design a solution of this problem.
+
+## Proposed solution
+
+Hierarchical rate-limiter
+
+Crate a solution where each connection receives a rate-limiter that has its own instance of TokenBucket and there is also a
+single instance shared between all connections. Each of those connection dedicated rate-limiters should use a rate-limit that is
+proportional to `overall_bandwidth / number_of_connections`. It will work as a minimal rate-limit of each connection. Every time
+a connection needs to allocate more bandwidth, it can compete for it using the globally shared instance of TokenBucket. This
+concurrent sharing mechanism should be, preferably, implemented in `fair` manner, i.e. no single connection should be able to
+just constantly allocate all of the resources. Every time a peer exceeds the global limit, it should be also somehow penalized,
+e.g. resources above the given limit should be scheduled using only its dedicated rate-limit, which is similar and fair for each
+connection.
+
+## Alternative solutions and non-solutions
+
+1. rate-limit connections using external proxy
+
+   Pros:
+   - doesn't require any changes to aleph-node or aleph-bft
+   Cons:
+   - requires us to extend our infrastructure and configure some external proxy solution that supports rate-limiting (nginx
+     seems to support some rate-limiting)
+   - every participant of the network needs to configure it by himself
+   - hard to control any more fine grained and context aware solution, i.e. what ip addresses should be filtered/rate-limited,
+     should every peer get same amount of bandwidth, etc.
+
+2. use request-response substrate protocol for sync and s/unbounded_channel/bounded_channel/g in both aleph-bft and aleph-node
+   Pros: Theoretically, it would allow to auto scale network bandwidth to node's performance, i.e. connections bandwidth would
+   be determined by how fast node is able to process requests. Cons: Difficult to implement and maintain since most of our
+   network code uses unbounded_channels and even a single unbounded data-structure in request's processing pipeline might create
+   a new vulnerability. That adds significant additional maintance cost.
+
+   Issues: This way aleph-node should be able to scale its network processing bandwidth but there is a chance that it will
+   introduce other issues by itself, i.e. starvation issue. When implemented naively (and this also depends on low level OS
+   networking details, how are connections handled by OS, etc.) it can allow a single node to starve requests comming from other
+   peers, i.e. due to high request rate only its requests will be handled. Possible witnesses of it - request are being dropped
+   when we are not able to handle them anymore and it can starve some peers (each request is accepted, follow through
+   libp2p::Swarm and then is dropped):
+   https://github.com/paritytech/polkadot-sdk/blob/74267881e765a01b1c7b3114c21b80dbe7686940/substrate/client/network/src/request_responses.rs#L715
+
+3. use rate-limiter on per connection basis, i.e. each connection should have its own allowed rate, instead of a global
+   rate-limit shared by all peers. Pros: Eash to implement for our codebase - we just wrap connections with rate-limiter
+   instantinate on per-connection basis. Cons: It seems to be hard to choose value for the bandwidth for each connection,
+   especially if its value does not depend on number of connections. When rate-limit is too low, we will significantly slow down
+   parts of our protocol, i.e. major syncing. If too high, i.e. max value after which node starts to stragl with new requests,
+   node can still be easily exploited by using ~2-3 malicious flooding connections.
+
+## Why the `per-connection` solution is good enough for aleph-bft?
+
+In case of aleph-bft we strictly controlling what peers can connect to our node. Every connection, before being accepted and
+further processed, is required to authenticate. In this model, number of malicious flooding nodes is correlated with
+theoreticall assumptions about our protocol (less than 1/3 malicious). Moreover, rate-limit doesn't need to close to hardware
+limits - aleph-bft doesn't use anything similar to major-sync mode in aleph-node, a node at worse need to catch up a single
+session of units.
