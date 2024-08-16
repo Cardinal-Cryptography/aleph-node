@@ -26,6 +26,12 @@ impl TimeProvider for DefaultTimeProvider {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Deadline {
+    Never,
+    Instant(Instant),
+}
+
 /// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource.
 #[derive(Clone)]
 pub struct TokenBucket<T = DefaultTimeProvider> {
@@ -75,9 +81,9 @@ where
         }
     }
 
-    fn calculate_delay(&self) -> Option<Option<Instant>> {
+    fn calculate_delay(&self) -> Option<Deadline> {
         if self.rate_per_second == 0 {
-            return Some(None);
+            return Some(Deadline::Never);
         }
         if self.requested <= self.rate_per_second {
             return None;
@@ -85,7 +91,7 @@ where
         let delay_micros = (self.requested - self.rate_per_second)
             .saturating_mul(1_000_000)
             .saturating_div(self.rate_per_second);
-        Some(Some(
+        Some(Deadline::Instant(
             self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX)),
         ))
     }
@@ -120,7 +126,7 @@ where
 
     /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
     /// configured rate limit.
-    pub fn rate_limit(&mut self, requested: usize) -> Option<Option<Instant>> {
+    pub fn rate_limit(&mut self, requested: usize) -> Option<Deadline> {
         trace!(
             target: LOG_TARGET,
             "TokenBucket called for {} of requested bytes. Internal state: {:?}.",
@@ -141,6 +147,8 @@ mod tests {
         cell::RefCell,
         time::{Duration, Instant},
     };
+
+    use crate::token_bucket::Deadline;
 
     use super::TokenBucket;
 
@@ -201,7 +209,7 @@ mod tests {
         *time_to_return.borrow_mut() = now;
         assert_eq!(
             rate_limiter.rate_limit(19),
-            Some(Some(now + Duration::from_secs(2))),
+            Some(Deadline::Instant(now + Duration::from_secs(2))),
             "we should wait exactly 2 seconds"
         );
     }
@@ -220,13 +228,17 @@ mod tests {
         *time_to_return.borrow_mut() = now + Duration::from_secs(10);
         assert_eq!(
             rate_limiter.rate_limit(40),
-            Some(Some(now + Duration::from_secs(10) + Duration::from_secs(3))),
+            Some(Deadline::Instant(
+                now + Duration::from_secs(10) + Duration::from_secs(3)
+            )),
         );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(11);
         assert_eq!(
             rate_limiter.rate_limit(40),
-            Some(Some(now + Duration::from_secs(11) + Duration::from_secs(6)))
+            Some(Deadline::Instant(
+                now + Duration::from_secs(11) + Duration::from_secs(6)
+            ))
         );
     }
 
@@ -247,13 +259,17 @@ mod tests {
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
         assert_eq!(
             rate_limiter.rate_limit(10),
-            Some(Some(now + Duration::from_secs(3) + Duration::from_secs(1)))
+            Some(Deadline::Instant(
+                now + Duration::from_secs(3) + Duration::from_secs(1)
+            ))
         );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
         assert_eq!(
             rate_limiter.rate_limit(50),
-            Some(Some(now + Duration::from_secs(3) + Duration::from_secs(6)))
+            Some(Deadline::Instant(
+                now + Duration::from_secs(3) + Duration::from_secs(6)
+            ))
         );
     }
 }

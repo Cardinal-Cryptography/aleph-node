@@ -7,7 +7,10 @@ use futures::{
 use log::trace;
 use tokio::{io::AsyncRead, time::sleep_until};
 
-use crate::{token_bucket::TokenBucket, LOG_TARGET};
+use crate::{
+    token_bucket::{Deadline, TokenBucket},
+    LOG_TARGET,
+};
 
 /// Allows to limit access to some resource. Given a preferred rate (units of something) and last used amount of units of some
 /// resource, it calculates how long we should delay our next access to that resource in order to satisfy that rate.
@@ -49,7 +52,7 @@ impl SleepingRateLimiter {
         let delay = self.rate_limiter.rate_limit(read_size);
 
         match delay {
-            Some(Some(delay)) => {
+            Some(Deadline::Instant(delay)) => {
                 trace!(
                     target: LOG_TARGET,
                     "Rate-Limiter will sleep {:?} after reading {} byte(s).",
@@ -58,7 +61,7 @@ impl SleepingRateLimiter {
                 );
                 sleep_until(delay.into()).await;
             }
-            Some(None) => pending().await,
+            Some(Deadline::Never) => pending().await,
             None => {}
         }
 
