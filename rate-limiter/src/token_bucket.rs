@@ -148,9 +148,7 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use crate::token_bucket::Deadline;
-
-    use super::TokenBucket;
+    use crate::token_bucket::{Deadline, TokenBucket};
 
     #[test]
     fn token_bucket_sanity_check() {
