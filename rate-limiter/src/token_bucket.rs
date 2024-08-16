@@ -75,14 +75,19 @@ where
         }
     }
 
-    fn calculate_delay(&self) -> Option<Instant> {
+    fn calculate_delay(&self) -> Option<Option<Instant>> {
         if self.rate_per_second == 0 {
+            return Some(None);
+        }
+        if self.requested <= self.rate_per_second {
             return None;
         }
         let delay_micros = (self.requested - self.rate_per_second)
             .saturating_mul(1_000_000)
             .saturating_div(self.rate_per_second);
-        Some(self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX)))
+        Some(Some(
+            self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX)),
+        ))
     }
 
     fn update_units(&mut self) {
@@ -109,12 +114,8 @@ where
         self.rate_per_second.saturating_sub(self.requested)
     }
 
-    /// Accounts newly requested data.
-    /// Returns `true` if the user has requested more tokens than are currently available.
-    fn account_requested(&mut self, requested: usize) -> bool {
-        let available = self.available();
+    fn account_requested(&mut self, requested: usize) {
         self.requested = self.requested.saturating_add(requested);
-        available < requested
     }
 
     /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
@@ -129,8 +130,8 @@ where
         if self.available() < requested {
             self.update_units();
         }
-        self.account_requested(requested)
-            .then(|| self.calculate_delay())
+        self.account_requested(requested);
+        self.calculate_delay()
     }
 }
 
