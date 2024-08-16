@@ -85,22 +85,36 @@ where
         Some(self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX)))
     }
 
-    fn update_units(&mut self, now: Instant) -> usize {
+    fn update_units(&mut self) {
+        let now = self.time_provider.now();
+        assert!(
+            now >= self.last_update,
+            "Provided value for `now` should be at least equal to `self.last_update`: now = {:#?} self.last_update = {:#?}.",
+            now,
+            self.last_update
+        );
+
         let time_since_last_update = now.duration_since(self.last_update);
         self.last_update = now;
         let new_units = time_since_last_update
             .as_micros()
-            .saturating_mul(self.rate_per_second as u128)
+            .saturating_mul(self.rate_per_second.try_into().unwrap_or(u128::MAX))
             .saturating_div(1_000_000)
             .try_into()
             .unwrap_or(usize::MAX);
         self.requested = self.requested.saturating_sub(new_units);
-
-        self.available()
     }
 
     fn available(&self) -> usize {
         self.rate_per_second.saturating_sub(self.requested)
+    }
+
+    /// Accounts newly requested data.
+    /// Returns `true` if the user has requested more tokens than are currently available.
+    fn account_requested(&mut self, requested: usize) -> bool {
+        let available = self.available();
+        self.requested = self.requested.saturating_add(requested);
+        available < requested
     }
 
     /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
@@ -113,23 +127,10 @@ where
             self
         );
         if self.available() < requested {
-            let now = self.time_provider.now();
-            assert!(
-                now >= self.last_update,
-                "Provided value for `now` should be at least equal to `self.last_update`: now = {:#?} self.last_update = {:#?}.",
-                now,
-                self.last_update
-            );
-
-            let available = self.update_units(now);
-            self.requested = self.requested.saturating_add(requested);
-            if available < requested {
-                return Some(self.calculate_delay());
-            }
-        } else {
-            self.requested = self.requested.saturating_add(requested);
+            self.update_units();
         }
-        None
+        self.account_requested(requested)
+            .then(|| self.calculate_delay())
     }
 }
 
