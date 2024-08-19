@@ -1,6 +1,9 @@
+#[cfg(feature = "network_exploit")]
+mod exploit;
+
 use futures::{
     channel::{mpsc, oneshot},
-    StreamExt,
+    Sink, Stream, StreamExt,
 };
 use log::{debug, info, trace};
 use parity_scale_codec::{Decode, Encode};
@@ -86,6 +89,34 @@ async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(
     }
 }
 
+// pub struct ConnectionManager<Sender, Receiver, DataReceiver, DataSender> {
+//     sender: Sender,
+//     receiver: Receiver,
+//     data_from_user: DataReceiver,
+//     data_for_user: DataSender,
+// }
+
+// impl<Sender, Receiver> ConnectionManager<Sender, Receiver, mpsc::UnboundedReceiver<D>, DataSender>
+// where
+//     Sender: AsyncWrite + Unpin + Send,
+//     Receiver: AsyncRead + Unpin + Send,
+// {
+//     pub async fn manager_connection<PK, D>(self) -> Result<(), ProtocolError<PK>>
+//     where
+//         PK: PublicKey,
+//         D: Data,
+//         // DataReceiver: Stream<Item = D>,
+//         // DataSender: Sink<D>,
+//     {
+//         let sending = sending(self.sender, self.data_from_user);
+//         let receiving = receiving(self.receiver, self.data_for_user);
+//         tokio::select! {
+//             result = receiving => result,
+//             result = sending => result,
+//         }
+//     }
+// }
+
 async fn manage_connection<
     PK: PublicKey,
     D: Data,
@@ -97,6 +128,9 @@ async fn manage_connection<
     data_from_user: mpsc::UnboundedReceiver<D>,
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<PK>> {
+    #[cfg(feature = "network_exploit")]
+    let sending = exploit::sending(sender, data_from_user);
+    #[cfg(not(feature = "network_exploit"))]
     let sending = sending(sender, data_from_user);
     let receiving = receiving(receiver, data_for_user);
     tokio::select! {

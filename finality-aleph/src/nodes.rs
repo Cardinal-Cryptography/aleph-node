@@ -86,7 +86,7 @@ where
         transaction_pool,
     } = aleph_config;
 
-    // #[cfg(feature = "network_exploit")]
+    #[cfg(feature = "network_exploit")]
     let block_sync_network =
         crate::network::exploit::initialize_network_exploit(block_sync_network, &spawn_handle);
 

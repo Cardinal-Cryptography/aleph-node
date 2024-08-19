@@ -89,4 +89,6 @@ sc-basic-authorship = { workspace = true }
 
 [features]
 only_legacy = []
-network_exploit = []
+network_exploit = [
+    "network-clique/network_exploit",
+]

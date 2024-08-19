@@ -15,7 +15,7 @@ pub mod address_cache;
 mod base_protocol;
 mod build;
 pub mod data;
-// #[cfg(feature = "network_exploit")]
+#[cfg(feature = "network_exploit")]
 pub mod exploit;
 #[cfg(test)]
 pub mod mock;
