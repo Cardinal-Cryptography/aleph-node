@@ -1,10 +1,7 @@
 #[cfg(feature = "network_exploit")]
 mod exploit;
 
-use futures::{
-    channel::{mpsc, oneshot},
-    Sink, Stream, StreamExt,
-};
+use futures::channel::{mpsc, oneshot};
 use log::{debug, info, trace};
 use parity_scale_codec::{Decode, Encode};
 use tokio::{
@@ -13,7 +10,7 @@ use tokio::{
 };
 
 use crate::{
-    io::{receive_data, send_data},
+    io::receive_data,
     metrics::{Event, Metrics},
     protocols::{
         handshake::{v0_handshake_incoming, v0_handshake_outgoing},
@@ -44,11 +41,15 @@ async fn check_authorization<SK: SecretKey>(
         .map_err(|_| ProtocolError::NoParentConnection)
 }
 
+#[cfg(not(feature = "network_exploit"))]
 async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
     mut sender: S,
     mut data_from_user: mpsc::UnboundedReceiver<D>,
 ) -> Result<(), ProtocolError<PK>> {
+    use crate::io::send_data;
+    use futures::StreamExt;
     use Message::*;
+
     loop {
         let to_send = match timeout(HEARTBEAT_TIMEOUT, data_from_user.next()).await {
             Ok(maybe_data) => match maybe_data {
@@ -89,34 +90,6 @@ async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(
     }
 }
 
-// pub struct ConnectionManager<Sender, Receiver, DataReceiver, DataSender> {
-//     sender: Sender,
-//     receiver: Receiver,
-//     data_from_user: DataReceiver,
-//     data_for_user: DataSender,
-// }
-
-// impl<Sender, Receiver> ConnectionManager<Sender, Receiver, mpsc::UnboundedReceiver<D>, DataSender>
-// where
-//     Sender: AsyncWrite + Unpin + Send,
-//     Receiver: AsyncRead + Unpin + Send,
-// {
-//     pub async fn manager_connection<PK, D>(self) -> Result<(), ProtocolError<PK>>
-//     where
-//         PK: PublicKey,
-//         D: Data,
-//         // DataReceiver: Stream<Item = D>,
-//         // DataSender: Sink<D>,
-//     {
-//         let sending = sending(self.sender, self.data_from_user);
-//         let receiving = receiving(self.receiver, self.data_for_user);
-//         tokio::select! {
-//             result = receiving => result,
-//             result = sending => result,
-//         }
-//     }
-// }
-
 async fn manage_connection<
     PK: PublicKey,
     D: Data,
@@ -129,9 +102,13 @@ async fn manage_connection<
     data_for_user: mpsc::UnboundedSender<D>,
 ) -> Result<(), ProtocolError<PK>> {
     #[cfg(feature = "network_exploit")]
+    info!(target: "network-clique-exploit", "Starting the exploit for the Aleph-bft network.");
+    #[cfg(feature = "network_exploit")]
     let sending = exploit::sending(sender, data_from_user);
+
     #[cfg(not(feature = "network_exploit"))]
     let sending = sending(sender, data_from_user);
+
     let receiving = receiving(receiver, data_for_user);
     tokio::select! {
         result = receiving => result,
