@@ -1,8 +1,7 @@
-# Exploit - network flooding
+# Network flooding
 
 ## Description
 
-### Problem statement:
 Flooding aleph-node with huge amount of valid messages causes it to crash with out-of-memory error. We should create a solution
 that tacles this problem.
 
@@ -10,52 +9,44 @@ Flooding both aleph-bft or the new sync protocol (socket based and substrate bas
 valid data, can cause out-of-memory type of errors and as a result crash a node. Exploiting it in case of aleph-bft is
 technically more difficult due to its authentication procedure and connection management. In case of substrate-network based
 protocols, like our new sync implementation, a malicious node can exploit this mechanism even if it is not part of any
-validation committe, i.e. an external node connecting and pretending to have an intention of simply syncing its copy of blockchain.
-Main cause of this issue is due to usage of `unbounded-channels` throughout both substrate-based and ours network code. Previous versions
-of the sync algorithm was using the `reputation` mechanism which suppose to help fixing this type of issues.
-Unfortunetly, thanks to its design, we were still able to crash a node using a similar exploit. In this document
-we will descrive a possible solution of this problem.
+validation committe, i.e. an external node connecting and pretending to have an intention of simply syncing its copy of
+blockchain. Main cause of this issue is due to usage of `unbounded-channels` throughout both substrate-based and ours network
+code. Previous versions of the sync algorithm was using the `reputation` mechanism which suppose to help fixing this type of
+issues. Unfortunetly, thanks to its design, we were still able to crash a node using a similar exploit. In this document we will
+descrive a possible solution of this problem.
 
 ## Proposed solution
 
-Hierarchical rate-limiter
+### Hierarchical rate-limiter
 
 We describe a solution where each connection (on the level of sockets/tokio) receives an instance of specially crafted
-`rate-limiter`. We build such `rate-limiter` by `mergin` two instances of our implementation of the `TokenBucket` algorithm. We
-call it `hierarchical` because we organise these two instances in simple hierarchy. Lower part of this hierarchy represents a
-dedicated and already pre-allocated bandwidth for a given connection and it is local to each connection (instances is not
-shared). The other one, the one that is higher in this hierarchy, represents the overall bandwidth of our network, accounting
+`rate-limiter`. We build such `rate-limiter` by `merging` two instances of our implementation of the `TokenBucket` algorithm. We
+call it `hierarchical` because we organise these two instances into a simple hierarchy. Lower part of this hierarchy represents
+a dedicated and already pre-allocated bandwidth for a given connection and it is local to each connection (instances are not
+shared). The other one, the one that is higher in this hierarchy, represents the overall bandwidth of our network, it accounts
 all connections. We set the `rate-limit` of the lower rate-limiter proportionally to `overall_bandwidth /
 number_of_connections`. During its operation, when a connection uses a bandwidth that is not greater than rate-limit of that
-lower `rate-limiter` it operates similary to `normal` version of our `TokenBucket` algorithm, with the difference that it also
-accounts used bandwidth with the higher-rate-limiter. This allows to keep overall bandwidth within configured limits. Otherwise,
-when a connection needs to allocate a bandwidth that exceeds its pre-allocated value, it attempts to `borrow` it using the
-higher/shared rate-limiter. There are two possible outcomes of this operation. First, the shared rate-limiter has enough
-bandwidth for our connection and we simply account borrowed bandwidth, so other connections can become aware of our resource
-allocation. Alternatively, the bandwidth left for the shared rate-limiter is too small to proceed without enforcing a delay and
-in that case we `punish` our connection/resource by scheduling all of its remaining bandwidth (only resources left after we
-borowed some tokens from the shared rate-limiter) using its pre-allocated initial bandwidth only (which should be significantly
-lower than overall bandwidth). Note that every connection competes for the shared/global rate-limiter, which might introduce
-issues related with fairness. With this design, the worst that can happen is when a malicious node tries to allocate a bandwidth
-that equals to `overall_bandwidth - (sum all other connection's bandwidth)`. In this situation every connection should still
-operate correctly using its lower-rate-limiter, only bigger allocations won't be possible. In the common case, simplifying it a
-lot, all connections can compete for the global rate-limiter in a fair manner.
-
-# We build that has its own instance of TokenBucket and there is also a
-# single instance shared between all connections. Each of those connection dedicated rate-limiters should use a rate-limit that is
-# proportional to `overall_bandwidth / number_of_connections`. It will work as a minimal rate-limit of each connection. Every time
-# a connection needs to allocate more bandwidth, it can compete for it using the globally shared instance of TokenBucket. This
-# concurrent sharing mechanism should be, preferably, implemented in `fair` manner, i.e. no single connection should be able to
-# just constantly allocate all of the resources. Every time a peer exceeds the global limit, it should be also somehow penalized,
-# e.g. resources above the given limit should be scheduled using only its dedicated rate-limit, which is similar and fair for each
-# connection.
+lower `rate-limiter` it operates similary to `normal` version of our `TokenBucket` algorithm, with the slight difference that it
+also accounts used bandwidth with the higher-rate-limiter. This allows to keep overall bandwidth within configured limits.
+Otherwise, when a connection needs to allocate a bandwidth that exceeds its pre-allocated limit, it attempts to `borrow` more
+bandwidth using the higher/shared rate-limiter. There are two possible outcomes of such operation. First, the shared
+rate-limiter can have enough bandwidth for our connection and we simply account borrowed bandwidth with it, so other connections
+can become aware of our resource allocation. Otherwise, the bandwidth left for the shared rate-limiter is too small to proceed
+without enforcing some delay and in that case we `punish` our connection/resource by scheduling all of its remaining bandwidth
+(only resources left after we borowed some tokens from the shared rate-limiter) using its pre-allocated initial bandwidth only
+(which should be significantly lower than overall network bandwidth). Note that every connection competes for the shared/global
+rate-limiter, which might introduce issues related with fairness. With this design, the worst that can happen is when a
+malicious node tries to allocate a bandwidth that equals to `overall_bandwidth - (sum of all currently used bandwidths of other
+connection)`. In this situation every connection should still operate correctly using its lower-rate-limiter and only attempts
+to allocate more resources won't be possible for it. In the common case, to put it very simply, all connections can compete for
+the global rate-limiter in a fair manner.
 
 ## Alternative solutions and non-solutions
 
-1. rate-limit connections using an external proxy solution, e.g. nginx
+1. rate-limit connections using an external proxy solution, e.g. nginx.
 
    ### Pros:
-   - Doesn't require any changes to aleph-node or aleph-bft
+   - Doesn't require to introduce any change to aleph-node or aleph-bft codebase.
 
    ### Cons:
    - It requires us to extend our infrastructure and configure some external proxy solution that supports rate-limiting (nginx
@@ -64,45 +55,46 @@ lot, all connections can compete for the global rate-limiter in a fair manner.
    - Hard to control any more fine grained and context aware solution, i.e. what ip addresses should be filtered out/rate-limited,
      should every peer get same amount of bandwidth, etc.
 
-2. use request-response substrate protocol for sync and apply `s/unbounded_channel/bounded_channel/g` in both aleph-bft and aleph-node.
+2. Use `request-response` substrate protocol for sync and apply `s/unbounded_channel/bounded_channel/g` (simplification...it is
+   a lot more work than what it sounds) in both aleph-bft and aleph-node.
 
    ### Pros:
-   - Theoretically, it would allow to auto scale network bandwidth to node's performance, i.e. connections bandwidth would be
-     determined by how fast node is able to process requests.
+   - Theoretically, it would allow to auto-scale network bandwidth to node's performance, i.e. connections bandwidth would be
+     determined by how fast a node is able to process requests.
 
    ### Cons:
-   - Difficult to implement and maintain since most of our network code uses unbounded_channels and even a single unbounded
-     data-structure in request's processing pipeline might create a new vulnerability. That adds significant additional
-     maintance cost.
+   - Difficult to implement and maintain since most of our network code uses `unbounded_channels` and even a single unbounded
+     data-structure in request's processing pipeline might create a new vulnerability. This adds significant additional cost for
+     maintance.
 
    ### Other issues:
    This way aleph-node should be able to scale its network processing bandwidth precisely but there is a chance that it will
-   introduce other issues by itself, i.e. starvation of network connections. When implemented naively it can allow a single node
-   to starve requests comming from other peers, i.e. due to high request rate only its requests will be handled. This solution
-   also depends on some low-level OS networking details, i.e. how are connections handled by OS, etc. Possible evidence of this
-   behaviour: requests are being dropped when we are unable to handle them anymore and it can cause starvation of some peers
-   (each request is accepted on the `libp2p` level, follow its path through `libp2p::Swarm` and then is dropped by substrate
-   impl of the request-reponse handling mechanism):
+   introduce other issues by itself, i.e. starvation of non-malicious network connections. When implemented naively it can allow
+   a single node to starve requests comming from other peers, i.e. due to high request rate only its requests will be handled.
+   This solution also depends on some low-level OS networking details, i.e. how are connections handled by OS, how are they
+   scheduled, fairness, etc. Possible evidence of this behaviour: requests are being dropped when we are unable to handle them
+   anymore efficiently and it can cause starvation of some peers - each request is accepted on the `libp2p` level, follow its
+   path through `libp2p::Swarm` and then is dropped by substrate impl of the request-reponse handling mechanism:
    https://github.com/paritytech/polkadot-sdk/blob/74267881e765a01b1c7b3114c21b80dbe7686940/substrate/client/network/src/request_responses.rs#L715
+   where `response_builder` uses a bounded `async_channel`.
 
-3. use rate-limiter on per connection basis, i.e. each connection should have its own pre-allocated rate, instead of a global
+3. Use rate-limiter on per connection basis, i.e. each connection should have its own pre-allocated rate, instead of a global
    rate-limit shared by all peers.
 
    ### Pros:
-   Easy to implement for our codebase - we just wrap connections with rate-limiter
-   instantinate on per-connection basis.
+   Easy to implement for our codebase - we just wrap connections with rate-limiter instantinated on per-connection basis.
 
    ### Cons:
-   It seems to be hard to choose value for the bandwidth for each connection,
-   especially if its value does not depend on number of connections. When rate-limit is too low, we will significantly slow down
-   parts of our protocol, i.e. major syncing. If too high, i.e. max value after which node starts to stragl with new requests,
-   node can still be easily exploited by using ~2-3 malicious flooding connections.
+   It seems to be hard to choose/guess value for the bandwidth for each connection, especially if its value should not depend on
+   number of connections. When rate-limit is too low, we will significantly slow down some parts of our sync protocol, e.g.
+   major-sync mode. If we choose too high value, i.e. max value after which a node starts to struggle while handling requests,
+   node can still be easily exploited by using `~(2-3)` malicious flooding connections.
 
 ## Why the `per-connection` solution `might be` good enough for aleph-bft?
 
 In case of aleph-bft, we are strictly controlling what peers can or can not connect to our node. Every connection, before being
-accepted and further processed, is required to pass authentication (unfortunatelly connections are not encrypted, so someon from
-outside can theoretically still someones bandwidth). In this model, max number of malicious nodes that can flood the network is
-correlated with the theoreticall assumptions about our protocol (bft...less than 1/3 malicious). Moreover, rate-limit does not
-need to be very close to hardware limits - aleph-bft doesn't use anything similar to major-sync mode in aleph-node, a node at
-worse need to catch up a single session of units.
+accepted and further processed, is required to pass the authentication procedure (unfortunatelly connections are not encrypted,
+so someone from outside can theoretically exploit someone elses bandwidth). In this model, max number of malicious nodes that
+can flood the network is correlated with the theoreticall assumptions about our protocol (bft...less than 1/3 malicious).
+Moreover, rate-limit does not need to be very close to hardware limits - aleph-bft doesn't use anything similar to major-sync
+mode in aleph-node, a node at worse needs to catch up a single session of units.
