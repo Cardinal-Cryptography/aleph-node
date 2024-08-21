@@ -17,6 +17,7 @@ on:
         description: 'string consisting of all custom flags for the `cargo build` command, e.g. --features <some_feature_name>'
         type: string
         required: false
+        default: ''
     outputs:
       artifact-name-binary:
         description: 'Name of artifact aleph-node binary'
