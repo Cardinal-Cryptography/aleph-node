@@ -48,7 +48,7 @@ pub struct AlephCli {
     enable_pruning: bool,
 
     /// Maximum bit-rate in bytes per second of the alephbft validator network.
-    #[clap(long, default_value_t = 4 * 1024 * 1024)]
+    #[clap(long, default_value_t = 64 * 1024)]
     alephbft_network_bit_rate: u64,
 
     /// Maximum bit-rate in bytes per second of the substrate network.
