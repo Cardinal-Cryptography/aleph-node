@@ -54,7 +54,7 @@ jobs:
       - name: Build test aleph-node
         if: ${{ inputs.production != true }}
         run: |
-          cargo build --release -p aleph-node --features only_legacy ${{custom-flags}}
+          cargo build --release -p aleph-node --features only_legacy ${{ inputs.custom-flags }}
 
       - name: Build production aleph-node
         if: ${{ inputs.production == true }}
