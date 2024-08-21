@@ -347,6 +347,7 @@ jobs:
         run: |
           docker load -i aleph-node.tar
           docker tag aleph-node:latest aleph-node:exploit
+          docker image rm aleph-node:latest
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
