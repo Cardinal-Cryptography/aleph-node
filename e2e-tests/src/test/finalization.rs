@@ -11,7 +11,7 @@ use crate::config::setup_test;
 pub async fn finalization() -> anyhow::Result<()> {
     let config = setup_test();
     let connection = config.create_root_connection().await;
-    let wait_blocks = config.finalization_wait.unwrap_or(1);
+    let wait_blocks = config.test_case_params.finalization_wait.unwrap_or(1);
 
     let finalized = connection.get_finalized_block_hash().await?;
     info!("Highest finalized block hash = {finalized}");
