@@ -38,7 +38,7 @@ jobs:
     uses: ./.github/workflows/_build-aleph-node.yml
     with:
       ref: ${{ github.ref }}
-      production: true
+      production: false
       custom-flags: '--features network_exploit'
 
   build-synthetic-node:
@@ -331,7 +331,7 @@ jobs:
       - build-aleph-node-with-network-exploit
       - build-aleph-e2e-client-image
       - build-chain-bootstrapper-production
-    name: Run high out-latency test
+    name: Run network-exploit test
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
