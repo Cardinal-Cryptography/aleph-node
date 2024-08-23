@@ -404,6 +404,9 @@ jobs:
     name: Run high out-latency for every quorum
     runs-on: ubuntu-20.04
     steps:
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+
       - name: Checkout source code
         uses: actions/checkout@v4
 
