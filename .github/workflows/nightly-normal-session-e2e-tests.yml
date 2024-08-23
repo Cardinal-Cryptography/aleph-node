@@ -370,9 +370,9 @@ jobs:
           artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
           timeout-minutes: 40
 
-      - name: Setup upterm session after test
-        uses: lhotari/action-upterm@v1
-        if: always()
+      # - name: Setup upterm session after test
+      #   uses: lhotari/action-upterm@v1
+      #   if: always()
 
   # run-force-reorg-test:
   #   needs:
