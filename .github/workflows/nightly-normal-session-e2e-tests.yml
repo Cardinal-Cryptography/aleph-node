@@ -337,17 +337,17 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: Download node-exploit docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-aleph-node-with-network-exploit.outputs.artifact-name-image }}
+
       - name: Load node-exploit docker image
         shell: bash
         run: |
           docker load -i aleph-node.tar
           docker tag aleph-node:latest aleph-node:exploit
           docker image rm aleph-node:latest
-
-      - name: Download node-exploit docker image
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build-aleph-node-with-network-exploit.outputs.artifact-name-image }}
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -357,7 +357,7 @@ jobs:
         with:
           test-case: finalization
           # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+          artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
           aleph-node-image-tag: aleph-node:latest
           # yamllint disable-line rule:line-length
           artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
