@@ -92,6 +92,8 @@ runs:
 
     - name: Wait for the finalization before e2e test
       shell: bash
+      env:
+        FINALIZATION_WAIT: 1
       run: |
         export TIMEOUT_MINUTES="5m"
         ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
@@ -155,6 +157,8 @@ runs:
     - name: Check finalization after e2e test
       if: inputs.check-finalization-after-test == 'true'
       shell: bash
+      env:
+        FINALIZATION_WAIT: 1
       run: |
         export TIMEOUT_MINUTES="5m"
         ./.github/scripts/run_e2e_test.sh -t finalization::finalization \

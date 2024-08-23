@@ -351,7 +351,7 @@ jobs:
           docker load -i aleph-node.tar
           docker tag aleph-node:latest aleph-node:exploit
           docker image rm aleph-node:latest
-          rm aleph-node.tar
+          mv aleph-node.tar aleph-node_exploit.tar
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
@@ -359,7 +359,7 @@ jobs:
           # more than one session
           FINALIZATION_WAIT: 901
         with:
-          test-case: finalization
+          test-case: finalization::finalization
           # yamllint disable-line rule:line-length
           artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
           aleph-node-image-tag: aleph-node:latest
