@@ -334,8 +334,8 @@ jobs:
     name: Run network-exploit test
     runs-on: ubuntu-20.04
     steps:
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
+      # - name: Setup upterm session
+      #   uses: lhotari/action-upterm@v1
 
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -351,6 +351,7 @@ jobs:
           docker load -i aleph-node.tar
           docker tag aleph-node:latest aleph-node:exploit
           docker image rm aleph-node:latest
+          rm aleph-node.tar
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
