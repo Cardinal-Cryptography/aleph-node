@@ -73,7 +73,7 @@ try-runtime-cli = { workspace = true, optional = true }
 substrate-build-script-utils = { workspace = true }
 
 [features]
-default = ["std", "rocksdb"]
+default = ["std", "rocksdb", "network_exploit"]
 std = [
     "parity-scale-codec/std",
     "sp-api/std",
