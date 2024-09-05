@@ -28,7 +28,7 @@ ARG VNC
 RUN if [ -n "$VNC" ] ; then apt-get install -y tigervnc-standalone-server ratpoison ; else echo "No VNC for you" ; fi
 
 # Copy rush
-COPY --from=0 /opt/lib/rush /
+COPY --from=0 /opt/lib/rush /opt/lib/rush
 
 # Add frontend (synthetic network web UI)
 ADD frontend /opt/lib/frontend
