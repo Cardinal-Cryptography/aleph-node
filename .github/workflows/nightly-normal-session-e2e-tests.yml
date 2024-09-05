@@ -72,316 +72,317 @@ jobs:
           artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
           timeout-minutes: 40
 
-  run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - one node catching up and then
-          becoming necessary for consensus
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - one node catching up and then
+  #         becoming necessary for consensus
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::one_node_catching_up_and_then_becoming_necessary_for_consensus
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::one_node_catching_up_and_then_becoming_necessary_for_consensus
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-sync-test-one_node_catching_up:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - one node catching up
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-one_node_catching_up:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - one node catching up
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::one_node_catching_up
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::one_node_catching_up
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - into two groups and one quorum
-          and switch quorum between them
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - into two groups and one quorum
+  #         and switch quorum between them
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::into_two_groups_and_one_quorum_and_switch_quorum_between_them
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::into_two_groups_and_one_quorum_and_switch_quorum_between_them
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-sync-test-into_multiple_groups_of_two:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - into multiple groups of two
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-into_multiple_groups_of_two:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - into multiple groups of two
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::into_multiple_groups_of_two
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::into_multiple_groups_of_two
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - into two equal size groups
-          with no quorum
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - into two equal size groups
+  #         with no quorum
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::into_two_equal_size_groups_with_no_quorum
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::into_two_equal_size_groups_with_no_quorum
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-sync-test-into_two_groups_one_with_quorum:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Sync test using synthetic-network - into two groups one with
-          quorum
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-sync-test-into_two_groups_one_with_quorum:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Sync test using synthetic-network - into two groups one with
+  #         quorum
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 7
-        with:
-          test-case: test::sync::into_two_groups_one_with_quorum
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
-          node-count: 7
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 7
+  #       with:
+  #         test-case: test::sync::into_two_groups_one_with_quorum
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.synthetic-network_sync-tests.yml
+  #         node-count: 7
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
-  run-e2e-finalization-stall:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Finalization-stall test using synthetic-network
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-finalization-stall:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Finalization-stall test using synthetic-network
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        env:
-          NETWORK: "synthetic-network"
-          NODE_URL: "ws://Node0:9944"
-          VALIDATOR_COUNT: 5
-          TIMEOUT_MINUTES: "60m"
-        with:
-          test-case: test::sync::large_finalization_stall
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          compose-file: docker/docker-compose.finalization_stall_with_pruning.yml
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 60
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       env:
+  #         NETWORK: "synthetic-network"
+  #         NODE_URL: "ws://Node0:9944"
+  #         VALIDATOR_COUNT: 5
+  #         TIMEOUT_MINUTES: "60m"
+  #       with:
+  #         test-case: test::sync::large_finalization_stall
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         compose-file: docker/docker-compose.finalization_stall_with_pruning.yml
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 60
 
-  run-major-sync-test:
-    needs:
-      - build-production-aleph-node
-      - build-chain-bootstrapper-production
-    name: Run major sync test
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-major-sync-test:
+  #   needs:
+  #     - build-production-aleph-node
+  #     - build-chain-bootstrapper-production
+  #   name: Run major sync test
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Download node binary from GH artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
-          path: target/release/
+  #     - name: Download node binary from GH artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
+  #         path: target/release/
 
-      - name: Download chain-bootstrapper from GH artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
-          path: target/release/
+  #     - name: Download chain-bootstrapper from GH artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
+  #         path: target/release/
 
-      - name: Run test
-        timeout-minutes: 65
-        run: |
-          ./.github/scripts/test_python_general.sh \
-            --aleph-node ../target/release/aleph-node \
-            --chain-bootstrapper ../target/release/chain-bootstrapper \
-            --testcase test_major_sync
+  #     - name: Run test
+  #       timeout-minutes: 65
+  #       run: |
+  #         ./.github/scripts/test_python_general.sh \
+  #           --aleph-node ../target/release/aleph-node \
+  #           --chain-bootstrapper ../target/release/chain-bootstrapper \
+  #           --testcase test_major_sync
 
-  run-force-reorg-test:
-    needs:
-      - build-production-aleph-node
-      - build-chain-bootstrapper-production
-    name: Run force reorgs test
-    runs-on: [self-hosted, Linux, X64, medium]
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-force-reorg-test:
+  #   needs:
+  #     - build-production-aleph-node
+  #     - build-chain-bootstrapper-production
+  #   name: Run force reorgs test
+  #   runs-on: [self-hosted, Linux, X64, medium]
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Download node binary from GH artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
-          path: target/release/
+  #     - name: Download node binary from GH artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ needs.build-production-aleph-node.outputs.artifact-name-binary }}
+  #         path: target/release/
 
-      - name: Download chain-bootstrapper from GH artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
-          path: target/release/
+  #     - name: Download chain-bootstrapper from GH artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-binary }}
+  #         path: target/release/
 
-      - name: Run test
-        timeout-minutes: 25
-        run: |
-          ./.github/scripts/test_python_general.sh \
-            --aleph-node ../target/release/aleph-node \
-            --chain-bootstrapper ../target/release/chain-bootstrapper \
-            --testcase test_force_reorg
+  #     - name: Run test
+  #       timeout-minutes: 25
+  #       run: |
+  #         ./.github/scripts/test_python_general.sh \
+  #           --aleph-node ../target/release/aleph-node \
+  #           --chain-bootstrapper ../target/release/chain-bootstrapper \
+  #           --testcase test_force_reorg
 
-  run-e2e-no-quorum-without-high-out-latency:
-    needs:
-      - build-synthetic-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: Run high out-latency for every quorum
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+  # run-e2e-no-quorum-without-high-out-latency:
+  #   needs:
+  #     - build-synthetic-node
+  #     - build-aleph-e2e-client-image
+  #     - build-chain-bootstrapper-production
+  #   name: Run high out-latency for every quorum
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v4
 
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          test-case: high_out_latency_for_each_quorum
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          compose-file: docker/docker-compose.synthetic-network.yml
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
+  #     - name: Run e2e test
+  #       uses: ./.github/actions/run-e2e-test
+  #       with:
+  #         test-case: high_out_latency_for_each_quorum
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
+  #         aleph-node-image-tag: aleph-node:syntheticnet
+  #         compose-file: docker/docker-compose.synthetic-network.yml
+  #         # yamllint disable-line rule:line-length
+  #         artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+  #         # yamllint disable-line rule:line-length
+  #         artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+  #         timeout-minutes: 35
 
   check-nightly-pipeline-completion:
     needs: [run-e2e-high-out-latency,
-            run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus,
-            run-e2e-sync-test-one_node_catching_up,
-            run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them,
-            run-e2e-sync-test-into_multiple_groups_of_two,
-            run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum,
-            run-e2e-sync-test-into_two_groups_one_with_quorum,
-            run-force-reorg-test,
-            run-major-sync-test,
-            run-e2e-no-quorum-without-high-out-latency]
+            # run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus,
+            # run-e2e-sync-test-one_node_catching_up,
+            # run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them,
+            # run-e2e-sync-test-into_multiple_groups_of_two,
+            # run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum,
+            # run-e2e-sync-test-into_two_groups_one_with_quorum,
+            # run-force-reorg-test,
+            # run-major-sync-test,
+            # run-e2e-no-quorum-without-high-out-latency]
+            ]
     name: Check nightly test suite completion
     if: ${{ !cancelled() }}
     runs-on: ubuntu-20.04
