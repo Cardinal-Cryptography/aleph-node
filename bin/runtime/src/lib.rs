@@ -441,11 +441,15 @@ parameter_types! {
     pub HistoryDepth: u32 = 84;
 }
 
-pub struct UniformEraPayout;
+pub struct ExponentialEraPayout;
 
-impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
-    fn era_payout(_: Balance, _: Balance, era_duration_millis: u64) -> (Balance, Balance) {
-        primitives::staking::era_payout(era_duration_millis)
+impl pallet_staking::EraPayout<Balance> for ExponentialEraPayout {
+    fn era_payout(
+        _: Balance,
+        total_issuance: Balance,
+        era_duration_millis: u64,
+    ) -> (Balance, Balance) {
+        primitives::staking::era_payout(total_issuance, era_duration_millis)
     }
 }
 
@@ -545,7 +549,7 @@ impl pallet_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
     type SessionInterface = Self;
-    type EraPayout = UniformEraPayout;
+    type EraPayout = ExponentialEraPayout;
     type NextNewSession = Session;
     type MaxExposurePageSize = MaxExposurePageSize;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
