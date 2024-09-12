@@ -401,7 +401,7 @@ pub mod staking {
     /// irrespective of T0.
     pub fn era_payout(total_issuance: Balance, milliseconds_per_era: u64) -> (Balance, Balance) {
         let total_payout = exp(Perbill::from_rational(milliseconds_per_era, HORIZON))
-            * (AZERO_CAP - total_issuance);
+            * (AZERO_CAP.saturating_sub(total_issuance));
         let validators_payout = VALIDATOR_REWARD * total_payout;
         let rest = total_payout - validators_payout;
 
