@@ -67,7 +67,7 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
 };
-pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
+pub use sp_runtime::{FixedPointNumber, Perbill, Permill, Saturating};
 use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -443,13 +443,33 @@ parameter_types! {
 
 pub struct ExponentialEraPayout;
 
+/// Calculates 1 - exp(-x) for small positive x
+fn exp_helper(x: Perbill) -> Perbill {
+    x - x.saturating_pow(2) / 2 + x.saturating_pow(3) / 6 - x.saturating_pow(4) / 24
+        + x.saturating_pow(5) / 120
+}
+
 impl pallet_staking::EraPayout<Balance> for ExponentialEraPayout {
     fn era_payout(
         _: Balance,
         total_issuance: Balance,
         era_duration_millis: u64,
     ) -> (Balance, Balance) {
-        primitives::staking::era_payout(total_issuance, era_duration_millis)
+        const VALIDATOR_REWARD: Perbill = Perbill::from_percent(90);
+        // The last line of defense
+        const MAX_PAYOUT: Balance = 1_000_000 * TOKEN;
+
+        let azero_cap = pallet_aleph::AzeroCap::<Runtime>::get();
+        let horizon = pallet_aleph::ExponentialInflationHorizon::<Runtime>::get();
+
+        let mut total_payout: Balance =
+            exp_helper(Perbill::from_rational(era_duration_millis, horizon))
+                * (azero_cap.saturating_sub(total_issuance));
+        total_payout = total_payout.min(MAX_PAYOUT);
+        let validators_payout = VALIDATOR_REWARD * total_payout;
+        let rest = total_payout - validators_payout;
+
+        (validators_payout, rest)
     }
 }
 

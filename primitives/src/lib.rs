@@ -372,41 +372,11 @@ pub trait EraManager {
 }
 
 pub mod staking {
-    use sp_runtime::{Perbill, Saturating};
-
-    use super::Balance;
     use crate::TOKEN;
 
     pub const MIN_VALIDATOR_BOND: u128 = 25_000 * TOKEN;
     pub const MIN_NOMINATOR_BOND: u128 = 100 * TOKEN;
     pub const MAX_NOMINATORS_REWARDED_PER_VALIDATOR: u32 = 1024;
-    pub const AZERO_CAP: Balance = 1_000_000_000 * TOKEN;
-    // Milliseconds per year for the Julian year (365.25 days).
-    pub const MILLISECS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
-    pub const HORIZON: u64 = MILLISECS_PER_YEAR;
-    pub const VALIDATOR_REWARD: Perbill = Perbill::from_percent(90);
-
-    /// Calculates 1 - exp(-x) for small positive x
-    fn exp(x: Perbill) -> Perbill {
-        x - x.saturating_pow(2) / 2 + x.saturating_pow(3) / 6 - x.saturating_pow(4) / 24
-            + x.saturating_pow(5) / 120
-    }
-
-    /// Calculates the payout for an era that lasted given amount of milliseconds.
-    /// Our inflation model assumes that at time t the total amount of AZERO is equal to:
-    ///   a(t) = AZERO_CAP * ( 1 - exp(- (t-T0) / HORIZON) )
-    /// therefore, for an era lasting dt milliseconds and the current total amount
-    /// of AZERO equal to a, the total payout is:
-    ///   payout(a, dt) = (AZERO_CAP - a) * ( 1 - exp(-dt/HORIZON) )
-    /// irrespective of T0.
-    pub fn era_payout(total_issuance: Balance, milliseconds_per_era: u64) -> (Balance, Balance) {
-        let total_payout = exp(Perbill::from_rational(milliseconds_per_era, HORIZON))
-            * (AZERO_CAP.saturating_sub(total_issuance));
-        let validators_payout = VALIDATOR_REWARD * total_payout;
-        let rest = total_payout - validators_payout;
-
-        (validators_payout, rest)
-    }
 
     /// Macro for making a default implementation of non-self methods from given class.
     ///
