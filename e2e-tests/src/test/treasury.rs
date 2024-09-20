@@ -38,7 +38,6 @@ pub async fn channeling_fee_and_tip() -> anyhow::Result<()> {
     let (connection, to) = setup_for_transfer(config).await;
 
     let (treasury_balance_before, issuance_before) = balance_info(&connection).await;
-    let possible_treasury_gain_from_staking = connection.possible_treasury_payout().await?;
 
     let transfer = connection
         .transfer_keep_alive_with_tip(to, transfer_amount, tip, TxStatus::Finalized)
@@ -47,26 +46,13 @@ pub async fn channeling_fee_and_tip() -> anyhow::Result<()> {
 
     let (treasury_balance_after, issuance_after) = balance_info(&connection).await;
 
-    check_issuance(
-        possible_treasury_gain_from_staking,
-        issuance_before,
-        issuance_after,
-    );
-    check_treasury_balance(
-        possible_treasury_gain_from_staking,
-        treasury_balance_before,
-        treasury_balance_after,
-        fee,
-    );
+    check_issuance(issuance_before, issuance_after);
+    check_treasury_balance(treasury_balance_before, treasury_balance_after, fee);
 
     Ok(())
 }
 
-fn check_issuance(
-    treasury_staking_payout: Balance,
-    issuance_before: Balance,
-    issuance_after: Balance,
-) {
+fn check_issuance(issuance_before: Balance, issuance_after: Balance) {
     assert!(
         issuance_after >= issuance_before,
         "Unexpectedly {} was burned",
@@ -74,31 +60,19 @@ fn check_issuance(
     );
 
     let diff = issuance_after - issuance_before;
-    assert_eq!(
-        diff % treasury_staking_payout,
-        0,
-        "Unexpectedly {diff} was minted, and it's not related to staking treasury reward which is {treasury_staking_payout}"
-    );
+    assert_eq!(diff, 0, "Unexpectedly {diff} was minted");
 }
 
 fn check_treasury_balance(
-    possibly_treasury_gain_from_staking: Balance,
     treasury_balance_before: Balance,
     treasury_balance_after: Balance,
     fee: Balance,
 ) {
     let treasury_balance_diff = treasury_balance_after - (treasury_balance_before + fee);
     assert_eq!(
-        treasury_balance_diff % possibly_treasury_gain_from_staking,
-        0,
-        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}. \
-        We can be different only as multiples of staking treasury reward {}, but the remainder \
-        is {}",
-        treasury_balance_before,
-        treasury_balance_after,
-        fee,
-        possibly_treasury_gain_from_staking,
-        treasury_balance_diff % possibly_treasury_gain_from_staking,
+        treasury_balance_diff, 0,
+        "Incorrect amount was channeled to the treasury: before = {}, after = {}, fee = {}",
+        treasury_balance_before, treasury_balance_after, fee,
     );
 }
 
