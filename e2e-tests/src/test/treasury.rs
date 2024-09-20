@@ -4,7 +4,7 @@ use aleph_client::{
     pallets::{
         balances::{BalanceApi, BalanceUserApi},
         system::SystemApi,
-        treasury::{TreasureApiExt, TreasuryApi, TreasuryUserApi},
+        treasury::{TreasuryApi, TreasuryUserApi},
     },
     utility::BlocksApi,
     waiting::{AlephWaiting, BlockStatus},

@@ -7,10 +7,7 @@ use aleph_client::{
     waiting::{AlephWaiting, BlockStatus},
     TxStatus,
 };
-use primitives::{
-    staking::era_payout, EraIndex, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD,
-    MILLISECS_PER_BLOCK,
-};
+use primitives::{EraIndex, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MILLISECS_PER_BLOCK};
 
 use crate::config::{setup_test, Config};
 
@@ -66,7 +63,8 @@ async fn force_era_payout(config: &Config) -> anyhow::Result<()> {
     let payout = root_connection.get_payout_for_era(active_era, None).await;
 
     let expected_era_duration = (3 * DEFAULT_SESSION_PERIOD) as u64 * MILLISECS_PER_BLOCK;
-    let expected_payout = era_payout(expected_era_duration).0;
+    let expected_payout = 0;
+    let delta = 0;
 
     assert_within_delta_interval(
         expected_era_duration,
@@ -75,13 +73,7 @@ async fn force_era_payout(config: &Config) -> anyhow::Result<()> {
         "era duration",
         "Probably chain hasn't started correctly, try rerunning the test",
     );
-    assert_within_delta_interval(
-        expected_payout,
-        payout,
-        era_payout(2 * MILLISECS_PER_BLOCK).0,
-        "payout",
-        "",
-    );
+    assert_within_delta_interval(expected_payout, payout, delta, "payout", "");
     Ok(())
 }
 
@@ -98,7 +90,8 @@ async fn normal_era_payout(config: &Config) -> anyhow::Result<()> {
 
     let expected_era_duration =
         (DEFAULT_SESSIONS_PER_ERA * DEFAULT_SESSION_PERIOD) as u64 * MILLISECS_PER_BLOCK;
-    let expected_payout = era_payout(expected_era_duration).0;
+    let expected_payout = 0;
+    let delta = 0;
 
     assert_within_delta_interval(
         expected_era_duration,
@@ -107,13 +100,7 @@ async fn normal_era_payout(config: &Config) -> anyhow::Result<()> {
         "era duration",
         "Probably chain hasn't started correctly, try rerunning the test",
     );
-    assert_within_delta_interval(
-        expected_payout,
-        payout,
-        era_payout(2 * MILLISECS_PER_BLOCK).0,
-        "payout",
-        "",
-    );
+    assert_within_delta_interval(expected_payout, payout, delta, "payout", "");
 
     Ok(())
 }
