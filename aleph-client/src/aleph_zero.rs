@@ -2075,9 +2075,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                115u8, 13u8, 54u8, 26u8, 248u8, 53u8, 14u8, 227u8, 103u8, 17u8, 45u8, 180u8, 199u8,
-                63u8, 105u8, 193u8, 146u8, 2u8, 207u8, 204u8, 119u8, 126u8, 56u8, 214u8, 233u8,
-                168u8, 66u8, 4u8, 159u8, 15u8, 224u8, 180u8,
+                126u8, 30u8, 81u8, 222u8, 186u8, 113u8, 215u8, 29u8, 83u8, 133u8, 2u8, 16u8, 188u8,
+                41u8, 207u8, 166u8, 26u8, 21u8, 118u8, 57u8, 8u8, 249u8, 70u8, 18u8, 117u8, 109u8,
+                255u8, 144u8, 149u8, 251u8, 246u8, 235u8,
             ]
     }
     pub mod system {
@@ -9443,6 +9443,48 @@ pub mod api {
             use super::runtime_types;
             pub struct StorageApi;
             impl StorageApi {
+                pub fn azero_cap(
+                    &self,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::core::primitive::u128,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "Aleph",
+                        "AzeroCap",
+                        vec![],
+                        [
+                            68u8, 239u8, 10u8, 241u8, 109u8, 153u8, 129u8, 3u8, 237u8, 251u8,
+                            251u8, 221u8, 156u8, 81u8, 117u8, 166u8, 101u8, 196u8, 227u8, 176u8,
+                            209u8, 123u8, 127u8, 146u8, 252u8, 88u8, 138u8, 227u8, 183u8, 117u8,
+                            148u8, 36u8,
+                        ],
+                    )
+                }
+                pub fn exponential_inflation_horizon(
+                    &self,
+                ) -> ::subxt::storage::address::Address<
+                    ::subxt::storage::address::StaticStorageMapKey,
+                    ::core::primitive::u64,
+                    ::subxt::storage::address::Yes,
+                    ::subxt::storage::address::Yes,
+                    (),
+                > {
+                    ::subxt::storage::address::Address::new_static(
+                        "Aleph",
+                        "ExponentialInflationHorizon",
+                        vec![],
+                        [
+                            7u8, 241u8, 156u8, 243u8, 174u8, 255u8, 212u8, 252u8, 53u8, 59u8,
+                            145u8, 100u8, 166u8, 17u8, 167u8, 127u8, 41u8, 227u8, 188u8, 149u8,
+                            207u8, 61u8, 65u8, 215u8, 42u8, 241u8, 18u8, 145u8, 24u8, 123u8, 1u8,
+                            65u8,
+                        ],
+                    )
+                }
                 pub fn authorities(
                     &self,
                 ) -> ::subxt::storage::address::Address<
