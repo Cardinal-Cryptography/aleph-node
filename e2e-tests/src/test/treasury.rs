@@ -3,6 +3,7 @@ use aleph_client::{
     api::treasury::events::Rejected,
     pallets::{
         balances::{BalanceApi, BalanceUserApi},
+        staking::StakingApi,
         system::SystemApi,
         treasury::{TreasuryApi, TreasuryUserApi},
     },
@@ -37,6 +38,15 @@ pub async fn channeling_fee_and_tip() -> anyhow::Result<()> {
     let (transfer_amount, tip) = (1_000u128, 10_000u128);
     let (connection, to) = setup_for_transfer(config).await;
 
+    // We need to make sure the rest of this test happens during a single era,
+    // so that when we check the total issuance we don't have to take into account
+    // the tokens minted when an era ends.
+    // Therefore, let's wait for when the next era begins, and keep our fingers crossed.
+    let active_era = connection.get_active_era(None).await;
+    connection
+        .wait_for_era(active_era + 1, BlockStatus::Best)
+        .await;
+
     let (treasury_balance_before, issuance_before) = balance_info(&connection).await;
 
     let transfer = connection
@@ -58,9 +68,11 @@ fn check_issuance(issuance_before: Balance, issuance_after: Balance) {
         "Unexpectedly {} was burned",
         issuance_before - issuance_after,
     );
-
-    let diff = issuance_after - issuance_before;
-    assert_eq!(diff, 0, "Unexpectedly {diff} was minted");
+    let minted = issuance_after - issuance_before;
+    assert_eq!(
+        issuance_before, issuance_after,
+        "Unexpectedly {minted} was minted"
+    );
 }
 
 fn check_treasury_balance(
