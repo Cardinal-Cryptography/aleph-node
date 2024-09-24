@@ -56,6 +56,7 @@ pub mod pallet {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleFinalityVersionChange(VersionChange),
         FinalityVersionChange(VersionChange),
+        InflationParametersChange(Balance, u64),
     }
 
     #[pallet::pallet]
@@ -271,6 +272,31 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::ScheduleFinalityVersionChange(version_change));
+            Ok(())
+        }
+
+        /// Sets the values of inflation parameters.
+        #[pallet::call_index(2)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_inflation_parameters(
+            origin: OriginFor<T>,
+            azero_cap: Option<Balance>,
+            horizon_millisecs: Option<u64>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let azero_cap = azero_cap.unwrap_or_else(AzeroCap::<T>::get);
+            let horizon_millisecs =
+                horizon_millisecs.unwrap_or_else(ExponentialInflationHorizon::<T>::get);
+
+            AzeroCap::<T>::put(azero_cap.clone());
+            ExponentialInflationHorizon::<T>::put(horizon_millisecs.clone());
+
+            Self::deposit_event(Event::InflationParametersChange(
+                azero_cap,
+                horizon_millisecs,
+            ));
+
             Ok(())
         }
     }
