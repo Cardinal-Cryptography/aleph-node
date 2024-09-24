@@ -289,8 +289,8 @@ pub mod pallet {
             let horizon_millisecs =
                 horizon_millisecs.unwrap_or_else(ExponentialInflationHorizon::<T>::get);
 
-            AzeroCap::<T>::put(azero_cap.clone());
-            ExponentialInflationHorizon::<T>::put(horizon_millisecs.clone());
+            AzeroCap::<T>::put(azero_cap);
+            ExponentialInflationHorizon::<T>::put(horizon_millisecs);
 
             Self::deposit_event(Event::InflationParametersChange(
                 azero_cap,
