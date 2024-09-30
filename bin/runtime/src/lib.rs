@@ -1362,6 +1362,7 @@ impl_runtime_apis! {
 #[cfg(test)]
 mod tests {
     use frame_support::traits::Get;
+    use pallet_staking::EraPayout;
     use primitives::HEAP_PAGES;
     use smallvec::Array;
 
@@ -1588,5 +1589,156 @@ mod tests {
         let rhs = MAX_RUNTIME_MEM * 3 / 4;
 
         assert!(lhs < rhs);
+    }
+
+    #[test]
+    fn era_payout() {
+        use sp_io::TestExternalities;
+
+        struct Inputs {
+            azero_cap: Balance,
+            horizon: u64,
+            // will be ignored
+            total_staked: Balance,
+            total_issuance: Balance,
+            era_duration_millis: u64,
+        }
+
+        struct Outputs {
+            validators_payout: Balance,
+            rest: Balance,
+        }
+
+        fn assert_on_data(inputs: Inputs, outputs: Outputs) {
+            TestExternalities::default().execute_with(|| {
+                pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
+                pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
+                let (validators_payout, rest) =
+                    <Runtime as pallet_staking::Config>::EraPayout::era_payout(
+                        inputs.total_staked,
+                        inputs.total_issuance,
+                        inputs.era_duration_millis,
+                    );
+                assert_eq!(validators_payout, outputs.validators_payout);
+                assert_eq!(rest, outputs.rest);
+            });
+        }
+
+        fn run_for_n_eras(inputs: Inputs, n_eras: usize) -> (Vec<Outputs>, Balance) {
+            let mut outputs = vec![];
+            let mut total_issuance = inputs.total_issuance;
+            for _ in 0..n_eras {
+                TestExternalities::default().execute_with(|| {
+                    pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
+                    pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
+                    let (validators_payout, rest) =
+                        <Runtime as pallet_staking::Config>::EraPayout::era_payout(
+                            inputs.total_staked,
+                            total_issuance,
+                            inputs.era_duration_millis,
+                        );
+                    outputs.push(Outputs {
+                        validators_payout,
+                        rest,
+                    });
+                    total_issuance += validators_payout + rest;
+                });
+            }
+            (outputs, total_issuance)
+        }
+
+        const MILLISECS_PER_DAY: u64 = 24 * 60 * 60 * 1000;
+
+        // standard case
+        assert_on_data(
+            Inputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_staked: 0,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            Outputs {
+                validators_payout: 123_118 * TOKEN + 920_000_000_000,
+                rest: 13_679 * TOKEN + 880_000_000_000,
+            },
+        );
+
+        // After 3 * horizon milliseconds the gap should be reduced by ~95%
+        let (_, total_issuance) = run_for_n_eras(
+            Inputs {
+                azero_cap: 150_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_staked: 0,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            3 * 365,
+        );
+        assert_eq!(total_issuance, 145_021_290 * TOKEN + 959_387_724_274);
+
+        // era longer than horizon
+        // Perbill will saturate, (era_duration_millis / horizon) == 1,
+        // even if horizon == 0
+        // the actual values do not matter, only the ratio is used
+        // we expect the gap to be reduced by ~63%
+        assert_on_data(
+            Inputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 0,
+                total_staked: 0,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            Outputs {
+                validators_payout: 28_499_999 * TOKEN + 985_000_000_000,
+                rest: 3_166_666 * TOKEN + 665_000_000_000,
+            },
+        );
+
+        // cap equal to issuance
+        assert_on_data(
+            Inputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_staked: 0,
+                total_issuance: 100_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            Outputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
+
+        // cap smaller than issuance
+        assert_on_data(
+            Inputs {
+                azero_cap: 50_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_staked: 0,
+                total_issuance: 100_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            Outputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
+
+        // zero-lenght era
+        assert_on_data(
+            Inputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_staked: 0,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: 0,
+            },
+            Outputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
     }
 }
