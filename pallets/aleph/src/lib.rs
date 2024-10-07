@@ -316,8 +316,10 @@ pub mod pallet {
                     "Horizon too small, should be at least half the current value!",
                 ));
             }
-            if new_gap > current_gap.saturating_mul(2).saturating_add(1) {
-                return Err(DispatchError::Other("Future issuance too large, should be at most twice the current value plus one!"));
+            if (new_gap > current_gap.saturating_mul(2).saturating_add(1))
+                && (new_gap > total_issuance / 128)
+            {
+                return Err(DispatchError::Other("Future issuance too large, should be at most twice the current value plus one, or at most the current total issuance divided by 128!"));
             }
             if new_gap < current_gap / 2 {
                 return Err(DispatchError::Other(
