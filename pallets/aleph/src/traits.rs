@@ -1,5 +1,5 @@
 use frame_support::sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic};
-use primitives::AuthorityId;
+use primitives::{AuthorityId, Balance};
 use sp_std::prelude::*;
 
 use crate::Config;
@@ -24,5 +24,19 @@ where
             log::error!(target: "pallet_aleph", "Missing next session keys");
             vec![]
         })
+    }
+}
+
+/// Provides the current total issuance.
+pub trait TotalIssuanceProvider<T: Config> {
+    fn get() -> Balance;
+}
+
+impl<T> TotalIssuanceProvider<T> for pallet_balances::Pallet<T>
+where
+    T: Config + pallet_balances::Config<Balance = Balance>,
+{
+    fn get() -> Balance {
+        pallet_balances::Pallet::<T>::total_issuance()
     }
 }

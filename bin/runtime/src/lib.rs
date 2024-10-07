@@ -333,6 +333,7 @@ impl pallet_aleph::Config for Runtime {
         Runtime,
     >;
     type NextSessionAuthorityProvider = Session;
+    type TotalIssuanceProvider = Balances;
 }
 
 parameter_types! {

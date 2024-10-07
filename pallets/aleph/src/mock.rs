@@ -153,6 +153,7 @@ impl Config for Test {
     type SessionInfoProvider = SessionInfoImpl;
     type SessionManager = ();
     type NextSessionAuthorityProvider = Session;
+    type TotalIssuanceProvider = Balances;
 }
 
 pub fn to_authority(id: &u64) -> AuthorityId {

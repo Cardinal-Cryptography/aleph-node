@@ -39,7 +39,7 @@ pub mod pallet {
     use sp_std::marker::PhantomData;
 
     use super::*;
-    use crate::traits::NextSessionAuthorityProvider;
+    use crate::traits::{NextSessionAuthorityProvider, TotalIssuanceProvider};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -48,6 +48,7 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
+        type TotalIssuanceProvider: TotalIssuanceProvider<Self>;
     }
 
     #[pallet::event]
@@ -284,9 +285,45 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let azero_cap = azero_cap.unwrap_or_else(AzeroCap::<T>::get);
-            let horizon_millisecs =
-                horizon_millisecs.unwrap_or_else(ExponentialInflationHorizon::<T>::get);
+            let current_azero_cap = AzeroCap::<T>::get();
+            let current_horizon_millisecs = ExponentialInflationHorizon::<T>::get();
+            let total_issuance = T::TotalIssuanceProvider::get();
+
+            let azero_cap = azero_cap.unwrap_or(current_azero_cap);
+            let horizon_millisecs = horizon_millisecs.unwrap_or(current_horizon_millisecs);
+
+            let current_gap = current_azero_cap.saturating_sub(total_issuance);
+            let new_gap = match azero_cap.checked_sub(total_issuance) {
+                Some(new_gap) => new_gap,
+                None => {
+                    return Err(DispatchError::Other(
+                        "AZERO Cap cannot be lower than the current total issuance!",
+                    ))
+                }
+            };
+
+            if horizon_millisecs
+                > current_horizon_millisecs
+                    .saturating_mul(2)
+                    .saturating_add(1)
+            {
+                return Err(DispatchError::Other(
+                    "Horizon too large, should be at most twice the current value plus one!",
+                ));
+            }
+            if horizon_millisecs < current_horizon_millisecs / 2 {
+                return Err(DispatchError::Other(
+                    "Horizon too small, should be at least half the current value!",
+                ));
+            }
+            if new_gap > current_gap.saturating_mul(2).saturating_add(1) {
+                return Err(DispatchError::Other("Future issuance too large, should be at most twice the current value plus one!"));
+            }
+            if new_gap < current_gap / 2 {
+                return Err(DispatchError::Other(
+                    "Future issuance too small, should be at least half the current value!",
+                ));
+            }
 
             AzeroCap::<T>::put(azero_cap);
             ExponentialInflationHorizon::<T>::put(horizon_millisecs);
