@@ -33,13 +33,13 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::SessionInfoProvider;
+    use primitives::{SessionInfoProvider, TotalIssuanceProvider};
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
 
     use super::*;
-    use crate::traits::{NextSessionAuthorityProvider, TotalIssuanceProvider};
+    use crate::traits::NextSessionAuthorityProvider;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -48,7 +48,7 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
-        type TotalIssuanceProvider: TotalIssuanceProvider<Self>;
+        type TotalIssuanceProvider: TotalIssuanceProvider;
     }
 
     #[pallet::event]
