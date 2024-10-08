@@ -1606,8 +1606,6 @@ mod tests {
         assert!(lhs < rhs);
     }
 
-    /// `EraPayout::era_payout` ignores the first argument, we set it to zero.
-    const DUMMY_TOTAL_STAKED: Balance = 0;
     const MILLISECS_PER_DAY: u64 = 24 * 60 * 60 * 1000;
 
     struct EraPayoutInputs {
@@ -1628,11 +1626,7 @@ mod tests {
             pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
             pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
             let (validators_payout, rest) =
-                <Runtime as pallet_staking::Config>::EraPayout::era_payout(
-                    DUMMY_TOTAL_STAKED,
-                    inputs.total_issuance,
-                    inputs.era_duration_millis,
-                );
+                ExponentialEraPayout::era_payout(inputs.total_issuance, inputs.era_duration_millis);
             assert_eq!(validators_payout, outputs.validators_payout);
             assert_eq!(rest, outputs.rest);
         });
@@ -1650,11 +1644,7 @@ mod tests {
                 pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
                 pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
                 let (validators_payout, rest) =
-                    <Runtime as pallet_staking::Config>::EraPayout::era_payout(
-                        DUMMY_TOTAL_STAKED,
-                        total_issuance,
-                        inputs.era_duration_millis,
-                    );
+                    ExponentialEraPayout::era_payout(total_issuance, inputs.era_duration_millis);
                 outputs.push(EraPayoutOutputs {
                     validators_payout,
                     rest,
