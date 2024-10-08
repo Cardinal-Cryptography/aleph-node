@@ -33,7 +33,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::SessionInfoProvider;
+    use primitives::{SessionInfoProvider, TotalIssuanceProvider};
     use sp_std::collections::btree_set::BTreeSet;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
