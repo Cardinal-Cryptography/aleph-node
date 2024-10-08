@@ -288,7 +288,7 @@ sp_api::decl_runtime_apis! {
         /// also as `aleph_key` - consensus engine's part of session keys) in the current session
         /// of AlephBFT (finalisation committee).
         fn key_owner(key: AuthorityId) -> Option<AccountId>;
-        /// Returns inflation from now to now + 1 year.
+        /// Returns inflation from now to now + 1 year. Capped at 100%
         fn yearly_inflation() -> Perbill;
         /// Returns payout. First tuple item is a validators payout, 2nd is the rest.
         fn current_era_payout() -> (Balance, Balance);
