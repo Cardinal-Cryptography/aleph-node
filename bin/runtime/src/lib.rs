@@ -1389,7 +1389,6 @@ impl_runtime_apis! {
 #[cfg(test)]
 mod tests {
     use frame_support::traits::Get;
-    use pallet_staking::EraPayout;
     use primitives::HEAP_PAGES;
     use smallvec::Array;
 
