@@ -1037,7 +1037,7 @@ pub type Migrations = (
     pallet_nomination_pools::migration::versioned::V5toV6<Runtime>,
     pallet_nomination_pools::migration::versioned::V6ToV8<Runtime>,
     pallet_staking::migrations::v14::MigrateToV14<Runtime>,
-    pallet_identity::migration::versioned::V0ToV1<Runtime, {u64::MAX}>,
+    pallet_identity::migration::versioned::V0ToV1<Runtime, { u64::MAX }>,
 );
 
 /// Executive: handles dispatch to the various modules.
