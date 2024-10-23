@@ -2307,6 +2307,7 @@ dependencies = [
  "hash-db",
  "hex",
  "ip_network",
+ "libp2p",
  "log",
  "lru",
  "network-clique",
