@@ -121,7 +121,7 @@ async fn main() -> anyhow::Result<()> {
             Some(validators.iter().map(|keypair| keypair.account_id().clone()).collect()),
             None,
             Some(CommitteeSeats{
-                reserved_seats: validators.iter().count() as u32,
+                reserved_seats: validators.len() as u32,
                 non_reserved_seats: 0,
                 non_reserved_finality_seats: 0
             }),
@@ -289,7 +289,7 @@ async fn nominate_validator(
 /// We assume stash == validator == controller.
 async fn bond_validators_funds_and_choose_controllers(address_ip_without_port: &str, validators: Vec<KeyPair>) {
     for (i, validator) in validators.into_iter().enumerate() {
-        let validator_address = format!("{}:{}", address_ip_without_port.to_string(), i + 9944);
+        let validator_address = format!("{}:{}", address_ip_without_port, i + 9944);
         let connection = SignedConnection::new(&validator_address, validator).await;
         info!("Bonding validator {}", i);
         connection
