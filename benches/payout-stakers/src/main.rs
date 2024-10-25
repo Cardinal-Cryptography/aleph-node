@@ -25,6 +25,11 @@ use rand::{thread_rng, Rng};
 use sp_keyring::AccountKeyring;
 
 // testcase parameters
+
+// MAX_NOMINATORS_REWARDED_PER_VALIDATOR is what either
+// * in pallet staking version <= 13, is a limit of nominators for a single validator that are paid
+// * in pallet staking version > 13, is a number of nominators that are paid in a single
+//   payout_stakers call (so all nominators can be paid, but in multiple blocks)
 const NOMINATOR_COUNT: u32 = 2 * MAX_NOMINATORS_REWARDED_PER_VALIDATOR;
 const ERAS_TO_WAIT: u32 = 100;
 
@@ -97,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
 
     let controllers = generate_controllers_for_validators(validator_count);
 
-    bond_validators_funds_and_choose_controllers(
+    bond_validators_funds_and_rotate_keys(
         "ws://127.0.0.1",
         controllers
             .iter()
@@ -287,7 +292,7 @@ async fn nominate_validator(
 /// Bonds the funds of the validators.
 /// Chooses controller accounts for the corresponding validators.
 /// We assume stash == validator == controller.
-async fn bond_validators_funds_and_choose_controllers(address_ip_without_port: &str, validators: Vec<KeyPair>) {
+async fn bond_validators_funds_and_rotate_keys(address_ip_without_port: &str, validators: Vec<KeyPair>) {
     for (i, validator) in validators.into_iter().enumerate() {
         let validator_address = format!("{}:{}", address_ip_without_port, i + 9944);
         let connection = SignedConnection::new(&validator_address, validator).await;
