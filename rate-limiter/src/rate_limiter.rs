@@ -1,83 +1,39 @@
-use std::task::ready;
+use std::{task::ready, time::Instant};
 
 use futures::{
     future::{pending, BoxFuture},
     FutureExt,
 };
-use log::trace;
-use tokio::{io::AsyncRead, time::sleep_until};
+use tokio::io::AsyncRead;
 
-use crate::{
-    token_bucket::{Deadline, TokenBucket},
-    LOG_TARGET,
-};
+use crate::{token_bucket::SharedTokenBucket, RatePerSecond};
 
-/// Allows to limit access to some resource. Given a preferred rate (units of something) and last used amount of units of some
-/// resource, it calculates how long we should delay our next access to that resource in order to satisfy that rate.
-pub struct SleepingRateLimiter {
-    rate_limiter: TokenBucket,
+pub type SharingRateLimiter = RateLimiterFacade;
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum Deadline {
+    Never,
+    Instant(Instant),
 }
 
-impl Clone for SleepingRateLimiter {
-    fn clone(&self) -> Self {
-        Self {
-            rate_limiter: self.rate_limiter.clone(),
+impl From<Deadline> for Option<Instant> {
+    fn from(value: Deadline) -> Self {
+        match value {
+            Deadline::Never => None,
+            Deadline::Instant(value) => Some(value),
         }
     }
 }
 
-impl From<TokenBucket> for SleepingRateLimiter {
-    fn from(rate_limiter: TokenBucket) -> Self {
-        Self { rate_limiter }
-    }
+/// Wrapper around [RateLimiterFacade] to simplify implementation of the [AsyncRead](tokio::io::AsyncRead) trait.
+pub struct RateLimiterImpl {
+    rate_limiter: BoxFuture<'static, RateLimiterFacade>,
 }
 
-impl SleepingRateLimiter {
-    /// Constructs a instance of [SleepingRateLimiter] with given target rate-per-second.
-    pub fn new(rate_per_second: usize) -> Self {
-        Self {
-            rate_limiter: TokenBucket::new(rate_per_second),
-        }
-    }
-
-    /// Given `read_size`, that is an amount of units of some governed resource, delays return of `Self` to satisfy configure
-    /// rate.
-    pub async fn rate_limit(mut self, read_size: usize) -> Self {
-        trace!(
-            target: LOG_TARGET,
-            "Rate-Limiter attempting to read {}.",
-            read_size
-        );
-
-        let delay = self.rate_limiter.rate_limit(read_size);
-
-        match delay {
-            Some(Deadline::Instant(delay)) => {
-                trace!(
-                    target: LOG_TARGET,
-                    "Rate-Limiter will sleep {:?} after reading {} byte(s).",
-                    delay,
-                    read_size
-                );
-                sleep_until(delay.into()).await;
-            }
-            Some(Deadline::Never) => pending().await,
-            None => {}
-        }
-
-        self
-    }
-}
-
-/// Wrapper around [SleepingRateLimiter] to simplify implementation of the [AsyncRead](tokio::io::AsyncRead) trait.
-pub struct RateLimiter {
-    rate_limiter: BoxFuture<'static, SleepingRateLimiter>,
-}
-
-impl RateLimiter {
-    /// Constructs an instance of [RateLimiter] that uses already configured rate-limiting access governor
-    /// ([SleepingRateLimiter]).
-    pub fn new(rate_limiter: SleepingRateLimiter) -> Self {
+impl RateLimiterImpl {
+    /// Constructs an instance of [RateLimiterImpl] that uses already configured rate-limiting access governor
+    /// ([RateLimiterFacade]).
+    pub fn new(rate_limiter: RateLimiterFacade) -> Self {
         Self {
             rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
         }
@@ -94,7 +50,8 @@ impl RateLimiter {
 
         let filled_before = buf.filled().len();
         let result = read.poll_read(cx, buf);
-        let filled_after = buf.filled().len();
+        let filled_after: &[u8] = buf.filled();
+        let filled_after = 8 * filled_after.len();
         let last_read_size = filled_after.saturating_sub(filled_before);
 
         self.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
@@ -103,15 +60,14 @@ impl RateLimiter {
     }
 }
 
-/// Wrapper around [SleepingRateLimiter] to simplify implementation of the [AsyncRead](futures::AsyncRead) trait.
 pub struct FuturesRateLimiter {
-    rate_limiter: BoxFuture<'static, SleepingRateLimiter>,
+    rate_limiter: BoxFuture<'static, RateLimiterFacade>,
 }
 
 impl FuturesRateLimiter {
     /// Constructs an instance of [RateLimiter] that uses already configured rate-limiting access governor
     /// ([SleepingRateLimiter]).
-    pub fn new(rate_limiter: SleepingRateLimiter) -> Self {
+    pub fn new(rate_limiter: RateLimiterFacade) -> Self {
         Self {
             rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
         }
@@ -128,12 +84,38 @@ impl FuturesRateLimiter {
 
         let result = read.poll_read(cx, buf);
         let last_read_size = match &result {
-            std::task::Poll::Ready(Ok(read_size)) => *read_size,
+            std::task::Poll::Ready(Ok(read_size)) => 8 * *read_size,
             _ => 0,
         };
 
         self.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
 
         result
+    }
+}
+
+#[derive(Clone)]
+pub enum RateLimiterFacade {
+    NoTraffic,
+    RateLimiter(SharedTokenBucket),
+}
+
+impl RateLimiterFacade {
+    pub fn new(rate: RatePerSecond) -> Self {
+        match rate {
+            RatePerSecond::Block => Self::NoTraffic,
+            RatePerSecond::Rate(rate) => Self::RateLimiter(SharedTokenBucket::new(rate)),
+        }
+    }
+
+    async fn rate_limit(self, read_size: usize) -> Self {
+        match self {
+            RateLimiterFacade::NoTraffic => pending().await,
+            RateLimiterFacade::RateLimiter(rate_limiter) => RateLimiterFacade::RateLimiter(
+                rate_limiter
+                    .rate_limit(read_size.try_into().unwrap_or(u64::MAX))
+                    .await,
+            ),
+        }
     }
 }
