@@ -47,7 +47,8 @@ use primitives::{
     staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, Address,
     AlephNodeSessionKeys as SessionKeys, ApiError as AlephApiError, AuraId, AuthorityId as AlephId,
     BlockNumber as AlephBlockNumber, Header as AlephHeader, SessionAuthorityData, SessionCommittee,
-    SessionIndex, SessionInfoProvider, SessionValidatorError, Version as FinalityVersion,
+    SessionIndex, SessionInfoProvider, SessionValidatorError,
+    TotalIssuanceProvider as TotalIssuanceProviderT, Version as FinalityVersion,
     ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
     DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
@@ -67,7 +68,7 @@ use sp_runtime::{
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, FixedU128, RuntimeDebug, SaturatedConversion,
 };
-pub use sp_runtime::{FixedPointNumber, Perbill, Permill};
+pub use sp_runtime::{FixedPointNumber, Perbill, Permill, Saturating};
 use sp_staking::{currency_to_vote::U128CurrencyToVote, EraIndex};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -79,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 14_000_000,
+    spec_version: 15_000_000,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 18,
@@ -322,6 +323,13 @@ impl SessionInfoProvider<AlephBlockNumber> for SessionInfoImpl {
     }
 }
 
+pub struct TotalIssuanceProvider;
+impl TotalIssuanceProviderT for TotalIssuanceProvider {
+    fn get() -> Balance {
+        pallet_balances::Pallet::<Runtime>::total_issuance()
+    }
+}
+
 impl pallet_aleph::Config for Runtime {
     type AuthorityId = AlephId;
     type RuntimeEvent = RuntimeEvent;
@@ -333,6 +341,7 @@ impl pallet_aleph::Config for Runtime {
         Runtime,
     >;
     type NextSessionAuthorityProvider = Session;
+    type TotalIssuanceProvider = TotalIssuanceProvider;
 }
 
 parameter_types! {
@@ -441,11 +450,41 @@ parameter_types! {
     pub HistoryDepth: u32 = 84;
 }
 
-pub struct UniformEraPayout;
+pub struct ExponentialEraPayout;
 
-impl pallet_staking::EraPayout<Balance> for UniformEraPayout {
-    fn era_payout(_: Balance, _: Balance, era_duration_millis: u64) -> (Balance, Balance) {
-        primitives::staking::era_payout(era_duration_millis)
+impl ExponentialEraPayout {
+    fn era_payout(total_issuance: Balance, era_duration_millis: u64) -> (Balance, Balance) {
+        const VALIDATOR_REWARD: Perbill = Perbill::from_percent(90);
+
+        let azero_cap = pallet_aleph::AzeroCap::<Runtime>::get();
+        let horizon = pallet_aleph::ExponentialInflationHorizon::<Runtime>::get();
+
+        let total_payout: Balance =
+            exp_helper(Perbill::from_rational(era_duration_millis, horizon))
+                * (azero_cap.saturating_sub(total_issuance));
+        let validators_payout = VALIDATOR_REWARD * total_payout;
+        let rest = total_payout - validators_payout;
+
+        (validators_payout, rest)
+    }
+}
+
+/// Calculates 1 - exp(-x) for small positive x
+fn exp_helper(x: Perbill) -> Perbill {
+    let x2 = x * x;
+    let x3 = x2 * x;
+    let x4 = x2 * x2;
+    let x5 = x4 * x;
+    (x - x2 / 2 + x3 / 6 - x4 / 24 + x5 / 120).min(x)
+}
+
+impl pallet_staking::EraPayout<Balance> for ExponentialEraPayout {
+    fn era_payout(
+        _: Balance,
+        total_issuance: Balance,
+        era_duration_millis: u64,
+    ) -> (Balance, Balance) {
+        ExponentialEraPayout::era_payout(total_issuance, era_duration_millis)
     }
 }
 
@@ -545,7 +584,7 @@ impl pallet_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
     type SessionInterface = Self;
-    type EraPayout = UniformEraPayout;
+    type EraPayout = ExponentialEraPayout;
     type NextNewSession = Session;
     type MaxExposurePageSize = MaxExposurePageSize;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
@@ -1181,6 +1220,24 @@ impl_runtime_apis! {
         fn key_owner(key: AlephId) -> Option<AccountId> {
             Session::key_owner(primitives::KEY_TYPE, key.as_ref())
         }
+
+        fn yearly_inflation() -> Perbill {
+            // Milliseconds per year for the Julian year (365.25 days).
+            const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
+            let total_issuance = pallet_balances::Pallet::<Runtime>::total_issuance();
+
+            let (validator_payout, rest)
+                = ExponentialEraPayout::era_payout(total_issuance, MILLISECONDS_PER_YEAR);
+
+            Perbill::from_rational(validator_payout + rest, total_issuance)
+        }
+
+        fn current_era_payout() -> (Balance, Balance) {
+            const MILLISECONDS_PER_ERA: u64 = MILLISECS_PER_BLOCK * (DEFAULT_SESSION_PERIOD * DEFAULT_SESSIONS_PER_ERA) as u64;
+            let total_issuance = pallet_balances::Pallet::<Runtime>::total_issuance();
+
+            ExponentialEraPayout::era_payout(total_issuance, MILLISECONDS_PER_ERA)
+        }
     }
 
     impl pallet_nomination_pools_runtime_api::NominationPoolsApi<Block, AccountId, Balance> for Runtime {
@@ -1564,5 +1621,165 @@ mod tests {
         let rhs = MAX_RUNTIME_MEM * 3 / 4;
 
         assert!(lhs < rhs);
+    }
+
+    const MILLISECS_PER_DAY: u64 = 24 * 60 * 60 * 1000;
+
+    struct EraPayoutInputs {
+        azero_cap: Balance,
+        horizon: u64,
+        total_issuance: Balance,
+        era_duration_millis: u64,
+    }
+
+    struct EraPayoutOutputs {
+        validators_payout: Balance,
+        rest: Balance,
+    }
+
+    fn assert_era_payout(inputs: EraPayoutInputs, outputs: EraPayoutOutputs) {
+        use sp_io::TestExternalities;
+        TestExternalities::default().execute_with(|| {
+            pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
+            pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
+            let (validators_payout, rest) =
+                <Runtime as pallet_staking::Config>::EraPayout::era_payout(
+                    inputs.total_issuance,
+                    inputs.era_duration_millis,
+                );
+            assert_eq!(validators_payout, outputs.validators_payout);
+            assert_eq!(rest, outputs.rest);
+        });
+    }
+
+    fn era_payout_multiple_eras(
+        inputs: EraPayoutInputs,
+        n_eras: usize,
+    ) -> (Vec<EraPayoutOutputs>, Balance) {
+        use sp_io::TestExternalities;
+        let mut outputs = vec![];
+        let mut total_issuance = inputs.total_issuance;
+        for _ in 0..n_eras {
+            TestExternalities::default().execute_with(|| {
+                pallet_aleph::AzeroCap::<Runtime>::put(inputs.azero_cap);
+                pallet_aleph::ExponentialInflationHorizon::<Runtime>::put(inputs.horizon);
+                let (validators_payout, rest) =
+                    <Runtime as pallet_staking::Config>::EraPayout::era_payout(
+                        total_issuance,
+                        inputs.era_duration_millis,
+                    );
+                outputs.push(EraPayoutOutputs {
+                    validators_payout,
+                    rest,
+                });
+                total_issuance += validators_payout + rest;
+            });
+        }
+        (outputs, total_issuance)
+    }
+
+    #[test]
+    fn era_payout_standard_case() {
+        assert_era_payout(
+            EraPayoutInputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            EraPayoutOutputs {
+                validators_payout: 123_118 * TOKEN + 920_000_000_000,
+                rest: 13_679 * TOKEN + 880_000_000_000,
+            },
+        );
+    }
+
+    #[test]
+    /// Simulate long run by calling `era_payout` multiple times,
+    /// and keeping track of `total_issuance` between calls.
+    /// After 3 * horizon milliseconds the gap should be reduced by ~95%.
+    fn era_payout_long_run() {
+        let (_, total_issuance) = era_payout_multiple_eras(
+            EraPayoutInputs {
+                azero_cap: 150_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            3 * 365,
+        );
+        assert_eq!(total_issuance, 145_021_290 * TOKEN + 959_387_724_274);
+    }
+
+    #[test]
+    /// Era longer than horizon.
+    /// Perbill will saturate, (era_duration_millis / horizon) == 1,
+    /// even if horizon == 0.
+    /// The actual values do not matter, only the ratio is used.
+    /// We expect the gap to be reduced by ~63%.
+    fn era_payout_horizon_too_short() {
+        assert_era_payout(
+            EraPayoutInputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 0,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            EraPayoutOutputs {
+                validators_payout: 28_499_999 * TOKEN + 985_000_000_000,
+                rest: 3_166_666 * TOKEN + 665_000_000_000,
+            },
+        );
+    }
+
+    #[test]
+    /// AZERO cap equal to total issuance, we expect no payout.
+    fn era_payout_cap_reached() {
+        assert_era_payout(
+            EraPayoutInputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_issuance: 100_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            EraPayoutOutputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
+    }
+
+    #[test]
+    /// Total issuance larger than AZERO cap, we expect no payout.
+    fn era_payout_cap_exceeded() {
+        assert_era_payout(
+            EraPayoutInputs {
+                azero_cap: 50_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_issuance: 100_000_000 * TOKEN,
+                era_duration_millis: MILLISECS_PER_DAY,
+            },
+            EraPayoutOutputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
+    }
+
+    #[test]
+    /// Zero-length era, we expect no payout (as it depends on era lenght).
+    fn era_payout_zero_lenght_era() {
+        assert_era_payout(
+            EraPayoutInputs {
+                azero_cap: 100_000_000 * TOKEN,
+                horizon: 365 * MILLISECS_PER_DAY,
+                total_issuance: 50_000_000 * TOKEN,
+                era_duration_millis: 0,
+            },
+            EraPayoutOutputs {
+                validators_payout: 0,
+                rest: 0,
+            },
+        );
     }
 }

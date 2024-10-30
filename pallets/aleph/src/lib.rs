@@ -15,7 +15,8 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
-    SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION, LEGACY_FINALITY_VERSION,
+    Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
+    LEGACY_FINALITY_VERSION, TOKEN,
 };
 use sp_std::prelude::*;
 
@@ -32,7 +33,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::SessionInfoProvider;
+    use primitives::{SessionInfoProvider, TotalIssuanceProvider};
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
@@ -47,6 +48,7 @@ pub mod pallet {
         type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
         type SessionManager: SessionManager<<Self as frame_system::Config>::AccountId>;
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
+        type TotalIssuanceProvider: TotalIssuanceProvider;
     }
 
     #[pallet::event]
@@ -55,6 +57,7 @@ pub mod pallet {
         ChangeEmergencyFinalizer(T::AuthorityId),
         ScheduleFinalityVersionChange(VersionChange),
         FinalityVersionChange(VersionChange),
+        InflationParametersChange(Balance, u64),
     }
 
     #[pallet::pallet]
@@ -67,6 +70,26 @@ pub mod pallet {
     pub(crate) fn DefaultFinalityVersion() -> Version {
         DEFAULT_FINALITY_VERSION
     }
+
+    /// Default AZERO Cap. Relevant for eras before we set this value by hand.
+    #[pallet::type_value]
+    pub fn DefaultAzeroCap() -> Balance {
+        520_000_000 * TOKEN
+    }
+
+    /// Default length of the exponential inflation horizon.
+    /// Relevant for eras before we set this value by hand.
+    #[pallet::type_value]
+    pub fn DefaultExponentialInflationHorizon() -> u64 {
+        154_283_512_497
+    }
+
+    #[pallet::storage]
+    pub type AzeroCap<T: Config> = StorageValue<_, Balance, ValueQuery, DefaultAzeroCap>;
+
+    #[pallet::storage]
+    pub type ExponentialInflationHorizon<T: Config> =
+        StorageValue<_, u64, ValueQuery, DefaultExponentialInflationHorizon>;
 
     #[pallet::storage]
     #[pallet::getter(fn authorities)]
@@ -206,6 +229,64 @@ pub mod pallet {
 
             Self::finality_version()
         }
+
+        pub fn check_horizon_upper_bound(
+            new_horizon: u64,
+            current_horizon: u64,
+        ) -> Result<(), &'static str> {
+            match new_horizon > current_horizon.saturating_mul(2).saturating_add(1) {
+                true => {
+                    Err("Horizon too large, should be at most twice the current value plus one!")
+                }
+                false => Ok(()),
+            }
+        }
+
+        pub fn check_horizon_lower_bound(
+            new_horizon: u64,
+            current_horizon: u64,
+        ) -> Result<(), &'static str> {
+            match new_horizon < current_horizon / 2 {
+                true => Err("Horizon too small, should be at least half the current value!"),
+                false => Ok(()),
+            }
+        }
+
+        pub fn check_azero_cap_upper_bound(
+            new_cap: Balance,
+            current_cap: Balance,
+            total_issuance: Balance,
+        ) -> Result<(), &'static str> {
+            let current_gap = current_cap.saturating_sub(total_issuance);
+            let new_gap = match new_cap.checked_sub(total_issuance) {
+                Some(new_gap) => new_gap,
+                None => return Err("AZERO Cap cannot be lower than the current total issuance!"),
+            };
+            match (new_gap > current_gap.saturating_mul(2).saturating_add(1))
+                && (new_gap > total_issuance / 128)
+            {
+                true => Err("Future issuance too large, should be at most the current total issuance divided by 128, or at most twice the current value plus one!"),
+                false => Ok(()),
+            }
+        }
+
+        pub fn check_azero_cap_lower_bound(
+            new_cap: Balance,
+            current_cap: Balance,
+            total_issuance: Balance,
+        ) -> Result<(), &'static str> {
+            let current_gap = current_cap.saturating_sub(total_issuance);
+            let new_gap = match new_cap.checked_sub(total_issuance) {
+                Some(new_gap) => new_gap,
+                None => return Err("AZERO Cap cannot be lower than the current total issuance!"),
+            };
+            match new_gap < current_gap / 2 {
+                true => {
+                    Err("Future issuance too small, should be at least half the current value!")
+                }
+                false => Ok(()),
+            }
+        }
     }
 
     #[pallet::call]
@@ -249,6 +330,43 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::ScheduleFinalityVersionChange(version_change));
+            Ok(())
+        }
+
+        /// Sets the values of inflation parameters.
+        #[pallet::call_index(2)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_inflation_parameters(
+            origin: OriginFor<T>,
+            azero_cap: Option<Balance>,
+            horizon_millisecs: Option<u64>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let current_azero_cap = AzeroCap::<T>::get();
+            let current_horizon_millisecs = ExponentialInflationHorizon::<T>::get();
+            let total_issuance = T::TotalIssuanceProvider::get();
+
+            let azero_cap = azero_cap.unwrap_or(current_azero_cap);
+            let horizon_millisecs = horizon_millisecs.unwrap_or(current_horizon_millisecs);
+
+            Self::check_horizon_lower_bound(horizon_millisecs, current_horizon_millisecs)
+                .map_err(DispatchError::Other)?;
+            Self::check_horizon_upper_bound(horizon_millisecs, current_horizon_millisecs)
+                .map_err(DispatchError::Other)?;
+            Self::check_azero_cap_upper_bound(azero_cap, current_azero_cap, total_issuance)
+                .map_err(DispatchError::Other)?;
+            Self::check_azero_cap_lower_bound(azero_cap, current_azero_cap, total_issuance)
+                .map_err(DispatchError::Other)?;
+
+            AzeroCap::<T>::put(azero_cap);
+            ExponentialInflationHorizon::<T>::put(horizon_millisecs);
+
+            Self::deposit_event(Event::InflationParametersChange(
+                azero_cap,
+                horizon_millisecs,
+            ));
+
             Ok(())
         }
     }
