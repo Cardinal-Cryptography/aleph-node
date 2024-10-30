@@ -1,4 +1,4 @@
-use rate_limiter::{RateLimitedAsyncRead, RateLimiter, SleepingRateLimiter};
+use rate_limiter::{SharingRateLimiter, RateLimitedAsyncRead, RateLimiterImpl};
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 
@@ -12,11 +12,11 @@ impl<Read: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<Read> {
 #[derive(Clone)]
 pub struct RateLimitingDialer<D> {
     dialer: D,
-    rate_limiter: SleepingRateLimiter,
+    rate_limiter: SharingRateLimiter,
 }
 
 impl<D> RateLimitingDialer<D> {
-    pub fn new(dialer: D, rate_limiter: SleepingRateLimiter) -> Self {
+    pub fn new(dialer: D, rate_limiter: SharingRateLimiter) -> Self {
         Self {
             dialer,
             rate_limiter,
@@ -42,7 +42,7 @@ where
         let connection = self.dialer.connect(address).await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, RateLimiter::new(self.rate_limiter.clone())),
+            RateLimitedAsyncRead::new(receiver, RateLimiterImpl::new(self.rate_limiter.clone())),
             sender,
         ))
     }
@@ -51,11 +51,11 @@ where
 /// Implementation of the [Listener] trait governing all returned [Listener::Connection] instances by a rate-limiting wrapper.
 pub struct RateLimitingListener<L> {
     listener: L,
-    rate_limiter: SleepingRateLimiter,
+    rate_limiter: SharingRateLimiter,
 }
 
 impl<L> RateLimitingListener<L> {
-    pub fn new(listener: L, rate_limiter: SleepingRateLimiter) -> Self {
+    pub fn new(listener: L, rate_limiter: SharingRateLimiter) -> Self {
         Self {
             listener,
             rate_limiter,
@@ -64,7 +64,10 @@ impl<L> RateLimitingListener<L> {
 }
 
 #[async_trait::async_trait]
-impl<L: Listener + Send> Listener for RateLimitingListener<L> {
+impl<L> Listener for RateLimitingListener<L>
+where
+    L: Listener + Send,
+{
     type Connection = Splitted<
         RateLimitedAsyncRead<<L::Connection as Splittable>::Receiver>,
         <L::Connection as Splittable>::Sender,
@@ -75,7 +78,7 @@ impl<L: Listener + Send> Listener for RateLimitingListener<L> {
         let connection = self.listener.accept().await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, RateLimiter::new(self.rate_limiter.clone())),
+            RateLimitedAsyncRead::new(receiver, RateLimiterImpl::new(self.rate_limiter.clone())),
             sender,
         ))
     }
