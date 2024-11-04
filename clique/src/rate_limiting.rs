@@ -1,4 +1,4 @@
-use rate_limiter::{SharingRateLimiter, RateLimitedAsyncRead, RateLimiterImpl};
+use rate_limiter::{RateLimitedAsyncRead, RateLimiterImpl, SharingRateLimiter};
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 

@@ -1,6 +1,3 @@
-use crate::{NonZeroRatePerSecond, LOG_TARGET, MIN};
-use futures::{future::pending, Future, FutureExt};
-use log::trace;
 use std::{
     cmp::min,
     num::NonZeroU64,
@@ -10,7 +7,12 @@ use std::{
     },
     time::{Duration, Instant},
 };
+
+use futures::{future::pending, Future, FutureExt};
+use log::trace;
 use tokio::time::sleep;
+
+use crate::{NonZeroRatePerSecond, LOG_TARGET, MIN};
 
 pub trait TimeProvider {
     fn now(&self) -> Instant;
