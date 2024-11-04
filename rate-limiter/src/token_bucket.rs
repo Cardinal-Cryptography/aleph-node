@@ -363,7 +363,7 @@ impl<TP, SU> Drop for SharedTokenBucket<TP, SU> {
 #[cfg(test)]
 mod tests {
     use std::{
-        cmp::max,
+        cmp::{max, min},
         iter::repeat,
         sync::Arc,
         task::Poll,
@@ -372,13 +372,12 @@ mod tests {
     };
 
     use futures::{
-        future::{poll_fn, BoxFuture, Future},
+        future::{pending, poll_fn, BoxFuture, Future},
         pin_mut,
         stream::FuturesOrdered,
         StreamExt,
     };
     use parking_lot::Mutex;
-    use tokio::task::yield_now;
 
     use super::{SharedBandwidthManager, SleepUntil, TimeProvider, TokenBucket};
     use crate::token_bucket::{AsyncTokenBucket, NonZeroRatePerSecond, SharedTokenBucket};
@@ -392,6 +391,12 @@ mod tests {
         }
     }
 
+    impl TimeProvider for Arc<Box<dyn TimeProvider + Send + Sync + 'static>> {
+        fn now(&self) -> Instant {
+            self.as_ref().now()
+        }
+    }
+
     #[tokio::test]
     async fn basic_checks_of_shared_bandwidth_manager() {
         let rate = 10.try_into().expect("10 > 0 qed");
@@ -402,7 +407,7 @@ mod tests {
         // only one consumer, so it should get whole bandwidth
         assert_eq!(bandwidth_share.request_bandwidth(), rate);
 
-        // since other instances did not request some bandwidth, they should not receive a notification about its change
+        // since other instances did not request for bandwidth, they should not receive notification that it has changed
         let poll_result = poll_fn(|cx| {
             let future = cloned_bandwidth_share.bandwidth_changed();
             pin_mut!(future);
@@ -427,8 +432,7 @@ mod tests {
         // similarly when there are three of them
         let bandwidth: u64 = another_cloned_bandwidth_share.request_bandwidth().into();
         let another_bandwidth: u64 = bandwidth_share.bandwidth_changed().await.into();
-        let yet_another_bandwidth: u64 =
-            cloned_bandwidth_share.bandwidth_changed().await.into();
+        let yet_another_bandwidth: u64 = cloned_bandwidth_share.bandwidth_changed().await.into();
 
         assert!((3..4).contains(&bandwidth));
         assert!((3..4).contains(&another_bandwidth));
@@ -443,7 +447,7 @@ mod tests {
         assert_eq!(bandwidth_share.bandwidth_changed().await, rate);
     }
 
-    /// Allows to treat [TokenBucket] and [HierarchicalTokenBucket] similarly in tests.
+    /// Allows to treat [TokenBucket] and [SharedTokenBucket] in similar fashion in our tests.
     trait RateLimiter: Sized {
         async fn rate_limit(self, requested: u64) -> (Self, Option<Instant>);
     }
@@ -465,10 +469,10 @@ mod tests {
         TP: TimeProvider + Send,
     {
         async fn rate_limit(mut self, requested: u64) -> (Self, Option<Instant>) {
-            let last_sleep = self.rate_limiter.sleep_until.last_deadline.clone();
-            let time_before = *last_sleep.lock();
+            let last_sleep_deadline = self.rate_limiter.sleep_until.last_deadline.clone();
+            let time_before = *last_sleep_deadline.lock();
             self = self.rate_limit(requested).await;
-            let time_after = *last_sleep.lock();
+            let time_after = *last_sleep_deadline.lock();
             (
                 self,
                 (time_before != time_after).then_some(time_after).flatten(),
@@ -476,17 +480,12 @@ mod tests {
         }
     }
 
-    impl<TP> From<(NonZeroRatePerSecond, TP)> for TokenBucket<TP>
+    impl<TP, SU> From<(NonZeroRatePerSecond, TP, SU)> for TokenBucket<TP>
     where
         TP: TimeProvider,
     {
-        fn from((rate_per_second, time_provider): (NonZeroRatePerSecond, TP)) -> Self {
-            Self {
-                last_update: time_provider.now(),
-                rate_per_second: rate_per_second.into(),
-                requested: rate_per_second.into(),
-                time_provider,
-            }
+        fn from((rate, time_provider, _): (NonZeroRatePerSecond, TP, SU)) -> Self {
+            TokenBucket::new_internal(rate, time_provider)
         }
     }
 
@@ -495,39 +494,9 @@ mod tests {
         TP: TimeProvider,
     {
         fn from((rate, time_provider, sleep_until): (NonZeroRatePerSecond, TP, SU)) -> Self {
-            let shared_bandwidth = SharedBandwidthManager::new(rate);
-            let token_bucket = TokenBucket::from((rate, time_provider));
+            let token_bucket = TokenBucket::new_internal(rate, time_provider);
             let rate_limiter = AsyncTokenBucket::new(token_bucket, sleep_until);
-            Self {
-                shared_bandwidth,
-                rate_limiter,
-                need_to_notify_parent: false,
-            }
-        }
-    }
-
-    #[derive(Clone)]
-    struct TracingSleepUntil<SU> {
-        wrapped: SU,
-        pub last_deadline: Option<Instant>,
-    }
-
-    impl<SU> TracingSleepUntil<SU> {
-        pub fn new(sleep_until: SU) -> Self {
-            Self {
-                wrapped: sleep_until,
-                last_deadline: None,
-            }
-        }
-    }
-
-    impl<SU> SleepUntil for TracingSleepUntil<SU>
-    where
-        SU: SleepUntil + Send,
-    {
-        async fn sleep_until(&mut self, instant: Instant) {
-            self.last_deadline = Some(instant);
-            self.wrapped.sleep_until(instant).await
+            Self::new_internal(rate, rate_limiter)
         }
     }
 
@@ -548,102 +517,6 @@ mod tests {
         async fn sleep_until(&mut self, instant: Instant) {
             let mut last_instant = self.last_deadline.lock();
             *last_instant = max(*last_instant, Some(instant));
-        }
-    }
-
-    struct SleepUntilWithBarrier<SU> {
-        wrapped: SU,
-        barrier: Arc<tokio::sync::RwLock<tokio::sync::Barrier>>,
-        initial_counter: u64,
-        counter: u64,
-        to_wait: Option<BoxFuture<'static, ()>>,
-        id: u64,
-    }
-
-    impl<SU> Clone for SleepUntilWithBarrier<SU>
-    where
-        SU: Clone,
-    {
-        fn clone(&self) -> Self {
-            Self {
-                wrapped: self.wrapped.clone(),
-                barrier: self.barrier.clone(),
-                initial_counter: self.initial_counter,
-                counter: self.counter,
-                to_wait: None,
-                id: self.id + 1,
-            }
-        }
-    }
-
-    impl<SU> SleepUntilWithBarrier<SU> {
-        pub fn new(
-            sleep_until: SU,
-            barrier: Arc<tokio::sync::RwLock<tokio::sync::Barrier>>,
-            how_many_times_to_use_barrier: u64,
-        ) -> Self {
-            Self {
-                wrapped: sleep_until,
-                barrier,
-                initial_counter: how_many_times_to_use_barrier,
-                counter: how_many_times_to_use_barrier,
-                to_wait: None,
-                id: 0,
-            }
-        }
-
-        pub fn reset(&mut self) {
-            self.counter = self.initial_counter;
-        }
-
-        pub async fn wait(&mut self) {
-            while self.counter > 0 {
-                yield_now().await;
-                self.to_wait
-                    .get_or_insert_with(|| {
-                        let barrier = self.barrier.clone();
-                        Box::pin(async move {
-                            barrier.read().await.wait().await;
-                        })
-                    })
-                    .await;
-                self.to_wait = None;
-                self.counter -= 1;
-            }
-        }
-    }
-
-    impl<SU> SleepUntil for SleepUntilWithBarrier<SU>
-    where
-        SU: SleepUntil + Send,
-    {
-        async fn sleep_until(&mut self, instant: Instant) {
-            self.wait().await;
-            self.wrapped.sleep_until(instant).await;
-        }
-    }
-
-    impl TimeProvider for Arc<Box<dyn TimeProvider + Send + Sync + 'static>> {
-        fn now(&self) -> Instant {
-            self.as_ref().now()
-        }
-    }
-
-    impl
-        From<(
-            NonZeroRatePerSecond,
-            Arc<Box<dyn TimeProvider + Send + Sync>>,
-            SharedTracingSleepUntil,
-        )> for TokenBucket<Arc<Box<dyn TimeProvider + Send + Sync>>>
-    {
-        fn from(
-            (rate, time_provider, _): (
-                NonZeroRatePerSecond,
-                Arc<Box<dyn TimeProvider + Send + Sync>>,
-                SharedTracingSleepUntil,
-            ),
-        ) -> Self {
-            TokenBucket::from((rate, time_provider))
         }
     }
 
@@ -869,6 +742,60 @@ mod tests {
         );
     }
 
+    struct SleepUntilAfterChange<SU> {
+        wrapped: SU,
+        last_value: Option<Instant>,
+        changes_counter: usize,
+    }
+
+    /// It allows to wait for a change of the allocated bandwidth, i.e. it can wait for two (or more) calls of
+    /// [SleepUntil::sleep_until] that uses two different values for the `instant` argument of
+    /// [SleepUntil::sleep_until(instant)].
+    impl<SU> SleepUntilAfterChange<SU> {
+        pub fn new(sleep_until: SU) -> Self {
+            Self {
+                wrapped: sleep_until,
+                last_value: None,
+                changes_counter: 0,
+            }
+        }
+
+        pub fn set_number_of_changes_to_wait(&mut self, changes_counter: usize) {
+            self.changes_counter = changes_counter;
+            self.last_value = None;
+        }
+    }
+
+    impl<SU> Clone for SleepUntilAfterChange<SU>
+    where
+        SU: Clone,
+    {
+        fn clone(&self) -> Self {
+            Self {
+                wrapped: self.wrapped.clone(),
+                last_value: None,
+                changes_counter: self.changes_counter,
+            }
+        }
+    }
+
+    impl<SU> SleepUntil for SleepUntilAfterChange<SU>
+    where
+        SU: SleepUntil + Send,
+    {
+        async fn sleep_until(&mut self, instant: Instant) {
+            let last_value = self.last_value.get_or_insert(instant);
+            if *last_value != instant {
+                self.changes_counter = self.changes_counter.saturating_sub(1);
+            }
+            if self.changes_counter == 0 {
+                self.wrapped.sleep_until(instant).await
+            } else {
+                pending().await
+            }
+        }
+    }
+
     #[tokio::test]
     async fn two_peers_can_share_bandwidth() {
         let limit_per_second = 10.try_into().expect("10 > 0 qed");
@@ -878,20 +805,16 @@ mod tests {
         let current_time = time_to_return.clone();
         let current_time_clone = time_to_return.clone();
 
-        let time_mutex = Arc::new(parking_lot::Mutex::new(()));
-        let time_mutex_clone = time_mutex.clone();
-
         let time_provider: Arc<Box<dyn TimeProvider + Send + Sync>> =
             Arc::new(Box::new(move || *time_to_return.lock()));
 
         let sleep_until = SharedTracingSleepUntil::new();
-
         let last_deadline = sleep_until.last_deadline.clone();
         let last_deadline_clone = last_deadline.clone();
+        let sleep_until = SleepUntilAfterChange::new(sleep_until);
 
         let barrier = Arc::new(tokio::sync::RwLock::new(tokio::sync::Barrier::new(2)));
         let second_barrier = barrier.clone();
-        let sleep_until = SleepUntilWithBarrier::new(sleep_until, barrier.clone(), 3);
 
         let mut rate_limiter =
             SharedTokenBucket::<_, _>::from((limit_per_second, time_provider, sleep_until));
@@ -900,48 +823,70 @@ mod tests {
         let total_data_sent = thread::scope(|s| {
             let first_handle = s.spawn(|| {
                 let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
+                    .enable_time()
                     .build()
                     .unwrap();
 
                 runtime.block_on(async move {
                     barrier.read().await.wait().await;
 
-                    rate_limiter = rate_limiter.rate_limit(10).await;
+                    rate_limiter = rate_limiter.rate_limit(11).await;
+                    rate_limiter
+                        .rate_limiter
+                        .sleep_until
+                        .set_number_of_changes_to_wait(1);
 
                     {
-                        let _guard = time_mutex.lock();
                         let last_deadline = last_deadline.lock();
                         let time = *current_time.lock();
                         *current_time.lock() = last_deadline.unwrap_or(time);
                     }
 
+                    barrier.read().await.wait().await;
+
                     rate_limiter.rate_limit(30).await;
+
+                    {
+                        let last_deadline = last_deadline.lock();
+                        let time = *current_time.lock();
+                        *current_time.lock() = last_deadline.unwrap_or(time);
+                    }
                 });
-                10 + 30
+                11 + 30
             });
 
             let second_handle = s.spawn(|| {
                 let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
+                    .enable_time()
                     .build()
                     .unwrap();
 
                 runtime.block_on(async {
                     second_barrier.read().await.wait().await;
 
-                    rate_limiter_cloned = rate_limiter_cloned.rate_limit(10).await;
+                    rate_limiter_cloned = rate_limiter_cloned.rate_limit(13).await;
+                    rate_limiter_cloned
+                        .rate_limiter
+                        .sleep_until
+                        .set_number_of_changes_to_wait(1);
 
                     {
-                        let _guard = time_mutex_clone.lock();
                         let last_deadline = last_deadline_clone.lock();
                         let time = *current_time_clone.lock();
                         *current_time_clone.lock() = last_deadline.unwrap_or(time);
                     }
 
+                    second_barrier.read().await.wait().await;
+
                     rate_limiter_cloned.rate_limit(25).await;
+
+                    {
+                        let last_deadline = last_deadline_clone.lock();
+                        let time = *current_time_clone.lock();
+                        *current_time_clone.lock() = last_deadline.unwrap_or(time);
+                    }
                 });
-                10 + 25
+                13 + 25
             });
             let total_data_sent: u128 = first_handle
                 .join()
@@ -955,7 +900,7 @@ mod tests {
         let duration = last_deadline_clone.lock().expect("we should sleep a bit") - initial_time;
         let rate = total_data_sent * 1000 / duration.as_millis();
         assert!(
-            rate.abs_diff(10) <= 10,
+            rate.abs_diff(10) <= 5,
             "calculated bandwidth should be within some error bounds: rate = {rate}; duration = {duration:?}"
         );
     }
@@ -1021,6 +966,82 @@ mod tests {
         assert_eq!(deadline, Some(now + Duration::from_secs(3)));
     }
 
+    /// Synchronizes all instances of [TokenBucket] using [tokio::sync::Barrier]. It should allow all of such instances to
+    /// recognize presence of all the other peers that also allocated some bandwidth and then recalculate their own.
+    struct SleepUntilWithBarrier<SU> {
+        wrapped: SU,
+        barrier: Arc<tokio::sync::RwLock<tokio::sync::Barrier>>,
+        initial_counter: u64,
+        counter: u64,
+        // this is to overcome lack of `Cancellation Safety` of the method [Barrier::wait()].
+        // Implementations of [SleepUntil::sleep_until()] should be cancellation safe.
+        to_wait: Option<BoxFuture<'static, ()>>,
+        id: u64,
+    }
+
+    impl<SU> Clone for SleepUntilWithBarrier<SU>
+    where
+        SU: Clone,
+    {
+        fn clone(&self) -> Self {
+            Self {
+                wrapped: self.wrapped.clone(),
+                barrier: self.barrier.clone(),
+                initial_counter: self.initial_counter,
+                counter: self.counter,
+                to_wait: None,
+                id: self.id + 1,
+            }
+        }
+    }
+
+    impl<SU> SleepUntilWithBarrier<SU> {
+        pub fn new(
+            sleep_until: SU,
+            barrier: Arc<tokio::sync::RwLock<tokio::sync::Barrier>>,
+            how_many_times_to_use_barrier: u64,
+        ) -> Self {
+            Self {
+                wrapped: sleep_until,
+                barrier,
+                initial_counter: how_many_times_to_use_barrier,
+                counter: how_many_times_to_use_barrier,
+                to_wait: None,
+                id: 0,
+            }
+        }
+
+        pub fn reset(&mut self) {
+            self.counter = self.initial_counter;
+            self.to_wait = None;
+        }
+
+        pub async fn wait(&mut self) {
+            while self.counter > 0 {
+                self.to_wait
+                    .get_or_insert_with(|| {
+                        let barrier = self.barrier.clone();
+                        Box::pin(async move {
+                            barrier.read().await.wait().await;
+                        })
+                    })
+                    .await;
+                self.to_wait = None;
+                self.counter -= 1;
+            }
+        }
+    }
+
+    impl<SU> SleepUntil for SleepUntilWithBarrier<SU>
+    where
+        SU: SleepUntil + Send,
+    {
+        async fn sleep_until(&mut self, instant: Instant) {
+            self.wait().await;
+            self.wrapped.sleep_until(instant).await;
+        }
+    }
+
     #[tokio::test]
     async fn avarage_bandwidth_should_be_within_some_reasonable_bounds() {
         use rand::{
@@ -1029,7 +1050,7 @@ mod tests {
             SeedableRng,
         };
 
-        let mut test_state = vec![];
+        let mut test_state = Vec::new();
 
         let rate_limit = 4 * 1024 * 1024;
         let limit_per_second = rate_limit.try_into().expect("(4 * 1024 * 1024) > 0 qed");
@@ -1038,11 +1059,11 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("back to the future")
             .as_secs();
-        let mut rand_gen = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut rand_generator = rand::rngs::StdRng::seed_from_u64(seed);
 
-        let data_gen = Uniform::from(rate_limit / 2..100 * 1024 * 1024);
-        let limiters_count = Uniform::from(10..=128).sample(&mut rand_gen);
-        let batch_gen = Uniform::from(1..=limiters_count);
+        let data_generator = Uniform::from((rate_limit + 1)..100 * rate_limit);
+        let limiters_count = Uniform::from(10..=128).sample(&mut rand_generator);
+        let batch_generator = Uniform::from(2..=limiters_count);
 
         let initial_time = Instant::now();
         let time_to_return = Arc::new(parking_lot::RwLock::new(initial_time));
@@ -1054,15 +1075,19 @@ mod tests {
         let last_deadline = test_sleep_until_shared.last_deadline.clone();
 
         let barrier = Arc::new(tokio::sync::RwLock::new(tokio::sync::Barrier::new(0)));
-        let how_many_times_should_stop_on_barrier = 3;
+        let how_many_times_should_stop_on_barrier = 1;
         let test_sleep_until_with_barrier = SleepUntilWithBarrier::new(
             test_sleep_until_shared,
             barrier.clone(),
             how_many_times_should_stop_on_barrier,
         );
-        let tracing_sleep_until = TracingSleepUntil::new(test_sleep_until_with_barrier);
-        let rate_limiter =
-            SharedTokenBucket::<_, _>::from((limit_per_second, time_provider, tracing_sleep_until));
+        let sleep_until_after_time_change =
+            SleepUntilAfterChange::new(test_sleep_until_with_barrier);
+        let rate_limiter = SharedTokenBucket::<_, _>::from((
+            limit_per_second,
+            time_provider,
+            sleep_until_after_time_change,
+        ));
 
         let mut rate_limiters: Vec<_> = repeat(())
             .scan((0usize, rate_limiter), |(id, rate_limiter), _| {
@@ -1078,45 +1103,53 @@ mod tests {
 
         let mut total_data_scheduled = 0;
         let mut total_number_of_calls = 0;
-        while total_number_of_calls < 10000 {
-            let batch_size = batch_gen.sample(&mut rand_gen);
+        while total_number_of_calls < 1000 {
+            let batch_size = batch_generator.sample(&mut rand_generator);
 
             total_number_of_calls += batch_size;
             *barrier.write().await = tokio::sync::Barrier::new(batch_size);
 
-            rate_limiters.shuffle(&mut rand_gen);
+            rate_limiters.shuffle(&mut rand_generator);
 
             let mut batch_data = 0;
             let start_time = *time_to_return.read();
+            let mut batch_state = Vec::new();
             let mut batch_test: FuturesOrdered<_> = rate_limiters[0..batch_size]
                 .iter_mut()
-                .map(|(selected_limiter_id, selected_rate_limiter)| {
-
-                    let data_read = data_gen.sample(&mut rand_gen);
+                .zip((0..batch_size).rev())
+                .map(|((selected_limiter_id, selected_rate_limiter), idx)| {
+                    let data_read = data_generator.sample(&mut rand_generator);
 
                     let mut rate_limiter = selected_rate_limiter
                         .take()
                         .expect("we should be able to retrieve a rate-limiter");
 
+                    // last instance won't be notified - its bandwidth will not change until some other instance finishes
+                    rate_limiter
+                        .rate_limiter
+                        .sleep_until
+                        .set_number_of_changes_to_wait(min(1, idx));
                     rate_limiter.rate_limiter.sleep_until.wrapped.reset();
 
                     let rate_task = SharedTokenBucket::rate_limit(rate_limiter, data_read);
 
-                    test_state.push((*selected_limiter_id, data_read));
+                    batch_state.push((*selected_limiter_id, data_read));
 
                     total_data_scheduled += u128::from(data_read);
                     batch_data += data_read;
 
                     async move {
-                        let mut rate_limiter = rate_task.await;
-                        rate_limiter.rate_limiter.sleep_until.wrapped.wait().await;
+                        let rate_limiter = rate_task.await;
 
                         (rate_limiter, selected_rate_limiter)
                     }
                 })
                 .collect();
+
+            test_state.push(batch_state);
+
             while let Some((rate_limiter, store)) = batch_test.next().await {
-                let _ = store.insert(rate_limiter);
+                *store = Some(rate_limiter);
             }
 
             let current_time = max(
@@ -1124,13 +1157,16 @@ mod tests {
                 (*last_deadline.lock()).unwrap_or(*time_to_return.read()),
             );
 
-            let batch_time: u64 = max((current_time - start_time).as_millis(), 1)
+            let batch_time: u64 = max((current_time - start_time).as_millis(), 1000)
                 .try_into()
                 .expect("something wrong with our time calculations");
             let rate = batch_data * 1000 / batch_time;
             let abs_rate_diff = rate.abs_diff(rate_limit);
+            // in worst case, utilized bandwidth should be equal to `bandwidth * (1 + 1/2 + ... + 1/n) ≈ bandwidth * (ln n + O(1))`
+            let max_possible_bandwidth =
+                rate_limit as f64 * ((batch_size as f64).ln() + 1_f64).trunc();
             assert!(
-                abs_rate_diff <= rate_limit,
+                abs_rate_diff <= max_possible_bandwidth as u64,
                 "Used bandwidth should be oscillating close to {rate_limit} b/s (+/- 50%), but got {rate} b/s instead. Total data sent: {total_data_scheduled}; Test data: {test_state:?}"
             );
 
