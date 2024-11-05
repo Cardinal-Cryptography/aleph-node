@@ -3,24 +3,16 @@ services:
     extends:
       file: docker-compose.base.yml
       service: Node0
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node0:30343
 
   Node1:
     extends:
       file: docker-compose.base.yml
       service: Node1
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node1:30344
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
 
   Node2:
     extends:
       file: docker-compose.base.yml
       service: Node2
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node2:30345
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
 
   # Node3 should run the flooding routine.
   Node3:
@@ -28,30 +20,18 @@ services:
       file: docker-compose.base.yml
       service: Node3
     image: aleph-node:flooding
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node3:30346
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
 
   Node4:
     extends:
       file: docker-compose.base.yml
       service: Node4
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node4:30347
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
 
   Node5:
     extends:
       file: docker-compose.base.yml
       service: Node5
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node5:30348
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
 
   Node6:
     extends:
       file: docker-compose.base.yml
       service: Node6
-    environment:
-      - PUBLIC_VALIDATOR_ADDRESS=Node6:30349
-      - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
