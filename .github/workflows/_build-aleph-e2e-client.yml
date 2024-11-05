@@ -47,7 +47,7 @@ jobs:
         run: |
           cd e2e-tests/
           rm -f target/release/deps/aleph_e2e_client*
-          cp $(cargo test --no-run --release --message-format=json | jq -r .executable | \
+          cp $(cargo test --no-run --release --locked --message-format=json | jq -r .executable | \
           grep aleph_e2e_client) target/release/aleph-e2e-client
 
       - name: Get binary artifact name
