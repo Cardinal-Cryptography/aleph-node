@@ -5,6 +5,8 @@ services:
       service: Node0
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node0:30343
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   Node1:
     extends:
@@ -13,6 +15,8 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node1:30344
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   Node2:
     extends:
@@ -21,6 +25,8 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node2:30345
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   # Node3 should run the flooding routine.
   Node3:
@@ -31,6 +37,8 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node3:30346
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   Node4:
     extends:
@@ -39,6 +47,8 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node4:30347
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   Node5:
     extends:
@@ -47,6 +57,8 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node5:30348
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
 
   Node6:
     extends:
@@ -55,3 +67,5 @@ services:
     environment:
       - PUBLIC_VALIDATOR_ADDRESS=Node6:30349
       - BOOT_NODES=/dns4/Node0/tcp/30333/p2p/$BOOTNODE_PEER_ID
+      - ALEPHBFT_NETWORK_BIT_RATE=393216
+      - SUBSTRATE_NETWORK_BIT_RATE=2621440
