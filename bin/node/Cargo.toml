@@ -109,3 +109,7 @@ aleph-runtime-native = [
 only_legacy = [
     "finality-aleph/only_legacy"
 ]
+
+network_flooding_test = [
+    "finality-aleph/network_flooding_test"
+]

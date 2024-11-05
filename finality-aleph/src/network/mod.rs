@@ -15,6 +15,8 @@ pub mod address_cache;
 mod base_protocol;
 mod build;
 pub mod data;
+#[cfg(feature = "network_flooding_test")]
+pub mod flooding;
 #[cfg(test)]
 pub mod mock;
 pub mod session;
