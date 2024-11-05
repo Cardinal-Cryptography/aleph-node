@@ -84,6 +84,11 @@ fi
 if [[ -n "${OUT_LATENCY:-}" ]]; then
     ARGS+=(-e OUT_LATENCY)
 fi
+
+if [[ -n "${FINALIZATION_WAIT:-}" ]]; then
+    ARGS+=(-e FINALIZATION_WAIT)
+fi
+
 timeout_duration="${TIMEOUT_MINUTES:-20m}"
 echo "Running e2e test ${TEST_CASES}"
 echo "Logs will be shown when tests finishes or after ${timeout_duration} timeout."

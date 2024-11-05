@@ -40,6 +40,15 @@ jobs:
       # yamllint disable-line rule:line-length
       artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
 
+  build-aleph-node-with-network-flooding-test:
+    needs: [check-vars-and-secrets]
+    name: Build aleph-node with flooding routines for both sync-network and alephbft-network
+    uses: ./.github/workflows/_build-aleph-node.yml
+    with:
+      ref: ${{ github.ref }}
+      production: false
+      additional-flags: '--features network_flooding_test'
+
   build-chain-bootstrapper-production:
     name: Build chain-bootstrapper
     uses: ./.github/workflows/_build-chain-bootstrapper.yml
@@ -316,6 +325,48 @@ jobs:
             --chain-bootstrapper ../target/release/chain-bootstrapper \
             --testcase test_major_sync
 
+  run-network-flooding-test:
+    needs:
+      - build-production-aleph-node
+      - build-aleph-node-with-network-flooding-test
+      - build-aleph-e2e-client-image
+      - build-chain-bootstrapper-production
+    name: Run network flooding test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download node-flooding docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-aleph-node-with-network-flooding-test.outputs.artifact-name-image }}
+
+      - name: Load node-flooding docker image
+        shell: bash
+        run: |
+          docker load -i aleph-node.tar
+          docker tag aleph-node:latest aleph-node:flooding
+          docker image rm aleph-node:latest
+          mv aleph-node.tar aleph-node_flooding.tar
+
+      - name: Run e2e test
+        uses: ./.github/actions/run-e2e-test
+        env:
+          # more than one session
+          FINALIZATION_WAIT: 901
+        with:
+          test-case: finalization::finalization
+          # yamllint disable-line rule:line-length
+          artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
+          aleph-node-image-tag: aleph-node:latest
+          # yamllint disable-line rule:line-length
+          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
+          compose-file: docker/docker-compose_network_flooding_test.yml
+          # yamllint disable-line rule:line-length
+          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
+          timeout-minutes: 40
+
   run-force-reorg-test:
     needs:
       - build-production-aleph-node
@@ -372,16 +423,19 @@ jobs:
           timeout-minutes: 35
 
   check-nightly-pipeline-completion:
-    needs: [run-e2e-high-out-latency,
-            run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus,
-            run-e2e-sync-test-one_node_catching_up,
-            run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them,
-            run-e2e-sync-test-into_multiple_groups_of_two,
-            run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum,
-            run-e2e-sync-test-into_two_groups_one_with_quorum,
-            run-force-reorg-test,
-            run-major-sync-test,
-            run-e2e-no-quorum-without-high-out-latency]
+    needs: [
+             run-network-flooding-test,
+             run-e2e-high-out-latency,
+             run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus,
+             run-e2e-sync-test-one_node_catching_up,
+             run-e2e-sync-test-into_two_groups_and_one_quorum_and_switch_quorum_between_them,
+             run-e2e-sync-test-into_multiple_groups_of_two,
+             run-e2e-sync-test-into_two_equal_size_groups_with_no_quorum,
+             run-e2e-sync-test-into_two_groups_one_with_quorum,
+             run-force-reorg-test,
+             run-major-sync-test,
+             run-e2e-no-quorum-without-high-out-latency,
+           ]
     name: Check nightly test suite completion
     if: ${{ !cancelled() }}
     runs-on: ubuntu-20.04
