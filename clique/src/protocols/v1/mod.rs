@@ -1,7 +1,7 @@
-use futures::{
-    channel::{mpsc, oneshot},
-    StreamExt,
-};
+#[cfg(feature = "network_flooding_test")]
+mod flooding;
+
+use futures::channel::{mpsc, oneshot};
 use log::{debug, info, trace};
 use parity_scale_codec::{Decode, Encode};
 use tokio::{
@@ -10,7 +10,7 @@ use tokio::{
 };
 
 use crate::{
-    io::{receive_data, send_data},
+    io::receive_data,
     metrics::{Event, Metrics},
     protocols::{
         handshake::{v0_handshake_incoming, v0_handshake_outgoing},
@@ -41,11 +41,15 @@ async fn check_authorization<SK: SecretKey>(
         .map_err(|_| ProtocolError::NoParentConnection)
 }
 
+#[cfg(not(feature = "network_flooding_test"))]
 async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
     mut sender: S,
     mut data_from_user: mpsc::UnboundedReceiver<D>,
 ) -> Result<(), ProtocolError<PK>> {
+    use crate::io::send_data;
+    use futures::StreamExt;
     use Message::*;
+
     loop {
         let to_send = match timeout(HEARTBEAT_TIMEOUT, data_from_user.next()).await {
             Ok(maybe_data) => match maybe_data {
@@ -62,6 +66,15 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
         .await
         .map_err(|_| ProtocolError::SendTimeout)??;
     }
+}
+
+#[cfg(feature = "network_flooding_test")]
+async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
+    sender: S,
+    data_from_user: mpsc::UnboundedReceiver<D>,
+) -> Result<(), ProtocolError<PK>> {
+    info!(target: "network-clique-flooder", "Starting the flooder for the Aleph-bft network.");
+    flooding::sending(sender, data_from_user).await
 }
 
 async fn receiving<PK: PublicKey, D: Data, S: AsyncRead + Unpin + Send>(

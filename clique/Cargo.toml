@@ -36,3 +36,6 @@ tokio = { workspace = true, features = [
 [dev-dependencies]
 aleph-bft-types = { workspace = true }
 aleph-bft-mock = { workspace = true }
+
+[features]
+network_flooding_test = []

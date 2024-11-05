@@ -90,3 +90,6 @@ sc-basic-authorship = { workspace = true }
 
 [features]
 only_legacy = []
+network_flooding_test = [
+    "network-clique/network_flooding_test",
+]

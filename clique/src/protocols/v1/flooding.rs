@@ -1,0 +1,63 @@
+use std::time::Duration;
+
+use futures::{channel::mpsc, StreamExt};
+use parity_scale_codec::{Decode, Encode};
+use tokio::{io::AsyncWrite, time::timeout};
+
+use crate::{io::send_data, protocols::ProtocolError, Data, PublicKey};
+
+const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_MISSED_HEARTBEATS: u32 = 4;
+
+#[derive(Debug, Clone, Encode, Decode)]
+enum Message<D: Data> {
+    Data(D),
+    Heartbeat,
+}
+
+/// Version of the `sending` part of the `clique-network` which tries to flood our network with messages. It attempts to send a
+/// given data in a looped manner, flooding a node with valid messages. Whenever new data is available, it tries to update the
+/// message it uses for flooding.
+pub async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
+    mut sender: S,
+    mut data_from_user: mpsc::UnboundedReceiver<D>,
+) -> Result<(), ProtocolError<PK>> {
+    use Message::*;
+
+    let mut last_message = None;
+    loop {
+        let to_send = match data_from_user
+            .try_next()
+            .ok()
+            .flatten()
+            .map(Data)
+            .or_else(|| last_message.take())
+        {
+            Some(data) => {
+                let cloned_data = data.clone();
+                last_message = Some(data);
+                cloned_data
+            }
+            None => {
+                match timeout(HEARTBEAT_TIMEOUT, data_from_user.next()).await {
+                    Ok(maybe_data) => match maybe_data {
+                        Some(data) => {
+                            let data = Data(data);
+                            last_message = Some(data.clone());
+                            data
+                        }
+                        // We have been closed by the parent service, all good.
+                        None => return Ok(()),
+                    },
+                    _ => Heartbeat,
+                }
+            }
+        };
+        sender = timeout(
+            MAX_MISSED_HEARTBEATS * HEARTBEAT_TIMEOUT,
+            send_data(sender, to_send),
+        )
+        .await
+        .map_err(|_| ProtocolError::SendTimeout)??;
+    }
+}
