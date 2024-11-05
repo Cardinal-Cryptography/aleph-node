@@ -25,7 +25,7 @@ pub async fn finalization() -> anyhow::Result<()> {
     info!("Waiting for block {} to be finalized", wait_for_block);
 
     connection
-        .wait_for_block(|n| n > wait_for_block, BlockStatus::Finalized)
+        .wait_for_block(|n| n >= wait_for_block, BlockStatus::Finalized)
         .await;
 
     Ok(())
