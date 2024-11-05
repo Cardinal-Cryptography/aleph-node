@@ -93,8 +93,7 @@ runs:
     - name: Wait for the finalization before e2e test
       shell: bash
       run: |
-        export TIMEOUT_MINUTES="5m"
-        ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
+        TIMEOUT_MINUTES="5m" FINALIZATION_WAIT=1 ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
           -a aleph-e2e-client:latest
 
     - name: Run single e2e test
@@ -156,6 +155,5 @@ runs:
       if: inputs.check-finalization-after-test == 'true'
       shell: bash
       run: |
-        export TIMEOUT_MINUTES="5m"
-        ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
+        TIMEOUT_MINUTES="5m" FINALIZATION_WAIT=1 ./.github/scripts/run_e2e_test.sh -t finalization::finalization \
           -a aleph-e2e-client:latest
