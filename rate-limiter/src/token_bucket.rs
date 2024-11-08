@@ -14,20 +14,24 @@ use tokio::time::sleep;
 
 use crate::{NonZeroRatePerSecond, LOG_TARGET, MIN};
 
+/// A measurement of a monotonically nondecreasing clock.
 pub trait TimeProvider {
     fn now(&self) -> Instant;
 }
 
 #[derive(Clone, Default)]
-pub struct DefaultTimeProvider;
+pub struct TokioTimeProvider;
 
-impl TimeProvider for DefaultTimeProvider {
+impl TimeProvider for TokioTimeProvider {
     fn now(&self) -> Instant {
-        Instant::now()
+        // We use [tokio::time::Instant] in order to be consistent with the
+        // implementation of our [TokioSleepUntil] below. At the time of
+        // writing, [tokio::time::Instant] simply wraps [std::time::Instant].
+        tokio::time::Instant::now().into()
     }
 }
 
-/// Implementation of some sleeping mechanism that doesn't block runtime's executor thread.
+/// Implementation of a sleep mechanism that doesn't block an executor thread of an async runtime.
 /// Implementations should be cancellation-safe.
 pub trait SleepUntil {
     fn sleep_until(&mut self, instant: Instant) -> impl Future<Output = ()> + Send;
@@ -42,9 +46,9 @@ impl SleepUntil for TokioSleepUntil {
     }
 }
 
-/// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource, e.g. an incoming network traffic.
+/// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource, e.g. data received via network.
 #[derive(Clone)]
-struct TokenBucket<T = DefaultTimeProvider> {
+struct TokenBucket<T = TokioTimeProvider> {
     last_update: Instant,
     rate_per_second: NonZeroU64,
     requested: u64,
@@ -62,10 +66,9 @@ impl<T> std::fmt::Debug for TokenBucket<T> {
 }
 
 impl TokenBucket {
-    /// Constructs a instance of [`TokenBucket`] with given target rate-per-second.
+    /// Constructs an instance of [`TokenBucket`] with given target rate-per-second.
     pub fn new(rate_per_second: NonZeroRatePerSecond) -> Self {
-        let time_provider = DefaultTimeProvider;
-        Self::new_internal(rate_per_second, time_provider)
+        Self::new_internal(rate_per_second, Default::default())
     }
 }
 
@@ -83,13 +86,13 @@ where
         }
     }
 
-    fn max_possible_available_tokens(&self) -> u64 {
+    fn upper_bound_of_tokens(&self) -> u64 {
         self.rate_per_second.into()
     }
 
     fn available(&self) -> Option<u64> {
-        (self.requested <= self.max_possible_available_tokens())
-            .then(|| self.max_possible_available_tokens() - self.requested)
+        (self.requested <= self.upper_bound_of_tokens())
+            .then(|| self.upper_bound_of_tokens() - self.requested)
     }
 
     fn account_requested_tokens(&mut self, requested: u64) {
@@ -101,12 +104,12 @@ where
             return None;
         }
 
-        let scheduled_for_later = self.requested - self.max_possible_available_tokens();
-        let delay_micros = scheduled_for_later
-            .saturating_mul(1_000_000)
+        let scheduled_for_later = self.requested - self.upper_bound_of_tokens();
+        let delay_millis = scheduled_for_later
+            .saturating_mul(1_000)
             .saturating_div(self.rate_per_second.into());
 
-        Some(self.last_update + Duration::from_micros(delay_micros))
+        Some(self.last_update + Duration::from_millis(delay_millis))
     }
 
     fn update_tokens(&mut self) {
@@ -121,28 +124,30 @@ where
         let time_since_last_update = now.duration_since(self.last_update);
         self.last_update = now;
         let new_units = time_since_last_update
-            .as_micros()
+            .as_millis()
             .saturating_mul(u64::from(self.rate_per_second).into())
-            .saturating_div(1_000_000)
+            .saturating_div(1_000)
             .try_into()
             .unwrap_or(u64::MAX);
         self.requested = self.requested.saturating_sub(new_units);
     }
 
-    /// Get current rate in bits per second.
+    /// Get current rate in bits-per-second.
     pub fn rate(&self) -> NonZeroRatePerSecond {
         self.rate_per_second.into()
     }
 
-    /// Set a rate in bits per second.
+    /// Set a rate in bits-per-second.
     pub fn set_rate(&mut self, rate_per_second: NonZeroRatePerSecond) {
+        // We need to update our tokens till now using previous rate.
         self.update_tokens();
+        // We need to convert all left tokens to format compatible with the new rate.
         let available = self.available();
         let previous_rate_per_second = self.rate_per_second.get();
         self.rate_per_second = rate_per_second.into();
-        if available.is_some() {
-            let max_for_available = self.max_possible_available_tokens();
-            let available_after_rate_update = min(available.unwrap_or(0), max_for_available);
+        if let Some(available) = available {
+            let max_for_available = self.upper_bound_of_tokens();
+            let available_after_rate_update = min(available, max_for_available);
             self.requested = self.rate_per_second.get() - available_after_rate_update;
         } else {
             self.requested = self.requested - previous_rate_per_second + self.rate_per_second.get();
@@ -150,7 +155,7 @@ where
     }
 
     /// Calculates amount of time by which we should delay next call to some governed resource in order to satisfy
-    /// specified rate limit.
+    /// configured rate limit.
     pub fn rate_limit(&mut self, requested: u64) -> Option<Instant> {
         trace!(
             target: LOG_TARGET,
@@ -170,10 +175,11 @@ where
     }
 }
 
+/// Determines how often instances of [SharedBandwidthManager] should check if their allocated bandwidth was changed.
 const BANDWIDTH_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Implementation of the bandwidth sharing strategy that attempts to assign equal portion of the total bandwidth to all active
-/// consumers of the bandwidth.
+/// consumers of that bandwidth.
 pub struct SharedBandwidthManager {
     max_rate: NonZeroRatePerSecond,
     peers_count: Arc<AtomicU64>,
@@ -191,6 +197,8 @@ impl Clone for SharedBandwidthManager {
 }
 
 impl SharedBandwidthManager {
+    /// Constructs a new instance of [SharedBandwidthManager] configured with a
+    /// given rate that will be shared between all calling consumers.
     pub fn new(max_rate: NonZeroRatePerSecond) -> Self {
         Self {
             max_rate,
@@ -199,56 +207,63 @@ impl SharedBandwidthManager {
         }
     }
 
-    fn calculate_bandwidth_without_children_increament(
-        &mut self,
-        active_children: Option<u64>,
-    ) -> NonZeroRatePerSecond {
+    fn calculate_bandwidth(&mut self, active_children: Option<u64>) -> NonZeroRatePerSecond {
         let active_children =
-            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::SeqCst));
+            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::Acquire));
         let rate = u64::from(self.max_rate) / active_children;
         NonZeroU64::try_from(rate)
             .map(NonZeroRatePerSecond::from)
             .unwrap_or(MIN)
     }
 
+    /// Allocate part of the shared bandwidth.
     pub fn request_bandwidth(&mut self) -> NonZeroRatePerSecond {
         let active_children = (self.already_requested.is_none())
-            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::SeqCst));
-        let rate = self.calculate_bandwidth_without_children_increament(active_children);
+            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::AcqRel));
+        let rate = self.calculate_bandwidth(active_children);
         self.already_requested = Some(rate);
         rate
     }
 
+    /// Notify this manager that we no longer use our allocated bandwidth and so
+    /// it can be immediately shared with other active consumers.
     pub fn notify_idle(&mut self) {
         if self.already_requested.take().is_some() {
-            self.peers_count.fetch_sub(1, Ordering::SeqCst);
+            self.peers_count.fetch_sub(1, Ordering::AcqRel);
         }
     }
 
+    /// Awaits for a notification about some change to previously allocated
+    /// bit-rate.
+    /// For performance reasons, it simply actively queries for all active peers
+    /// in a looped manner on every interval of [BANDWIDTH_CHECK_INTERVAL]
     pub async fn bandwidth_changed(&mut self) -> NonZeroRatePerSecond {
         let Some(previous_rate) = self.already_requested else {
             return pending().await;
         };
-        let mut rate = self.calculate_bandwidth_without_children_increament(None);
+        let mut rate = self.calculate_bandwidth(None);
         while rate == previous_rate {
             sleep(BANDWIDTH_CHECK_INTERVAL).await;
-            rate = self.calculate_bandwidth_without_children_increament(None);
+            rate = self.calculate_bandwidth(None);
         }
         self.already_requested = Some(rate);
         rate
     }
 }
 
-/// Wrapper around the [TokenBucket] that allows conveniently manage its internal token-rate and allows to idle/sleep in order
-/// to fulfill its rate-limit.
+/// Wrapper around the [TokenBucket] that allows to conveniently manage its
+/// internal bit-rate and manages its idle/sleep state in order to accurately
+/// satisfy its rate-limit.
 #[derive(Clone)]
-struct AsyncTokenBucket<TP = DefaultTimeProvider, SU = TokioSleepUntil> {
+struct AsyncTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     token_bucket: TokenBucket<TP>,
     next_deadline: Option<Instant>,
     sleep_until: SU,
 }
 
 impl<TP, SU> AsyncTokenBucket<TP, SU> {
+    /// Constructs an instance of [AsyncTokenBucket] using given [TokenBucket]
+    /// and implementation of the [SleepUntil] interface.
     pub fn new(token_bucket: TokenBucket<TP>, sleep_until: SU) -> Self {
         Self {
             token_bucket,
@@ -262,10 +277,13 @@ impl<TP, SU> AsyncTokenBucket<TP, SU>
 where
     TP: TimeProvider,
 {
+    /// Accounts `requested` units. A next call to [AsyncTokenBucket::wait] will
+    /// account these units while calculating necessary delay.
     pub fn rate_limit(&mut self, requested: u64) {
         self.next_deadline = TokenBucket::rate_limit(&mut self.token_bucket, requested);
     }
 
+    /// Sets rate of this limiter and updates the required delay accordingly.
     pub fn set_rate(&mut self, rate: NonZeroRatePerSecond) {
         if self.token_bucket.rate() != rate {
             self.token_bucket.set_rate(rate);
@@ -273,6 +291,7 @@ where
         }
     }
 
+    /// Makes current task idle in order to fulfill configured rate.
     pub async fn wait(&mut self)
     where
         TP: TimeProvider + Send,
@@ -296,13 +315,15 @@ where
 /// instances before it + 1)`), small enough so none of them receives a notification about ongoing bandwidth change (calls from
 /// next instances).
 #[derive(Clone)]
-pub struct SharedTokenBucket<TP = DefaultTimeProvider, SU = TokioSleepUntil> {
+pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     shared_bandwidth: SharedBandwidthManager,
     rate_limiter: AsyncTokenBucket<TP, SU>,
     need_to_notify_parent: bool,
 }
 
 impl SharedTokenBucket {
+    /// Constructs a new instance of [SahredTokenBucket] using a given `rate` as the maximal amount of bandwidth that will be
+    /// shared between its cloned instances.
     pub fn new(rate: NonZeroRatePerSecond) -> Self {
         let token_bucket = TokenBucket::new(rate);
         let sleep_until = TokioSleepUntil;
@@ -332,6 +353,7 @@ impl<TP, SU> SharedTokenBucket<TP, SU> {
         }
     }
 
+    /// Executes the rate-limiting strategy and delays execution in order to satisfy configured rate-limit.
     pub async fn rate_limit(mut self, requested: u64) -> Self
     where
         TP: TimeProvider + Send,
