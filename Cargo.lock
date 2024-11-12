@@ -1846,6 +1846,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.87",
+ "unicode-xid",
 ]
 
 [[package]]
@@ -4809,7 +4810,6 @@ dependencies = [
  "aleph-bft-types 0.13.0",
  "async-trait",
  "bytes",
- "derive_more 1.0.0",
  "env_logger",
  "futures",
  "futures-timer",
