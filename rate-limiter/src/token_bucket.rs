@@ -14,11 +14,12 @@ use tokio::time::sleep;
 
 use crate::{NonZeroRatePerSecond, LOG_TARGET, MIN};
 
-/// A measurement of a monotonically nondecreasing clock.
+/// It should return a non-decreasing values of type [std::time::Instant].
 pub trait TimeProvider {
     fn now(&self) -> Instant;
 }
 
+/// Default implementation of the [TimeProvider] trait using [tokio::time].
 #[derive(Clone, Default)]
 pub struct TokioTimeProvider;
 
@@ -304,16 +305,17 @@ where
     }
 }
 
-/// Allows to share a given amount of bandwidth between multiple instances of [TokenBucket]. Each time an instance requests to
-/// share the bandwidth, it is given a fair share o it, i.e. all available bandwidth / # of active instances. All active
-/// instances are actively polling (with some predefined interval) for changes in their allocated bandwidth. Alternatively, we
-/// could devise a method where on each new request for bandwidth, we actively query every active instance to confirm a change
-/// before we allocate it for a new peer. This would provide more accurate bandwidth allocation but with a huge disadvantage for
-/// performance. We believe, current solution is a good choice between accuracy and performance. In worst case, utilized
-/// bandwidth should be equal to `bandwidth * (1 + 1/2 + ... + 1/n) ≈ bandwidth * (ln n + O(1))`. This can happen when each
-/// instance of [TokenBucket] requests slightly more data than its initially acquired bandwidth (equal to `bandwidth / (# of all
-/// instances before it + 1)`), small enough so none of them receives a notification about ongoing bandwidth change (calls from
-/// next instances).
+/// [SharedTokenBucket] allows to share a given amount of bandwidth between multiple instances of [TokenBucket]. Each time an
+/// instance requests to share the bandwidth, it is given a fair share of it, i.e. `all available bandwidth / # of active
+/// instances`. All instances, that previously acquired some share of the bandwidth, are actively polling (with some predefined
+/// interval) for changes in their allocated share. Alternatively to this polling procedure, we could devise a method where on
+/// each new request for sharing the bandwidth, we actively query every active instance to confirm a change before we allocate
+/// it for a new peer. This would provide each requesting instance a more accurate share of the bandwidth, but it would also
+/// have a huge negative impact for performance. We believe, current solution is a good choice between accuracy and performance.
+/// For the polling strategy, in worst case, utilized bandwidth should be equal to `bandwidth * (1 + 1/2 + ... + 1/n) ≈
+/// bandwidth * (ln n + O(1))`. This can happen when each instance of [TokenBucket] tries to spend slightly more data than its
+/// initially acquired bandwidth, but small enough so none of them other instances receives a notification about ongoing
+/// bandwidth change.
 #[derive(Clone)]
 pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     shared_bandwidth: SharedBandwidthManager,
@@ -323,7 +325,7 @@ pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
 
 impl SharedTokenBucket {
     /// Constructs a new instance of [SahredTokenBucket] using a given `rate` as the maximal amount of bandwidth that will be
-    /// shared between its cloned instances.
+    /// shared between all of its cloned instances.
     pub fn new(rate: NonZeroRatePerSecond) -> Self {
         let token_bucket = TokenBucket::new(rate);
         let sleep_until = TokioSleepUntil;
