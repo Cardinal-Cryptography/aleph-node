@@ -1,19 +1,84 @@
 mod rate_limiter;
 mod token_bucket;
 
+use std::num::{NonZeroU64, TryFromIntError};
+
+pub use rate_limiter::RateLimiterImpl;
 use tokio::io::AsyncRead;
 
-pub use crate::rate_limiter::{FuturesRateLimiter, RateLimiter, SleepingRateLimiter};
+pub use crate::rate_limiter::{FuturesRateLimiter, SharingRateLimiter};
+pub use crate::token_bucket::SharedTokenBucket;
 
 const LOG_TARGET: &str = "rate-limiter";
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct NonZeroRatePerSecond(NonZeroU64);
+
+pub const MIN: NonZeroRatePerSecond = NonZeroRatePerSecond(NonZeroU64::MIN);
+
+impl From<NonZeroRatePerSecond> for NonZeroU64 {
+    fn from(NonZeroRatePerSecond(value): NonZeroRatePerSecond) -> Self {
+        value
+    }
+}
+
+impl From<NonZeroRatePerSecond> for u64 {
+    fn from(NonZeroRatePerSecond(value): NonZeroRatePerSecond) -> Self {
+        value.into()
+    }
+}
+
+impl From<NonZeroU64> for NonZeroRatePerSecond {
+    fn from(value: NonZeroU64) -> Self {
+        NonZeroRatePerSecond(value)
+    }
+}
+
+impl TryFrom<u64> for NonZeroRatePerSecond {
+    type Error = TryFromIntError;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        Ok(NonZeroRatePerSecond(value.try_into()?))
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum RatePerSecond {
+    Block,
+    Rate(NonZeroRatePerSecond),
+}
+
+impl From<RatePerSecond> for u64 {
+    fn from(value: RatePerSecond) -> Self {
+        match value {
+            RatePerSecond::Block => 0,
+            RatePerSecond::Rate(NonZeroRatePerSecond(value)) => value.into(),
+        }
+    }
+}
+
+impl From<u64> for RatePerSecond {
+    fn from(value: u64) -> Self {
+        NonZeroU64::try_from(value)
+            .map(NonZeroRatePerSecond::from)
+            .map(Self::Rate)
+            .unwrap_or(Self::Block)
+    }
+}
+
+impl From<NonZeroRatePerSecond> for RatePerSecond {
+    fn from(value: NonZeroRatePerSecond) -> Self {
+        RatePerSecond::Rate(value)
+    }
+}
+
 pub struct RateLimitedAsyncRead<Read> {
-    rate_limiter: RateLimiter,
+    rate_limiter: RateLimiterImpl,
     inner: Read,
 }
 
 impl<Read> RateLimitedAsyncRead<Read> {
-    pub fn new(read: Read, rate_limiter: RateLimiter) -> Self {
+    pub fn new(read: Read, rate_limiter: RateLimiterImpl) -> Self {
         Self {
             rate_limiter,
             inner: read,
@@ -25,7 +90,10 @@ impl<Read> RateLimitedAsyncRead<Read> {
     }
 }
 
-impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
+impl<Read> AsyncRead for RateLimitedAsyncRead<Read>
+where
+    Read: AsyncRead + Unpin,
+{
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -59,8 +127,9 @@ impl<ReadWrite> FuturesRateLimitedAsyncReadWrite<ReadWrite> {
     }
 }
 
-impl<Read: futures::AsyncRead + Unpin> futures::AsyncRead
-    for FuturesRateLimitedAsyncReadWrite<Read>
+impl<Read> futures::AsyncRead for FuturesRateLimitedAsyncReadWrite<Read>
+where
+    Read: futures::AsyncRead + Unpin,
 {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
@@ -73,8 +142,9 @@ impl<Read: futures::AsyncRead + Unpin> futures::AsyncRead
     }
 }
 
-impl<Write: futures::AsyncWrite + Unpin> futures::AsyncWrite
-    for FuturesRateLimitedAsyncReadWrite<Write>
+impl<Write> futures::AsyncWrite for FuturesRateLimitedAsyncReadWrite<Write>
+where
+    Write: futures::AsyncWrite + Unpin,
 {
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
