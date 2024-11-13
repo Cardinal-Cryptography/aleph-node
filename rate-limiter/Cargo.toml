@@ -11,4 +11,5 @@ repository.workspace = true
 [dependencies]
 futures = { workspace = true }
 log = { workspace = true }
+parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
