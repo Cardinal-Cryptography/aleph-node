@@ -4,7 +4,6 @@ mod token_bucket;
 use tokio::io::AsyncRead;
 
 pub use crate::rate_limiter::{FuturesRateLimiter, RateLimiter, SleepingRateLimiter};
-pub use token_bucket::TokenBucket;
 
 const LOG_TARGET: &str = "rate-limiter";
 
