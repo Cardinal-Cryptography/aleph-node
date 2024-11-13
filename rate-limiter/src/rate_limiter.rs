@@ -1,6 +1,9 @@
 use std::task::ready;
 
-use futures::{future::{pending, BoxFuture}, FutureExt};
+use futures::{
+    future::{pending, BoxFuture},
+    FutureExt,
+};
 use log::trace;
 use tokio::{io::AsyncRead, time::sleep_until};
 
@@ -54,9 +57,9 @@ impl SleepingRateLimiter {
                     read_size
                 );
                 sleep_until(delay.into()).await;
-            },
+            }
             Some(None) => pending().await,
-            None => {},
+            None => {}
         }
 
         self
