@@ -3,13 +3,11 @@ mod token_bucket;
 
 use std::num::{NonZeroU64, TryFromIntError};
 
-pub use rate_limiter::RateLimiterImpl;
+use futures::{future::BoxFuture, ready, FutureExt};
+use rate_limiter::RateLimiterFacade;
 use tokio::io::AsyncRead;
 
-pub use crate::{
-    rate_limiter::{FuturesRateLimiter, SharingRateLimiter},
-    token_bucket::SharedTokenBucket,
-};
+pub use crate::{rate_limiter::SharingRateLimiter, token_bucket::SharedTokenBucket};
 
 const LOG_TARGET: &str = "rate-limiter";
 
@@ -75,20 +73,45 @@ impl From<NonZeroRatePerSecond> for RatePerSecond {
 }
 
 pub struct RateLimitedAsyncRead<Read> {
-    rate_limiter: RateLimiterImpl,
+    rate_limiter: BoxFuture<'static, RateLimiterFacade>,
     inner: Read,
 }
 
 impl<Read> RateLimitedAsyncRead<Read> {
-    pub fn new(read: Read, rate_limiter: RateLimiterImpl) -> Self {
+    pub fn new(read: Read, rate_limiter: RateLimiterFacade) -> Self {
         Self {
-            rate_limiter,
+            rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
             inner: read,
         }
     }
 
     pub fn inner(&self) -> &Read {
         &self.inner
+    }
+
+    /// Helper method for the use of the [AsyncRead](tokio::io::AsyncRead) implementation.
+    fn rate_limit(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>>
+    where
+        Read: AsyncRead + Unpin,
+    {
+        let this = self.get_mut();
+        let read = std::pin::Pin::new(&mut this.inner);
+
+        let sleeping_rate_limiter = ready!(this.rate_limiter.poll_unpin(cx));
+
+        let filled_before = buf.filled().len();
+        let result = read.poll_read(cx, buf);
+        let filled_after: &[u8] = buf.filled();
+        let filled_after = filled_after.len().saturating_mul(8);
+        let last_read_size = filled_after.saturating_sub(filled_before);
+
+        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
+
+        result
     }
 }
 
@@ -101,21 +124,19 @@ where
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        let read = std::pin::Pin::new(&mut this.inner);
-        this.rate_limiter.rate_limit(read, cx, buf)
+        self.rate_limit(cx, buf)
     }
 }
 
 pub struct FuturesRateLimitedAsyncReadWrite<ReadWrite> {
-    rate_limiter: FuturesRateLimiter,
+    rate_limiter: BoxFuture<'static, RateLimiterFacade>,
     inner: ReadWrite,
 }
 
 impl<ReadWrite> FuturesRateLimitedAsyncReadWrite<ReadWrite> {
-    pub fn new(wrapped: ReadWrite, rate_limiter: FuturesRateLimiter) -> Self {
+    pub fn new(wrapped: ReadWrite, rate_limiter: RateLimiterFacade) -> Self {
         Self {
-            rate_limiter,
+            rate_limiter: Box::pin(rate_limiter.rate_limit(0)),
             inner: wrapped,
         }
     }
@@ -126,6 +147,31 @@ impl<ReadWrite> FuturesRateLimitedAsyncReadWrite<ReadWrite> {
     {
         let this = self.get_mut();
         std::pin::Pin::new(&mut this.inner)
+    }
+
+    /// Helper method for the use of the [AsyncRead](futures::AsyncRead) implementation.
+    fn rate_limit(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<usize>>
+    where
+        ReadWrite: futures::AsyncRead + Unpin,
+    {
+        let this = self.get_mut();
+        let read = std::pin::Pin::new(&mut this.inner);
+
+        let sleeping_rate_limiter = ready!(this.rate_limiter.poll_unpin(cx));
+
+        let result = read.poll_read(cx, buf);
+        let last_read_size = match &result {
+            std::task::Poll::Ready(Ok(read_size)) => 8 * *read_size,
+            _ => 0,
+        };
+
+        this.rate_limiter = sleeping_rate_limiter.rate_limit(last_read_size).boxed();
+
+        result
     }
 }
 
@@ -138,9 +184,7 @@ where
         cx: &mut std::task::Context<'_>,
         buf: &mut [u8],
     ) -> std::task::Poll<std::io::Result<usize>> {
-        let this = self.get_mut();
-        let read = std::pin::Pin::new(&mut this.inner);
-        this.rate_limiter.rate_limit(read, cx, buf)
+        self.rate_limit(cx, buf)
     }
 }
 
