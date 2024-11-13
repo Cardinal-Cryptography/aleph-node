@@ -38,7 +38,6 @@ use rpc::spawn_rpc_service;
 use transactions::spawn_transaction_handler;
 use transport::RateLimitedStreamMuxer;
 
-
 const SPAWN_CATEGORY: Option<&str> = Some("networking");
 
 /// Components created when spawning the network.
