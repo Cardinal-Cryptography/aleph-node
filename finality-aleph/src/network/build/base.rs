@@ -145,7 +145,8 @@ where
         block_announce_config: base_protocol_config,
     };
 
-    let network_service = NetworkWorker::new_with_custom_transport(network_params, transport_builder)?;
+    let network_service =
+        NetworkWorker::new_with_custom_transport(network_params, transport_builder)?;
     let network = network_service.service().clone();
     spawn_handle.spawn_blocking("network-worker", SPAWN_CATEGORY, network_service.run());
     Ok((network, networks, transactions_prototype))
