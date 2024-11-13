@@ -1,5 +1,5 @@
 use libp2p::{core::muxing::StreamMuxer, PeerId, Transport};
-use rate_limiter::{FuturesRateLimitedAsyncReadWrite, FuturesRateLimiter, SharingRateLimiter};
+use rate_limiter::{FuturesRateLimitedAsyncReadWrite, SharingRateLimiter};
 
 struct RateLimitedStreamMuxer<SM> {
     rate_limiter: SharingRateLimiter,
@@ -38,12 +38,7 @@ where
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
         let rate_limiter = self.rate_limiter.clone();
         self.inner().poll_inbound(cx).map(|result| {
-            result.map(|substream| {
-                FuturesRateLimitedAsyncReadWrite::new(
-                    substream,
-                    FuturesRateLimiter::new(rate_limiter),
-                )
-            })
+            result.map(|substream| FuturesRateLimitedAsyncReadWrite::new(substream, rate_limiter))
         })
     }
 
@@ -53,12 +48,7 @@ where
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
         let rate_limiter = self.rate_limiter.clone();
         self.inner().poll_outbound(cx).map(|result| {
-            result.map(|substream| {
-                FuturesRateLimitedAsyncReadWrite::new(
-                    substream,
-                    FuturesRateLimiter::new(rate_limiter),
-                )
-            })
+            result.map(|substream| FuturesRateLimitedAsyncReadWrite::new(substream, rate_limiter))
         })
     }
 

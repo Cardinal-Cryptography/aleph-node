@@ -1,8 +1,11 @@
-use rate_limiter::{RateLimitedAsyncRead, RateLimiterImpl, SharingRateLimiter};
+use rate_limiter::{RateLimitedAsyncRead, SharingRateLimiter};
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 
-impl<Read: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<Read> {
+impl<Read> ConnectionInfo for RateLimitedAsyncRead<Read>
+where
+    Read: ConnectionInfo,
+{
     fn peer_address_info(&self) -> PeerAddressInfo {
         self.inner().peer_address_info()
     }
@@ -42,7 +45,7 @@ where
         let connection = self.dialer.connect(address).await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, RateLimiterImpl::new(self.rate_limiter.clone())),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
             sender,
         ))
     }
@@ -78,7 +81,7 @@ where
         let connection = self.listener.accept().await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, RateLimiterImpl::new(self.rate_limiter.clone())),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
             sender,
         ))
     }
