@@ -54,7 +54,7 @@ pub struct NetworkOutput<TP: TransactionPool + 'static> {
 
 pub struct SubstrateNetworkConfig {
     /// Maximum bit-rate in bytes per second of the substrate network (shared by sync, gossip, etc.).
-    pub substrate_bit_rate: usize,
+    pub substrate_network_bit_rate: usize,
     /// Configuration of the network service.
     pub network_config: NetworkConfiguration,
 }
@@ -85,7 +85,7 @@ where
     let (base_protocol_config, events_from_network) =
         setup_base_protocol::<TP::Block>(genesis_hash);
 
-    let network_rate_limit = network_config.substrate_bit_rate;
+    let network_rate_limit = network_config.substrate_network_bit_rate;
     let rate_limiter = SleepingRateLimiter::new(network_rate_limit);
     let transport_builder = move |config: sc_network::transport::NetworkConfig| {
         let default_transport = sc_network::transport::build_transport(
