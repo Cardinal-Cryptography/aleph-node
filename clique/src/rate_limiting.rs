@@ -1,34 +1,10 @@
-use rate_limiter::{RateLimiter, SleepingRateLimiter};
-use tokio::io::AsyncRead;
+use rate_limiter::{RateLimitedAsyncRead, RateLimiter, SleepingRateLimiter};
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 
-pub struct RateLimitedAsyncRead<Read> {
-    rate_limiter: RateLimiter,
-    read: Read,
-}
-
-impl<Read> RateLimitedAsyncRead<Read> {
-    pub fn new(read: Read, rate_limiter: RateLimiter) -> Self {
-        Self { rate_limiter, read }
-    }
-}
-
-impl<Read: AsyncRead + Unpin> AsyncRead for RateLimitedAsyncRead<Read> {
-    fn poll_read(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        let read = std::pin::Pin::new(&mut this.read);
-        this.rate_limiter.rate_limit(read, cx, buf)
-    }
-}
-
 impl<Read: ConnectionInfo> ConnectionInfo for RateLimitedAsyncRead<Read> {
     fn peer_address_info(&self) -> PeerAddressInfo {
-        self.read.peer_address_info()
+        self.inner().peer_address_info()
     }
 }
 
