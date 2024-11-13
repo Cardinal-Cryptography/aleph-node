@@ -41,7 +41,7 @@ where
             result.map(|substream| {
                 FuturesRateLimitedAsyncReadWrite::new(
                     substream,
-                    FuturesRateLimiter::new(rate_limiter.into()),
+                    FuturesRateLimiter::new(rate_limiter),
                 )
             })
         })
@@ -56,7 +56,7 @@ where
             result.map(|substream| {
                 FuturesRateLimitedAsyncReadWrite::new(
                     substream,
-                    FuturesRateLimiter::new(rate_limiter.into()),
+                    FuturesRateLimiter::new(rate_limiter),
                 )
             })
         })
