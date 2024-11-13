@@ -25,6 +25,8 @@ impl TimeProvider for DefaultTimeProvider {
     }
 }
 
+/// Implementation of some sleeping mechanism that doesn't block runtime's executor thread.
+/// Implementations should be cancellation-safe.
 pub trait SleepUntil {
     fn sleep_until(&mut self, instant: Instant) -> impl Future<Output = ()> + Send;
 }
@@ -61,6 +63,15 @@ impl TokenBucket {
     /// Constructs a instance of [`TokenBucket`] with given target rate-per-second.
     pub fn new(rate_per_second: NonZeroRatePerSecond) -> Self {
         let time_provider = DefaultTimeProvider;
+        Self::new_internal(rate_per_second, time_provider)
+    }
+}
+
+impl<TP> TokenBucket<TP>
+where
+    TP: TimeProvider,
+{
+    fn new_internal(rate_per_second: NonZeroRatePerSecond, time_provider: TP) -> Self {
         let now = time_provider.now();
         Self {
             time_provider,
@@ -69,12 +80,7 @@ impl TokenBucket {
             requested: NonZeroU64::from(rate_per_second).into(),
         }
     }
-}
 
-impl<TP> TokenBucket<TP>
-where
-    TP: TimeProvider,
-{
     fn max_possible_available_tokens(&self) -> u64 {
         self.rate_per_second.into()
     }
@@ -162,6 +168,8 @@ where
     }
 }
 
+const BANDWIDTH_CHECK_INTERVAL: Duration = Duration::from_millis(250);
+
 /// Implementation of the bandwidth sharing strategy that attempts to assign equal portion of the total bandwidth to all active
 /// consumers of the bandwidth.
 pub struct SharedBandwidthManager {
@@ -181,20 +189,6 @@ impl Clone for SharedBandwidthManager {
 }
 
 impl SharedBandwidthManager {
-    fn calculate_bandwidth_without_children_increament(
-        &mut self,
-        active_children: Option<u64>,
-    ) -> NonZeroRatePerSecond {
-        let active_children =
-            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::Relaxed));
-        let rate = u64::from(self.max_rate) / active_children;
-        NonZeroU64::try_from(rate)
-            .map(NonZeroRatePerSecond::from)
-            .unwrap_or(MIN)
-    }
-}
-
-impl SharedBandwidthManager {
     pub fn new(max_rate: NonZeroRatePerSecond) -> Self {
         Self {
             max_rate,
@@ -202,12 +196,22 @@ impl SharedBandwidthManager {
             already_requested: None,
         }
     }
-}
 
-impl SharedBandwidthManager {
+    fn calculate_bandwidth_without_children_increament(
+        &mut self,
+        active_children: Option<u64>,
+    ) -> NonZeroRatePerSecond {
+        let active_children =
+            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::SeqCst));
+        let rate = u64::from(self.max_rate) / active_children;
+        NonZeroU64::try_from(rate)
+            .map(NonZeroRatePerSecond::from)
+            .unwrap_or(MIN)
+    }
+
     pub fn request_bandwidth(&mut self) -> NonZeroRatePerSecond {
         let active_children = (self.already_requested.is_none())
-            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::Relaxed));
+            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::SeqCst));
         let rate = self.calculate_bandwidth_without_children_increament(active_children);
         self.already_requested = Some(rate);
         rate
@@ -215,7 +219,7 @@ impl SharedBandwidthManager {
 
     pub fn notify_idle(&mut self) {
         if self.already_requested.take().is_some() {
-            self.peers_count.fetch_sub(1, Ordering::Relaxed);
+            self.peers_count.fetch_sub(1, Ordering::SeqCst);
         }
     }
 
@@ -223,10 +227,9 @@ impl SharedBandwidthManager {
         let Some(previous_rate) = self.already_requested else {
             return pending().await;
         };
-        let sleep_amount = Duration::from_millis(250);
         let mut rate = self.calculate_bandwidth_without_children_increament(None);
         while rate == previous_rate {
-            sleep(sleep_amount).await;
+            sleep(BANDWIDTH_CHECK_INTERVAL).await;
             rate = self.calculate_bandwidth_without_children_increament(None);
         }
         self.already_requested = Some(rate);
@@ -280,7 +283,16 @@ where
     }
 }
 
-/// Allows to share a given amount of bandwidth between multiple instances of [TokenBucket].
+/// Allows to share a given amount of bandwidth between multiple instances of [TokenBucket]. Each time an instance requests to
+/// share the bandwidth, it is given a fair share o it, i.e. all available bandwidth / # of active instances. All active
+/// instances are actively polling (with some predefined interval) for changes in their allocated bandwidth. Alternatively, we
+/// could devise a method where on each new request for bandwidth, we actively query every active instance to confirm a change
+/// before we allocate it for a new peer. This would provide more accurate bandwidth allocation but with a huge disadvantage for
+/// performance. We believe, current solution is a good choice between accuracy and performance. In worst case, utilized
+/// bandwidth should be equal to `bandwidth * (1 + 1/2 + ... + 1/n) ≈ bandwidth * (ln n + O(1))`. This can happen when each
+/// instance of [TokenBucket] requests slightly more data than its initially acquired bandwidth (equal to `bandwidth / (# of all
+/// instances before it + 1)`), small enough so none of them receives a notification about ongoing bandwidth change (calls from
+/// next instances).
 #[derive(Clone)]
 pub struct SharedTokenBucket<TP = DefaultTimeProvider, SU = TokioSleepUntil> {
     shared_bandwidth: SharedBandwidthManager,
@@ -293,15 +305,19 @@ impl SharedTokenBucket {
         let token_bucket = TokenBucket::new(rate);
         let sleep_until = TokioSleepUntil;
         let rate_limiter = AsyncTokenBucket::new(token_bucket, sleep_until);
+        Self::new_internal(rate, rate_limiter)
+    }
+}
+
+impl<TP, SU> SharedTokenBucket<TP, SU> {
+    fn new_internal(rate: NonZeroRatePerSecond, rate_limiter: AsyncTokenBucket<TP, SU>) -> Self {
         Self {
             shared_bandwidth: SharedBandwidthManager::new(rate),
             rate_limiter,
             need_to_notify_parent: false,
         }
     }
-}
 
-impl<TP, SU> SharedTokenBucket<TP, SU> {
     fn request_bandwidth(&mut self) -> NonZeroRatePerSecond {
         self.need_to_notify_parent = true;
         self.shared_bandwidth.request_bandwidth()
