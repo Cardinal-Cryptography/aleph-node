@@ -1,6 +1,5 @@
 use std::sync::{atomic::AtomicBool, Arc};
 
-use libp2p::core::transport::Transport;
 use log::error;
 use rate_limiter::SleepingRateLimiter;
 use sc_client_api::Backend;
@@ -36,7 +35,6 @@ use base::network as base_network;
 use own_protocols::Networks;
 use rpc::spawn_rpc_service;
 use transactions::spawn_transaction_handler;
-use transport::RateLimitedStreamMuxer;
 
 const SPAWN_CATEGORY: Option<&str> = Some("networking");
 
@@ -86,20 +84,7 @@ where
 
     let network_rate_limit = network_config.substrate_network_bit_rate;
     let rate_limiter = SleepingRateLimiter::new(network_rate_limit);
-    let transport_builder = move |config: sc_network::transport::NetworkConfig| {
-        let default_transport = sc_network::transport::build_transport(
-            config.keypair,
-            config.memory_only,
-            config.muxer_window_size,
-            config.muxer_maximum_buffer_size,
-        );
-        default_transport.map(move |(peer_id, stream_muxer), _| {
-            (
-                peer_id,
-                RateLimitedStreamMuxer::new(stream_muxer, rate_limiter),
-            )
-        })
-    };
+    let transport_builder = |config| transport::build_transport(rate_limiter, config);
 
     let (
         network,

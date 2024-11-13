@@ -1,7 +1,7 @@
-use libp2p::core::muxing::StreamMuxer;
+use libp2p::{core::muxing::StreamMuxer, PeerId, Transport};
 use rate_limiter::{FuturesRateLimitedAsyncReadWrite, FuturesRateLimiter, SleepingRateLimiter};
 
-pub struct RateLimitedStreamMuxer<SM> {
+struct RateLimitedStreamMuxer<SM> {
     rate_limiter: SleepingRateLimiter,
     stream_muxer: SM,
 }
@@ -75,4 +75,30 @@ where
     ) -> std::task::Poll<Result<libp2p::core::muxing::StreamMuxerEvent, Self::Error>> {
         self.inner().poll(cx)
     }
+}
+
+pub fn build_transport(
+    rate_limiter: SleepingRateLimiter,
+    config: sc_network::transport::NetworkConfig,
+) -> impl Transport<
+    Output = (
+        PeerId,
+        impl StreamMuxer<Substream = impl Send, Error = impl Send> + Send,
+    ),
+    Dial = impl Send,
+    ListenerUpgrade = impl Send,
+    Error = impl Send,
+> + Send {
+    sc_network::transport::build_transport(
+        config.keypair,
+        config.memory_only,
+        config.muxer_window_size,
+        config.muxer_maximum_buffer_size,
+    )
+    .map(move |(peer_id, stream_muxer), _| {
+        (
+            peer_id,
+            RateLimitedStreamMuxer::new(stream_muxer, rate_limiter),
+        )
+    })
 }
