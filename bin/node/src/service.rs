@@ -302,7 +302,7 @@ pub fn new_authority(
     let import_queue_handle = BlockImporter::new(service_components.import_queue.service());
     let rate_limiter_config = get_rate_limit_config(&aleph_config);
     let network_config = finality_aleph::SubstrateNetworkConfig {
-        substrate_network_bit_rate_per_connection: rate_limiter_config
+        bit_rate_per_connection: rate_limiter_config
             .substrate_network_bit_rate_per_connection,
         network_config: config.network.clone(),
     };
