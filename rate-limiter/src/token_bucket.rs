@@ -199,7 +199,7 @@ mod tests {
         *time_to_return.borrow_mut() = now;
         assert_eq!(
             rate_limiter.rate_limit(19),
-            Some(now + Duration::from_secs(2)),
+            Some(Some(now + Duration::from_secs(2))),
             "we should wait exactly 2 seconds"
         );
     }
@@ -218,13 +218,13 @@ mod tests {
         *time_to_return.borrow_mut() = now + Duration::from_secs(10);
         assert_eq!(
             rate_limiter.rate_limit(40),
-            Some(now + Duration::from_secs(10) + Duration::from_secs(3)),
+            Some(Some(now + Duration::from_secs(10) + Duration::from_secs(3))),
         );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(11);
         assert_eq!(
             rate_limiter.rate_limit(40),
-            Some(now + Duration::from_secs(11) + Duration::from_secs(6))
+            Some(Some(now + Duration::from_secs(11) + Duration::from_secs(6)))
         );
     }
 
@@ -245,13 +245,13 @@ mod tests {
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
         assert_eq!(
             rate_limiter.rate_limit(10),
-            Some(now + Duration::from_secs(3) + Duration::from_secs(1))
+            Some(Some(now + Duration::from_secs(3) + Duration::from_secs(1)))
         );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
         assert_eq!(
             rate_limiter.rate_limit(50),
-            Some(now + Duration::from_secs(3) + Duration::from_secs(6))
+            Some(Some(now + Duration::from_secs(3) + Duration::from_secs(6)))
         );
     }
 }
