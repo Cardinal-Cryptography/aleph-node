@@ -20,23 +20,12 @@ where
     }
 }
 
-pub struct DefaultTimeProvider {}
-
-impl DefaultTimeProvider {
-    fn new() -> Self {
-        Self {}
-    }
-}
+#[derive(Clone, Default)]
+pub struct DefaultTimeProvider;
 
 impl TimeProvider for DefaultTimeProvider {
     fn now(&mut self) -> Instant {
         Instant::now()
-    }
-}
-
-impl Default for DefaultTimeProvider {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
