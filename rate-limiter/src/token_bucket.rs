@@ -14,7 +14,7 @@ use tokio::time::sleep;
 
 use crate::{NonZeroRatePerSecond, LOG_TARGET, MIN};
 
-/// It should return a non-decreasing values of type [std::time::Instant].
+/// Returns a non-decreasing values of type [std::time::Instant].
 pub trait TimeProvider {
     fn now(&self) -> Instant;
 }
@@ -38,6 +38,7 @@ pub trait SleepUntil {
     fn sleep_until(&mut self, instant: Instant) -> impl Future<Output = ()> + Send;
 }
 
+/// Default implementation of the [SleepUntil] trait using [tokio::time].
 #[derive(Clone, Default)]
 pub struct TokioSleepUntil;
 
@@ -133,12 +134,12 @@ where
         self.requested = self.requested.saturating_sub(new_units);
     }
 
-    /// Get current rate in bits-per-second.
+    /// Gets current rate in bits-per-second.
     pub fn rate(&self) -> NonZeroRatePerSecond {
         self.rate_per_second.into()
     }
 
-    /// Set a rate in bits-per-second.
+    /// Sets a rate in bits-per-second.
     pub fn set_rate(&mut self, rate_per_second: NonZeroRatePerSecond) {
         // We need to update our tokens till now using previous rate.
         self.update_tokens();
@@ -176,7 +177,7 @@ where
     }
 }
 
-/// Determines how often instances of [SharedBandwidthManager] should check if their allocated bandwidth was changed.
+/// Determines how often instances of [SharedBandwidthManager] should check if their allocated bandwidth has changed.
 const BANDWIDTH_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Implementation of the bandwidth sharing strategy that attempts to assign equal portion of the total bandwidth to all active
@@ -198,8 +199,8 @@ impl Clone for SharedBandwidthManager {
 }
 
 impl SharedBandwidthManager {
-    /// Constructs a new instance of [SharedBandwidthManager] configured with a
-    /// given rate that will be shared between all calling consumers.
+    /// Constructs a new instance of [SharedBandwidthManager] configured with a given rate that will be shared between all
+    /// calling consumers (clones of this instance).
     pub fn new(max_rate: NonZeroRatePerSecond) -> Self {
         Self {
             max_rate,
@@ -234,10 +235,10 @@ impl SharedBandwidthManager {
         }
     }
 
-    /// Awaits for a notification about some change to previously allocated
-    /// bit-rate.
-    /// For performance reasons, it simply actively queries for all active peers
-    /// in a looped manner on every interval of [BANDWIDTH_CHECK_INTERVAL]
+    /// Awaits for a notification about some change to previously allocated rate. For performance reasons, it simply actively
+    /// queries for all active peers in a looped manner on every interval of [BANDWIDTH_CHECK_INTERVAL]. Alternative solutions
+    /// could use a mechanism similar to [tokio::sync::watch], but our tests showed that such solutions perform rather poorly
+    /// compared to this approach.
     pub async fn bandwidth_changed(&mut self) -> NonZeroRatePerSecond {
         let Some(previous_rate) = self.already_requested else {
             return pending().await;
@@ -264,7 +265,7 @@ struct AsyncTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
 
 impl<TP, SU> AsyncTokenBucket<TP, SU> {
     /// Constructs an instance of [AsyncTokenBucket] using given [TokenBucket]
-    /// and implementation of the [SleepUntil] interface.
+    /// and implementation of the [SleepUntil] trait.
     pub fn new(token_bucket: TokenBucket<TP>, sleep_until: SU) -> Self {
         Self {
             token_bucket,
@@ -307,15 +308,15 @@ where
 
 /// [SharedTokenBucket] allows to share a given amount of bandwidth between multiple instances of [TokenBucket]. Each time an
 /// instance requests to share the bandwidth, it is given a fair share of it, i.e. `all available bandwidth / # of active
-/// instances`. All instances, that previously acquired some share of the bandwidth, are actively polling (with some predefined
+/// instances`. All instances, that previously acquired some share of the bandwidth, are actively querying (with some predefined
 /// interval) for changes in their allocated share. Alternatively to this polling procedure, we could devise a method where on
 /// each new request for sharing the bandwidth, we actively query every active instance to confirm a change before we allocate
 /// it for a new peer. This would provide each requesting instance a more accurate share of the bandwidth, but it would also
-/// have a huge negative impact for performance. We believe, current solution is a good choice between accuracy and performance.
-/// For the polling strategy, in worst case, utilized bandwidth should be equal to `bandwidth * (1 + 1/2 + ... + 1/n) ≈
-/// bandwidth * (ln n + O(1))`. This can happen when each instance of [TokenBucket] tries to spend slightly more data than its
-/// initially acquired bandwidth, but small enough so none of them other instances receives a notification about ongoing
-/// bandwidth change.
+/// have a huge negative impact on performance. We believe, current solution is a good compromise between accuracy and
+/// performance. For this querying strategy, in worst case, utilized bandwidth should be equal to `bandwidth * (1 + 1/2 + ... +
+/// 1/n) ≈ bandwidth * (ln n + O(1))`. This can happen when each instance of [TokenBucket] tries to spend slightly more data
+/// than its initially acquired bandwidth, but small enough so none of them other instances receives a notification about
+/// ongoing bandwidth change.
 #[derive(Clone)]
 pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     shared_bandwidth: SharedBandwidthManager,
@@ -324,7 +325,7 @@ pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
 }
 
 impl SharedTokenBucket {
-    /// Constructs a new instance of [SahredTokenBucket] using a given `rate` as the maximal amount of bandwidth that will be
+    /// Constructs a new instance of [SharedTokenBucket] using a given `rate` as the maximal amount of bandwidth that will be
     /// shared between all of its cloned instances.
     pub fn new(rate: NonZeroRatePerSecond) -> Self {
         let token_bucket = TokenBucket::new(rate);
@@ -768,15 +769,14 @@ mod tests {
         );
     }
 
+    /// It allows to wait for a change of the allocated bandwidth, i.e. it can wait for two (or more) calls of
+    /// [SleepUntil::sleep_until] that uses two different values of its `instant` argument.
     struct SleepUntilAfterChange<SU> {
         wrapped: SU,
         last_value: Option<Instant>,
         changes_counter: usize,
     }
 
-    /// It allows to wait for a change of the allocated bandwidth, i.e. it can wait for two (or more) calls of
-    /// [SleepUntil::sleep_until] that uses two different values for the `instant` argument of
-    /// [SleepUntil::sleep_until(instant)].
     impl<SU> SleepUntilAfterChange<SU> {
         pub fn new(sleep_until: SU) -> Self {
             Self {
@@ -1101,7 +1101,7 @@ mod tests {
         let last_deadline = test_sleep_until_shared.last_deadline.clone();
 
         let barrier = Arc::new(tokio::sync::RwLock::new(tokio::sync::Barrier::new(0)));
-        let how_many_times_should_stop_on_barrier = 1;
+        let how_many_times_should_stop_on_barrier = 2;
         let test_sleep_until_with_barrier = SleepUntilWithBarrier::new(
             test_sleep_until_shared,
             barrier.clone(),
