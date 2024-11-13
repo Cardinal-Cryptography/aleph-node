@@ -1,7 +1,7 @@
 use std::sync::{atomic::AtomicBool, Arc};
 
 use log::error;
-use rate_limiter::SleepingRateLimiter;
+use rate_limiter::SharingRateLimiter;
 use sc_client_api::Backend;
 use sc_network::{
     config::{NetworkConfiguration, ProtocolId},
@@ -50,8 +50,8 @@ pub struct NetworkOutput<TP: TransactionPool + 'static> {
 }
 
 pub struct SubstrateNetworkConfig {
-    /// Maximum bit-rate in bytes per second of the substrate network (shared by sync, gossip, etc.).
-    pub bit_rate_per_connection: usize,
+    /// Maximum bit-rate in bits per second of the substrate network (shared by sync, gossip, etc.).
+    pub substrate_network_bit_rate: u64,
     /// Configuration of the network service.
     pub network_config: NetworkConfiguration,
 }
@@ -82,8 +82,8 @@ where
     let (base_protocol_config, events_from_network) =
         setup_base_protocol::<TP::Block>(genesis_hash);
 
-    let network_rate_limit = network_config.bit_rate_per_connection;
-    let rate_limiter = SleepingRateLimiter::new(network_rate_limit);
+    let network_rate_limit = network_config.substrate_network_bit_rate;
+    let rate_limiter = SharingRateLimiter::new(network_rate_limit.into());
     let transport_builder = |config| transport::build_transport(rate_limiter, config);
 
     let (
