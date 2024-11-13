@@ -1,4 +1,4 @@
-use rate_limiter::{RateLimitedAsyncRead, SharingRateLimiter};
+use rate_limiter::{RateLimitedAsyncRead, SharedRateLimiter};
 
 use crate::{ConnectionInfo, Data, Dialer, Listener, PeerAddressInfo, Splittable, Splitted};
 
@@ -12,14 +12,25 @@ where
 }
 
 /// Implementation of the [Dialer] trait governing all returned [Dialer::Connection] instances by a rate-limiting wrapper.
-#[derive(Clone)]
 pub struct RateLimitingDialer<D> {
     dialer: D,
-    rate_limiter: SharingRateLimiter,
+    rate_limiter: SharedRateLimiter,
+}
+
+impl<D> Clone for RateLimitingDialer<D>
+where
+    D: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            dialer: self.dialer.clone(),
+            rate_limiter: self.rate_limiter.share(),
+        }
+    }
 }
 
 impl<D> RateLimitingDialer<D> {
-    pub fn new(dialer: D, rate_limiter: SharingRateLimiter) -> Self {
+    pub fn new(dialer: D, rate_limiter: SharedRateLimiter) -> Self {
         Self {
             dialer,
             rate_limiter,
@@ -45,7 +56,7 @@ where
         let connection = self.dialer.connect(address).await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.share()),
             sender,
         ))
     }
@@ -54,11 +65,11 @@ where
 /// Implementation of the [Listener] trait governing all returned [Listener::Connection] instances by a rate-limiting wrapper.
 pub struct RateLimitingListener<L> {
     listener: L,
-    rate_limiter: SharingRateLimiter,
+    rate_limiter: SharedRateLimiter,
 }
 
 impl<L> RateLimitingListener<L> {
-    pub fn new(listener: L, rate_limiter: SharingRateLimiter) -> Self {
+    pub fn new(listener: L, rate_limiter: SharedRateLimiter) -> Self {
         Self {
             listener,
             rate_limiter,
@@ -81,7 +92,7 @@ where
         let connection = self.listener.accept().await?;
         let (sender, receiver) = connection.split();
         Ok(Splitted(
-            RateLimitedAsyncRead::new(receiver, self.rate_limiter.clone()),
+            RateLimitedAsyncRead::new(receiver, self.rate_limiter.share()),
             sender,
         ))
     }

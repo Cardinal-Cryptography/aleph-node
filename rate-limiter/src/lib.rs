@@ -7,7 +7,7 @@ use futures::{future::BoxFuture, ready, FutureExt};
 use rate_limiter::RateLimiterFacade;
 use tokio::io::AsyncRead;
 
-pub use crate::{rate_limiter::SharingRateLimiter, token_bucket::SharedTokenBucket};
+pub use crate::{rate_limiter::SharedRateLimiter, token_bucket::SharedTokenBucket};
 
 const LOG_TARGET: &str = "rate-limiter";
 
