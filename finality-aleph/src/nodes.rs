@@ -6,7 +6,7 @@ use log::{debug, error};
 use network_clique::{RateLimitingDialer, RateLimitingListener, Service, SpawnHandleT};
 use pallet_aleph_runtime_api::AlephSessionApi;
 use primitives::TransactionHash;
-use rate_limiter::SharingRateLimiter;
+use rate_limiter::SharedRateLimiter;
 use sc_client_api::Backend;
 use sc_keystore::{Keystore, LocalKeystore};
 use sc_transaction_pool_api::TransactionPool;
@@ -109,8 +109,8 @@ where
     .expect("we should have working networking");
 
     let alephbft_rate_limiter =
-        SharingRateLimiter::new(rate_limiter_config.alephbft_network_bit_rate.into());
-    let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.clone());
+        SharedRateLimiter::new(rate_limiter_config.alephbft_network_bit_rate.into());
+    let dialer = RateLimitingDialer::new(dialer, alephbft_rate_limiter.share());
     let listener = RateLimitingListener::new(listener, alephbft_rate_limiter);
 
     let (validator_network_service, validator_network) = Service::new(

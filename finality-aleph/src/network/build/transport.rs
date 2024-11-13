@@ -1,13 +1,13 @@
 use libp2p::{core::muxing::StreamMuxer, PeerId, Transport};
-use rate_limiter::{FuturesRateLimitedAsyncReadWrite, SharingRateLimiter};
+use rate_limiter::{FuturesRateLimitedAsyncReadWrite, SharedRateLimiter};
 
 struct RateLimitedStreamMuxer<SM> {
-    rate_limiter: SharingRateLimiter,
+    rate_limiter: SharedRateLimiter,
     stream_muxer: SM,
 }
 
 impl<SM> RateLimitedStreamMuxer<SM> {
-    pub fn new(stream_muxer: SM, rate_limiter: SharingRateLimiter) -> Self {
+    pub fn new(stream_muxer: SM, rate_limiter: SharedRateLimiter) -> Self {
         Self {
             rate_limiter,
             stream_muxer,
@@ -36,7 +36,7 @@ where
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
-        let rate_limiter = self.rate_limiter.clone();
+        let rate_limiter = self.rate_limiter.share();
         self.inner().poll_inbound(cx).map(|result| {
             result.map(|substream| FuturesRateLimitedAsyncReadWrite::new(substream, rate_limiter))
         })
@@ -46,7 +46,7 @@ where
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<Self::Substream, Self::Error>> {
-        let rate_limiter = self.rate_limiter.clone();
+        let rate_limiter = self.rate_limiter.share();
         self.inner().poll_outbound(cx).map(|result| {
             result.map(|substream| FuturesRateLimitedAsyncReadWrite::new(substream, rate_limiter))
         })
@@ -68,7 +68,7 @@ where
 }
 
 pub fn build_transport(
-    rate_limiter: SharingRateLimiter,
+    rate_limiter: SharedRateLimiter,
     config: sc_network::transport::NetworkConfig,
 ) -> impl Transport<
     Output = (
@@ -79,6 +79,19 @@ pub fn build_transport(
     ListenerUpgrade = impl Send,
     Error = impl Send,
 > + Send {
+    struct ClonableSharedRateLimiter(SharedRateLimiter);
+    impl ClonableSharedRateLimiter {
+        fn share(&self) -> SharedRateLimiter {
+            self.0.share()
+        }
+    }
+    impl Clone for ClonableSharedRateLimiter {
+        fn clone(&self) -> Self {
+            Self(self.share())
+        }
+    }
+    let rate_limiter = ClonableSharedRateLimiter(rate_limiter);
+
     sc_network::transport::build_transport(
         config.keypair,
         config.memory_only,
@@ -88,7 +101,7 @@ pub fn build_transport(
     .map(move |(peer_id, stream_muxer), _| {
         (
             peer_id,
-            RateLimitedStreamMuxer::new(stream_muxer, rate_limiter),
+            RateLimitedStreamMuxer::new(stream_muxer, rate_limiter.share()),
         )
     })
 }

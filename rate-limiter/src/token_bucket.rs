@@ -188,16 +188,6 @@ pub struct SharedBandwidthManager {
     already_requested: Option<NonZeroRatePerSecond>,
 }
 
-impl Clone for SharedBandwidthManager {
-    fn clone(&self) -> Self {
-        Self {
-            max_rate: self.max_rate,
-            peers_count: self.peers_count.clone(),
-            already_requested: None,
-        }
-    }
-}
-
 impl SharedBandwidthManager {
     /// Constructs a new instance of [SharedBandwidthManager] configured with a given rate that will be shared between all
     /// calling consumers (clones of this instance).
@@ -205,6 +195,14 @@ impl SharedBandwidthManager {
         Self {
             max_rate,
             peers_count: Arc::new(AtomicU64::new(0)),
+            already_requested: None,
+        }
+    }
+
+    pub fn share(&self) -> Self {
+        Self {
+            max_rate: self.max_rate,
+            peers_count: self.peers_count.clone(),
             already_requested: None,
         }
     }
@@ -263,7 +261,10 @@ struct AsyncTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     sleep_until: SU,
 }
 
-impl<TP, SU> AsyncTokenBucket<TP, SU> {
+impl<TP, SU> AsyncTokenBucket<TP, SU>
+where
+    TP: TimeProvider,
+{
     /// Constructs an instance of [AsyncTokenBucket] using given [TokenBucket]
     /// and implementation of the [SleepUntil] trait.
     pub fn new(token_bucket: TokenBucket<TP>, sleep_until: SU) -> Self {
@@ -273,12 +274,7 @@ impl<TP, SU> AsyncTokenBucket<TP, SU> {
             sleep_until,
         }
     }
-}
 
-impl<TP, SU> AsyncTokenBucket<TP, SU>
-where
-    TP: TimeProvider,
-{
     /// Accounts `requested` units. A next call to [AsyncTokenBucket::wait] will
     /// account these units while calculating necessary delay.
     pub fn rate_limit(&mut self, requested: u64) {
@@ -317,7 +313,6 @@ where
 /// 1/n) ≈ bandwidth * (ln n + O(1))`. This can happen when each instance of [TokenBucket] tries to spend slightly more data
 /// than its initially acquired bandwidth, but small enough so none of them other instances receives a notification about
 /// ongoing bandwidth change.
-#[derive(Clone)]
 pub struct SharedTokenBucket<TP = TokioTimeProvider, SU = TokioSleepUntil> {
     shared_bandwidth: SharedBandwidthManager,
     rate_limiter: AsyncTokenBucket<TP, SU>,
@@ -340,6 +335,18 @@ impl<TP, SU> SharedTokenBucket<TP, SU> {
         Self {
             shared_bandwidth: SharedBandwidthManager::new(rate),
             rate_limiter,
+            need_to_notify_parent: false,
+        }
+    }
+
+    pub fn share(&self) -> Self
+    where
+        TP: Clone,
+        SU: Clone,
+    {
+        Self {
+            shared_bandwidth: self.shared_bandwidth.share(),
+            rate_limiter: self.rate_limiter.clone(),
             need_to_notify_parent: false,
         }
     }
@@ -428,8 +435,8 @@ mod tests {
     async fn basic_checks_of_shared_bandwidth_manager() {
         let rate = 10.try_into().expect("10 > 0 qed");
         let mut bandwidth_share = SharedBandwidthManager::new(rate);
-        let mut cloned_bandwidth_share = bandwidth_share.clone();
-        let mut another_cloned_bandwidth_share = cloned_bandwidth_share.clone();
+        let mut cloned_bandwidth_share = bandwidth_share.share();
+        let mut another_cloned_bandwidth_share = cloned_bandwidth_share.share();
 
         // only one consumer, so it should get whole bandwidth
         assert_eq!(bandwidth_share.request_bandwidth(), rate);
@@ -844,7 +851,7 @@ mod tests {
 
         let mut rate_limiter =
             SharedTokenBucket::<_, _>::from((limit_per_second, time_provider, sleep_until));
-        let mut rate_limiter_cloned = rate_limiter.clone();
+        let mut rate_limiter_cloned = rate_limiter.share();
 
         let total_data_sent = thread::scope(|s| {
             let first_handle = s.spawn(|| {
@@ -946,7 +953,7 @@ mod tests {
             SharedTracingSleepUntil::new(),
         ));
 
-        let rate_limiter_cloned = rate_limiter.clone();
+        let rate_limiter_cloned = rate_limiter.share();
 
         let (rate_limiter, deadline) = RateLimiter::rate_limit(rate_limiter, 5).await;
         assert_eq!(deadline, Some(now + Duration::from_millis(500)));
@@ -976,7 +983,7 @@ mod tests {
 
         *time_to_return.write() = now + Duration::from_secs(1);
 
-        let rate_limiter_cloned = rate_limiter.clone();
+        let rate_limiter_cloned = rate_limiter.share();
 
         let (rate_limiter, deadline) = RateLimiter::rate_limit(rate_limiter, 1).await;
         assert_eq!(deadline, None);
@@ -1117,8 +1124,8 @@ mod tests {
 
         let mut rate_limiters: Vec<_> = repeat(())
             .scan((0usize, rate_limiter), |(id, rate_limiter), _| {
-                let new_rate_limiter = rate_limiter.clone();
-                let new_state = rate_limiter.clone();
+                let new_rate_limiter = rate_limiter.share();
+                let new_state = rate_limiter.share();
                 let limiter_id = *id;
                 *rate_limiter = new_state;
                 *id += 1;
