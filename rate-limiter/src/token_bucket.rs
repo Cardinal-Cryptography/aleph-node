@@ -1,7 +1,4 @@
-use std::{
-    cmp::min,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use log::trace;
 
@@ -32,10 +29,9 @@ impl TimeProvider for DefaultTimeProvider {
 /// Implementation of the `Token Bucket` algorithm for the purpose of rate-limiting access to some abstract resource.
 #[derive(Clone)]
 pub struct TokenBucket<T = DefaultTimeProvider> {
-    rate_per_second: usize,
-    available: usize,
-    requested: usize,
     last_update: Instant,
+    rate_per_second: usize,
+    requested: usize,
     time_provider: T,
 }
 
@@ -43,7 +39,6 @@ impl<T> std::fmt::Debug for TokenBucket<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TokenBucket")
             .field("rate_per_second", &self.rate_per_second)
-            .field("available", &self.available)
             .field("requested", &self.requested)
             .field("last_update", &self.last_update)
             .finish()
@@ -53,10 +48,9 @@ impl<T> std::fmt::Debug for TokenBucket<T> {
 impl TokenBucket {
     /// Constructs a instance of [`TokenBucket`] with given target rate-per-second.
     pub fn new(rate_per_second: usize) -> Self {
-        let mut time_provider = DefaultTimeProvider::default();
+        let mut time_provider = DefaultTimeProvider;
         TokenBucket {
             rate_per_second,
-            available: rate_per_second,
             requested: 0,
             last_update: time_provider.now(),
             time_provider,
@@ -75,55 +69,51 @@ where
     {
         TokenBucket {
             rate_per_second,
-            available: rate_per_second,
             requested: 0,
             last_update: now,
             time_provider,
         }
     }
 
-    fn calculate_delay(&self) -> Duration {
+    fn calculate_delay(&self) -> Instant {
         if self.rate_per_second == 0 {
-            return Duration::MAX;
+            // ~2024 years of delay
+            return self.last_update + Duration::from_secs(60 * 60 * 24 * 365 * 2024);
         }
-        let delay_micros = (self.requested - self.available)
+        let delay_micros = (self.requested - self.rate_per_second)
             .saturating_mul(1_000_000)
             .saturating_div(self.rate_per_second);
-        Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX))
+        self.last_update + Duration::from_micros(delay_micros.try_into().unwrap_or(u64::MAX))
     }
 
     fn update_units(&mut self, now: Instant) -> usize {
         let time_since_last_update = now.duration_since(self.last_update);
-        let mut new_units = time_since_last_update
+        self.last_update = now;
+        let new_units = time_since_last_update
             .as_micros()
             .saturating_mul(self.rate_per_second as u128)
             .saturating_div(1_000_000)
             .try_into()
             .unwrap_or(usize::MAX);
-        let used_new_units = min(new_units, self.requested);
-        new_units -= used_new_units;
-        self.requested -= used_new_units;
+        self.requested = self.requested.saturating_sub(new_units);
 
-        self.available = self.available.saturating_add(new_units);
-        self.last_update = now;
+        self.available()
+    }
 
-        let used = min(self.available, self.requested);
-        self.available -= used;
-        self.requested -= used;
-        self.available = min(self.available, self.token_limit());
-        self.available
+    fn available(&self) -> usize {
+        self.rate_per_second.saturating_sub(self.requested)
     }
 
     /// Calculates [Duration](time::Duration) by which we should delay next call to some governed resource in order to satisfy
     /// configured rate limit.
-    pub fn rate_limit(&mut self, mut requested: usize) -> Option<Duration> {
+    pub fn rate_limit(&mut self, requested: usize) -> Option<Instant> {
         trace!(
             target: LOG_TARGET,
             "TokenBucket called for {} of requested bytes. Internal state: {:?}.",
             requested,
             self
         );
-        if self.requested > 0 || self.available < requested {
+        if self.available() < requested {
             let now = self.time_provider.now();
             assert!(
                 now >= self.last_update,
@@ -132,21 +122,15 @@ where
                 self.last_update
             );
 
-            if self.update_units(now) < requested {
-                requested -= self.available;
-                self.available = 0;
-                self.requested = self.requested.saturating_add(requested);
-                let required_delay = self.calculate_delay();
-                return Some(required_delay);
+            let available = self.update_units(now);
+            self.requested = self.requested.saturating_add(requested);
+            if available < requested {
+                return Some(self.calculate_delay());
             }
+        } else {
+            self.requested = self.requested.saturating_add(requested);
         }
-        self.available -= requested;
-        self.available = min(self.available, self.token_limit());
         None
-    }
-
-    fn token_limit(&self) -> usize {
-        self.rate_per_second
     }
 }
 
@@ -216,7 +200,7 @@ mod tests {
         *time_to_return.borrow_mut() = now;
         assert_eq!(
             rate_limiter.rate_limit(19),
-            Some(Duration::from_secs(2)),
+            Some(now + Duration::from_secs(2)),
             "we should wait exactly 2 seconds"
         );
     }
@@ -233,10 +217,16 @@ mod tests {
         assert_eq!(rate_limiter.rate_limit(10), None);
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(10);
-        assert_eq!(rate_limiter.rate_limit(40), Some(Duration::from_secs(3)),);
+        assert_eq!(
+            rate_limiter.rate_limit(40),
+            Some(now + Duration::from_secs(10) + Duration::from_secs(3)),
+        );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(11);
-        assert_eq!(rate_limiter.rate_limit(40), Some(Duration::from_secs(6)));
+        assert_eq!(
+            rate_limiter.rate_limit(40),
+            Some(now + Duration::from_secs(11) + Duration::from_secs(6))
+        );
     }
 
     #[test]
@@ -254,9 +244,15 @@ mod tests {
         assert_eq!(rate_limiter.rate_limit(10), None);
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
-        assert_eq!(rate_limiter.rate_limit(10), Some(Duration::from_secs(1)));
+        assert_eq!(
+            rate_limiter.rate_limit(10),
+            Some(now + Duration::from_secs(3) + Duration::from_secs(1))
+        );
 
         *time_to_return.borrow_mut() = now + Duration::from_secs(3);
-        assert_eq!(rate_limiter.rate_limit(50), Some(Duration::from_secs(6)));
+        assert_eq!(
+            rate_limiter.rate_limit(50),
+            Some(now + Duration::from_secs(3) + Duration::from_secs(6))
+        );
     }
 }
