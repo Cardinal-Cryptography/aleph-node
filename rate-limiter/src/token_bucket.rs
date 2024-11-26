@@ -209,7 +209,7 @@ impl SharedBandwidthManager {
 
     fn calculate_bandwidth(&mut self, active_children: Option<u64>) -> NonZeroRatePerSecond {
         let active_children =
-            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::Acquire));
+            active_children.unwrap_or_else(|| self.peers_count.load(Ordering::SeqCst));
         let rate = u64::from(self.max_rate) / active_children;
         NonZeroU64::try_from(rate)
             .map(NonZeroRatePerSecond::from)
@@ -219,7 +219,7 @@ impl SharedBandwidthManager {
     /// Allocate part of the shared bandwidth.
     pub fn request_bandwidth(&mut self) -> NonZeroRatePerSecond {
         let active_children = (self.already_requested.is_none())
-            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::AcqRel));
+            .then(|| 1 + self.peers_count.fetch_add(1, Ordering::SeqCst));
         let rate = self.calculate_bandwidth(active_children);
         self.already_requested = Some(rate);
         rate
@@ -229,7 +229,7 @@ impl SharedBandwidthManager {
     /// it can be immediately shared with other active consumers.
     pub fn notify_idle(&mut self) {
         if self.already_requested.take().is_some() {
-            self.peers_count.fetch_sub(1, Ordering::AcqRel);
+            self.peers_count.fetch_sub(1, Ordering::SeqCst);
         }
     }
 
