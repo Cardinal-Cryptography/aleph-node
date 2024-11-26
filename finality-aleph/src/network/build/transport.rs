@@ -67,6 +67,9 @@ where
     }
 }
 
+/// Builds a rate-limited implementation of [libp2p::Transport].
+/// Note: all of the `Send` constraints in the return type are put in order to satisfy constraints of the constructor of
+/// [sc_network::NetworkWorker].
 pub fn build_transport(
     rate_limiter: SharedRateLimiter,
     config: sc_network::transport::NetworkConfig,
