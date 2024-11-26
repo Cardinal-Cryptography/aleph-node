@@ -871,8 +871,8 @@ mod tests {
 
                     {
                         let last_deadline = last_deadline.lock();
-                        let time = *current_time.lock();
-                        *current_time.lock() = last_deadline.unwrap_or(time);
+                        let mut current_time = current_time.lock();
+                        *current_time = last_deadline.unwrap_or(*current_time);
                     }
 
                     barrier.read().await.wait().await;
@@ -881,8 +881,8 @@ mod tests {
 
                     {
                         let last_deadline = last_deadline.lock();
-                        let time = *current_time.lock();
-                        *current_time.lock() = last_deadline.unwrap_or(time);
+                        let mut current_time = current_time.lock();
+                        *current_time = last_deadline.unwrap_or(*current_time);
                     }
                 });
                 11 + 30
@@ -905,8 +905,8 @@ mod tests {
 
                     {
                         let last_deadline = last_deadline_clone.lock();
-                        let time = *current_time_clone.lock();
-                        *current_time_clone.lock() = last_deadline.unwrap_or(time);
+                        let mut current_time = current_time_clone.lock();
+                        *current_time = last_deadline.unwrap_or(*current_time);
                     }
 
                     second_barrier.read().await.wait().await;
@@ -915,8 +915,8 @@ mod tests {
 
                     {
                         let last_deadline = last_deadline_clone.lock();
-                        let time = *current_time_clone.lock();
-                        *current_time_clone.lock() = last_deadline.unwrap_or(time);
+                        let mut current_time = current_time_clone.lock();
+                        *current_time = last_deadline.unwrap_or(*current_time);
                     }
                 });
                 13 + 25
