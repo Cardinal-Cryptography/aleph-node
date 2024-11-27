@@ -10,8 +10,7 @@ use futures::{channel::mpsc, Future, SinkExt, StreamExt};
 use log::{debug, error, info, warn};
 use lru::LruCache;
 use network_clique::SpawnHandleT;
-use sc_network::MessageSink;
-use sc_network::PeerId;
+use sc_network::{MessageSink, PeerId};
 
 use crate::{
     network::{Data, GossipNetwork},
@@ -30,9 +29,7 @@ impl FloodingProtocolNetwork {
         protocol_network: ProtocolNetwork,
         mut peer_filter: impl FnMut(&PeerId) -> bool + Send + 'static,
     ) -> (
-        FloodingProtocolNetwork<
-            impl FnMut(Vec<u8>, PeerId, &mut ProtocolNetwork) + Send + 'static,
-        >,
+        FloodingProtocolNetwork<impl FnMut(Vec<u8>, PeerId, &mut ProtocolNetwork) + Send + 'static>,
         mpsc::Receiver<(Vec<u8>, PeerId, Arc<Box<dyn MessageSink>>)>,
     ) {
         let (mut flooder_sender, flooder_receiver) = mpsc::channel(0);
@@ -71,9 +68,7 @@ impl FloodingProtocolNetwork {
         peer_filter: impl FnMut(&PeerId) -> bool + Send + 'static,
         spawn_handle: SH,
     ) -> (
-        FloodingProtocolNetwork<
-            impl FnMut(Vec<u8>, PeerId, &mut ProtocolNetwork) + Send + 'static,
-        >,
+        FloodingProtocolNetwork<impl FnMut(Vec<u8>, PeerId, &mut ProtocolNetwork) + Send + 'static>,
         impl Future<Output = Result<(), &'static str>> + Send,
     )
     where

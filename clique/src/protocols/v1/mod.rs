@@ -46,9 +46,10 @@ async fn sending<PK: PublicKey, D: Data, S: AsyncWrite + Unpin + Send>(
     mut sender: S,
     mut data_from_user: mpsc::UnboundedReceiver<D>,
 ) -> Result<(), ProtocolError<PK>> {
-    use crate::io::send_data;
     use futures::StreamExt;
     use Message::*;
+
+    use crate::io::send_data;
 
     loop {
         let to_send = match timeout(HEARTBEAT_TIMEOUT, data_from_user.next()).await {
