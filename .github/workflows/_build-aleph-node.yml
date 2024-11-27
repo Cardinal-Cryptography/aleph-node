@@ -14,7 +14,8 @@ on:
         type: boolean
         required: true
       additional-flags:
-        description: 'string consisting of all additional flags for the `cargo build` command, e.g. --features <some_feature_name>'
+        description: 'string consisting of all additional flags for the `cargo build` command,
+          e.g. --features <some_feature_name>'
         type: string
         required: false
         default: ''
