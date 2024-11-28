@@ -27,13 +27,20 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 #[frame_support::pallet]
 #[pallet_doc("../README.md")]
 pub mod pallet {
-    use frame_support::{pallet_prelude::*, sp_runtime::RuntimeAppPublic};
+    use frame_support::{
+        pallet_prelude::{TransactionSource, TransactionValidityError, ValueQuery, *},
+        sp_runtime::RuntimeAppPublic,
+        dispatch::{DispatchResultWithPostInfo, Pays},
+    };
     use frame_system::{
-        ensure_root,
+        ensure_none, ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::{SessionInfoProvider, TotalIssuanceProvider};
+    use primitives::{
+        Round, Score, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider,
+    };
+    use sp_runtime::traits::ValidateUnsigned;
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
@@ -42,7 +49,7 @@ pub mod pallet {
     use crate::traits::NextSessionAuthorityProvider;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + frame_system::offchain::SendTransactionTypes<Call<Self>>{
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
@@ -126,6 +133,16 @@ pub mod pallet {
     #[pallet::getter(fn finality_version_change)]
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn abft_scores)]
+    pub type AbftScores<T: Config> = StorageMap<_, Twox64Concat, Round, Score>;
+
+    #[pallet::storage]
+    pub(super) type NextUnsignedAt<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+    #[pallet::storage]
+    pub(super) type UnsignedInterval<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
@@ -287,6 +304,30 @@ pub mod pallet {
                 false => Ok(()),
             }
         }
+
+        fn check_score(
+            _round: &Round,
+            _score: &Score,
+            _signature: &ScoreSignature,
+        ) -> Result<(), TransactionValidityError> {
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let next_unsigned_at = NextUnsignedAt::<T>::get();
+            if next_unsigned_at > current_block {
+                return Err(InvalidTransaction::Stale.into());
+            }
+            Ok(())
+        }
+
+        pub fn submit_unsigned_abft_score(
+            round: Round,
+            score: Score,
+            signature: ScoreSignature,
+        ) -> Option<()> {
+            use frame_system::offchain::SubmitTransaction;
+
+            let call = Call::submit_abft_score{round, score, signature};
+            SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).ok()
+        }
     }
 
     #[pallet::call]
@@ -368,6 +409,61 @@ pub mod pallet {
             ));
 
             Ok(())
+        }
+
+        #[pallet::call_index(3)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        /// Stores abft score
+        pub fn submit_abft_score(
+            origin: OriginFor<T>,
+            round: Round,
+            score: Score,
+            _signature: ScoreSignature,
+        ) -> DispatchResultWithPostInfo {
+            ensure_none(origin)?;
+
+            AbftScores::<T>::insert(round, score);
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            <NextUnsignedAt<T>>::put(current_block + <UnsignedInterval<T>>::get());
+
+            Ok(Pays::No.into())
+        }
+    }
+
+    #[pallet::validate_unsigned]
+    impl<T: Config> ValidateUnsigned for Pallet<T> {
+        type Call = Call<T>;
+
+        fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+            if let Call::submit_abft_score {
+                round,
+                score,
+                signature,
+            } = call
+            {
+                Self::check_score(round, score, signature)?;
+                ValidTransaction::with_tag_prefix("AbftScore")
+                    .priority(TransactionPriority::max_value())
+                    .and_provides((round, score))
+                    .longevity(TransactionLongevity::max_value())
+                    .propagate(true)
+                    .build()
+            } else {
+                InvalidTransaction::Call.into()
+            }
+        }
+
+        fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
+            if let Call::submit_abft_score {
+                round,
+                score,
+                signature,
+            } = call
+            {
+                Self::check_score(round, score, signature)
+            } else {
+                Err(InvalidTransaction::Call.into())
+            }
         }
     }
 

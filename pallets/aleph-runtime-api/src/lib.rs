@@ -2,8 +2,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use primitives::{
-    AccountId, ApiError, AuthorityId, Balance, Perbill, SessionAuthorityData, SessionCommittee,
-    SessionIndex, SessionValidatorError, Version,
+    AccountId, ApiError, AuthorityId, Balance, Perbill, Score, ScoreSignature,
+    SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version, Round
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_std::vec::Vec;
@@ -37,5 +37,7 @@ sp_api::decl_runtime_apis! {
         fn yearly_inflation() -> Perbill;
         /// Returns payout. First tuple item is a validators payout, 2nd is the rest.
         fn current_era_payout() -> (Balance, Balance);
+        /// Submits score for a round in a session of performance of finality committee members.
+        fn submit_abft_score(round: Round, score: Score, signature: ScoreSignature) -> Option<()>;
     }
 }

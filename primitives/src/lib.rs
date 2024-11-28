@@ -413,3 +413,8 @@ pub mod staking {
         };
     }
 }
+
+pub type Score = Vec<Point>;
+pub type Point = u64;
+pub type Round = u64;
+pub type ScoreSignature = u64;
