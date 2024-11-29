@@ -28,18 +28,16 @@ pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 #[pallet_doc("../README.md")]
 pub mod pallet {
     use frame_support::{
+        dispatch::{DispatchResult, DispatchResultWithPostInfo, Pays},
         pallet_prelude::{TransactionSource, TransactionValidityError, ValueQuery, *},
         sp_runtime::RuntimeAppPublic,
-        dispatch::{DispatchResultWithPostInfo, Pays},
     };
     use frame_system::{
         ensure_none, ensure_root,
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::{
-        Round, Score, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider,
-    };
+    use primitives::{Round, Score, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider};
     use sp_runtime::traits::ValidateUnsigned;
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
@@ -49,7 +47,9 @@ pub mod pallet {
     use crate::traits::NextSessionAuthorityProvider;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + frame_system::offchain::SendTransactionTypes<Call<Self>>{
+    pub trait Config:
+        frame_system::Config + frame_system::offchain::SendTransactionTypes<Call<Self>>
+    {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type SessionInfoProvider: SessionInfoProvider<BlockNumberFor<Self>>;
@@ -318,14 +318,18 @@ pub mod pallet {
             Ok(())
         }
 
-        pub fn submit_unsigned_abft_score(
+        pub fn submit_abft_score(
             round: Round,
             score: Score,
             signature: ScoreSignature,
         ) -> Option<()> {
             use frame_system::offchain::SubmitTransaction;
 
-            let call = Call::submit_abft_score{round, score, signature};
+            let call = Call::unsigned_submit_abft_score {
+                round,
+                score,
+                signature,
+            };
             SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).ok()
         }
     }
@@ -413,8 +417,21 @@ pub mod pallet {
 
         #[pallet::call_index(3)]
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_abft_score_parameters(
+            origin: OriginFor<T>,
+            unsigned_interval: BlockNumberFor<T>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            UnsignedInterval::<T>::put(unsigned_interval);
+
+            Ok(())
+        }
+
+        #[pallet::call_index(4)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         /// Stores abft score
-        pub fn submit_abft_score(
+        pub fn unsigned_submit_abft_score(
             origin: OriginFor<T>,
             round: Round,
             score: Score,
@@ -435,7 +452,7 @@ pub mod pallet {
         type Call = Call<T>;
 
         fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-            if let Call::submit_abft_score {
+            if let Call::unsigned_submit_abft_score {
                 round,
                 score,
                 signature,
@@ -454,7 +471,7 @@ pub mod pallet {
         }
 
         fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-            if let Call::submit_abft_score {
+            if let Call::unsigned_submit_abft_score {
                 round,
                 score,
                 signature,

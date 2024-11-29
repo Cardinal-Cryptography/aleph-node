@@ -44,7 +44,13 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 use pallet_tx_pause::RuntimeCallNameOf;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use primitives::{
-    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, Address, AlephNodeSessionKeys as SessionKeys, ApiError as AlephApiError, AuraId, AuthorityId as AlephId, BlockNumber as AlephBlockNumber, Header as AlephHeader, Round, Score, ScoreSignature, SessionAuthorityData, SessionCommittee, SessionIndex, SessionInfoProvider, SessionValidatorError, TotalIssuanceProvider as TotalIssuanceProviderT, Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN
+    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, Address,
+    AlephNodeSessionKeys as SessionKeys, ApiError as AlephApiError, AuraId, AuthorityId as AlephId,
+    BlockNumber as AlephBlockNumber, Header as AlephHeader, Round, Score, ScoreSignature,
+    SessionAuthorityData, SessionCommittee, SessionIndex, SessionInfoProvider,
+    SessionValidatorError, TotalIssuanceProvider as TotalIssuanceProviderT,
+    Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS,
+    DEFAULT_SESSIONS_PER_ERA, DEFAULT_SESSION_PERIOD, MAX_BLOCK_SIZE, MILLISECS_PER_BLOCK, TOKEN,
 };
 pub use primitives::{AccountId, AccountIndex, Balance, Hash, Nonce, Signature};
 use sp_api::impl_runtime_apis;
@@ -1234,7 +1240,7 @@ impl_runtime_apis! {
         }
 
         fn submit_abft_score(round: Round, score: Score, signature: ScoreSignature) -> Option<()> {
-            Aleph::submit_unsigned_abft_score(round, score, signature)
+            Aleph::submit_abft_score(round, score, signature)
         }
     }
 

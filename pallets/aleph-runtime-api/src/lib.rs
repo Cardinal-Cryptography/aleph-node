@@ -2,8 +2,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use primitives::{
-    AccountId, ApiError, AuthorityId, Balance, Perbill, Score, ScoreSignature,
-    SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version, Round
+    AccountId, ApiError, AuthorityId, Balance, Perbill, Round, Score, ScoreSignature,
+    SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_std::vec::Vec;
