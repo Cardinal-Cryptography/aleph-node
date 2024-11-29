@@ -38,7 +38,7 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use primitives::{Round, Score, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider};
-    use sp_runtime::traits::ValidateUnsigned;
+    use sp_runtime::traits::{Saturating, ValidateUnsigned};
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
@@ -314,6 +314,9 @@ pub mod pallet {
             let next_unsigned_at = NextUnsignedAt::<T>::get();
             if next_unsigned_at > current_block {
                 return Err(InvalidTransaction::Stale.into());
+            }
+            if current_block >= next_unsigned_at.saturating_add(next_unsigned_at) {
+                return Err(InvalidTransaction::Future.into());
             }
             Ok(())
         }
