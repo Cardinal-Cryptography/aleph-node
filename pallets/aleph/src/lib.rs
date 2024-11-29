@@ -31,6 +31,8 @@ pub mod pallet {
         dispatch::{DispatchResult, DispatchResultWithPostInfo, Pays},
         pallet_prelude::{TransactionSource, TransactionValidityError, ValueQuery, *},
         sp_runtime::RuntimeAppPublic,
+        traits::Hooks,
+        weights::Weight,
     };
     use frame_system::{
         ensure_none, ensure_root,
@@ -99,11 +101,9 @@ pub mod pallet {
         StorageValue<_, u64, ValueQuery, DefaultExponentialInflationHorizon>;
 
     #[pallet::storage]
-    #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     /// Set of account ids that will be used as authorities in the next session
@@ -111,11 +111,9 @@ pub mod pallet {
     pub type NextFinalityCommittee<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn emergency_finalizer)]
     pub(super) type EmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn queued_emergency_finalizer)]
     pub(super) type QueuedEmergencyFinalizer<T: Config> =
         StorageValue<_, T::AuthorityId, OptionQuery>;
 
@@ -143,6 +141,10 @@ pub mod pallet {
 
     #[pallet::storage]
     pub(super) type UnsignedInterval<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn score_set)]
+    pub(super) type ScoreSet<T: Config> = StorageValue<_, bool, ValueQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
@@ -337,6 +339,21 @@ pub mod pallet {
         }
     }
 
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+            ScoreSet::<T>::put(false);
+
+            0.into()
+        }
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        /// Duplicated score in the same block
+        DuplicatedScore,
+    }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Sets the emergency finalization key. If called in session `N` the key can be used to
@@ -442,7 +459,11 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
 
+            if Self::score_set() {
+                return Err(Error::<T>::DuplicatedScore.into());
+            }
             AbftScores::<T>::insert(round, score);
+            <ScoreSet<T>>::put(true);
             let current_block = <frame_system::Pallet<T>>::block_number();
             <NextUnsignedAt<T>>::put(current_block + <UnsignedInterval<T>>::get());
 
@@ -463,9 +484,9 @@ pub mod pallet {
             {
                 Self::check_score(round, score, signature)?;
                 ValidTransaction::with_tag_prefix("AbftScore")
-                    .priority(TransactionPriority::max_value())
+                    .priority(*round) // this ensures that later rounds are first in tx queue
                     .and_provides((round, score))
-                    .longevity(TransactionLongevity::max_value())
+                    .longevity(TransactionLongevity::max_value()) // consider restricting longevity
                     .propagate(true)
                     .build()
             } else {
