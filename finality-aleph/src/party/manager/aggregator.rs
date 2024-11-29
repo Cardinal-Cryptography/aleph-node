@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use futures::{
     channel::{mpsc, oneshot},
@@ -6,8 +6,12 @@ use futures::{
     stream::FusedStream,
     StreamExt,
 };
-use log::{debug, error, trace};
+use log::{debug, error, info, trace};
+use pallet_aleph_runtime_api::AlephSessionApi;
+use primitives::Point;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_api::ProvideRuntimeApi;
+use sp_runtime::traits::Block as BlockT;
 use tokio::time;
 
 use crate::{
@@ -30,6 +34,7 @@ use crate::{
     BlockId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, SessionBoundaries,
     STATUS_REPORT_INTERVAL,
 };
+use sp_api::ApiExt;
 
 #[derive(Debug)]
 pub enum Error {
@@ -72,19 +77,19 @@ async fn process_new_block_data<CN, LN>(
     aggregator.start_aggregation(hash).await;
 }
 
-fn process_hash<H, C, JS>(
+fn process_hash<H, HB, JS>(
     hash: BlockHash,
     multisignature: SignatureSet<Signature>,
     justifications_for_chain: &mut JS,
     justification_translator: &JustificationTranslator,
-    client: &C,
+    header_backend: &HB,
 ) -> Result<(), ()>
 where
     H: Header,
-    C: HeaderBackend<H> + 'static,
+    HB: HeaderBackend<H> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
 {
-    let number = client.hash_to_id(hash).unwrap().unwrap().number();
+    let number = header_backend.hash_to_id(hash).unwrap().unwrap().number();
     // The unwrap might actually fail if data availability is not implemented correctly.
     let justification = match justification_translator.translate(
         AlephJustification::CommitteeMultisignature(multisignature),
@@ -103,20 +108,24 @@ where
     Ok(())
 }
 
-async fn run_aggregator<H, C, CN, LN, JS>(
+async fn run_aggregator<B, C, H, HB, CN, LN, JS>(
     mut aggregator: Aggregator<CN, LN>,
     io: IO<JS>,
-    client: C,
+    header_backend: HB,
     session_boundaries: &SessionBoundaries,
     mut metrics: TimingBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
-    // offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
+    client: Arc<C>,
+    offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
 ) -> Result<(), Error>
 where
+    B: BlockT<Hash = BlockHash>,
     H: Header,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
-    C: HeaderBackend<H> + 'static,
+    HB: HeaderBackend<H> + 'static,
     LN: Network<LegacyRmcNetworkData>,
+    C: ProvideRuntimeApi<B> + Send + Sync + 'static,
+    C::Api: AlephSessionApi<B>,
     CN: Network<CurrentRmcNetworkData>,
 {
     let IO {
@@ -140,38 +149,59 @@ where
 
     let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
 
+    let mut round = 0;
+    let interval = 60;
+    let signature = 0;
+    let score: Vec<Point> = (0..14).collect();
     loop {
         trace!(target: "aleph-party", "Aggregator Loop started a next iteration");
         tokio::select! {
-            maybe_block = blocks_from_interpreter.next(), if !no_more_blocks => match maybe_block {
-                Some(block) => {
-                    hash_of_last_block = Some(block.hash());
-                    process_new_block_data::<CN, LN>(
-                        &mut aggregator,
-                        block,
-                        &mut metrics
-                    ).await;
-                },
-                None => {
-                    debug!(target: "aleph-party", "Blocks ended in aggregator.");
-                    no_more_blocks = true;
-                },
-            },
-            multisigned_hash = aggregator.next_multisigned_hash() => {
-                let (hash, multisignature) = multisigned_hash.ok_or(Error::MultisignaturesStreamTerminated)?;
-                process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &client).map_err(|_| Error::UnableToProcessHash)?;
-                if Some(hash) == hash_of_last_block {
-                    hash_of_last_block = None;
+        maybe_block = blocks_from_interpreter.next(), if !no_more_blocks => match maybe_block {
+            Some(block) => {
+                hash_of_last_block = Some(block.hash());
+
+                if round % interval == 0 {
+
+                    let mut runtime_api = client.runtime_api();
+                    runtime_api.register_extension(
+                        offchain_tx_pool_factory.offchain_transaction_pool(block.hash()),
+                    );
+
+                    if let Ok(_) = runtime_api.submit_abft_score(block.hash(), round, score.clone(), signature) {
+                        info!(target: "aleph-party", "Submited new score.");
+                    } else {
+                        error!(target: "aleph-party", "Error submitting score.");
+                    }
                 }
-            },
-            _ = status_ticker.tick() => {
-                aggregator.status_report();
-            },
-            _ = &mut exit_rx => {
-                debug!(target: "aleph-party", "Aggregator received exit signal. Terminating.");
-                break;
-            }
-        }
+
+                round += 1;
+
+                process_new_block_data::<CN, LN>(
+                           &mut aggregator,
+                           block,
+                           &mut metrics
+                       ).await;
+                   },
+                   None => {
+                       debug!(target: "aleph-party", "Blocks ended in aggregator.");
+                       no_more_blocks = true;
+                   },
+               },
+               multisigned_hash = aggregator.next_multisigned_hash() => {
+                   let (hash, multisignature) = multisigned_hash.ok_or(Error::MultisignaturesStreamTerminated)?;
+                   process_hash(hash, multisignature, &mut justifications_for_chain, &justification_translator, &header_backend).map_err(|_| Error::UnableToProcessHash)?;
+                   if Some(hash) == hash_of_last_block {
+                       hash_of_last_block = None;
+                   }
+               },
+               _ = status_ticker.tick() => {
+                   aggregator.status_report();
+               },
+               _ = &mut exit_rx => {
+                   debug!(target: "aleph-party", "Aggregator received exit signal. Terminating.");
+                   break;
+               }
+           }
         if hash_of_last_block.is_none() && no_more_blocks {
             debug!(target: "aleph-party", "Aggregator processed all provided blocks. Terminating.");
             break;
@@ -187,22 +217,26 @@ pub enum AggregatorVersion<CN, LN> {
 }
 
 /// Runs the justification signature aggregator within a single session.
-pub fn task<H, C, CN, LN, JS>(
+pub fn task<B, C, H, HB, CN, LN, JS>(
     subtask_common: AuthoritySubtaskCommon,
-    client: C,
+    header_backend: HB,
     io: IO<JS>,
     session_boundaries: SessionBoundaries,
     metrics: TimingBlockMetrics,
     multikeychain: Keychain,
     version: AggregatorVersion<CN, LN>,
-    // offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
+    client: Arc<C>,
+    offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
 ) -> Task
 where
+    B: BlockT<Hash = BlockHash>,
     H: Header,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone + 'static,
-    C: HeaderBackend<H> + 'static,
+    HB: HeaderBackend<H> + 'static,
     LN: Network<LegacyRmcNetworkData> + 'static,
     CN: Network<CurrentRmcNetworkData> + 'static,
+    C: ProvideRuntimeApi<B> + Send + Sync + 'static,
+    C::Api: AlephSessionApi<B>,
 {
     let AuthoritySubtaskCommon {
         spawn_handle,
@@ -219,10 +253,12 @@ where
             let result = run_aggregator(
                 aggregator_io,
                 io,
-                client,
+                header_backend,
                 &session_boundaries,
                 metrics,
                 exit,
+                client,
+                offchain_tx_pool_factory,
             )
             .await;
             let result = match result {
