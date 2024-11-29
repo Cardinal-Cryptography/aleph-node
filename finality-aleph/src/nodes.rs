@@ -9,7 +9,8 @@ use primitives::TransactionHash;
 use rate_limiter::SharedRateLimiter;
 use sc_client_api::Backend;
 use sc_keystore::{Keystore, LocalKeystore};
-use sc_transaction_pool_api::TransactionPool;
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sc_transaction_pool_api::{LocalTransactionPool, TransactionPool};
 use sp_consensus_aura::AuraApi;
 
 use crate::{
@@ -60,7 +61,9 @@ where
     C: crate::ClientForAleph<Block, BE> + Send + Sync + 'static,
     C::Api: AlephSessionApi<Block> + AuraApi<Block, AuraId>,
     BE: Backend<Block> + 'static,
-    TP: TransactionPool<Block = Block, Hash = TransactionHash> + 'static,
+    TP: TransactionPool<Block = Block, Hash = TransactionHash>
+        + LocalTransactionPool<Block = Block, Hash = TransactionHash>
+        + 'static,
 {
     let AlephConfig {
         authentication_network,
@@ -149,6 +152,7 @@ where
     let slo_metrics = SloMetrics::new(registry.as_ref(), chain_status.clone());
     let timing_metrics = slo_metrics.timing_metrics().clone();
 
+    let offchain_tx_pool_factory = OffchainTransactionPoolFactory::new(transaction_pool.clone());
     spawn_handle.spawn("aleph/slo-metrics", {
         let slo_metrics = slo_metrics.clone();
         async move {
@@ -266,6 +270,7 @@ where
             spawn_handle,
             connection_manager,
             keystore,
+            offchain_tx_pool_factory,
         ),
         session_info,
     });

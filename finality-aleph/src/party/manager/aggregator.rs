@@ -7,6 +7,7 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, trace};
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use tokio::time;
 
 use crate::{
@@ -109,6 +110,7 @@ async fn run_aggregator<H, C, CN, LN, JS>(
     session_boundaries: &SessionBoundaries,
     mut metrics: TimingBlockMetrics,
     mut exit_rx: oneshot::Receiver<()>,
+    // offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
 ) -> Result<(), Error>
 where
     H: Header,
@@ -193,6 +195,7 @@ pub fn task<H, C, CN, LN, JS>(
     metrics: TimingBlockMetrics,
     multikeychain: Keychain,
     version: AggregatorVersion<CN, LN>,
+    // offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
 ) -> Task
 where
     H: Header,

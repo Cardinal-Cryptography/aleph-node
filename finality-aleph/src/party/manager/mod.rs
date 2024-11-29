@@ -6,6 +6,7 @@ use log::{debug, info, trace, warn};
 use network_clique::SpawnHandleExt;
 use pallet_aleph_runtime_api::AlephSessionApi;
 use sc_keystore::{Keystore, LocalKeystore};
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 
@@ -114,6 +115,7 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<LocalKeystore>,
+    offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
     _phantom: PhantomData<(B, H)>,
 }
 
@@ -146,6 +148,7 @@ where
         spawn_handle: SpawnHandle,
         session_manager: SM,
         keystore: Arc<LocalKeystore>,
+        offchain_tx_pool_factory: OffchainTransactionPoolFactory<B>,
     ) -> Self {
         Self {
             client,
@@ -161,6 +164,7 @@ where
             spawn_handle,
             session_manager,
             keystore,
+            offchain_tx_pool_factory,
             _phantom: PhantomData,
         }
     }
@@ -231,6 +235,7 @@ where
                 self.metrics.clone(),
                 multikeychain,
                 AggregatorVersion::<CurrentNetworkType, _>::Legacy(rmc_network),
+                // self.offchain_tx_pool_factory.clone(),
             ),
             task::task(subtask_common.clone(), chain_tracker, "chain tracker"),
             task::task(subtask_common, data_store, "data store"),
