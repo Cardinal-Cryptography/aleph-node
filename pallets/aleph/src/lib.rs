@@ -40,7 +40,7 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use primitives::{Round, Score, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider};
-    use sp_runtime::traits::{Saturating, ValidateUnsigned};
+    use sp_runtime::traits::ValidateUnsigned;
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
     use sp_std::marker::PhantomData;
@@ -483,7 +483,7 @@ pub mod pallet {
             {
                 Self::check_score(round, score, signature)?;
                 ValidTransaction::with_tag_prefix("AbftScore")
-                    .priority(*round) // this ensures that later rounds are first in tx queue
+                    .priority(*round as u64) // this ensures that later rounds are first in tx queue
                     // .requires(_)              |  those two can be used to build a dependency
                     // .and_provides()           |
                     .longevity(TransactionLongevity::max_value()) // consider restricting longevity
