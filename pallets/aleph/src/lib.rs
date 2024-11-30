@@ -308,15 +308,17 @@ pub mod pallet {
         }
 
         fn check_score(
-            _round: &Round,
+            round: &Round,
             _score: &Score,
             _signature: &ScoreSignature,
         ) -> Result<(), TransactionValidityError> {
-            let current_block = <frame_system::Pallet<T>>::block_number();
             let next_unsigned_at = NextUnsignedAt::<T>::get();
-            if next_unsigned_at > current_block {
+            if next_unsigned_at > (*round).into() {
                 return Err(InvalidTransaction::Stale.into());
             }
+
+            // validate signature
+
             Ok(())
         }
 
@@ -482,7 +484,8 @@ pub mod pallet {
                 Self::check_score(round, score, signature)?;
                 ValidTransaction::with_tag_prefix("AbftScore")
                     .priority(*round) // this ensures that later rounds are first in tx queue
-                    .and_provides((round, score))
+                    // .requires(_)              |  those two can be used to build a dependency
+                    // .and_provides()           |
                     .longevity(TransactionLongevity::max_value()) // consider restricting longevity
                     .propagate(true)
                     .build()
