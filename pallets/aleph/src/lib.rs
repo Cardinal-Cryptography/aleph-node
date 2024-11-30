@@ -101,9 +101,11 @@ pub mod pallet {
         StorageValue<_, u64, ValueQuery, DefaultExponentialInflationHorizon>;
 
     #[pallet::storage]
+    #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
     /// Set of account ids that will be used as authorities in the next session
@@ -111,9 +113,11 @@ pub mod pallet {
     pub type NextFinalityCommittee<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn emergency_finalizer)]
     pub(super) type EmergencyFinalizer<T: Config> = StorageValue<_, T::AuthorityId, OptionQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn queued_emergency_finalizer)]
     pub(super) type QueuedEmergencyFinalizer<T: Config> =
         StorageValue<_, T::AuthorityId, OptionQuery>;
 
@@ -343,7 +347,7 @@ pub mod pallet {
         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
             ScoreSet::<T>::put(false);
 
-            0.into()
+            Weight::zero()
         }
     }
 
