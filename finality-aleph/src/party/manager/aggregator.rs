@@ -6,9 +6,10 @@ use futures::{
     stream::FusedStream,
     StreamExt,
 };
-use log::{debug, error, info, trace};
+use log::{debug, error, trace};
 use pallet_aleph_runtime_api::AlephSessionApi;
 use primitives::Point;
+use primitives::DEFAULT_SCORE_INTERVAL;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block as BlockT;
@@ -149,8 +150,7 @@ where
 
     let mut status_ticker = time::interval(STATUS_REPORT_INTERVAL);
 
-    let mut round = 0;
-    let interval = 60;
+    let interval = DEFAULT_SCORE_INTERVAL;
     let signature = 0;
     let score: Vec<Point> = (0..14).collect();
     loop {
@@ -160,6 +160,7 @@ where
             Some(block) => {
                 hash_of_last_block = Some(block.hash());
 
+                let round = block.number();
                 if round % interval == 0 {
 
                     let mut runtime_api = client.runtime_api();
@@ -168,13 +169,11 @@ where
                     );
 
                     if let Ok(_) = runtime_api.submit_abft_score(block.hash(), round, score.clone(), signature) {
-                        info!(target: "aleph-party", "Submited new score.");
+                        debug!(target: "aleph-party", "Submited new score for round {}", round);
                     } else {
-                        error!(target: "aleph-party", "Error submitting score.");
+                        debug!(target: "aleph-party", "Error submitting score.");
                     }
                 }
-
-                round += 1;
 
                 process_new_block_data::<CN, LN>(
                            &mut aggregator,

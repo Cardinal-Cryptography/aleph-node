@@ -8,16 +8,18 @@ mod tests;
 
 mod impls;
 mod traits;
-
 use frame_support::{
     sp_runtime::BoundToRuntimeAppPublic,
     traits::{OneSessionHandler, StorageVersion},
 };
 pub use pallet::*;
+use primitives::DEFAULT_FIRST_SCORE_AT;
+use primitives::DEFAULT_SCORE_INTERVAL;
 use primitives::{
     Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
     LEGACY_FINALITY_VERSION, TOKEN,
 };
+use sp_runtime::Perbill;
 use sp_std::prelude::*;
 
 /// The current storage version.
@@ -136,15 +138,16 @@ pub mod pallet {
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
 
+    // Clear this storage on session changes
     #[pallet::storage]
     #[pallet::getter(fn abft_scores)]
     pub type AbftScores<T: Config> = StorageMap<_, Twox64Concat, Round, Score>;
 
     #[pallet::storage]
-    pub(super) type NextUnsignedAt<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+    pub(super) type NextScoreAt<T: Config> = StorageValue<_, Round, ValueQuery>;
 
     #[pallet::storage]
-    pub(super) type UnsignedInterval<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+    pub(super) type ScoreInterval<T: Config> = StorageValue<_, Round, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn score_set)]
@@ -316,7 +319,7 @@ pub mod pallet {
             _score: &Score,
             _signature: &ScoreSignature,
         ) -> Result<(), TransactionValidityError> {
-            let next_unsigned_at = NextUnsignedAt::<T>::get();
+            let next_unsigned_at = NextScoreAt::<T>::get();
             if next_unsigned_at > (*round).into() {
                 return Err(InvalidTransaction::Stale.into());
             }
@@ -442,17 +445,18 @@ pub mod pallet {
         #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
         pub fn set_abft_score_parameters(
             origin: OriginFor<T>,
-            unsigned_interval: BlockNumberFor<T>,
+            score_interval: Round,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            UnsignedInterval::<T>::put(unsigned_interval);
+            ScoreInterval::<T>::put(score_interval);
 
             Ok(())
         }
 
+        // fix weight
         #[pallet::call_index(4)]
-        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        #[pallet::weight(T::BlockWeights::get().max_block * Perbill::from_percent(10))]
         /// Stores abft score
         pub fn unsigned_submit_abft_score(
             origin: OriginFor<T>,
@@ -467,8 +471,7 @@ pub mod pallet {
             }
             AbftScores::<T>::insert(round, score);
             <ScoreSet<T>>::put(true);
-            let current_block = <frame_system::Pallet<T>>::block_number();
-            <NextUnsignedAt<T>>::put(current_block + <UnsignedInterval<T>>::get());
+            <NextScoreAt<T>>::put(round + <ScoreInterval<T>>::get());
 
             Ok(Pays::No.into())
         }
@@ -562,6 +565,8 @@ pub mod pallet {
     impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <FinalityVersion<T>>::put(self.finality_version);
+            <NextScoreAt<T>>::put(DEFAULT_FIRST_SCORE_AT);
+            <ScoreInterval<T>>::put(DEFAULT_SCORE_INTERVAL);
         }
     }
 }

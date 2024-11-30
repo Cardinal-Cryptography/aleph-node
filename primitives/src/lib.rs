@@ -418,3 +418,6 @@ pub type Score = Vec<Point>;
 pub type Point = u64;
 pub type Round = u32;
 pub type ScoreSignature = u64;
+
+pub const DEFAULT_FIRST_SCORE_AT: Round = 5;
+pub const DEFAULT_SCORE_INTERVAL: Round = 5;
