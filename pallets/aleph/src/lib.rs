@@ -317,9 +317,6 @@ pub mod pallet {
             if next_unsigned_at > current_block {
                 return Err(InvalidTransaction::Stale.into());
             }
-            if current_block >= next_unsigned_at.saturating_add(next_unsigned_at) {
-                return Err(InvalidTransaction::Future.into());
-            }
             Ok(())
         }
 
