@@ -13,8 +13,7 @@ use sp_core::crypto::KeyTypeId;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 use crate::{
-    aleph_primitives::crypto::verify,
-    aleph_primitives::AuthorityId,
+    aleph_primitives::{crypto::verify, AuthorityId},
     crypto::{AuthorityPen, Signature},
     network::{AddressingInformation, NetworkIdentity},
 };

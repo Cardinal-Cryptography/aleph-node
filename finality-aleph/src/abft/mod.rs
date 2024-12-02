@@ -24,7 +24,6 @@ pub use legacy::{
     NetworkData as LegacyNetworkData, VERSION as LEGACY_VERSION,
 };
 pub use network::NetworkWrapper;
+pub use primitives::SignatureSet;
 pub use traits::{SpawnHandle, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
-
-pub use primitives::SignatureSet;

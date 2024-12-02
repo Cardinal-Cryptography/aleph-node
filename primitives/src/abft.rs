@@ -1,9 +1,8 @@
-use derive_more::{From, Into};
-use parity_scale_codec::{Decode, Encode, Error, Input, Output};
-
 use std::fmt::Debug;
 
 use aleph_bft_crypto::{PartialMultisignature, Signature};
+use derive_more::{From, Into};
+use parity_scale_codec::{Decode, Encode, Error, Input, Output};
 
 /// The index of a node
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, From, Into)]

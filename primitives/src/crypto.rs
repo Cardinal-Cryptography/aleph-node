@@ -1,7 +1,8 @@
-use super::{NodeCount, NodeIndex, SignatureSet};
 use parity_scale_codec::{Decode, Encode};
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::RuntimeAppPublic;
+
+use super::{NodeCount, NodeIndex, SignatureSet};
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
 

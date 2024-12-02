@@ -8,10 +8,10 @@ use sc_keystore::{Keystore, LocalKeystore};
 use sp_core::crypto::KeyTypeId;
 use sp_keystore::Error as KeystoreError;
 
-use crate::aleph_primitives::{AuthorityId, AuthoritySignature, KEY_TYPE};
-
-pub use crate::aleph_primitives::crypto::{AuthorityVerifier, Signature};
-pub use crate::aleph_primitives::NodeIndex;
+pub use crate::aleph_primitives::{
+    crypto::{AuthorityVerifier, Signature},
+    AuthorityId, AuthoritySignature, NodeIndex, KEY_TYPE,
+};
 
 #[derive(Debug)]
 pub enum Error {
