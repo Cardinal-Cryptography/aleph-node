@@ -4,7 +4,6 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::crypto::KeyTypeId;
 pub use sp_runtime::{
     generic,
     traits::{BlakeTwo256, ConstU32, Header as HeaderT},
@@ -18,23 +17,15 @@ use sp_runtime::{
 pub use sp_staking::{EraIndex, SessionIndex};
 use sp_std::vec::Vec;
 
-pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"alp0");
+mod abft;
+pub use abft::{NodeCount, NodeIndex, SignatureSet};
+pub mod crypto;
+pub use crypto::{AuthorityId, AuthoritySignature, KEY_TYPE};
 
 // Same as GRANDPA_ENGINE_ID because as of right now substrate sends only
 // grandpa justifications over the network.
 // TODO: change this once https://github.com/paritytech/substrate/issues/8172 will be resolved.
 pub const ALEPH_ENGINE_ID: ConsensusEngineId = *b"FRNK";
-
-mod app {
-    use sp_application_crypto::{app_crypto, ed25519};
-    app_crypto!(ed25519, crate::KEY_TYPE);
-}
-
-sp_application_crypto::with_pair! {
-    pub type AuthorityPair = app::Pair;
-}
-pub type AuthoritySignature = app::Signature;
-pub type AuthorityId = app::Public;
 
 impl_opaque_keys! {
     pub struct AlephNodeSessionKeys {

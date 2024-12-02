@@ -6039,6 +6039,10 @@ dependencies = [
 name = "primitives"
 version = "0.14.0+dev"
 dependencies = [
+ "aleph-bft 0.33.2",
+ "aleph-bft 0.36.5",
+ "aleph-bft-crypto 0.9.0",
+ "derive_more 1.0.0",
  "frame-support",
  "frame-system-rpc-runtime-api",
  "pallet-transaction-payment",
