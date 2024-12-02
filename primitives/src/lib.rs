@@ -20,7 +20,7 @@ use sp_std::vec::Vec;
 mod abft;
 pub use abft::{NodeCount, NodeIndex, SignatureSet};
 pub mod crypto;
-pub use crypto::{AuthorityId, AuthoritySignature, KEY_TYPE};
+pub use crypto::{AuthorityId, AuthorityPair, AuthoritySignature, KEY_TYPE};
 
 // Same as GRANDPA_ENGINE_ID because as of right now substrate sends only
 // grandpa justifications over the network.
