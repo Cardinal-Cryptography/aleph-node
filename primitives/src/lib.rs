@@ -420,6 +420,7 @@ pub mod crypto {
     use parity_scale_codec::{Decode, Encode};
     use scale_info::TypeInfo;
     use sp_runtime::RuntimeAppPublic;
+    use sp_std::vec::Vec;
 
     use super::AuthoritySignature;
 
@@ -435,7 +436,8 @@ pub mod crypto {
     #[derive(Decode, Encode, TypeInfo, Debug, Clone)]
     pub struct SignatureSet<S>(pub Vec<IndexedSignature<S>>);
 
-    #[derive(PartialEq, Eq, Clone, Debug, Hash, Decode, Encode, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(Hash))]
+    #[derive(PartialEq, Eq, Clone, Debug, Decode, Encode, TypeInfo)]
     pub struct Signature(pub AuthoritySignature);
 
     impl From<AuthoritySignature> for Signature {
