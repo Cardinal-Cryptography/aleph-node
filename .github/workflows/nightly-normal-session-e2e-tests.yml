@@ -45,9 +45,10 @@ jobs:
     name: Build aleph-node with flooding routines for both sync-network and alephbft-network
     uses: ./.github/workflows/_build-aleph-node.yml
     with:
-      ref: ${{ github.ref }}
+      ref: main
       production: false
-      additional-flags: '--features network_flooding_test'
+      additional-flags: "--features network_flooding_test"
+      secrets: inherit
 
   build-chain-bootstrapper-production:
     name: Build chain-bootstrapper
