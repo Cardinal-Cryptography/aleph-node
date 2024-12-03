@@ -37,6 +37,12 @@ impl Display for Error {
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Decode, Encode)]
 pub struct Signature(pub AuthoritySignature);
 
+impl From<AuthoritySignature> for Signature {
+    fn from(authority_signature: AuthoritySignature) -> Signature {
+        Signature(authority_signature)
+    }
+}
+
 /// Verify the signature given an authority id.
 pub fn verify(authority: &AuthorityId, message: &[u8], signature: &Signature) -> bool {
     authority.verify(&message, &signature.0)
