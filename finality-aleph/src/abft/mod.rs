@@ -28,6 +28,7 @@ pub use legacy::{
 };
 pub use network::NetworkWrapper;
 use parity_scale_codec::{Decode, Encode};
+use primitives::ScoreSignatureSet;
 pub use traits::{SpawnHandle, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
 
@@ -69,6 +70,18 @@ impl<S: 'static> IntoIterator for SignatureSet<S> {
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.0.into_iter().map(|(idx, s)| (idx.into(), s)))
+    }
+}
+
+impl From<SignatureSet<crate::crypto::Signature>> for ScoreSignatureSet {
+    fn from(signature_set: SignatureSet<crate::crypto::Signature>) -> ScoreSignatureSet {
+        let score_sigantures: Vec<(primitives::NodeIndex, primitives::AuthoritySignature)> =
+            signature_set
+                .0
+                .into_iter()
+                .map(|(idx, s)| (idx.0 as u64, s.into()))
+                .collect();
+        score_sigantures.into()
     }
 }
 

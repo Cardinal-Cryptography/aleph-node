@@ -43,6 +43,12 @@ impl From<AuthoritySignature> for Signature {
     }
 }
 
+impl From<Signature> for AuthoritySignature {
+    fn from(signature: Signature) -> AuthoritySignature {
+        signature.0
+    }
+}
+
 /// Ties an authority identification and a cryptography keystore together for use in
 /// signing that requires an authority.
 #[derive(Clone)]
