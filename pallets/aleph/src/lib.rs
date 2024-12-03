@@ -97,11 +97,6 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
-    // #[pallet::storage]
-    // #[pallet::getter(fn authority_verifier)]
-    // pub(super) type AuthorityVerifier<T: Config> =
-    //     StorageValue<_, primitives::crypto::AuthorityVerifier<T::AuthorityId, Signature<T>>, ValueQuery>;
-
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
