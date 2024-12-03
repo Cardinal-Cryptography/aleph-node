@@ -13,8 +13,8 @@ scale-info = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 
 aleph-bft-crypto = { workspace = true }
-current-aleph-bft = { package = "aleph-bft", version = "0.36" }
-legacy-aleph-bft = { package = "aleph-bft", version = "0.33" }
+# current-aleph-bft-crypto = { package = "aleph-bft-crypto", version = "0.9.1" }
+legacy-aleph-bft-crypto = { package = "aleph-bft-crypto", version = "0.8" }
 derive_more = { workspace = true }
 
 sp-api = { workspace = true }

@@ -25,49 +25,49 @@ impl Decode for NodeIndex {
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, From, Into)]
 pub struct NodeCount(pub usize);
 
-impl From<NodeCount> for current_aleph_bft::NodeCount {
+impl From<NodeCount> for aleph_bft_crypto::NodeCount {
     fn from(count: NodeCount) -> Self {
-        current_aleph_bft::NodeCount(count.0)
+        aleph_bft_crypto::NodeCount(count.0)
     }
 }
-impl From<NodeCount> for legacy_aleph_bft::NodeCount {
+impl From<NodeCount> for legacy_aleph_bft_crypto::NodeCount {
     fn from(count: NodeCount) -> Self {
-        legacy_aleph_bft::NodeCount(count.0)
+        legacy_aleph_bft_crypto::NodeCount(count.0)
     }
 }
 
-impl From<legacy_aleph_bft::NodeCount> for NodeCount {
-    fn from(count: legacy_aleph_bft::NodeCount) -> Self {
+impl From<legacy_aleph_bft_crypto::NodeCount> for NodeCount {
+    fn from(count: legacy_aleph_bft_crypto::NodeCount) -> Self {
         Self(count.0)
     }
 }
 
-impl From<current_aleph_bft::NodeCount> for NodeCount {
-    fn from(count: current_aleph_bft::NodeCount) -> Self {
+impl From<aleph_bft_crypto::NodeCount> for NodeCount {
+    fn from(count: aleph_bft_crypto::NodeCount) -> Self {
         Self(count.0)
     }
 }
 
-impl From<NodeIndex> for current_aleph_bft::NodeIndex {
+impl From<NodeIndex> for aleph_bft_crypto::NodeIndex {
     fn from(idx: NodeIndex) -> Self {
-        current_aleph_bft::NodeIndex(idx.0)
+        aleph_bft_crypto::NodeIndex(idx.0)
     }
 }
 
-impl From<NodeIndex> for legacy_aleph_bft::NodeIndex {
+impl From<NodeIndex> for legacy_aleph_bft_crypto::NodeIndex {
     fn from(idx: NodeIndex) -> Self {
-        legacy_aleph_bft::NodeIndex(idx.0)
+        legacy_aleph_bft_crypto::NodeIndex(idx.0)
     }
 }
 
-impl From<legacy_aleph_bft::NodeIndex> for NodeIndex {
-    fn from(idx: legacy_aleph_bft::NodeIndex) -> Self {
+impl From<legacy_aleph_bft_crypto::NodeIndex> for NodeIndex {
+    fn from(idx: legacy_aleph_bft_crypto::NodeIndex) -> Self {
         Self(idx.0)
     }
 }
 
-impl From<current_aleph_bft::NodeIndex> for NodeIndex {
-    fn from(idx: current_aleph_bft::NodeIndex) -> Self {
+impl From<aleph_bft_crypto::NodeIndex> for NodeIndex {
+    fn from(idx: aleph_bft_crypto::NodeIndex) -> Self {
         Self(idx.0)
     }
 }
@@ -113,25 +113,25 @@ impl<S: 'static> IntoIterator for SignatureSet<S> {
     }
 }
 
-impl<S: Signature> legacy_aleph_bft::PartialMultisignature for SignatureSet<S> {
+impl<S: Signature> legacy_aleph_bft_crypto::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
     fn add_signature(
         self,
         signature: &Self::Signature,
-        index: legacy_aleph_bft::NodeIndex,
+        index: legacy_aleph_bft_crypto::NodeIndex,
     ) -> Self {
         SignatureSet::add_signature(self, signature, index.into())
     }
 }
 
-impl<S: Signature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
+impl<S: Signature> aleph_bft_crypto::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
     fn add_signature(
         self,
         signature: &Self::Signature,
-        index: current_aleph_bft::NodeIndex,
+        index: aleph_bft_crypto::NodeIndex,
     ) -> Self {
         SignatureSet::add_signature(self, signature, index.into())
     }
