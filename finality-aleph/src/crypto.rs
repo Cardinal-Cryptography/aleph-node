@@ -35,18 +35,11 @@ impl Display for Error {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Decode, Encode)]
-pub struct Signature(AuthoritySignature);
+pub struct Signature(pub AuthoritySignature);
 
-impl From<AuthoritySignature> for Signature {
-    fn from(authority_signature: AuthoritySignature) -> Signature {
-        Signature(authority_signature)
-    }
-}
-
-impl From<Signature> for AuthoritySignature {
-    fn from(signature: Signature) -> AuthoritySignature {
-        signature.0
-    }
+/// Verify the signature given an authority id.
+pub fn verify(authority: &AuthorityId, message: &[u8], signature: &Signature) -> bool {
+    authority.verify(&message, &signature.0)
 }
 
 /// Ties an authority identification and a cryptography keystore together for use in
@@ -106,49 +99,37 @@ impl AuthorityPen {
     }
 }
 
-/// Verify the signature given an authority id.
-pub fn verify(authority: &AuthorityId, message: &[u8], signature: &Signature) -> bool {
-    authority.verify(&message, &signature.0)
-}
-
 /// Holds the public authority keys for a session allowing for verification of messages from that
 /// session.
 #[derive(PartialEq, Clone, Debug)]
-pub struct AuthorityVerifier {
-    authorities: Vec<AuthorityId>,
-}
+pub struct AuthorityVerifier(
+    primitives::crypto::AuthorityVerifier<AuthorityId, primitives::AuthoritySignature>,
+);
 
 impl AuthorityVerifier {
     /// Constructs a new authority verifier from a set of public keys.
     pub fn new(authorities: Vec<AuthorityId>) -> Self {
-        AuthorityVerifier { authorities }
+        AuthorityVerifier(primitives::crypto::AuthorityVerifier::new(authorities))
     }
 
     /// Verifies whether the message is correctly signed with the signature assumed to be made by a
     /// node of the given index.
     pub fn verify(&self, msg: &[u8], sgn: &Signature, index: NodeIndex) -> bool {
-        match self.authorities.get(index.0) {
-            Some(authority) => verify(authority, msg, sgn),
-            None => false,
-        }
+        self.0.verify(&msg.to_vec(), &sgn.0, index.0 as u64)
     }
 
     pub fn node_count(&self) -> NodeCount {
-        self.authorities.len().into()
-    }
-
-    fn threshold(&self) -> usize {
-        2 * self.node_count().0 / 3 + 1
+        self.0.node_count().into()
     }
 
     /// Verifies whether the given signature set is a correct and complete multisignature of the
     /// message. Completeness requires more than 2/3 of all authorities.
     pub fn is_complete(&self, msg: &[u8], partial: &SignatureSet<Signature>) -> bool {
-        let signature_count = partial.iter().count();
-        if signature_count < self.threshold() {
-            return false;
-        }
-        partial.iter().all(|(i, sgn)| self.verify(msg, sgn, i))
+        primitives::crypto::AuthorityVerifier::is_complete(
+            &self.0,
+            &msg.to_vec(),
+            &partial.clone().into(),
+        )
     }
 }
 

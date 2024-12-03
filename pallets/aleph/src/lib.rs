@@ -15,7 +15,7 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
-    Balance, ScoreSignatureSet, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
+    crypto::SignatureSet, Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
     LEGACY_FINALITY_VERSION, TOKEN,
 };
 use sp_std::prelude::*;
@@ -50,6 +50,8 @@ pub mod pallet {
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
         type TotalIssuanceProvider: TotalIssuanceProvider;
     }
+
+    pub type Signature<T> = <<T as Config>::AuthorityId as RuntimeAppPublic>::Signature;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -95,6 +97,11 @@ pub mod pallet {
     #[pallet::getter(fn authorities)]
     pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
+    // #[pallet::storage]
+    // #[pallet::getter(fn authority_verifier)]
+    // pub(super) type AuthorityVerifier<T: Config> =
+    //     StorageValue<_, primitives::crypto::AuthorityVerifier<T::AuthorityId, Signature<T>>, ValueQuery>;
+
     #[pallet::storage]
     #[pallet::getter(fn next_authorities)]
     pub(super) type NextAuthorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
@@ -129,7 +136,8 @@ pub mod pallet {
 
     // Test if runtime compiles
     #[pallet::storage]
-    pub(super) type AbftScoreSignature<T: Config> = StorageValue<_, ScoreSignatureSet, OptionQuery>;
+    pub(super) type AbftSignature<T: Config> =
+        StorageValue<_, SignatureSet<Signature<T>>, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
@@ -290,6 +298,12 @@ pub mod pallet {
                 }
                 false => Ok(()),
             }
+        }
+
+        pub fn verify_multisignature(msg: &Vec<u8>, sgn: &SignatureSet<Signature<T>>) -> bool {
+            let authority_verifier =
+                primitives::crypto::AuthorityVerifier::new(Self::authorities());
+            primitives::crypto::AuthorityVerifier::is_complete(&authority_verifier, msg, sgn)
         }
     }
 

@@ -28,7 +28,7 @@ pub use legacy::{
 };
 pub use network::NetworkWrapper;
 use parity_scale_codec::{Decode, Encode};
-use primitives::{IndexedSignature, ScoreSignatureSet};
+use primitives::{crypto::IndexedSignature, AuthoritySignature};
 pub use traits::{SpawnHandle, Wrapper as HashWrapper};
 pub use types::{NodeCount, NodeIndex, Recipient};
 
@@ -73,17 +73,21 @@ impl<S: 'static> IntoIterator for SignatureSet<S> {
     }
 }
 
-impl From<SignatureSet<crate::crypto::Signature>> for ScoreSignatureSet {
-    fn from(signature_set: SignatureSet<crate::crypto::Signature>) -> ScoreSignatureSet {
-        let score_sigantures: Vec<IndexedSignature> = signature_set
+impl From<SignatureSet<crate::crypto::Signature>>
+    for primitives::crypto::SignatureSet<AuthoritySignature>
+{
+    fn from(
+        signature_set: SignatureSet<crate::crypto::Signature>,
+    ) -> primitives::crypto::SignatureSet<AuthoritySignature> {
+        let score_sigantures: Vec<IndexedSignature<AuthoritySignature>> = signature_set
             .0
             .into_iter()
             .map(|(idx, s)| IndexedSignature {
                 index: idx.0 as u64,
-                signature: s.into(),
+                signature: s.0,
             })
             .collect();
-        ScoreSignatureSet(score_sigantures)
+        primitives::crypto::SignatureSet(score_sigantures)
     }
 }
 
