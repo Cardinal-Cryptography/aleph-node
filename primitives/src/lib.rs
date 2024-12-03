@@ -421,24 +421,5 @@ pub struct IndexedSignature {
     pub signature: AuthoritySignature,
 }
 
-impl From<(NodeIndex, AuthoritySignature)> for IndexedSignature {
-    fn from(index_signature: (NodeIndex, AuthoritySignature)) -> Self {
-        IndexedSignature {
-            index: index_signature.0,
-            signature: index_signature.1,
-        }
-    }
-}
-
 #[derive(Decode, Encode, TypeInfo, Debug, Clone)]
-pub struct ScoreSignatureSet(Vec<IndexedSignature>);
-
-impl From<Vec<(NodeIndex, AuthoritySignature)>> for ScoreSignatureSet {
-    fn from(score_sigantures: Vec<(NodeIndex, AuthoritySignature)>) -> Self {
-        let score_sigantures: Vec<IndexedSignature> = score_sigantures
-            .into_iter()
-            .map(|(i, s)| (i, s).into())
-            .collect();
-        ScoreSignatureSet(score_sigantures)
-    }
-}
+pub struct ScoreSignatureSet(pub Vec<IndexedSignature>);
