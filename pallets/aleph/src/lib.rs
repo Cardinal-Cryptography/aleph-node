@@ -15,7 +15,7 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
-    Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
+    Balance, ScoreSignatureSet, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
     LEGACY_FINALITY_VERSION, TOKEN,
 };
 use sp_std::prelude::*;
@@ -126,6 +126,10 @@ pub mod pallet {
     #[pallet::getter(fn finality_version_change)]
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
+
+    // Test if runtime compiles
+    #[pallet::storage]
+    pub(super) type AbftScoreSignature<T: Config> = StorageValue<_, ScoreSignatureSet, OptionQuery>;
 
     impl<T: Config> Pallet<T> {
         pub(crate) fn initialize_authorities(
