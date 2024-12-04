@@ -140,6 +140,7 @@ pub mod pallet {
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
 
+    // clear this storage on session end
     #[pallet::storage]
     #[pallet::getter(fn abft_scores)]
     pub type AbftScores<T: Config> = StorageMap<_, Twox64Concat, ScoreNonce, Score>;
@@ -309,34 +310,43 @@ pub mod pallet {
             }
         }
 
-        fn check_nonce(nonce: &ScoreNonce) -> Result<(), TransactionValidityError> {
-            let last_nonce = Self::last_score_nonce();
-            if *nonce <= last_nonce {
+        fn check_session_id(session_id: SessionIndex) -> Result<(), TransactionValidityError> {
+            let current_session_id = pallet_session::Pallet::<T>::current_index();
+            if current_session_id < session_id {
+                return Err(InvalidTransaction::Future.into());
+            }
+            if current_session_id > session_id {
                 return Err(InvalidTransaction::Stale.into());
             }
 
             Ok(())
         }
 
-        // Add session id
+        fn check_nonce(nonce: ScoreNonce) -> Result<(), TransactionValidityError> {
+            let last_nonce = Self::last_score_nonce();
+            if nonce <= last_nonce {
+                return Err(InvalidTransaction::Stale.into());
+            }
+
+            Ok(())
+        }
+
         fn check_score(
-            nonce: &ScoreNonce,
             score: &Score,
             signature: &SignatureSet<Signature<T>>,
         ) -> Result<(), TransactionValidityError> {
-            Self::check_nonce(nonce)?;
-            Self::verify_score(nonce, score, signature)?;
+            Self::check_session_id(score.session_id)?;
+            Self::check_nonce(score.nonce)?;
+            Self::verify_score(score, signature)?;
 
             Ok(())
         }
 
         pub fn verify_score(
-            nonce: &ScoreNonce,
             score: &Score,
             signature: &SignatureSet<Signature<T>>,
         ) -> Result<(), TransactionValidityError> {
-            let session_id = pallet_session::Pallet::<T>::current_index();
-            let msg = (session_id, nonce, score).encode();
+            let msg = score.encode();
             let authority_verifier = AuthorityVerifier::new(Self::authorities());
             if !AuthorityVerifier::is_complete(&authority_verifier, &msg, signature) {
                 return Err(InvalidTransaction::BadProof.into());
@@ -345,17 +355,12 @@ pub mod pallet {
         }
 
         pub fn submit_abft_score(
-            nonce: ScoreNonce,
             score: Score,
             signature: SignatureSet<Signature<T>>,
         ) -> Option<()> {
             use frame_system::offchain::SubmitTransaction;
 
-            let call = Call::unsigned_submit_abft_score {
-                nonce,
-                score,
-                signature,
-            };
+            let call = Call::unsigned_submit_abft_score { score, signature };
             SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).ok()
         }
     }
@@ -453,15 +458,15 @@ pub mod pallet {
         /// Stores abft score
         pub fn unsigned_submit_abft_score(
             origin: OriginFor<T>,
-            nonce: ScoreNonce,
             score: Score,
             _signature: SignatureSet<Signature<T>>, // We don't check signature as it was already checked
         ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
-            Self::check_nonce(&nonce).map_err(|e| DispatchError::Other(e.into()))?;
+            Self::check_session_id(score.session_id).map_err(|e| DispatchError::Other(e.into()))?;
+            Self::check_nonce(score.nonce).map_err(|e| DispatchError::Other(e.into()))?;
 
-            AbftScores::<T>::insert(nonce, score);
-            <LastScoreNonce<T>>::put(nonce);
+            <LastScoreNonce<T>>::put(score.nonce);
+            AbftScores::<T>::insert(score.nonce, score);
 
             Ok(Pays::No.into())
         }
@@ -472,15 +477,10 @@ pub mod pallet {
         type Call = Call<T>;
 
         fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-            if let Call::unsigned_submit_abft_score {
-                nonce,
-                score,
-                signature,
-            } = call
-            {
-                Self::check_score(nonce, score, signature)?;
+            if let Call::unsigned_submit_abft_score { score, signature } = call {
+                Self::check_score(score, signature)?;
                 ValidTransaction::with_tag_prefix("AbftScore")
-                    .priority(*nonce as u64) // this ensures that later nonces are first in tx queue
+                    .priority(score.nonce as u64) // this ensures that later nonces are first in tx queue
                     .longevity(TransactionLongevity::MAX) // consider restricting longevity
                     .propagate(true)
                     .build()
@@ -490,13 +490,8 @@ pub mod pallet {
         }
 
         fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-            if let Call::unsigned_submit_abft_score {
-                nonce,
-                score,
-                signature,
-            } = call
-            {
-                Self::check_score(nonce, score, signature)
+            if let Call::unsigned_submit_abft_score { score, signature } = call {
+                Self::check_score(score, signature)
             } else {
                 Err(InvalidTransaction::Call.into())
             }

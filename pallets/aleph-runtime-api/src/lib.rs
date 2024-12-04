@@ -2,9 +2,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use primitives::{
-    crypto::SignatureSet, AccountId, ApiError, AuthorityId, AuthoritySignature, Balance, Nonce,
-    Perbill, Score, SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError,
-    Version,
+    crypto::SignatureSet, AccountId, ApiError, AuthorityId, AuthoritySignature, Balance, Perbill,
+    Score, SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_std::vec::Vec;
@@ -39,6 +38,6 @@ sp_api::decl_runtime_apis! {
         /// Returns payout. First tuple item is a validators payout, 2nd is the rest.
         fn current_era_payout() -> (Balance, Balance);
         /// Submits score for a nonce in a session of performance of finality committee members.
-        fn submit_abft_score(nonce: Nonce, score: Score, signature: SignatureSet<AuthoritySignature>) -> Option<()>;
+        fn submit_abft_score(score: Score, signature: SignatureSet<AuthoritySignature>) -> Option<()>;
     }
 }

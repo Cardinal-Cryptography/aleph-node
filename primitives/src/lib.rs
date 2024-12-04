@@ -414,8 +414,14 @@ pub mod staking {
     }
 }
 
-pub type Score = Vec<u32>;
 pub type ScoreNonce = u32;
+
+#[derive(PartialEq, Decode, Encode, TypeInfo, Debug, Clone)]
+pub struct Score {
+    pub session_id: SessionIndex,
+    pub nonce: ScoreNonce,
+    pub points: Vec<u32>,
+}
 
 pub mod crypto {
     use core::marker::PhantomData;
