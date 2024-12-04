@@ -52,7 +52,9 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config:
-        frame_system::Config + frame_system::offchain::SendTransactionTypes<Call<Self>>
+        frame_system::Config
+        + frame_system::offchain::SendTransactionTypes<Call<Self>>
+        + pallet_session::Config
     {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -324,14 +326,14 @@ pub mod pallet {
             signature: &ScoreSignature,
         ) -> Result<(), TransactionValidityError> {
             Self::check_nonce(nonce)?;
-            Self::verify_score(nonce, score, sgn)?;
+            Self::verify_score(nonce, score, signature)?;
 
             Ok(())
         }
 
         pub fn verify_score(
-            nonce: ScoreNonce,
-            score: Score,
+            nonce: &ScoreNonce,
+            score: &Score,
             sgn: &SignatureSet<Signature<T>>,
         ) -> Result<(), TransactionValidityError> {
             let session_id = pallet_session::Pallet::<T>::current_index();
