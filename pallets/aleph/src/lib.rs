@@ -329,7 +329,11 @@ pub mod pallet {
             Ok(())
         }
 
-        pub fn verify_score(nonce: ScoreNonce, score: Score, sgn: &SignatureSet<Signature<T>>) -> Result<(), TransactionValidityError>{
+        pub fn verify_score(
+            nonce: ScoreNonce,
+            score: Score,
+            sgn: &SignatureSet<Signature<T>>,
+        ) -> Result<(), TransactionValidityError> {
             let session_id = pallet_session::Pallet::<T>::current_index();
             let msg = (session_id, nonce, score).encode();
             let authority_verifier = AuthorityVerifier::new(Self::authorities());
