@@ -15,7 +15,8 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
-    crypto::SignatureSet, Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
+    crypto::{AuthorityVerifier, SignatureSet},
+    Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
     LEGACY_FINALITY_VERSION, TOKEN,
 };
 use sp_std::prelude::*;
@@ -129,7 +130,6 @@ pub mod pallet {
     pub(super) type FinalityScheduledVersionChange<T: Config> =
         StorageValue<_, VersionChange, OptionQuery>;
 
-    // Test if runtime compiles
     #[pallet::storage]
     pub(super) type AbftSignature<T: Config> =
         StorageValue<_, SignatureSet<Signature<T>>, OptionQuery>;
@@ -296,9 +296,8 @@ pub mod pallet {
         }
 
         pub fn verify_multisignature(msg: &Vec<u8>, sgn: &SignatureSet<Signature<T>>) -> bool {
-            let authority_verifier =
-                primitives::crypto::AuthorityVerifier::new(Self::authorities());
-            primitives::crypto::AuthorityVerifier::is_complete(&authority_verifier, msg, sgn)
+            let authority_verifier = AuthorityVerifier::new(Self::authorities());
+            AuthorityVerifier::is_complete(&authority_verifier, msg, sgn)
         }
     }
 

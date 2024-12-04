@@ -424,12 +424,9 @@ pub mod crypto {
 
     use super::AuthoritySignature;
 
-    pub type NodeIndex = u64;
-    pub type NodeCount = u64;
-
     #[derive(Decode, Encode, TypeInfo, Debug, Clone)]
     pub struct IndexedSignature<S> {
-        pub index: NodeIndex,
+        pub index: u64,
         pub signature: S,
     }
 
@@ -471,7 +468,7 @@ pub mod crypto {
 
         /// Verifies whether the message is correctly signed with the signature assumed to be made by a
         /// node of the given index.
-        pub fn verify(&self, msg: &Vec<u8>, sgn: &S, index: NodeIndex) -> bool {
+        pub fn verify(&self, msg: &Vec<u8>, sgn: &S, index: u64) -> bool {
             match self.authorities.get(index as usize) {
                 Some(authority) => authority.verify(msg, sgn),
                 None => false,
