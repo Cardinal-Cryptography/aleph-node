@@ -40,7 +40,7 @@ pub mod pallet {
     };
     use pallet_session::SessionManager;
     use primitives::{
-        Score, ScoreNonce, ScoreSignature, SessionInfoProvider, TotalIssuanceProvider,
+        Score, ScoreNonce, SessionInfoProvider, TotalIssuanceProvider,
     };
     use sp_runtime::traits::ValidateUnsigned;
     use sp_std::collections::btree_map::BTreeMap;
@@ -323,7 +323,7 @@ pub mod pallet {
         fn check_score(
             nonce: &ScoreNonce,
             score: &Score,
-            signature: &ScoreSignature,
+            signature: &SignatureSet<Signature<T>>,
         ) -> Result<(), TransactionValidityError> {
             Self::check_nonce(nonce)?;
             Self::verify_score(nonce, score, signature)?;
@@ -334,12 +334,12 @@ pub mod pallet {
         pub fn verify_score(
             nonce: &ScoreNonce,
             score: &Score,
-            sgn: &SignatureSet<Signature<T>>,
+            signature: &SignatureSet<Signature<T>>,
         ) -> Result<(), TransactionValidityError> {
             let session_id = pallet_session::Pallet::<T>::current_index();
             let msg = (session_id, nonce, score).encode();
             let authority_verifier = AuthorityVerifier::new(Self::authorities());
-            if !AuthorityVerifier::is_complete(&authority_verifier, &msg, sgn) {
+            if !AuthorityVerifier::is_complete(&authority_verifier, &msg, signature) {
                 return Err(InvalidTransaction::BadProof.into());
             }
             Ok(())
@@ -348,7 +348,7 @@ pub mod pallet {
         pub fn submit_abft_score(
             nonce: ScoreNonce,
             score: Score,
-            signature: ScoreSignature,
+            signature: SignatureSet<Signature<T>>,
         ) -> Option<()> {
             use frame_system::offchain::SubmitTransaction;
 
@@ -456,7 +456,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             nonce: ScoreNonce,
             score: Score,
-            _signature: ScoreSignature,
+            _signature: SignatureSet<Signature<T>>, // We don't check signature as it was already checked
         ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             Self::check_nonce(&nonce).map_err(|e| DispatchError::Other(e.into()))?;

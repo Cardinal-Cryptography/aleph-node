@@ -428,13 +428,13 @@ pub mod crypto {
 
     use super::AuthoritySignature;
 
-    #[derive(Decode, Encode, TypeInfo, Debug, Clone)]
+    #[derive(PartialEq, Decode, Encode, TypeInfo, Debug, Clone)]
     pub struct IndexedSignature<S> {
         pub index: u64,
         pub signature: S,
     }
 
-    #[derive(Decode, Encode, TypeInfo, Debug, Clone)]
+    #[derive(PartialEq, Decode, Encode, TypeInfo, Debug, Clone)]
     pub struct SignatureSet<S>(pub Vec<IndexedSignature<S>>);
 
     #[cfg_attr(feature = "std", derive(Hash))]
