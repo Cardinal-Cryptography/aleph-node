@@ -481,7 +481,7 @@ pub mod pallet {
                 Self::check_score(nonce, score, signature)?;
                 ValidTransaction::with_tag_prefix("AbftScore")
                     .priority(*nonce as u64) // this ensures that later nonces are first in tx queue
-                    .longevity(TransactionLongevity::max_value()) // consider restricting longevity
+                    .longevity(TransactionLongevity::MAX) // consider restricting longevity
                     .propagate(true)
                     .build()
             } else {
