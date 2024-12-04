@@ -320,19 +320,23 @@ pub mod pallet {
 
         fn check_score(
             nonce: &ScoreNonce,
-            _score: &Score,
-            _signature: &ScoreSignature,
+            score: &Score,
+            signature: &ScoreSignature,
         ) -> Result<(), TransactionValidityError> {
             Self::check_nonce(nonce)?;
-
-            // validate signature
+            Self::verify_score(nonce, score, sgn)?;
 
             Ok(())
         }
 
-        pub fn verify_multisignature(msg: &Vec<u8>, sgn: &SignatureSet<Signature<T>>) -> bool {
+        pub fn verify_score(nonce: ScoreNonce, score: Score, sgn: &SignatureSet<Signature<T>>) -> Result<(), TransactionValidityError>{
+            let session_id = pallet_session::Pallet::<T>::current_index();
+            let msg = (session_id, nonce, score).encode();
             let authority_verifier = AuthorityVerifier::new(Self::authorities());
-            AuthorityVerifier::is_complete(&authority_verifier, msg, sgn)
+            if !AuthorityVerifier::is_complete(&authority_verifier, &msg, sgn) {
+                return Err(InvalidTransaction::BadProof.into());
+            }
+            Ok(())
         }
 
         pub fn submit_abft_score(
