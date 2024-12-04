@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use primitives::{
-    AccountId, ApiError, AuthorityId, Balance, Perbill, Round, Score, ScoreSignature,
+    AccountId, ApiError, AuthorityId, Balance, Nonce, Perbill, Score, ScoreSignature,
     SessionAuthorityData, SessionCommittee, SessionIndex, SessionValidatorError, Version,
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -37,7 +37,7 @@ sp_api::decl_runtime_apis! {
         fn yearly_inflation() -> Perbill;
         /// Returns payout. First tuple item is a validators payout, 2nd is the rest.
         fn current_era_payout() -> (Balance, Balance);
-        /// Submits score for a round in a session of performance of finality committee members.
-        fn submit_abft_score(round: Round, score: Score, signature: ScoreSignature) -> Option<()>;
+        /// Submits score for a nonce in a session of performance of finality committee members.
+        fn submit_abft_score(nonce: Nonce, score: Score, signature: ScoreSignature) -> Option<()>;
     }
 }
