@@ -39,9 +39,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, OriginFor},
     };
     use pallet_session::SessionManager;
-    use primitives::{
-        Score, ScoreNonce, SessionInfoProvider, TotalIssuanceProvider,
-    };
+    use primitives::{Score, ScoreNonce, SessionInfoProvider, TotalIssuanceProvider};
     use sp_runtime::traits::ValidateUnsigned;
     use sp_std::collections::btree_map::BTreeMap;
     #[cfg(feature = "std")]
@@ -320,6 +318,7 @@ pub mod pallet {
             Ok(())
         }
 
+        // Add session id
         fn check_score(
             nonce: &ScoreNonce,
             score: &Score,

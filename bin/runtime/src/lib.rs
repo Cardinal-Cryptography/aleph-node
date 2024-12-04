@@ -44,9 +44,9 @@ use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustm
 use pallet_tx_pause::RuntimeCallNameOf;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use primitives::{
-    staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, Address,
+    crypto::SignatureSet, staking::MAX_NOMINATORS_REWARDED_PER_VALIDATOR, wrap_methods, Address,
     AlephNodeSessionKeys as SessionKeys, ApiError as AlephApiError, AuraId, AuthorityId as AlephId,
-    BlockNumber as AlephBlockNumber, Header as AlephHeader, Score, ScoreNonce, ScoreSignature,
+    AuthoritySignature, BlockNumber as AlephBlockNumber, Header as AlephHeader, Score, ScoreNonce,
     SessionAuthorityData, SessionCommittee, SessionIndex, SessionInfoProvider,
     SessionValidatorError, TotalIssuanceProvider as TotalIssuanceProviderT,
     Version as FinalityVersion, ADDRESSES_ENCODING, DEFAULT_BAN_REASON_LENGTH, DEFAULT_MAX_WINNERS,
@@ -1239,7 +1239,7 @@ impl_runtime_apis! {
             ExponentialEraPayout::era_payout(total_issuance, MILLISECONDS_PER_ERA)
         }
 
-        fn submit_abft_score(nonce: ScoreNonce, score: Score, signature: ScoreSignature) -> Option<()> {
+        fn submit_abft_score(nonce: ScoreNonce, score: Score, signature: SignatureSet<AuthoritySignature>) -> Option<()> {
             Aleph::submit_abft_score(nonce, score, signature)
         }
     }

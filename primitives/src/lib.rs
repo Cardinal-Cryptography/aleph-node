@@ -416,7 +416,6 @@ pub mod staking {
 
 pub type Score = Vec<u32>;
 pub type ScoreNonce = u32;
-pub type ScoreSignature = u64;
 
 pub mod crypto {
     use core::marker::PhantomData;
