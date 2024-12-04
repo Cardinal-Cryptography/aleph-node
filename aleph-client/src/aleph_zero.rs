@@ -1,6 +1,78 @@
+#[allow(dead_code, unused_imports, non_camel_case_types)]
+#[allow(clippy::all)]
+#[allow(rustdoc::broken_intra_doc_links)]
+pub mod api {
+    #[allow(unused_imports)]
+    mod root_mod {
+        pub use super::*;
+    }
+    pub static PALLETS: [&str; 26usize] = [
+        "System",
+        "RandomnessCollectiveFlip",
+        "Scheduler",
+        "Aura",
+        "Timestamp",
+        "Balances",
+        "TransactionPayment",
+        "Authorship",
+        "Staking",
+        "History",
+        "Session",
+        "Aleph",
+        "Elections",
+        "Treasury",
+        "Vesting",
+        "Utility",
+        "Multisig",
+        "Sudo",
+        "Contracts",
+        "NominationPools",
+        "Identity",
+        "CommitteeManagement",
+        "Proxy",
+        "SafeMode",
+        "TxPause",
+        "Operations",
+    ];
+    pub static RUNTIME_APIS: [&str; 14usize] = [
+        "Core",
+        "Metadata",
+        "BlockBuilder",
+        "TaggedTransactionQueue",
+        "AuraApi",
+        "OffchainWorkerApi",
+        "SessionKeys",
+        "AccountNonceApi",
+        "TransactionPaymentApi",
+        "AlephSessionApi",
+        "NominationPoolsApi",
+        "StakingApi",
+        "ContractsApi",
+        "GenesisBuilder",
+    ];
+    #[doc = r" The error type returned when there is a runtime issue."]
+    pub type DispatchError = runtime_types::sp_runtime::DispatchError;
+    #[doc = r" The outer event enum."]
+    pub type Event = runtime_types::aleph_runtime::RuntimeEvent;
+    #[doc = r" The outer extrinsic enum."]
+    pub type Call = runtime_types::aleph_runtime::RuntimeCall;
+    #[doc = r" The outer error enum representing the DispatchError's Module variant."]
+    pub type Error = runtime_types::aleph_runtime::RuntimeError;
+    pub fn constants() -> ConstantsApi {
+        ConstantsApi
+    }
+    pub fn storage() -> StorageApi {
+        StorageApi
+    }
+    pub fn tx() -> TransactionApi {
+        TransactionApi
+    }
+    pub fn apis() -> runtime_apis::RuntimeApi {
+        runtime_apis::RuntimeApi
+    }
+    pub mod runtime_apis {
+        use ::subxt::ext::codec::Encode;
 
-<<<<<<< Updated upstream
-=======
         use super::{root_mod, runtime_types};
         pub struct RuntimeApi;
         impl RuntimeApi {
@@ -28762,4 +28834,3 @@
         }
     }
 }
->>>>>>> Stashed changes
