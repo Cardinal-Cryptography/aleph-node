@@ -15,6 +15,7 @@ use frame_support::{
 };
 pub use pallet::*;
 use primitives::{
+    crypto::{AuthorityVerifier, SignatureSet},
     Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
     LEGACY_FINALITY_VERSION, TOKEN,
 };
@@ -60,6 +61,8 @@ pub mod pallet {
         type NextSessionAuthorityProvider: NextSessionAuthorityProvider<Self>;
         type TotalIssuanceProvider: TotalIssuanceProvider;
     }
+
+    pub type Signature<T> = <<T as Config>::AuthorityId as RuntimeAppPublic>::Signature;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -325,6 +328,11 @@ pub mod pallet {
             // validate signature
 
             Ok(())
+        }
+
+        pub fn verify_multisignature(msg: &Vec<u8>, sgn: &SignatureSet<Signature<T>>) -> bool {
+            let authority_verifier = AuthorityVerifier::new(Self::authorities());
+            AuthorityVerifier::is_complete(&authority_verifier, msg, sgn)
         }
 
         pub fn submit_abft_score(
