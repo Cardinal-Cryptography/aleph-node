@@ -413,3 +413,7 @@ pub mod staking {
         };
     }
 }
+
+pub type Score = Vec<u32>;
+pub type Round = u32;
+pub type ScoreSignature = u64;
