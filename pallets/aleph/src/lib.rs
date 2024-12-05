@@ -50,9 +50,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config:
-        frame_system::Config
-        + frame_system::offchain::SendTransactionTypes<Call<Self>>
-        + pallet_session::Config
+        frame_system::Config + frame_system::offchain::SendTransactionTypes<Call<Self>>
     {
         type AuthorityId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -311,7 +309,7 @@ pub mod pallet {
         }
 
         fn check_session_id(session_id: SessionIndex) -> Result<(), TransactionValidityError> {
-            let current_session_id = pallet_session::Pallet::<T>::current_index();
+            let current_session_id = Self::current_session();
             if current_session_id < session_id {
                 return Err(InvalidTransaction::Future.into());
             }
@@ -363,12 +361,6 @@ pub mod pallet {
             let call = Call::unsigned_submit_abft_score { score, signature };
             SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).ok()
         }
-    }
-
-    #[pallet::error]
-    pub enum Error<T> {
-        /// Duplicated score in the same block
-        DuplicatedScore,
     }
 
     #[pallet::call]
