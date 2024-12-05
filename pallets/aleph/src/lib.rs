@@ -141,7 +141,7 @@ pub mod pallet {
     // clear this storage on session end
     #[pallet::storage]
     #[pallet::getter(fn abft_scores)]
-    pub type AbftScores<T: Config> = StorageMap<_, Twox64Concat, ScoreNonce, Score>;
+    pub type AbftScores<T: Config> = StorageMap<_, Twox64Concat, SessionIndex, Score>;
 
     #[pallet::storage]
     #[pallet::getter(fn last_score_nonce)]
@@ -458,7 +458,7 @@ pub mod pallet {
             Self::check_nonce(score.nonce).map_err(|e| DispatchError::Other(e.into()))?;
 
             <LastScoreNonce<T>>::put(score.nonce);
-            AbftScores::<T>::insert(score.nonce, score);
+            AbftScores::<T>::insert(score.session_id, score);
 
             Ok(Pays::No.into())
         }
