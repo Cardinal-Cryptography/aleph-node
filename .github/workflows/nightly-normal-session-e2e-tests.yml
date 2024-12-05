@@ -46,6 +46,7 @@ jobs:
     uses: ./.github/workflows/_build-aleph-node.yml
     with:
       ref: main
+      repository: Cardinal-Cryptography/aleph-node-flooder
       production: false
       additional-flags: "--features network_flooding_test"
       secrets: inherit

@@ -9,6 +9,10 @@ on:
         description: 'git ref: hash, branch, tag to build aleph-node binary from'
         type: string
         required: true
+      repository:
+        description: 'Repository name with owner. For example, actions/checkout. Default: ${{ github.repository }}'
+        required: false
+        default: ${{ github.repository }}
       production:
         description: 'Set to true to build production binary, otherwise set to false'
         type: boolean
