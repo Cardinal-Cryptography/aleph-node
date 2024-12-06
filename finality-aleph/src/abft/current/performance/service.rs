@@ -65,7 +65,7 @@ impl<UH> Service<UH>
 where
     UH: UnverifiedHeader,
 {
-    /// Create a new service, together with a unit finalizaiton handler that should be passed to
+    /// Create a new service, together with a unit finalization handler that should be passed to
     /// ABFT. It will wrap the provided finalization handler and call it in the background.
     pub fn new<FH>(
         finalization_handler: FH,
