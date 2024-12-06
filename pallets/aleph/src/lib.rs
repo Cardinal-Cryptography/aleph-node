@@ -444,7 +444,7 @@ pub mod pallet {
             Ok(())
         }
 
-        // fix weight
+        // fix weight, take into account validate_unsigned
         #[pallet::call_index(3)]
         #[pallet::weight(T::BlockWeights::get().max_block * Perbill::from_percent(10))]
         /// Stores abft score
@@ -454,8 +454,6 @@ pub mod pallet {
             _signature: SignatureSet<Signature<T>>, // We don't check signature as it was checked by ValidateUnsigned trait
         ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
-            Self::check_session_id(score.session_id).map_err(|e| DispatchError::Other(e.into()))?;
-            Self::check_nonce(score.nonce).map_err(|e| DispatchError::Other(e.into()))?;
 
             <LastScoreNonce<T>>::put(score.nonce);
             AbftScores::<T>::insert(score.session_id, score);
@@ -478,14 +476,6 @@ pub mod pallet {
                     .build()
             } else {
                 InvalidTransaction::Call.into()
-            }
-        }
-
-        fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-            if let Call::unsigned_submit_abft_score { score, signature } = call {
-                Self::check_score(score, signature)
-            } else {
-                Err(InvalidTransaction::Call.into())
             }
         }
     }
