@@ -55,8 +55,8 @@ pub mod pallet {
     };
     use frame_system::{ensure_root, pallet_prelude::OriginFor};
     use primitives::{
-        BanHandler, BanReason, BlockCount, FinalityCommitteeManager, SessionCount,
-        SessionValidators, ValidatorProvider,
+        AbftScoresProvider, BanHandler, BanReason, BlockCount, FinalityCommitteeManager,
+        SessionCount, SessionValidators, ValidatorProvider,
     };
     use sp_runtime::{Perbill, Perquintill};
     use sp_staking::EraIndex;
@@ -82,6 +82,7 @@ pub mod pallet {
         /// Something that handles removal of the validators
         type ValidatorExtractor: ValidatorExtractor<AccountId = Self::AccountId>;
         type FinalityCommitteeManager: FinalityCommitteeManager<Self::AccountId>;
+        type AbftScoresProvider: AbftScoresProvider;
         /// Nr of blocks in the session.
         #[pallet::constant]
         type SessionPeriod: Get<u32>;
@@ -124,6 +125,10 @@ pub mod pallet {
     pub(crate) type CurrentAndNextSessionValidatorsStorage<T: Config> =
         StorageValue<_, CurrentAndNextSessionValidators<T::AccountId>, ValueQuery>;
 
+    /// Abft performance scores of validators in the current era.
+    #[pallet::storage]
+    pub type ValidatorEraScores<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, [u32; 3]>;
+
     #[pallet::error]
     pub enum Error<T> {
         /// Raised in any scenario [`BanConfig`] is invalid
@@ -148,6 +153,9 @@ pub mod pallet {
 
         /// Validators have been banned from the committee
         BanValidators(Vec<(T::AccountId, BanInfo)>),
+
+        /// Validator is underperforimg in finality committee
+        ValidatorUnderperforming(T::AccountId),
     }
 
     #[pallet::call]

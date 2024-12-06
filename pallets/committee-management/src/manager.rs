@@ -1,7 +1,7 @@
 use frame_system::pallet_prelude::BlockNumberFor;
 use log::debug;
 use pallet_session::SessionManager;
-use primitives::{EraManager, FinalityCommitteeManager, SessionCommittee};
+use primitives::{AbftScoresProvider, EraManager, FinalityCommitteeManager, SessionCommittee};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{marker::PhantomData, vec::Vec};
 
@@ -134,6 +134,7 @@ where
         T::end_session(end_index);
         Pallet::<C>::adjust_rewards_for_session();
         Pallet::<C>::calculate_underperforming_validators();
+        Pallet::<C>::calculate_underperforming_finalizers(end_index);
         // clear block count after calculating stats for underperforming validators, as they use
         // SessionValidatorBlockCount for that
         let result = SessionValidatorBlockCount::<C>::clear(u32::MAX, None);
@@ -142,6 +143,8 @@ where
             "Result of clearing the `SessionValidatorBlockCount`, {:?}",
             result.deconstruct()
         );
+
+        C::AbftScoresProvider::clear_scores_for_session(end_index);
     }
 
     fn start_session(start_index: SessionIndex) {
@@ -151,6 +154,7 @@ where
         if let Some(era) = Self::session_starts_era(start_index) {
             Pallet::<C>::update_validator_total_rewards(era);
             Pallet::<C>::clear_expired_bans(era);
+            Pallet::<C>::clear_abft_underperformance_storage();
         }
     }
 }

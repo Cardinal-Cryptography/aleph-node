@@ -211,6 +211,18 @@ pub trait FinalityCommitteeManager<T> {
     fn on_next_session_finality_committee(committee: Vec<T>);
 }
 
+pub trait AbftScoresProvider {
+    fn scores_for_session(session_id: SessionIndex) -> Option<Score>;
+    fn clear_scores_for_session(session_id: SessionIndex);
+}
+
+#[derive(Clone, Copy)]
+pub enum AbftPerformance {
+    Bad,
+    Acceptable,
+    Ideal,
+}
+
 /// Configurable parameters for ban validator mechanism
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BanConfig {
