@@ -2180,9 +2180,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                245u8, 41u8, 177u8, 60u8, 14u8, 203u8, 151u8, 173u8, 102u8, 231u8, 167u8, 202u8,
-                19u8, 189u8, 87u8, 204u8, 219u8, 223u8, 82u8, 65u8, 37u8, 97u8, 165u8, 66u8, 176u8,
-                41u8, 235u8, 167u8, 96u8, 163u8, 91u8, 63u8,
+                189u8, 1u8, 127u8, 19u8, 36u8, 11u8, 205u8, 128u8, 195u8, 127u8, 6u8, 242u8, 133u8,
+                40u8, 178u8, 27u8, 175u8, 202u8, 182u8, 173u8, 177u8, 211u8, 114u8, 209u8, 204u8,
+                250u8, 176u8, 221u8, 20u8, 78u8, 100u8, 101u8,
             ]
     }
     pub mod system {
@@ -9391,8 +9391,6 @@ pub mod api {
     }
     pub mod aleph {
         use super::{root_mod, runtime_types};
-        #[doc = "The `Error` enum of this pallet."]
-        pub type Error = runtime_types::pallet_aleph::pallet::Error;
         #[doc = "Contains a variant per dispatchable extrinsic that this pallet has."]
         pub type Call = runtime_types::pallet_aleph::pallet::Call;
         pub mod calls {
@@ -20838,8 +20836,6 @@ pub mod api {
                 Staking(runtime_types::pallet_staking::pallet::pallet::Error),
                 #[codec(index = 10)]
                 Session(runtime_types::pallet_session::pallet::Error),
-                #[codec(index = 11)]
-                Aleph(runtime_types::pallet_aleph::pallet::Error),
                 #[codec(index = 12)]
                 Elections(runtime_types::pallet_elections::pallet::Error),
                 #[codec(index = 13)]
@@ -21688,25 +21684,6 @@ pub mod api {
                             runtime_types::primitives::app::Signature,
                         >,
                     },
-                }
-                #[derive(
-                    :: subxt :: ext :: codec :: Decode,
-                    :: subxt :: ext :: codec :: Encode,
-                    :: subxt :: ext :: scale_decode :: DecodeAsType,
-                    :: subxt :: ext :: scale_encode :: EncodeAsType,
-                    Clone,
-                    Debug,
-                    Eq,
-                    PartialEq,
-                )]
-                # [codec (crate = :: subxt :: ext :: codec)]
-                #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
-                #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
-                #[doc = "The `Error` enum of this pallet."]
-                pub enum Error {
-                    #[codec(index = 0)]
-                    #[doc = "Duplicated score in the same block"]
-                    DuplicatedScore,
                 }
                 #[derive(
                     :: subxt :: ext :: codec :: Decode,

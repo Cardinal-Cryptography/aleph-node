@@ -451,7 +451,7 @@ pub mod pallet {
         pub fn unsigned_submit_abft_score(
             origin: OriginFor<T>,
             score: Score,
-            _signature: SignatureSet<Signature<T>>, // We don't check signature as it was already checked
+            _signature: SignatureSet<Signature<T>>, // We don't check signature as it was checked by ValidateUnsigned trait
         ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             Self::check_session_id(score.session_id).map_err(|e| DispatchError::Other(e.into()))?;
