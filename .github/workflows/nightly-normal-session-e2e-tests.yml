@@ -49,6 +49,7 @@ jobs:
       repository: Cardinal-Cryptography/aleph-node-flooder
       production: false
       additional-flags: "--features network_flooding_test"
+      token: ${{ secrets.CI_GH_TOKEN }}
 
   build-chain-bootstrapper-production:
     name: Build chain-bootstrapper
@@ -327,6 +328,7 @@ jobs:
             --testcase test_major_sync
 
   run-network-flooding-test:
+    secrets: inherit
     needs:
       - build-production-aleph-node
       - build-aleph-node-with-network-flooding-test
