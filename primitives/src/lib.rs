@@ -218,9 +218,9 @@ pub trait AbftScoresProvider {
 
 #[derive(Clone, Copy)]
 pub enum AbftPerformance {
-    Bad,
-    Acceptable,
     Ideal,
+    Acceptable,
+    Bad,
 }
 
 /// Configurable parameters for ban validator mechanism
