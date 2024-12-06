@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
@@ -8,6 +8,8 @@ echo "Make sure you have subxt binary installed with"
 echo  "cargo install subxt-cli --version 0.30.1 --locked"
 
 SUBXT_BINARY=${SUBXT_BINARY:-"subxt"}
+
+pidof aleph-node || { echo "Error: no aleph-node process found!"; exit 1; }
 
 "${SUBXT_BINARY}" codegen --derive Clone --derive Debug --derive PartialEq --derive Eq \
   --substitute-type 'sp_core::crypto::AccountId32=::subxt::utils::Static<::subxt::ext::sp_core::crypto::AccountId32>' \
