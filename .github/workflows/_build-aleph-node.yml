@@ -9,10 +9,27 @@ on:
         description: 'git ref: hash, branch, tag to build aleph-node binary from'
         type: string
         required: true
+      repository:
+        description: 'Repository name with owner. For example, actions/checkout. Default:
+          github.repository'
+        required: false
+        type: string
+        default: ${{ github.repository }}
       production:
         description: 'Set to true to build production binary, otherwise set to false'
         type: boolean
         required: true
+      additional-flags:
+        description: 'string consisting of all additional flags for the `cargo build` command,
+          e.g. --features <some_feature_name>'
+        type: string
+        required: false
+        default: ''
+      token:
+        description: 'Personal access token (PAT) used to fetch the repository.'
+        type: string
+        required: false
+        default: ${{ github.token }}
     outputs:
       artifact-name-binary:
         description: 'Name of artifact aleph-node binary'
@@ -34,10 +51,21 @@ jobs:
       artifact-name-image: ${{ steps.get-artifact-name-image.outputs.name }}
     steps:
       - name: Checkout aleph-node source code
+        if: inputs.token == ''
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
           fetch-depth: 0
+
+      - name: Checkout aleph-node source code
+        if: inputs.token != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+          fetch-depth: 0
+          token: ${{ inputs.token }}
 
       - name: Call action get-ref-properties
         id: get-ref-properties
@@ -49,7 +77,7 @@ jobs:
       - name: Build test aleph-node
         if: ${{ inputs.production != true }}
         run: |
-          cargo build --release -p aleph-node --features only_legacy
+          cargo build --release -p aleph-node --features only_legacy ${{ inputs.additional-flags }}
 
       - name: Build production aleph-node
         if: ${{ inputs.production == true }}
