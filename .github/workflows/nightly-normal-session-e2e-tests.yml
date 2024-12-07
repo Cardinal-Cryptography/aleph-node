@@ -40,17 +40,6 @@ jobs:
       # yamllint disable-line rule:line-length
       artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
 
-  build-aleph-node-with-network-flooding-test:
-    needs: [check-vars-and-secrets]
-    name: Build aleph-node with flooding routines for both sync-network and alephbft-network
-    uses: ./.github/workflows/_build-aleph-node.yml
-    with:
-      ref: main
-      repository: Cardinal-Cryptography/aleph-node-flooder
-      production: false
-      additional-flags: "--features network_flooding_test"
-      token: ${{ secrets.CI_GH_TOKEN }}
-
   build-chain-bootstrapper-production:
     name: Build chain-bootstrapper
     uses: ./.github/workflows/_build-chain-bootstrapper.yml
@@ -328,15 +317,23 @@ jobs:
             --testcase test_major_sync
 
   run-network-flooding-test:
-    secrets: inherit
     needs:
+      - check-vars-and-secrets
       - build-production-aleph-node
-      - build-aleph-node-with-network-flooding-test
       - build-aleph-e2e-client-image
       - build-chain-bootstrapper-production
     name: Run network flooding test
     runs-on: ubuntu-20.04
     steps:
+      - name: Build aleph-node with flooding routines for both sync-network and AlephBFT network
+        uses: ./.github/workflows/_build-aleph-node.yml
+        with:
+          ref: main
+          repository: Cardinal-Cryptography/aleph-node-flooder
+          production: false
+          additional-flags: "--features network_flooding_test"
+          token: ${{ secrets.CI_GH_TOKEN }}
+
       - name: Checkout source code
         uses: actions/checkout@v4
 

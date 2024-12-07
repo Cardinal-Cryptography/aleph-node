@@ -29,7 +29,7 @@ on:
         description: 'Personal access token (PAT) used to fetch the repository.'
         type: string
         required: false
-        default: ''
+        default: ${{ github.token }}
     outputs:
       artifact-name-binary:
         description: 'Name of artifact aleph-node binary'
@@ -51,6 +51,15 @@ jobs:
       artifact-name-image: ${{ steps.get-artifact-name-image.outputs.name }}
     steps:
       - name: Checkout aleph-node source code
+        if: inputs.token == ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+          fetch-depth: 0
+
+      - name: Checkout aleph-node source code
+        if: inputs.token != ''
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
