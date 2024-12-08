@@ -278,19 +278,19 @@ impl<T: Config> Pallet<T> {
         reserved: Vec<T::AccountId>,
         non_reserved: Vec<T::AccountId>,
     ) {
-        let producers: BTreeSet<T::AccountId> = producers.iter().cloned().collect();
+        let producers_set: BTreeSet<T::AccountId> = producers.iter().cloned().collect();
 
         let non_committee = non_reserved
             .into_iter()
             .chain(reserved)
-            .filter(|a| !producers.contains(a))
+            .filter(|a| !producers_set.contains(a))
             .collect();
 
         let mut session_validators = CurrentAndNextSessionValidatorsStorage::<T>::get();
 
         session_validators.current = session_validators.next;
         session_validators.next = SessionValidators {
-            producers: producers.into_iter().collect(),
+            producers: producers.to_vec(),
             finalizers: finalizers.to_vec(),
             non_committee,
         };
@@ -644,7 +644,7 @@ mod tests {
                     &non_reserved,
                 )
                 .expect("Expected non-empty rotated committee!")
-                .block_producers,
+                .producers,
             );
 
             assert_eq!(expected_committee, committee,);

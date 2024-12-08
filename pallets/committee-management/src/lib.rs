@@ -114,7 +114,7 @@ pub mod pallet {
     #[pallet::storage]
     pub type BanConfig<T> = StorageValue<_, BanConfigStruct, ValueQuery>;
 
-    /// A lookup for a number of underperformance sessions for a given validator
+    /// A lookup for a number of underperformance sessions in block production for a given validator
     #[pallet::storage]
     pub type UnderperformedValidatorSessionCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
@@ -128,7 +128,7 @@ pub mod pallet {
     pub(crate) type CurrentAndNextSessionValidatorsStorage<T: Config> =
         StorageValue<_, CurrentAndNextSessionValidators<T::AccountId>, ValueQuery>;
 
-    /// Abft performance scores of validators in the current era.
+    /// A lookup for a number of underperformance sessions in block finalization for a given validator
     #[pallet::storage]
     pub type UnderperformedFinalizerSessionCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
