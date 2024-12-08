@@ -1124,9 +1124,10 @@ pub mod api {
                         "predict_session_committee",
                         types::PredictSessionCommittee { session },
                         [
-                            3u8, 47u8, 188u8, 68u8, 88u8, 141u8, 129u8, 32u8, 29u8, 34u8, 56u8,
-                            60u8, 130u8, 180u8, 83u8, 106u8, 22u8, 51u8, 215u8, 42u8, 3u8, 160u8,
-                            84u8, 125u8, 221u8, 124u8, 236u8, 244u8, 236u8, 138u8, 36u8, 232u8,
+                            24u8, 24u8, 147u8, 150u8, 166u8, 202u8, 198u8, 18u8, 11u8, 149u8, 98u8,
+                            235u8, 33u8, 82u8, 91u8, 218u8, 181u8, 184u8, 209u8, 103u8, 160u8,
+                            165u8, 166u8, 118u8, 40u8, 218u8, 100u8, 175u8, 62u8, 41u8, 129u8,
+                            26u8,
                         ],
                     )
                 }
@@ -2179,9 +2180,9 @@ pub mod api {
             .hash();
         runtime_metadata_hash
             == [
-                248u8, 152u8, 201u8, 148u8, 97u8, 25u8, 7u8, 141u8, 107u8, 36u8, 84u8, 1u8, 60u8,
-                80u8, 53u8, 58u8, 231u8, 101u8, 86u8, 36u8, 11u8, 103u8, 78u8, 54u8, 1u8, 23u8,
-                122u8, 156u8, 215u8, 83u8, 97u8, 4u8,
+                228u8, 34u8, 101u8, 227u8, 179u8, 132u8, 141u8, 106u8, 88u8, 199u8, 195u8, 76u8,
+                251u8, 107u8, 160u8, 98u8, 213u8, 40u8, 192u8, 33u8, 218u8, 72u8, 8u8, 42u8, 40u8,
+                135u8, 252u8, 58u8, 28u8, 216u8, 156u8, 108u8,
             ]
     }
     pub mod system {
@@ -18865,9 +18866,9 @@ pub mod api {
                         "CurrentAndNextSessionValidatorsStorage",
                         vec![],
                         [
-                            83u8, 47u8, 72u8, 146u8, 218u8, 65u8, 48u8, 238u8, 28u8, 91u8, 199u8,
-                            165u8, 172u8, 131u8, 8u8, 19u8, 152u8, 190u8, 128u8, 215u8, 251u8,
-                            186u8, 115u8, 20u8, 91u8, 65u8, 38u8, 48u8, 183u8, 31u8, 238u8, 213u8,
+                            10u8, 183u8, 219u8, 3u8, 200u8, 124u8, 206u8, 224u8, 38u8, 104u8,
+                            189u8, 98u8, 206u8, 240u8, 226u8, 228u8, 66u8, 40u8, 32u8, 236u8, 65u8,
+                            85u8, 184u8, 170u8, 248u8, 27u8, 194u8, 64u8, 97u8, 6u8, 79u8, 97u8,
                         ],
                     )
                 }
@@ -27731,8 +27732,8 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SessionCommittee<_0> {
-                pub finality_committee: ::std::vec::Vec<_0>,
-                pub block_producers: ::std::vec::Vec<_0>,
+                pub finalizers: ::std::vec::Vec<_0>,
+                pub producers: ::std::vec::Vec<_0>,
             }
             #[derive(
                 :: subxt :: ext :: codec :: Decode,
@@ -27770,7 +27771,8 @@ pub mod api {
             #[decode_as_type(crate_path = ":: subxt :: ext :: scale_decode")]
             #[encode_as_type(crate_path = ":: subxt :: ext :: scale_encode")]
             pub struct SessionValidators<_0> {
-                pub committee: ::std::vec::Vec<_0>,
+                pub producers: ::std::vec::Vec<_0>,
+                pub finalizers: ::std::vec::Vec<_0>,
                 pub non_committee: ::std::vec::Vec<_0>,
             }
             #[derive(
