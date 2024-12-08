@@ -364,14 +364,14 @@ impl<T: Config> Pallet<T> {
 
         let rate_abft_performance = |score| score <= minimal_expected_performance;
 
-        let underperf_finlizers = T::AbftScoresProvider::scores_for_session(session_id)
+        let finalizers_perf = T::AbftScoresProvider::scores_for_session(session_id)
             .map(|score| score.points)
-            .unwrap_or(vec![0u32; current_committee.len()])
+            .unwrap_or(vec![minimal_expected_performance; current_committee.len()])
             .into_iter()
             .map(rate_abft_performance);
 
-        // TODO make shure ordering is correct on validators list
-        for (underperf, validator) in underperf_finlizers.zip(current_committee.iter()) {
+        // TODO make sure ordering is correct on validators list
+        for (underperf, validator) in finalizers_perf.zip(current_committee.iter()) {
             if underperf {
                 let counter =
                     UnderperformedFinalizerSessionCount::<T>::mutate(validator, |count| {
