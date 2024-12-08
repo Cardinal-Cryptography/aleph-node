@@ -18751,7 +18751,7 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " A lookup for a number of underperformance sessions for a given validator"]
+                #[doc = " A lookup for a number of underperformance sessions in block production for a given validator"]
                 pub fn underperformed_validator_session_count(
                     &self,
                     _0: impl ::std::borrow::Borrow<
@@ -18778,7 +18778,7 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " A lookup for a number of underperformance sessions for a given validator"]
+                #[doc = " A lookup for a number of underperformance sessions in block production for a given validator"]
                 pub fn underperformed_validator_session_count_root(
                     &self,
                 ) -> ::subxt::storage::address::Address<
@@ -18872,7 +18872,7 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " Abft performance scores of validators in the current era."]
+                #[doc = " A lookup for a number of underperformance sessions in block finalization for a given validator"]
                 pub fn underperformed_finalizer_session_count(
                     &self,
                     _0: impl ::std::borrow::Borrow<
@@ -18898,7 +18898,7 @@ pub mod api {
                         ],
                     )
                 }
-                #[doc = " Abft performance scores of validators in the current era."]
+                #[doc = " A lookup for a number of underperformance sessions in block finalization for a given validator"]
                 pub fn underperformed_finalizer_session_count_root(
                     &self,
                 ) -> ::subxt::storage::address::Address<
