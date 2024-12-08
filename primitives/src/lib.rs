@@ -167,8 +167,8 @@ pub const DEFAULT_BACKUP_FOLDER: &str = "backup-stash";
 /// during session.
 #[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 pub struct SessionCommittee<T> {
-    pub finality_committee: Vec<T>,
-    pub block_producers: Vec<T>,
+    pub finalizers: Vec<T>,
+    pub producers: Vec<T>,
 }
 
 /// Openness of the process of the elections
@@ -370,14 +370,16 @@ pub trait ValidatorProvider {
 
 #[derive(Decode, Encode, TypeInfo, Clone, Serialize, Deserialize)]
 pub struct SessionValidators<T> {
-    pub committee: Vec<T>,
+    pub producers: Vec<T>,
+    pub finalizers: Vec<T>,
     pub non_committee: Vec<T>,
 }
 
 impl<T> Default for SessionValidators<T> {
     fn default() -> Self {
         Self {
-            committee: Vec::new(),
+            producers: Vec::new(),
+            finalizers: Vec::new(),
             non_committee: Vec::new(),
         }
     }

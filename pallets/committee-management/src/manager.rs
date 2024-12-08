@@ -121,13 +121,13 @@ where
         }
 
         let SessionCommittee {
-            finality_committee,
-            block_producers,
+            producers,
+            finalizers,
         } = Pallet::<C>::rotate_committee(new_index)?;
         // Notify about elected next session finality committee
-        C::FinalityCommitteeManager::on_next_session_finality_committee(finality_committee);
+        C::FinalityCommitteeManager::on_next_session_finality_committee(finalizers);
 
-        Some(block_producers)
+        Some(producers)
     }
 
     fn end_session(end_index: SessionIndex) {
