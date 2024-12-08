@@ -154,7 +154,6 @@ where
         if let Some(era) = Self::session_starts_era(start_index) {
             Pallet::<C>::update_validator_total_rewards(era);
             Pallet::<C>::clear_expired_bans(era);
-            Pallet::<C>::clear_abft_underperformance_storage();
         }
     }
 }

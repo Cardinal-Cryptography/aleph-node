@@ -216,11 +216,28 @@ pub trait AbftScoresProvider {
     fn clear_scores_for_session(session_id: SessionIndex);
 }
 
-#[derive(Clone, Copy)]
-pub enum AbftPerformance {
-    Ideal,
-    Acceptable,
-    Bad,
+/// Configurable parameters for ban validator mechanism
+#[derive(Decode, Encode, TypeInfo, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FinalityBanConfig {
+    /// Number representing how many rounds a parent of a head of an abft round is allowed to be behind the head.
+    pub minimal_expected_performance: u32,
+    /// How many bad sessions force validator to be removed from the committee
+    pub underperformed_session_count_threshold: SessionCount,
+    /// how many eras a validator is banned for
+    pub ban_period: EraIndex,
+}
+
+pub const DEFAULT_FINALITY_BAN_MINIMAL_EXPECTED_PERFORMANCE: u32 = 11;
+pub const DEFAULT_FINALITY_BAN_SESSION_COUNT_THRESHOLD: SessionCount = 2;
+
+impl Default for FinalityBanConfig {
+    fn default() -> Self {
+        FinalityBanConfig {
+            minimal_expected_performance: DEFAULT_FINALITY_BAN_MINIMAL_EXPECTED_PERFORMANCE,
+            underperformed_session_count_threshold: DEFAULT_FINALITY_BAN_SESSION_COUNT_THRESHOLD,
+            ban_period: DEFAULT_BAN_PERIOD,
+        }
+    }
 }
 
 /// Configurable parameters for ban validator mechanism
@@ -305,7 +322,7 @@ pub enum SessionValidatorError {
     Other(Vec<u8>),
 }
 
-/// All the data needed to verify block finalization justifications.
+/// All the data needed to verify block finality justifications.
 #[derive(Clone, Debug, TypeInfo, Encode, Decode, PartialEq, Eq)]
 pub struct SessionAuthorityData {
     authorities: Vec<AuthorityId>,

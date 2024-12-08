@@ -11,7 +11,10 @@ use frame_support::{pallet_prelude::Get, traits::StorageVersion};
 pub use manager::SessionAndEraManager;
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
-use primitives::{BanConfig as BanConfigStruct, BanInfo, SessionValidators, LENIENT_THRESHOLD};
+use primitives::{
+    BanConfig as BanConfigStruct, BanInfo, FinalityBanConfig as FinalityBanConfigStruct,
+    SessionValidators, LENIENT_THRESHOLD,
+};
 use scale_info::TypeInfo;
 use sp_runtime::Perquintill;
 use sp_std::{collections::btree_map::BTreeMap, default::Default};
@@ -65,7 +68,7 @@ pub mod pallet {
     use crate::{
         traits::{EraInfoProvider, ValidatorRewardsHandler},
         BanConfigStruct, BanInfo, CurrentAndNextSessionValidators, DefaultLenientThreshold,
-        ValidatorExtractor, ValidatorTotalRewards, STORAGE_VERSION,
+        FinalityBanConfigStruct, ValidatorExtractor, ValidatorTotalRewards, STORAGE_VERSION,
     };
 
     #[pallet::config]
@@ -107,7 +110,7 @@ pub mod pallet {
     pub type ValidatorEraTotalReward<T: Config> =
         StorageValue<_, ValidatorTotalRewards<T::AccountId>, OptionQuery>;
 
-    /// Current era config for ban functionality, see [`BanConfig`]
+    /// Current era config for ban functionality related to block production.
     #[pallet::storage]
     pub type BanConfig<T> = StorageValue<_, BanConfigStruct, ValueQuery>;
 
@@ -127,7 +130,12 @@ pub mod pallet {
 
     /// Abft performance scores of validators in the current era.
     #[pallet::storage]
-    pub type ValidatorEraScores<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, [u32; 3]>;
+    pub type UnderperformedFinalizerSessionCount<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
+
+    /// Current era config for ban functionality related to block finality.
+    #[pallet::storage]
+    pub type FinalityBanConfig<T> = StorageValue<_, FinalityBanConfigStruct, ValueQuery>;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -150,6 +158,9 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Ban thresholds for the next era has changed
         SetBanConfig(BanConfigStruct),
+
+        /// Ban thresholds for the next era has changed
+        SetFinalityBanConfig(FinalityBanConfigStruct),
 
         /// Validators have been banned from the committee
         BanValidators(Vec<(T::AccountId, BanInfo)>),
@@ -257,12 +268,57 @@ pub mod pallet {
 
             Ok(())
         }
+
+        /// Sets ban config, it has an immediate effect
+        #[pallet::call_index(5)]
+        #[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+        pub fn set_finality_ban_config(
+            origin: OriginFor<T>,
+            minimal_expected_performance: Option<u32>,
+            underperformed_session_count_threshold: Option<u32>,
+            ban_period: Option<EraIndex>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let mut current_committee_ban_config = FinalityBanConfig::<T>::get();
+
+            if let Some(minimal_expected_performance) = minimal_expected_performance {
+                ensure!(
+                    minimal_expected_performance <= 20,
+                    Error::<T>::InvalidBanConfig
+                );
+                current_committee_ban_config.minimal_expected_performance =
+                    minimal_expected_performance;
+            }
+
+            if let Some(underperformed_session_count_threshold) =
+                underperformed_session_count_threshold
+            {
+                ensure!(
+                    underperformed_session_count_threshold > 0,
+                    Error::<T>::InvalidBanConfig
+                );
+                current_committee_ban_config.underperformed_session_count_threshold =
+                    underperformed_session_count_threshold;
+            }
+
+            if let Some(ban_period) = ban_period {
+                ensure!(ban_period > 0, Error::<T>::InvalidBanConfig);
+                current_committee_ban_config.ban_period = ban_period;
+            }
+
+            FinalityBanConfig::<T>::put(current_committee_ban_config.clone());
+            Self::deposit_event(Event::SetFinalityBanConfig(current_committee_ban_config));
+
+            Ok(())
+        }
     }
 
     #[pallet::genesis_config]
     #[derive(frame_support::DefaultNoBound)]
     pub struct GenesisConfig<T: Config> {
         pub committee_ban_config: BanConfigStruct,
+        pub finality_ban_config: FinalityBanConfigStruct,
         pub session_validators: SessionValidators<T::AccountId>,
     }
 
@@ -270,6 +326,7 @@ pub mod pallet {
     impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <BanConfig<T>>::put(self.committee_ban_config.clone());
+            <FinalityBanConfig<T>>::put(self.finality_ban_config.clone());
             <CurrentAndNextSessionValidatorsStorage<T>>::put(CurrentAndNextSessionValidators {
                 current: self.session_validators.clone(),
                 next: self.session_validators.clone(),

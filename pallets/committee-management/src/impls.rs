@@ -2,9 +2,8 @@ use frame_support::pallet_prelude::Get;
 use log::info;
 use parity_scale_codec::Encode;
 use primitives::{
-    AbftPerformance, AbftScoresProvider, BanHandler, BanInfo, BanReason, BannedValidators,
-    CommitteeSeats, EraValidators, SessionCommittee, SessionValidatorError, SessionValidators,
-    ValidatorProvider,
+    AbftScoresProvider, BanHandler, BanInfo, BanReason, BannedValidators, CommitteeSeats,
+    EraValidators, SessionCommittee, SessionValidatorError, SessionValidators, ValidatorProvider,
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_pcg::Pcg32;
@@ -19,10 +18,11 @@ use sp_std::{
 use crate::{
     pallet::{
         BanConfig, Banned, Config, CurrentAndNextSessionValidatorsStorage, Event, Pallet,
-        SessionValidatorBlockCount, UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
+        SessionValidatorBlockCount, UnderperformedFinalizerSessionCount,
+        UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, CurrentAndNextSessionValidators, LenientThreshold, ValidatorEraScores,
+    BanConfigStruct, CurrentAndNextSessionValidators, FinalityBanConfig, LenientThreshold,
     ValidatorExtractor, ValidatorTotalRewards, LOG_TARGET,
 };
 
@@ -347,6 +347,45 @@ impl<T: Config> Pallet<T> {
         committee
     }
 
+    pub(crate) fn calculate_underperforming_finalizers(session_id: SessionIndex) {
+        let CurrentAndNextSessionValidators {
+            current:
+                SessionValidators {
+                    committee: current_committee,
+                    ..
+                },
+            ..
+        } = CurrentAndNextSessionValidatorsStorage::<T>::get();
+
+        let underperformed_session_count_threshold =
+            FinalityBanConfig::<T>::get().underperformed_session_count_threshold;
+        let minimal_expected_performance =
+            FinalityBanConfig::<T>::get().minimal_expected_performance;
+
+        let rate_abft_performance = |score| score <= minimal_expected_performance;
+
+        let underperf_finlizers = T::AbftScoresProvider::scores_for_session(session_id)
+            .map(|score| score.points)
+            .unwrap_or(vec![0u32; current_committee.len()])
+            .into_iter()
+            .map(rate_abft_performance);
+
+        // TODO make shure ordering is correct on validators list
+        for (underperf, validator) in underperf_finlizers.zip(current_committee.iter()) {
+            if underperf {
+                let counter =
+                    UnderperformedFinalizerSessionCount::<T>::mutate(validator, |count| {
+                        *count += 1;
+                        *count
+                    });
+                if counter >= underperformed_session_count_threshold {
+                    // In future, additionally ban underperforming validator
+                    Self::deposit_event(Event::ValidatorUnderperforming(validator.clone()));
+                }
+            }
+        }
+    }
+
     pub(crate) fn calculate_underperforming_validators() {
         let thresholds = BanConfig::<T>::get();
         let CurrentAndNextSessionValidators {
@@ -372,57 +411,6 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    // 1. **ideal** – 1-4 rounds behind
-    // 2. **acceptable** – 5-11 rounds behind
-    // 3. **bad** – >11 rounds behind
-    // Do we want to keep  on chain?
-    fn rate_abft_performance(score: u32) -> AbftPerformance {
-        use primitives::AbftPerformance::*;
-        if score <= 4 {
-            Ideal
-        } else if score <= 11 {
-            Acceptable
-        } else {
-            Bad
-        }
-    }
-
-    pub(crate) fn calculate_underperforming_finalizers(session_id: SessionIndex) {
-        let threshold = BanConfig::<T>::get().underperformed_session_count_threshold; // consider different threshold for abft
-        let CurrentAndNextSessionValidators {
-            current:
-                SessionValidators {
-                    committee: current_committee,
-                    ..
-                },
-            ..
-        } = CurrentAndNextSessionValidatorsStorage::<T>::get();
-
-        let perfs = T::AbftScoresProvider::scores_for_session(session_id)
-            .map(|score| score.points)
-            .unwrap_or(vec![0u32; current_committee.len()])
-            .into_iter()
-            .map(Self::rate_abft_performance);
-
-        // TODO make shure ordering is correct on validators list
-        for (perf, validator) in perfs.zip(current_committee.iter()) {
-            ValidatorEraScores::<T>::mutate(validator, |scores_for_era| {
-                let mut score_count = scores_for_era.unwrap_or_default()[perf as usize];
-                score_count += 1;
-
-                match perf {
-                    AbftPerformance::Bad if score_count >= threshold => {
-                        // In future, additionally ban underperforming validator
-                        Self::deposit_event(Event::ValidatorUnderperforming(validator.clone()));
-                    }
-                    _ => {}
-                }
-
-                score_count
-            });
-        }
-    }
-
     fn mark_validator_underperformance(thresholds: &BanConfigStruct, validator: &T::AccountId) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(validator, |count| {
             *count += 1;
@@ -443,11 +431,8 @@ impl<T: Config> Pallet<T> {
                 "Clearing UnderperformedValidatorSessionCount"
             );
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
+            let _result = UnderperformedFinalizerSessionCount::<T>::clear(u32::MAX, None);
         }
-    }
-
-    pub fn clear_abft_underperformance_storage() {
-        let _result = ValidatorEraScores::<T>::clear(u32::MAX, None);
     }
 
     pub fn clear_expired_bans(active_era: EraIndex) {
