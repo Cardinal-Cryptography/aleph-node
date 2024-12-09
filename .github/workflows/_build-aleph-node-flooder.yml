@@ -27,7 +27,7 @@ jobs:
       - name: Checkout aleph-node-flooder source code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: flooder
           repository: Cardinal-Cryptography/aleph-node-flooder
           token: ${{ secrets.CI_GH_TOKEN }}
 
