@@ -59,7 +59,8 @@ jobs:
 
       - name: Build production aleph-node
         if: ${{ inputs.production == true }}
-        run: cargo build --profile production -p aleph-node
+        run: |
+          cargo build --profile production --package aleph-node ${{ inputs.additional-flags }}
 
       - name: Get binary artifact name
         id: get-artifact-name-binary
