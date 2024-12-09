@@ -284,7 +284,7 @@ pub mod pallet {
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
-                    minimal_expected_performance <= 20,
+                    minimal_expected_performance <= 10 * 60 * 5, // 10min with 5 rounds per second
                     Error::<T>::InvalidBanConfig
                 );
                 current_committee_ban_config.minimal_expected_performance =
