@@ -25,9 +25,8 @@ impl Scorer {
             // This is not necessarily true for forkers, but punishing them is fine.
             self.newest_unit_by.insert(unit.creator, unit.round)
         }
-        self.newest_unit_by
-            .size()
-            .into_iterator()
+        let all_nodes = self.newest_unit_by.size().into_iterator();
+        all_nodes
             .map(|node_id| {
                 self.newest_unit_by
                     .get(node_id)
@@ -35,7 +34,7 @@ impl Scorer {
                     // subtraction.
                     .map(|unit_round| max_round.saturating_sub(*unit_round))
                     // If we don't have a unit it's the same as having a unit of round equal to -1.
-                    .unwrap_or(max_round + 1)
+                    .unwrap_or(max_round.saturating_add(1))
             })
             .collect()
     }
