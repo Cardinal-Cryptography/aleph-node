@@ -34,7 +34,7 @@ impl Scorer {
                     // All other units have lower round than head, so the saturating_sub is just
                     // subtraction.
                     .map(|unit_round| max_round.saturating_sub(*unit_round))
-                    // If we don't have a unit it's the same as having a unit of round -1.
+                    // If we don't have a unit it's the same as having a unit of round equal to -1.
                     .unwrap_or(max_round + 1)
             })
             .collect()
