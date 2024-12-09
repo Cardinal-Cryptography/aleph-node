@@ -1,0 +1,76 @@
+---
+#  This workflow builds aleph-node binary and docker image.
+#  It outputs name of artifacts uploaded to GH Artifacts.
+name: Build aleph-node
+on:
+  workflow_call:
+    outputs:
+      artifact-name-binary:
+        description: 'Name of artifact aleph-node binary'
+        value: ${{ jobs.main.outputs.artifact-name-binary }}
+      artifact-name-image:
+        description: 'Name of artifact aleph-node image'
+        value: ${{ jobs.main.outputs.artifact-name-image }}
+jobs:
+  main:
+    name: Build aleph-node-flooder
+    runs-on: [self-hosted, Linux, X64, large]
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+      CARGO_FOLDER: 'production'
+      ARTIFACT_NAME_SUFFIX: 'production'
+    outputs:
+      artifact-name-binary: ${{ steps.get-artifact-name-binary.outputs.name }}
+      artifact-name-image: ${{ steps.get-artifact-name-image.outputs.name }}
+    steps:
+      - name: Checkout aleph-node-flooder source code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          repository: Cardinal-Cryptography/aleph-node-flooder
+          token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Call action get-ref-properties
+        id: get-ref-properties
+        uses: Cardinal-Cryptography/github-actions/get-ref-properties@v7
+
+      - name: Install Rust toolchain
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v7
+
+      - name: Build production aleph-node
+        run: cargo build --profile production --features network_flooding_test --package aleph-node
+
+      - name: Get binary artifact name
+        id: get-artifact-name-binary
+        run: |
+          echo "name=aleph-node-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
+
+      - name: Upload binary to GH Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get-artifact-name-binary.outputs.name }}
+          path: target/${{ env.CARGO_FOLDER }}/aleph-node
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build aleph-node docker image
+        run: |
+          chmod +x target/${{ env.CARGO_FOLDER }}/aleph-node
+          mkdir -p target/release
+          mv target/production/aleph-node target/release/
+          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node.tar aleph-node:latest
+
+      - name: Get image artifact name
+        id: get-artifact-name-image
+        run: |
+          echo "name=aleph-node-image-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
+
+      - name: Upload docker to GH Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get-artifact-name-image.outputs.name }}
+          path: aleph-node.tar
+          if-no-files-found: error
+          retention-days: 7
