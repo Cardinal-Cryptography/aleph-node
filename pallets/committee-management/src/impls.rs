@@ -358,13 +358,13 @@ impl<T: Config> Pallet<T> {
         let minimal_expected_performance =
             FinalityBanConfig::<T>::get().minimal_expected_performance;
 
-        let rate_abft_performance = |score| score <= minimal_expected_performance;
+        let is_underperforming = |score| score > minimal_expected_performance;
 
         let finalizers_perf = T::AbftScoresProvider::scores_for_session(session_id)
             .map(|score| score.points)
             .unwrap_or(vec![minimal_expected_performance; finalizers.len()])
             .into_iter()
-            .map(rate_abft_performance);
+            .map(is_underperforming);
 
         // TODO make sure ordering is correct on validators list
         for (underperf, validator) in finalizers_perf.zip(finalizers.iter()) {
