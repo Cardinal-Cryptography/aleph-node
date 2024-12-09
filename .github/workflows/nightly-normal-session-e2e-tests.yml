@@ -325,14 +325,19 @@ jobs:
     name: Run network flooding test
     runs-on: ubuntu-20.04
     steps:
-      - name: Build aleph-node with flooding routines for both sync-network and AlephBFT network
-        uses: ./.github/workflows/_build-aleph-node.yml
+      - name: Checkout aleph-node-flooder source code
+        uses: actions/checkout@v4
         with:
           ref: main
           repository: Cardinal-Cryptography/aleph-node-flooder
+          fetch-depth: 0
+          token: ${{ secrets.CI_GH_TOKEN }}
+
+      - name: Build aleph-node with flooding routines for both sync-network and AlephBFT network
+        uses: ./.github/workflows/_build-aleph-node.yml
+        with:
           production: false
           additional-flags: "--features network_flooding_test"
-          token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Checkout source code
         uses: actions/checkout@v4
