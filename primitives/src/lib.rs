@@ -213,7 +213,8 @@ pub trait FinalityCommitteeManager<T> {
 
 pub trait AbftScoresProvider {
     fn scores_for_session(session_id: SessionIndex) -> Option<Score>;
-    fn clear_scores_for_session(session_id: SessionIndex);
+    fn clear_scores();
+    fn clear_nonce();
 }
 
 /// Configurable parameters for ban validator mechanism

@@ -65,8 +65,11 @@ impl<T: Config> AbftScoresProvider for Pallet<T> {
         AbftScores::<T>::get(session_id)
     }
 
-    fn clear_scores_for_session(session_id: SessionIndex) {
-        AbftScores::<T>::remove(session_id);
+    fn clear_scores() {
+        let _result = AbftScores::<T>::clear(u32::MAX, None);
+    }
+
+    fn clear_nonce() {
         LastScoreNonce::<T>::kill();
     }
 }

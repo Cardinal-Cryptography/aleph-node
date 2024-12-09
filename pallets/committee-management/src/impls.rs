@@ -366,7 +366,6 @@ impl<T: Config> Pallet<T> {
             .into_iter()
             .map(is_underperforming);
 
-        // TODO make sure ordering is correct on validators list
         for (underperf, validator) in finalizers_perf.zip(finalizers.iter()) {
             if underperf {
                 let counter =
@@ -424,6 +423,7 @@ impl<T: Config> Pallet<T> {
             );
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
             let _result = UnderperformedFinalizerSessionCount::<T>::clear(u32::MAX, None);
+            T::AbftScoresProvider::clear_scores();
         }
     }
 

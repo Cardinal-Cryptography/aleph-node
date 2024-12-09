@@ -144,7 +144,7 @@ where
             result.deconstruct()
         );
 
-        C::AbftScoresProvider::clear_scores_for_session(end_index);
+        C::AbftScoresProvider::clear_nonce();
     }
 
     fn start_session(start_index: SessionIndex) {
