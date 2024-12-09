@@ -19,7 +19,6 @@ jobs:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
       CARGO_FOLDER: 'production'
-      ARTIFACT_NAME_SUFFIX: 'production'
     outputs:
       artifact-name-binary: ${{ steps.get-artifact-name-binary.outputs.name }}
       artifact-name-image: ${{ steps.get-artifact-name-image.outputs.name }}
@@ -41,36 +40,23 @@ jobs:
       - name: Build production aleph-node
         run: cargo build --profile production --features network_flooding_test --package aleph-node
 
-      - name: Get binary artifact name
-        id: get-artifact-name-binary
-        run: |
-          echo "name=aleph-node-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
-
-      - name: Upload binary to GH Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.get-artifact-name-binary.outputs.name }}
-          path: target/${{ env.CARGO_FOLDER }}/aleph-node
-          if-no-files-found: error
-          retention-days: 7
-
       - name: Build aleph-node docker image
         run: |
           chmod +x target/${{ env.CARGO_FOLDER }}/aleph-node
           mkdir -p target/release
           mv target/production/aleph-node target/release/
-          docker build --tag aleph-node:latest -f ./docker/Dockerfile .
-          docker save -o aleph-node.tar aleph-node:latest
+          docker build --tag aleph-node-flooder:latest -f ./docker/Dockerfile .
+          docker save -o aleph-node-flooder.tar aleph-node-flooder:latest
 
       - name: Get image artifact name
         id: get-artifact-name-image
         run: |
-          echo "name=aleph-node-image-${{ env.ARTIFACT_NAME_SUFFIX }}" >> $GITHUB_OUTPUT
+          echo "name=aleph-node-image-flooder" >> $GITHUB_OUTPUT
 
       - name: Upload docker to GH Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.get-artifact-name-image.outputs.name }}
-          path: aleph-node.tar
+          path: aleph-node-flooder.tar
           if-no-files-found: error
           retention-days: 7

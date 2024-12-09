@@ -343,10 +343,8 @@ jobs:
       - name: Load node-flooding docker image
         shell: bash
         run: |
-          docker load -i aleph-node.tar
-          docker tag aleph-node:latest aleph-node:flooding
-          docker image rm aleph-node:latest
-          mv aleph-node.tar aleph-node_flooding.tar
+          docker load -i aleph-node-flooder.tar
+          docker tag aleph-node-flooder:latest aleph-node:flooding
 
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
