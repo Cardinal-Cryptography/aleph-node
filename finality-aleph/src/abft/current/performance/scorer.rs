@@ -1,8 +1,6 @@
 use current_aleph_bft::{NodeCount, NodeMap, Round};
 
-use crate::{abft::current::performance::Batch, UnverifiedHeader};
-
-pub type Score = Vec<Round>;
+use crate::{abft::current::performance::Batch, aleph_primitives::RawScore, UnverifiedHeader};
 
 /// Scoring ABFT performance based on returned ordered unit batches.
 pub struct Scorer {
@@ -19,7 +17,7 @@ impl Scorer {
 
     /// Add a batch of ordered units and return a score consisting of numbers of rounds a specific
     /// node is behind.
-    pub fn process_batch<UH: UnverifiedHeader>(&mut self, batch: Batch<UH>) -> Score {
+    pub fn process_batch<UH: UnverifiedHeader>(&mut self, batch: Batch<UH>) -> RawScore {
         let max_round = batch.last().expect("batches always contain a head").round;
         for unit in batch {
             // Units are always added in order, so any unit created by an honest node

@@ -416,11 +416,13 @@ pub mod staking {
 
 pub type ScoreNonce = u32;
 
+pub type RawScore = Vec<u16>;
+
 #[derive(PartialEq, Decode, Encode, TypeInfo, Debug, Clone)]
 pub struct Score {
     pub session_id: SessionIndex,
     pub nonce: ScoreNonce,
-    pub points: Vec<u32>,
+    pub points: RawScore,
 }
 
 pub mod crypto {
