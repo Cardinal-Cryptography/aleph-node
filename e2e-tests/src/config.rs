@@ -49,6 +49,7 @@ static GLOBAL_CONFIG: Lazy<Config> = Lazy::new(|| {
             synthetic_network_urls: env::var("SYNTHETIC_URLS")
                 .ok()
                 .map(|s| s.split(',').map(|s| s.to_string()).collect()),
+            finalization_wait: get_env("FINALIZATION_WAIT"),
         },
     }
 });
@@ -286,9 +287,12 @@ pub struct TestCaseParams {
     /// Adder contract metadata.
     pub adder_metadata: Option<String>,
 
-    /// Milliseconds of network latency
+    /// Milliseconds of network latency.
     pub out_latency: Option<u64>,
 
-    /// List of URLs for the configuration endpoints of the synthetic-network
+    /// List of URLs for the configuration endpoints of the synthetic-network.
     pub synthetic_network_urls: Option<Vec<String>>,
+
+    /// Number of blocks for which the finalization test should wait.
+    pub finalization_wait: Option<u32>,
 }
