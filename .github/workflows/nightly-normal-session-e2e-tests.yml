@@ -334,6 +334,7 @@ jobs:
           token: ${{ secrets.CI_GH_TOKEN }}
 
       - name: Build aleph-node with flooding routines for both sync-network and AlephBFT network
+        id: build-aleph-node-flooder
         uses: ./.github/workflows/_build-aleph-node.yml
         with:
           production: false
@@ -345,7 +346,7 @@ jobs:
       - name: Download node-flooding docker image
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.build-aleph-node-with-network-flooding-test.outputs.artifact-name-image }}
+          name: ${{ steps.build-aleph-node-flooder.outputs.artifact-name-image }}
 
       - name: Load node-flooding docker image
         shell: bash
