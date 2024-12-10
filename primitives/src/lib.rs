@@ -292,7 +292,7 @@ pub struct BanInfo {
 }
 
 /// Represent committee, ie set of nodes that produce and finalize blocks in the session
-#[derive(Eq, PartialEq, Decode, Encode, TypeInfo)]
+#[derive(Eq, Clone, PartialEq, Decode, Encode, TypeInfo)]
 pub struct EraValidators<AccountId> {
     /// Validators that are chosen to be in committee every single session.
     pub reserved: Vec<AccountId>,

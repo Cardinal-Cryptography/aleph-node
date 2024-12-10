@@ -1,6 +1,3 @@
-use frame_election_provider_support::{
-    data_provider, DataProviderBounds, ElectionDataProvider, VoteWeight,
-};
 use frame_support::{
     construct_runtime,
     pallet_prelude::ConstU32,
@@ -12,16 +9,13 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_elections::ValidatorProvider;
 use pallet_session::SessionManager;
 use primitives::{
-    AuthorityId, BannedValidators, CommitteeSeats, EraValidators, SessionIndex,
-    SessionInfoProvider, TotalIssuanceProvider as TotalIssuanceProviderT,
-    ValidatorProvider as EraValidatorProvider, DEFAULT_MAX_WINNERS,
+    AuthorityId, BanHandler, BannedValidators, CommitteeSeats, EraManager, EraValidators, SessionIndex, SessionInfoProvider, TotalIssuanceProvider as TotalIssuanceProviderT, ValidatorProvider as EraValidatorProvider,
 };
 use sp_core::H256;
 use sp_runtime::{
     impl_opaque_keys,
     testing::TestXt,
     traits::{ConvertInto, IdentityLookup},
-    BoundedVec,
 };
 use sp_staking::EraIndex;
 
@@ -41,7 +35,6 @@ construct_runtime!(
         Balances: pallet_balances,
         Session: pallet_session,
         Aleph: pallet_aleph,
-        Elections: pallet_elections,
         CommitteeManagement: pallet_committee_management,
     }
 );
@@ -144,8 +137,66 @@ impl pallet_session::Config for Test {
     type WeightInfo = ();
 }
 
-pub struct MockEraInfoProvider;
-impl EraInfoProvider for MockEraInfoProvider {
+parameter_types! {
+    // pub static Validators: Vec<u64> = vec![1, 2, 3];
+    // pub static NextValidators: Vec<u64> = vec![1, 2, 3];
+    // pub static Authorities: Vec<UintAuthorityId> =
+    //     vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)];
+    pub static ForceSessionEnd: bool = false;
+    pub static SessionChanged: bool = false;
+    pub static TestSessionChanged: bool = false;
+    pub static Disabled: bool = false;
+    // Stores if `on_before_session_end` was called
+    pub static BeforeSessionEndCalled: bool = false;
+    pub static NewElectedValidators: Vec<AccountId> = vec![];
+    pub static ElectedValidators: Vec<AccountId> = vec![];
+    pub static ActiveEra: EraIndex = 0;
+    pub static CurrentEra: EraIndex = 0;
+    pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
+    pub static NextEraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
+    pub static ReservedValidators: Vec<AccountId> = vec![];
+    pub static NonReservedValidators: Vec<AccountId> = vec![];
+    pub static NextReservedValidators: Vec<AccountId> = vec![];
+    pub static NextNonReservedValidators: Vec<AccountId> = vec![];
+    pub static CurrentEraValidators: EraValidators<AccountId> = EraValidators::default();
+}
+
+// Periodic Era Manager, every era lasts Self::sessions_per_era() and
+// starts on session with index equal a multiple of Self::sessions_per_era()
+pub struct MockEraSessionManager;
+impl SessionManager<AccountId> for MockEraSessionManager {
+	/// Plan a new session potentially trigger a new era.
+    fn new_session(session_index: SessionIndex) -> Option<Vec<AccountId>> {
+        // TODO add support for forcing new eras;
+        if session_index % Self::sessions_per_era() != 0 {
+            return None
+        }
+
+        let new_elected_validators = NewElectedValidators::get();
+        ElectedValidators::set(new_elected_validators.clone());
+
+        // trigger new era
+
+		CurrentEra::mutate(|ce| { *ce += 1; });
+
+        Some(new_elected_validators)
+    }
+
+	/// Start a session potentially starting an era.
+    fn start_session(start_session: SessionIndex) {
+		let next_active_era = Self::active_era().unwrap() + 1;
+        // check if next era is planned, i.e. current_era index got increamented and we are in the last session of of active_era
+        if next_active_era == Self::current_era().unwrap() {
+            if start_session == next_active_era * Self::sessions_per_era() {
+                ActiveEra::mutate(|ae| { *ae += 1;});
+            }
+        }
+    }
+
+    fn end_session(_: SessionIndex) {}
+}
+
+impl EraInfoProvider for MockEraSessionManager{
     type AccountId = AccountId;
 
     fn active_era() -> Option<EraIndex> {
@@ -160,47 +211,34 @@ impl EraInfoProvider for MockEraInfoProvider {
         SESSIONS_PER_ERA
     }
 
-    fn elected_validators(_era: sp_staking::EraIndex) -> Vec<Self::AccountId> {
+    fn elected_validators(_era: EraIndex) -> Vec<Self::AccountId> {
         ElectedValidators::get()
     }
 
-    fn era_start_session_index(_era: sp_staking::EraIndex) -> Option<SessionIndex> {
-        // TODO implement
-        None
+    fn era_start_session_index(era: EraIndex) -> Option<SessionIndex> {
+       Some(era * Self::sessions_per_era())
     }
 }
 
-parameter_types! {
-    pub static Validators: Vec<u64> = vec![1, 2, 3];
-    pub static NextValidators: Vec<u64> = vec![1, 2, 3];
-    // pub static Authorities: Vec<UintAuthorityId> =
-    //     vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)];
-    pub static ForceSessionEnd: bool = false;
-    pub static SessionLength: u64 = 2;
-    pub static SessionChanged: bool = false;
-    pub static TestSessionChanged: bool = false;
-    pub static Disabled: bool = false;
-    // Stores if `on_before_session_end` was called
-    pub static BeforeSessionEndCalled: bool = false;
-}
+impl EraManager for MockEraSessionManager {
+    fn on_new_era(_era: EraIndex) {
+        let elected_committee = ElectedValidators::get();
 
-pub struct MockSessionManager;
-impl SessionManager<AccountId> for MockSessionManager {
-    fn end_session(_: SessionIndex) {}
-    fn start_session(_: SessionIndex) {}
-    fn new_session(_: SessionIndex) -> Option<Vec<u64>> {
-        if !TestSessionChanged::get() {
-            Validators::mutate(|v| {
-                *v = NextValidators::get().clone();
-                Some(v.clone())
-            })
-        } else if Disabled::mutate(|l| std::mem::replace(&mut *l, false)) {
-            // If there was a disabled validator, underlying conditions have changed
-            // so we return `Some`.
-            Some(Validators::get().clone())
-        } else {
-            None
-        }
+        let retain_elected = |vals: Vec<AccountId>| -> Vec<AccountId> {
+            vals
+                .into_iter()
+                .filter(|v| elected_committee.contains(v))
+                .collect()
+        };
+        let reserved_validators = NextReservedValidators::get();
+        let non_reserved_validators = NextNonReservedValidators::get();
+        let committee_size = NextEraCommitteSeats::get();
+
+        CurrentEraValidators::set(EraValidators {
+            reserved: retain_elected(reserved_validators),
+            non_reserved: retain_elected(non_reserved_validators),
+        });
+        EraCommitteSeats::set(committee_size);
     }
 }
 
@@ -209,22 +247,16 @@ impl pallet_aleph::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = SessionInfoImpl;
     type SessionManager =
-        SessionAndEraManager<MockEraInfoProvider, Elections, MockSessionManager, Test>;
+        SessionAndEraManager<MockEraSessionManager, MockEraSessionManager, MockEraSessionManager, Test>;
     type NextSessionAuthorityProvider = Session;
     type TotalIssuanceProvider = TotalIssuanceProvider;
 }
 
 pub struct MockValidatorProvider;
-
-parameter_types! {
-    pub static ActiveEra: EraIndex = 0;
-    pub static CurrentEra: EraIndex = 0;
-    pub static ElectedValidators: Vec<u64> = vec![1, 2, 3];
-}
 impl ValidatorProvider for MockValidatorProvider {
     type AccountId = AccountId;
 
-    fn elected_validators(era: EraIndex) -> Vec<Self::AccountId> {
+    fn elected_validators(_era: EraIndex) -> Vec<Self::AccountId> {
         ElectedValidators::get()
     }
 }
@@ -235,44 +267,6 @@ impl BannedValidators for MockValidatorProvider {
     fn banned() -> Vec<Self::AccountId> {
         vec![]
     }
-}
-
-type MaxVotesPerVoter = ConstU32<1>;
-type AccountIdBoundedVec = BoundedVec<AccountId, MaxVotesPerVoter>;
-type Vote = (AccountId, VoteWeight, AccountIdBoundedVec);
-
-pub struct MockDataProvider;
-impl ElectionDataProvider for MockDataProvider {
-    type AccountId = AccountId;
-    type BlockNumber = u64;
-    type MaxVotesPerVoter = MaxVotesPerVoter;
-
-    fn electable_targets(
-        _maybe_max_len: DataProviderBounds,
-    ) -> data_provider::Result<Vec<AccountId>> {
-        // TODO implement
-        Ok(vec![])
-    }
-
-    fn electing_voters(_maybe_max_len: DataProviderBounds) -> data_provider::Result<Vec<Vote>> {
-        Ok(vec![])
-    }
-
-    fn desired_targets() -> data_provider::Result<u32> {
-        Ok(0)
-    }
-
-    fn next_election_prediction(_now: u64) -> u64 {
-        0
-    }
-}
-
-impl pallet_elections::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type DataProvider = MockDataProvider;
-    type ValidatorProvider = MockValidatorProvider;
-    type MaxWinners = ConstU32<DEFAULT_MAX_WINNERS>;
-    type BannedValidators = MockValidatorProvider;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
@@ -288,12 +282,6 @@ impl TotalIssuanceProviderT for TotalIssuanceProvider {
     fn get() -> Balance {
         pallet_balances::Pallet::<Test>::total_issuance()
     }
-}
-
-parameter_types! {
-    pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
-    pub static ReservedValidators: Vec<AccountId> = vec![];
-    pub static NonReservedValidators: Vec<AccountId> = vec![];
 }
 
 pub struct MockEraValidatorProvider;
@@ -323,10 +311,18 @@ impl ValidatorRewardsHandler for MockRewardsHandler {
     }
 }
 
+pub struct MockBanHandler;
+impl BanHandler for MockBanHandler{
+    type AccountId = AccountId;
+    fn can_ban(_who: &Self::AccountId) -> bool {
+        false
+    }
+}
+
 impl Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type BanHandler = Elections;
-    type EraInfoProvider = MockEraInfoProvider;
+    type BanHandler = MockBanHandler;
+    type EraInfoProvider = MockEraSessionManager;
     type ValidatorProvider = MockEraValidatorProvider;
     type ValidatorRewardsHandler = MockRewardsHandler;
     type ValidatorExtractor = MockExtractor;
