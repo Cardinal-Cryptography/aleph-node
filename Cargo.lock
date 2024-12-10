@@ -5124,10 +5124,14 @@ dependencies = [
 name = "pallet-committee-management"
 version = "0.2.0"
 dependencies = [
+ "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "log",
+ "pallet-aleph",
  "pallet-authorship",
+ "pallet-balances",
+ "pallet-elections",
  "pallet-session",
  "pallet-staking",
  "pallets-support",
@@ -5136,6 +5140,7 @@ dependencies = [
  "rand",
  "rand_pcg",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-staking",
