@@ -20,6 +20,7 @@ pallet-authorship = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-session = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-timestamp = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true }
@@ -46,6 +47,7 @@ std = [
     "pallet-balances/std",
     "pallet-session/std",
     "pallet-staking/std",
+    "pallet-timestamp/std",
     "sp-core/std",
     "sp-io/std",
     "sp-runtime/std",

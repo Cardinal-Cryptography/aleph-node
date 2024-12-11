@@ -5,9 +5,9 @@ extern crate core;
 
 mod impls;
 mod manager;
-mod traits;
-// #[cfg(test)]
+#[cfg(test)]
 mod mock;
+mod traits;
 
 use frame_support::{pallet_prelude::Get, traits::StorageVersion};
 pub use manager::SessionAndEraManager;

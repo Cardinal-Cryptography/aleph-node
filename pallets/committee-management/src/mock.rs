@@ -1,3 +1,6 @@
+use frame_election_provider_support::{
+    BoundedSupportsOf, ElectionProvider, ElectionProviderBase, Support,
+};
 use frame_support::{
     construct_runtime,
     pallet_prelude::ConstU32,
@@ -6,42 +9,45 @@ use frame_support::{
     weights::{RuntimeDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_elections::ValidatorProvider;
-use pallet_session::SessionManager;
+use pallet_staking::ExposureOf;
 use primitives::{
-    AuthorityId, BanHandler, BannedValidators, CommitteeSeats, EraManager, EraValidators, SessionIndex, SessionInfoProvider, TotalIssuanceProvider as TotalIssuanceProviderT, ValidatorProvider as EraValidatorProvider,
+    AuthorityId, CommitteeSeats, EraValidators, SessionIndex, SessionInfoProvider,
+    TotalIssuanceProvider as TotalIssuanceProviderT, DEFAULT_MAX_WINNERS,
 };
-use sp_core::H256;
+use sp_core::{bounded_vec, ConstU64, H256};
 use sp_runtime::{
     impl_opaque_keys,
     testing::TestXt,
     traits::{ConvertInto, IdentityLookup},
+    BoundedVec,
 };
-use sp_staking::EraIndex;
+use sp_staking::{EraIndex, Exposure};
 
 use super::*;
 use crate as pallet_committee_management;
 
-const SESSIONS_PER_ERA: SessionIndex = 3;
-
-type Block = frame_system::mocking::MockBlock<Test>;
+type Block = frame_system::mocking::MockBlock<TestRuntime>;
 pub(crate) type AccountId = u64;
 pub(crate) type Balance = u128;
 
 construct_runtime!(
-    pub enum Test
+    pub enum TestRuntime
     {
         System: frame_system,
         Balances: pallet_balances,
+        Staking: pallet_staking,
+        History: pallet_session::historical,
         Session: pallet_session,
         Aleph: pallet_aleph,
         CommitteeManagement: pallet_committee_management,
+        Timestamp: pallet_timestamp,
+        Elections: pallet_elections,
     }
 );
 
 impl_opaque_keys! {
-    pub struct TestSessionKeys {
-        pub aleph: pallet_aleph::Pallet<Test>,
+    pub struct TestRuntimeSessionKeys {
+        pub aleph: pallet_aleph::Pallet<TestRuntime>,
     }
 }
 
@@ -49,14 +55,13 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub BlockWeights: frame_system::limits::BlockWeights =
         frame_system::limits::BlockWeights::simple_max(Weight::from_parts(1024, 0));
-    pub const TestDbWeight: RuntimeDbWeight = RuntimeDbWeight {
+    pub const TestRuntimeDbWeight: RuntimeDbWeight = RuntimeDbWeight {
         read: 25,
         write: 100
     };
 }
 
-// TODO use test derive
-impl frame_system::Config for Test {
+impl frame_system::Config for TestRuntime {
     type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = ();
     type BlockLength = ();
@@ -71,7 +76,7 @@ impl frame_system::Config for Test {
     type Lookup = IdentityLookup<Self::AccountId>;
     type RuntimeEvent = RuntimeEvent;
     type BlockHashCount = BlockHashCount;
-    type DbWeight = TestDbWeight;
+    type DbWeight = TestRuntimeDbWeight;
     type Version = ();
     type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<u128>;
@@ -87,8 +92,7 @@ parameter_types! {
     pub const ExistentialDeposit: u128 = 1;
 }
 
-// TODO use test derive
-impl pallet_balances::Config for Test {
+impl pallet_balances::Config for TestRuntime {
     type Balance = u128;
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
@@ -105,15 +109,95 @@ impl pallet_balances::Config for Test {
     type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
+pub struct MockElectionProvider;
+impl ElectionProviderBase for MockElectionProvider {
+    type AccountId = AccountId;
+    type BlockNumber = BlockNumberFor<TestRuntime>;
+    type Error = ();
+    type DataProvider = Staking;
+    type MaxWinners = MaxWinners;
+}
+
+fn self_support(v: AccountId) -> Support<AccountId> {
+    Support {
+        total: 2137,
+        voters: vec![(v, 2137)],
+    }
+}
+
+impl ElectionProvider for MockElectionProvider {
+    fn ongoing() -> bool {
+        false
+    }
+
+    fn elect() -> Result<BoundedSupportsOf<Self>, Self::Error> {
+        let elected_validators = ElectedValidators::get();
+        Ok(elected_validators
+            .into_iter()
+            .map(|v| (v.clone(), self_support(v)))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap())
+    }
+}
+
+pub struct ZeroEraPayout;
+impl pallet_staking::EraPayout<u128> for ZeroEraPayout {
+    fn era_payout(_: u128, _: u128, _: u64) -> (u128, u128) {
+        (0, 0)
+    }
+}
+
+parameter_types! {
+    pub const SessionsPerEra: SessionIndex = 3;
+    pub static BondingDuration: u32 = 3;
+}
+
+impl pallet_staking::Config for TestRuntime {
+    type Currency = Balances;
+    type CurrencyBalance = u128;
+    type UnixTime = pallet_timestamp::Pallet<Self>;
+    type CurrencyToVote = ();
+    type RewardRemainder = ();
+    type RuntimeEvent = RuntimeEvent;
+    type Slash = ();
+    type Reward = ();
+    type SessionsPerEra = SessionsPerEra;
+    type SlashDeferDuration = ();
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type BondingDuration = BondingDuration;
+    type SessionInterface = Self;
+    type EraPayout = ZeroEraPayout;
+    type NextNewSession = Session;
+    type MaxExposurePageSize = ConstU32<64>;
+    type OffendingValidatorsThreshold = ();
+    type ElectionProvider = MockElectionProvider;
+    type GenesisElectionProvider = Self::ElectionProvider;
+    type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<TestRuntime>;
+    type TargetList = pallet_staking::UseValidatorsMap<Self>;
+    type NominationsQuota = pallet_staking::FixedNominationsQuota<16>;
+    type MaxUnlockingChunks = ConstU32<32>;
+    type MaxControllersInDeprecationBatch = ConstU32<64>;
+    type HistoryDepth = ConstU32<84>;
+    type EventListeners = ();
+    type BenchmarkingConfig = pallet_staking::TestBenchmarkingConfig;
+    type WeightInfo = ();
+}
+
+impl pallet_session::historical::Config for TestRuntime {
+    type FullIdentification = Exposure<AccountId, Balance>;
+    type FullIdentificationOf = ExposureOf<TestRuntime>;
+}
+
 pub struct SessionInfoImpl;
-impl SessionInfoProvider<BlockNumberFor<Test>> for SessionInfoImpl {
+impl SessionInfoProvider<BlockNumberFor<TestRuntime>> for SessionInfoImpl {
     fn current_session() -> SessionIndex {
-        pallet_session::CurrentIndex::<Test>::get()
+        pallet_session::CurrentIndex::<TestRuntime>::get()
     }
     fn next_session_block_number(
-        current_block: BlockNumberFor<Test>,
-    ) -> Option<BlockNumberFor<Test>> {
-        <Test as pallet_session::Config>::NextSessionRotation::estimate_next_session_rotation(
+        current_block: BlockNumberFor<TestRuntime>,
+    ) -> Option<BlockNumberFor<TestRuntime>> {
+        <TestRuntime as pallet_session::Config>::NextSessionRotation::estimate_next_session_rotation(
             current_block,
         )
         .0
@@ -125,7 +209,7 @@ parameter_types! {
     pub const Offset: u64 = 0;
 }
 
-impl pallet_session::Config for Test {
+impl pallet_session::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
     type ValidatorId = u64;
     type ValidatorIdOf = ConvertInto;
@@ -133,23 +217,13 @@ impl pallet_session::Config for Test {
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type SessionManager = Aleph;
     type SessionHandler = (Aleph,);
-    type Keys = TestSessionKeys;
+    type Keys = TestRuntimeSessionKeys;
     type WeightInfo = ();
 }
 
 parameter_types! {
-    // pub static Validators: Vec<u64> = vec![1, 2, 3];
-    // pub static NextValidators: Vec<u64> = vec![1, 2, 3];
-    // pub static Authorities: Vec<UintAuthorityId> =
-    //     vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)];
-    pub static ForceSessionEnd: bool = false;
-    pub static SessionChanged: bool = false;
-    pub static TestSessionChanged: bool = false;
-    pub static Disabled: bool = false;
-    // Stores if `on_before_session_end` was called
-    pub static BeforeSessionEndCalled: bool = false;
-    pub static NewElectedValidators: Vec<AccountId> = vec![];
-    pub static ElectedValidators: Vec<AccountId> = vec![];
+    pub static NewElectedValidators: BoundedVec<AccountId, MaxWinners> = bounded_vec![];
+    pub static ElectedValidators: BoundedVec<AccountId, MaxWinners> = bounded_vec![];
     pub static ActiveEra: EraIndex = 0;
     pub static CurrentEra: EraIndex = 0;
     pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
@@ -159,117 +233,24 @@ parameter_types! {
     pub static NextReservedValidators: Vec<AccountId> = vec![];
     pub static NextNonReservedValidators: Vec<AccountId> = vec![];
     pub static CurrentEraValidators: EraValidators<AccountId> = EraValidators::default();
+    pub static MaxWinners: u32 = DEFAULT_MAX_WINNERS;
 }
 
-// Periodic Era Manager, every era lasts Self::sessions_per_era() and
-// starts on session with index equal a multiple of Self::sessions_per_era()
-pub struct MockEraSessionManager;
-impl SessionManager<AccountId> for MockEraSessionManager {
-	/// Plan a new session potentially trigger a new era.
-    fn new_session(session_index: SessionIndex) -> Option<Vec<AccountId>> {
-        // TODO add support for forcing new eras;
-        if session_index % Self::sessions_per_era() != 0 {
-            return None
-        }
-
-        let new_elected_validators = NewElectedValidators::get();
-        ElectedValidators::set(new_elected_validators.clone());
-
-        // trigger new era
-
-		CurrentEra::mutate(|ce| { *ce += 1; });
-
-        Some(new_elected_validators)
-    }
-
-	/// Start a session potentially starting an era.
-    fn start_session(start_session: SessionIndex) {
-		let next_active_era = Self::active_era().unwrap() + 1;
-        // check if next era is planned, i.e. current_era index got increamented and we are in the last session of of active_era
-        if next_active_era == Self::current_era().unwrap() {
-            if start_session == next_active_era * Self::sessions_per_era() {
-                ActiveEra::mutate(|ae| { *ae += 1;});
-            }
-        }
-    }
-
-    fn end_session(_: SessionIndex) {}
-}
-
-impl EraInfoProvider for MockEraSessionManager{
-    type AccountId = AccountId;
-
-    fn active_era() -> Option<EraIndex> {
-        Some(ActiveEra::get())
-    }
-
-    fn current_era() -> Option<EraIndex> {
-        Some(CurrentEra::get())
-    }
-
-    fn sessions_per_era() -> SessionIndex {
-        SESSIONS_PER_ERA
-    }
-
-    fn elected_validators(_era: EraIndex) -> Vec<Self::AccountId> {
-        ElectedValidators::get()
-    }
-
-    fn era_start_session_index(era: EraIndex) -> Option<SessionIndex> {
-       Some(era * Self::sessions_per_era())
-    }
-}
-
-impl EraManager for MockEraSessionManager {
-    fn on_new_era(_era: EraIndex) {
-        let elected_committee = ElectedValidators::get();
-
-        let retain_elected = |vals: Vec<AccountId>| -> Vec<AccountId> {
-            vals
-                .into_iter()
-                .filter(|v| elected_committee.contains(v))
-                .collect()
-        };
-        let reserved_validators = NextReservedValidators::get();
-        let non_reserved_validators = NextNonReservedValidators::get();
-        let committee_size = NextEraCommitteSeats::get();
-
-        CurrentEraValidators::set(EraValidators {
-            reserved: retain_elected(reserved_validators),
-            non_reserved: retain_elected(non_reserved_validators),
-        });
-        EraCommitteSeats::set(committee_size);
-    }
-}
-
-impl pallet_aleph::Config for Test {
+impl pallet_aleph::Config for TestRuntime {
     type AuthorityId = AuthorityId;
     type RuntimeEvent = RuntimeEvent;
     type SessionInfoProvider = SessionInfoImpl;
-    type SessionManager =
-        SessionAndEraManager<MockEraSessionManager, MockEraSessionManager, MockEraSessionManager, Test>;
+    type SessionManager = SessionAndEraManager<
+        Staking,
+        Elections,
+        pallet_session::historical::NoteHistoricalRoot<TestRuntime, Staking>,
+        TestRuntime,
+    >;
     type NextSessionAuthorityProvider = Session;
     type TotalIssuanceProvider = TotalIssuanceProvider;
 }
 
-pub struct MockValidatorProvider;
-impl ValidatorProvider for MockValidatorProvider {
-    type AccountId = AccountId;
-
-    fn elected_validators(_era: EraIndex) -> Vec<Self::AccountId> {
-        ElectedValidators::get()
-    }
-}
-
-impl BannedValidators for MockValidatorProvider {
-    type AccountId = AccountId;
-
-    fn banned() -> Vec<Self::AccountId> {
-        vec![]
-    }
-}
-
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+impl<C> frame_system::offchain::SendTransactionTypes<C> for TestRuntime
 where
     RuntimeCall: From<C>,
 {
@@ -277,55 +258,39 @@ where
     type OverarchingCall = RuntimeCall;
 }
 
+parameter_types! {
+    pub const MinimumPeriod: u64 = 3;
+}
+
+impl pallet_timestamp::Config for TestRuntime {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = ConstU64<5>;
+    type WeightInfo = ();
+}
+
 pub struct TotalIssuanceProvider;
 impl TotalIssuanceProviderT for TotalIssuanceProvider {
     fn get() -> Balance {
-        pallet_balances::Pallet::<Test>::total_issuance()
+        pallet_balances::Pallet::<TestRuntime>::total_issuance()
     }
 }
 
-pub struct MockEraValidatorProvider;
-impl EraValidatorProvider for MockEraValidatorProvider {
-    type AccountId = AccountId;
-    fn current_era_validators() -> EraValidators<Self::AccountId> {
-        EraValidators { reserved: ReservedValidators::get(), non_reserved: NonReservedValidators::get() }
-    }
-    fn current_era_committee_size() -> CommitteeSeats {
-        EraCommitteSeats::get()
-    }
-}
-
-pub struct MockExtractor;
-impl ValidatorExtractor for MockExtractor {
-    type AccountId = AccountId;
-    fn remove_validator(_who: &Self::AccountId) {}
-}
-
-pub struct MockRewardsHandler;
-impl ValidatorRewardsHandler for MockRewardsHandler {
-    type AccountId = AccountId;
-    fn add_rewards(_rewards: impl IntoIterator<Item = (Self::AccountId, u32)>) {}
-
-    fn validator_totals(_era: EraIndex) -> Vec<(Self::AccountId, u128)> {
-        vec![]
-    }
-}
-
-pub struct MockBanHandler;
-impl BanHandler for MockBanHandler{
-    type AccountId = AccountId;
-    fn can_ban(_who: &Self::AccountId) -> bool {
-        false
-    }
-}
-
-impl Config for Test {
+impl pallet_elections::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
-    type BanHandler = MockBanHandler;
-    type EraInfoProvider = MockEraSessionManager;
-    type ValidatorProvider = MockEraValidatorProvider;
-    type ValidatorRewardsHandler = MockRewardsHandler;
-    type ValidatorExtractor = MockExtractor;
+    type DataProvider = Staking;
+    type ValidatorProvider = Staking;
+    type MaxWinners = MaxWinners;
+    type BannedValidators = CommitteeManagement;
+}
+
+impl Config for TestRuntime {
+    type RuntimeEvent = RuntimeEvent;
+    type BanHandler = Elections;
+    type EraInfoProvider = Staking;
+    type ValidatorProvider = Elections;
+    type ValidatorRewardsHandler = Staking;
+    type ValidatorExtractor = Staking;
     type FinalityCommitteeManager = Aleph;
     type SessionPeriod = SessionPeriod;
     type AbftScoresProvider = Aleph;

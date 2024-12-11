@@ -5134,6 +5134,7 @@ dependencies = [
  "pallet-elections",
  "pallet-session",
  "pallet-staking",
+ "pallet-timestamp",
  "pallets-support",
  "parity-scale-codec",
  "primitives",
