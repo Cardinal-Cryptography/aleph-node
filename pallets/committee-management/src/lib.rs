@@ -7,6 +7,8 @@ mod impls;
 mod manager;
 #[cfg(test)]
 mod mock;
+#[cfg(test)]
+mod tests;
 mod traits;
 
 use frame_support::{pallet_prelude::Get, traits::StorageVersion};

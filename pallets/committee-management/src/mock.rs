@@ -1,5 +1,5 @@
 use frame_election_provider_support::{
-    BoundedSupportsOf, ElectionProvider, ElectionProviderBase, Support,
+    BoundedSupports, BoundedSupportsOf, ElectionProvider, ElectionProviderBase,
 };
 use frame_support::{
     construct_runtime,
@@ -9,7 +9,7 @@ use frame_support::{
     weights::{RuntimeDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_staking::ExposureOf;
+use pallet_staking::{ExposureOf, Forcing};
 use primitives::{
     AuthorityId, CommitteeSeats, EraValidators, SessionIndex, SessionInfoProvider,
     TotalIssuanceProvider as TotalIssuanceProviderT, DEFAULT_MAX_WINNERS,
@@ -17,11 +17,11 @@ use primitives::{
 use sp_core::{bounded_vec, ConstU64, H256};
 use sp_runtime::{
     impl_opaque_keys,
-    testing::TestXt,
+    testing::{TestXt, UintAuthorityId},
     traits::{ConvertInto, IdentityLookup},
-    BoundedVec,
+    BuildStorage, Perbill,
 };
-use sp_staking::{EraIndex, Exposure};
+use sp_staking::{EraIndex, Exposure, StakerStatus};
 
 use super::*;
 use crate as pallet_committee_management;
@@ -46,7 +46,7 @@ construct_runtime!(
 );
 
 impl_opaque_keys! {
-    pub struct TestRuntimeSessionKeys {
+    pub struct TestSessionKeys {
         pub aleph: pallet_aleph::Pallet<TestRuntime>,
     }
 }
@@ -118,26 +118,20 @@ impl ElectionProviderBase for MockElectionProvider {
     type MaxWinners = MaxWinners;
 }
 
-fn self_support(v: AccountId) -> Support<AccountId> {
-    Support {
-        total: 2137,
-        voters: vec![(v, 2137)],
-    }
-}
-
 impl ElectionProvider for MockElectionProvider {
     fn ongoing() -> bool {
         false
     }
 
     fn elect() -> Result<BoundedSupportsOf<Self>, Self::Error> {
-        let elected_validators = ElectedValidators::get();
-        Ok(elected_validators
-            .into_iter()
-            .map(|v| (v.clone(), self_support(v)))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap())
+        // let elected_validators = ElectedValidators::get();
+        // Ok(elected_validators
+        //     .into_iter()
+        //     .map(|v| (v.clone(), self_support(v)))
+        //     .collect::<Vec<_>>()
+        //     .try_into()
+        //     .unwrap())
+        Ok(ElectedValidators::get())
     }
 }
 
@@ -217,13 +211,13 @@ impl pallet_session::Config for TestRuntime {
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type SessionManager = Aleph;
     type SessionHandler = (Aleph,);
-    type Keys = TestRuntimeSessionKeys;
+    type Keys = TestSessionKeys;
     type WeightInfo = ();
 }
 
 parameter_types! {
-    pub static NewElectedValidators: BoundedVec<AccountId, MaxWinners> = bounded_vec![];
-    pub static ElectedValidators: BoundedVec<AccountId, MaxWinners> = bounded_vec![];
+    pub static ElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
+    pub static NewElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
     pub static ActiveEra: EraIndex = 0;
     pub static CurrentEra: EraIndex = 0;
     pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
@@ -294,4 +288,87 @@ impl Config for TestRuntime {
     type FinalityCommitteeManager = Aleph;
     type SessionPeriod = SessionPeriod;
     type AbftScoresProvider = Aleph;
+}
+
+pub struct TestExtBuilder {
+    reserved_validators: Vec<AccountId>,
+    non_reserved_validators: Vec<AccountId>,
+    committee_seats: CommitteeSeats,
+}
+
+impl TestExtBuilder {
+    pub fn new(
+        reserved_validators: Vec<AccountId>,
+        non_reserved_validators: Vec<AccountId>,
+        non_reserved_finality_seats: u32,
+    ) -> Self {
+        Self {
+            committee_seats: CommitteeSeats {
+                reserved_seats: reserved_validators.len() as u32,
+                non_reserved_seats: non_reserved_validators.len() as u32,
+                non_reserved_finality_seats
+            },
+            reserved_validators,
+            non_reserved_validators,
+        }
+    }
+
+    pub fn build(self) -> sp_io::TestExternalities {
+        let mut t = <frame_system::GenesisConfig<TestRuntime> as BuildStorage>::build_storage(
+            &frame_system::GenesisConfig::default(),
+        )
+        .expect("Storage should be build.");
+
+        let validators: Vec<_> = self
+            .non_reserved_validators
+            .iter()
+            .chain(self.reserved_validators.iter())
+            .collect();
+
+        let balances: Vec<_> = validators.iter().map(|i| (**i, 10_000_000)).collect();
+
+        pallet_balances::GenesisConfig::<TestRuntime> { balances }
+            .assimilate_storage(&mut t)
+            .unwrap();
+
+        pallet_staking::GenesisConfig::<TestRuntime> {
+            validator_count: self.committee_seats.size(),
+            minimum_validator_count: 1,
+            invulnerables: vec![],
+            force_era: Forcing::NotForcing,
+            slash_reward_fraction: Perbill::from_percent(0),
+            canceled_payout: 0,
+            stakers: validators
+                .iter()
+                .map(|&&v| (v, v, 5_000_000, StakerStatus::<AccountId>::Validator))
+                .collect(),
+            min_nominator_bond: 1,
+            min_validator_bond: 1,
+            max_validator_count: None,
+            max_nominator_count: None,
+        }
+        .assimilate_storage(&mut t)
+        .unwrap();
+
+        let session_keys: Vec<_> = validators
+            .iter()
+            .map(|&&v| UintAuthorityId(v).to_public_key::<AuthorityId>())
+            .enumerate()
+            .map(|(i, k)| (i as u64, i as u64, TestSessionKeys { aleph: k }))
+            .collect();
+
+        pallet_session::GenesisConfig::<TestRuntime> { keys: session_keys }
+            .assimilate_storage(&mut t)
+            .unwrap();
+
+        pallet_elections::GenesisConfig::<TestRuntime> {
+            non_reserved_validators: self.non_reserved_validators,
+            reserved_validators: self.reserved_validators,
+            committee_seats: self.committee_seats,
+        }
+        .assimilate_storage(&mut t)
+        .unwrap();
+
+        t.into()
+    }
 }
