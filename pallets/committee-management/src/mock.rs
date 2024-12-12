@@ -5,7 +5,7 @@ use frame_support::{
     construct_runtime,
     pallet_prelude::ConstU32,
     parameter_types,
-    traits::EstimateNextSessionRotation,
+    traits::{EstimateNextSessionRotation, Hooks},
     weights::{RuntimeDbWeight, Weight},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -27,27 +27,28 @@ use super::*;
 use crate as pallet_committee_management;
 
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
-pub(crate) type AccountId = u64;
-pub(crate) type Balance = u128;
+pub type AccountId = u64;
+pub type Balance = u128;
+pub type BlockNumber = BlockNumberFor<TestRuntime>;
 
 construct_runtime!(
     pub enum TestRuntime
     {
         System: frame_system,
+        Timestamp: pallet_timestamp,
         Balances: pallet_balances,
         Staking: pallet_staking,
-        History: pallet_session::historical,
         Session: pallet_session,
+        History: pallet_session::historical,
         Aleph: pallet_aleph,
         CommitteeManagement: pallet_committee_management,
-        Timestamp: pallet_timestamp,
         Elections: pallet_elections,
     }
 );
 
 impl_opaque_keys! {
     pub struct TestSessionKeys {
-        pub aleph: pallet_aleph::Pallet<TestRuntime>,
+        pub aleph: Aleph,
     }
 }
 
@@ -112,7 +113,7 @@ impl pallet_balances::Config for TestRuntime {
 pub struct MockElectionProvider;
 impl ElectionProviderBase for MockElectionProvider {
     type AccountId = AccountId;
-    type BlockNumber = BlockNumberFor<TestRuntime>;
+    type BlockNumber = BlockNumber;
     type Error = ();
     type DataProvider = Staking;
     type MaxWinners = MaxWinners;
@@ -165,7 +166,7 @@ impl pallet_staking::Config for TestRuntime {
     type NextNewSession = Session;
     type MaxExposurePageSize = ConstU32<64>;
     type OffendingValidatorsThreshold = ();
-    type ElectionProvider = MockElectionProvider;
+    type ElectionProvider = Elections;
     type GenesisElectionProvider = Self::ElectionProvider;
     type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<TestRuntime>;
     type TargetList = pallet_staking::UseValidatorsMap<Self>;
@@ -209,7 +210,7 @@ impl pallet_session::Config for TestRuntime {
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = Aleph;
+    type SessionManager = pallet_session::historical::NoteHistoricalRoot<TestRuntime, Staking>;
     type SessionHandler = (Aleph,);
     type Keys = TestSessionKeys;
     type WeightInfo = ();
@@ -218,8 +219,6 @@ impl pallet_session::Config for TestRuntime {
 parameter_types! {
     pub static ElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
     pub static NewElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
-    pub static ActiveEra: EraIndex = 0;
-    pub static CurrentEra: EraIndex = 0;
     pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
     pub static NextEraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
     pub static ReservedValidators: Vec<AccountId> = vec![];
@@ -290,6 +289,50 @@ impl Config for TestRuntime {
     type AbftScoresProvider = Aleph;
 }
 
+pub fn active_era() -> EraIndex {
+    pallet_staking::ActiveEra::<TestRuntime>::get()
+        .unwrap()
+        .index
+}
+
+pub fn current_era() -> EraIndex {
+    pallet_staking::CurrentEra::<TestRuntime>::get().unwrap_or(0)
+}
+
+pub const INIT_TIMESTAMP: u64 = 100_000;
+pub const BLOCK_TIME: u64 = 1000;
+
+pub fn run_to_block(n: BlockNumber) {
+    Staking::on_finalize(System::block_number());
+    for b in System::block_number() + 1..=n {
+        System::set_block_number(b);
+        Session::on_initialize(b);
+        Timestamp::set_timestamp(System::block_number() * BLOCK_TIME + INIT_TIMESTAMP);
+        if b != n {
+            Staking::on_finalize(System::block_number());
+        }
+    }
+}
+
+pub fn start_session(session_index: SessionIndex) {
+    let end = session_index * SessionPeriod::get();
+    run_to_block(end as u64);
+    assert_eq!(
+        Session::current_index(),
+        session_index,
+        "current session index = {}, expected = {}",
+        Session::current_index(),
+        session_index,
+    );
+}
+
+pub struct TestBuilderConfig {
+    pub reserved_validators: Vec<AccountId>,
+    pub non_reserved_validators: Vec<AccountId>,
+    pub non_reserved_seats: u32,
+    pub non_reserved_finality_seats: u32,
+}
+
 pub struct TestExtBuilder {
     reserved_validators: Vec<AccountId>,
     non_reserved_validators: Vec<AccountId>,
@@ -297,16 +340,18 @@ pub struct TestExtBuilder {
 }
 
 impl TestExtBuilder {
-    pub fn new(
-        reserved_validators: Vec<AccountId>,
-        non_reserved_validators: Vec<AccountId>,
-        non_reserved_finality_seats: u32,
-    ) -> Self {
+    pub fn new(config: TestBuilderConfig) -> Self {
+        let TestBuilderConfig {
+            reserved_validators,
+            non_reserved_validators,
+            non_reserved_seats,
+            non_reserved_finality_seats,
+        } = config;
         Self {
             committee_seats: CommitteeSeats {
                 reserved_seats: reserved_validators.len() as u32,
-                non_reserved_seats: non_reserved_validators.len() as u32,
-                non_reserved_finality_seats
+                non_reserved_seats,
+                non_reserved_finality_seats,
             },
             reserved_validators,
             non_reserved_validators,
@@ -369,6 +414,14 @@ impl TestExtBuilder {
         .assimilate_storage(&mut t)
         .unwrap();
 
-        t.into()
+        let mut ext = sp_io::TestExternalities::from(t);
+        ext.execute_with(|| {
+            System::set_block_number(1);
+            Session::on_initialize(1);
+            <Staking as Hooks<u64>>::on_initialize(1);
+            Timestamp::set_timestamp(INIT_TIMESTAMP);
+        });
+
+        ext
     }
 }
