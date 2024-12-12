@@ -51,7 +51,7 @@ impl Get<Perquintill> for DefaultLenientThreshold {
     }
 }
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 pub(crate) const LOG_TARGET: &str = "pallet-committee-management";
 
 #[frame_support::pallet]
