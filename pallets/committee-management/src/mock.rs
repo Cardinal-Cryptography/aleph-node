@@ -12,7 +12,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_staking::{ExposureOf, Forcing};
 use primitives::{
     AuthorityId, CommitteeSeats, EraValidators, SessionIndex, SessionInfoProvider,
-    TotalIssuanceProvider as TotalIssuanceProviderT, DEFAULT_MAX_WINNERS,
+    TotalIssuanceProvider as TotalIssuanceProviderT, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
+    DEFAULT_SESSION_PERIOD,
 };
 use sp_core::{bounded_vec, ConstU64, H256};
 use sp_runtime::{
@@ -144,7 +145,7 @@ impl pallet_staking::EraPayout<u128> for ZeroEraPayout {
 }
 
 parameter_types! {
-    pub const SessionsPerEra: SessionIndex = 3;
+    pub const SessionsPerEra: SessionIndex = DEFAULT_SESSIONS_PER_ERA;
     pub static BondingDuration: u32 = 3;
 }
 
@@ -200,7 +201,7 @@ impl SessionInfoProvider<BlockNumberFor<TestRuntime>> for SessionInfoImpl {
 }
 
 parameter_types! {
-    pub const SessionPeriod: u32 = 5;
+    pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
     pub const Offset: u64 = 0;
 }
 
@@ -324,6 +325,26 @@ pub fn start_session(session_index: SessionIndex) {
         Session::current_index(),
         session_index,
     );
+}
+
+pub(crate) fn advance_era() {
+    let active_era = active_era();
+    let first_session_in_next_era = SessionsPerEra::get() * (active_era + 1);
+    start_session(first_session_in_next_era);
+}
+
+pub(crate) fn committee_management_events() -> Vec<crate::Event<TestRuntime>> {
+    System::events()
+        .into_iter()
+        .map(|r| r.event)
+        .filter_map(|e| {
+            if let RuntimeEvent::CommitteeManagement(inner) = e {
+                Some(inner)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 pub struct TestBuilderConfig {

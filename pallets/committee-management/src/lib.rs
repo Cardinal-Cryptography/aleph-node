@@ -121,6 +121,7 @@ pub mod pallet {
 
     /// A lookup for a number of underperformance sessions in block production for a given validator
     #[pallet::storage]
+    #[pallet::getter(fn underperformed_producer_session_count)]
     pub type UnderperformedValidatorSessionCount<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, SessionCount, ValueQuery>;
 

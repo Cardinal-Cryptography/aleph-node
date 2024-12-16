@@ -230,7 +230,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    fn blocks_to_produce_per_session() -> u32 {
+    pub(crate) fn blocks_to_produce_per_session() -> u32 {
         T::SessionPeriod::get()
             .saturating_div(T::ValidatorProvider::current_era_committee_size().size())
     }
@@ -402,7 +402,10 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    fn mark_validator_underperformance(thresholds: &BanConfigStruct, validator: &T::AccountId) {
+    pub(crate) fn mark_validator_underperformance(
+        thresholds: &BanConfigStruct,
+        validator: &T::AccountId,
+    ) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(validator, |count| {
             *count += 1;
             *count

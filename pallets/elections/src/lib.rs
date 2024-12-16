@@ -17,7 +17,6 @@ use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
     prelude::*,
 };
-pub use traits::ValidatorProvider;
 pub type TotalReward = u32;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(5);
