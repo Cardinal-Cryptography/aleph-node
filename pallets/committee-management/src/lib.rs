@@ -116,6 +116,7 @@ pub mod pallet {
 
     /// Current era config for ban functionality related to block production.
     #[pallet::storage]
+    #[pallet::getter(fn producers_ban_config)]
     pub type BanConfig<T> = StorageValue<_, BanConfigStruct, ValueQuery>;
 
     /// A lookup for a number of underperformance sessions in block production for a given validator
@@ -188,7 +189,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mut current_committee_ban_config = BanConfig::<T>::get();
+            let mut current_committee_ban_config = Self::producers_ban_config();
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
