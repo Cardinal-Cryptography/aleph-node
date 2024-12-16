@@ -29,7 +29,7 @@ pub type TotalReward = u32;
 pub struct ValidatorTotalRewards<T>(pub BTreeMap<T, TotalReward>);
 
 #[derive(Decode, Encode, TypeInfo)]
-struct CurrentAndNextSessionValidators<T> {
+pub struct CurrentAndNextSessionValidators<T> {
     pub next: SessionValidators<T>,
     pub current: SessionValidators<T>,
 }
@@ -130,7 +130,7 @@ pub mod pallet {
     /// SessionValidators in the current session.
     #[pallet::storage]
     #[pallet::getter(fn current_session_validators)]
-    pub(crate) type CurrentAndNextSessionValidatorsStorage<T: Config> =
+    pub(super) type CurrentAndNextSessionValidatorsStorage<T: Config> =
         StorageValue<_, CurrentAndNextSessionValidators<T::AccountId>, ValueQuery>;
 
     /// A lookup for a number of underperformance sessions in block finalization for a given validator

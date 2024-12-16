@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use sp_staking::{EraIndex, SessionIndex};
 
 use crate::mock::{
-    active_era, start_session, AccountId, BlockNumber, CommitteeManagement, Session, SessionPeriod,
-    SessionsPerEra, System, TestBuilderConfig, TestExtBuilder,
+    active_era, start_session, AccountId, BlockNumber, CommitteeManagement, Elections, Session,
+    SessionPeriod, SessionsPerEra, System, TestBuilderConfig, TestExtBuilder,
 };
 
 fn gen_config() -> TestBuilderConfig {
@@ -73,7 +73,24 @@ fn new_finalizers_every_session() {
 fn storage_is_updated_at_the_right_time() {}
 
 #[test]
-fn all_reserved_validators_are_chosen() {}
+fn all_reserved_validators_are_chosen() {
+    TestExtBuilder::new(gen_config()).build().execute_with(|| {
+        let reserved = Elections::current_era_validators().reserved;
+        start_session(2);
+        let producers: BTreeSet<AccountId> = CommitteeManagement::current_session_validators()
+            .current
+            .producers
+            .into_iter()
+            .collect();
+        assert!(reserved.iter().all(|rv| producers.contains(rv)));
+        let finalizers: BTreeSet<AccountId> = CommitteeManagement::current_session_validators()
+            .current
+            .finalizers
+            .into_iter()
+            .collect();
+        assert!(reserved.iter().all(|rv| finalizers.contains(rv)));
+    })
+}
 
 #[test]
 fn ban_underperforming_producers() {}
