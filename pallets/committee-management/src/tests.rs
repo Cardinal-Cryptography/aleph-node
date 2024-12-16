@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
+
 use sp_staking::{EraIndex, SessionIndex};
 
 use crate::mock::{
-    active_era, current_era, start_session, BlockNumber, Session, SessionPeriod,
+    active_era, start_session, AccountId, BlockNumber, CommitteeManagement, Session, SessionPeriod,
     SessionsPerEra, System, TestBuilderConfig, TestExtBuilder,
 };
 
@@ -33,3 +35,48 @@ fn session_era_work() {
         }
     })
 }
+
+#[test]
+fn new_poducers_every_session() {
+    TestExtBuilder::new(gen_config()).build().execute_with(|| {
+        let mut producers_in_all_sessions = BTreeSet::<BTreeSet<AccountId>>::new();
+        for session_index in 2..=6 {
+            start_session(session_index);
+            let producers = CommitteeManagement::current_session_validators()
+                .current
+                .producers
+                .into_iter()
+                .collect();
+
+            assert!(producers_in_all_sessions.insert(producers));
+        }
+    })
+}
+
+#[test]
+fn new_finalizers_every_session() {
+    TestExtBuilder::new(gen_config()).build().execute_with(|| {
+        let mut finalizers_in_all_sessions = BTreeSet::<BTreeSet<AccountId>>::new();
+        for session_index in 2..=6 {
+            start_session(session_index);
+            let finalizers = CommitteeManagement::current_session_validators()
+                .current
+                .finalizers
+                .into_iter()
+                .collect();
+            assert!(finalizers_in_all_sessions.insert(finalizers));
+        }
+    })
+}
+
+#[test]
+fn storage_is_updated_at_the_right_time() {}
+
+#[test]
+fn all_reserved_validators_are_chosen() {}
+
+#[test]
+fn ban_underperforming_producers() {}
+
+#[test]
+fn ban_underperforming_finalizers() {}

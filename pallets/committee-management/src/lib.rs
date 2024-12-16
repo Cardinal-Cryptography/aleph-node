@@ -129,6 +129,7 @@ pub mod pallet {
 
     /// SessionValidators in the current session.
     #[pallet::storage]
+    #[pallet::getter(fn current_session_validators)]
     pub(crate) type CurrentAndNextSessionValidatorsStorage<T: Config> =
         StorageValue<_, CurrentAndNextSessionValidators<T::AccountId>, ValueQuery>;
 

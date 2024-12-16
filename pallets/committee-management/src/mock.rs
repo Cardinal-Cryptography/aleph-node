@@ -210,7 +210,7 @@ impl pallet_session::Config for TestRuntime {
     type ValidatorIdOf = ConvertInto;
     type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-    type SessionManager = pallet_session::historical::NoteHistoricalRoot<TestRuntime, Staking>;
+    type SessionManager = Aleph;
     type SessionHandler = (Aleph,);
     type Keys = TestSessionKeys;
     type WeightInfo = ();
