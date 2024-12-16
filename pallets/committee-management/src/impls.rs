@@ -22,8 +22,8 @@ use crate::{
         UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, CurrentAndNextSessionValidators, FinalityBanConfig, LenientThreshold,
-    ValidatorExtractor, ValidatorTotalRewards, LOG_TARGET,
+    BanConfigStruct, CurrentAndNextSessionValidators, LenientThreshold, ValidatorExtractor,
+    ValidatorTotalRewards, LOG_TARGET,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -353,10 +353,10 @@ impl<T: Config> Pallet<T> {
             ..
         } = CurrentAndNextSessionValidatorsStorage::<T>::get();
 
+        let finality_ban_config = Self::finality_ban_config();
         let underperformed_session_count_threshold =
-            FinalityBanConfig::<T>::get().underperformed_session_count_threshold;
-        let minimal_expected_performance =
-            FinalityBanConfig::<T>::get().minimal_expected_performance;
+            finality_ban_config.underperformed_session_count_threshold;
+        let minimal_expected_performance = finality_ban_config.minimal_expected_performance;
 
         let is_underperforming = |score| score > minimal_expected_performance;
 

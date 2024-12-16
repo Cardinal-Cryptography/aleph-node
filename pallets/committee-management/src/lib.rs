@@ -141,6 +141,7 @@ pub mod pallet {
 
     /// Current era config for ban functionality related to block finality.
     #[pallet::storage]
+    #[pallet::getter(fn finality_ban_config)]
     pub type FinalityBanConfig<T> = StorageValue<_, FinalityBanConfigStruct, ValueQuery>;
 
     #[pallet::error]
@@ -286,7 +287,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            let mut current_committee_ban_config = FinalityBanConfig::<T>::get();
+            let mut current_committee_ban_config = Self::finality_ban_config();
 
             if let Some(minimal_expected_performance) = minimal_expected_performance {
                 ensure!(
