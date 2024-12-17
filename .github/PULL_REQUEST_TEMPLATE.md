@@ -15,7 +15,7 @@ Please delete options that are not relevant.
 <!-- delete when not applicable to your PR -->
 
 - I have added tests
-- I have made neccessary updates to the Infrastructure
+- I have made necessary updates to the Infrastructure
 - I have made corresponding changes to the existing documentation
 - I have created new documentation
 - I have bumped `spec_version` and `transaction_version`
