@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
-use primitives::{BanInfo, BannedValidators};
+use pallet_aleph::AbftScores;
+use primitives::{BanInfo, BannedValidators, Score};
 use sp_staking::{EraIndex, SessionIndex};
 
 use crate::{
@@ -168,7 +169,61 @@ fn ban_underperforming_producers() {
 }
 
 #[test]
-fn ban_underperforming_finalizers() {}
+fn ban_underperforming_finalizers() {
+    TestExtBuilder::new(gen_config()).build().execute_with(|| {
+        let underperformer = 10;
+        let ban_config = CommitteeManagement::finality_ban_config();
+        let minimal_expected_performance = ban_config.minimal_expected_performance;
+        let underperformed_session_count_threshold =
+            ban_config.underperformed_session_count_threshold;
+        let reserved: BTreeSet<AccountId> = Elections::current_era_validators()
+            .reserved
+            .into_iter()
+            .collect();
+        let mut underperf_count = 0;
+        let mut session_index = 2;
+        loop {
+            start_session(session_index);
+            if underperf_count == underperformed_session_count_threshold {
+                break;
+            }
+            assert_eq!(CommitteeManagement::banned(), Vec::<AccountId>::new());
+
+            // Make sure underperformer is a finalizer in every session.
+            let finalizers = CurrentAndNextSessionValidatorsStorage::<TestRuntime>::mutate(|sv| {
+                let finalizers = &mut sv.current.finalizers;
+                if !finalizers.contains(&underperformer) {
+                    finalizers.retain(|p| !reserved.contains(&p));
+                    finalizers.pop();
+                    finalizers.extend(reserved.iter());
+                    finalizers.push(underperformer);
+                }
+
+                finalizers.clone()
+            });
+
+            let mut points: Vec<u32> = finalizers
+                .iter()
+                .map(|_| minimal_expected_performance)
+                .collect();
+            // Make sure underperformer underperforms.
+            *points.last_mut().unwrap() = u32::MAX;
+            let score = Score {
+                session_id: session_index,
+                nonce: 1,
+                points,
+            };
+            AbftScores::<TestRuntime>::insert(&session_index, score);
+            underperf_count += 1;
+            session_index += 1;
+        }
+
+        assert_eq!(
+            *committee_management_events().last().unwrap(),
+            Event::ValidatorUnderperforming(underperformer)
+        );
+    })
+}
 
 #[test]
 fn storage_is_calulated_at_the_right_time() {}
