@@ -210,14 +210,10 @@ where
     type OverarchingCall = RuntimeCall;
 }
 
-parameter_types! {
-    pub const MinimumPeriod: u64 = 3;
-}
-
 impl pallet_timestamp::Config for TestRuntime {
     type Moment = u64;
     type OnTimestampSet = ();
-    type MinimumPeriod = ConstU64<5>;
+    type MinimumPeriod = ConstU64<3>;
     type WeightInfo = ();
 }
 
