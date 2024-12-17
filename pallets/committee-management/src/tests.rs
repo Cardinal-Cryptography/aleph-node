@@ -180,12 +180,12 @@ fn ban_underperforming_finalizers() {
                 finalizers.clone()
             });
 
-            let mut points: Vec<u32> = finalizers
+            let mut points: Vec<u16> = finalizers
                 .iter()
                 .map(|_| minimal_expected_performance)
                 .collect();
             // Make sure underperformer underperforms.
-            *points.last_mut().unwrap() = u32::MAX;
+            *points.last_mut().unwrap() = u16::MAX;
             let score = Score {
                 session_id: session_index,
                 nonce: 1,
