@@ -99,7 +99,7 @@ fn ban_underperforming_producers() {
             let producers = CurrentAndNextSessionValidatorsStorage::<TestRuntime>::mutate(|sv| {
                 let producers = &mut sv.current.producers;
                 if !producers.contains(&underperformer) {
-                    producers.retain(|p| !reserved.contains(&p));
+                    producers.retain(|p| !reserved.contains(p));
                     producers.pop();
                     producers.extend(reserved.iter());
                     producers.push(underperformer);
@@ -114,7 +114,7 @@ fn ban_underperforming_producers() {
                 );
             }
             // Make sure underperformer underperforms.
-            SessionValidatorBlockCount::<TestRuntime>::insert(&underperformer, 0);
+            SessionValidatorBlockCount::<TestRuntime>::insert(underperformer, 0);
             underperf_count += 1;
             session_index += 1;
         }
@@ -171,7 +171,7 @@ fn ban_underperforming_finalizers() {
             let finalizers = CurrentAndNextSessionValidatorsStorage::<TestRuntime>::mutate(|sv| {
                 let finalizers = &mut sv.current.finalizers;
                 if !finalizers.contains(&underperformer) {
-                    finalizers.retain(|p| !reserved.contains(&p));
+                    finalizers.retain(|p| !reserved.contains(p));
                     finalizers.pop();
                     finalizers.extend(reserved.iter());
                     finalizers.push(underperformer);
@@ -191,7 +191,7 @@ fn ban_underperforming_finalizers() {
                 nonce: 1,
                 points,
             };
-            AbftScores::<TestRuntime>::insert(&session_index, score);
+            AbftScores::<TestRuntime>::insert(session_index, score);
             underperf_count += 1;
             session_index += 1;
         }
