@@ -45,6 +45,7 @@ where
                 (&Role::Full).into(),
                 // The best block number, always send a dummy value of 0.
                 0,
+                // We always pretend the genesis block is our best block
                 genesis_hash.clone(),
                 genesis_hash,
             ),
