@@ -6,7 +6,6 @@ use sc_network::{
     NotificationService,
 };
 use sc_network_common::sync::message::BlockAnnouncesHandshake;
-use sp_core::H256;
 use sp_runtime::traits::{Block, Header};
 
 use crate::{BlockHash, BlockNumber};
@@ -47,7 +46,7 @@ where
                 // The best block number, always send a dummy value of 0.
                 0,
                 // The best block hash, always an obviously dummy value.
-                H256([0; 32]),
+                genesis_hash.clone(),
                 genesis_hash,
             ),
         )),
