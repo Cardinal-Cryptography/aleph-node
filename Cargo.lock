@@ -5124,7 +5124,6 @@ dependencies = [
 name = "pallet-committee-management"
 version = "0.3.0"
 dependencies = [
- "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "log",

@@ -13,7 +13,6 @@ rand_pcg = { workspace = true }
 scale-info = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 
-frame-election-provider-support = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-authorship = { workspace = true }
@@ -40,7 +39,6 @@ std = [
     "scale-info/std",
     "log/std",
 
-    "frame-election-provider-support/std",
     "frame-support/std",
     "frame-system/std",
     "pallet-authorship/std",

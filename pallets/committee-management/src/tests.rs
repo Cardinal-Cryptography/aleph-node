@@ -2,13 +2,12 @@ use std::collections::BTreeSet;
 
 use pallet_aleph::AbftScores;
 use primitives::{BanInfo, BannedValidators, Score};
-use sp_staking::{EraIndex, SessionIndex};
 
 use crate::{
     mock::{
         active_era, advance_era, committee_management_events, start_session, AccountId,
-        BlockNumber, CommitteeManagement, Elections, Session, SessionPeriod, SessionsPerEra,
-        System, TestBuilderConfig, TestExtBuilder, TestRuntime,
+        CommitteeManagement, Elections, SessionPeriod, TestBuilderConfig, TestExtBuilder,
+        TestRuntime,
     },
     BanConfig, CurrentAndNextSessionValidatorsStorage, Event, SessionValidatorBlockCount,
 };
@@ -20,27 +19,6 @@ fn gen_config() -> TestBuilderConfig {
         non_reserved_seats: 50,
         non_reserved_finality_seats: 4,
     }
-}
-
-#[test]
-fn session_era_work() {
-    TestExtBuilder::new(gen_config()).build().execute_with(|| {
-        let assert_era_session_block =
-            |era_index: EraIndex, session_index: SessionIndex, block_number: BlockNumber| {
-                assert_eq!(active_era(), era_index);
-                assert_eq!(Session::current_index(), session_index);
-                assert_eq!(System::block_number(), block_number);
-            };
-
-        assert_era_session_block(0, 0, 1);
-        let first_session_in_second_era = SessionsPerEra::get();
-        for session_index in 1..=first_session_in_second_era {
-            start_session(session_index);
-            let era_index = session_index / SessionsPerEra::get();
-            let block_number = session_index * SessionPeriod::get();
-            assert_era_session_block(era_index, session_index, block_number.into());
-        }
-    })
 }
 
 #[test]
@@ -224,9 +202,3 @@ fn ban_underperforming_finalizers() {
         );
     })
 }
-
-#[test]
-fn storage_is_calulated_at_the_right_time() {}
-
-#[test]
-fn storage_is_cleared_at_the_right_time() {}

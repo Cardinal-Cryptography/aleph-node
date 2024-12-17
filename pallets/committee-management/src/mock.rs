@@ -1,6 +1,3 @@
-use frame_election_provider_support::{
-    BoundedSupports, BoundedSupportsOf, ElectionProvider, ElectionProviderBase,
-};
 use frame_support::{
     construct_runtime,
     pallet_prelude::ConstU32,
@@ -11,11 +8,11 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_staking::{ExposureOf, Forcing};
 use primitives::{
-    AuthorityId, CommitteeSeats, EraValidators, SessionIndex, SessionInfoProvider,
+    AuthorityId, CommitteeSeats, SessionIndex, SessionInfoProvider,
     TotalIssuanceProvider as TotalIssuanceProviderT, DEFAULT_MAX_WINNERS, DEFAULT_SESSIONS_PER_ERA,
     DEFAULT_SESSION_PERIOD,
 };
-use sp_core::{bounded_vec, ConstU64, H256};
+use sp_core::{ConstU64, H256};
 use sp_runtime::{
     impl_opaque_keys,
     testing::{TestXt, UintAuthorityId},
@@ -111,32 +108,6 @@ impl pallet_balances::Config for TestRuntime {
     type RuntimeFreezeReason = RuntimeFreezeReason;
 }
 
-pub struct MockElectionProvider;
-impl ElectionProviderBase for MockElectionProvider {
-    type AccountId = AccountId;
-    type BlockNumber = BlockNumber;
-    type Error = ();
-    type DataProvider = Staking;
-    type MaxWinners = MaxWinners;
-}
-
-impl ElectionProvider for MockElectionProvider {
-    fn ongoing() -> bool {
-        false
-    }
-
-    fn elect() -> Result<BoundedSupportsOf<Self>, Self::Error> {
-        // let elected_validators = ElectedValidators::get();
-        // Ok(elected_validators
-        //     .into_iter()
-        //     .map(|v| (v.clone(), self_support(v)))
-        //     .collect::<Vec<_>>()
-        //     .try_into()
-        //     .unwrap())
-        Ok(ElectedValidators::get())
-    }
-}
-
 pub struct ZeroEraPayout;
 impl pallet_staking::EraPayout<u128> for ZeroEraPayout {
     fn era_payout(_: u128, _: u128, _: u64) -> (u128, u128) {
@@ -217,19 +188,6 @@ impl pallet_session::Config for TestRuntime {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub static ElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
-    pub static NewElectedValidators: BoundedSupports<AccountId, MaxWinners> = bounded_vec![];
-    pub static EraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
-    pub static NextEraCommitteSeats: CommitteeSeats = CommitteeSeats::default();
-    pub static ReservedValidators: Vec<AccountId> = vec![];
-    pub static NonReservedValidators: Vec<AccountId> = vec![];
-    pub static NextReservedValidators: Vec<AccountId> = vec![];
-    pub static NextNonReservedValidators: Vec<AccountId> = vec![];
-    pub static CurrentEraValidators: EraValidators<AccountId> = EraValidators::default();
-    pub static MaxWinners: u32 = DEFAULT_MAX_WINNERS;
-}
-
 impl pallet_aleph::Config for TestRuntime {
     type AuthorityId = AuthorityId;
     type RuntimeEvent = RuntimeEvent;
@@ -270,6 +228,10 @@ impl TotalIssuanceProviderT for TotalIssuanceProvider {
     }
 }
 
+parameter_types! {
+    pub static MaxWinners: u32 = DEFAULT_MAX_WINNERS;
+}
+
 impl pallet_elections::Config for TestRuntime {
     type RuntimeEvent = RuntimeEvent;
     type DataProvider = Staking;
@@ -294,10 +256,6 @@ pub fn active_era() -> EraIndex {
     pallet_staking::ActiveEra::<TestRuntime>::get()
         .unwrap()
         .index
-}
-
-pub fn current_era() -> EraIndex {
-    pallet_staking::CurrentEra::<TestRuntime>::get().unwrap_or(0)
 }
 
 pub const INIT_TIMESTAMP: u64 = 100_000;
