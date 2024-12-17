@@ -45,7 +45,7 @@ where
                 (&Role::Full).into(),
                 // We always pretend the genesis block is our best block
                 0,
-                genesis_hash.clone(),
+                genesis_hash,
                 genesis_hash,
             ),
         )),
