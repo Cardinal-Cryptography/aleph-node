@@ -43,9 +43,8 @@ where
             BlockAnnouncesHandshake::<B>::build(
                 // All nodes are full nodes.
                 (&Role::Full).into(),
-                // The best block number, always send a dummy value of 0.
-                0,
                 // We always pretend the genesis block is our best block
+                0,
                 genesis_hash.clone(),
                 genesis_hash,
             ),
