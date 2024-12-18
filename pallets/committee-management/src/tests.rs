@@ -9,7 +9,7 @@ use crate::{
         CommitteeManagement, Elections, SessionPeriod, TestBuilderConfig, TestExtBuilder,
         TestRuntime,
     },
-    BanConfig, CurrentAndNextSessionValidatorsStorage, Event, SessionValidatorBlockCount,
+    CurrentAndNextSessionValidatorsStorage, Event, ProductionBanConfig, SessionValidatorBlockCount,
 };
 
 fn gen_config() -> TestBuilderConfig {
@@ -93,7 +93,7 @@ fn all_reserved_validators_are_chosen() {
 fn ban_underperforming_producers() {
     TestExtBuilder::new(gen_config()).build().execute_with(|| {
         let underperformer = 10;
-        let mut ban_config = CommitteeManagement::producers_ban_config();
+        let mut ban_config = CommitteeManagement::production_ban_config();
         let underperformed_session_count_threshold =
             ban_config.underperformed_session_count_threshold;
         let reserved: BTreeSet<AccountId> = Elections::current_era_validators()
@@ -139,7 +139,7 @@ fn ban_underperforming_producers() {
         ban_config.clean_session_counter_delay = 1;
         let ban_period = 2;
         ban_config.ban_period = ban_period;
-        BanConfig::<TestRuntime>::put(ban_config);
+        ProductionBanConfig::<TestRuntime>::put(ban_config);
         advance_era();
 
         let banned_info = vec![(underperformer, ban_info)];

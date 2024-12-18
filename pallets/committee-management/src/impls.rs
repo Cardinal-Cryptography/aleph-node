@@ -22,8 +22,8 @@ use crate::{
         UnderperformedValidatorSessionCount, ValidatorEraTotalReward,
     },
     traits::{EraInfoProvider, ValidatorRewardsHandler},
-    BanConfigStruct, CurrentAndNextSessionValidators, LenientThreshold, ValidatorExtractor,
-    ValidatorTotalRewards, LOG_TARGET,
+    CurrentAndNextSessionValidators, LenientThreshold, ProductionBanConfigStruct,
+    ValidatorExtractor, ValidatorTotalRewards, LOG_TARGET,
 };
 
 const MAX_REWARD: u32 = 1_000_000_000;
@@ -33,7 +33,7 @@ impl<T: Config> BannedValidators for Pallet<T> {
 
     fn banned() -> Vec<Self::AccountId> {
         let active_era = T::EraInfoProvider::active_era().unwrap_or(0);
-        let ban_period = Self::producers_ban_config().ban_period;
+        let ban_period = Self::production_ban_config().ban_period;
 
         Banned::<T>::iter()
             .filter(|(_, info)| !ban_expired(info.start, ban_period, active_era + 1))
@@ -382,7 +382,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn calculate_underperforming_validators() {
-        let thresholds = Self::producers_ban_config();
+        let thresholds = Self::production_ban_config();
         let CurrentAndNextSessionValidators {
             current: SessionValidators { producers, .. },
             ..
@@ -403,7 +403,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn mark_validator_underperformance(
-        thresholds: &BanConfigStruct,
+        thresholds: &ProductionBanConfigStruct,
         validator: &T::AccountId,
     ) {
         let counter = UnderperformedValidatorSessionCount::<T>::mutate(validator, |count| {
@@ -418,7 +418,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn clear_underperformance_session_counter(session: SessionIndex) {
-        let clean_session_counter_delay = Self::producers_ban_config().clean_session_counter_delay;
+        let clean_session_counter_delay = Self::production_ban_config().clean_session_counter_delay;
         if session % clean_session_counter_delay == 0 {
             info!(
                 target: LOG_TARGET,
@@ -431,7 +431,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn clear_expired_bans(active_era: EraIndex) {
-        let ban_period = Self::producers_ban_config().ban_period;
+        let ban_period = Self::production_ban_config().ban_period;
         let unban = Banned::<T>::iter().filter_map(|(v, ban_info)| {
             if ban_expired(ban_info.start, ban_period, active_era) {
                 return Some(v);
