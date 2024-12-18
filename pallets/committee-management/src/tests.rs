@@ -21,6 +21,21 @@ fn gen_config() -> TestBuilderConfig {
     }
 }
 
+fn add_underperformer(
+    validators: &mut Vec<AccountId>,
+    underperformer: AccountId,
+    reserved: &BTreeSet<AccountId>,
+) -> Vec<AccountId> {
+    if !validators.contains(&underperformer) {
+        validators.retain(|p| !reserved.contains(p));
+        validators.pop();
+        validators.extend(reserved.iter());
+        validators.push(underperformer);
+    }
+
+    validators.clone()
+}
+
 #[test]
 fn new_poducers_every_session() {
     TestExtBuilder::new(gen_config()).build().execute_with(|| {
@@ -97,15 +112,7 @@ fn ban_underperforming_producers() {
 
             // Make sure underperformer is a producer in every session.
             let producers = CurrentAndNextSessionValidatorsStorage::<TestRuntime>::mutate(|sv| {
-                let producers = &mut sv.current.producers;
-                if !producers.contains(&underperformer) {
-                    producers.retain(|p| !reserved.contains(p));
-                    producers.pop();
-                    producers.extend(reserved.iter());
-                    producers.push(underperformer);
-                }
-
-                producers.clone()
+                add_underperformer(&mut sv.current.producers, underperformer, &reserved)
             });
             for producer in producers.iter() {
                 SessionValidatorBlockCount::<TestRuntime>::insert(
@@ -169,15 +176,7 @@ fn ban_underperforming_finalizers() {
 
             // Make sure underperformer is a finalizer in every session.
             let finalizers = CurrentAndNextSessionValidatorsStorage::<TestRuntime>::mutate(|sv| {
-                let finalizers = &mut sv.current.finalizers;
-                if !finalizers.contains(&underperformer) {
-                    finalizers.retain(|p| !reserved.contains(p));
-                    finalizers.pop();
-                    finalizers.extend(reserved.iter());
-                    finalizers.push(underperformer);
-                }
-
-                finalizers.clone()
+                add_underperformer(&mut sv.current.finalizers, underperformer, &reserved)
             });
 
             let mut points: Vec<u16> = finalizers
