@@ -116,7 +116,7 @@ pub trait CommitteeManagementSudoApi {
 #[async_trait::async_trait]
 impl<C: ConnectionApi + AsConnection> CommitteeManagementApi for C {
     async fn get_ban_config(&self, at: Option<BlockHash>) -> ProductionBanConfig {
-        let addrs = api::storage().committee_management().ban_config();
+        let addrs = api::storage().committee_management().production_ban_config();
 
         self.get_storage_entry(&addrs, at).await
     }
