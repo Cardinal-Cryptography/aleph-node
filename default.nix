@@ -124,7 +124,7 @@ with nixpkgs; naersk.buildPackage rec {
     export PROTOC="${protobuf}/bin/protoc";
 
     # following two exports are required in order to build librocksdb-sys
-    # some of the custom build.rs scripts of our dependencies use libclang while building their c/c++ depdendencies
+    # some of the custom build.rs scripts of our dependencies use libclang while building their c/c++ dependencies
     export LIBCLANG_PATH="${llvm.libclang.lib}/lib"
     # Set C flags for Rust's bindgen program. Unlike ordinary C
     # compilation, bindgen does not invoke $CC directly. Instead it
