@@ -84,7 +84,7 @@ jobs:
       rolling-update-partition: '3'
       short-session: false
 
- update-featurenet-to-main:
+  update-featurenet-to-main:
     needs: [create-featurenet-from-testnet]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
@@ -95,7 +95,7 @@ jobs:
       rolling-update-partition: '2'
       short-session: false
 
- update-featurenet-to-main:
+  update-featurenet-to-main:
     needs: [create-featurenet-from-testnet]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
@@ -106,7 +106,7 @@ jobs:
       rolling-update-partition: '1'
       short-session: false
 
- update-featurenet-to-main:
+  update-featurenet-to-main:
     needs: [create-featurenet-from-testnet]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
