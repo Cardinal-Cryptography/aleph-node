@@ -119,7 +119,7 @@ jobs:
 
   delete-featurenet:
     if: ${{ always() }}
-    needs: [update-featurenet-to-main]
+    needs: [update-featurenet-to-main-0th]
     name: Delete featurenet
     uses: ./.github/workflows/featurenet-delete.yml
     secrets: inherit
