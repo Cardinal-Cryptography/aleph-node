@@ -10,6 +10,10 @@ on:
   # Daily at 02:20
   schedule:
     - cron: '20 02 * * *'
+  push:
+    branches:
+      - 'temp-branch-for-testing-sync-test'
+        
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -30,10 +34,21 @@ jobs:
       featurenet-name: 'ops-updatenet-testnet'
       ref: 'testnet'
       expiration: '4h'
-      validators: '8'
+      validators: '7'
       internal: true
       short-session: false
       finality-version: '3'
+  
+  update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '6'
+      short-session: false
 
   update-featurenet-to-main:
     needs: [create-featurenet-from-testnet]
@@ -42,7 +57,63 @@ jobs:
     secrets: inherit
     with:
       featurenet-name: 'ops-updatenet-testnet'
-      ref: 'main'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '5'
+      short-session: false
+
+  update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '4'
+      short-session: false
+
+
+  update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '3'
+      short-session: false
+
+ update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '2'
+      short-session: false
+
+ update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
+      rolling-update-partition: '1'
+      short-session: false
+
+ update-featurenet-to-main:
+    needs: [create-featurenet-from-testnet]
+    name: Update featurenet to main
+    uses: ./.github/workflows/featurenet-update.yml
+    secrets: inherit
+    with:
+      featurenet-name: 'ops-updatenet-testnet'
+      ref: 'r-14.0.0-rc3'
       rolling-update-partition: '0'
       short-session: false
 
