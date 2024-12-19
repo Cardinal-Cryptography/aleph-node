@@ -5,6 +5,7 @@ extern crate core;
 
 mod impls;
 mod manager;
+mod migration;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
