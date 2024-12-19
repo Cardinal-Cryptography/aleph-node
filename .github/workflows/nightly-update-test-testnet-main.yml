@@ -51,7 +51,7 @@ jobs:
       short-session: false
 
   update-featurenet-to-main-5th:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-6th]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
@@ -62,7 +62,7 @@ jobs:
       short-session: false
 
   update-featurenet-to-main-4th:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-5th]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
@@ -74,7 +74,7 @@ jobs:
 
 
   update-featurenet-to-main-3rd:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-4th]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
@@ -85,7 +85,7 @@ jobs:
       short-session: false
 
   update-featurenet-to-main-2nd:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-3rd]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
@@ -96,7 +96,7 @@ jobs:
       short-session: false
 
   update-featurenet-to-main-1st:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-2nd]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
@@ -107,7 +107,7 @@ jobs:
       short-session: false
 
   update-featurenet-to-main-0th:
-    needs: [create-featurenet-from-testnet]
+    needs: [update-featurenet-to-main-1st]
     name: Update featurenet to main
     uses: ./.github/workflows/featurenet-update.yml
     secrets: inherit
