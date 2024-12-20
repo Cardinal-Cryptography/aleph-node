@@ -4,7 +4,6 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, warn};
-use substrate_prometheus_endpoint::Registry;
 
 use crate::{
     abft::{
@@ -80,7 +79,7 @@ where
         my_index: usize,
         n_members: usize,
         finalization_handler: FH,
-        metrics_registry: Option<Registry>,
+        metrics: ScoreMetrics,
     ) -> (
         Self,
         impl current_aleph_bft::UnitFinalizationHandler<Data = AlephData<UH>, Hasher = Hasher>,
@@ -88,10 +87,6 @@ where
     where
         FH: current_aleph_bft::FinalizationHandler<AlephData<UH>>,
     {
-        let metrics = ScoreMetrics::new(metrics_registry).unwrap_or_else(|e| {
-            warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
-            ScoreMetrics::noop()
-        });
         let (batches_for_us, batches_from_abft) = mpsc::unbounded();
         (
             Service {
