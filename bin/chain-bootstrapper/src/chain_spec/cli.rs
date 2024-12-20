@@ -1,4 +1,4 @@
-use primitives::{AccountId, Version as FinalityVersion, LEGACY_FINALITY_VERSION};
+use primitives::{AccountId, Version as FinalityVersion, CURRENT_FINALITY_VERSION};
 use sc_chain_spec::ChainType;
 use sc_cli::clap::{self, Args};
 
@@ -43,7 +43,7 @@ pub struct ChainSpecParams {
     rich_account_ids: Option<Vec<AccountId>>,
 
     /// Finality version at chain inception.
-    #[arg(long, default_value = LEGACY_FINALITY_VERSION.to_string())]
+    #[arg(long, default_value = CURRENT_FINALITY_VERSION.to_string())]
     finality_version: FinalityVersion,
 }
 

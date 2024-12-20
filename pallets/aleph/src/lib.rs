@@ -16,8 +16,8 @@ use frame_support::{
 pub use pallet::*;
 use primitives::{
     crypto::{AuthorityVerifier, SignatureSet},
-    Balance, SessionIndex, Version, VersionChange, DEFAULT_FINALITY_VERSION,
-    LEGACY_FINALITY_VERSION, TOKEN,
+    Balance, SessionIndex, Version, VersionChange, CURRENT_FINALITY_VERSION,
+    DEFAULT_FINALITY_VERSION, TOKEN,
 };
 use sp_runtime::Perbill;
 use sp_std::prelude::*;
@@ -520,7 +520,7 @@ pub mod pallet {
     impl<T: Config> core::default::Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
-                finality_version: LEGACY_FINALITY_VERSION as u32,
+                finality_version: CURRENT_FINALITY_VERSION as u32,
                 _marker: Default::default(),
             }
         }

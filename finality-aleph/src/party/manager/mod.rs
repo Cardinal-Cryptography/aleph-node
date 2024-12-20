@@ -21,7 +21,7 @@ use crate::{
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter, SubstrateChainInfoProvider},
-    metrics::TimingBlockMetrics,
+    metrics::{ScoreMetrics, TimingBlockMetrics},
     mpsc,
     network::{
         data::{
@@ -114,6 +114,7 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<LocalKeystore>,
+    score_metrics: ScoreMetrics,
     _phantom: PhantomData<(B, H)>,
 }
 
@@ -146,6 +147,7 @@ where
         spawn_handle: SpawnHandle,
         session_manager: SM,
         keystore: Arc<LocalKeystore>,
+        score_metrics: ScoreMetrics,
     ) -> Self {
         Self {
             client,
@@ -161,6 +163,7 @@ where
             spawn_handle,
             session_manager,
             keystore,
+            score_metrics,
             _phantom: PhantomData,
         }
     }
@@ -274,8 +277,12 @@ where
             self.verifier.clone(),
             session_boundaries.clone(),
         );
-        let (abft_performance, abft_batch_handler) =
-            CurrentPerformanceService::new(n_members, ordered_data_interpreter);
+        let (abft_performance, abft_batch_handler) = CurrentPerformanceService::new(
+            node_id.into(),
+            n_members,
+            ordered_data_interpreter,
+            self.score_metrics.clone(),
+        );
         let consensus_config =
             current_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
         let data_network = data_network.map();
@@ -325,7 +332,7 @@ where
         exit_rx: oneshot::Receiver<()>,
         backup: ABFTBackup,
     ) -> Subtasks {
-        debug!(target: "afa", "Authority task {:?}", session_id);
+        debug!(target: "aleph-party", "Authority task {:?}", session_id);
 
         let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
