@@ -266,6 +266,7 @@ where
             spawn_handle,
             connection_manager,
             keystore,
+            registry,
         ),
         session_info,
     });

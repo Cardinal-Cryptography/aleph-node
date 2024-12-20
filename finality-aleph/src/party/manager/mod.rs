@@ -8,6 +8,7 @@ use pallet_aleph_runtime_api::AlephSessionApi;
 use sc_keystore::{Keystore, LocalKeystore};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
+use substrate_prometheus_endpoint::Registry;
 
 use crate::{
     abft::{
@@ -114,6 +115,7 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<LocalKeystore>,
+    registry: Option<Registry>,
     _phantom: PhantomData<(B, H)>,
 }
 
@@ -146,6 +148,7 @@ where
         spawn_handle: SpawnHandle,
         session_manager: SM,
         keystore: Arc<LocalKeystore>,
+        registry: Option<Registry>,
     ) -> Self {
         Self {
             client,
@@ -161,6 +164,7 @@ where
             spawn_handle,
             session_manager,
             keystore,
+            registry,
             _phantom: PhantomData,
         }
     }
@@ -274,8 +278,12 @@ where
             self.verifier.clone(),
             session_boundaries.clone(),
         );
-        let (abft_performance, abft_batch_handler) =
-            CurrentPerformanceService::new(n_members, ordered_data_interpreter);
+        let (abft_performance, abft_batch_handler) = CurrentPerformanceService::new(
+            node_id.into(),
+            n_members,
+            ordered_data_interpreter,
+            self.registry.clone(),
+        );
         let consensus_config =
             current_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
         let data_network = data_network.map();

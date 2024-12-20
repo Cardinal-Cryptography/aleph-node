@@ -4,6 +4,7 @@ use futures::{
     StreamExt,
 };
 use log::{debug, error, warn};
+use substrate_prometheus_endpoint::Registry;
 
 use crate::{
     abft::{
@@ -11,6 +12,7 @@ use crate::{
         LOG_TARGET,
     },
     data_io::AlephData,
+    metrics::ScoreMetrics,
     party::manager::Runnable,
     Hasher, UnverifiedHeader,
 };
@@ -62,8 +64,10 @@ pub struct Service<UH>
 where
     UH: UnverifiedHeader,
 {
+    my_index: usize,
     batches_from_abft: mpsc::UnboundedReceiver<Batch<UH>>,
     scorer: Scorer,
+    metrics: ScoreMetrics,
 }
 
 impl<UH> Service<UH>
@@ -73,8 +77,10 @@ where
     /// Create a new service, together with a unit finalization handler that should be passed to
     /// ABFT. It will wrap the provided finalization handler and call it in the background.
     pub fn new<FH>(
+        my_index: usize,
         n_members: usize,
         finalization_handler: FH,
+        metrics_registry: Option<Registry>,
     ) -> (
         Self,
         impl current_aleph_bft::UnitFinalizationHandler<Data = AlephData<UH>, Hasher = Hasher>,
@@ -82,11 +88,17 @@ where
     where
         FH: current_aleph_bft::FinalizationHandler<AlephData<UH>>,
     {
+        let metrics = ScoreMetrics::new(metrics_registry).unwrap_or_else(|e| {
+            warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
+            ScoreMetrics::noop()
+        });
         let (batches_for_us, batches_from_abft) = mpsc::unbounded();
         (
             Service {
+                my_index,
                 batches_from_abft,
                 scorer: Scorer::new(NodeCount(n_members)),
+                metrics,
             },
             FinalizationWrapper::new(finalization_handler, batches_for_us),
         )
@@ -110,6 +122,7 @@ where
                         },
                     };
                     debug!(target: LOG_TARGET, "Received ABFT score: {:?}.", score);
+                    self.metrics.report_score(score[self.my_index]);
                     // TODO(A0-4339): sometimes submit these scores to the chain.
                 }
                 _ = &mut exit => {
