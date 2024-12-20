@@ -333,7 +333,7 @@ where
         exit_rx: oneshot::Receiver<()>,
         backup: ABFTBackup,
     ) -> Subtasks {
-        debug!(target: "afa", "Authority task {:?}", session_id);
+        debug!(target: "aleph-party", "Authority task {:?}", session_id);
 
         let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
