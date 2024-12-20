@@ -21,16 +21,16 @@ use crate::{
 /// BlockHash and Hash are the same, it has always been this way, but if it ever changes this place
 /// will cause trouble.
 #[derive(PartialEq, Eq, StdHash, Copy, Clone, Debug, Encode, Decode)]
-pub enum EitherHash {
+pub enum SignableTypedHash {
     /// The hash corresponds to a block.
     Block(Hash),
     /// The hash corresponds to an ABFT performance report.
     Performance(Hash),
 }
 
-impl AsRef<[u8]> for EitherHash {
+impl AsRef<[u8]> for SignableTypedHash {
     fn as_ref(&self) -> &[u8] {
-        use EitherHash::*;
+        use SignableTypedHash::*;
         match self {
             Block(hash) => hash.as_ref(),
             Performance(hash) => hash.as_ref(),
@@ -41,13 +41,16 @@ impl AsRef<[u8]> for EitherHash {
 pub type LegacyRmcNetworkData =
     legacy_aleph_aggregator::RmcNetworkData<Hash, Signature, SignatureSet<Signature>>;
 pub type CurrentRmcNetworkData =
-    current_aleph_aggregator::RmcNetworkData<EitherHash, Signature, SignatureSet<Signature>>;
+    current_aleph_aggregator::RmcNetworkData<SignableTypedHash, Signature, SignatureSet<Signature>>;
 
 pub type LegacyAggregator<N> =
     legacy_aleph_aggregator::IO<Hash, NetworkWrapper<LegacyRmcNetworkData, N>, Keychain>;
 
-pub type CurrentAggregator<N> =
-    current_aleph_aggregator::IO<EitherHash, NetworkWrapper<CurrentRmcNetworkData, N>, Keychain>;
+pub type CurrentAggregator<N> = current_aleph_aggregator::IO<
+    SignableTypedHash,
+    NetworkWrapper<CurrentRmcNetworkData, N>,
+    Keychain,
+>;
 
 enum EitherAggregator<CN, LN>
 where
@@ -103,8 +106,8 @@ where
         }
     }
 
-    pub async fn start_aggregation(&mut self, h: EitherHash) {
-        use EitherHash::*;
+    pub async fn start_aggregation(&mut self, h: SignableTypedHash) {
+        use SignableTypedHash::*;
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.start_aggregation(h).await,
             EitherAggregator::Legacy(agg) => match h {
@@ -114,13 +117,15 @@ where
         }
     }
 
-    pub async fn next_multisigned_hash(&mut self) -> Option<(EitherHash, SignatureSet<Signature>)> {
+    pub async fn next_multisigned_hash(
+        &mut self,
+    ) -> Option<(SignableTypedHash, SignatureSet<Signature>)> {
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.next_multisigned_hash().await,
             EitherAggregator::Legacy(agg) => agg
                 .next_multisigned_hash()
                 .await
-                .map(|(h, sig)| (EitherHash::Block(h), sig)),
+                .map(|(h, sig)| (SignableTypedHash::Block(h), sig)),
         }
     }
 

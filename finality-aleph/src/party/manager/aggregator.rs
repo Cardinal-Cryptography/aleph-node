@@ -11,7 +11,7 @@ use tokio::time;
 
 use crate::{
     abft::SignatureSet,
-    aggregation::{Aggregator, EitherHash},
+    aggregation::{Aggregator, SignableTypedHash},
     aleph_primitives::BlockHash,
     block::{
         substrate::{Justification, JustificationTranslator},
@@ -68,7 +68,9 @@ async fn process_new_block_data<CN, LN>(
     trace!(target: "aleph-party", "Received unit {:?} in aggregator.", block);
     let hash = block.hash();
     metrics.report_block(hash, Checkpoint::Ordered);
-    aggregator.start_aggregation(EitherHash::Block(hash)).await;
+    aggregator
+        .start_aggregation(SignableTypedHash::Block(hash))
+        .await;
 }
 
 fn process_block_hash<H, C, JS>(
@@ -117,7 +119,7 @@ where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
 {
-    use EitherHash::*;
+    use SignableTypedHash::*;
     let IO {
         blocks_from_interpreter,
         mut justifications_for_chain,
