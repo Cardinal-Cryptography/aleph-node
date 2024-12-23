@@ -85,7 +85,8 @@ impl ChainSpecParams {
     pub fn finality_version(&self) -> FinalityVersion {
         match self.finality_version.as_str() {
             "current" => CURRENT_FINALITY_VERSION,
-            _ => LEGACY_FINALITY_VERSION,
+            "legacy" => LEGACY_FINALITY_VERSION,
+            _ => panic!("finality version should be 'current' or 'legacy'"),
         }
         .into()
     }
