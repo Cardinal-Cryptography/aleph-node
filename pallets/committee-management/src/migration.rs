@@ -11,9 +11,6 @@ use crate::{CurrentAndNextSessionValidators, CurrentAndNextSessionValidatorsStor
 
 pub mod v1 {
     use frame_support::traits::Get;
-    use parity_scale_codec::Encode;
-    use primitives::KEY_TYPE;
-    use sp_runtime::traits::OpaqueKeys;
 
     use super::*;
     use crate::{Config, Pallet, ProductionBanConfig, LOG_TARGET};
@@ -35,7 +32,7 @@ pub mod v1 {
 
     pub struct Migration<T>(sp_std::marker::PhantomData<T>);
 
-    impl<T: Config + pallet_aleph::Config + pallet_session::Config> OnRuntimeUpgrade for Migration<T> {
+    impl<T: Config + pallet_aleph::Config> OnRuntimeUpgrade for Migration<T> {
         fn on_runtime_upgrade() -> Weight {
             if StorageVersion::get::<Pallet<T>>() != StorageVersion::new(3) {
                 log::info!(
@@ -45,7 +42,7 @@ pub mod v1 {
                 return T::DbWeight::get().reads(1);
             };
 
-            let reads = 5; // StorageVersion, CurrentAndNextSessionValidatorsStorage, Authorities, NextFinalityCommittee,  BanConfig
+            let reads = 4; // StorageVersion, CurrentAndNextSessionValidatorsStorage, NextFinalityCommittee,  BanConfig
             let mut writes = 2; // StorageVersion, ProductionBanConfig
             info!(target: LOG_TARGET, "Running migration from STORAGE_VERSION 0 to 1 for pallet committee-management.");
 
@@ -56,27 +53,15 @@ pub mod v1 {
                 let current_validators_legacy =
                     current_validators_legacy.expect("This storage exists");
 
-                let aleph_authorities = pallet_aleph::Authorities::<T>::get();
-                let mut finalizers = Vec::new();
-                for (v, keys) in pallet_session::QueuedKeys::<T>::get().into_iter() {
-                    let aleph_key = keys
-                        .get::<<T as pallet_aleph::Config>::AuthorityId>(KEY_TYPE)
-                        .unwrap();
-
-                    if aleph_authorities.iter().any(|aa| aa.eq(&aleph_key)) {
-                        let v = T::AccountId::decode(&mut v.encode().as_ref()).unwrap();
-                        finalizers.push(v);
-                    }
-                }
-
+                let finalizers = pallet_aleph::NextFinalityCommittee::<T>::get();
                 let current_validators = SessionValidators {
                     producers: current_validators_legacy.current.committee,
-                    finalizers,
+                    finalizers: finalizers.clone(), // we use next finalizers as it's hard to get current but we won't need them in current session.
                     non_committee: current_validators_legacy.current.non_committee,
                 };
                 let next_validators = SessionValidators {
                     producers: current_validators_legacy.next.committee,
-                    finalizers: pallet_aleph::NextFinalityCommittee::<T>::get(),
+                    finalizers,
                     non_committee: current_validators_legacy.next.non_committee,
                 };
 
