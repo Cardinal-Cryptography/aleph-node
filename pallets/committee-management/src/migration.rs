@@ -1,5 +1,5 @@
 use frame_support::{
-    pallet_prelude::{StorageVersion, ValueQuery, Weight},
+    pallet_prelude::{StorageVersion, ValueQuery, Weight, PalletInfoAccess},
     storage_alias,
     traits::OnRuntimeUpgrade,
 };
@@ -7,8 +7,18 @@ use log::info;
 use parity_scale_codec::Decode;
 use primitives::{ProductionBanConfig as ProductionBanConfigStruct, SessionValidators};
 use sp_std::vec::Vec;
+use sp_runtime::DispatchError;
 
 use crate::{CurrentAndNextSessionValidators, CurrentAndNextSessionValidatorsStorage};
+
+/// Ensure that the current pallet storage version matches `version`.
+pub fn ensure_storage_version<P: PalletInfoAccess>(version: u16) -> Result<(), &'static str> {
+    if StorageVersion::get::<P>() == StorageVersion::new(version) {
+        Ok(())
+    } else {
+        Err("Bad storage version")
+    }
+}
 
 pub mod v1 {
     use frame_support::traits::Get;
@@ -83,6 +93,18 @@ pub mod v1 {
 
             StorageVersion::new(1).put::<Pallet<T>>();
             T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
+            ensure_storage_version::<Pallet<T>>(0)?;
+
+            Ok(Vec::new())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade(_: Vec<u8>) -> Result<(), DispatchError> {
+            Ok(ensure_storage_version::<Pallet<T>>(1)?)
         }
     }
 }
