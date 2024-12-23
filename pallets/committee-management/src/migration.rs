@@ -6,6 +6,7 @@ use frame_support::{
 use log::info;
 use parity_scale_codec::Decode;
 use primitives::{ProductionBanConfig as ProductionBanConfigStruct, SessionValidators};
+use sp_std::vec::Vec;
 
 use crate::{CurrentAndNextSessionValidators, CurrentAndNextSessionValidatorsStorage};
 

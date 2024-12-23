@@ -5134,7 +5134,6 @@ dependencies = [
  "pallet-session",
  "pallet-staking",
  "pallet-timestamp",
- "pallets-support",
  "parity-scale-codec",
  "primitives",
  "rand",
@@ -5211,7 +5210,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-staking",
- "pallets-support",
  "parity-scale-codec",
  "primitives",
  "rand",
@@ -5577,14 +5575,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallets-support"
-version = "0.1.4"
-dependencies = [
- "frame-support",
  "sp-std",
 ]
 
