@@ -17,4 +17,4 @@ All contributions are welcome, e.g. adding new API for pallets in `aleph-node`.
 
 `aleph-client` uses [`subxt`](https://github.com/paritytech/subxt) to communicate with a Substrate-based chain which
 `aleph-node` is. In order to provide a strong type safety, it uses a manually generated file [`aleph_zero.rs`](src/aleph_zero.rs)
-which refers to top of the `main` branch in `aleph-node` repository. See more info [here](docker/README.md).
+which refers to top of the `main` branch in `aleph-node` repository.
