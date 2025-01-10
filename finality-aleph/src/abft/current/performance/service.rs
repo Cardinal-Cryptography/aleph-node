@@ -128,7 +128,7 @@ where
                 signatures_from_aggregator,
                 runtime_api,
                 pending_scores: HashMap::new(),
-                nonce: 0,
+                nonce: 1,
                 scorer: Scorer::new(NodeCount(n_members)),
                 metrics,
             },
