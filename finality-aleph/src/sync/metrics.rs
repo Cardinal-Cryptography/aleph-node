@@ -154,7 +154,7 @@ impl Metrics {
             );
         }
 
-        let _ = MajorSyncingGauge::register(&registry, is_major_syncing)?;
+        MajorSyncingGauge::register(&registry, is_major_syncing)?;
 
         Ok(Metrics::Prometheus {
             event_calls,
