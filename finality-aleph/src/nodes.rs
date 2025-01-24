@@ -84,6 +84,7 @@ where
         validator_port,
         rate_limiter_config,
         sync_oracle,
+        is_major_syncing,
         validator_address_cache,
         transaction_pool,
     } = aleph_config;
@@ -199,6 +200,7 @@ where
         block_sync_network,
         chain_events,
         sync_oracle.clone(),
+        is_major_syncing,
         justification_channel_provider.into_receiver(),
         block_rx,
     );

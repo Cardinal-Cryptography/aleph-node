@@ -311,7 +311,7 @@ pub fn new_authority(
         network_config,
         config.protocol_id(),
         service_components.client.clone(),
-        major_sync,
+        major_sync.clone(),
         service_components.transaction_pool.clone(),
         &service_components.task_manager.spawn_handle(),
         config
@@ -398,6 +398,7 @@ pub fn new_authority(
         validator_port: aleph_config.validator_port(),
         rate_limiter_config,
         sync_oracle,
+        is_major_syncing: major_sync,
         validator_address_cache,
         transaction_pool: service_components.transaction_pool,
     };

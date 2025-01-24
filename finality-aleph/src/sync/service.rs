@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fmt::Display, time::Duration};
-
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use futures::{
     channel::{mpsc, oneshot},
     stream::FusedStream,
@@ -52,6 +53,7 @@ where
     network: N,
     chain_events: CE,
     sync_oracle: SyncOracle,
+    is_major_syncing: Arc<AtomicBool>,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     blocks_from_creator: mpsc::UnboundedReceiver<B>,
     database_io: DatabaseIO<B, J, CS, F, BI>,
@@ -72,6 +74,7 @@ where
         network: N,
         chain_events: CE,
         sync_oracle: SyncOracle,
+        is_major_syncing: Arc<AtomicBool>,
         justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
         blocks_from_creator: mpsc::UnboundedReceiver<B>,
     ) -> Self {
@@ -79,6 +82,7 @@ where
             network,
             chain_events,
             sync_oracle,
+            is_major_syncing,
             justifications_from_user,
             blocks_from_creator,
             database_io,
@@ -189,6 +193,7 @@ where
             network,
             chain_events,
             sync_oracle,
+            is_major_syncing,
             justifications_from_user,
             blocks_from_creator,
             database_io,
@@ -199,7 +204,7 @@ where
         let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);
         let chain_extension_ticker = Ticker::new(TICK_PERIOD, CHAIN_EXTENSION_COOLDOWN);
         let (block_requests_for_sync, block_requests_from_user) = mpsc::unbounded();
-        let metrics = Metrics::new(metrics_registry).unwrap_or_else(|e| {
+        let metrics = Metrics::new(is_major_syncing, metrics_registry).unwrap_or_else(|e| {
             warn!(target: LOG_TARGET, "Failed to create metrics: {}.", e);
             Metrics::noop()
         });
