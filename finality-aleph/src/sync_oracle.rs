@@ -26,12 +26,11 @@ pub struct SyncOracle {
 impl SyncOracle {
     pub fn new() -> Self {
         let is_major_syncing = Arc::new(AtomicBool::new(true));
-        let oracle = SyncOracle {
+        SyncOracle {
             last_update: Arc::new(Mutex::new(Instant::now() - OFFLINE_THRESHOLD)),
             last_far_behind: Arc::new(Mutex::new(Instant::now())),
             is_major_syncing: is_major_syncing.clone(),
-        };
-        oracle
+        }
     }
 
     pub fn update_behind(&self, behind: u32) {
