@@ -1,5 +1,10 @@
-use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
-use std::sync::atomic::AtomicBool;
+use std::{
+    fmt::Debug,
+    hash::Hash,
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
+};
+
 use derive_more::Display;
 use futures::{
     channel::{

@@ -1,7 +1,14 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use substrate_prometheus_endpoint::{register, Counter, MetricSource, Opts, PrometheusError, Registry, SourcedGauge, U64};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
+
+use substrate_prometheus_endpoint::{
+    register, Counter, MetricSource, Opts, PrometheusError, Registry, SourcedGauge, U64,
+};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Event {
@@ -87,13 +94,11 @@ pub enum Metrics {
 pub struct MajorSyncingGauge(Arc<AtomicBool>);
 
 impl MajorSyncingGauge {
-    /// Registers the [`MajorSyncGauge`] metric whose value is
-    /// obtained from the given `AtomicBool`.
     fn register(registry: &Registry, value: Arc<AtomicBool>) -> Result<(), PrometheusError> {
         register(
             SourcedGauge::new(
                 &Opts::new(
-                    "substrate_sub_libp2p_is_major_syncing", // TODO change
+                    "aleph_sync_is_major_syncing",
                     "Whether the node is performing a major sync or not.",
                 ),
                 MajorSyncingGauge(value),
@@ -114,7 +119,10 @@ impl MetricSource for MajorSyncingGauge {
 }
 
 impl Metrics {
-    pub fn new(is_major_syncing: Arc<AtomicBool>, registry: Option<Registry>) -> Result<Self, PrometheusError> {
+    pub fn new(
+        is_major_syncing: Arc<AtomicBool>,
+        registry: Option<Registry>,
+    ) -> Result<Self, PrometheusError> {
         let registry = match registry {
             Some(registry) => registry,
             None => return Ok(Metrics::Noop),

@@ -1,6 +1,10 @@
-use std::{collections::HashSet, fmt::Display, time::Duration};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
+
 use futures::{
     channel::{mpsc, oneshot},
     stream::FusedStream,
