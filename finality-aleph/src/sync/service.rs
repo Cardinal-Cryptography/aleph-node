@@ -1,9 +1,4 @@
-use std::{
-    collections::HashSet,
-    fmt::Display,
-    sync::{atomic::AtomicBool, Arc},
-    time::Duration,
-};
+use std::{collections::HashSet, fmt::Display, time::Duration};
 
 use futures::{
     channel::{mpsc, oneshot},
@@ -57,7 +52,6 @@ where
     network: N,
     chain_events: CE,
     sync_oracle: SyncOracle,
-    is_major_syncing: Arc<AtomicBool>,
     justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
     blocks_from_creator: mpsc::UnboundedReceiver<B>,
     database_io: DatabaseIO<B, J, CS, F, BI>,
@@ -78,7 +72,6 @@ where
         network: N,
         chain_events: CE,
         sync_oracle: SyncOracle,
-        is_major_syncing: Arc<AtomicBool>,
         justifications_from_user: mpsc::UnboundedReceiver<J::Unverified>,
         blocks_from_creator: mpsc::UnboundedReceiver<B>,
     ) -> Self {
@@ -86,7 +79,6 @@ where
             network,
             chain_events,
             sync_oracle,
-            is_major_syncing,
             justifications_from_user,
             blocks_from_creator,
             database_io,
@@ -197,12 +189,12 @@ where
             network,
             chain_events,
             sync_oracle,
-            is_major_syncing,
             justifications_from_user,
             blocks_from_creator,
             database_io,
         } = io;
         let network = VersionWrapper::new(network);
+        let is_major_syncing = sync_oracle.underlying_atomic();
         let handler = Handler::new(database_io, verifier, sync_oracle, session_info)?;
         let tasks = TaskQueue::new();
         let broadcast_ticker = Ticker::new(TICK_PERIOD, BROADCAST_COOLDOWN);

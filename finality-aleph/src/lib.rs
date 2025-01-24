@@ -1,9 +1,4 @@
-use std::{
-    fmt::Debug,
-    hash::Hash,
-    path::PathBuf,
-    sync::{atomic::AtomicBool, Arc},
-};
+use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
 use derive_more::Display;
 use futures::{
@@ -282,7 +277,6 @@ pub struct AlephConfig<C, T> {
     pub validator_port: u16,
     pub rate_limiter_config: RateLimiterConfig,
     pub sync_oracle: SyncOracle,
-    pub is_major_syncing: Arc<AtomicBool>,
     pub validator_address_cache: Option<ValidatorAddressCache>,
     pub transaction_pool: Arc<T>,
 }
