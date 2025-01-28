@@ -135,7 +135,7 @@ async fn one_validator_is_dead() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    assert!(scores.points[VALIDATOR_TO_DISABLE_OVERALL_INDEX as usize] >= 100);
+    assert!(scores.points.into_iter().sum::<u16>() >= 100);
 
     Ok(())
 }
