@@ -387,9 +387,7 @@ jobs:
         with:
           test-case: all_validators_have_ideal_performance
           # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-synthetic-node.outputs.artifact-name-image }}
-          aleph-node-image-tag: aleph-node:syntheticnet
-          compose-file: docker/docker-compose.synthetic-network.yml
+          artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
           # yamllint disable-line rule:line-length
           artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
           # yamllint disable-line rule:line-length
