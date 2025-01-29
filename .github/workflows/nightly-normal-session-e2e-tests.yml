@@ -408,7 +408,7 @@ jobs:
       - name: Run e2e test
         uses: ./.github/actions/run-e2e-test
         with:
-          test-case: one-validator-is-dead
+          test-case: one_validator_is_dead
           # yamllint disable-line rule:line-length
           artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
           # yamllint disable-line rule:line-length
