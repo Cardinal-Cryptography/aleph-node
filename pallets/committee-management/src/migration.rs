@@ -26,6 +26,9 @@ pub mod v1 {
     use super::*;
     use crate::{Config, Pallet, ProductionBanConfig, LOG_TARGET};
 
+    const OLD_VERSION: u16 = 1;
+    const NEW_VERSION: u16 = 2;
+
     #[derive(Decode)]
     pub struct SessionValidatorsLegacy<T> {
         pub committee: Vec<T>,
@@ -45,17 +48,17 @@ pub mod v1 {
 
     impl<T: Config + pallet_aleph::Config> OnRuntimeUpgrade for Migration<T> {
         fn on_runtime_upgrade() -> Weight {
-            if StorageVersion::get::<Pallet<T>>() != StorageVersion::new(3) {
+            if StorageVersion::get::<Pallet<T>>() != StorageVersion::new(OLD_VERSION) {
                 log::info!(
                     target: LOG_TARGET,
-                    "Skipping migrations from STORAGE_VERSION 0 to 1 for pallet committee-management."
+                    "Skipping migrations from STORAGE_VERSION 1 to 2 for pallet committee-management."
                 );
                 return T::DbWeight::get().reads(1);
             };
 
             let reads = 4; // StorageVersion, CurrentAndNextSessionValidatorsStorage, NextFinalityCommittee,  BanConfig
             let mut writes = 2; // StorageVersion, ProductionBanConfig
-            info!(target: LOG_TARGET, "Running migration from STORAGE_VERSION 0 to 1 for pallet committee-management.");
+            info!(target: LOG_TARGET, "Running migration from STORAGE_VERSION 1 to 2 for pallet committee-management.");
 
             let res = CurrentAndNextSessionValidatorsStorage::<T>::translate::<
                 CurrentAndNextSessionValidatorsLegacy<T::AccountId>,
@@ -91,20 +94,22 @@ pub mod v1 {
             ProductionBanConfig::<T>::put(ban_config);
             BanConfig::<T>::kill();
 
-            StorageVersion::new(1).put::<Pallet<T>>();
+            StorageVersion::new(NEW_VERSION).put::<Pallet<T>>();
+            info!(target: LOG_TARGET, "Finished migration from STORAGE_VERSION 1 to 2 for pallet committee-management.");
+
             T::DbWeight::get().reads(reads) + T::DbWeight::get().writes(writes)
         }
 
         #[cfg(feature = "try-runtime")]
         fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
-            ensure_storage_version::<Pallet<T>>(0)?;
+            ensure_storage_version::<Pallet<T>>(OLD_VERSION)?;
 
             Ok(Vec::new())
         }
 
         #[cfg(feature = "try-runtime")]
         fn post_upgrade(_: Vec<u8>) -> Result<(), DispatchError> {
-            Ok(ensure_storage_version::<Pallet<T>>(1)?)
+            Ok(ensure_storage_version::<Pallet<T>>(NEW_VERSION)?)
         }
     }
 }
