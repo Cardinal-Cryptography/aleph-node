@@ -6,7 +6,6 @@ use frame_support::{
 use log::info;
 use parity_scale_codec::Decode;
 use primitives::{ProductionBanConfig as ProductionBanConfigStruct, SessionValidators};
-use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
 
 use crate::{CurrentAndNextSessionValidators, CurrentAndNextSessionValidatorsStorage};
@@ -101,14 +100,14 @@ pub mod v1 {
         }
 
         #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<Vec<u8>, DispatchError> {
+        fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
             ensure_storage_version::<Pallet<T>>(OLD_VERSION)?;
 
             Ok(Vec::new())
         }
 
         #[cfg(feature = "try-runtime")]
-        fn post_upgrade(_: Vec<u8>) -> Result<(), DispatchError> {
+        fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
             Ok(ensure_storage_version::<Pallet<T>>(NEW_VERSION)?)
         }
     }
