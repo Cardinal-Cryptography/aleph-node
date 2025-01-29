@@ -1033,7 +1033,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 
-pub type Migration = pallet_committee_management::migration::v1::Migration<Runtime>;
+pub type Migration = pallet_committee_management::migration::v2::Migration<Runtime>;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<

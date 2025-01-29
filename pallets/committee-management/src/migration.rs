@@ -19,7 +19,7 @@ pub fn ensure_storage_version<P: PalletInfoAccess>(version: u16) -> Result<(), &
     }
 }
 
-pub mod v1 {
+pub mod v2 {
     use frame_support::traits::Get;
 
     use super::*;
