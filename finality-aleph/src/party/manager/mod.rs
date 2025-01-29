@@ -12,16 +12,18 @@ use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use crate::{
     abft::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
-        run_legacy_member, CurrentPerformanceService, SpawnHandle,
+        run_legacy_member, CurrentPerformanceService, CurrentPerformanceServiceIO, SpawnHandle,
     },
-    aleph_primitives::{BlockHash, BlockNumber, KEY_TYPE},
+    aleph_primitives::{
+        crypto::SignatureSet, AuthoritySignature, BlockHash, BlockNumber, Hash, KEY_TYPE,
+    },
     block::{
         substrate::{Justification, JustificationTranslator},
         BestBlockSelector, Block, Header, HeaderVerifier, UnverifiedHeader,
     },
     crypto::{AuthorityPen, AuthorityVerifier},
     data_io::{ChainTracker, DataStore, OrderedDataInterpreter, SubstrateChainInfoProvider},
-    metrics::TimingBlockMetrics,
+    metrics::{ScoreMetrics, TimingBlockMetrics},
     mpsc,
     network::{
         data::{
@@ -32,7 +34,9 @@ use crate::{
     },
     party::{
         backup::ABFTBackup, manager::aggregator::AggregatorVersion, traits::NodeSessionManager,
+        LOG_TARGET,
     },
+    runtime_api::RuntimeApi,
     sync::JustificationSubmissions,
     AuthorityId, BlockId, CurrentRmcNetworkData, Keychain, LegacyRmcNetworkData, NodeIndex,
     ProvideRuntimeApi, SessionBoundaries, SessionBoundaryInfo, SessionId, SessionPeriod,
@@ -80,6 +84,9 @@ where
     session_boundaries: SessionBoundaries,
     subtask_common: TaskCommon,
     blocks_for_aggregator: mpsc::UnboundedSender<BlockId>,
+    performance_for_aggregator: mpsc::UnboundedSender<Hash>,
+    signed_performance_from_aggregator:
+        mpsc::UnboundedReceiver<(Hash, SignatureSet<AuthoritySignature>)>,
     chain_info: SubstrateChainInfoProvider<H, HB>,
     aggregator_io: aggregator::IO<JS>,
     multikeychain: Keychain,
@@ -87,7 +94,7 @@ where
     backup: ABFTBackup,
 }
 
-pub struct NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
+pub struct NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V, RA>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -100,6 +107,7 @@ where
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<H>,
+    RA: RuntimeApi,
 {
     client: Arc<C>,
     header_backend: HB,
@@ -114,10 +122,13 @@ where
     spawn_handle: SpawnHandle,
     session_manager: SM,
     keystore: Arc<LocalKeystore>,
+    runtime_api: RA,
+    score_metrics: ScoreMetrics,
     _phantom: PhantomData<(B, H)>,
 }
 
-impl<H, C, HB, BBS, B, RB, SM, JS, V> NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
+impl<H, C, HB, BBS, B, RB, SM, JS, V, RA>
+    NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V, RA>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -130,6 +141,7 @@ where
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<H>,
+    RA: RuntimeApi,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -146,6 +158,8 @@ where
         spawn_handle: SpawnHandle,
         session_manager: SM,
         keystore: Arc<LocalKeystore>,
+        runtime_api: RA,
+        score_metrics: ScoreMetrics,
     ) -> Self {
         Self {
             client,
@@ -161,6 +175,8 @@ where
             spawn_handle,
             session_manager,
             keystore,
+            runtime_api,
+            score_metrics,
             _phantom: PhantomData,
         }
     }
@@ -254,6 +270,8 @@ where
             session_boundaries,
             subtask_common,
             blocks_for_aggregator,
+            performance_for_aggregator,
+            signed_performance_from_aggregator,
             chain_info,
             aggregator_io,
             multikeychain,
@@ -274,8 +292,18 @@ where
             self.verifier.clone(),
             session_boundaries.clone(),
         );
-        let (abft_performance, abft_batch_handler) =
-            CurrentPerformanceService::new(n_members, ordered_data_interpreter);
+        let (abft_performance, abft_batch_handler) = CurrentPerformanceService::new(
+            node_id.into(),
+            n_members,
+            session_id,
+            ordered_data_interpreter,
+            CurrentPerformanceServiceIO {
+                hashes_for_aggregator: performance_for_aggregator,
+                signatures_from_aggregator: signed_performance_from_aggregator,
+            },
+            self.runtime_api.clone(),
+            self.score_metrics.clone(),
+        );
         let consensus_config =
             current_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
         let data_network = data_network.map();
@@ -325,7 +353,7 @@ where
         exit_rx: oneshot::Receiver<()>,
         backup: ABFTBackup,
     ) -> Subtasks {
-        debug!(target: "afa", "Authority task {:?}", session_id);
+        debug!(target: LOG_TARGET, "Authority task {:?}", session_id);
 
         let authority_verifier = AuthorityVerifier::new(authorities.to_vec());
         let authority_pen =
@@ -343,10 +371,14 @@ where
             spawn_handle: self.spawn_handle.clone(),
             session_id: session_id.0,
         };
+        let (performance_for_aggregator, performance_from_scorer) = mpsc::unbounded();
+        let (signed_performance_for_scorer, signed_performance_from_aggregator) = mpsc::unbounded();
         let aggregator_io = aggregator::IO {
             blocks_from_interpreter,
             justifications_for_chain: self.justifications_for_sync.clone(),
             justification_translator: self.justification_translator.clone(),
+            performance_from_scorer,
+            signed_performance_for_scorer,
         };
 
         let data_network = match self
@@ -375,6 +407,8 @@ where
             session_boundaries,
             subtask_common,
             blocks_for_aggregator,
+            performance_for_aggregator,
+            signed_performance_from_aggregator,
             chain_info,
             aggregator_io,
             multikeychain,
@@ -389,17 +423,17 @@ where
         {
             #[cfg(feature = "only_legacy")]
             _ if self.only_legacy() => {
-                info!(target: "aleph-party", "Running session with legacy-only AlephBFT version.");
+                info!(target: LOG_TARGET, "Running session with legacy-only AlephBFT version.");
                 self.legacy_subtasks(params)
             }
             // The `as`es here should be removed, but this would require a pallet migration and I
             // am lazy.
             Ok(version) if version == CURRENT_VERSION as u32 => {
-                info!(target: "aleph-party", "Running session with AlephBFT version {}, which is current.", version);
+                info!(target: LOG_TARGET, "Running session with AlephBFT version {}, which is current.", version);
                 self.current_subtasks(params)
             }
             Ok(version) if version == LEGACY_VERSION as u32 => {
-                info!(target: "aleph-party", "Running session with AlephBFT version {}, which is legacy.", version);
+                info!(target: LOG_TARGET, "Running session with AlephBFT version {}, which is legacy.", version);
                 self.legacy_subtasks(params)
             }
             Ok(version) if version > CURRENT_VERSION as u32 => {
@@ -408,8 +442,8 @@ where
                 )
             }
             Ok(version) => {
-                info!(target: "aleph-party", "Attempting to run session with too old version {}, likely because we are synchronizing old sessions for which we have keys. This will not work, but it doesn't matter.", version);
-                info!(target: "aleph-party", "Running session with AlephBFT version {}, which is legacy.", LEGACY_VERSION);
+                info!(target: LOG_TARGET, "Attempting to run session with too old version {}, likely because we are synchronizing old sessions for which we have keys. This will not work, but it doesn't matter.", version);
+                info!(target: LOG_TARGET, "Running session with AlephBFT version {}, which is legacy.", LEGACY_VERSION);
                 self.legacy_subtasks(params)
             }
             _ => {
@@ -428,8 +462,8 @@ where
 }
 
 #[async_trait]
-impl<H, C, HB, BBS, B, RB, SM, JS, V> NodeSessionManager
-    for NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V>
+impl<H, C, HB, BBS, B, RB, SM, JS, V, RA> NodeSessionManager
+    for NodeSessionManagerImpl<H, C, HB, BBS, B, RB, SM, JS, V, RA>
 where
     H: Header,
     B: Block<UnverifiedHeader = H::Unverified> + BlockT<Hash = BlockHash>,
@@ -442,6 +476,7 @@ where
     SM: SessionManager<VersionedNetworkData<B::UnverifiedHeader>> + 'static,
     JS: JustificationSubmissions<Justification> + Send + Sync + Clone,
     V: HeaderVerifier<H>,
+    RA: RuntimeApi,
 {
     type Error = SM::Error;
 
@@ -461,7 +496,7 @@ where
             self.spawn_handle
                 .spawn_essential("aleph/session_authority", async move {
                     if subtasks.wait_completion().await.is_err() {
-                        warn!(target: "aleph-party", "Authority subtasks failed.");
+                        warn!(target: LOG_TARGET, "Authority subtasks failed.");
                     }
                 }),
             node_id,

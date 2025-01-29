@@ -212,7 +212,7 @@ fn get_aleph_runtime_vars(client: &Arc<FullClient>) -> AlephRuntimeVars {
 
 fn get_validator_address_cache(aleph_config: &AlephCli) -> Option<ValidatorAddressCache> {
     aleph_config
-        .no_collection_of_extra_debugging_data()
+        .collect_validator_network_data()
         .then(ValidatorAddressCache::new)
 }
 
@@ -258,7 +258,7 @@ pub fn new_authority(
 
     let backoff_authoring_blocks = Some(LimitNonfinalized(aleph_config.max_nonfinalized_blocks()));
     let prometheus_registry = config.prometheus_registry().cloned();
-    let (sync_oracle, major_sync) = SyncOracle::new();
+    let sync_oracle = SyncOracle::new();
     let proposer_factory = get_proposer_factory(&service_components, &config);
     let slot_duration = sc_consensus_aura::slot_duration(&*service_components.client)?;
     let (block_import, block_rx) = RedirectingBlockImport::new(service_components.client.clone());
@@ -311,7 +311,7 @@ pub fn new_authority(
         network_config,
         config.protocol_id(),
         service_components.client.clone(),
-        major_sync,
+        sync_oracle.underlying_atomic(),
         service_components.transaction_pool.clone(),
         &service_components.task_manager.spawn_handle(),
         config

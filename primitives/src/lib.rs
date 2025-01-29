@@ -65,6 +65,9 @@ pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 /// never know...
 pub type AccountIndex = u32;
 
+/// The hashing algorithm we use for everything.
+pub type Hashing = BlakeTwo256;
+
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
@@ -75,7 +78,7 @@ pub type Nonce = u32;
 pub type Balance = u128;
 
 /// Header type.
-pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+pub type Header = generic::Header<BlockNumber, Hashing>;
 
 /// Block type.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -152,7 +155,7 @@ pub const DEFAULT_FINALITY_VERSION: Version = 0;
 pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
 
 /// Legacy version of abft.
-pub const LEGACY_FINALITY_VERSION: u16 = 3;
+pub const LEGACY_FINALITY_VERSION: u16 = 4;
 
 /// Percentage of validator performance that is treated as 100% performance
 pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);

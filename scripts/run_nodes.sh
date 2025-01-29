@@ -44,6 +44,7 @@ CHAINSPEC_GENERATOR="target/release/chain-bootstrapper"
 NODE_P2P_PORT_RANGE_START=30333
 NODE_VALIDATOR_PORT_RANGE_START=30343
 NODE_RPC_PORT_RANGE_START=9944
+PROMETHEUS_PORT_RANGE_START=9615
 
 # ------------------------ argument parsing and usage -----------------------
 
@@ -64,6 +65,8 @@ Usage:
     [-p|--base-path BASE_PATH]
         if specified, use given base path (keystore, db, AlephBFT backups)
         if not specified, base path is ./run-nodes-local
+    [--finality-version]
+      which finality version should be used, default = legacy
     [--dont-bootstrap]
       set if you don't want to bootstrap chain, ie generate keystore and chainspec
     [--dont-build]
@@ -85,6 +88,7 @@ DONT_BOOTSTRAP=${DONT_BOOTSTRAP:-""}
 DONT_BUILD_ALEPH_NODE=${DONT_BUILD_ALEPH_NODE:-""}
 DONT_DELETE_DB=${DONT_DELETE_DB:-""}
 DONT_REMOVE_ABFT_BACKUPS=${DONT_REMOVE_ABFT_BACKUPS:-""}
+FINALITY_VERSION=${FINALITY_VERSION:-"legacy"}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -98,6 +102,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -p|--base-path)
       BASE_PATH="$2"
+      shift;shift
+      ;;
+    --finality-version)
+      FINALITY_VERSION="$2"
       shift;shift
       ;;
     --dont-bootstrap)
@@ -167,6 +175,7 @@ function run_node() {
     --name "${node_name}"
     --rpc-port $((NODE_RPC_PORT_RANGE_START + index))
     --port $((NODE_P2P_PORT_RANGE_START + index))
+    --prometheus-port $((PROMETHEUS_PORT_RANGE_START + index))
     --validator-port "${validator_port}"
     --node-key-file "${BASE_PATH}/${account_id}/p2p_secret"
     --backup-path "${BASE_PATH}/${account_id}/backup-stash"
@@ -186,6 +195,7 @@ function run_node() {
     -laleph-data-store=debug
     -laleph-updater=debug
     -laleph-metrics=debug
+    -laleph-abft=debug
   )
 
   info "Running node ${index}..."
@@ -218,6 +228,9 @@ if [[ "${DONT_BOOTSTRAP}" == "true" && ! -f "${BASE_PATH}/chainspec.json" ]]; th
 fi
 if ! command -v jq &> /dev/null; then
     error "jq could not be found on PATH!"
+fi
+if [[ "${FINALITY_VERSION}" != "current" && "${FINALITY_VERSION}" != "legacy" ]]; then
+  error "Flag finality-version should be either current or legacy."
 fi
 
 # ------------------- main script starts here ------------------------------
@@ -276,7 +289,8 @@ if [[ -z "${DONT_BOOTSTRAP}" ]]; then
     --account-ids "${all_account_ids_string}" \
     --authorities-account-ids "${validator_ids_string}" \
     --chain-type local > "${BASE_PATH}/chainspec.json" \
-    --rich-account-ids "${all_account_ids_string}"
+    --rich-account-ids "${all_account_ids_string}" \
+    --finality-version "${FINALITY_VERSION}"
 
   if [[ "${DONT_REMOVE_ABFT_BACKUPS}" == "true" ]]; then
     all_account_ids=(${validator_account_ids[@]} ${rpc_node_account_ids[@]})
