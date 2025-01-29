@@ -1,13 +1,13 @@
 use frame_support::{
-    pallet_prelude::{StorageVersion, ValueQuery, Weight, PalletInfoAccess},
+    pallet_prelude::{PalletInfoAccess, StorageVersion, ValueQuery, Weight},
     storage_alias,
     traits::OnRuntimeUpgrade,
 };
 use log::info;
 use parity_scale_codec::Decode;
 use primitives::{ProductionBanConfig as ProductionBanConfigStruct, SessionValidators};
-use sp_std::vec::Vec;
 use sp_runtime::DispatchError;
+use sp_std::vec::Vec;
 
 use crate::{CurrentAndNextSessionValidators, CurrentAndNextSessionValidatorsStorage};
 
