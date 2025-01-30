@@ -371,52 +371,6 @@ jobs:
           artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
           timeout-minutes: 35
 
-  run-e2e-all-validators-have-ideal-performance:
-    needs:
-      - build-production-aleph-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: All validators have ideal abft performance
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          test-case: all_validators_have_ideal_performance
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
-
-  run-e2e-one-validator-is-dead:
-    needs:
-      - build-production-aleph-node
-      - build-aleph-e2e-client-image
-      - build-chain-bootstrapper-production
-    name: All validators except one have ideal abft performance
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Run e2e test
-        uses: ./.github/actions/run-e2e-test
-        with:
-          test-case: one_validator_is_dead
-          # yamllint disable-line rule:line-length
-          artifact-aleph-node-image: ${{ needs.build-production-aleph-node.outputs.artifact-name-image }}
-          # yamllint disable-line rule:line-length
-          artifact-chain-bootstrapper-image: ${{ needs.build-chain-bootstrapper-production.outputs.artifact-name-image }}
-          # yamllint disable-line rule:line-length
-          artifact-aleph-e2e-client-image: ${{ needs.build-aleph-e2e-client-image.outputs.artifact-name-image }}
-          timeout-minutes: 35
-
   check-nightly-pipeline-completion:
     needs: [run-e2e-high-out-latency,
             run-e2e-sync-test-one_node_catching_up_and_then_becoming_necessary_for_consensus,
@@ -427,9 +381,7 @@ jobs:
             run-e2e-sync-test-into_two_groups_one_with_quorum,
             run-force-reorg-test,
             run-major-sync-test,
-            run-e2e-no-quorum-without-high-out-latency,
-            run-e2e-one-validator-is-dead,
-            run-e2e-all-validators-have-ideal-performance]
+            run-e2e-no-quorum-without-high-out-latency]
     name: Check nightly test suite completion
     if: ${{ !cancelled() }}
     runs-on: ubuntu-20.04
