@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("aleph-node"),
     impl_name: create_runtime_str!("aleph-node"),
     authoring_version: 1,
-    spec_version: 16_000_000,
+    spec_version: 15_000_000,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 19,
@@ -860,7 +860,6 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
                     | RuntimeCall::Utility(..)
                     | RuntimeCall::Multisig(..)
                     | RuntimeCall::NominationPools(..)
-                    | RuntimeCall::Identity(..)
             ),
             ProxyType::Staking => {
                 matches!(
@@ -1033,6 +1032,8 @@ pub type Block = generic::Block<AlephHeader, UncheckedExtrinsic>;
 pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
+
+pub type Migration = pallet_committee_management::migration::v2::Migration<Runtime>;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
