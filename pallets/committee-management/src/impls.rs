@@ -6,8 +6,7 @@ use primitives::{
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_pcg::Pcg32;
-use sp_runtime::{Perbill, Perquintill};
-use sp_runtime::traits::Get;
+use sp_runtime::{traits::Get, Perbill, Perquintill};
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -219,12 +218,12 @@ impl<T: Config> Pallet<T> {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
             let blocks_created = SessionValidatorBlockCount::<T>::get(&validator);
             let production_points = calculate_adjusted_session_points(
-                    nr_of_sessions,
-                    blocks_per_session,
-                    blocks_created,
-                    *total,
-                    threshold,
-                );
+                nr_of_sessions,
+                blocks_per_session,
+                blocks_created,
+                *total,
+                threshold,
+            );
 
             let points = match underperf_finalizers.contains(&validator) {
                 true => 0,
@@ -272,12 +271,11 @@ impl<T: Config> Pallet<T> {
             blocks_per_session,
             &validator_total_rewards,
             lenient_threshold,
-            underperf_finalizers.into_iter().collect()
+            underperf_finalizers.into_iter().collect(),
         ));
 
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
-
 
     fn store_session_validators(
         producers: &[T::AccountId],
@@ -354,7 +352,9 @@ impl<T: Config> Pallet<T> {
         committee
     }
 
-    pub(crate) fn calculate_underperforming_finalizers(session_id: SessionIndex) -> Vec<T::AccountId>{
+    pub(crate) fn calculate_underperforming_finalizers(
+        session_id: SessionIndex,
+    ) -> Vec<T::AccountId> {
         let CurrentAndNextSessionValidators {
             current: SessionValidators { finalizers, .. },
             ..
