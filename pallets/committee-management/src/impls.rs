@@ -374,8 +374,9 @@ impl<T: Config> Pallet<T> {
                         *count
                     });
                 if counter >= underperformed_session_count_threshold {
-                    // In future, additionally ban underperforming validator
-                    Self::deposit_event(Event::ValidatorUnderperforming(validator.clone()));
+                    let reason = BanReason::InsufficientFinalization(counter);
+                    Self::ban_validator(validator, reason);
+                    UnderperformedFinalizerSessionCount::<T>::remove(validator);
                 }
             }
         }
@@ -411,7 +412,7 @@ impl<T: Config> Pallet<T> {
             *count
         });
         if counter >= thresholds.underperformed_session_count_threshold {
-            let reason = BanReason::InsufficientUptime(counter);
+            let reason = BanReason::InsufficientProduction(counter);
             Self::ban_validator(validator, reason);
             UnderperformedValidatorSessionCount::<T>::remove(validator);
         }

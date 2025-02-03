@@ -129,7 +129,7 @@ fn ban_underperforming_producers() {
         let banned = vec![underperformer];
         assert_eq!(CommitteeManagement::banned(), banned);
         let ban_info = BanInfo {
-            reason: primitives::BanReason::InsufficientUptime(
+            reason: primitives::BanReason::InsufficientProduction(
                 underperformed_session_count_threshold,
             ),
             start: active_era() + 1,

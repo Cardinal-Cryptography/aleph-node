@@ -277,9 +277,11 @@ impl Default for ProductionBanConfig {
 /// Represent any possible reason a validator can be removed from the committee due to
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug)]
 pub enum BanReason {
-    /// Validator has been removed from the committee due to insufficient uptime in a given number
-    /// of sessions
-    InsufficientUptime(u32),
+    /// Validator has been removed from the committee due to insufficient production in a given number of sessions
+    InsufficientProduction(u32),
+
+    /// Validator has been removed from the committee due to insufficient abft performance in a given number of sessions
+    InsufficientFinalization(u32),
 
     /// Any arbitrary reason
     OtherReason(BoundedVec<u8, ConstU32<DEFAULT_BAN_REASON_LENGTH>>),
