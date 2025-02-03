@@ -7,6 +7,7 @@ use futures::{
 };
 use log::{debug, error, warn};
 use parity_scale_codec::Encode;
+use primitives::SCORE_SUBMISSION_PERIOD;
 use sp_runtime::traits::Hash as _;
 
 use crate::{
@@ -23,8 +24,6 @@ use crate::{
     runtime_api::RuntimeApi,
     Hasher, SessionId, UnverifiedHeader,
 };
-
-const SCORE_SUBMISSION_PERIOD: usize = 300;
 
 struct FinalizationWrapper<UH, FH>
 where
