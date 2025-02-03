@@ -9,7 +9,8 @@ use crate::{
         CommitteeManagement, Elections, SessionPeriod, TestBuilderConfig, TestExtBuilder,
         TestRuntime,
     },
-    CurrentAndNextSessionValidatorsStorage, Event, FinalityBanConfig, ProductionBanConfig, SessionValidatorBlockCount,
+    CurrentAndNextSessionValidatorsStorage, Event, FinalityBanConfig, ProductionBanConfig,
+    SessionValidatorBlockCount,
 };
 
 fn gen_config() -> TestBuilderConfig {
