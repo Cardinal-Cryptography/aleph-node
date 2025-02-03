@@ -173,9 +173,6 @@ pub mod pallet {
 
         /// Validators have been banned from the committee
         BanValidators(Vec<(T::AccountId, BanInfo)>),
-
-        /// Validator is underperforimg in finality committee
-        ValidatorUnderperforming(T::AccountId),
     }
 
     #[pallet::call]
