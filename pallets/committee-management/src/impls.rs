@@ -1,4 +1,3 @@
-use frame_support::pallet_prelude::Get;
 use log::info;
 use parity_scale_codec::Encode;
 use primitives::{
@@ -8,6 +7,7 @@ use primitives::{
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_pcg::Pcg32;
 use sp_runtime::{Perbill, Perquintill};
+use sp_runtime::traits::Get;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{
     collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -185,7 +185,7 @@ impl<T: Config> Pallet<T> {
         ValidatorEraTotalReward::<T>::put(ValidatorTotalRewards(scaled_totals.collect()));
     }
 
-    fn reward_for_session_non_committee(
+    fn rewards_for_session_non_committee(
         non_committee: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
@@ -207,26 +207,31 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    fn reward_for_session_committee(
-        committee: Vec<T::AccountId>,
+    fn rewards_for_session_committee(
+        producers: Vec<T::AccountId>,
         nr_of_sessions: SessionIndex,
         blocks_per_session: u32,
         validator_totals: &BTreeMap<T::AccountId, u32>,
         threshold: Perquintill,
+        underperf_finalizers: BTreeSet<T::AccountId>,
     ) -> impl IntoIterator<Item = (T::AccountId, u32)> + '_ {
-        committee.into_iter().map(move |validator| {
+        producers.into_iter().map(move |validator| {
             let total = BTreeMap::<_, _>::get(validator_totals, &validator).unwrap_or(&0);
             let blocks_created = SessionValidatorBlockCount::<T>::get(&validator);
-            (
-                validator,
-                calculate_adjusted_session_points(
+            let production_points = calculate_adjusted_session_points(
                     nr_of_sessions,
                     blocks_per_session,
                     blocks_created,
                     *total,
                     threshold,
-                ),
-            )
+                );
+
+            let points = match underperf_finalizers.contains(&validator) {
+                true => 0,
+                false => production_points,
+            };
+
+            (validator, points)
         })
     }
 
@@ -235,7 +240,7 @@ impl<T: Config> Pallet<T> {
             .saturating_div(T::ValidatorProvider::current_era_committee_size().size())
     }
 
-    pub fn adjust_rewards_for_session() {
+    pub fn adjust_rewards_for_session(underperf_finalizers: Vec<T::AccountId>) {
         let CurrentAndNextSessionValidators {
             current:
                 SessionValidators {
@@ -253,7 +258,7 @@ impl<T: Config> Pallet<T> {
 
         let lenient_threshold = LenientThreshold::<T>::get();
 
-        let rewards = Self::reward_for_session_non_committee(
+        let rewards = Self::rewards_for_session_non_committee(
             non_committee,
             nr_of_sessions,
             blocks_per_session,
@@ -261,16 +266,18 @@ impl<T: Config> Pallet<T> {
             lenient_threshold,
         )
         .into_iter()
-        .chain(Self::reward_for_session_committee(
+        .chain(Self::rewards_for_session_committee(
             producers,
             nr_of_sessions,
             blocks_per_session,
             &validator_total_rewards,
             lenient_threshold,
+            underperf_finalizers.into_iter().collect()
         ));
 
         T::ValidatorRewardsHandler::add_rewards(rewards);
     }
+
 
     fn store_session_validators(
         producers: &[T::AccountId],
@@ -347,7 +354,7 @@ impl<T: Config> Pallet<T> {
         committee
     }
 
-    pub(crate) fn calculate_underperforming_finalizers(session_id: SessionIndex) {
+    pub(crate) fn calculate_underperforming_finalizers(session_id: SessionIndex) -> Vec<T::AccountId>{
         let CurrentAndNextSessionValidators {
             current: SessionValidators { finalizers, .. },
             ..
@@ -366,8 +373,10 @@ impl<T: Config> Pallet<T> {
             .into_iter()
             .map(is_underperforming);
 
+        let mut underperf_finalizers = Vec::new();
         for (underperf, validator) in finalizers_perf.zip(finalizers.iter()) {
             if underperf {
+                underperf_finalizers.push(validator.clone());
                 let counter =
                     UnderperformedFinalizerSessionCount::<T>::mutate(validator, |count| {
                         *count += 1;
@@ -380,6 +389,8 @@ impl<T: Config> Pallet<T> {
                 }
             }
         }
+
+        underperf_finalizers
     }
 
     pub(crate) fn calculate_underperforming_validators() {
@@ -426,6 +437,13 @@ impl<T: Config> Pallet<T> {
                 "Clearing UnderperformedValidatorSessionCount"
             );
             let _result = UnderperformedValidatorSessionCount::<T>::clear(u32::MAX, None);
+        }
+        let clean_session_counter_delay = Self::finality_ban_config().clean_session_counter_delay;
+        if session % clean_session_counter_delay == 0 {
+            info!(
+                target: LOG_TARGET,
+                "Clearing UnderperformedFinalizerSessionCount"
+            );
             let _result = UnderperformedFinalizerSessionCount::<T>::clear(u32::MAX, None);
             T::AbftScoresProvider::clear_scores();
         }

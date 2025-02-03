@@ -229,6 +229,8 @@ pub struct FinalityBanConfig {
     pub underperformed_session_count_threshold: SessionCount,
     /// how many eras a validator is banned for
     pub ban_period: EraIndex,
+    /// underperformed session counter is cleared every subsequent `clean_session_counter_delay` sessions
+    pub clean_session_counter_delay: SessionCount,
 }
 
 pub const DEFAULT_FINALITY_BAN_MINIMAL_EXPECTED_PERFORMANCE: u16 = 11;
@@ -240,6 +242,7 @@ impl Default for FinalityBanConfig {
             minimal_expected_performance: DEFAULT_FINALITY_BAN_MINIMAL_EXPECTED_PERFORMANCE,
             underperformed_session_count_threshold: DEFAULT_FINALITY_BAN_SESSION_COUNT_THRESHOLD,
             ban_period: DEFAULT_BAN_PERIOD,
+            clean_session_counter_delay: DEFAULT_CLEAN_SESSION_COUNTER_DELAY,
         }
     }
 }
