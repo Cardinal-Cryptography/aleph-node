@@ -160,8 +160,8 @@ fn ban_underperforming_finalizers() {
         let underperformer = 10;
         let mut ban_config = CommitteeManagement::finality_ban_config();
         let minimal_expected_performance = ban_config.minimal_expected_performance;
-        let underperformed_session_count_threshold =
-            ban_config.underperformed_session_count_threshold;
+        let underperformed_session_count_threshold = 2;
+        ban_config.underperformed_session_count_threshold = underperformed_session_count_threshold;
         let reserved: BTreeSet<AccountId> = Elections::current_era_validators()
             .reserved
             .into_iter()
