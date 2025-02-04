@@ -28,7 +28,7 @@ use crate::{
 const RESERVED_SEATS: u32 = 2;
 const NON_RESERVED_SEATS: u32 = 2;
 const DEAD_INDEX: usize = 1;
-const NODE_TO_DISABLE_ADDRESS: &str = "ws://127.0.0.1:9947";
+const NODE_TO_DISABLE_ADDRESS: &str = "ws://127.0.0.1:9948";
 const VALIDATOR_TO_DISABLE_OVERALL_INDEX: u32 = 3;
 const ABFT_PERFORMANCE_VERSION: u32 = 5;
 
