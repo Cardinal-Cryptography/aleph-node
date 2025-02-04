@@ -234,6 +234,7 @@ pub struct FinalityBanConfig {
 }
 
 pub const DEFAULT_FINALITY_BAN_MINIMAL_EXPECTED_PERFORMANCE: u16 = 11;
+// The value of the following param effectively turns off bans and rewords.
 pub const DEFAULT_FINALITY_BAN_SESSION_COUNT_THRESHOLD: SessionCount = SessionCount::MAX;
 
 impl Default for FinalityBanConfig {
