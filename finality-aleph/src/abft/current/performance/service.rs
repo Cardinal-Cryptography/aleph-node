@@ -98,6 +98,7 @@ where
 {
     /// Create a new service, together with a unit finalization handler that should be passed to
     /// ABFT. It will wrap the provided finalization handler and call it in the background.
+    #[allow(clippy::too_many_arguments)]
     pub fn new<FH>(
         my_index: usize,
         n_members: usize,
