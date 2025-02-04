@@ -487,6 +487,7 @@ mod tests {
     }
 
     const SESSION_PERIOD: u32 = 30;
+    const SCORE_SUBMISSION_PERIOD: u32 = 15;
 
     #[derive(Debug)]
     struct MockController {
@@ -523,6 +524,7 @@ mod tests {
             backup_saving_path: None,
             session_manager,
             session_info,
+            score_submission_period: SCORE_SUBMISSION_PERIOD,
         };
 
         (ConsensusParty::new(params), controller)
