@@ -16,7 +16,7 @@ where
     fn populate_next_era_validators_on_next_era_start(era: EraIndex) {
         let parent_hash = frame_system::Pallet::<T>::parent_hash();
         let mut bytes = [0u8; 8];
-        bytes.clone_from_slice(parent_hash.as_ref());
+        bytes.clone_from_slice(&parent_hash.as_ref()[..8]);
         let seed = u64::from_le_bytes(bytes);
 
         let mut rng = Pcg32::seed_from_u64(seed);
