@@ -2,12 +2,11 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use log::debug;
 use pallet_session::SessionManager;
 use primitives::{AbftScoresProvider, EraManager, FinalityCommitteeManager, SessionCommittee};
-use rand::SeedableRng;
+use rand::{prelude::SliceRandom, SeedableRng};
 use rand_pcg::Pcg32;
+use sp_runtime::traits::Get;
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{marker::PhantomData, vec::Vec};
-use sp_runtime::traits::Get;
-use rand::prelude::SliceRandom;
 
 use crate::{
     pallet::{Config, Pallet, SessionValidatorBlockCount},
