@@ -7,14 +7,14 @@
 
 name: Sync from snapshot test, Mainnet, ParityDB non-pruned
 on:
-  # At 21:00 on Saturday
+  # At 15:00 on Sunday
   # Time corresponds with a snapshot creation time
   schedule:
-    - cron: '0 21 * * 6'
+    - cron: '0 15 * * 0'
   workflow_dispatch:
     inputs:
       snapshot-day:
-        description: "Day in date format %Y-%m-%d. If not given, current date is assumed."
+        description: "Day in date format %Y-%m-%d. If not given, current date - 1 day is assumed."
         type: string
         required: false
         default: ''
