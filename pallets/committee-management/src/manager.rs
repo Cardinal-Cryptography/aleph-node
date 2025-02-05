@@ -130,6 +130,8 @@ where
         // Notify about elected next session finality committee
         C::FinalityCommitteeManager::on_next_session_finality_committee(finalizers);
 
+        // Prepare a list of all block authors for the next session. We shuffle to minimize
+        // the impact of slow producer on his followers.
         let full_size = C::SessionPeriod::get() as usize;
         let mut full_aura: Vec<_> = producers.into_iter().cycle().take(full_size).collect();
         let mut rng = Pcg32::seed_from_u64(new_index as u64);
