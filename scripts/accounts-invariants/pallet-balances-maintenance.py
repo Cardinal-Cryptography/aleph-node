@@ -124,7 +124,7 @@ if __name__ == "__main__":
             batch_fix_accounts_consumers_counter(chain_connection=chain_ws_connection,
                                                  input_args=args,
                                                  sender_keypair=sender_origin_account_keypair,
-                                                 accounts=list(map(lambda accoount_if_and_info: accoount_if_and_info[0], accounts_with_invalid_consumers_counter)))
+                                                 accounts=list(map(lambda account_if_and_info: account_if_and_info[0], accounts_with_invalid_consumers_counter)))
     if args.check_total_issuance:
         log.info(f"Comparing total issuance aggregated over all accounts with storage value balances.total_issuance")
         total_issuance_from_chain, total_issuance_from_accounts = \
