@@ -5,7 +5,7 @@
 	(import "seal0" "seal_return" (func $seal_return (param i32 i32 i32)))
 	(import "env" "memory" (memory 1 1))
 
-	;; [0, 32) zero-adress
+	;; [0, 32) zero-address
 	(data (i32.const 0)
 		"\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
 		"\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
