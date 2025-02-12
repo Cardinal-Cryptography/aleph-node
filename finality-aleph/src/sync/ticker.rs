@@ -66,7 +66,7 @@ impl Ticker {
     }
 
     /// Reset the ticker, making it time from the moment of this call.
-    /// Behaves as if it was just created with the same parametres.
+    /// Behaves as if it was just created with the same parameters.
     pub fn reset(&mut self) {
         self.last_reset = Instant::now();
         self.mode = Mode::Normal;
