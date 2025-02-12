@@ -26,7 +26,7 @@ pub struct ChainSpecParams {
     #[arg(long, default_value = "DZERO")]
     token_symbol: String,
 
-    /// all account ids that needs to have session keys generated when bootstraping chain (comma delimited)
+    /// all account ids that needs to have session keys generated when bootstrapping chain (comma delimited)
     #[arg(long, value_delimiter = ',', value_parser = parse_account_id)]
     account_ids: Vec<AccountId>,
 
