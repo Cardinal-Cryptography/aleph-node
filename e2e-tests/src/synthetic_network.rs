@@ -386,7 +386,7 @@ pub async fn test_latency_template_test(
     .await;
     let blocks_to_wait_in_first_session = 30;
     info!(
-        "Waiting for {} finalized blocks in sesssion 1 to make sure initial unit collection works.",
+        "Waiting for {} finalized blocks in session 1 to make sure initial unit collection works.",
         blocks_to_wait_in_first_session
     );
     try_join_all(connections.iter().map(|connection| {
