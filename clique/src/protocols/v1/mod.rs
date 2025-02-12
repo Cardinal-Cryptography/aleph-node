@@ -240,7 +240,7 @@ mod tests {
             let (public_key, response_sender) = authorization_requests
                 .next()
                 .await
-                .expect("We should recieve at least one authorization request.");
+                .expect("We should receive at least one authorization request.");
             let authorization_result = handler(public_key);
             response_sender
                 .send(authorization_result)
