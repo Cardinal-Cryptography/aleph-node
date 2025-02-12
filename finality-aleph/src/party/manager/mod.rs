@@ -386,7 +386,11 @@ where
             }
             // The `as`es here should be removed, but this would require a pallet migration and I
             // am lazy.
-            Ok(version) if version == CURRENT_VERSION as u32 => {
+            // Note this treats all versions above legacy, but no higher than current as current,
+            // due to an outage in 2025-02.
+            Ok(version)
+                if (version > LEGACY_VERSION as u32 && version <= CURRENT_VERSION as u32) =>
+            {
                 info!(target: "aleph-party", "Running session with AlephBFT version {}, which is current.", version);
                 self.current_subtasks(params)
             }
