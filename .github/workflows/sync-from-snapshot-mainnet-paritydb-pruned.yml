@@ -18,9 +18,6 @@ on:
         type: string
         required: false
         default: ''
-  push:
-    branches:
-      - fix-snapshot-tests
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -57,7 +54,7 @@ jobs:
           args: --mainnet --parity-db --pruned
           aws-access-key-id: ${{ secrets.AWS_MAINNET_S3_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_MAINNET_S3_SECRET_ACCESS_KEY }}
-          snapshot-day: '2025-02-22'
+          snapshot-day: ${{ inputs.snapshot-day }}
 
   slack-notification:
     name: Slack notification
