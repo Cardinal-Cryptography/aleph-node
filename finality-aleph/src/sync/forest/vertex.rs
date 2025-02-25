@@ -108,7 +108,7 @@ impl HeaderImportance {
         }
     }
 
-    /// Whether we consider the related block to be imported..
+    /// Whether we consider the related block to be imported.
     pub fn imported(&self) -> bool {
         use HeaderImportance::*;
         match self {
@@ -138,7 +138,7 @@ enum JustificationImportance {
 }
 
 impl JustificationImportance {
-    /// Whether we consider the related block to be imported..
+    /// Whether we consider the related block to be imported.
     pub fn imported(&self) -> bool {
         use JustificationImportance::*;
         match self {
@@ -451,6 +451,8 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
 
 #[cfg(test)]
 mod tests {
+    use tokio::time::{sleep, Duration};
+
     use super::Vertex;
     use crate::{
         block::{
@@ -460,7 +462,6 @@ mod tests {
         sync::MockPeerId,
         BlockId,
     };
-    use tokio::time::{sleep, Duration};
 
     type MockVertex = Vertex<MockPeerId, MockJustification>;
 
