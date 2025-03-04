@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'release-*'
+      - 'tmp-test-A0-4817'
 
 jobs:
   check-vars-and-secrets:
