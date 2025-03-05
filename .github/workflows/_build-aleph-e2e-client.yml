@@ -38,7 +38,7 @@ jobs:
         uses: Cardinal-Cryptography/github-actions/get-ref-properties@v7
 
       - name: Install Rust toolchain
-        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@add-workdir-to-install-action
+        uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v7.3.0
         with:
           directory: './e2e-tests/'
 
