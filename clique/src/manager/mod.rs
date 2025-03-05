@@ -245,6 +245,7 @@ mod tests {
     use crate::{
         metrics::Metrics,
         mock::{key, MockPublicKey},
+        SEND_DATA_BUFFER,
     };
 
     type Data = String;
@@ -288,7 +289,7 @@ mod tests {
             Manager::<MockPublicKey, Address, Data>::new(listening_id.clone(), Metrics::noop());
         let data = String::from("DATA");
         let address = String::from("43.43.43.43:43000");
-        let (tx, _rx) = mpsc::channel(100);
+        let (tx, _rx) = mpsc::channel(SEND_DATA_BUFFER);
         // try add unknown peer
         assert_eq!(
             connecting_manager.add_connection(listening_id.clone(), tx),
@@ -310,7 +311,7 @@ mod tests {
             assert!(connecting_manager.add_peer(listening_id.clone(), address.clone()));
         }
         // add outgoing to connecting
-        let (tx, mut rx) = mpsc::channel(100);
+        let (tx, mut rx) = mpsc::channel(SEND_DATA_BUFFER);
         assert_eq!(
             connecting_manager.add_connection(listening_id.clone(), tx),
             Added
@@ -321,7 +322,7 @@ mod tests {
             .is_ok());
         assert_eq!(data, rx.next().await.expect("should receive"));
         // add incoming to listening
-        let (tx, mut rx) = mpsc::channel(100);
+        let (tx, mut rx) = mpsc::channel(SEND_DATA_BUFFER);
         assert_eq!(
             listening_manager.add_connection(connecting_id.clone(), tx),
             Added
