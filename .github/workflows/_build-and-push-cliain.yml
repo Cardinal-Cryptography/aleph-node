@@ -32,7 +32,7 @@ jobs:
 
       - name: ${{ env.CARGO_COMMAND }} cliain binary
         run: |
-          cargo ${{ env.CARGO_COMMAND }} --release ${{ env.FEATURES }}
+          cd ./bin/cliain && cargo ${{ env.CARGO_COMMAND }} --release ${{ env.FEATURES }}
 
       - name: Upload cliain binary to GH artifacts
         if: ${{ inputs.check-only != true }}
