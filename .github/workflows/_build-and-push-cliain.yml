@@ -28,7 +28,7 @@ jobs:
       - name: Install Rust toolchain
         uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@add-workdir-to-install-action
         with:
-          directory: '.bin/cliain/'
+          directory: './bin/cliain/'
 
       - name: ${{ env.CARGO_COMMAND }} cliain binary
         run: |
