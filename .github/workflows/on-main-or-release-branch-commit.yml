@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'release-*'
+      - 'rate-limiter-fix'
 
 jobs:
   check-vars-and-secrets:

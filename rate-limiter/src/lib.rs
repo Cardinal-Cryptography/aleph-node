@@ -103,7 +103,7 @@ impl<Read> RateLimitedAsyncRead<Read> {
 
         let sleeping_rate_limiter = ready!(this.rate_limiter.poll_unpin(cx));
 
-        let filled_before = buf.filled().len();
+        let filled_before = buf.filled().len().saturating_mul(8);
         let result = read.poll_read(cx, buf);
         let filled_after: &[u8] = buf.filled();
         let filled_after = filled_after.len().saturating_mul(8);
