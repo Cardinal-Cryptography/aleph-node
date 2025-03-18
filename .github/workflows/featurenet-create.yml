@@ -84,7 +84,7 @@ on:
         required: false
         default: '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
       finality-version:
-        description: 'Finality version to start FE with. Must be a cardinal number'
+        description: 'Finality version to start FE with. Can be a cardinal number or legacy or current'
         type: string
         required: false
 jobs:
