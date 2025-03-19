@@ -86,7 +86,7 @@ on:
       finality-version:
         description: >
           Finality version to start FE with. Can be a cardinal number,
-          or 'legacy' or 'current'. 
+          or 'legacy' or 'current'.
         type: string
         required: false
 jobs:
