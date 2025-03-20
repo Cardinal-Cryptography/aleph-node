@@ -4,11 +4,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use log::trace;
 use lru::LruCache;
 
 use crate::{
     block::{Header, Justification},
-    sync::PeerId,
+    sync::{forest::LOG_TARGET, PeerId},
     BlockId,
 };
 
@@ -320,14 +321,17 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
     pub fn set_explicitly_required(&mut self) -> bool {
         use HeaderImportance::*;
         use InnerVertex::*;
-        match &mut self.inner {
+        trace!(target: LOG_TARGET, "set_explicitly_required begin vertex {:?}", self);
+        let result = match &mut self.inner {
             Empty { required }
             | Header {
                 importance: Unimported(required) | Importing(required, _),
                 ..
             } => required.set_explicitly_required(),
             _ => false,
-        }
+        };
+        trace!(target: LOG_TARGET, "set_explicitly_required begin vertex {:?}, result: {}", self, result);
+        result
     }
 
     /// Set the vertex to be required, returns whether anything changed, i.e. the vertex was not
@@ -335,41 +339,49 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
     pub fn set_required(&mut self) -> bool {
         use HeaderImportance::*;
         use InnerVertex::*;
-        match &mut self.inner {
+        trace!(target: LOG_TARGET, "set_required begin vertex {:?}", self);
+        let result = match &mut self.inner {
             Empty { required }
             | Header {
                 importance: Unimported(required) | Importing(required, _),
                 ..
             } => required.set_required(),
             _ => false,
-        }
+        };
+        trace!(target: LOG_TARGET, "set_required end vertex {:?}, result: {}", self, result);
+        result
     }
 
     /// Mark the start of the related block being imported, if possible.
     pub fn start_import(&mut self) {
         use InnerVertex::*;
+        trace!(target: LOG_TARGET, "start_import begin vertex {:?}", self);
         match &mut self.inner {
             Header { importance, .. } => importance.start_import(),
             Justification { importance, .. } => importance.start_import(),
             _ => (),
-        }
+        };
+        trace!(target: LOG_TARGET, "start_import end vertex {:?}", self);
     }
 
     /// Adds a peer that knows most about the block this vertex refers to. Does nothing if we
     /// already have a justification.
     pub fn add_block_holder(&mut self, holder: Option<I>) {
+        trace!(target: LOG_TARGET, "add_block_holder begin vertex {:?}", self);
         if let Some(holder) = holder {
             if !matches!(self.inner, InnerVertex::Justification { .. }) {
                 self.know_most.put(holder, ());
             }
         }
+        trace!(target: LOG_TARGET, "add_block_holder end vertex {:?}", self);
     }
 
     /// Adds the information the header provides to the vertex.
     /// Returns whether this is a new header.
     pub fn insert_header(&mut self, header: J::Header, holder: Option<I>) -> bool {
+        trace!(target: LOG_TARGET, "insert_header begin vertex {:?}", self);
         self.add_block_holder(holder);
-        match self.inner {
+        let result = match self.inner {
             InnerVertex::Empty { required } => {
                 self.inner = InnerVertex::Header {
                     importance: HeaderImportance::Unimported(required),
@@ -378,14 +390,17 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
                 true
             }
             _ => false,
-        }
+        };
+        trace!(target: LOG_TARGET, "insert_header end vertex {:?}, result {}", self, result);
+        result
     }
 
     /// Adds the information the header provides to the vertex and marks it as imported. Returns
     /// whether it was not imported before.
     pub fn insert_body(&mut self, header: J::Header) -> bool {
         use InnerVertex::*;
-        match &self.inner {
+        trace!(target: LOG_TARGET, "insert_body begin vertex {:?}", self);
+        let result = match &self.inner {
             Empty { .. }
             | Header {
                 importance: HeaderImportance::Unimported(_) | HeaderImportance::Importing(_, _),
@@ -411,7 +426,9 @@ impl<I: PeerId, J: Justification> Vertex<I, J> {
                 true
             }
             _ => false,
-        }
+        };
+        trace!(target: LOG_TARGET, "insert_body end vertex {:?}, result: {}", self, result);
+        result
     }
 
     /// Adds a justification to the vertex.

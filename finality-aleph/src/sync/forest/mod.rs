@@ -6,6 +6,7 @@ use std::{
     fmt::{Display, Error as FmtError, Formatter},
 };
 
+use log::trace;
 use static_assertions::const_assert;
 
 use crate::{
@@ -18,6 +19,8 @@ use crate::{
 mod vertex;
 
 use vertex::Vertex;
+
+const LOG_TARGET: &str = "aleph-forest";
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SpecialState {
@@ -33,6 +36,7 @@ enum VertexHandleMut<'a, I: PeerId, J: Justification> {
     Candidate(OccupiedEntry<'a, BlockId, VertexWithChildren<I, J>>),
 }
 
+#[derive(Debug)]
 enum VertexHandle<'a, I: PeerId, J: Justification> {
     Special(SpecialState),
     Unknown,
@@ -127,6 +131,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct VertexWithChildren<I: PeerId, J: Justification> {
     vertex: Vertex<I, J>,
     children: HashSet<BlockId>,
@@ -594,7 +599,9 @@ where
 
     /// How much interest we have for requesting the block.
     pub fn request_interest(&self, id: &BlockId) -> Interest<J::Header, I> {
-        self.prepare_request_info(id, false)
+        let request_info = self.prepare_request_info(id, false);
+        trace!(target: LOG_TARGET, "Requested interest of block id: {:?}, vertex {:?}, and got {:?}", id, self.get(id), &request_info);
+        request_info
     }
 
     /// Whether we would like to eventually import this block.
