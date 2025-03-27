@@ -56,11 +56,11 @@ jobs:
     uses: ./.github/workflows/_push-image-to-ecr.yml
     secrets: inherit
     with:
-      binary-artifact-name: ${{ needs.build-chain-bootstrapper.outputs.artifact-name-binary }}
-      # yamllint disable-line rule:line-length
+      # yamllint disable rule:line-length
+      binary-artifact-name: ${{ needs.build-production-chain-bootstrapper.outputs.artifact-name-binary }}
       docker-image-name: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image }}
-      # yamllint disable-line rule:line-length
       docker-image-name-latest: ${{ needs.get-full-docker-image-path.outputs.chain-bootstrapper-fqdn-image-latest }}
+      # yamllint enable rule:line-length
       binary-name: chain-bootstrapper
       docker-file-path: ./bin/chain-bootstrapper/Dockerfile
 
