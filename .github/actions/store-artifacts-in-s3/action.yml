@@ -92,6 +92,7 @@ runs:
         source-path: target
         source-filename: chain-bootstrapper
         s3-bucket-path:
+          # yamllint disable-line rule:line-length
           builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/chain-bootstrapper-production
         s3-bucket-filename:
           chain-bootstrapper-production-${{ steps.get-ref-properties.outputs.sha }}.tar.gz

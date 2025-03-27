@@ -63,6 +63,7 @@ jobs:
         env:
           # yamllint disable-line rule:line-length
           S3BUCKET_URL: s3://${{ secrets.CI_MAINNET_S3BUCKET_NAME }}/builds/aleph-node/commits/${{ steps.get-ref-properties.outputs.sha }}/chain-bootstrapper-production
+          # yamllint disable-line rule:line-length
           S3BUCKET_FILE: chain-bootstrapper-production-${{ steps.get-ref-properties.outputs.sha }}.tar.gz
         run: |
           aws s3 cp '${{ env.S3BUCKET_URL }}/${{ env.S3BUCKET_FILE }}' \
