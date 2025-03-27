@@ -90,12 +90,13 @@ jobs:
     needs: [build-production-runtime]
     uses: ./.github/workflows/_check-runtime-determimism.yml
 
-  store-production-node-and-runtime-in-mainnet-s3:
-    name: Store production node and runtime in Mainnet bucket
+  store-ci-artifacts-in-mainnet-s3:
+    name: Store CI artifacts in Mainnet bucket
     runs-on: ubuntu-20.04
     needs:
       - build-production-aleph-node
       - build-production-runtime
+      - build-production-chain-bootstrapper
     steps:
       - name: Checkout aleph-node source code
         uses: actions/checkout@v4
