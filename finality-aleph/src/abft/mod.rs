@@ -25,7 +25,8 @@ pub use current::{
 };
 pub use legacy::{
     create_aleph_config as legacy_create_aleph_config, run_member as run_legacy_member,
-    NetworkData as LegacyNetworkData, VERSION as LEGACY_VERSION,
+    NetworkData as LegacyNetworkData, PerformanceService as LegacyPerformanceService,
+    PerformanceServiceIO as LegacyPerformanceServiceIO, VERSION as LEGACY_VERSION,
 };
 pub use network::NetworkWrapper;
 use parity_scale_codec::{Decode, Encode};
@@ -95,7 +96,6 @@ impl From<SignatureSet<Signature>> for PrimitivesSignatureSet<AuthoritySignature
     }
 }
 
-// Currently the traits for legacy and current match, so only one implementation needed.
 impl<S: AbftSignature> legacy_aleph_bft::PartialMultisignature for SignatureSet<S> {
     type Signature = S;
 
@@ -103,6 +103,18 @@ impl<S: AbftSignature> legacy_aleph_bft::PartialMultisignature for SignatureSet<
         self,
         signature: &Self::Signature,
         index: legacy_aleph_bft::NodeIndex,
+    ) -> Self {
+        SignatureSet::add_signature(self, signature, index.into())
+    }
+}
+
+impl<S: AbftSignature> current_aleph_bft::PartialMultisignature for SignatureSet<S> {
+    type Signature = S;
+
+    fn add_signature(
+        self,
+        signature: &Self::Signature,
+        index: current_aleph_bft::NodeIndex,
     ) -> Self {
         SignatureSet::add_signature(self, signature, index.into())
     }

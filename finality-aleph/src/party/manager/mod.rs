@@ -12,7 +12,8 @@ use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use crate::{
     abft::{
         current_create_aleph_config, legacy_create_aleph_config, run_current_member,
-        run_legacy_member, CurrentPerformanceService, CurrentPerformanceServiceIO, SpawnHandle,
+        run_legacy_member, CurrentPerformanceService, CurrentPerformanceServiceIO,
+        LegacyPerformanceService, LegacyPerformanceServiceIO, SpawnHandle,
     },
     aleph_primitives::{
         crypto::SignatureSet, AuthoritySignature, BlockHash, BlockNumber, Hash, KEY_TYPE,
@@ -48,7 +49,7 @@ mod authority;
 mod task;
 
 pub use authority::{Subtasks, Task as AuthorityTask};
-pub use task::{Handle, NoopRunnable, Runnable, Task, TaskCommon};
+pub use task::{Handle, Runnable, Task, TaskCommon};
 
 use crate::{
     abft::{CURRENT_VERSION, LEGACY_VERSION},
@@ -190,10 +191,13 @@ where
             n_members,
             node_id,
             session_id,
+            score_submission_period,
             data_network,
             session_boundaries,
             subtask_common,
             blocks_for_aggregator,
+            performance_for_aggregator,
+            signed_performance_from_aggregator,
             chain_info,
             aggregator_io,
             multikeychain,
@@ -213,6 +217,19 @@ where
             chain_info,
             self.verifier.clone(),
             session_boundaries.clone(),
+        );
+        let (abft_performance, abft_batch_handler) = LegacyPerformanceService::new(
+            node_id.into(),
+            n_members,
+            session_id,
+            score_submission_period,
+            ordered_data_interpreter,
+            LegacyPerformanceServiceIO {
+                hashes_for_aggregator: performance_for_aggregator,
+                signatures_from_aggregator: signed_performance_from_aggregator,
+            },
+            self.runtime_api.clone(),
+            self.score_metrics.clone(),
         );
         let consensus_config =
             legacy_create_aleph_config(n_members, node_id, session_id, self.unit_creation_delay);
@@ -237,14 +254,10 @@ where
                 consensus_config,
                 aleph_network.into(),
                 data_provider,
-                ordered_data_interpreter,
+                abft_batch_handler,
                 backup,
             ),
-            task::task(
-                subtask_common.clone(),
-                NoopRunnable,
-                "noop abft performance",
-            ),
+            task::task(subtask_common.clone(), abft_performance, "abft performance"),
             aggregator::task(
                 subtask_common.clone(),
                 self.header_backend.clone(),

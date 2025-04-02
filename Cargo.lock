@@ -75,8 +75,8 @@ dependencies = [
 name = "aggregator"
 version = "0.7.0"
 dependencies = [
- "aleph-bft-rmc 0.14.0",
- "aleph-bft-types 0.14.0",
+ "aleph-bft-rmc 0.15.0",
+ "aleph-bft-types 0.15.0",
  "async-trait",
  "futures",
  "log",
@@ -87,10 +87,10 @@ dependencies = [
 [[package]]
 name = "aggregator"
 version = "0.7.0"
-source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-14.0.0#0788bc518ffefb7084cb3401149b696f1ba37a2c"
+source = "git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-15.2.0#36ed9faa3fd6189a01437eb195a56ec8eccebb5b"
 dependencies = [
- "aleph-bft-rmc 0.13.0",
- "aleph-bft-types 0.13.0",
+ "aleph-bft-rmc 0.14.0",
+ "aleph-bft-types 0.14.0",
  "async-trait",
  "futures",
  "log",
@@ -133,27 +133,6 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft"
-version = "0.36.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f930b4c0d4a6b66533422e7ee62f5bab08949ada6d275298de909e95bc75b4ce"
-dependencies = [
- "aleph-bft-rmc 0.13.0",
- "aleph-bft-types 0.13.0",
- "anyhow",
- "async-trait",
- "derivative",
- "futures",
- "futures-timer",
- "itertools 0.12.1",
- "log",
- "parity-scale-codec",
- "parking_lot 0.12.3",
- "rand",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "aleph-bft"
 version = "0.42.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c89b5ad70909935424ee13421e1a98ddef96d24a9af4525461826e57328da6a"
@@ -174,25 +153,59 @@ dependencies = [
 ]
 
 [[package]]
+name = "aleph-bft"
+version = "0.44.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa84c98ce3586131f63dc09a8c76201d041c4fb3f15b55c25460916b592cfd89"
+dependencies = [
+ "aleph-bft-rmc 0.15.0",
+ "aleph-bft-types 0.15.0",
+ "anyhow",
+ "async-trait",
+ "derivative",
+ "futures",
+ "futures-timer",
+ "itertools 0.13.0",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.3",
+ "rand",
+ "thiserror 2.0.3",
+]
+
+[[package]]
 name = "aleph-bft-crypto"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf0c124883ef234a6262e43b9ed1d214e9f9c8744a88f1f2451c2b6efe4290"
 dependencies = [
  "async-trait",
- "bit-vec",
+ "bit-vec 0.6.3",
  "derive_more 0.99.18",
  "log",
  "parity-scale-codec",
 ]
 
 [[package]]
-name = "aleph-bft-mock"
-version = "0.15.0"
+name = "aleph-bft-crypto"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8222fc5e37b3341d6e4fa01054ddd20983fbae2f00d21e438876dc7caf9ed997"
+checksum = "2c0f3f6b54de4a430262a2a78473ba5c21ccdf6ef7e79b6b6c582ce8442d2d0e"
 dependencies = [
- "aleph-bft-types 0.14.0",
+ "async-trait",
+ "bit-vec 0.8.0",
+ "derive_more 1.0.0",
+ "log",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "aleph-bft-mock"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "962953e6ed73e5c05ec5fd189628c4c8562c723782b4f639460628c0c6e831a2"
+dependencies = [
+ "aleph-bft-types 0.15.0",
  "async-trait",
  "futures",
  "log",
@@ -204,26 +217,11 @@ dependencies = [
 
 [[package]]
 name = "aleph-bft-rmc"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "878948f17ae09afc0b62162a22325b8828fa1f46c90109bde7261224e2e09e34"
-dependencies = [
- "aleph-bft-crypto",
- "aleph-bft-types 0.13.0",
- "async-trait",
- "futures",
- "futures-timer",
- "log",
- "parity-scale-codec",
-]
-
-[[package]]
-name = "aleph-bft-rmc"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "795fad15176131c019e71ae7319bff398ad00e4079922ad368b7014e9068f03c"
 dependencies = [
- "aleph-bft-crypto",
+ "aleph-bft-crypto 0.9.0",
  "aleph-bft-types 0.14.0",
  "async-trait",
  "futures",
@@ -233,14 +231,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "aleph-bft-types"
-version = "0.13.0"
+name = "aleph-bft-rmc"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bca9d19f587215da2b6c50b5e71f9addbf2305153f850dad3f9496ed67e28bb"
+checksum = "4ba672afde93f7c4ce1f6c829db8663fa9c58c86f09b616acc6a0177c7124c21"
 dependencies = [
- "aleph-bft-crypto",
+ "aleph-bft-crypto 0.10.0",
+ "aleph-bft-types 0.15.0",
  "async-trait",
  "futures",
+ "futures-timer",
+ "log",
  "parity-scale-codec",
 ]
 
@@ -250,7 +251,19 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8986b69d48e1dd4ea1a6b0ca820321dddbf4089efca3301d479ec45dcb167dea"
 dependencies = [
- "aleph-bft-crypto",
+ "aleph-bft-crypto 0.9.0",
+ "async-trait",
+ "futures",
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "aleph-bft-types"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16704feb7f3e2ce624ae0fe9cd1ea4a5973586e0c5177795818f52e91205ea5c"
+dependencies = [
+ "aleph-bft-crypto 0.10.0",
  "async-trait",
  "futures",
  "parity-scale-codec",
@@ -842,6 +855,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
+name = "bit-vec"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
+
+[[package]]
 name = "bitcoin-internals"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1372,6 +1391,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,7 +1825,7 @@ version = "0.99.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f33878137e4dafd7fa914ad4e259e18a4e8e532b9617a2d0150262bf53abfce"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
@@ -1819,6 +1847,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
+ "convert_case 0.6.0",
  "proc-macro2",
  "quote",
  "syn 2.0.89",
@@ -2280,12 +2309,12 @@ name = "finality-aleph"
 version = "0.11.0"
 dependencies = [
  "aggregator 0.7.0",
- "aggregator 0.7.0 (git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-14.0.0)",
- "aleph-bft 0.36.5",
+ "aggregator 0.7.0 (git+https://github.com/Cardinal-Cryptography/aleph-node.git?tag=r-15.2.0)",
  "aleph-bft 0.42.1",
- "aleph-bft-crypto",
- "aleph-bft-rmc 0.13.0",
+ "aleph-bft 0.44.2",
+ "aleph-bft-crypto 0.10.0",
  "aleph-bft-rmc 0.14.0",
+ "aleph-bft-rmc 0.15.0",
  "array-bytes 6.2.3",
  "async-trait",
  "derive_more 1.0.0",
@@ -3606,15 +3635,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
@@ -4825,7 +4845,7 @@ name = "network-clique"
 version = "0.6.0"
 dependencies = [
  "aleph-bft-mock",
- "aleph-bft-types 0.14.0",
+ "aleph-bft-types 0.15.0",
  "async-trait",
  "bytes",
  "env_logger",
@@ -9758,6 +9778,12 @@ checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unicode-width"
