@@ -70,7 +70,7 @@ where
     forest: &'a Forest<I, J>,
 }
 
-impl<'a, I, J> InterestProvider<'a, I, J>
+impl<I, J> InterestProvider<'_, I, J>
 where
     I: PeerId,
     J: Justification,
@@ -1454,9 +1454,8 @@ mod tests {
         );
         let (new_info, _, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
-        match maybe_error {
-            None => panic!("should fail when it reaches the top finalized"),
-            Some(_) => (),
+        if maybe_error.is_none() {
+            panic!("should fail when it reaches the top finalized");
         }
 
         // check that the fork is pruned
@@ -1555,9 +1554,8 @@ mod tests {
         );
         let (new_info, _, maybe_error) = handler.handle_request_response(response, 12);
         assert!(!new_info, "should not create new highest justified");
-        match maybe_error {
-            None => panic!("should fail when it reaches the top finalized"),
-            Some(_) => (),
+        if maybe_error.is_none() {
+            panic!("should fail when it reaches the top finalized");
         }
 
         // check that the fork is pruned
