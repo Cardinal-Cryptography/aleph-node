@@ -416,8 +416,7 @@ where
             .map_err(|_| HeaderVerificationError::MissingAuthorityData)?;
 
         let (header, slot) =
-            Self::check_header_slot_and_seal(header, &authorities.aura_authorities)
-                .map_err(HeaderVerificationError::from)?;
+            Self::check_header_slot_and_seal(header, &authorities.aura_authorities)?;
 
         let (expected_author, maybe_account_id) = Self::slot_author(
             slot,

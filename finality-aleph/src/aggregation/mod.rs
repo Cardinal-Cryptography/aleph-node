@@ -74,7 +74,7 @@ where
     agg: EitherAggregator<CN, LN>,
 }
 
-impl<'a, CN, LN> Aggregator<CN, LN>
+impl<CN, LN> Aggregator<CN, LN>
 where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,

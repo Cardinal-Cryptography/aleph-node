@@ -444,6 +444,7 @@ pub mod staking {
     ///   * `arg1: type1, arg2: type,...`is a list of arguments and will be passed as is, can be empty
     ///   * `class_name`is a class that has non-self `method-name`,ie symbol `class_name::method_name` exists,
     ///   * `return_type` is type returned from `method_name`
+    ///
     /// Example
     /// ```ignore
     /// wrap_methods!(

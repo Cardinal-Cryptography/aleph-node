@@ -7,8 +7,9 @@ number of _underperformance_ sessions, which means that number of blocks produce
 validator is less than some predefined threshold.
 In other words, if a validator:
 * performance in a session is less or equal to a configurable threshold
-`BanConfig::minimal_expected_performance` (from 0 to 100%), and,
+  `BanConfig::minimal_expected_performance` (from 0 to 100%), and,
 * it happened at least `BanConfig::underperformed_session_count_threshold` times,
+
 then the validator is considered an underperformer and hence removed (ie _banned out_) from the
 committee.
 

@@ -302,7 +302,7 @@ where
     _phantom: PhantomData<(B, J)>,
 }
 
-impl<'a, B, J, CS> HandlerTypes for RequestHandler<'a, B, J, CS>
+impl<B, J, CS> HandlerTypes for RequestHandler<'_, B, J, CS>
 where
     J: Justification,
     B: Block<UnverifiedHeader = UnverifiedHeaderFor<J>>,
