@@ -39,12 +39,15 @@ impl AsRef<[u8]> for SignableTypedHash {
 }
 
 pub type LegacyRmcNetworkData =
-    legacy_aleph_aggregator::RmcNetworkData<Hash, Signature, SignatureSet<Signature>>;
+    legacy_aleph_aggregator::RmcNetworkData<SignableTypedHash, Signature, SignatureSet<Signature>>;
 pub type CurrentRmcNetworkData =
     current_aleph_aggregator::RmcNetworkData<SignableTypedHash, Signature, SignatureSet<Signature>>;
 
-pub type LegacyAggregator<N> =
-    legacy_aleph_aggregator::IO<Hash, NetworkWrapper<LegacyRmcNetworkData, N>, Keychain>;
+pub type LegacyAggregator<N> = legacy_aleph_aggregator::IO<
+    SignableTypedHash,
+    NetworkWrapper<LegacyRmcNetworkData, N>,
+    Keychain,
+>;
 
 pub type CurrentAggregator<N> = current_aleph_aggregator::IO<
     SignableTypedHash,
@@ -71,7 +74,7 @@ where
     agg: EitherAggregator<CN, LN>,
 }
 
-impl<'a, CN, LN> Aggregator<CN, LN>
+impl<CN, LN> Aggregator<CN, LN>
 where
     LN: Network<LegacyRmcNetworkData>,
     CN: Network<CurrentRmcNetworkData>,
@@ -82,7 +85,7 @@ where
         );
         let rmc_handler = legacy_aleph_bft_rmc::Handler::new(multikeychain.clone());
         let rmc_service = legacy_aleph_bft_rmc::Service::new(scheduler, rmc_handler);
-        let aggregator = legacy_aleph_aggregator::BlockSignatureAggregator::new();
+        let aggregator = legacy_aleph_aggregator::HashSignatureAggregator::new();
         let aggregator_io =
             LegacyAggregator::<LN>::new(NetworkWrapper::new(rmc_network), rmc_service, aggregator);
 
@@ -107,13 +110,9 @@ where
     }
 
     pub async fn start_aggregation(&mut self, h: SignableTypedHash) {
-        use SignableTypedHash::*;
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.start_aggregation(h).await,
-            EitherAggregator::Legacy(agg) => match h {
-                Block(h) => agg.start_aggregation(h).await,
-                Performance(_) => { /* should never happen, but ignoring is fine */ }
-            },
+            EitherAggregator::Legacy(agg) => agg.start_aggregation(h).await,
         }
     }
 
@@ -122,10 +121,7 @@ where
     ) -> Option<(SignableTypedHash, SignatureSet<Signature>)> {
         match &mut self.agg {
             EitherAggregator::Current(agg) => agg.next_multisigned_hash().await,
-            EitherAggregator::Legacy(agg) => agg
-                .next_multisigned_hash()
-                .await
-                .map(|(h, sig)| (SignableTypedHash::Block(h), sig)),
+            EitherAggregator::Legacy(agg) => agg.next_multisigned_hash().await,
         }
     }
 

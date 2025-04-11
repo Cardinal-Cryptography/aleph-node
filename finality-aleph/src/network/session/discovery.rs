@@ -36,11 +36,7 @@ impl<A: AddressingInformation> Discovery<A> {
         &mut self,
         handler: &SessionHandler<A>,
     ) -> Option<Authentication<A>> {
-        let authentication = match handler.authentication() {
-            Some(authentication) => authentication,
-            None => return None,
-        };
-
+        let authentication = handler.authentication()?;
         let missing_authorities = handler.missing_nodes();
         let node_count = handler.node_count();
         info!(target: "aleph-network", "{}/{} authorities known for session {}.", node_count.0-missing_authorities.len(), node_count.0, handler.session_id().0);

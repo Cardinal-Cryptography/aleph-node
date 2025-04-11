@@ -5,9 +5,11 @@ use log::debug;
 use network_clique::SpawnHandleExt;
 
 mod network;
+mod performance;
 mod traits;
 
 pub use network::NetworkData;
+pub use performance::{Service as PerformanceService, ServiceIO as PerformanceServiceIO};
 
 pub use crate::aleph_primitives::LEGACY_FINALITY_VERSION as VERSION;
 use crate::{
@@ -15,9 +17,9 @@ use crate::{
         common::{unit_creation_delay_fn, MAX_ROUNDS, SESSION_LEN_LOWER_BOUND_MS},
         NetworkWrapper,
     },
-    block::{Header, HeaderBackend, HeaderVerifier},
+    block::UnverifiedHeader,
     crypto::Signature,
-    data_io::{AlephData, OrderedDataInterpreter, SubstrateChainInfoProvider},
+    data_io::AlephData,
     network::data::Network,
     oneshot,
     party::{
@@ -31,20 +33,21 @@ type WrappedNetwork<H, ADN> = NetworkWrapper<
     legacy_aleph_bft::NetworkData<Hasher, AlephData<H>, Signature, SignatureSet<Signature>>,
     ADN,
 >;
-pub fn run_member<H, C, ADN, V>(
+pub fn run_member<UH, ADN>(
     subtask_common: TaskCommon,
     multikeychain: Keychain,
     config: Config,
-    network: WrappedNetwork<H::Unverified, ADN>,
-    data_provider: impl legacy_aleph_bft::DataProvider<AlephData<H::Unverified>> + 'static,
-    ordered_data_interpreter: OrderedDataInterpreter<SubstrateChainInfoProvider<H, C>, H, V>,
+    network: WrappedNetwork<UH, ADN>,
+    data_provider: impl legacy_aleph_bft::DataProvider<Output = AlephData<UH>> + 'static,
+    ordered_data_interpreter: impl legacy_aleph_bft::UnitFinalizationHandler<
+        Data = AlephData<UH>,
+        Hasher = Hasher,
+    >,
     backup: ABFTBackup,
 ) -> Task
 where
-    H: Header,
-    C: HeaderBackend<H> + 'static,
-    ADN: Network<LegacyNetworkData<H::Unverified>> + 'static,
-    V: HeaderVerifier<H>,
+    UH: UnverifiedHeader,
+    ADN: Network<LegacyNetworkData<UH>> + 'static,
 {
     let TaskCommon {
         spawn_handle,
@@ -52,7 +55,12 @@ where
     } = subtask_common;
     let (stop, exit) = oneshot::channel();
     let member_terminator = Terminator::create_root(exit, "member");
-    let local_io = LocalIO::new(data_provider, ordered_data_interpreter, backup.0, backup.1);
+    let local_io = LocalIO::new_with_unit_finalization_handler(
+        data_provider,
+        ordered_data_interpreter,
+        backup.0,
+        backup.1,
+    );
 
     let task = {
         let spawn_handle = spawn_handle.clone();
