@@ -163,7 +163,7 @@ pub const DEFAULT_FINALITY_VERSION: Version = 0;
 pub const CURRENT_FINALITY_VERSION: u16 = LEGACY_FINALITY_VERSION + 1;
 
 /// Legacy version of abft.
-pub const LEGACY_FINALITY_VERSION: u16 = 4;
+pub const LEGACY_FINALITY_VERSION: u16 = 5;
 
 /// Percentage of validator performance that is treated as 100% performance
 pub const LENIENT_THRESHOLD: Perquintill = Perquintill::from_percent(90);
@@ -444,6 +444,7 @@ pub mod staking {
     ///   * `arg1: type1, arg2: type,...`is a list of arguments and will be passed as is, can be empty
     ///   * `class_name`is a class that has non-self `method-name`,ie symbol `class_name::method_name` exists,
     ///   * `return_type` is type returned from `method_name`
+    ///
     /// Example
     /// ```ignore
     /// wrap_methods!(

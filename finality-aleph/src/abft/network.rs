@@ -49,7 +49,7 @@ impl<D: Data, DN: Network<D> + 'static> current_aleph_bft::Network<D> for Networ
 }
 
 #[async_trait::async_trait]
-impl<D: Data, DN: Network<D>> legacy_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
+impl<D: Data, DN: Network<D> + 'static> legacy_aleph_bft::Network<D> for NetworkWrapper<D, DN> {
     fn send(&self, data: D, recipient: legacy_aleph_bft::Recipient) {
         NetworkWrapper::send(self, data, recipient)
     }

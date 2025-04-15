@@ -27,7 +27,6 @@ use crate::{
 /// 4. `new_session(S + 2)` is called.
 /// *  If session `S+2` starts new era we emit fresh bans events
 /// *  We rotate the validators for session `S + 2` using the information about reserved and non reserved validators.
-
 impl<T> pallet_authorship::EventHandler<T::AccountId, BlockNumberFor<T>> for Pallet<T>
 where
     T: Config,

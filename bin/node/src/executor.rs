@@ -4,7 +4,7 @@
 
 use sc_service::Configuration;
 
-#[cfg(not(any(feature = "runtime-benchmarks", feature = "aleph-native-runtime",)))]
+#[cfg(not(feature = "runtime-benchmarks"))]
 pub mod aleph_executor {
     use sc_executor::WasmExecutor;
 
@@ -18,7 +18,7 @@ pub mod aleph_executor {
     }
 }
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "aleph-native-runtime",))]
+#[cfg(feature = "runtime-benchmarks")]
 pub mod aleph_executor {
     use sc_executor::NativeElseWasmExecutor;
 

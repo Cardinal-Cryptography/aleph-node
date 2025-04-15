@@ -5,7 +5,9 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-impl<UH: UnverifiedHeader> legacy_aleph_bft::DataProvider<AlephData<UH>> for DataProvider<UH> {
+impl<UH: UnverifiedHeader> legacy_aleph_bft::DataProvider for DataProvider<UH> {
+    type Output = AlephData<UH>;
+
     async fn get_data(&mut self) -> Option<AlephData<UH>> {
         DataProvider::get_data(self).await
     }

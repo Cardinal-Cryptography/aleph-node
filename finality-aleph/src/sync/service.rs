@@ -164,6 +164,8 @@ impl<UH: UnverifiedHeader> RequestBlocks<UH> for mpsc::UnboundedSender<UH> {
     }
 }
 
+type HandlerResult<R, B, J, CS, V, F> = Result<R, HandlerError<B, J, CS, V, F>>;
+
 impl<B, J, N, CE, CS, V, F, BI> Service<B, J, N, CE, CS, V, F, BI>
 where
     J: Justification,
@@ -184,7 +186,7 @@ where
         metrics_registry: Option<Registry>,
         slo_metrics: SloMetrics,
         favourite_block_request: mpsc::UnboundedReceiver<oneshot::Sender<J::Header>>,
-    ) -> Result<(Self, impl RequestBlocks<B::UnverifiedHeader>), HandlerError<B, J, CS, V, F>> {
+    ) -> HandlerResult<(Self, impl RequestBlocks<B::UnverifiedHeader>), B, J, CS, V, F> {
         let IO {
             network,
             chain_events,

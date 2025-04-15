@@ -26,6 +26,7 @@ use sp_std::prelude::*;
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 pub(crate) const LOG_TARGET: &str = "pallet-aleph";
 
+#[expect(clippy::useless_conversion)]
 #[frame_support::pallet]
 #[pallet_doc("../README.md")]
 pub mod pallet {
