@@ -11,7 +11,7 @@ extrinsic or RPC calls. Run `./cliain --help` to see which of them are supported
 
 ## Signing account
 
-Tool reqires `--seed` parameter to sign given transaction with an account derived from the given seed.
+Tool requires `--seed` parameter to sign given transaction with an account derived from the given seed.
 If `--seed` is not given a prompt is displayed to enter the seed.
 
 ## WS endpoint
