@@ -25,7 +25,7 @@ use crate::{
     ConnectionApi, EraIndex, RootConnection, SignedConnectionApi, SudoCall, TxStatus,
 };
 
-/// Any object that implemnts pallet staking read-only api.
+/// Any object that implements pallet staking read-only api.
 #[async_trait::async_trait]
 pub trait StakingApi {
     /// Returns [`active_era`](https://paritytech.github.io/substrate/master/pallet_staking/struct.Pallet.html#method.active_era).
